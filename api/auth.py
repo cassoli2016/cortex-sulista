@@ -233,6 +233,9 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/desempenho/avaliar",       frozenset({"des", "desrh"})),
     ("/api/dre/alavancas",            frozenset({"dre", "dreexc"})),
     ("/api/dre/panorama",             frozenset({"dre", "dreexc"})),
+    # a mais especifica ANTES da generica: /parecer engoliria /parecer/narrativa
+    ("/api/dre/parecer/narrativa",    frozenset({"dre", "dreexc"})),
+    ("/api/dre/parecer",              frozenset({"dre", "dreexc"})),
     ("/api/dre/centros",              frozenset({"dre", "dreexc"})),
     ("/api/dre/conta-lancamentos",    frozenset({"dre", "dreexc"})),
     ("/api/dre/exclusoes/marcar",     frozenset({"dreexc"})),

@@ -384,6 +384,47 @@ def dre_panorama(comp_de: str, comp_ate: str,
             "mensagem": "Nao foi possivel montar o panorama."})
 
 
+@app.get("/api/dre/parecer/narrativa")
+def dre_parecer_narrativa(comp_de: str, comp_ate: str) -> JSONResponse:
+    """A REDACAO do parecer, pelo modelo que roda NESTA maquina.
+
+    Nunca cai para modelo externo, e a diferenca nao e de gosto: o payload tem
+    nome de conta, de centro de custo e de fornecedor. O que permite o fallback
+    externo do Copiloto e o snapshot dele ser escalar e anonimo; este nao e.
+    Sem o modelo, devolve a leitura MEDIDA dizendo que nao houve redacao — a
+    tela nunca fica sem parecer por causa do Ollama.
+    """
+    from api import dre_parecer
+    try:
+        p = dre_parecer.parecer(comp_de, comp_ate)
+        if p.get("erro"):
+            return JSONResponse(status_code=HTTP_RECUSA, content={
+                "erro": "periodo_curto", "mensagem": p["erro"]})
+        return JSONResponse(dre_parecer.narrar(p))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("dre parecer narrativa falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Nao foi possivel redigir o parecer."})
+
+
+@app.get("/api/dre/parecer")
+def dre_parecer_rota(comp_de: str, comp_ate: str) -> JSONResponse:
+    """A CAUSA do movimento: recorrente x nao, par espelhado, provisao aberta.
+
+    O ranking ja esta no /panorama; o que esta rota acrescenta e por que cada
+    conta se moveu — e se o movimento e gestao ou aritmetica.
+    """
+    from api import dre_parecer
+    try:
+        return JSONResponse(dre_parecer.parecer(comp_de, comp_ate))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("dre parecer falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Nao foi possivel montar o parecer."})
+
+
 # ===========================================================================
 # Avaliacao de Desempenho — nine box
 #

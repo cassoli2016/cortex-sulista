@@ -6772,6 +6772,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <button role="tab" id="tabdre-res" data-aba="res" aria-controls="aba-dre-res" aria-selected="true" onclick="abaTrocar('dre','res')">Resultado</button>
           <button role="tab" id="tabdre-atk" data-aba="atk" aria-controls="aba-dre-atk" aria-selected="false" onclick="abaTrocar('dre','atk')">Onde atacar</button>
           <button role="tab" id="tabdre-pano" data-aba="pano" aria-controls="aba-dre-pano" aria-selected="false" onclick="abaTrocar('dre','pano')">Conta a conta</button>
+          <button role="tab" id="tabdre-par" data-aba="par" aria-controls="aba-dre-par" aria-selected="false" onclick="abaTrocar('dre','par')">Parecer</button>
           <button role="tab" id="tabdre-exc" data-aba="exc" aria-controls="aba-dre-exc" aria-selected="false" onclick="abaTrocar('dre','exc')">Excluídos <span class="aban" id="dre-exc-n"></span></button>
         </div>
         <div class="aba" data-abas="dre" data-aba="res" id="aba-dre-res" role="tabpanel" aria-labelledby="tabdre-res">
@@ -6805,6 +6806,20 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card">
             <div class="head"><h2>Conta a conta, no último mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada conta comparada contra a PRÓPRIA média dos meses anteriores. &#10;&#10;CUSTO é medido como percentual da receita líquida do mês: é assim que 'ficou mais caro por real faturado' se separa de 'cresceu porque vendemos mais'. RECEITA é comparada em reais contra a própria média — medir receita como percentual da receita seria circular e diria que a receita de agregados 'melhorou' quando o que mudou foi o mix. &#10;&#10;O que OSCILA sai das duas listas: conta que salta de mês para mês não é alvo, é medição instável, e atacá-la é perseguir ruído. &#10;&#10;Variação abaixo de R$ 15 mil não entra, por maior que seja o percentual.">ⓘ</span></h2></div>
             <div id="dre-atk-pano" style="padding:0 18px 14px"></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="dre" data-aba="par" id="aba-dre-par" role="tabpanel" aria-labelledby="tabdre-par" data-ao-abrir="loadDrePar" hidden>
+          <div class="kband">
+            <div class="kpis k4" id="dre-par-kpis"></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>O parecer <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A CAUSA do movimento, não o valor dele — o valor já está nas outras abas. Tudo aqui é medido no razão: o resultado sai publicado E recorrente (a linha de venda de ativo desta casa já mascarou um prejuízo recorrente inteiro), as contas que são as duas pontas do mesmo movimento aparecem juntas com o líquido, e cada conta do ranking diz se o movimento foi UM lançamento (evento) ou a operação inteira (tendência) — são decisões diferentes. &#10;&#10;O texto é redigido pelo modelo que roda NESTA máquina, sobre números já medidos: o modelo escolhe as palavras, nunca os números, e nada daqui sai do servidor. Sem o modelo, o cartão mostra a mesma leitura sem redação, e diz que está fazendo isso.">ⓘ</span></h2><span class="hint" id="dre-par-origem"></span></div>
+            <div id="dre-par-aviso" style="padding:0 18px"></div>
+            <div id="dre-par-texto" class="tabroll" style="max-height:170px;padding:0 18px 14px;font-size:14px;line-height:1.6"></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>As evidências <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O que sustenta cada frase do parecer, com a conta e o lançamento. 'Não recorrente' é critério declarado sobre o NOME da conta, não campo do ERP — por isso a lista mostra o que foi tirado e por quê, e o resultado sai publicado das duas formas. 'Provisão em aberto' é o LANÇAMENTO de provisão casado pela contrapartida no passivo, nunca o saldo do dia da conta de custo: no mesmo dia convivem a provisão e o consumo efetivo, e somá-los infla a ressalva.">ⓘ</span></h2><span class="hint" id="dre-par-regras"></span></div>
+            <div id="dre-par-evid" class="tabroll" style="max-height:260px;padding:0 18px 14px"></div>
           </div>
         </div>
         <div class="aba" data-abas="dre" data-aba="exc" id="aba-dre-exc" role="tabpanel" aria-labelledby="tabdre-exc" data-ao-abrir="loadDreExc" hidden>
@@ -29130,6 +29145,187 @@ async function loadDreAtk(){
   document.getElementById('dre-atk-naoe-card').hidden = !naoe.length;
   document.getElementById('dre-atk-naoe').innerHTML = naoe.map(x =>
     `<p style="margin:0 0 9px"><b>${esc(x.titulo)}.</b> ${esc(x.texto)}</p>`).join('');
+}
+
+/* ===================== DRE · aba Parecer =====================
+   O numero ja esta nas outras abas; esta responde POR QUE ele se moveu.
+
+   DOIS PASSOS DE PROPOSITO. `/parecer` traz a medicao E a narrativa MEDIDA
+   (instantanea, deterministica, e o que fica na tela se o modelo local
+   estiver fora); so entao `/parecer/narrativa` pede a REDACAO ao modelo que
+   roda nesta maquina. A aba nunca espera o modelo para mostrar numero, e
+   nenhum numero desta tela passa por um modelo antes de virar texto. */
+let _dreParD = null;
+
+function dreParSelo(tipo){
+  const cls = {'evento único':'b-warn', 'provisão':'b-warn',
+               'concentrado':'b-info', 'espalhado':'b-ok'}[tipo] || 'b-info';
+  return `<span class="badge ${cls}">${esc(tipo)}</span>`;
+}
+
+async function loadDrePar(){
+  const alvo = document.getElementById('dre-par-texto');
+  if(!alvo) return;
+  alvo.innerHTML = '<p class="hint">medindo o razão…</p>';
+  const de = _dxV('fCompDe'), ate = _dxV('fCompAte');
+  const q = 'comp_de=' + encodeURIComponent(de)
+          + '&comp_ate=' + encodeURIComponent(ate);
+  let d;
+  try{
+    const r = await respostaJSON(await fetch('/api/dre/parecer?' + q,
+      {cache:'no-store'}));
+    if(!r.ok) throw new Error((r.dados||{}).mensagem || 'não foi possível medir');
+    d = r.dados;
+  }catch(e){
+    alvo.innerHTML = `<p class="hint">${esc(e.message||'falhou')}</p>`;
+    return;
+  }
+  if(d.erro){ alvo.innerHTML = `<p class="hint">${esc(d.erro)}</p>`; return; }
+  _dreParD = d;
+  dreParPintar(d);
+  dreParNarrar(q);
+}
+
+function dreParPintar(d){
+  const rec = d.recorrencia || {}, prov = d.provisoes || {};
+  const ref = ((d.periodo||{}).mes_referencia||'').split('-').reverse().join('/');
+  const aberto = prov.total_aberto || 0;
+  const el = document.getElementById('dre-par-kpis');
+  if(el){
+    el.innerHTML =
+      kpi('Resultado publicado', brlAbbr(rec.total_publicado),
+          brlAbbr(rec.media_publicado) + '/mês no período',
+          (rec.total_publicado||0) < 0 ? 'neg' : 'pos')
+    + kpi('Resultado recorrente', brlAbbr(rec.total_recorrente),
+          brlAbbr(rec.media_recorrente) + '/mês, sem o que não se repete',
+          (rec.total_recorrente||0) < 0 ? 'neg' : 'pos')
+    + kpi('Não recorrente', brlAbbr(rec.total_nao_recorrente),
+          (rec.itens||[]).length + ' contas fora do recorrente', '')
+    /* ZERO AQUI E AUSENCIA DE PROVISAO, e ausencia nao e desempenho: sem
+       provisao ciclando o cartao diz n/d, nunca um R$ 0 verde. */
+    + kpi('Provisão em aberto', aberto ? brlAbbr(aberto) : 'n/d',
+          aberto ? ref + ' ainda é estimativa em parte'
+                 : 'nada pendurado em ' + ref,
+          aberto ? 'warn' : '');
+  }
+  const reg = document.getElementById('dre-par-regras');
+  const r = d.regras || {};
+  if(reg) reg.textContent = 'piso de ' + brlAbbr(r.piso)
+    + ' · oscilação acima de CV ' + (r.cv_instavel||'')
+    + ' fora das listas · causa pelos lançamentos do mês';
+  dreParEvid(d);
+}
+
+function dreParEvid(d){
+  const el = document.getElementById('dre-par-evid');
+  if(!el) return;
+  const out = [], rec = d.recorrencia||{}, pan = d.panorama||{};
+  const h3 = t => `<h3 style="margin:14px 0 6px;font-size:13px">${t}</h3>`;
+
+  if((d.espelhos||[]).length){
+    out.push(h3('Duas pontas do mesmo movimento'));
+    d.espelhos.forEach(e => {
+      out.push(`<p class="hint" style="margin:0 0 4px">conta ${esc(e.conta_do_plano)}`
+        + ` do plano · líquido <b>${brl2(e.liquido)}</b></p>`);
+      out.push('<div class="tablewrap"><table><tbody>'
+        + e.pontas.map(p => `<tr><td>${esc(p.conta)}</td>`
+            + `<td class="num">${brl2(p.delta_rs)}</td></tr>`).join('')
+        + '</tbody></table></div>');
+    });
+  }
+
+  const causas = d.causas||{}, porChave = {};
+  ['piorou','melhorou'].forEach(lado => (pan[lado]||[]).forEach(it => {
+    porChave[it.grupo + '|' + it.reduzido] = it; }));
+  const chaves = Object.keys(causas).sort((a,b) =>
+    Math.abs((porChave[b]||{}).delta_rs||0) - Math.abs((porChave[a]||{}).delta_rs||0));
+  if(chaves.length){
+    out.push(h3('A causa, conta a conta'));
+    out.push('<div class="tablewrap"><table><thead><tr><th>Conta</th>'
+      + '<th class="num">Δ no mês</th><th>Causa</th><th>Por quê</th>'
+      + '</tr></thead><tbody>'
+      + chaves.map(k => {
+          const it = porChave[k]||{}, c = causas[k];
+          return `<tr><td>${esc(it.nome||k)}</td>`
+            + `<td class="num">${brl2(it.delta_rs)}</td>`
+            + `<td>${dreParSelo(c.tipo)}</td>`
+            + `<td class="hint">${esc(c.motivo)}</td></tr>`;
+        }).join('')
+      + '</tbody></table></div>');
+  }
+
+  const prov = d.provisoes||{};
+  out.push(h3('Provisão no fechamento de '
+    + esc(((d.periodo||{}).mes_referencia||'').split('-').reverse().join('/'))));
+  if(prov.erro){
+    out.push(`<p class="hint">${esc(prov.erro)}</p>`);
+  }else if(!(prov.itens||[]).length){
+    out.push('<p class="hint">Nenhuma provisão lançada no último dia do mês.</p>');
+  }else{
+    out.push('<div class="tablewrap"><table><thead><tr><th>Conta</th>'
+      + '<th>Histórico</th><th class="num">Valor</th><th>Estado</th>'
+      + '</tr></thead><tbody>'
+      + prov.itens.map(i => {
+          const st = !i.cicla ? '<span class="badge b-info">não cicla</span>'
+            : (i.baixada ? '<span class="badge b-ok">baixada</span>'
+                         : '<span class="badge b-warn">em aberto</span>');
+          return `<tr><td>${esc(i.conta)}</td>`
+            + `<td class="hint">${esc(i.historico)}</td>`
+            + `<td class="num">${brl2(i.valor)}</td><td>${st}</td></tr>`;
+        }).join('')
+      + '</tbody></table></div>');
+    out.push(`<p class="hint">${esc(prov.fonte||'')}`
+      + (prov.razao_ate ? ' Razão lançado até ' + esc(prov.razao_ate) + '.' : '')
+      + '</p>');
+  }
+
+  if((rec.itens||[]).length){
+    out.push(h3('O que saiu do recorrente'));
+    out.push('<div class="tablewrap"><table><thead><tr><th>Conta</th>'
+      + '<th class="num">Total no período</th><th>Motivo</th>'
+      + '</tr></thead><tbody>'
+      + rec.itens.map(i => `<tr><td>${esc(i.conta)}</td>`
+          + `<td class="num">${brl2(i.total)}</td>`
+          + `<td class="hint">${esc(i.motivo)}</td></tr>`).join('')
+      + '</tbody></table></div>');
+    out.push(`<p class="hint">${esc(rec.criterio||'')}</p>`);
+  }
+  el.innerHTML = out.join('');
+}
+
+async function dreParNarrar(q){
+  const alvo = document.getElementById('dre-par-texto');
+  const org = document.getElementById('dre-par-origem');
+  const avi = document.getElementById('dre-par-aviso');
+  if(!alvo) return;
+  /* A leitura MEDIDA ja pode aparecer: ela nao depende de modelo nenhum, e se
+     o modelo nao responder e ela que fica. */
+  const base = (_dreParD||{}).frases || [];
+  if(base.length){
+    alvo.innerHTML = '<ul style="margin:0;padding-left:18px">'
+      + base.map(f => `<li style="margin:0 0 7px">${esc(f)}</li>`).join('')
+      + '</ul>';
+  }
+  if(org) org.textContent = 'redigindo no modelo local…';
+  let d;
+  try{
+    const r = await respostaJSON(await fetch('/api/dre/parecer/narrativa?' + q,
+      {cache:'no-store'}));
+    if(!r.ok) throw new Error('sem redação');
+    d = r.dados;
+  }catch(e){
+    if(org) org.textContent = 'leitura medida · o modelo local não respondeu';
+    return;
+  }
+  if(d && d.texto){
+    alvo.innerHTML = d.texto.split(/\n\s*\n/)
+      .map(p => `<p style="margin:0 0 10px">${esc(p).replace(/\n/g,'<br>')}</p>`)
+      .join('');
+  }
+  if(org) org.textContent = 'redigido por ' + esc(d && d.origem || 'modelo local')
+    + ' sobre números já medidos';
+  if(avi) avi.innerHTML = (d && d.aviso)
+    ? `<p class="hint" style="color:var(--yellow-700)">${esc(d.aviso)}</p>` : '';
 }
 
 async function loadDreExc(){

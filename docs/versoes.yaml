@@ -1,3 +1,32 @@
+- versao: "0.227.0"
+  data: "2026-09-04"
+  adicionado:
+    - >-
+      Aba "Parecer" na DRE Gerencial: além do quanto, o PORQUÊ. Ela diz o
+      resultado do período nas duas formas — o publicado e o recorrente, sem
+      venda de ativo nem recuperação de crédito — e mostra a lista do que tirou
+      e por quê, para quem discordar poder discordar do item.
+    - >-
+      A aba junta as contas que são as DUAS PONTAS do mesmo movimento e publica
+      o líquido. Em agosto/2026, "Diesel frota" aparecia como a segunda maior
+      piora do mês e "Diesel agregados" como a segunda maior melhora: é a mesma
+      conta vista dos dois lados, porque a empresa compra todo o combustível e
+      recupera o do agregado. Lidas separadas, invertem a conclusão.
+    - >-
+      Cada conta do ranking passa a dizer se o movimento foi UM lançamento
+      (evento único), poucos (concentrado) ou a operação inteira (espalhado) —
+      são decisões diferentes, e um delta explicado por um lançamento só não é
+      tendência.
+    - >-
+      Ressalva de provisão em aberto no último mês: quanto do mês ainda é
+      estimativa, em que conta e em que lançamento, e se a baixa já entrou.
+      Provisão de 13º e férias fica de fora porque acumula em vez de virar
+      fatura.
+    - >-
+      O texto do parecer é redigido pelo modelo que roda no próprio servidor,
+      sobre números já medidos: o modelo escolhe as palavras, nunca os números,
+      e nada sai da máquina. Sem o modelo a aba mostra a mesma leitura sem
+      redação, e diz que está fazendo isso.
 - versao: "0.226.1"
   data: "2026-09-04"
   adicionado:
