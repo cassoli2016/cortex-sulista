@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.226.1] — 04/09/2026  ·  CX-04/09/2026-v0.226.1
+
+### Adicionado
+- Agente de desenvolvimento "controller" (`.claude/agents/controller.md`): um Controller de transportadora para análise financeira e contábil profunda — abrir o resultado até o lançamento, achar a causa de um movimento, conferir classificação de conta e reconciliar relatórios que discordam. Não muda nada no painel: é ferramenta de quem desenvolve e analisa, e ela não escreve no banco.
+- Ele nasceu apontando para as fontes REAIS (o razão do AVA, o banco da casa, `queries.get_dre`, `dre_drill`, `dre_alavancas`) e não para o `sql/schema.sql`, que descreve tabelas `fin_*` que nunca existiram — é o erro que os agentes antigos carregam. Cada função e cada arquivo citados foram conferidos contra o repositório.
+
 ## [0.226.0] — 04/09/2026  ·  CX-04/09/2026-v0.226.0
 
 ### Adicionado

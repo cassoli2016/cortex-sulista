@@ -1,3 +1,20 @@
+- versao: "0.226.1"
+  data: "2026-09-04"
+  adicionado:
+    - >-
+      Agente de desenvolvimento "controller" (`.claude/agents/controller.md`):
+      um Controller de transportadora para análise financeira e contábil
+      profunda — abrir o resultado até o lançamento, achar a causa de um
+      movimento, conferir classificação de conta e reconciliar relatórios que
+      discordam. Não muda nada no painel: é ferramenta de quem desenvolve e
+      analisa, e ela não escreve no banco.
+    - >-
+      Ele nasceu apontando para as fontes REAIS (o razão do AVA, o banco da
+      casa, `queries.get_dre`, `dre_drill`, `dre_alavancas`) e não para o
+      `sql/schema.sql`, que descreve tabelas `fin_*` que nunca existiram — é o
+      erro que os agentes antigos carregam. Cada função e cada arquivo citados
+      foram conferidos contra o repositório.
+
 - versao: "0.226.0"
   data: "2026-09-04"
   adicionado:
