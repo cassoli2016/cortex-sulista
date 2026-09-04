@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.229.0] — 04/09/2026  ·  CX-04/09/2026-v0.229.0
+
+### Adicionado
+- Primeira pedra do controle de pneus PRÓPRIO: o banco da casa ganhou as tabelas do módulo (carcaça, vidas, movimentação, inspeção, catálogo de modelos, diagramas de posição e controle de sincronização). Hoje o controle vive na Prolog e o CÓRTEX só lê uma fotografia que é sobrescrita a cada coleta; a partir daqui a Prolog passa a ALIMENTAR o nosso banco, e no dia em que for desligada a memória já estará aqui.
+- A movimentação é registrada como evento imutável — instalação, remoção, rodízio, envio e retorno de recapagem, transferência e sucateamento — com a origem declarada (importado da Prolog ou lançado no CÓRTEX), para que daqui a dois anos ainda se saiba qual pedaço da história é qual.
+
 ## [0.228.1] — 04/09/2026  ·  CX-04/09/2026-v0.228.1
 
 ### Corrigido
