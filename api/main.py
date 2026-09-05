@@ -3481,6 +3481,23 @@ def rh_headcount() -> JSONResponse:
         return _folha_erro(exc)
 
 
+@app.get("/api/frota/pneus/troca")
+def frota_pneus_troca(dias: int = 365) -> JSONResponse:
+    """Previsao de troca por DESGASTE MEDIDO — nao por calendario.
+
+    Rota separada da do instantaneo pela mesma razao do CPK: ela nao depende da
+    Prolog e nao pode morrer quando a cota de la estoura.
+    """
+    from api.pneus import servico
+    try:
+        return JSONResponse(servico.troca(max(30, min(1095, dias))))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("pneus/troca falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "troca_indisponivel",
+            "mensagem": "Nao foi possivel calcular a previsao de troca agora."})
+
+
 @app.get("/api/frota/pneus/rendimento")
 def frota_pneus_rendimento(dias: int = 365) -> JSONResponse:
     """O CPK dos pneus instalados, por pneu e por modelo.

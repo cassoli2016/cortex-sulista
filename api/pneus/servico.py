@@ -137,3 +137,15 @@ def rendimento(janela_dias: int = 365) -> dict:
         "leitura_velha": d.get("leitura_velha"),
         "leitura_em": d.get("leitura_em"),
     }
+
+
+def troca(janela_dias: int = 365) -> dict:
+    """Quando cada pneu chega no limite. NAO passa pela Prolog.
+
+    Fica ao lado de `rendimento()` de proposito: os dois saem do banco da casa
+    cruzado com o ERP, e os dois continuam existindo no dia em que a Prolog for
+    desligada. O instantaneo da Prolog diz o que EXISTE; estes dois dizem o que
+    o parque esta CUSTANDO e quando ele vai pedir dinheiro.
+    """
+    from . import desgaste
+    return desgaste.previsao(janela_dias)

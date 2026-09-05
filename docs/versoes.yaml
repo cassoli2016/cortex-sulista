@@ -1,3 +1,23 @@
+- versao: "0.242.0"
+  data: "2026-09-05"
+  novo:
+    - >-
+      O módulo de pneus passou a prever QUANDO cada pneu chega ao limite, por
+      desgaste medido e não por calendário: quantos milímetros ele perde a cada
+      mil quilômetros, quantos km ainda faltam e em que data isso acontece no
+      ritmo daquele veículo. Dois pneus montados no mesmo dia, um num cavalo de
+      dupla pegada e outro numa carreta parada, chegam ao limite com meses de
+      diferença — e é essa diferença que a previsão mostra.
+    - >-
+      A previsão diz de onde veio a taxa usada: do próprio pneu, do modelo dele
+      ou da frota. As três respondem a mesma pergunta com confianças bem
+      diferentes, e apresentá-las iguais faria alguém programar a troca de um
+      pneu pela média de outros sem saber. Onde não há base nenhuma, não sai
+      data — sai a lacuna com o motivo.
+    - >-
+      Pneu que JÁ passou do limite sai numa lista separada da previsão: ele não
+      "chega lá em zero dias", ele já chegou, e precisa de oficina hoje. Hoje
+      são 64 nessa situação, 15 deles abaixo do mínimo legal.
 - versao: "0.241.1"
   data: "2026-09-05"
   corrigido:

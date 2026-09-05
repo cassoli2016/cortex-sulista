@@ -276,14 +276,26 @@ def _gravar_processo(cur, proc: dict, perdidos: list,
 
         sulcos = _sulcos(rel)
         if sulcos or rel.get("pressure") is not None:
+            # A PLACA E A POSICAO VAO JUNTO. Sem elas a medicao e um sulco
+            # solto no tempo: para virar TAXA DE DESGASTE ela precisa saber em
+            # que veiculo o pneu estava, porque e do veiculo que sai o km
+            # rodado entre duas medicoes. Sem a placa, 5.500 leituras de patio
+            # — as unicas com data de verdade — ficavam inuteis para a curva.
+            #
+            # DO UPDATE pela mesma razao do evento: as ja gravadas precisam
+            # RECEBER os campos na proxima volta, senao so as futuras teriam.
             cur.execute("""
                 INSERT INTO pne_inspecao
                     (pneu_id, medido_em, sulcos_mm, pressao_psi, origem,
-                     usuario, prolog_id)
-                VALUES (%s,%s,%s,%s,'prolog',%s,%s)
-                ON CONFLICT (origem, prolog_id) DO NOTHING""",
+                     usuario, prolog_id, placa, posicao)
+                VALUES (%s,%s,%s,%s,'prolog',%s,%s,%s,%s)
+                ON CONFLICT (origem, prolog_id) DO UPDATE SET
+                    placa   = COALESCE(EXCLUDED.placa,   pne_inspecao.placa),
+                    posicao = COALESCE(EXCLUDED.posicao, pne_inspecao.posicao)""",
                 (pneu_id, quando, sulcos, rel.get("pressure"), quem,
-                 "rel:%s" % rel_id))
+                 "rel:%s" % rel_id, _placa(proc),
+                 (rel.get("tirePositionDestinationNomenclature") or "").strip()
+                 or None))
 
         # RECAPAGEM: custo e banda entram na VIDA que ela abre.
         for s in (rel.get("tireServices") or []):
