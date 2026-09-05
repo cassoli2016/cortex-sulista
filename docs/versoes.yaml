@@ -1,3 +1,22 @@
+- versao: "0.241.0"
+  data: "2026-09-05"
+  novo:
+    - >-
+      A tela de Pneus ganhou a aba "CPK e km": o custo por quilômetro por
+      modelo, que é onde a compra se decide. Mediana e não média, mínimo de
+      cinco pneus para o modelo ser avaliado, e o km mediano ao lado do CPK —
+      comparar modelos de maturidades muito diferentes é o engano que isso
+      evita.
+    - >-
+      A aba mostra também de onde vem o km e as duas conferências dele, na
+      tela e não no log: carreta tem de rodar menos que cavalo, e o número
+      bate com o hodômetro que a Prolog registra na montagem. Mandar o CPK sem
+      isso seria pedir para acreditar.
+    - >-
+      As lacunas são parte da resposta, não rodapé: quantos pneus ainda não
+      rodaram o bastante para serem avaliados, quantos estão sem custo no
+      cadastro e quantos têm custo impossível. É a lista de trabalho de quem
+      cuida do cadastro.
 - versao: "0.240.0"
   data: "2026-09-05"
   novo:

@@ -4862,6 +4862,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="subtabs" role="tablist" data-abas="pneus" aria-label="Seções dos pneus">
           <button role="tab" id="tabpn-compra" data-aba="compra" aria-controls="aba-pn-compra" aria-selected="true" onclick="abaTrocar('pneus','compra')">Compra e reposição <span class="aban" id="pnCompraN"></span></button>
           <button role="tab" id="tabpn-marcas" data-aba="marcas" aria-controls="aba-pn-marcas" aria-selected="false" onclick="abaTrocar('pneus','marcas')">Marcas e rendimento <span class="aban" id="pnMarcasN"></span></button>
+          <button role="tab" id="tabpn-cpk" data-aba="cpk" aria-controls="aba-pn-cpk" aria-selected="false" onclick="abaTrocar('pneus','cpk')">CPK e km <span class="aban" id="pnCpkN"></span></button>
           <button role="tab" id="tabpn-risco" data-aba="risco" aria-controls="aba-pn-risco" aria-selected="false" onclick="abaTrocar('pneus','risco')">Risco agora <span class="aban" id="pnRiscoN"></span></button>
           <button role="tab" id="tabpn-parque" data-aba="parque" aria-controls="aba-pn-parque" aria-selected="false" onclick="abaTrocar('pneus','parque')">Parque e vida</button>
         </div>
@@ -4892,6 +4893,21 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="tablewrap tabroll" style="max-height:300px"><table><thead><tr>
               <th>Marca</th><th class="num">Descartes</th><th class="num">Km de carcaça (med)</th><th class="num">R$ aquisição/km</th><th class="num">Vidas (med)</th><th class="num">Morte &lt;40 mil km</th><th class="num">CPK instalados</th>
             </tr></thead><tbody id="pn-marcas"></tbody></table></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="pneus" data-aba="cpk" id="aba-pn-cpk" role="tabpanel" aria-labelledby="tabpn-cpk" data-ao-abrir="pnCpkCarregar" hidden>
+          <div class="kpis k4" id="kpis-pn-cpk"></div>
+          <div class="card">
+            <div class="head"><h2>CPK por modelo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Custo por quilômetro da VIDA CORRENTE: pneu novo usa o preço de compra, recapado usa o custo da recapagem (mediana R$ 1.500 contra R$ 610 — trocar um pelo outro erra 2,5x e sempre contra o recapado). MEDIANA por modelo, nunca média: um pneu a 70x moveria a média o bastante para se inocentar. Modelo com menos de 5 pneus avaliados sai atenuado, com o aviso de base pequena. O km mediano vai ao lado de propósito: este CPK é ACUMULADO ATÉ HOJE, não o da vida inteira, então comparar modelos de maturidades muito diferentes engana — quem tem menos km aparece pior sem ser.">i</span></h2><span class="hint" id="pn-cpk-hint"></span></div>
+            <div class="tablewrap tabroll" style="max-height:300px"><table><thead><tr>
+              <th>Marca</th><th>Modelo</th><th>Medida</th><th class="num">Pneus</th><th class="num">CPK (R$/km)</th><th class="num">Km mediano</th><th class="num">Km total</th>
+            </tr></thead><tbody id="pn-cpk-modelos"></tbody></table></div>
+          </div>
+          <div class="grid2">
+            <div class="card"><div class="head"><h2>De onde vem o km <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A Prolog não traz km: o campo chegava nulo em 100% dos movimentos importados. Tração usa o odômetro do abastecimento (ctaplus, ~67 leituras por placa por ano). Implemento não abastece — o km da carreta é o do cavalo que a puxou, pelos dias de engate do manifesto, com o dia REPARTIDO entre as carretas engatadas e deduplicado por (carreta, cavalo, dia). Somar por manifesto inflava 78% com número plausível.">i</span></h2></div>
+              <div class="tablewrap tabroll" style="max-height:170px"><table><thead><tr><th>Conferência</th><th class="num">Resultado</th></tr></thead><tbody id="pn-km-confere"></tbody></table></div></div>
+            <div class="card"><div class="head"><h2>O que ficou de fora <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Não é rodapé: é a lista de trabalho de quem cuida do cadastro. Em formação = pneu rodou menos que o piso e ainda não diz nada (rankeá-lo puniria sempre o pneu recém-comprado). Sem custo = cadastro sem preço, ou vida recapada sem o custo da recapagem. Custo fora da faixa = o campo tem de R$ 0,01 a R$ 1,3 milhão, e nenhum dos dois é preço de pneu.">i</span></h2></div>
+              <div class="tablewrap tabroll" style="max-height:220px"><table><thead><tr><th>Motivo</th><th class="num">Pneus</th></tr></thead><tbody id="pn-cpk-lacunas"></tbody></table></div></div>
           </div>
         </div>
         <div class="aba" data-abas="pneus" data-aba="risco" id="aba-pn-risco" role="tabpanel" aria-labelledby="tabpn-risco" hidden>
@@ -16847,6 +16863,99 @@ function renderPnMarcasTabela(d){
     <td class="num">${x.n}</td></tr>`).join('')||'<tr><td colspan="2" class="hint">sem sucata registrada</td></tr>';
   document.getElementById('pn-sucata-hint').textContent='sem as vendas com veículo';
 }
+/* ── CPK e km ───────────────────────────────────────────────────────────────
+   ROTA PROPRIA, e nao um pedaco do payload da Prolog. A tela de pneus morre
+   quando a cota da Prolog estoura; o CPK sai do banco da casa cruzado com o
+   ERP e nao tem por que morrer junto. Por isso ele carrega SO ao abrir a aba
+   (`data-ao-abrir`) e guarda o resultado: e uma consulta de ~1s que ninguem
+   precisa pagar para ver sulco ou pressao. */
+let DATACPK = null, cpkSeq = 0;
+
+async function pnCpkCarregar(){
+  if(DATACPK){ pnCpkPintar(DATACPK); return; }
+  const seq = ++cpkSeq;
+  document.getElementById('pn-cpk-modelos').innerHTML =
+    '<tr><td colspan="7" class="hint">calculando…</td></tr>';
+  try{
+    const r = await fetch('/api/frota/pneus/rendimento', {cache:'no-store'});
+    const d = await respostaJSON(r);
+    if(seq !== cpkSeq) return;
+    if(!d.ok){ document.getElementById('pn-cpk-modelos').innerHTML =
+      `<tr><td colspan="7" class="hint">${esc((d.dados&&d.dados.mensagem)||'não foi possível calcular o CPK agora')}</td></tr>`; return; }
+    DATACPK = d.dados; pnCpkPintar(DATACPK);
+  }catch(e){
+    if(seq === cpkSeq) document.getElementById('pn-cpk-modelos').innerHTML =
+      '<tr><td colspan="7" class="hint">sem conexão com a API</td></tr>';
+  }
+}
+
+function pnCpkPintar(d){
+  const rs = v => v==null ? '—' : 'R$ ' + v.toLocaleString('pt-BR',{minimumFractionDigits:4, maximumFractionDigits:4});
+  const km = v => v==null ? '—' : Math.round(v).toLocaleString('pt-BR');
+
+  const k = d.km || {};
+  document.getElementById('kpis-pn-cpk').innerHTML = [
+    kpi('CPK mediano', rs(d.cpk_mediano), 'custo da vida ÷ km rodado', '',
+      'Mediana do custo por quilômetro dos pneus avaliados. O custo é o da VIDA CORRENTE: pneu novo usa o preço de compra, recapado usa o da recapagem. Só entram pneus que já rodaram acima do piso — abaixo dele o número oscila e puniria sempre o pneu recém-comprado.'),
+    kpi('Pneus avaliados', (d.avaliados||0).toLocaleString('pt-BR'),
+      `de ${(d.total||0).toLocaleString('pt-BR')} instalados com histórico`,
+      (d.avaliados||0) ? '' : 'warn',
+      'O denominador só tem pneu instalado COM evento de instalação coletado da Prolog — a coleta do histórico ainda está recuando no tempo, então esta cobertura cresce sozinha a cada dia.'),
+    kpi('Km medido (12m)', km(k.km_cavalos) + ' km',
+      `em ${k.placas_tracao||0} cavalos, pelo odômetro`, '',
+      'Km rodado pelos veículos com motor, somado do odômetro do abastecimento. É a base de tudo: o km das carretas é derivado deste, pelos dias de engate.'),
+    kpi('Conferência do km', k.ok ? 'consistente' : 'ATENÇÃO',
+      k.razao_pct==null ? 'sem base para conferir'
+        : `carretas ficam com ${k.razao_pct}% do km dos cavalos`,
+      k.ok ? 'pos' : 'neg',
+      'Carreta só anda puxada, então o km atribuído a elas TEM de ser menor que o rodado pelos cavalos. Passar de 100% significa que algum dia está sendo contado duas vezes — foi assim que uma inflação de 78% apareceu, com número perfeitamente plausível.'),
+  ].join('');
+
+  const m = d.por_modelo || {};
+  const linhas = (m.modelos||[]).map(x => {
+    /* BASE PEQUENA SE DECLARA em vez de sumir: esconder o modelo de 3 pneus
+       tiraria da vista justamente o que alguem pode estar comprando agora. */
+    const fraco = !x.suficiente;
+    const badge = fraco ? ' <span class="badge" title="poucos pneus avaliados — o número oscila">base pequena</span>' : '';
+    return `<tr${fraco?' style="opacity:.6"':''}>
+      <td>${esc(x.marca||'—')}</td><td>${esc(x.modelo||'—')}${badge}</td>
+      <td>${esc(x.medida||'—')}</td>
+      <td class="num">${x.pneus}</td>
+      <td class="num"><b>${rs(x.cpk_mediano)}</b></td>
+      <td class="num">${km(x.km_mediano)}</td>
+      <td class="num">${km(x.km_total)}</td></tr>`;
+  }).join('');
+  document.getElementById('pn-cpk-modelos').innerHTML = linhas ||
+    '<tr><td colspan="7" class="hint">nenhum modelo com pneus avaliados ainda</td></tr>';
+  document.getElementById('pn-cpk-hint').textContent =
+    `${m.com_base||0} de ${m.total||0} modelos com base (≥ ${m.minimo_pneus||5} pneus) · ${m.ressalva||''}`;
+  abaContador('pnCpkN', d.avaliados||0);
+
+  /* A CONFERENCIA VAI NA TELA, nao no log. Ela e o segundo caminho para o
+     mesmo numero, e mandar o CPK sem ela seria pedir para acreditar. */
+  const c = d.km_confronto || {};
+  const sim = '<b style="color:var(--green-700)">confere</b>';
+  const nao = '<b style="color:var(--red)">DIVERGE</b>';
+  document.getElementById('pn-km-confere').innerHTML = `
+    <tr><td>Carreta roda menos que cavalo</td><td class="num">${k.ok?sim:nao} · ${k.razao_pct==null?'—':k.razao_pct+'%'}</td></tr>
+    <tr><td>Contra o hodômetro da Prolog</td><td class="num">${
+      c.pares ? `${c.ok?sim:nao} · razão ${c.razao_mediana} em ${c.pares} pares` :
+      `<span class="hint">${esc(c.motivo||'sem pares comparáveis ainda')}</span>`}</td></tr>
+    <tr><td>Cobertura do confronto</td><td class="num"><span class="hint">${
+      c.pares ? esc(c.ressalva||'') : '—'}</span></td></tr>`;
+
+  const lac = [
+    ['Em formação (rodou menos que o piso)', d.em_formacao, `piso de ${km(d.piso_km)} km`],
+    ['Sem custo no cadastro', d.sem_custo, 'preço de compra ou da recapagem'],
+    ['Custo fora da faixa física', d.custo_fora_da_faixa,
+     `fora de R$ ${(d.faixa_custo||[0,0])[0]} a R$ ${(d.faixa_custo||[0,0])[1]}`],
+    ['Sem km na janela', d.sem_km, 'sem odômetro nem engate'],
+  ];
+  document.getElementById('pn-cpk-lacunas').innerHTML = lac.map(([r, n, sub]) =>
+    `<tr><td>${esc(r)}<br><span class="hint">${esc(sub)}</span></td>
+     <td class="num">${(n||0).toLocaleString('pt-BR')}</td></tr>`).join('');
+}
+
 function pnMarcasDesenhar(){
   const d=DATAPN; if(!d) return;
   const itens=((d.marcas||{}).itens||[]).filter(x=>!x.base_pequena);

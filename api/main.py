@@ -3481,6 +3481,28 @@ def rh_headcount() -> JSONResponse:
         return _folha_erro(exc)
 
 
+@app.get("/api/frota/pneus/rendimento")
+def frota_pneus_rendimento(dias: int = 365) -> JSONResponse:
+    """O CPK dos pneus instalados, por pneu e por modelo.
+
+    NAO PASSA PELA PROLOG, e essa e a diferenca deste bloco para o resto da
+    tela: o instantaneo da Prolog diz o que existe e onde esta; o CPK sai do
+    banco da casa cruzado com o ERP (odometro do abastecimento e engate do
+    manifesto). Quando a Prolog for desligada, este numero continua saindo.
+
+    Rota SEPARADA da `/api/frota/pneus` de proposito: aquela morre quando a
+    cota da Prolog estoura, e o CPK nao tem por que morrer junto.
+    """
+    from api.pneus import servico
+    try:
+        return JSONResponse(servico.rendimento(max(30, min(1095, dias))))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("pneus/rendimento falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "rendimento_indisponivel",
+            "mensagem": "Nao foi possivel calcular o CPK agora."})
+
+
 @app.get("/api/frota/pneus")
 def frota_pneus(status: str = "", filial: str = "") -> JSONResponse:
     """Gestao de pneus (Prolog). `status` filtra INVENTORY/ANALYSIS/INSTALLED/
