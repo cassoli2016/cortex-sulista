@@ -26,7 +26,7 @@ def cenario(monkeypatch):
     def _montar(quantas=1):
         monkeypatch.setattr(
             entrada.assinatura, "cancelar_por_telefone",
-            lambda f: (estado["cancelados"].append(f) or quantas))
+            lambda f, numero=None: (estado["cancelados"].append(f) or quantas))
         monkeypatch.setattr(
             entrada.wa, "enviar",
             lambda f, t, **k: (estado["enviados"].append((f, t))
@@ -171,7 +171,7 @@ def test_a_confirmacao_de_SAIR_NAO_e_barrada_pela_janela_noturna(monkeypatch):
     vistos = {}
 
     monkeypatch.setattr(entrada.assinatura, "cancelar_por_telefone",
-                        lambda f: 1)
+                        lambda f, numero=None: 1)
     monkeypatch.setattr(entrada.wa, "enviar",
                         lambda f, t, **k: (vistos.update(k) or {"ok": True}))
     assert entrada.receber(_msg("SAIR"))["acao"] == "cancelado"

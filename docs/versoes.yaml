@@ -1,3 +1,20 @@
+- versao: "0.239.0"
+  data: "2026-09-05"
+  novo:
+    - >-
+      Quem acompanha mais de uma carga passou a receber UMA mensagem por hora
+      com todas elas, e não uma por carga. Com cinco cargas eram 70 mensagens
+      por dia para a mesma pessoa — acima do teto de 60 por número, então ela
+      simplesmente parava de receber no meio da tarde, sem nenhum aviso. E
+      cinco notificações por hora do mesmo número é o que faz alguém bloquear o
+      contato.
+    - >-
+      Dá para sair de UMA carga sem sair das outras: responda SAIR e o número
+      (ex.: SAIR 94537). O rodapé só ensina essa sintaxe quando há mais de uma
+      carga, para não complicar o caso comum, e SAIR sozinho continua
+      cancelando tudo. Quando o número não é de nenhuma carga da pessoa, nada é
+      cancelado — cair para "cancela tudo" faria quem quis sair de uma sair de
+      todas sem ter pedido.
 - versao: "0.238.3"
   data: "2026-09-05"
   corrigido:

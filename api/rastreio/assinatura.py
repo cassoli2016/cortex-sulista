@@ -226,9 +226,18 @@ def cancelar(termo: str, cnpj4: str, carga_id: str, telefone: str) -> dict:
                                  "receberá mais avisos desta carga."}
 
 
-def cancelar_por_telefone(telefone: str) -> int:
-    """Tira o telefone de TODAS as cargas. É o que a palavra SAIR no WhatsApp
-    aciona — quem pede para parar quer parar com tudo, não com uma carga."""
+def cancelar_por_telefone(telefone: str, numero: int | None = None) -> int:
+    """Tira o telefone das cargas. Devolve quantas saíram.
+
+    SEM `numero`, tira de TODAS: quem responde só "SAIR" quer parar com tudo, e
+    exigir que ele liste as cargas uma a uma seria transformar a saída em
+    formulário — quem não consegue sair bloqueia o número.
+
+    COM `numero`, tira de UMA. Com várias cargas acompanhadas, a pessoa quase
+    sempre quer parar a que já chegou e continuar com as outras; oferecer só o
+    "tudo ou nada" faz quem queria sair de uma sair de todas, e essa pessoa não
+    volta a se cadastrar.
+    """
     # AS DUAS FORMAS DO MESMO NUMERO. O WhatsApp guarda contas antigas SEM o
     # nono digito, entao a mesma pessoa e `5541984251704` quando digita na
     # pagina e `554184251704` quando responde a mensagem. Procurar so pela
@@ -238,11 +247,24 @@ def cancelar_por_telefone(telefone: str) -> int:
     if not formas:
         return 0
     try:
+        if numero is None:
+            return pglocal.executar("""
+                UPDATE rst_inscricao
+                   SET ativo = FALSE, cancelado_em = now(),
+                       cancelado_por = 'whatsapp'
+                 WHERE telefone = ANY(%s) AND ativo""",
+                (formas,)) or 0
+        # O NUMERO SOZINHO NAO E CHAVE — a chave e (grupo, empresa, filial,
+        # numero, serie). Mas quem responde no WhatsApp digita o que esta na
+        # mensagem, que e so o numero; casar por ele DENTRO das inscricoes
+        # daquele telefone e seguro, porque o alcance ja esta limitado a quem
+        # pediu.
         return pglocal.executar("""
             UPDATE rst_inscricao
-               SET ativo = FALSE, cancelado_em = now(), cancelado_por = 'whatsapp'
-             WHERE telefone = ANY(%s) AND ativo""",
-            (formas,)) or 0
+               SET ativo = FALSE, cancelado_em = now(),
+                   cancelado_por = 'whatsapp'
+             WHERE telefone = ANY(%s) AND numero = %s AND ativo""",
+            (formas, numero)) or 0
     except Exception:  # noqa: BLE001
         return 0
 

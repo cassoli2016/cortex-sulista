@@ -46,9 +46,20 @@ log = logging.getLogger("cortex.rastreio.entrada")
 RE_SAIR = re.compile(r"^\s*(sair|parar|cancelar|remover|stop|descadastrar)\b",
                      re.IGNORECASE)
 
+#: O numero da carga que vem DEPOIS do pedido de saida: "SAIR 94537". Ele e
+#: opcional, e e essa opcionalidade que importa — quem responde so "SAIR"
+#: continua saindo de tudo, como sempre saiu.
+RE_NUMERO = re.compile(r"^\s*\w+\W{0,3}(\d{3,12})")
+
 CONFIRMACAO = ("Pronto, você não receberá mais avisos de carga neste número. "
                "Se precisar acompanhar outra carga, é só cadastrar de novo na "
                "página de rastreio.")
+
+#: A confirmação de quem saiu de UMA carga. Ela DIZ que as outras continuam —
+#: sem isso a pessoa fica sem saber se parou uma ou parou tudo, e a dúvida
+#: leva ao "SAIR" seco por precaução.
+CONFIRMACAO_UMA = ("Pronto, você não receberá mais avisos do CT-e %s. "
+                   "As demais cargas que você acompanha continuam.")
 
 
 def _token_ok(recebido: str | None) -> bool:
@@ -135,7 +146,19 @@ def receber(corpo: dict, token: str | None = None) -> dict:
                  len([c for c in fone if c.isdigit()]))
         return {"ok": True, "acao": "telefone_invalido"}
 
-    quantas = assinatura.cancelar_por_telefone(fone)
+    # SAIR 94537 tira SO aquela carga. A pessoa que acompanha tres cargas quer
+    # parar a que ja chegou, nao as tres — e o rodape da mensagem so oferece
+    # essa sintaxe quando ha mais de uma, para nao complicar o caso comum.
+    m = RE_NUMERO.match(texto)
+    numero = int(m.group(1)) if m else None
+    quantas = assinatura.cancelar_por_telefone(fone, numero=numero)
+    if not quantas and numero is not None:
+        # O NUMERO NAO BATEU. Pode ser dedo trocado ou carga de outra pessoa;
+        # nos dois casos, cair para "cancela tudo" seria o pior desfecho —
+        # quem quis sair de uma sairia de todas sem ter pedido.
+        log.info("rastreio: SAIR de carga %s sem inscricao ativa (final %s)",
+                 numero, "".join(c for c in fone if c.isdigit())[-4:])
+        return {"ok": True, "acao": "carga_nao_encontrada", "numero": numero}
     if not quantas:
         # SO SE RESPONDE A QUEM TINHA INSCRICAO. Sem isso o webhook viraria
         # amplificador: qualquer POST com um telefone faria a casa mandar
@@ -155,7 +178,10 @@ def receber(corpo: dict, token: str | None = None) -> dict:
     # atinge o numero que fala com todos os outros clientes. Com a janela
     # normal (08:00-20:00), um SAIR as 22h cancelava em silencio: exatamente a
     # promessa que a mensagem faz e nao cumpria. Ver `whatsapp/resposta.py`.
-    wa.enviar(numeros.normalizar(fone), CONFIRMACAO, usuario="rastreio",
+    texto_ok = (CONFIRMACAO_UMA % numero) if numero is not None else CONFIRMACAO
+    wa.enviar(numeros.normalizar(fone), texto_ok, usuario="rastreio",
               origem="rastreio_saida", regras=resposta.regras())
-    log.info("rastreio: %d inscricao(oes) canceladas por SAIR", quantas)
-    return {"ok": True, "acao": "cancelado", "inscricoes": quantas}
+    log.info("rastreio: %d inscricao(oes) canceladas por SAIR%s", quantas,
+             " %s" % numero if numero is not None else "")
+    return {"ok": True, "acao": "cancelado", "inscricoes": quantas,
+            "numero": numero}

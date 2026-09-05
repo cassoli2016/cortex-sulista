@@ -44,6 +44,21 @@ def base() -> str:
 #: um site para cancelar bloqueia o número em vez disso.
 RODAPE = "\n\n_Para sair, responda SAIR._"
 
+
+def rodape(quantas: int, exemplo: str = "") -> str:
+    """Como a mensagem se despede — e com várias cargas isso muda.
+
+    Com uma, sair é uma palavra. Com várias, a pessoa quase sempre quer parar
+    UMA — a que já chegou — e continuar com as outras. Oferecer só o "tudo ou
+    nada" faz quem queria sair de uma sair de todas, e essa pessoa não volta a
+    se cadastrar.
+    """
+    if quantas <= 1:
+        return RODAPE
+    ex = " (ex.: SAIR %s)" % exemplo if exemplo else ""
+    return ("\n\n_Para sair de UMA, responda SAIR e o número%s. "
+            "Para sair de todas, só SAIR._" % ex)
+
 #: A ESTRADA. Blocos de cor, não traços: no WhatsApp o que se lê de relance é
 #: a NOTIFICAÇÃO, e ali um `▰▰▱▱` some no meio do texto enquanto um bloco verde
 #: aparece. O caminhão marca a posição — é ele que transforma "58%" em "estou
@@ -167,4 +182,80 @@ def montar(carga: dict) -> str | None:
                       % ("agora" if idade < 2 else "há %d min" % int(idade)))
 
     linhas += ["", "\U0001f449 Acompanhe ao vivo:", lig]
+    return "\n".join(linhas)
+
+
+# --------------------------------------------------------------------------
+# várias cargas no mesmo telefone
+# --------------------------------------------------------------------------
+def _resumo(carga: dict) -> list[str] | None:
+    """Uma carga em três linhas, para entrar numa mensagem com outras."""
+    a = carga.get("andamento") or {}
+    doc = carga.get("documento") or "Sua carga"
+    trecho = "%s ➜ %s" % (carga.get("origem") or "origem",
+                          carga.get("destino") or "destino")
+
+    if carga.get("estado") == "entregue":
+        return ["✅ *%s* · ENTREGUE" % doc, "\U0001f4cd %s" % trecho]
+    if carga.get("estado") == "descarregando":
+        return ["\U0001f4e6 *%s* · em descarga" % doc, "\U0001f4cd %s" % trecho]
+    if a.get("fora_da_rota"):
+        return ["⚠️ *%s* · sem localização agora" % doc,
+                "\U0001f4cd %s" % trecho]
+    if a.get("posicao_velha_min"):
+        m = int(a["posicao_velha_min"])
+        return ["\U0001f550 *%s* · sem reportar há %s" % (
+                    doc, "%d min" % m if m < 120 else "%dh" % round(m / 60.0)),
+                "\U0001f4cd %s" % trecho]
+
+    pct, falta = a.get("progresso_pct"), a.get("falta_km")
+    if not a.get("tem_posicao") or pct is None or falta is None:
+        return None
+
+    linhas = ["\U0001f69a *%s*" % doc, "\U0001f4cd %s" % trecho,
+              "%s *%d%%* · faltam %d km" % (barra(int(pct)), int(pct),
+                                            round(falta))]
+    t = a.get("transito") or {}
+    if t.get("estado") in PONTO_TRANSITO:
+        linhas[-1] += "  %s" % PONTO_TRANSITO[t["estado"]]
+    linhas.append("\U0001f449 " + link(carga))
+    return linhas
+
+
+def montar_varias(cargas: list[dict]) -> str | None:
+    """UMA mensagem com todas as cargas do telefone, ou None.
+
+    POR QUE CONSOLIDAR, e o número que decide isso: uma mensagem por carga por
+    ciclo, com o teto de 5 cargas por telefone e 14 ciclos por dia, dá 70
+    mensagens diárias para a MESMA pessoa — acima do teto de 60 por número que
+    a casa impõe. Ou seja, quem acompanhasse cinco cargas parava de receber no
+    meio da tarde, e sem nenhum aviso: as recusas ficam no nosso log, não no
+    celular dela.
+
+    E antes do teto vem o outro estrago, que é pior: cinco notificações por
+    hora do mesmo número é o que faz uma pessoa bloquear o contato. O bloqueio
+    não atinge estas mensagens — atinge o número que fala com todos os outros
+    clientes.
+
+    UMA CARGA CONTINUA COM A MENSAGEM INTEIRA. A consolidada é mais seca por
+    construção (três linhas por carga), e degradar a experiência de quem
+    acompanha uma só para acomodar quem acompanha cinco seria pagar o preço no
+    caso comum.
+    """
+    if not cargas:
+        return None
+    if len(cargas) == 1:
+        return montar(cargas[0])
+
+    blocos = [b for b in (_resumo(c) for c in cargas) if b]
+    if not blocos:
+        # CALA porque não há o que dizer de NENHUMA delas — a terceira das três
+        # respostas. Não é o mesmo que uma lista vazia por engano.
+        return None
+
+    linhas = ["\U0001f69a *Suas %d cargas*" % len(blocos), ""]
+    for i, b in enumerate(blocos):
+        linhas += b
+        if i < len(blocos) - 1:
+            linhas.append("")
     return "\n".join(linhas)

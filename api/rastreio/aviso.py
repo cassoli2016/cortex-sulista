@@ -81,50 +81,80 @@ def _carga_da_inscricao(ins: dict) -> dict | None:
 def rodar(*, ensaio: bool = False, limite: int | None = None) -> dict:
     """Avisa quem está inscrito. NUNCA levanta.
 
+    UMA MENSAGEM POR TELEFONE, não por carga, e o número que decide isso: com o
+    teto de 5 cargas por telefone e 14 ciclos por dia, uma mensagem por carga
+    daria 70 diárias para a MESMA pessoa — acima do teto de 60 por número que a
+    casa impõe. Quem acompanhasse cinco cargas parava de receber no meio da
+    tarde, e sem aviso nenhum: as recusas ficam no nosso log, não no celular
+    dela. E antes do teto vem o estrago maior — cinco notificações por hora do
+    mesmo número é o que faz alguém bloquear o contato, e o bloqueio atinge o
+    número que fala com todos os outros clientes.
+
     `ensaio` monta as mensagens sem enviar — é como se confere o texto antes de
     ele sair para um número de cliente.
     """
     inscricoes = assinatura.ativas()
     if limite:
         inscricoes = inscricoes[:limite]
-    fora = {"inscricoes": len(inscricoes), "enviados": 0, "iguais": 0,
-            "sem_texto": 0, "encerradas": 0, "falhas": 0, "ensaio": ensaio,
-            "amostra": []}
 
+    # AGRUPA POR TELEFONE. `ativas()` já vem ordenada pelo último envio, e o
+    # `setdefault` preserva essa ordem dentro de cada grupo.
+    por_fone: dict = {}
     for ins in inscricoes:
-        carga = _carga_da_inscricao(ins)
-        if not carga:
-            fora["sem_texto"] += 1
+        por_fone.setdefault(ins["telefone"], []).append(ins)
+
+    fora = {"inscricoes": len(inscricoes), "telefones": len(por_fone),
+            "enviados": 0, "iguais": 0, "sem_texto": 0, "encerradas": 0,
+            "falhas": 0, "ensaio": ensaio, "amostra": []}
+
+    for fone, grupo in por_fone.items():
+        pares = []
+        for ins in grupo:
+            carga = _carga_da_inscricao(ins)
+            if carga:
+                pares.append((ins, carga))
+        if not pares:
+            fora["sem_texto"] += len(grupo)
             continue
-        texto = _texto(carga)
+
+        cargas = [c for _, c in pares]
+        texto = mensagem.montar_varias(cargas)
         if not texto:
-            fora["sem_texto"] += 1
+            fora["sem_texto"] += len(pares)
             continue
+        # O EXEMPLO DO RODAPÉ é o documento da PRIMEIRA carga: "SAIR 94537"
+        # ensina a sintaxe com um número que a pessoa está vendo na tela.
+        doc = (cargas[0].get("documento") or "").replace("CT-e ", "").strip()
+        completo = texto + mensagem.rodape(len(cargas), doc)
 
         # MENSAGEM IGUAL NAO SE REPETE. E o que separa "aviso de hora em hora"
         # de "24 mensagens iguais por dia" — e a segunda faz a pessoa bloquear
-        # o numero da empresa.
-        if texto == (ins.get("ultimo_texto") or ""):
-            fora["iguais"] += 1
+        # o numero da empresa. Comparar pelo primeiro do grupo basta: todos
+        # recebem o MESMO texto gravado.
+        if texto == (pares[0][0].get("ultimo_texto") or ""):
+            fora["iguais"] += len(pares)
             continue
 
         if len(fora["amostra"]) < 3:
-            fora["amostra"].append({"telefone": ins["telefone"][-4:],
-                                    "texto": texto})
+            fora["amostra"].append({"telefone": fone[-4:], "cargas": len(cargas),
+                                    "texto": completo})
         if ensaio:
             continue
 
-        r = wa.enviar(ins["telefone"], texto + RODAPE,
-                      usuario="rastreio", origem="rastreio_carga")
-        if r.get("ok"):
-            fora["enviados"] += 1
-            assinatura.marcar_envio(ins["id"], texto)
-            if carga.get("estado") == "entregue":
-                # A ENTREGA ENCERRA. Ninguem volta para cancelar depois que a
-                # carga chegou, e o aviso seguiria ate o prazo expirar.
-                assinatura.encerrar(ins["id"], "entregue")
-                fora["encerradas"] += 1
-        else:
+        r = wa.enviar(fone, completo, usuario="rastreio",
+                      origem="rastreio_carga")
+        if not r.get("ok"):
             fora["falhas"] += 1
             log.info("aviso: envio recusado: %s", (r.get("erro") or "")[:120])
+            continue
+
+        fora["enviados"] += 1
+        for ins, carga in pares:
+            assinatura.marcar_envio(ins["id"], texto)
+            if carga.get("estado") == "entregue":
+                # A ENTREGA ENCERRA — só a dela. As outras cargas do mesmo
+                # telefone seguem sendo avisadas, e é isso que a consolidação
+                # tornou possível dizer: antes, encerrar era por mensagem.
+                assinatura.encerrar(ins["id"], "entregue")
+                fora["encerradas"] += 1
     return fora
