@@ -1,3 +1,16 @@
+- versao: "0.235.1"
+  data: "2026-09-04"
+  corrigido:
+    - >-
+      No mapa, o veículo sumia dentro da rota: os dois eram do mesmo vermelho.
+      A rota e as paradas passaram para azul-marinho, como estrutura, e o
+      vermelho da marca ficou reservado ao caminhão — que é justamente o que a
+      tela existe para mostrar.
+    - >-
+      O centro da área ganhou um marcador com o ícone do caminhão. Sem nada no
+      centro, a mancha vermelha não se lia como veículo; e continua sendo um
+      alvo dentro de um círculo, não um alfinete, porque a posição é
+      aproximada de propósito.
 - versao: "0.235.0"
   data: "2026-09-04"
   adicionado:

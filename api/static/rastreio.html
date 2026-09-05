@@ -337,8 +337,9 @@ function pintarDetalhe(c){
         ? '<div id="mapa"></div><p class="legenda">'
           + '<span><i style="background:#636C76"></i>coleta</span>'
           + '<span><i style="background:#1E7F4F"></i>entrega</span>'
-          + '<span><i style="background:#E0705F;border:1px solid #942821"></i>'
-          + 'onde o veículo está (área aproximada)</span></p>'
+          + '<span><i style="background:#17344F"></i>rota e paradas</span>'
+          + '<span><i style="background:#942821"></i>'
+          + 'veículo (área aproximada)</span></p>'
         : ''}
       ${transito}
       ${notas}
@@ -420,8 +421,12 @@ async function desenharMapa(c){
      que ali e estimativa. */
   const rota = (c.andamento || {}).rota_pontos || [];
   if(rota.length > 1){
+    /* A ROTA E ESTRUTURA, nao destaque: ela fica em navy. O vermelho da
+       marca ficou reservado ao VEICULO — antes os dois eram do mesmo
+       vermelho e o circulo do caminhao sumia dentro da linha, que era
+       exatamente o que a tela precisava mostrar. */
     L.polyline(rota.map(p => [p.lat, p.lng]),
-      {color:'#942821', weight:4, opacity:.75}).addTo(mapa);
+      {color:'#17344F', weight:4, opacity:.65}).addTo(mapa);
     /* AS PARADAS, NUMERADAS. Rota de coleta vai ate o ponto mais distante e
        VOLTA recolhendo — sem as paradas marcadas a linha dobra sobre si e
        parece mapa quebrado. Com o numero da ordem, a mesma linha se le como
@@ -430,8 +435,8 @@ async function desenharMapa(c){
       L.marker([p.lat, p.lng], {icon: L.divIcon({className:'', iconSize:[18,18],
         iconAnchor:[9,9],
         html:`<div title="${esc(p.nome || '')}" style="width:18px;height:18px;
-          border-radius:50%;background:#fff;border:2px solid #942821;
-          color:#942821;font:700 10px/14px var(--font);text-align:center">
+          border-radius:50%;background:#fff;border:2px solid #17344F;
+          color:#17344F;font:700 10px/14px var(--font);text-align:center">
           ${i+1}</div>`})}).addTo(mapa);
       pontos.push([p.lat, p.lng]);
     });
@@ -446,7 +451,19 @@ async function desenharMapa(c){
      "esta area". */
   if(a.area){
     L.circle([a.area.lat, a.area.lng], {radius: a.area.raio_km * 1000,
-      color:'#942821', weight:2, fillColor:'#E0705F', fillOpacity:.22}).addTo(mapa);
+      color:'#942821', weight:2.5, fillColor:'#942821',
+      fillOpacity:.16}).addTo(mapa);
+    /* UM ALVO NO CENTRO, nao um alfinete. Alfinete aponta um ponto; o alvo
+       com o circulo em volta diz "em algum lugar daqui" — que e a verdade,
+       porque a coordenada vem arredondada. Sem nada no centro, a mancha
+       vermelha nao se le como veiculo. */
+    L.marker([a.area.lat, a.area.lng], {icon: L.divIcon({className:'',
+      iconSize:[28,28], iconAnchor:[14,14],
+      html:'<div title="Veículo — área aproximada" '
+         + 'style="width:28px;height:28px;border-radius:50%;'
+         + 'border:2.5px solid #942821;background:rgba(255,255,255,.94);'
+         + 'display:grid;place-items:center;font-size:15px;line-height:1">'
+         + '&#128666;</div>'})}).addTo(mapa);
     pontos.push([a.area.lat, a.area.lng]);
   }
   if(pontos.length > 1) mapa.fitBounds(pontos, {padding:[26,26]});

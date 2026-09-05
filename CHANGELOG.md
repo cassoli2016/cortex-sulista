@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.235.1] — 04/09/2026  ·  CX-04/09/2026-v0.235.1
+
+### Corrigido
+- No mapa, o veículo sumia dentro da rota: os dois eram do mesmo vermelho. A rota e as paradas passaram para azul-marinho, como estrutura, e o vermelho da marca ficou reservado ao caminhão — que é justamente o que a tela existe para mostrar.
+- O centro da área ganhou um marcador com o ícone do caminhão. Sem nada no centro, a mancha vermelha não se lia como veículo; e continua sendo um alvo dentro de um círculo, não um alfinete, porque a posição é aproximada de propósito.
+
 ## [0.235.0] — 04/09/2026  ·  CX-04/09/2026-v0.235.0
 
 ### Adicionado
