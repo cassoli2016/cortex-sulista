@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.234.2] — 04/09/2026  ·  CX-04/09/2026-v0.234.2
+
+### Alterado
+- Quem cadastra o telefone recebe a PRIMEIRA mensagem na hora, e não só na virada da hora seguinte. Além de confirmar que deu certo, isso protege quem não pediu nada: se alguém cadastrar um número que não é dele, o dono descobre no mesmo minuto e responde SAIR.
+- Se o envio falhar, o cadastro continua valendo e a tela diz que a primeira mensagem sai no próximo ciclo — desfazer a inscrição faria a pessoa tentar de novo e esbarrar no limite por telefone.
+
 ## [0.234.1] — 04/09/2026  ·  CX-04/09/2026-v0.234.1
 
 ### Corrigido

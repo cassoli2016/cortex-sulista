@@ -182,3 +182,76 @@ def test_sem_inscricao_a_rotina_nao_faz_nada(monkeypatch):
     monkeypatch.setattr(aviso.assinatura, "ativas", lambda: [])
     r = aviso.rodar()
     assert r["inscricoes"] == 0 and r["enviados"] == 0
+
+
+# --------------------------------------------------------------------------
+# a primeira mensagem, no cadastro
+# --------------------------------------------------------------------------
+def test_o_cadastro_manda_a_PRIMEIRA_mensagem_na_hora(monkeypatch):
+    """Não é cortesia, é consentimento.
+
+    Se alguém cadastrou um número que NÃO é dele, o dono descobre no mesmo
+    minuto e responde SAIR — em vez de descobrir uma hora depois, com a segunda
+    mensagem. Numa página aberta, essa é a diferença entre um engano de
+    digitação e uma hora de importuno.
+    """
+    from api.rastreio import assinatura
+
+    enviados = []
+    alvo = {"grupo": 1, "empresa": 1, "filial": 1, "numero": 51283, "serie": 1}
+    monkeypatch.setattr(assinatura.consulta, "buscar_cru",
+                        lambda t, c: ([alvo], None))
+    monkeypatch.setattr(assinatura.consulta, "token",
+                        lambda *a: "ID")
+    monkeypatch.setattr(assinatura.pglocal, "get_conn", _conn_falsa)
+    monkeypatch.setattr(aviso, "_carga_da_inscricao", lambda i: _carga())
+    monkeypatch.setattr(aviso.wa, "enviar",
+                        lambda f, t, **k: (enviados.append((f, t))
+                                           or {"ok": True}))
+
+    r = assinatura.inscrever("51283", "0051", "ID", "11987654321", "1.2.3.4")
+    assert r["ok"] is True
+    assert r["primeira_enviada"] is True
+    assert len(enviados) == 1
+    assert "SAIR" in enviados[0][1], "a primeira mensagem tem de dizer como sair"
+
+
+def test_falha_no_envio_NAO_desfaz_o_cadastro(monkeypatch):
+    """O cadastro está gravado; a tarefa horária pega o próximo ciclo. Desfazer
+    a inscrição porque o WhatsApp piscou faria a pessoa cadastrar de novo — e
+    o teto por telefone a barraria."""
+    from api.rastreio import assinatura
+
+    alvo = {"grupo": 1, "empresa": 1, "filial": 1, "numero": 51283, "serie": 1}
+    monkeypatch.setattr(assinatura.consulta, "buscar_cru",
+                        lambda t, c: ([alvo], None))
+    monkeypatch.setattr(assinatura.consulta, "token", lambda *a: "ID")
+    monkeypatch.setattr(assinatura.pglocal, "get_conn", _conn_falsa)
+    monkeypatch.setattr(aviso, "_carga_da_inscricao", lambda i: _carga())
+    monkeypatch.setattr(aviso.wa, "enviar",
+                        lambda f, t, **k: {"ok": False, "erro": "sem conexao"})
+
+    r = assinatura.inscrever("51283", "0051", "ID", "11987654321", "1.2.3.4")
+    assert r["ok"] is True and r["primeira_enviada"] is False
+    assert "próximo ciclo" in r["aviso"]
+
+
+class _Cur:
+    def execute(self, *a, **k): pass
+    def fetchone(self): return {"n": 0, "id": 1}
+
+
+class _Ctx:
+    def __init__(self, o): self.o = o
+    def __enter__(self): return self.o
+    def __exit__(self, *a): return False
+
+
+class _Conn:
+    def cursor(self): return _Ctx(_Cur())
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+
+
+def _conn_falsa(*a, **k):
+    return _Conn()

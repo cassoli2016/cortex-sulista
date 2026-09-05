@@ -130,11 +130,51 @@ def inscrever(termo: str, cnpj4: str, carga_id: str, telefone: str,
         log.warning("rastreio: inscrição falhou: %s", type(exc).__name__)
         return {"ok": False, "motivo": "Não foi possível cadastrar agora."}
 
+    # A PRIMEIRA MENSAGEM SAI AGORA, e isso nao e cortesia.
+    #
+    # Ela confirma para quem cadastrou que deu certo — mas o motivo forte e
+    # outro: se alguem cadastrou um numero que NAO E DELE, o dono descobre no
+    # mesmo minuto e responde SAIR, em vez de descobrir uma hora depois com a
+    # segunda mensagem. Numa pagina aberta, essa e a diferenca entre um
+    # engano de digitacao e uma hora de importuno.
+    #
+    # A falha do envio NAO desfaz a inscricao: o cadastro esta gravado, a
+    # tarefa horaria pega o proximo ciclo, e a tela diz o que aconteceu.
+    primeira = _primeira_mensagem(alvo, fone)
+
     return {"ok": True, "id": ident,
             "telefone": numeros.formatar(fone),
             "dias": DIAS_VALIDADE,
-            "aviso": "Você receberá atualizações desta carga a cada hora, "
-                     "enquanto ela estiver em viagem."}
+            "primeira_enviada": primeira,
+            "aviso": ("Pronto! Acabamos de enviar a primeira mensagem. "
+                      "Você recebe uma atualização por hora enquanto a carga "
+                      "estiver em viagem."
+                      if primeira else
+                      "Cadastro feito. A primeira mensagem sai no próximo "
+                      "ciclo de envio.")}
+
+
+def _primeira_mensagem(alvo: dict, fone: str) -> bool:
+    """Manda o estado da carga agora. Devolve se saiu. Nunca levanta."""
+    try:
+        from . import aviso
+        carga = aviso._carga_da_inscricao({
+            "grupo": alvo["grupo"], "empresa": alvo["empresa"],
+            "filial": alvo["filial"], "numero": alvo["numero"],
+            "serie": alvo["serie"]})
+        texto = aviso._texto(carga) if carga else None
+        if not texto:
+            # SEM O QUE DIZER nao vira mensagem vazia nem "cadastro efetuado":
+            # a primeira coisa que a pessoa recebe tem de ser a carga dela.
+            return False
+        from ..whatsapp import envio as wa
+        r = wa.enviar(fone, texto + aviso.RODAPE, usuario="rastreio",
+                      origem="rastreio_cadastro")
+        return bool(r.get("ok"))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("rastreio: primeira mensagem falhou: %s",
+                    type(exc).__name__)
+        return False
 
 
 def cancelar(termo: str, cnpj4: str, carga_id: str, telefone: str) -> dict:
