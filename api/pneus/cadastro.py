@@ -136,6 +136,67 @@ def _motivos(cli) -> int:
     return n
 
 
+def _veiculos(cli) -> int:
+    """Quem é cada veículo, e QUAL DIAGRAMA ele usa.
+
+    É este vínculo que permite dizer "a posição 3DE existe neste veículo" — sem
+    ele, um cadastro próprio de montagem aceita qualquer coisa digitada, e aí
+    ele não é próprio, é um formulário.
+
+    DOIS NÚMEROS DE BRINDE, e eles valem por si: `totalInstalledTires` e
+    `expectedInstalledTires`. A diferença entre os dois é um veículo rodando
+    INCOMPLETO — e ninguém media isso.
+
+    PAGINAÇÃO COMEÇA EM ZERO aqui, como nas inspeções (e ao contrário das
+    movimentações). São 292 veículos, então cabem em 3 páginas de 100.
+    """
+    n = pagina = 0
+    while True:
+        d = cli.get("/api/v3/vehicles", {
+            "branchOfficesId": cliente.filiais_configuradas(),
+            "includeInactive": "false", "pageSize": 100, "pageNumber": pagina})
+        itens = d.get("content") or []
+        with pglocal.get_conn() as conn, conn.cursor() as cur:
+            for x in itens:
+                placa = (x.get("licensePlate") or "").strip().upper()
+                if not placa:
+                    continue
+                lay = str((x.get("tiresLayout") or {}).get("id") or "")
+                # O DIAGRAMA SE LIGA PELO ID DA PROLOG, não pelo nome: nome de
+                # diagrama pode ser editado lá e o vínculo se perderia calado.
+                cur.execute("""
+                    INSERT INTO pne_veiculo
+                        (placa, diagrama_id, filial, prolog_id, tem_motor,
+                         km_atual, pneus_instalados, pneus_esperados, estepes,
+                         ativo, frota, atualizado_em)
+                    VALUES (%s,
+                            (SELECT id FROM pne_diagrama WHERE prolog_id = %s),
+                            %s,%s,%s,%s,%s,%s,%s,%s,%s, now())
+                    ON CONFLICT (placa) DO UPDATE SET
+                        diagrama_id      = COALESCE(EXCLUDED.diagrama_id,
+                                                    pne_veiculo.diagrama_id),
+                        filial           = EXCLUDED.filial,
+                        prolog_id        = EXCLUDED.prolog_id,
+                        tem_motor        = EXCLUDED.tem_motor,
+                        km_atual         = EXCLUDED.km_atual,
+                        pneus_instalados = EXCLUDED.pneus_instalados,
+                        pneus_esperados  = EXCLUDED.pneus_esperados,
+                        estepes          = EXCLUDED.estepes,
+                        ativo            = EXCLUDED.ativo,
+                        frota            = EXCLUDED.frota,
+                        atualizado_em    = now()""",
+                    (placa, lay, (x.get("branchOfficeName") or "").strip() or None,
+                     str(x.get("id") or "") or None, bool(x.get("motorized")),
+                     x.get("currentOdometer"), x.get("totalInstalledTires"),
+                     x.get("expectedInstalledTires"),
+                     x.get("totalInstalledSpareTires"), bool(x.get("active", True)),
+                     (x.get("fleetId") or "").strip() or None))
+                n += 1
+        if d.get("lastPage") or d.get("empty") or not itens:
+            return n
+        pagina += 1
+
+
 def sincronizar() -> dict:
     """Traz as tabelas de domínio. NUNCA levanta.
 
@@ -145,26 +206,31 @@ def sincronizar() -> dict:
     if not cliente.pronto():
         return {"ok": False, "erro": "integração da Prolog não configurada"}
     cli = cliente.Cliente()
-    diag = mot = 0
+    diag = mot = veic = 0
     erros = []
     # CADA PASSO FALHA POR CONTA PROPRIA. Na primeira versao os dois estavam no
     # mesmo `try` e o 400 do segundo apagou o resultado do primeiro — o
     # fornecedor tem endpoints com maturidades diferentes, e um deles fora do ar
     # nao pode zerar a coleta inteira.
-    for nome, passo in (("diagramas", _diagramas), ("motivos", _motivos)):
+    # OS DIAGRAMAS ANTES DOS VEICULOS: o vinculo do veiculo procura o diagrama
+    # pelo id da Prolog, entao ele precisa ja estar la.
+    for nome, passo in (("diagramas", _diagramas), ("motivos", _motivos),
+                        ("veiculos", _veiculos)):
         try:
             n = passo(cli)
             if nome == "diagramas":
                 diag = n
-            else:
+            elif nome == "motivos":
                 mot = n
+            else:
+                veic = n
         except Exception as exc:  # noqa: BLE001
             erros.append("%s: %s" % (nome, type(exc).__name__))
             log.warning("cadastro de pneus, %s: %s", nome, str(exc)[:160])
     erro = " · ".join(erros) or None
     _gravar_estado(diag + mot, erro)
     return {"ok": erro is None, "erro": erro,
-            "diagramas": diag, "motivos": mot}
+            "diagramas": diag, "motivos": mot, "veiculos": veic}
 
 
 def estado() -> dict:
@@ -173,7 +239,15 @@ def estado() -> dict:
         d = pglocal.query("SELECT count(*) AS n FROM pne_diagrama")[0]["n"]
         m = pglocal.query("SELECT especie, count(*) AS n FROM pne_motivo "
                           "GROUP BY 1")
+        v = pglocal.query("""
+            SELECT count(*) AS n,
+                   count(diagrama_id) AS com_diagrama,
+                   sum(CASE WHEN pneus_instalados < pneus_esperados
+                            THEN 1 ELSE 0 END) AS incompletos
+            FROM pne_veiculo""")[0]
         return {"diagramas": d,
-                "motivos": {r["especie"]: r["n"] for r in m}}
+                "motivos": {r["especie"]: r["n"] for r in m},
+                "veiculos": v["n"], "com_diagrama": v["com_diagrama"],
+                "incompletos": v["incompletos"] or 0}
     except Exception as exc:  # noqa: BLE001
         return {"erro": type(exc).__name__}

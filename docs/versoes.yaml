@@ -1,3 +1,24 @@
+- versao: "0.246.0"
+  data: "2026-09-05"
+  novo:
+    - >-
+      O CÓRTEX passou a saber registrar movimento de pneu por conta própria:
+      montar num veículo, remover, dar baixa e lançar uma medição de sulco. Até
+      aqui ele só copiava o que a Prolog registrava; agora ele grava, e continua
+      gravando no dia em que a integração acabar.
+    - >-
+      O que separa isso de um formulário são as recusas. A posição tem de
+      existir naquele veículo e tem de estar livre — dois pneus na mesma
+      posição é o erro que não se descobre, porque o inventário fecha e o custo
+      por quilômetro passa a dividir por um km que só um dos dois rodou. O
+      estado do pneu tem de permitir o movimento, o hodômetro e o sulco têm de
+      caber na faixa do possível, e o motivo da baixa vem da lista, não de
+      texto livre.
+    - >-
+      Cada veículo passou a ter o diagrama de eixos dele, o que é o que permite
+      dizer "a posição 3DE existe neste caminhão". De brinde veio um número que
+      ninguém media: 42 veículos estão com menos pneus do que o diagrama prevê,
+      172 pneus no total — parte deles são carretas desmontadas, mas não todos.
 - versao: "0.245.1"
   data: "2026-09-05"
   corrigido:

@@ -3166,3 +3166,43 @@ MAIS (19.462 contra 18.199) com 2,9% de saturação.
 O perfil do menu não estava errado: ele foi calibrado para 78 px. **Parâmetro
 de desenho não se copia entre tamanhos sem medir** — e o que se mede aqui não é
 "ficou bonito", é quantos pixels estouraram.
+
+## Migration é controlada por NÚMERO, e duas sessões colidiram nele (2026-09-05, v0.246.0)
+
+Três sessões trabalhavam no mesmo repositório: uma nos pneus (árvore
+principal), uma no rastreio e uma no portal do cliente, cada uma na sua
+worktree. As duas últimas conversavam sobre o número de VERSÃO, que é a
+colisão de sempre e a que a casa já sabia evitar — buraco na sequência é mais
+barato que topo regredindo.
+
+**A colisão perigosa era outra.** Eu tinha criado `sql/cortex/0052_pneus_veiculo.sql`
+e rodado `scripts/migrar_schema.py`: o schema `cortex` de produção passou para a
+versão 52. Ainda não tinha empurrado o arquivo. A sessão do portal do cliente,
+olhando o `git ls-tree origin/main sql/cortex/`, viu a sequência parar na 0051 e
+escolheu a 0052 para o arquivo dela.
+
+**Por que isso não é um conflito de git.** Os dois arquivos têm nomes
+diferentes (`0052_pneus_veiculo.sql` e `0052_portal_cliente.sql`), moram em
+lugares diferentes da árvore e o git faz o merge dos dois sem reclamar. O
+conflito só existe dentro do `migrar_schema.py`, que controla por NÚMERO:
+
+> Como a versão 52 já constava aplicada, o AutoDeploy consideraria a 52 feita e
+> **pularia o DDL da outra sessão inteiro**. Sem erro, sem log, sem sintoma. A
+> tabela dela simplesmente não existiria em produção, e a falha apareceria
+> depois — na primeira consulta, longe da causa.
+
+E o inverso é igualmente ruim: se a migration dela tivesse sido aplicada
+primeiro em outro schema, seriam as MINHAS colunas em `pne_veiculo` que nunca
+existiriam, e o módulo de pneus quebraria ao tentar validar uma posição.
+
+**O que resolveu**: as sessões se avisaram antes de qualquer uma aplicar. A do
+portal renumerou para 0053 e não aplicou nada; a 52 continuou sendo a de pneus,
+que já estava no banco.
+
+**A regra que fica.** Antes de escolher o número de uma migration, o
+`git ls-tree origin/main sql/cortex/` NÃO BASTA — ele só enxerga o que já foi
+empurrado, e migration costuma ser aplicada localmente antes de ir para o
+origin. Quando há mais de uma sessão viva, o número tem de ser combinado, como
+já se combina o número da versão. E quem já APLICOU no schema de produção tem
+prioridade sobre quem só criou o arquivo: reverter DDL aplicado é caro, mudar o
+nome de um arquivo que ninguém rodou é de graça.
