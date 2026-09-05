@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.252.1] — 05/09/2026  ·  CX-05/09/2026-v0.252.1
+
+### Corrigido
+- A previsão de troca passou a preferir o cálculo de quilometragem que tem conferência independente, e não o hodômetro lido no pátio. Hoje mais cedo eu tinha invertido essa ordem e apresentado como melhoria — sem ter comparado os dois. Comparados depois, em 275 pneus que têm os dois caminhos, eles concordam em apenas 31% dos casos. A vida estimada de um pneu passou de 122 mil para 130 mil km com a correção, e a cobertura não caiu. O hodômetro continua atendendo quem não tem o outro caminho, e a tela diz qual foi usado.
+
 ## [0.252.0] — 05/09/2026  ·  CX-05/09/2026-v0.252.0
 
 ### Adicionado
@@ -18,11 +23,6 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 ### Alterado
 - O portal NÃO mostra "entrega no prazo", e isso é decisão, não falta. A data de previsão de entrega do ERP é igual à data de emissão em 80% dos CT-es: é preenchimento automático, não compromisso combinado. Sobre ela o indicador daria 91% de pontualidade, um número que agrada e não significa nada; medindo só onde existe prazo de verdade, a régua cobre 8,7% das cargas. Indicador que mede 8,7% e se apresenta como nível de serviço é pior que indicador nenhum — mais ainda numa tela que o cliente lê, porque ele fecha conta em cima. O que o portal mede é permanência, que a operação registra em cerca de 72% das cargas.
 - Permanência acima de 24 horas aparece como "não medido", em cinza, e vai contada à parte: quase sempre é apontamento que atravessou dias, não veículo parado no pátio. Entraria como número enorme e verdadeiro na aparência, empurrando a média para longe da operação real.
-
-## [0.251.3] — 05/09/2026  ·  CX-05/09/2026-v0.251.3
-
-### Corrigido
-- A previsão de troca passou a preferir o cálculo de quilometragem que tem conferência independente, e não o hodômetro lido no pátio. Hoje mais cedo eu tinha invertido essa ordem e apresentado como melhoria — sem ter comparado os dois. Comparados depois, em 275 pneus que têm os dois caminhos, eles concordam em apenas 31% dos casos. A vida estimada de um pneu passou de 122 mil para 130 mil km com a correção, e a cobertura não caiu. O hodômetro continua atendendo quem não tem o outro caminho, e a tela diz qual foi usado.
 
 ## [0.251.2] — 05/09/2026  ·  CX-05/09/2026-v0.251.2
 

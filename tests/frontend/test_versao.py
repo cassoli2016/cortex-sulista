@@ -146,3 +146,55 @@ def test_toda_tela_do_menu_existe_no_drawer_do_celular():
     faltando = sorted(no_menu - no_drawer)
     assert not faltando, (
         f"telas no menu lateral e ausentes no drawer do celular: {faltando}")
+
+
+# --------------------------------------------------------------------------
+# o topo do arquivo É a versão corrente
+# --------------------------------------------------------------------------
+def _versoes_cruas():
+    import pathlib
+
+    import yaml
+    raiz = pathlib.Path(__file__).resolve().parent.parent.parent
+    return yaml.safe_load((raiz / "docs" / "versoes.yaml").read_text(encoding="utf-8"))
+
+
+def _versao_do_pyproject():
+    import pathlib
+    import re
+    raiz = pathlib.Path(__file__).resolve().parent.parent.parent
+    texto = (raiz / "pyproject.toml").read_text(encoding="utf-8")
+    return re.search(r'^version = "([^"]+)"', texto, re.M).group(1)
+
+
+def _chave(v):
+    return tuple(int(x) if x.isdigit() else 0 for x in str(v).split("."))
+
+
+def test_o_TOPO_do_versoes_e_a_versao_do_pyproject():
+    """A regra está no CLAUDE.md desde sempre — "topo = corrente = pyproject" —
+    e não tinha guard. Eu quebrei em 05/09/2026 e nada acendeu.
+
+    COMO SE QUEBRA, e é o caso comum com mais de uma sessão viva: eu numerei
+    0.251.3 quando o origin já estava em 0.252.0. Os dois arquivos são
+    diferentes, então o git fez merge LIMPO — meu bloco entrou no topo do YAML e
+    o `pyproject.toml` ficou com o número da outra sessão. O CHANGELOG passou a
+    anunciar 0.251.3 como a última enquanto o `/api/versao` respondia 0.252.0.
+
+    Nenhum teste falhou. O `test_toda_versao_tem_data_e_ao_menos_uma_mudanca`
+    olha cada bloco isoladamente e não tinha por que reparar.
+    """
+    d = _versoes_cruas()
+    assert d[0]["versao"] == _versao_do_pyproject(), (
+        "o topo do versoes.yaml (%s) não é a versão do pyproject (%s) — quase "
+        "sempre duas sessões numerando ao mesmo tempo"
+        % (d[0]["versao"], _versao_do_pyproject()))
+
+
+def test_as_versoes_estao_em_ordem_DECRESCENTE():
+    """Bloco fora de ordem é o mesmo acidente visto de outro ângulo: a versão
+    mais nova tem de estar em cima, senão o CHANGELOG conta a história ao
+    contrário no meio do arquivo."""
+    vs = [x["versao"] for x in _versoes_cruas()]
+    fora = [(a, b) for a, b in zip(vs, vs[1:]) if _chave(a) < _chave(b)]
+    assert not fora, "versões fora de ordem no versoes.yaml: %s" % fora[:5]
