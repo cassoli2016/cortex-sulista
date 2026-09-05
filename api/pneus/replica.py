@@ -93,6 +93,29 @@ def _modelo_id(cur, p: dict) -> int | None:
     return cur.fetchone()["id"]
 
 
+def _mudou(anterior, sulcos, pressao) -> bool:
+    """A foto de agora diz algo novo?
+
+    COMPARA POR VALOR, com tolerância zero: o sulco vem com duas casas e o
+    fornecedor devolve sempre a mesma string quando não mediu de novo. Uma
+    tolerância aqui engoliria o degrau de 0,1 mm que é justamente o que a série
+    de desgaste procura.
+
+    Sem `anterior` a resposta é SIM — o primeiro registro de um pneu é sempre
+    novidade.
+    """
+    if anterior is None:
+        return True
+    ant_s, ant_p = anterior
+    def _lista(v):
+        return [float(x) for x in (v or []) if x is not None]
+    if _lista(ant_s) != _lista(sulcos):
+        return True
+    a = None if ant_p is None else float(ant_p)
+    b = None if pressao is None else float(pressao)
+    return a != b
+
+
 def semear(limite: int | None = None) -> dict:
     """Traz o instantâneo local para o banco. Não gasta cota da Prolog.
 
@@ -112,6 +135,16 @@ def semear(limite: int | None = None) -> dict:
     novos = atualizados = vidas = inspecoes = 0
 
     with pglocal.get_conn() as conn, conn.cursor() as cur:
+        # A ULTIMA MEDICAO DE CADA PNEU, numa consulta so. E ela que decide se
+        # a foto de agora vira linha — ver o comentario do INSERT abaixo. Fazer
+        # isso pneu a pneu seriam 7.865 consultas por rodada.
+        cur.execute("""
+            SELECT DISTINCT ON (pneu_id) pneu_id, sulcos_mm, pressao_psi
+            FROM pne_inspecao ORDER BY pneu_id, medido_em DESC""")
+        ultima = {r["pneu_id"]: (r["sulcos_mm"], r["pressao_psi"])
+                  for r in cur.fetchall()}
+        repetidas = 0
+
         for p in pneus:
             pid_prolog = str(p.get("id") or "").strip()
             if not pid_prolog:
@@ -186,9 +219,21 @@ def semear(limite: int | None = None) -> dict:
             # COLETA, não com `now()`: o sulco foi medido no pátio antes disso,
             # e carimbar a hora da importação faria a série de desgaste ter
             # degraus onde só houve importação.
+            #
+            # SÓ QUANDO MUDA, e este é o conserto de um defeito que já estava
+            # em produção. A coleta roda de 20 em 20 minutos e gravava a foto
+            # INTEIRA a cada rodada: 7.865 linhas por vez, 566 mil por dia. E
+            # medido: 100% dos pares consecutivos eram IDÊNTICOS ao anterior —
+            # 267.376 linhas com zero informação, a caminho de 200 milhões por
+            # ano. O sulco de um pneu não muda em vinte minutos.
+            #
+            # Isto é um REGISTRO DE MUDANÇA, não uma amostragem. A série de
+            # desgaste quer os degraus; a repetição entre eles não acrescenta
+            # nada e ainda esconde os degraus no meio do volume.
             sulcos = [s for s in (p.get("sulcos") or []) if s is not None]
             pressao = _n(p.get("pressao"))
-            if (sulcos or pressao) and colhido:
+            if (sulcos or pressao) and colhido and _mudou(
+                    ultima.get(pneu_id), sulcos, pressao):
                 cur.execute("""
                     INSERT INTO pne_inspecao
                         (pneu_id, medido_em, sulcos_mm, pressao_psi,
@@ -200,6 +245,9 @@ def semear(limite: int | None = None) -> dict:
                      (p.get("posicao") or "").strip() or None,
                      f"snap:{pid_prolog}:{colhido}"))
                 inspecoes += cur.rowcount
+                ultima[pneu_id] = (sulcos or None, pressao)
+            elif (sulcos or pressao) and colhido:
+                repetidas += 1
 
             if placa:
                 cur.execute("""
@@ -221,7 +269,7 @@ def semear(limite: int | None = None) -> dict:
 
     return {"ok": True, "pneus": len(pneus), "novos": novos,
             "atualizados": atualizados, "vidas": vidas,
-            "inspecoes": inspecoes, "colhido_em": colhido,
+            "inspecoes": inspecoes, "inspecoes_repetidas": repetidas, "colhido_em": colhido,
             "fonte": "instantâneo local — nenhuma requisição à Prolog"}
 
 

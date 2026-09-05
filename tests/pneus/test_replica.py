@@ -209,3 +209,46 @@ def test_instantaneo_vazio_nao_apaga_o_que_ja_existe(instantaneo, semear_em):
     r = replica.semear()
     assert not r["ok"] and r["pneus"] == 0
     assert _contar(semear_em)["pne_pneu"] == 5
+
+
+# --------------------------------------------------------------------------
+# a foto só vira linha quando MUDA
+# --------------------------------------------------------------------------
+def test_a_medicao_REPETIDA_nao_vira_linha():
+    """O guard de um defeito que estava em produção crescendo.
+
+    A coleta roda de 20 em 20 minutos e gravava o instantâneo INTEIRO a cada
+    rodada: 7.865 linhas por vez, 566 mil por dia. Medido antes do conserto:
+    **100%** dos pares consecutivos eram IDÊNTICOS — 269.383 linhas com zero
+    informação, a caminho de 200 milhões por ano.
+
+    O sulco de um pneu não muda em vinte minutos. Isto é um registro de
+    MUDANÇA, não uma amostragem: a série de desgaste quer os degraus, e a
+    repetição entre eles não acrescenta nada — ainda esconde os degraus no meio
+    do volume.
+    """
+    from decimal import Decimal
+    igual = ([Decimal("6.00")] * 4, Decimal("115.00"))
+    assert not replica._mudou(igual, [6.0, 6.0, 6.0, 6.0], 115.0)
+
+
+def test_QUALQUER_mudanca_vira_linha():
+    """Tolerância aqui engoliria o degrau de 0,1 mm, que é justamente o que a
+    série de desgaste procura."""
+    from decimal import Decimal
+    base = ([Decimal("6.00")] * 4, Decimal("115.00"))
+    assert replica._mudou(base, [5.9, 6.0, 6.0, 6.0], 115.0), "sulco mudou"
+    assert replica._mudou(base, [6.0, 6.0, 6.0, 6.0], 114.0), "pressão mudou"
+    assert replica._mudou(base, [6.0, 6.0, 6.0], 115.0), "sumiu um sulco"
+
+
+def test_o_PRIMEIRO_registro_de_um_pneu_e_sempre_novidade():
+    assert replica._mudou(None, [6.0], 100.0)
+
+
+def test_medicao_vazia_nao_confunde_com_medicao_igual():
+    """Nulo e zero são coisas diferentes: um pneu sem leitura de pressão não
+    pode ser lido como 'a pressão continua a mesma'."""
+    from decimal import Decimal
+    assert replica._mudou(([Decimal("6.00")], None), [6.0], 100.0)
+    assert not replica._mudou(([Decimal("6.00")], None), [6.0], None)

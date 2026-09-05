@@ -1,3 +1,14 @@
+- versao: "0.241.1"
+  data: "2026-09-05"
+  corrigido:
+    - >-
+      O histórico de sulco e pressão dos pneus estava crescendo 566 mil linhas
+      por dia sem guardar nenhuma informação nova: a coleta grava de 20 em 20
+      minutos e regravava a medição inteira de todos os pneus mesmo quando nada
+      mudava — e nada mudava em 100% das vezes. A medição agora só vira
+      registro quando muda de verdade, e as 269.383 linhas repetidas que já
+      tinham entrado foram removidas (de 280.775 para 11.392). As leituras
+      feitas no pátio, essas, ficaram todas.
 - versao: "0.241.0"
   data: "2026-09-05"
   novo:

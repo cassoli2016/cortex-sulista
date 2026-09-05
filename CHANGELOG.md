@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.241.1] — 05/09/2026  ·  CX-05/09/2026-v0.241.1
+
+### Corrigido
+- O histórico de sulco e pressão dos pneus estava crescendo 566 mil linhas por dia sem guardar nenhuma informação nova: a coleta grava de 20 em 20 minutos e regravava a medição inteira de todos os pneus mesmo quando nada mudava — e nada mudava em 100% das vezes. A medição agora só vira registro quando muda de verdade, e as 269.383 linhas repetidas que já tinham entrado foram removidas (de 280.775 para 11.392). As leituras feitas no pátio, essas, ficaram todas.
+
 ## [0.241.0] — 05/09/2026  ·  CX-05/09/2026-v0.241.0
 
 ## [0.240.0] — 05/09/2026  ·  CX-05/09/2026-v0.240.0
