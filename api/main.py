@@ -330,6 +330,20 @@ def _ip_do_cliente(req: Request) -> str:
             or (req.client.host if req.client else "?"))
 
 
+@app.get("/r")
+def rastreio_pagina_curta() -> FileResponse:
+    """O mesmo `/rastreio`, com o caminho curto que vai no WhatsApp.
+
+    NAO E VAIDADE: o endereco entra numa mensagem que a pessoa le no celular,
+    e com o token o link tinha 96 caracteres — tres linhas, um paredao azul que
+    ninguem clica. Com `/r` e o token binario ele fica em 59.
+
+    `/rastreio` continua valendo: e o endereco que se digita e que ja foi
+    divulgado; quem trocasse um pelo outro quebraria os dois.
+    """
+    return rastreio_pagina()
+
+
 @app.get("/rastreio")
 def rastreio_pagina() -> FileResponse:
     return FileResponse(STATIC / "rastreio.html",

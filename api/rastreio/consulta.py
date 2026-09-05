@@ -16,6 +16,7 @@ import os
 import pathlib
 import re
 import secrets
+import struct
 import time
 from datetime import datetime, timezone
 
@@ -130,6 +131,35 @@ def token(grupo, empresa, filial, numero, serie) -> str:
 LINK_DIAS = 20
 
 
+#: Formato binario do token curto. O antigo era o texto "1|1|15|51410|1|<epoch>"
+#: em base64 mais 20 caracteres de assinatura: 55 caracteres de token e uma URL
+#: de 96. Isso ocupa tres linhas no WhatsApp e a mensagem inteira vira um
+#: paredao de link — e link feio nao e clicado.
+#:
+#: Empacotado: grupo(1) empresa(1) filial(2) numero(4) serie(1) dia(2) = 11
+#: bytes, mais 8 de assinatura. Da 26 caracteres, e a URL cai para 59.
+#:
+#: O PRAZO VIRA DIA, nao segundo: precisao de segundo num link de 20 dias nao
+#: serve para nada e custava 2 bytes.
+LINK_FMT = "<BBHIBH"
+LINK_ASS_BYTES = 8
+
+
+def _assinar(cru: bytes) -> bytes:
+    """8 bytes de HMAC-SHA256. Forjar exige 2^64 tentativas contra uma rota com
+    freio por IP — a margem sobra, e cada byte a mais e um caractere e um terco
+    na mensagem de todo cliente."""
+    return hmac.new(_segredo(), cru, hashlib.sha256).digest()[:LINK_ASS_BYTES]
+
+
+def _b64(b: bytes) -> str:
+    return base64.urlsafe_b64encode(b).decode().rstrip("=")
+
+
+def _deb64(t: str) -> bytes:
+    return base64.urlsafe_b64decode(t + "=" * (-len(t) % 4))
+
+
 def link_token(grupo, empresa, filial, numero, serie) -> str:
     """Token do link direto, assinado e com prazo.
 
@@ -141,15 +171,54 @@ def link_token(grupo, empresa, filial, numero, serie) -> str:
     era esse o pedido. Em troca, expira: link com prazo encaminhado num grupo
     para de funcionar sozinho.
     """
+    dia = int(time.time() // 86400) + LINK_DIAS
+    try:
+        cru = struct.pack(LINK_FMT, int(grupo), int(empresa), int(filial),
+                          int(numero), int(serie), dia)
+    except (struct.error, ValueError, TypeError):
+        # CHAVE QUE NAO CABE NO FORMATO — filial acima de 65.535, numero acima
+        # de 4 bilhoes. Nao existe hoje, mas o dia em que existir o link nao
+        # pode sumir: cai no formato antigo, que aceita qualquer inteiro.
+        return _link_token_longo(grupo, empresa, filial, numero, serie)
+    return _b64(cru + _assinar(cru))
+
+
+def _link_token_longo(grupo, empresa, filial, numero, serie) -> str:
+    """O formato antigo, textual. Fica como saida de emergencia do curto."""
     ate = int(time.time()) + LINK_DIAS * 86400
     cru = "%s|%s|%s|%s|%s|%s" % (grupo, empresa, filial, numero, serie, ate)
     ass = hmac.new(_segredo(), cru.encode("utf-8"), hashlib.sha256).hexdigest()[:20]
-    dados = base64.urlsafe_b64encode(cru.encode("utf-8")).decode().rstrip("=")
-    return "%s.%s" % (dados, ass)
+    return "%s.%s" % (_b64(cru.encode("utf-8")), ass)
+
+
+def _link_abrir_curto(token: str) -> dict | None:
+    tam = struct.calcsize(LINK_FMT)
+    b = _deb64(token)
+    if len(b) != tam + LINK_ASS_BYTES:
+        return None
+    cru, ass = b[:tam], b[tam:]
+    if not hmac.compare_digest(ass, _assinar(cru)):
+        return None
+    g, e, f, n, s, dia = struct.unpack(LINK_FMT, cru)
+    if dia * 86400 < time.time():
+        return None
+    return {"g": g, "e": e, "f": f, "n": n, "s": s}
 
 
 def link_abrir(token: str) -> dict | None:
-    """As chaves da carga de um token de link, ou None. Nunca levanta."""
+    """As chaves da carga de um token de link, ou None. Nunca levanta.
+
+    ACEITA OS DOIS FORMATOS, e nao e zelo: quando o token encurtou, ja havia
+    link de 20 dias no WhatsApp de gente que nao tem como saber disso. Recusar
+    o formato antigo transformaria "encurtamos o link" em "os links que voce
+    recebeu pararam de funcionar" — e o unico a saber seria quem clicasse.
+    O antigo tem ponto separando dados e assinatura; o curto nao tem.
+    """
+    if token and "." not in token:
+        try:
+            return _link_abrir_curto(token)
+        except Exception:  # noqa: BLE001
+            return None
     try:
         dados, _, ass = (token or "").partition(".")
         if not dados or not ass:

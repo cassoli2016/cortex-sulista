@@ -43,15 +43,30 @@ def test_o_token_volta_exatamente_a_carga_que_entrou():
 
 
 def test_token_ADULTERADO_nao_abre_nada():
-    """Sem a assinatura, o token seria só o número da carga em base64 — e
+    """Sem a assinatura, o token seria só o número da carga empacotado — e
     somar um viraria a carga do próximo cliente."""
     t = consulta.link_token(*CHAVES)
-    dados, ass = t.split(".")
-    for falso in (dados + "." + "0" * len(ass),           # assinatura trocada
-                  dados[:-2] + "AA" + "." + ass,          # conteúdo trocado
-                  dados,                                  # sem assinatura
-                  "", "lixo", "a.b"):
+    trocado = t[:-1] + ("A" if t[-1] != "A" else "B")
+    for falso in (trocado,                       # assinatura ou dado mexido
+                  t[:-4],                        # truncado
+                  "A" * len(t),                  # inventado do zero
+                  "", "lixo", "a.b", "!!!"):
         assert consulta.link_abrir(falso) is None, falso
+
+
+def test_o_token_ENCURTOU_e_o_ANTIGO_continua_valendo():
+    """Quando o token encurtou de 55 para 26 caracteres, já havia link de 20
+    dias no WhatsApp de gente que não tem como saber disso. Recusar o formato
+    antigo transformaria "encurtamos o link" em "os links que você recebeu
+    pararam de funcionar" — e o único a saber seria quem clicasse."""
+    curto = consulta.link_token(*CHAVES)
+    antigo = consulta._link_token_longo(*CHAVES)
+    esperado = {"g": 1, "e": 1, "f": 2, "n": 359462, "s": 2}
+    assert consulta.link_abrir(curto) == esperado
+    assert consulta.link_abrir(antigo) == esperado
+    # e o curto é curto de verdade — é este número que decide se o link cabe
+    # numa linha do WhatsApp ou vira um parede de três.
+    assert len(curto) <= 30 < len(antigo)
 
 
 def test_token_VENCIDO_nao_abre(monkeypatch):

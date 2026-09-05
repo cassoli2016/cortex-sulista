@@ -43,33 +43,39 @@ def base() -> str:
 #: um site para cancelar bloqueia o número em vez disso.
 RODAPE = "\n\n_Para sair, responda SAIR._"
 
-CHEIO, VAZIO = "▰", "▱"
-LARGURA_BARRA = 10
+#: A ESTRADA. Blocos de cor, não traços: no WhatsApp o que se lê de relance é
+#: a NOTIFICAÇÃO, e ali um `▰▰▱▱` some no meio do texto enquanto um bloco verde
+#: aparece. O caminhão marca a posição — é ele que transforma "58%" em "estou
+#: aqui", que é a pergunta que a pessoa realmente faz.
+FEITO, CARRO, FALTA, CHEGADA = "🟩", "🚛", "⬜", "🏁"
+CELULAS = 8
+
+
+def barra(pct: int) -> str:
+    """A estrada com o caminhão na posição, ou a bandeirada no fim.
+
+    A REGRA DAS PONTAS CONTINUA VALENDO, e aqui ela é mais visível ainda: com o
+    caminhão na última célula a pessoa lê CHEGOU e vai para a doca. Então 99%
+    nunca põe o caminhão no fim — só 100% troca a estrada pela bandeira.
+    """
+    p = max(0, min(100, int(pct)))
+    if p >= 100:
+        return FEITO * (CELULAS - 1) + CHEGADA
+    i = int(round(p / 100.0 * (CELULAS - 1)))
+    # NUNCA na ultima celula abaixo de 100: ver o docstring.
+    i = min(i, CELULAS - 2)
+    return FEITO * i + CARRO + FALTA * (CELULAS - 1 - i)
+
 
 #: Semáforo do trânsito. Os mesmos três estados da casa, e nada além deles.
 PONTO_TRANSITO = {"livre": "\U0001f7e2", "lento": "\U0001f7e1",
                   "parado": "\U0001f534", "bloqueado": "\U0001f534"}
 
 
-def barra(pct: int) -> str:
-    """A barra só arredonda para as pontas quando chegou lá de verdade.
-
-    99% virando dez blocos cheios seria lido como "chegou", e a pessoa iria
-    para a doca — por isso o cheio só aparece em 100, e o vazio só em 0.
-    """
-    p = max(0, min(100, int(pct)))
-    n = int(round(p / 100.0 * LARGURA_BARRA))
-    if p > 0:
-        n = max(1, n)
-    if p < 100:
-        n = min(LARGURA_BARRA - 1, n)
-    return CHEIO * n + VAZIO * (LARGURA_BARRA - n)
-
-
 def link(carga: dict) -> str:
     """O endereço que abre a carga JÁ ABERTA, sem a pessoa digitar nada."""
     t = carga.get("link_token")
-    return "%s/rastreio#c=%s" % (base(), t) if t else "%s/rastreio" % base()
+    return "%s/r#c=%s" % (base(), t) if t else "%s/rastreio" % base()
 
 
 def _cabecalho(carga: dict, emoji: str, titulo: str) -> list[str]:

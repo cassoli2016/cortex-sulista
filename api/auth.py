@@ -405,7 +405,10 @@ def _rota_publica(path: str) -> bool:
             # barra e com barra: quem digita o endereco a mao erra os dois
             # jeitos, e um 403 na cara de um cliente por causa de barra seria
             # um chamado no SAC.
-            or path in ("/rastreio", "/rastreio/")
+            # `/r` e o mesmo `/rastreio` com o caminho curto que vai no
+            # WhatsApp — o link cabe numa linha em vez de tres. Os dois valem:
+            # trocar um pelo outro quebraria os links ja enviados.
+            or path in ("/rastreio", "/rastreio/", "/r", "/r/")
             or path in _PUBLICAS_RASTREIO)
 
 

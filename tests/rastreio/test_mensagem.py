@@ -38,31 +38,45 @@ def _carga(**kw) -> dict:
 # --------------------------------------------------------------------------
 # a barra
 # --------------------------------------------------------------------------
-def test_a_barra_tem_sempre_a_mesma_largura():
+def test_a_estrada_tem_sempre_a_mesma_largura():
     for pct in (0, 1, 37, 50, 99, 100):
-        assert len(mensagem.barra(pct)) == mensagem.LARGURA_BARRA, pct
+        assert len(mensagem.barra(pct)) == mensagem.CELULAS, pct
 
 
-def test_a_barra_NAO_arredonda_para_as_pontas():
-    """O guard que impede a barra de mentir.
-
-    Com arredondamento cru, 97% viram dez blocos cheios e 3% viram dez vazios.
-    "Cheio" é lido como CHEGOU — e quem lê isso desce para a doca. As pontas
-    são estados, não faixas: só valem quando são exatamente elas.
-    """
-    assert mensagem.barra(100) == mensagem.CHEIO * mensagem.LARGURA_BARRA
-    assert mensagem.barra(0) == mensagem.VAZIO * mensagem.LARGURA_BARRA
-    for pct in (96, 97, 98, 99):
-        assert mensagem.VAZIO in mensagem.barra(pct), pct
-    for pct in (1, 2, 3, 4):
-        assert mensagem.CHEIO in mensagem.barra(pct), pct
+def test_o_CAMINHAO_marca_a_posicao():
+    """É ele que transforma "58%" em "estou aqui" — que é a pergunta que a
+    pessoa realmente faz ao abrir a mensagem."""
+    for pct in (0, 25, 50, 75, 99):
+        b = mensagem.barra(pct)
+        assert b.count(mensagem.CARRO) == 1, pct
+        # e ele anda: a quantidade de estrada percorrida cresce com o %
+    assert (mensagem.barra(75).count(mensagem.FEITO)
+            > mensagem.barra(25).count(mensagem.FEITO))
 
 
-def test_a_barra_aguenta_valor_fora_da_faixa():
+def test_o_caminhao_NUNCA_chega_ao_fim_antes_dos_100():
+    """A regra das pontas, agora mais visível ainda: com o caminhão na última
+    célula a pessoa lê CHEGOU e desce para a doca. Só 100% troca a estrada pela
+    bandeirada."""
+    for pct in (95, 97, 98, 99):
+        b = mensagem.barra(pct)
+        assert b.endswith(mensagem.FALTA), pct
+        assert mensagem.CHEGADA not in b, pct
+    fim = mensagem.barra(100)
+    assert fim.endswith(mensagem.CHEGADA) and mensagem.CARRO not in fim
+
+
+def test_zero_por_cento_poe_o_caminhao_na_LARGADA():
+    b = mensagem.barra(0)
+    assert b.startswith(mensagem.CARRO)
+    assert mensagem.FEITO not in b, "pintou estrada que ninguém rodou"
+
+
+def test_a_estrada_aguenta_valor_fora_da_faixa():
     """Um progresso negativo ou acima de 100 é defeito de outro lugar; aqui ele
     não pode virar uma barra de tamanho errado no celular do cliente."""
     for pct in (-30, 140):
-        assert len(mensagem.barra(pct)) == mensagem.LARGURA_BARRA, pct
+        assert len(mensagem.barra(pct)) == mensagem.CELULAS, pct
 
 
 # --------------------------------------------------------------------------
@@ -73,7 +87,7 @@ def test_o_link_vai_no_FRAGMENTO_e_nao_na_query():
     ao log do proxy. Na query, o token de uma carga de cliente ficaria gravado
     no log de acesso do Cloudflare."""
     lig = mensagem.link(_carga())
-    assert "#c=" + TOKEN in lig
+    assert "/r#c=" + TOKEN in lig
     assert "?" not in lig and "t=" + TOKEN not in lig
 
 
@@ -84,7 +98,7 @@ def test_o_dominio_e_o_da_casa_e_e_configuravel(monkeypatch):
     monkeypatch.delenv("RASTREIO_URL_BASE", raising=False)
     assert mensagem.link(_carga()).startswith("https://cortex.sulista.com.br/")
     monkeypatch.setenv("RASTREIO_URL_BASE", "https://outro.exemplo.com/")
-    assert mensagem.link(_carga()).startswith("https://outro.exemplo.com/rastreio")
+    assert mensagem.link(_carga()).startswith("https://outro.exemplo.com/r#")
 
 
 def test_sem_token_o_link_ainda_leva_para_a_pagina():

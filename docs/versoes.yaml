@@ -1,3 +1,18 @@
+- versao: "0.238.0"
+  data: "2026-09-05"
+  novo:
+    - >-
+      A barra de progresso do aviso de WhatsApp virou uma estrada com o
+      caminhão em cima: blocos verdes atrás dele, brancos à frente, bandeira
+      quadriculada na entrega. Na notificação do celular, que é onde a mensagem
+      é lida de relance, um traço somia no meio do texto — um bloco colorido
+      não some. O caminhão nunca chega à última posição antes de 100%: ali ele
+      seria lido como "chegou".
+    - >-
+      O link do "acompanhe ao vivo" caiu de 96 para 60 caracteres — de três
+      linhas para uma. O endereço ficou "/r" e o código foi compactado. Os
+      links já enviados continuam funcionando: recusá-los transformaria
+      "encurtamos o link" em "os links que você recebeu pararam".
 - versao: "0.237.1"
   data: "2026-09-05"
   corrigido:
