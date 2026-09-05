@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<!-- MOBILE-FIRST DE VERDADE, nao adaptado depois: esta pagina chega por link
+     de WhatsApp, entao o celular e o caso NORMAL e o desktop e a excecao.
+     `viewport-fit=cover` + os `env(safe-area-inset-*)` la embaixo mantem o
+     botao fora da barra de gestos do iPhone. -->
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#0B1926">
+<title>Onde está minha carga? · Transportadora Sulista</title>
+<link rel="icon" href="/static/favicon.png">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --navy-900:#0B1926; --navy-800:#102538; --navy-700:#17344F;
+  --brand:#942821; --brand-claro:#E0705F;
+  --orange-500:#E85D10;
+  --green:#1E7F4F; --yellow-700:#B97709; --red:#C03221;
+  --n0:#fff; --n50:#F6F7F8; --n100:#ECEEF1; --n200:#DCE0E5; --n300:#C2C8D0;
+  --n400:#9AA3AE; --n500:#636C76; --n600:#4B545E; --n900:#14181D;
+  --font:'Saira',system-ui,-apple-system,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --radius:12px;
+}
+/* TRES ESTADOS, como manda a casa: a escolha explicita carimba `data-theme`,
+   e o padrao (seguir o sistema) nao carimba nada. */
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --n0:#151E2A; --n50:#0E1620; --n100:#1E2833; --n200:#2B3745;
+    --n300:#3B4A5A; --n400:#5A6B7D; --n500:#93A1B0; --n600:#B6C2CE;
+    --n900:#E8EEF4; --green:#4ADE80; --yellow-700:#FBBF24; --red:#F87171;
+  }
+}
+:root[data-theme="dark"]{
+  --n0:#151E2A; --n50:#0E1620; --n100:#1E2833; --n200:#2B3745;
+  --n300:#3B4A5A; --n400:#5A6B7D; --n500:#93A1B0; --n600:#B6C2CE;
+  --n900:#E8EEF4; --green:#4ADE80; --yellow-700:#FBBF24; --red:#F87171;
+}
+
+*{box-sizing:border-box}
+html,body{overflow-x:hidden}
+body{margin:0;background:var(--n50);color:var(--n900);font-family:var(--font);
+  font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;
+  padding:0 0 calc(24px + env(safe-area-inset-bottom))}
+
+/* ------------------------------------------------------------------ topo */
+.topo{background:var(--navy-900);color:#fff;padding:calc(18px + env(safe-area-inset-top)) 18px 18px;
+  display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center}
+.marca{position:relative;display:grid;place-items:center;line-height:0}
+.marca canvas{width:104px;height:104px;display:block;margin:-8px 0 -6px}
+.marca span{position:absolute;inset:0;display:grid;place-items:center;
+  font-weight:800;letter-spacing:.14em;font-size:13px;color:#fff}
+.topo img{height:30px;opacity:.95}
+.topo h1{margin:6px 0 0;font-size:19px;font-weight:700;letter-spacing:-.01em}
+.topo p{margin:2px 0 0;font-size:13.5px;color:#9FB3C6;max-width:34ch}
+
+/* ------------------------------------------------------------------ caixa */
+.wrap{width:min(100%,560px);margin:0 auto;padding:0 14px}
+.card{background:var(--n0);border:1px solid var(--n200);border-radius:var(--radius);
+  margin-top:14px;overflow:hidden}
+.card-in{padding:16px}
+
+form{display:grid;gap:2px}
+label{display:block;font-size:12.5px;font-weight:600;color:var(--n600);
+  margin:10px 0 5px;letter-spacing:.01em}
+label:first-of-type{margin-top:0}
+/* ALVO DE TOQUE: 48px e o minimo confortavel no celular, e `font-size:16px`
+   impede o iOS de dar zoom sozinho ao focar o campo — o zoom desloca a pagina
+   e a pessoa perde o botao de vista. */
+input{width:100%;min-height:48px;padding:12px 13px;border:1px solid var(--n300);
+  border-radius:9px;font:inherit;font-size:16px;background:var(--n0);
+  color:var(--n900)}
+input:focus{outline:2px solid var(--orange-500);outline-offset:1px;
+  border-color:var(--orange-500)}
+.dica{font-size:12.5px;color:var(--n500);margin:5px 0 0}
+button.principal{width:100%;min-height:50px;margin-top:16px;border:0;
+  border-radius:9px;background:var(--brand);color:#fff;font:inherit;
+  font-size:16px;font-weight:700;cursor:pointer;letter-spacing:.01em}
+button.principal:disabled{opacity:.55;cursor:default}
+button.principal:active{background:#7d211b}
+
+.erro{margin-top:12px;padding:11px 12px;border-radius:9px;font-size:14px;
+  background:rgba(192,50,33,.10);color:var(--red);border:1px solid rgba(192,50,33,.25)}
+.vazio{padding:22px 16px;text-align:center;color:var(--n500);font-size:14.5px}
+
+/* ---------------------------------------------------------------- cargas */
+.lista{display:grid;gap:10px;margin-top:14px}
+.carga{width:100%;text-align:left;background:var(--n0);border:1px solid var(--n200);
+  border-radius:var(--radius);padding:14px;cursor:pointer;font:inherit;
+  color:inherit;display:grid;gap:7px}
+.carga:active{border-color:var(--orange-500)}
+.doc{font-family:var(--mono);font-size:13px;color:var(--n500);font-weight:600}
+.rota{font-size:15.5px;font-weight:600;line-height:1.35}
+.seta{color:var(--n400);font-weight:400}
+.selo{display:inline-block;font-size:12px;font-weight:700;padding:3px 10px;
+  border-radius:999px;white-space:nowrap}
+.s-viagem{background:rgba(232,93,16,.12);color:var(--orange-500)}
+.s-entregue{background:rgba(30,127,79,.12);color:var(--green)}
+.s-descarga{background:rgba(185,119,9,.14);color:var(--yellow-700)}
+.s-prep{background:var(--n100);color:var(--n600)}
+
+/* -------------------------------------------------------------- detalhe */
+.barra{height:10px;border-radius:999px;background:var(--n200);overflow:hidden;
+  margin:4px 0 0}
+.barra i{display:block;height:100%;border-radius:999px;background:var(--orange-500)}
+.pct{display:flex;justify-content:space-between;font-size:12.5px;
+  color:var(--n500);margin-top:6px;gap:8px}
+.pct b{color:var(--n900);font-family:var(--mono);font-size:15px}
+.nums{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;
+  margin-top:14px}
+.num{background:var(--n50);border:1px solid var(--n200);border-radius:10px;
+  padding:11px 12px}
+.num u{display:block;font-size:11.5px;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--n500);text-decoration:none;font-weight:600}
+.num b{display:block;font-family:var(--mono);font-size:19px;margin-top:3px;
+  font-weight:600;line-height:1.2}
+.etapas{list-style:none;margin:16px 0 0;padding:0}
+.etapas li{display:grid;grid-template-columns:22px 1fr;gap:10px;
+  padding:0 0 14px;position:relative}
+.etapas li:last-child{padding-bottom:0}
+.etapas li::before{content:"";position:absolute;left:10px;top:18px;bottom:0;
+  width:2px;background:var(--n200)}
+.etapas li:last-child::before{display:none}
+.bola{width:20px;height:20px;border-radius:50%;border:2px solid var(--n300);
+  background:var(--n0);z-index:1}
+.feito .bola{background:var(--green);border-color:var(--green)}
+.etapas .t{font-size:14.5px;font-weight:600;line-height:1.3}
+.etapas .q{font-size:12.5px;color:var(--n500);font-family:var(--mono)}
+.aviso{margin-top:14px;padding:11px 12px;border-radius:9px;font-size:13.5px;
+  background:rgba(185,119,9,.12);color:var(--yellow-700);
+  border:1px solid rgba(185,119,9,.28)}
+button.voltar{background:none;border:0;color:var(--orange-500);font:inherit;
+  font-size:14.5px;font-weight:600;padding:10px 0;cursor:pointer;
+  min-height:44px;display:flex;align-items:center;gap:6px}
+.rodape{text-align:center;font-size:12px;color:var(--n400);margin:22px 0 0;
+  padding:0 16px;line-height:1.6}
+.skel{color:var(--n400);font-size:14px;padding:20px 0;text-align:center}
+
+/* O desktop e a EXCECAO: a partir daqui a caixa respira, sem virar outra
+   pagina. Nada muda de lugar — so ganha folga. */
+@media (min-width:620px){
+  body{font-size:16px}
+  .topo{padding:26px 18px 22px}
+  .topo h1{font-size:22px}
+  .marca canvas{width:120px;height:120px}
+  .card-in{padding:20px}
+  .nums{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms !important;transition-duration:.001ms !important}
+}
+</style>
+</head>
+<body>
+
+<header class="topo">
+  <div class="marca">
+    <canvas id="anel" aria-hidden="true"></canvas><span>CÓRTEX</span>
+  </div>
+  <img src="/static/sulista-logo-branco.svg" alt="Transportadora Sulista">
+  <h1>Onde está minha carga?</h1>
+  <p>Consulte pelo número do CT-e ou da nota fiscal.</p>
+</header>
+
+<main class="wrap">
+  <!-- BUSCA -->
+  <section class="card" id="secBusca">
+    <div class="card-in">
+      <form id="form" autocomplete="off">
+        <label for="doc">Número do CT-e ou da nota fiscal</label>
+        <input id="doc" name="doc" type="text" inputmode="numeric"
+               enterkeyhint="search" placeholder="ex.: 51283"
+               autocomplete="off" required>
+        <label for="cnpj">4 primeiros dígitos do CNPJ</label>
+        <input id="cnpj" name="cnpj" type="text" inputmode="numeric"
+               enterkeyhint="search" maxlength="6" placeholder="ex.: 0051"
+               autocomplete="off" required>
+        <p class="dica">Do remetente ou do destinatário — só os quatro
+          primeiros números.</p>
+        <button class="principal" id="btn" type="submit">Buscar carga</button>
+      </form>
+      <div id="msg"></div>
+    </div>
+  </section>
+
+  <div id="resultado"></div>
+  <p class="rodape" id="rodape">Transportadora Sulista · consulta pública de
+    cargas</p>
+</main>
+
+<script src="/static/anel.js"></script>
+<script>
+/* A PAGINA PUBLICA E OUTRO PROGRAMA, de proposito. Ela nao carrega o
+   `index.html` nem nada dele: o app autenticado tem 36 mil linhas, o roteador
+   por hash, o RBAC e o Leaflet — nada disso serve aqui, e tudo isso seria
+   baixado por quem so quer saber se a carga chegou, num celular, no 4G do
+   pátio de uma fábrica. */
+const $ = id => document.getElementById(id);
+const esc = s => (s ?? '').toString().replace(/[&<>"]/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+let ULTIMO = {doc:'', cnpj:''};
+
+/* Data em horario LOCAL. `toISOString()` em UTC-3 volta um dia — a lição da
+   casa, e aqui ela apareceria como "entregue ontem" numa carga de hoje. */
+function quando(iso, comHora){
+  if(!iso) return '';
+  const d = new Date(iso.length <= 10 ? iso + 'T12:00:00' : iso);
+  if(isNaN(d)) return '';
+  const dia = d.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'});
+  if(!comHora) return dia;
+  return dia + ' ' + d.toLocaleTimeString('pt-BR',
+    {hour:'2-digit', minute:'2-digit'});
+}
+
+const SELO = {em_viagem:'s-viagem', entregue:'s-entregue',
+              descarregando:'s-descarga', preparando:'s-prep'};
+
+function pintarLista(d){
+  if(!d.cargas.length){
+    $('resultado').innerHTML =
+      '<div class="card"><div class="vazio">Não encontramos nenhuma carga com '
+      + 'esses dados.<br>Confira o número e os quatro dígitos do CNPJ.</div></div>';
+    return;
+  }
+  $('resultado').innerHTML = '<div class="lista">' + d.cargas.map(c => `
+    <button class="carga" onclick="abrir('${esc(c.id)}')">
+      <span class="doc">${esc(c.documento)}</span>
+      <span class="rota">${esc(c.origem || '—')}
+        <span class="seta">→</span> ${esc(c.destino || '—')}</span>
+      <span><span class="selo ${SELO[c.estado] || 's-prep'}">${esc(c.estado_rotulo)}</span></span>
+    </button>`).join('') + '</div>';
+}
+
+function pintarDetalhe(c){
+  const a = c.andamento || {};
+  let posicao = '';
+  if(a.fora_da_rota){
+    /* NAO INVENTAR 0%: o veiculo ja esta noutra viagem, e um numero plausivel
+       aqui e lido e acreditado por quem espera a carga. */
+    posicao = '<div class="aviso">Não conseguimos localizar o veículo nesta '
+            + 'viagem agora. As demais informações seguem válidas.</div>';
+  }else if(a.posicao_velha_min){
+    posicao = '<div class="aviso">A última posição do veículo tem mais de '
+            + Math.floor(a.posicao_velha_min/60) + 'h. Estamos aguardando '
+            + 'nova atualização.</div>';
+  }else if(a.tem_posicao){
+    const pct = a.progresso_pct ?? 0;
+    posicao = `<div class="barra"><i style="width:${pct}%"></i></div>
+      <div class="pct"><span><b>${pct}%</b> da viagem</span>
+        <span>faltam <b>${Math.round(a.falta_km)}</b> km em linha reta</span></div>`;
+    if(a.chegou) posicao += '<div class="aviso">O veículo já está no destino.</div>';
+  }
+
+  const nums = [];
+  if(a.km_rota) nums.push(['Rota', Math.round(a.km_rota) + ' km']);
+  if(c.previsao) nums.push(['Previsão', quando(c.previsao, true)]);
+  if(c.agendamento) nums.push(['Agendada', quando(c.agendamento, true)]);
+  if(c.entregue_em) nums.push(['Entregue', quando(c.entregue_em, true)]);
+  if(a.atualizado_ha_min != null)
+    nums.push(['Atualizado', a.atualizado_ha_min < 1 ? 'agora'
+      : 'há ' + a.atualizado_ha_min + ' min']);
+
+  $('resultado').innerHTML = `
+    <button class="voltar" onclick="voltar()">← Outra busca</button>
+    <div class="card"><div class="card-in">
+      <span class="doc">${esc(c.documento)}</span>
+      <div class="rota" style="margin-top:6px">${esc(c.origem || '—')}
+        <span class="seta">→</span> ${esc(c.destino || '—')}</div>
+      <div style="margin-top:9px">
+        <span class="selo ${SELO[c.estado] || 's-prep'}">${esc(c.estado_rotulo)}</span>
+      </div>
+      ${c.destinatario ? `<p class="dica" style="margin-top:9px">Destinatário:
+        ${esc(c.destinatario)}</p>` : ''}
+      <div style="margin-top:14px">${posicao}</div>
+      ${nums.length ? '<div class="nums">' + nums.map(([r,v]) =>
+        `<div class="num"><u>${esc(r)}</u><b>${esc(v)}</b></div>`).join('')
+        + '</div>' : ''}
+      <ul class="etapas">${(c.etapas || []).map(e => `
+        <li class="${e.feito ? 'feito' : ''}"><span class="bola"></span>
+          <span><span class="t">${esc(e.rotulo)}</span>
+          ${e.em ? `<br><span class="q">${quando(e.em, true)}</span>` : ''}</span>
+        </li>`).join('')}</ul>
+    </div></div>`;
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+async function buscar(ev){
+  if(ev) ev.preventDefault();
+  const doc = $('doc').value.trim(), cnpj = $('cnpj').value.trim();
+  $('msg').innerHTML = '';
+  if(!doc || !cnpj){
+    $('msg').innerHTML = '<div class="erro">Preencha os dois campos.</div>';
+    return;
+  }
+  ULTIMO = {doc, cnpj};
+  $('btn').disabled = true;
+  $('resultado').innerHTML = '<div class="skel">procurando…</div>';
+  try{
+    const r = await fetch('/api/rastreio/buscar?doc=' + encodeURIComponent(doc)
+      + '&cnpj=' + encodeURIComponent(cnpj), {cache:'no-store'});
+    const d = await r.json();
+    if(!d.ok){
+      $('resultado').innerHTML = '';
+      $('msg').innerHTML = '<div class="erro">' + esc(d.motivo
+        || 'Não foi possível consultar agora.') + '</div>';
+      return;
+    }
+    pintarLista(d);
+  }catch(e){
+    $('resultado').innerHTML = '';
+    $('msg').innerHTML = '<div class="erro">Sem conexão. Tente de novo.</div>';
+  }finally{
+    $('btn').disabled = false;
+  }
+}
+
+async function abrir(id){
+  $('resultado').innerHTML = '<div class="skel">carregando…</div>';
+  try{
+    /* O DETALHE MANDA O DOCUMENTO E O CNPJ DE NOVO: o identificador escolhe
+       qual carga, nunca prova direito a ela. */
+    const r = await fetch('/api/rastreio/carga?doc='
+      + encodeURIComponent(ULTIMO.doc) + '&cnpj=' + encodeURIComponent(ULTIMO.cnpj)
+      + '&id=' + encodeURIComponent(id), {cache:'no-store'});
+    const d = await r.json();
+    if(!d.ok || !d.carga){ await buscar(); return; }
+    pintarDetalhe(d.carga);
+  }catch(e){ await buscar(); }
+}
+
+function voltar(){ $('resultado').innerHTML = ''; $('doc').focus(); }
+
+$('form').addEventListener('submit', buscar);
+/* So digito nos dois campos: o teclado numerico do celular ja limita, mas
+   colar de um e-mail traz ponto, barra e espaco. */
+['doc','cnpj'].forEach(id => $(id).addEventListener('input', e => {
+  e.target.value = e.target.value.replace(/\D/g, '');
+}));
+
+/* O anel da marca, com os mesmos parametros do login. `cortexAnel` (minusculo
+   no c) e o nome que o script define; escondido, o laco dorme sozinho. */
+if(typeof cortexAnel !== 'undefined')
+  cortexAnel.ligar($('anel'), {alfa:.26, largura:1.25, linhas:44, pontos:180});
+</script>
+</body>
+</html>

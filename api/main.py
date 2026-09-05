@@ -305,6 +305,65 @@ def index() -> FileResponse:
                         headers={"Cache-Control": "no-cache, must-revalidate"})
 
 
+# ===========================================================================
+# RASTREIO PUBLICO DE CARGA — "Onde esta minha carga?"
+#
+# A UNICA parte do CORTEX que responde a quem nao tem conta. A excecao e
+# deliberada: quem despachou e quem recebe a mercadoria nao sao usuarios do
+# sistema, e obrigar cadastro para saber se a carga chegou empurraria todo
+# mundo para o telefone do SAC.
+#
+# Estas rotas estao em `auth._PUBLICAS_RASTREIO`. Quem segura a porta e o
+# modulo `api/rastreio`, nao o middleware — leia o docstring dele antes de
+# acrescentar qualquer campo ao retorno.
+# ===========================================================================
+def _ip_do_cliente(req: Request) -> str:
+    """O IP de quem chamou, para o freio.
+
+    `Cf-Connecting-IP` PRIMEIRO: o trafego chega pelo tunnel e o socket sempre
+    diz 127.0.0.1 — sem este header o freio seria UM balde para a internet
+    inteira, e o primeiro visitante consumiria a cota de todos.
+    """
+    h = req.headers
+    return (h.get("cf-connecting-ip")
+            or (h.get("x-forwarded-for") or "").split(",")[0].strip()
+            or (req.client.host if req.client else "?"))
+
+
+@app.get("/rastreio")
+def rastreio_pagina() -> FileResponse:
+    return FileResponse(STATIC / "rastreio.html",
+                        headers={"Cache-Control": "no-cache, must-revalidate"})
+
+
+def _rastreio_freado(req: Request) -> JSONResponse | None:
+    """A recusa do freio, ou None quando pode passar.
+
+    RECUSA LEGIVEL E 4xx: 5xx o Cloudflare troca pela pagina dele, e a
+    mensagem nunca chega em quem esta esperando a carga.
+    """
+    from api.rastreio import consulta
+    if consulta.freio_livre(_ip_do_cliente(req)):
+        return None
+    return JSONResponse(status_code=HTTP_RECUSA, content={
+        "ok": False,
+        "motivo": "Muitas consultas seguidas. Aguarde alguns minutos."})
+
+
+@app.get("/api/rastreio/buscar")
+def rastreio_buscar(req: Request, doc: str = "",
+                    cnpj: str = "") -> JSONResponse:
+    from api.rastreio import consulta
+    return _rastreio_freado(req) or JSONResponse(consulta.buscar(doc, cnpj))
+
+
+@app.get("/api/rastreio/carga")
+def rastreio_carga(req: Request, doc: str = "", cnpj: str = "",
+                   id: str = "") -> JSONResponse:
+    from api.rastreio import detalhe
+    return _rastreio_freado(req) or JSONResponse(detalhe.obter(doc, cnpj, id))
+
+
 @app.get("/sw.js")
 def service_worker() -> FileResponse:
     # servido da RAIZ (não de /static) para o escopo do SW ser "/" — senão

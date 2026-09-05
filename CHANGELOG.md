@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.232.0] — 04/09/2026  ·  CX-04/09/2026-v0.232.0
+
+### Adicionado
+- A página "Onde está minha carga?" entrou no ar, em endereço público (/rastreio). Quem despachou ou quem recebe informa o número do CT-e ou da nota fiscal mais os quatro primeiros dígitos do CNPJ, e vê a lista de cargas; ao abrir uma, vê a rota, a etapa em que ela está, a previsão de entrega, o quilômetro do trajeto e o quanto já foi percorrido.
+- A página foi feita para o CELULAR primeiro, porque é de lá que ela vai ser aberta: campo com teclado numérico, alvo de toque grande, texto que não faz o iPhone dar zoom sozinho e respeito à área da barra de gestos. No computador ela apenas ganha folga, sem mudar de lugar.
+- Ela não carrega nada do painel interno — nem o mapa, nem o roteador de telas. Quem só quer saber se a carga chegou não precisa baixar o sistema inteiro no 4G do pátio de uma fábrica.
+
 ## [0.231.1] — 04/09/2026  ·  CX-04/09/2026-v0.231.1
 
 ### Adicionado

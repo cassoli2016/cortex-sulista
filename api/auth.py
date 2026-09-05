@@ -302,6 +302,23 @@ _PUBLICAS = ("/api/auth/login", "/api/auth/setup", "/api/auth/setup-status",
              # esqueci_senha) e nao tocam na conta sem o token de uso unico.
              "/api/auth/esqueci", "/api/auth/redefinir")
 
+# RASTREIO PUBLICO DE CARGA ("Onde esta minha carga?"). E a UNICA parte do
+# CORTEX que responde a quem nao tem conta, e a excecao e deliberada: quem
+# despachou ou quem recebe a mercadoria nao e usuario do sistema.
+#
+# O QUE SEGURA A PORTA nao e este middleware, e o proprio modulo:
+#   - so passa DOCUMENTO EM MAOS (CT-e ou nota) MAIS os quatro primeiros
+#     digitos do CNPJ. Placa e frota nao buscam nada aqui — placa esta pintada
+#     na porta do caminhao, e placa + posicao ao vivo numa pagina aberta e
+#     ferramenta de roubo de carga. CNPJ sozinho tambem nao: devolveria a
+#     operacao inteira de um cliente;
+#   - freio por IP contra varredura dos 10.000 pares de quatro digitos;
+#   - o payload e montado por lista explicita, nunca copia do registro do ERP.
+#
+# Cada rota nova aqui abre uma porta na internet. Se voce esta lendo isto para
+# acrescentar uma, o modulo `api/rastreio` explica o que pode sair.
+_PUBLICAS_RASTREIO = ("/api/rastreio/buscar", "/api/rastreio/carga")
+
 # Autoservice de conta: exige sessão válida (checado antes), mas nenhuma tela
 # específica — todo usuário autenticado pode ver o próprio perfil/trocar a
 # própria senha/sair. /api/gestao/* não entra aqui: já é checado à parte
@@ -370,7 +387,14 @@ def rota_sem_tela(path: str) -> bool:
 
 
 def _rota_publica(path: str) -> bool:
-    return (path == "/" or path == "/sw.js" or path.startswith("/static/") or path in _PUBLICAS)
+    return (path == "/" or path == "/sw.js" or path.startswith("/static/")
+            or path in _PUBLICAS
+            # A pagina do rastreio e as duas consultas dela. `/rastreio` sem
+            # barra e com barra: quem digita o endereco a mao erra os dois
+            # jeitos, e um 403 na cara de um cliente por causa de barra seria
+            # um chamado no SAC.
+            or path in ("/rastreio", "/rastreio/")
+            or path in _PUBLICAS_RASTREIO)
 
 
 def _local_direto(headers: Headers, cliente: str) -> bool:
