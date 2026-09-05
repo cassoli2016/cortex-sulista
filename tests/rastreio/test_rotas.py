@@ -75,13 +75,31 @@ def test_a_pagina_publica_NAO_carrega_o_app_autenticado(pagina):
     """
     import re
 
-    carregados = re.findall(r"""(?:src|href)\s*=\s*["']([^"']+)["']""", pagina)
-    for u in carregados:
+    # SO AS TAGS DO DOCUMENTO: o que o navegador baixa ANTES de qualquer
+    # clique. O Leaflet existe na página, mas dentro do JavaScript, e só é
+    # buscado quando alguém abre uma carga — sao 413 KB que ninguem deve pagar
+    # so por ter digitado o numero da nota.
+    tags = re.findall(r"<(?:script|link)[^>]*(?:src|href)\s*=\s*"
+                      r"[\"']([^\"']+)[\"']", pagina)
+    for u in tags:
         assert "index.html" not in u, "a página carrega o app: %s" % u
-        assert "leaflet" not in u.lower(), "a página carrega o Leaflet: %s" % u
-        assert "/vendor/" not in u, "a página carrega vendor pesado: %s" % u
-    # e o que ela carrega de proposito e curto: fonte, logo, favicon e o anel
-    assert any("anel.js" in u for u in carregados)
+        assert "leaflet" not in u.lower(), (
+            "o Leaflet está sendo carregado de saída: %s" % u)
+    assert any("anel.js" in u for u in tags)
+
+
+def test_o_leaflet_e_carregado_SOB_DEMANDA(pagina):
+    """Ele precisa existir — o mapa é parte da tela — mas só depois do clique.
+    Se um dia virar tag no topo, o teste acima acende."""
+    assert "carregarLeaflet" in pagina
+    assert "/static/vendor/leaflet/leaflet.js" in pagina
+
+
+def test_o_mapa_desenha_AREA_e_nao_alfinete(pagina):
+    """O círculo é a peça honesta: a coordenada vem arredondada a ~11 km, e um
+    alfinete prometeria precisão que ela não tem."""
+    assert "L.circle" in pagina
+    assert "raio_km" in pagina
 
 
 def test_a_pagina_pede_os_DOIS_campos(pagina):

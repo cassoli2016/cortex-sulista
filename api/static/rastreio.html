@@ -104,9 +104,13 @@ button.principal:active{background:#7d211b}
 .s-prep{background:var(--n100);color:var(--n600)}
 
 /* -------------------------------------------------------------- detalhe */
-.barra{height:10px;border-radius:999px;background:var(--n200);overflow:hidden;
+/* O DEGRADE E A MARCA: tijolo (#942821) abrindo no #E0705F, os dois tons do
+   simbolo da Sulista. Nao ha amarelo na marca — medido nos icones do proprio
+   repo — entao ele nao entra aqui por "ficar bonito no meio". */
+.barra{height:12px;border-radius:999px;background:var(--n200);overflow:hidden;
   margin:4px 0 0}
-.barra i{display:block;height:100%;border-radius:999px;background:var(--orange-500)}
+.barra i{display:block;height:100%;border-radius:999px;
+  background:linear-gradient(90deg,var(--brand) 0%,var(--brand-claro) 100%)}
 .pct{display:flex;justify-content:space-between;font-size:12.5px;
   color:var(--n500);margin-top:6px;gap:8px}
 .pct b{color:var(--n900);font-family:var(--mono);font-size:15px}
@@ -130,6 +134,19 @@ button.principal:active{background:#7d211b}
 .feito .bola{background:var(--green);border-color:var(--green)}
 .etapas .t{font-size:14.5px;font-weight:600;line-height:1.3}
 .etapas .q{font-size:12.5px;color:var(--n500);font-family:var(--mono)}
+#mapa{height:230px;margin-top:14px;border-radius:10px;overflow:hidden;
+  border:1px solid var(--n200);background:var(--n100)}
+.leaflet-container{font-family:var(--font)}
+.notas{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.notas b{font-family:var(--mono);font-size:12.5px;font-weight:600;
+  background:var(--n100);color:var(--n600);border-radius:6px;padding:4px 8px}
+.tit{font-size:12px;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--n500);font-weight:700;margin:18px 0 0}
+.trans{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:14.5px}
+.trans .pt{width:11px;height:11px;border-radius:50%;flex:none}
+.t-livre .pt{background:var(--green)} .t-lento .pt{background:var(--yellow-700)}
+.t-parado .pt,.t-bloqueado .pt{background:var(--red)}
+.t-nd .pt{background:var(--n400)}
 .aviso{margin-top:14px;padding:11px 12px;border-radius:9px;font-size:13.5px;
   background:rgba(185,119,9,.12);color:var(--yellow-700);
   border:1px solid rgba(185,119,9,.28)}
@@ -256,6 +273,16 @@ function pintarDetalhe(c){
     if(a.chegou) posicao += '<div class="aviso">O veículo já está no destino.</div>';
   }
 
+  const notas = (c.notas || []).length
+    ? `<p class="tit">Notas fiscais nesta carga</p><div class="notas">`
+      + c.notas.map(n => `<b>${esc(n)}</b>`).join('') + `</div>` : '';
+
+  const t = a.transito;
+  const transito = t ? `<p class="tit">Trânsito onde o veículo está</p>
+      <div class="trans t-${esc(t.estado || 'nd')}"><span class="pt"></span>
+      <span>${esc(t.rotulo || '')}${t.atraso_min
+        ? ' · cerca de ' + t.atraso_min + ' min de atraso no trecho' : ''}</span></div>` : '';
+
   const nums = [];
   if(a.km_rota) nums.push(['Rota', Math.round(a.km_rota) + ' km']);
   if(c.previsao) nums.push(['Previsão', quando(c.previsao, true)]);
@@ -280,6 +307,9 @@ function pintarDetalhe(c){
       ${nums.length ? '<div class="nums">' + nums.map(([r,v]) =>
         `<div class="num"><u>${esc(r)}</u><b>${esc(v)}</b></div>`).join('')
         + '</div>' : ''}
+      ${(c.mapa && (c.mapa.origem || c.mapa.destino)) ? '<div id="mapa"></div>' : ''}
+      ${transito}
+      ${notas}
       <ul class="etapas">${(c.etapas || []).map(e => `
         <li class="${e.feito ? 'feito' : ''}"><span class="bola"></span>
           <span><span class="t">${esc(e.rotulo)}</span>
@@ -287,6 +317,74 @@ function pintarDetalhe(c){
         </li>`).join('')}</ul>
     </div></div>`;
   window.scrollTo({top:0, behavior:'smooth'});
+  if(c.mapa && (c.mapa.origem || c.mapa.destino)) desenharMapa(c);
+}
+
+/* O LEAFLET SO CHEGA AQUI, e nunca na busca: sao 413 KB, e quem digitou o
+   numero da nota ainda nem sabe se vai abrir alguma carga. Carregar na
+   abertura da pagina puniria todo mundo no 4G do patio pelo mapa que talvez
+   ninguem veja. Vendorizado, nunca CDN — a regra vale igual aqui. */
+let _leaflet = null;
+function carregarLeaflet(){
+  if(_leaflet) return _leaflet;
+  _leaflet = new Promise((ok, falha) => {
+    const css = document.createElement('link');
+    css.rel = 'stylesheet'; css.href = '/static/vendor/leaflet/leaflet.css';
+    document.head.appendChild(css);
+    const js = document.createElement('script');
+    js.src = '/static/vendor/leaflet/leaflet.js';
+    js.onload = ok; js.onerror = falha;
+    document.head.appendChild(js);
+  });
+  return _leaflet;
+}
+
+async function desenharMapa(c){
+  const el = $('mapa');
+  if(!el) return;
+  try{ await carregarLeaflet(); }
+  catch(e){
+    /* MAPA E EXTRA. Sem ele a carga continua respondida — o que nao se faz e
+       deixar uma caixa cinza vazia parecendo defeito. */
+    el.remove(); return;
+  }
+  const m = c.mapa, a = c.andamento || {};
+  const mapa = L.map(el, {zoomControl:false, attributionControl:true,
+                          scrollWheelZoom:false});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {maxZoom:16, attribution:'© OpenStreetMap'}).addTo(mapa);
+
+  const pontos = [];
+  const pino = (cor, titulo) => L.divIcon({className:'', iconSize:[16,16],
+    iconAnchor:[8,8], html:`<div title="${titulo}" style="width:14px;height:14px;
+      border-radius:50%;background:${cor};border:2.5px solid #fff;
+      box-shadow:0 0 0 1px rgba(0,0,0,.25)"></div>`});
+  if(m.origem){
+    L.marker([m.origem.lat, m.origem.lng], {icon:pino('#636C76','Coleta')}).addTo(mapa);
+    pontos.push([m.origem.lat, m.origem.lng]);
+  }
+  if(m.destino){
+    L.marker([m.destino.lat, m.destino.lng], {icon:pino('#1E7F4F','Entrega')}).addTo(mapa);
+    pontos.push([m.destino.lat, m.destino.lng]);
+  }
+  if(m.origem && m.destino)
+    L.polyline([[m.origem.lat,m.origem.lng],[m.destino.lat,m.destino.lng]],
+      {color:'#9AA3AE', weight:2, dashArray:'6 8'}).addTo(mapa);
+
+  /* A POSICAO E UM CIRCULO, NUNCA UM ALFINETE. O alfinete promete uma
+     precisao que este numero nao tem — ele vem arredondado a ~11 km de
+     proposito — e quem olha acredita no alfinete. O circulo diz a verdade:
+     "esta area". */
+  if(a.area){
+    L.circle([a.area.lat, a.area.lng], {radius: a.area.raio_km * 1000,
+      color:'#942821', weight:2, fillColor:'#E0705F', fillOpacity:.22}).addTo(mapa);
+    pontos.push([a.area.lat, a.area.lng]);
+  }
+  if(pontos.length > 1) mapa.fitBounds(pontos, {padding:[26,26]});
+  else if(pontos.length) mapa.setView(pontos[0], 9);
+  /* O contentor nasce com altura fixa no CSS, mas o Leaflet mede UMA vez: se
+     medir antes do layout assentar, o mapa sai cinza. */
+  setTimeout(() => mapa.invalidateSize(), 60);
 }
 
 async function buscar(ev){

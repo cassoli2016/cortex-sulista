@@ -128,14 +128,32 @@ def test_chegou_quando_esta_no_raio(cenario):
 # --------------------------------------------------------------------------
 # o que o detalhe NÃO publica
 # --------------------------------------------------------------------------
-def test_o_andamento_NAO_leva_coordenada(cenario):
-    """Publicar a coordenada de um caminhão numa página aberta é ferramenta de
-    roubo de carga. O andamento é distância e progresso, nunca ponto."""
-    cenario(-28.0, -50.0, minutos_atras=1)
+def test_a_posicao_publicada_e_ARREDONDADA_e_nao_a_exata(cenario):
+    """A página mostra um mapa, e o mapa precisa de coordenada — mas da REGIÃO,
+    nunca do ponto. A regra não é "não mandar lat/lng": é não mandar a lat/lng
+    DE VERDADE.
+
+    Uma casa decimal é ~11 km. Diz onde o veículo está sem servir para
+    interceptá-lo numa rodovia, e o mapa desenha um círculo desse raio em vez
+    de um alfinete — alfinete promete precisão que este número não tem.
+    """
+    cenario(-28.123456, -50.987654, minutos_atras=1)
     a = detalhe._andamento(_linha())
+    area = a["area"]
+    assert area["lat"] == -28.1 and area["lng"] == -51.0
+    assert area["lat"] != -28.123456 and area["lng"] != -50.987654
+    assert area["raio_km"] >= 10, (
+        "o raio encolheu: a página vira rastreador de caminhão")
+    # e a coordenada CHEIA nao aparece em lugar nenhum do payload
     texto = repr(a)
-    for proibido in ("lat", "lng", "-28.0", "-50.0"):
-        assert proibido not in texto, "%r vazou: %r" % (proibido, a)
+    assert "28.123456" not in texto and "50.987654" not in texto
+
+
+def test_o_raio_do_circulo_nao_pode_encolher_em_silencio():
+    """Um teste sobre a CONSTANTE, de propósito. Diminuí-la é a mudança de uma
+    linha que transformaria a página pública num rastreador — e é o tipo de
+    ajuste que passa numa revisão distraída."""
+    assert detalhe.AREA_RAIO_KM >= 10
 
 
 def test_sem_coordenada_de_entrega_nao_inventa_progresso(cenario):

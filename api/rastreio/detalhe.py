@@ -25,12 +25,19 @@ from __future__ import annotations
 
 import logging
 import math
+import time
 from datetime import datetime, timezone
 
 from .. import db
 from . import consulta
 
 log = logging.getLogger("cortex.rastreio.detalhe")
+
+#: O raio do circulo que o mapa desenha, em km. A posicao vai arredondada a
+#: uma casa decimal (~11 km) e o circulo diz isso: a REGIAO onde o veiculo
+#: esta, nunca o ponto. Diminuir isto sem conversar transforma a pagina
+#: publica em rastreador de caminhao.
+AREA_RAIO_KM = 12
 
 #: Abaixo disto o veículo é tratado como CHEGADO. Não é chute: é a ordem de
 #: grandeza de um pátio grande mais o erro do GPS. Menos que isso faria a carga
@@ -81,6 +88,27 @@ JOIN veiculo_posicao vp ON vp.veiculo = um.veiculo
 WHERE um.veiculo = %(placa)s
   AND vp.latituderastreadora IS NOT NULL
   AND vp.longituderastreadora IS NOT NULL
+"""
+
+#: AS NOTAS DO CT-e. E o documento que quem RECEBE conhece — ele guarda a nota
+#: do fornecedor, quase nunca o numero do conhecimento —, entao ver a propria
+#: nota na tela e o que confirma "e a minha carga mesmo".
+#:
+#: Sai so o NUMERO. A chave de acesso de 44 digitos identifica a nota inteira
+#: na SEFAZ e nao acrescenta nada a quem ja esta olhando a carga.
+NOTAS_SQL = """
+SELECT DISTINCT cn.numeronotafiscal AS numero
+FROM conhecimento_composicao cc
+JOIN coleta_notafiscal cn
+  ON cn.grupo = cc.grupo AND cn.empresa = cc.empresa
+ AND cn.filial = cc.filialdocumento AND cn.unidade = cc.unidadedocumento
+ AND cn.diferenciadornumero = cc.diferenciadornumerodocumento
+ AND cn.serie = cc.seriedocumento AND cn.numero = cc.numerodocumento
+WHERE cc.grupo = %(g)s AND cc.empresa = %(e)s AND cc.filial = %(f)s
+  AND cc.numero = %(n)s AND cc.serie = %(s)s
+  AND cn.numeronotafiscal IS NOT NULL
+ORDER BY 1
+LIMIT 40
 """
 
 #: O km da rota, do embarque. Vem da viagem e não de conta nossa: é o número
@@ -158,6 +186,51 @@ def _km_rota(placa: str) -> float | None:
     return float(km) if km else None
 
 
+def _notas(chaves: dict) -> list[str]:
+    try:
+        return [str(r["numero"]) for r in db.query(NOTAS_SQL, chaves)]
+    except Exception as exc:  # noqa: BLE001
+        log.warning("rastreio: notas falharam: %s", type(exc).__name__)
+        return []
+
+
+#: Cache do transito, por coordenada ARREDONDADA. Duas razoes, e as duas
+#: importam: o limite da TomTom e de RITMO (nao de cota diaria), e numa pagina
+#: publica dez pessoas podem estar olhando o mesmo caminhao ao mesmo tempo.
+#: Arredondar para duas casas (~1,1 km) faz todas compartilharem uma chamada.
+_TRANSITO: dict[tuple, tuple[float, dict]] = {}
+TRANSITO_TTL_S = 600
+
+
+def _transito(lat: float, lng: float) -> dict | None:
+    """Como esta a estrada onde o veiculo esta. `None` quando nao da para saber.
+
+    NAO E ALARME QUANDO FALTA: transito e informacao a mais. Sem chave da
+    TomTom, com ela fora do ar ou no 429 de ritmo, a secao simplesmente nao
+    aparece — inventar "fluxo normal" seria pior que o silencio.
+    """
+    from ..tomtom import cliente as tt_cli
+    from ..tomtom import transito as tt
+
+    if not tt_cli.configurado():
+        return None
+    chave = (round(float(lat), 2), round(float(lng), 2))
+    agora = time.time()
+    guardado = _TRANSITO.get(chave)
+    if guardado and agora - guardado[0] < TRANSITO_TTL_S:
+        return guardado[1]
+    try:
+        bruto = tt_cli.fluxo(chave[0], chave[1])
+        lido = tt.do_payload(bruto)
+    except Exception as exc:  # noqa: BLE001
+        log.info("rastreio: transito indisponivel: %s", type(exc).__name__)
+        return None
+    if len(_TRANSITO) > 800:
+        _TRANSITO.clear()
+    _TRANSITO[chave] = (agora, lido)
+    return lido
+
+
 def _andamento(linha: dict) -> dict:
     """Onde a carga está, em distância e progresso — nunca em coordenada."""
     fora: dict = {"tem_posicao": False}
@@ -200,6 +273,27 @@ def _andamento(linha: dict) -> dict:
     fora["atualizado_ha_min"] = idade
     fora["falta_km"] = round(falta, 1)
     fora["chegou"] = falta <= RAIO_CHEGADA_KM
+
+    # A POSICAO PARA O MAPA, ARREDONDADA DE PROPOSITO. Uma casa decimal e
+    # ~11 km: diz a REGIAO onde o veiculo esta e nao serve para intercepta-lo
+    # numa rodovia. E o que foi decidido para esta pagina, e o mapa desenha um
+    # CIRCULO com esse raio em vez de um alfinete — alfinete promete precisao
+    # que este numero nao tem, e quem olha acredita no alfinete.
+    fora["area"] = {"lat": round(float(pos["lat"]), 1),
+                    "lng": round(float(pos["lng"]), 1),
+                    "raio_km": AREA_RAIO_KM}
+    # O TRANSITO le a coordenada CHEIA (ela nao sai daqui) porque a leitura da
+    # TomTom e do trecho de estrada, e arredondar antes cairia noutro trecho.
+    t = _transito(pos["lat"], pos["lng"])
+    if t:
+        # `atraso_s` e o nome do campo na leitura da TomTom; a tela fala em
+        # minutos, e converter no LIMITE do modulo evita cada tela dividir por
+        # 60 do seu jeito.
+        atraso = t.get("atraso_s")
+        fora["transito"] = {
+            "estado": t.get("estado"), "rotulo": t.get("rotulo"),
+            "atraso_min": (int(round(atraso / 60.0))
+                           if isinstance(atraso, (int, float)) and atraso else None)}
     if total and total > 0:
         pct = 100.0 * (1 - min(1.0, max(0.0, falta / total)))
         fora["progresso_pct"] = int(round(pct))
@@ -260,11 +354,26 @@ def obter(termo: str, cnpj4: str, carga_id: str) -> dict:
 
     linha = dict(linhas2[0])
     andamento = _andamento(linha)
+    chaves = {"g": alvo["grupo"], "e": alvo["empresa"], "f": alvo["filial"],
+              "n": alvo["numero"], "s": alvo["serie"]}
+    # ORIGEM E DESTINO VAO INTEIROS. Nao e incoerencia com a posicao
+    # arredondada: o endereco de coleta e o de entrega sao de quem despachou e
+    # de quem recebe — as duas pontas ja os conhecem. O que se protege e onde
+    # o CAMINHAO esta agora.
+    pontos = {}
+    if linha.get("lat_coleta") and linha.get("lng_coleta"):
+        pontos["origem"] = {"lat": float(linha["lat_coleta"]),
+                            "lng": float(linha["lng_coleta"])}
+    if linha.get("lat_entrega") and linha.get("lng_entrega"):
+        pontos["destino"] = {"lat": float(linha["lat_entrega"]),
+                             "lng": float(linha["lng_entrega"])}
     return {"ok": True, "carga": {
         # A base é a carga JÁ LIMPA, montada pela mesma lista explícita da
         # busca — o detalhe acrescenta, nunca abre o registro cru.
         **consulta._limpo(alvo),
         "andamento": andamento,
         "etapas": _linha_do_tempo(linha, andamento),
+        "notas": _notas(chaves),
+        "mapa": pontos,
         "consultado_em": datetime.now(timezone.utc).isoformat(),
     }}

@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.232.1] — 04/09/2026  ·  CX-04/09/2026-v0.232.1
+
+### Adicionado
+- A página de rastreio ganhou o MAPA, com a coleta, a entrega e a região onde o veículo está. A posição aparece como uma área, não como um alfinete: numa página aberta, o ponto exato de um caminhão serve para interceptá-lo, e o alfinete prometeria uma precisão que o número não tem.
+- Ganhou também as NOTAS FISCAIS do conhecimento — é o documento que quem recebe realmente conhece, e vê-lo na tela é o que confirma "é a minha carga mesmo" — e as CONDIÇÕES DE TRÂNSITO no trecho onde o veículo está, com o atraso estimado quando há.
+- A barra de progresso passou a usar o degradê da marca, do vermelho tijolo ao tom claro do símbolo.
+
 ## [0.232.0] — 04/09/2026  ·  CX-04/09/2026-v0.232.0
 
 ### Adicionado
