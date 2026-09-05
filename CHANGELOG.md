@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.251.0] — 05/09/2026  ·  CX-05/09/2026-v0.251.0
+
+### Adicionado
+- Os cadastros do módulo de pneus passaram a registrar quem os criou: se a linha veio importada da Prolog ou foi cadastrada aqui. Enquanto tudo era importado isso não fazia falta; a partir do momento em que o módulo passou a escrever, faz.
+
+### Corrigido
+- A cópia que roda de vinte em vinte minutos podia apagar um cadastro feito no CÓRTEX sem deixar rastro — a pessoa voltaria à tela e veria outra coisa no lugar, sem erro e sem aviso. Agora ela nunca sobrescreve o que a casa criou, e continua atualizando normalmente o que é dela. Um teste varre o código e acende se algum caminho de gravação novo esquecer essa proteção; ele já achou três que eu tinha deixado passar.
+
 ## [0.249.0] — 05/09/2026  ·  CX-05/09/2026-v0.249.0
 
 ### Adicionado

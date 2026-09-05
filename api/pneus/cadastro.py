@@ -79,13 +79,18 @@ def _diagramas(cli) -> int:
                         for a in eixos]
             cur.execute("""
                 INSERT INTO pne_diagrama (nome, tem_motor, eixos, posicoes,
-                                          prolog_id)
-                VALUES (%s,%s,%s,%s,%s)
+                                          prolog_id, origem)
+                VALUES (%s,%s,%s,%s,%s,'prolog')
                 ON CONFLICT (nome) DO UPDATE SET
                     tem_motor = EXCLUDED.tem_motor,
                     eixos     = EXCLUDED.eixos,
                     posicoes  = EXCLUDED.posicoes,
-                    prolog_id = EXCLUDED.prolog_id""",
+                    prolog_id = EXCLUDED.prolog_id
+                -- A COLETA NAO SOBRESCREVE O QUE A CASA CRIOU. Sem este
+                -- `WHERE`, um cadastro digitado aqui seria substituido pela
+                -- proxima passada de 20 em 20 minutos — sem erro, sem log, e a
+                -- pessoa veria o proprio trabalho virar outra coisa.
+                WHERE pne_diagrama.origem <> 'cortex'""",
                 ((x.get("name") or "").strip() or "sem nome",
                  bool(x.get("hasEngine")), len(eixos),
                  json.dumps(posicoes, ensure_ascii=False),
@@ -126,10 +131,16 @@ def _motivos(cli) -> int:
             if ident is None or not str(rot).strip():
                 continue
             cur.execute("""
-                INSERT INTO pne_motivo (especie, prolog_id, rotulo, ativo)
-                VALUES ('descarte',%s,%s,%s)
+                INSERT INTO pne_motivo (especie, prolog_id, rotulo, ativo,
+                                        origem)
+                VALUES ('descarte',%s,%s,%s,'prolog')
                 ON CONFLICT (especie, prolog_id) DO UPDATE SET
-                    rotulo = EXCLUDED.rotulo, ativo = EXCLUDED.ativo""",
+                    rotulo = EXCLUDED.rotulo, ativo = EXCLUDED.ativo
+                -- A COLETA NAO SOBRESCREVE O QUE A CASA CRIOU. Sem este
+                -- `WHERE`, um cadastro digitado aqui seria substituido pela
+                -- proxima passada de 20 em 20 minutos — sem erro, sem log, e a
+                -- pessoa veria o proprio trabalho virar outra coisa.
+                WHERE pne_motivo.origem <> 'cortex'""",
                 (str(ident), str(rot).strip(),
                  bool(x.get("isActive", x.get("active", True)))))
             n += 1
@@ -168,10 +179,10 @@ def _veiculos(cli) -> int:
                     INSERT INTO pne_veiculo
                         (placa, diagrama_id, filial, prolog_id, tem_motor,
                          km_atual, pneus_instalados, pneus_esperados, estepes,
-                         ativo, frota, atualizado_em)
+                         ativo, frota, origem, atualizado_em)
                     VALUES (%s,
                             (SELECT id FROM pne_diagrama WHERE prolog_id = %s),
-                            %s,%s,%s,%s,%s,%s,%s,%s,%s, now())
+                            %s,%s,%s,%s,%s,%s,%s,%s,%s,'prolog', now())
                     ON CONFLICT (placa) DO UPDATE SET
                         diagrama_id      = COALESCE(EXCLUDED.diagrama_id,
                                                     pne_veiculo.diagrama_id),
@@ -184,7 +195,12 @@ def _veiculos(cli) -> int:
                         estepes          = EXCLUDED.estepes,
                         ativo            = EXCLUDED.ativo,
                         frota            = EXCLUDED.frota,
-                        atualizado_em    = now()""",
+                        atualizado_em    = now()
+                -- A COLETA NAO SOBRESCREVE O QUE A CASA CRIOU. Sem este
+                -- `WHERE`, um cadastro digitado aqui seria substituido pela
+                -- proxima passada de 20 em 20 minutos — sem erro, sem log, e a
+                -- pessoa veria o proprio trabalho virar outra coisa.
+                WHERE pne_veiculo.origem <> 'cortex'""",
                     (placa, lay, (x.get("branchOfficeName") or "").strip() or None,
                      str(x.get("id") or "") or None, bool(x.get("motorized")),
                      x.get("currentOdometer"), x.get("totalInstalledTires"),

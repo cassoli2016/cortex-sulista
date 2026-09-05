@@ -76,8 +76,9 @@ def _modelo_id(cur, p: dict) -> int | None:
     if not marca and not modelo:
         return None
     cur.execute("""
-        INSERT INTO pne_modelo (marca, modelo, medida, desenho, direcional)
-        VALUES (%s, %s, %s, %s, %s)
+        INSERT INTO pne_modelo (marca, modelo, medida, desenho, direcional,
+                                origem)
+        VALUES (%s, %s, %s, %s, %s, 'prolog')
         -- A CHAVE E SOBRE A EXPRESSAO, com o vazio normalizado: num indice
         -- unico NULL e sempre diferente de NULL, e como `medida` vem vazia
         -- nos 8.572, a chave crua nunca casava e o catalogo DOBRAVA a cada
@@ -85,6 +86,8 @@ def _modelo_id(cur, p: dict) -> int | None:
         ON CONFLICT (marca, modelo, coalesce(medida, ''), coalesce(desenho, ''))
         DO UPDATE
            SET direcional = COALESCE(EXCLUDED.direcional, pne_modelo.direcional)
+        -- A COLETA NAO SOBRESCREVE O QUE A CASA CRIOU.
+        WHERE pne_modelo.origem <> 'cortex'
         RETURNING id""",
         (marca or "(sem marca)", modelo or "(sem modelo)",
          (p.get("medida") or "").strip() or None,
@@ -157,8 +160,12 @@ def semear(limite: int | None = None) -> dict:
                 INSERT INTO pne_pneu
                     (numero_fogo, serie, dot, modelo_id, filial, status,
                      vida_atual, placa_atual, posicao_atual, custo_aquisicao,
-                     prolog_id, atualizado_em)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, now())
+                     prolog_id, origem, atualizado_em)
+                -- `origem` EXPLICITA. O padrao da coluna e `cortex` (errar
+                -- para o lado de "nao sobrescreva" e o lado seguro), entao a
+                -- coleta precisa se declarar — senao o pneu que ela cria
+                -- nasceria marcado como nosso e ela nunca mais o atualizaria.
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'prolog', now())
                 ON CONFLICT (prolog_id) DO UPDATE SET
                     numero_fogo   = EXCLUDED.numero_fogo,
                     serie         = EXCLUDED.serie,
@@ -182,7 +189,13 @@ def semear(limite: int | None = None) -> dict:
                     custo_aquisicao = COALESCE(EXCLUDED.custo_aquisicao,
                                                pne_pneu.custo_aquisicao),
                     atualizado_em = now()
-                RETURNING id, (xmax = 0) AS inserido""",
+                -- A COLETA NAO SOBRESCREVE O QUE A CASA CRIOU. Sem este
+                -- `WHERE`, um cadastro digitado aqui seria substituido pela
+                -- proxima passada de 20 em 20 minutos — sem erro, sem log, e a
+                -- pessoa veria o proprio trabalho virar outra coisa.
+                WHERE pne_pneu.origem <> 'cortex'
+                RETURNING id, (xmax = 0) AS inserido
+""",
                 # `frota` do instantaneo e o numero do VEICULO, nao a
                 # marcacao da carcaca — mapear um no outro punha "S3044" em 14
                 # pneus, que e a assinatura do erro: numero de fogo nao se
@@ -208,10 +221,15 @@ def semear(limite: int | None = None) -> dict:
                 if numero is None:
                     continue
                 cur.execute("""
-                    INSERT INTO pne_vida (pneu_id, numero, km)
-                    VALUES (%s,%s,%s)
+                    INSERT INTO pne_vida (pneu_id, numero, km, origem)
+                    VALUES (%s,%s,%s,'prolog')
                     ON CONFLICT (pneu_id, numero) DO UPDATE
-                       SET km = COALESCE(EXCLUDED.km, pne_vida.km)""",
+                       SET km = COALESCE(EXCLUDED.km, pne_vida.km)
+                -- A COLETA NAO SOBRESCREVE O QUE A CASA CRIOU. Sem este
+                -- `WHERE`, um cadastro digitado aqui seria substituido pela
+                -- proxima passada de 20 em 20 minutos — sem erro, sem log, e a
+                -- pessoa veria o proprio trabalho virar outra coisa.
+                WHERE pne_vida.origem <> 'cortex'""",
                     (pneu_id, int(numero), _n(v.get("km"))))
                 vidas += 1
 
@@ -251,11 +269,17 @@ def semear(limite: int | None = None) -> dict:
 
             if placa:
                 cur.execute("""
-                    INSERT INTO pne_veiculo (placa, filial, atualizado_em)
-                    VALUES (%s,%s, now())
+                    INSERT INTO pne_veiculo (placa, filial, origem,
+                                             atualizado_em)
+                    VALUES (%s,%s,'prolog', now())
                     ON CONFLICT (placa) DO UPDATE
                        SET filial = COALESCE(EXCLUDED.filial, pne_veiculo.filial),
-                           atualizado_em = now()""",
+                           atualizado_em = now()
+                -- A COLETA NAO SOBRESCREVE O QUE A CASA CRIOU. Sem este
+                -- `WHERE`, um cadastro digitado aqui seria substituido pela
+                -- proxima passada de 20 em 20 minutos — sem erro, sem log, e a
+                -- pessoa veria o proprio trabalho virar outra coisa.
+                WHERE pne_veiculo.origem <> 'cortex'""",
                     (placa, p.get("filial") or None))
 
         cur.execute("""

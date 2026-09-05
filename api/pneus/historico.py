@@ -223,11 +223,14 @@ def _gravar_processo(cur, proc: dict, perdidos: list,
             m = cur.fetchone()
             if m and (m["medida"] or "") != medida:
                 cur.execute("""
-                    INSERT INTO pne_modelo (marca, modelo, medida, desenho)
-                    VALUES (%s,%s,%s,%s)
+                    INSERT INTO pne_modelo (marca, modelo, medida, desenho,
+                                            origem)
+                    VALUES (%s,%s,%s,%s,'prolog')
                     ON CONFLICT (marca, modelo, coalesce(medida,''),
                                  coalesce(desenho,''))
                     DO UPDATE SET marca = EXCLUDED.marca
+                    -- A COLETA NAO SOBRESCREVE O QUE A CASA CRIOU.
+                    WHERE pne_modelo.origem <> 'cortex'
                     RETURNING id""",
                     (m["marca"], m["modelo"], medida, m["desenho"]))
                 cur.execute("UPDATE pne_pneu SET modelo_id = %s WHERE id = %s",
@@ -310,7 +313,9 @@ def _gravar_processo(cur, proc: dict, perdidos: list,
                 ON CONFLICT (pneu_id, numero) DO UPDATE SET
                     custo      = COALESCE(EXCLUDED.custo, pne_vida.custo),
                     banda      = COALESCE(EXCLUDED.banda, pne_vida.banda),
-                    recapadora = COALESCE(EXCLUDED.recapadora, pne_vida.recapadora)""",
+                    recapadora = COALESCE(EXCLUDED.recapadora, pne_vida.recapadora)
+                -- A COLETA NAO SOBRESCREVE O QUE A CASA CRIOU.
+                WHERE pne_vida.origem <> 'cortex'""",
                 (pneu_id, int(vida) + 1, s.get("tireServiceCost"),
                  s.get("treadModelName"), s.get("treadMakeName")))
     return novos
