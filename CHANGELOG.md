@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.236.1] — 04/09/2026  ·  CX-04/09/2026-v0.236.1
+
+### Corrigido
+- O link que vai no aviso de WhatsApp morria a cada atualização do sistema. A chave que assina esses links nascia junto com o processo da API — o que bastava quando o link só valia dentro de uma busca, mas não quando ele fica 20 dias no celular do cliente e o sistema se atualiza várias vezes por dia. Quem clicasse depois de uma atualização veria "este link expirou", e ninguém aqui ficaria sabendo. A chave passou a ser gravada em arquivo protegido, e a Saúde do Servidor mede a proteção dele.
+
 ## [0.236.0] — 04/09/2026  ·  CX-04/09/2026-v0.236.0
 
 ## [0.235.2] — 04/09/2026  ·  CX-04/09/2026-v0.235.2

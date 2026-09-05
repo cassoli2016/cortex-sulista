@@ -298,6 +298,10 @@ def caminhos_de_segredo() -> list[tuple[str, Path]]:
         ("Configuração do correio", raiz / "email_config.json"),
         ("Configuração do WhatsApp", raiz / "whatsapp_config.json"),
         ("Senhas dos certificados", raiz / "certificados" / "senhas.json"),
+        # A chave que assina os links públicos do rastreio. Quem a lesse
+        # forjaria o token de qualquer carga — e o token é a ÚNICA prova
+        # naquela rota, que é pública por construção.
+        ("Chave dos links do rastreio", raiz / "rastreio_segredo.txt"),
     ]
     return [(rot, p) for rot, p in fora if p.exists()]
 

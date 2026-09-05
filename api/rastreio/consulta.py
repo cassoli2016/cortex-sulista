@@ -13,7 +13,9 @@ import hashlib
 import hmac
 import logging
 import os
+import pathlib
 import re
+import secrets
 import time
 from datetime import datetime, timezone
 
@@ -57,14 +59,59 @@ def freio_livre(ip: str) -> bool:
     return len(janela) < FREIO_MAX
 
 
+#: Onde a chave dos tokens mora quando não veio do ambiente. Arquivo, e não
+#: constante no código: este repo é PÚBLICO, e chave em commit é chave
+#: publicada.
+SEGREDO_PATH = pathlib.Path(__file__).resolve().parents[2] / "data" / "rastreio_segredo.txt"
+
+_SEGREDO_CACHE: dict = {}
+
+
 def _segredo() -> bytes:
-    """Chave do token de detalhe. Sem ela configurada, o token continua
-    funcionando dentro do processo — o que não se faz é cair para uma
-    constante fixa no código, que é segredo publicado num repo público."""
-    s = os.environ.get("RASTREIO_TOKEN_SEGREDO") or ""
+    """A chave que assina os tokens do rastreio.
+
+    ELA PRECISA SOBREVIVER AO REINÍCIO, e essa foi a lição cara aqui. Enquanto
+    o token só identificava a carga DENTRO de uma busca, uma chave por processo
+    bastava — a pessoa buscava e abria no mesmo minuto. O link do WhatsApp
+    mudou a exigência sem mudar o código: ele vale 20 dias e já está no celular
+    do cliente, e o AutoDeploy reinicia a API várias vezes por dia. Com chave
+    por processo, TODO link enviado morria no deploy seguinte — em silêncio,
+    virando "este link expirou" para quem clicasse.
+
+    A ordem é: variável de ambiente (o jeito certo em produção), depois um
+    arquivo protegido em `data/` gerado na primeira vez, e só então — se nem
+    gravar der certo — a chave por processo, que ao menos não é constante fixa
+    no código de um repo público.
+    """
+    s = (os.environ.get("RASTREIO_TOKEN_SEGREDO")
+         or os.environ.get("SECRET_KEY") or "").strip()
+    if s:
+        return s.encode("utf-8")
+
+    if _SEGREDO_CACHE.get("v"):
+        return _SEGREDO_CACHE["v"]
+    try:
+        if SEGREDO_PATH.exists():
+            s = SEGREDO_PATH.read_text(encoding="utf-8").strip()
+        if not s:
+            s = secrets.token_urlsafe(48)
+            SEGREDO_PATH.parent.mkdir(parents=True, exist_ok=True)
+            SEGREDO_PATH.write_text(s, encoding="utf-8")
+            # NO NTFS QUEM MANDA É A ACL (`os.chmod` é ficção nesta casa).
+            from .. import segredo_arquivo
+            segredo_arquivo.proteger(SEGREDO_PATH)
+            log.info("rastreio: chave de token criada em data/")
+    except Exception as exc:  # noqa: BLE001
+        # NUNCA LEVANTA: sem a chave persistida o rastreio ainda funciona
+        # dentro do processo; o que não pode é a página inteira cair porque o
+        # disco estava cheio.
+        log.warning("rastreio: chave em arquivo indisponivel (%s)",
+                    type(exc).__name__)
+        s = ""
     if not s:
-        s = os.environ.get("SECRET_KEY") or repr(id(_TENTATIVAS))
-    return s.encode("utf-8")
+        s = repr(id(_TENTATIVAS))
+    _SEGREDO_CACHE["v"] = s.encode("utf-8")
+    return _SEGREDO_CACHE["v"]
 
 
 def token(grupo, empresa, filial, numero, serie) -> str:

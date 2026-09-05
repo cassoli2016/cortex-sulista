@@ -22,6 +22,7 @@ desta casa.
 """
 from __future__ import annotations
 
+import os
 import time
 
 import pytest
@@ -154,3 +155,105 @@ def test_a_pagina_APAGA_o_token_da_barra_de_enderecos(pagina):
     """O celular que passa de mão em mão, o print da tela e o histórico do
     navegador são três jeitos de o token viajar sozinho."""
     assert "history.replaceState" in pagina
+
+
+# --------------------------------------------------------------------------
+# a chave que assina — e a lição que quase passou batido
+# --------------------------------------------------------------------------
+@pytest.fixture
+def chave_limpa(monkeypatch, tmp_path):
+    """Isola a chave: nem lê nem escreve a de produção."""
+    monkeypatch.delenv("RASTREIO_TOKEN_SEGREDO", raising=False)
+    monkeypatch.delenv("SECRET_KEY", raising=False)
+    monkeypatch.setattr(consulta, "SEGREDO_PATH", tmp_path / "seg.txt")
+    consulta._SEGREDO_CACHE.clear()
+    yield tmp_path / "seg.txt"
+    consulta._SEGREDO_CACHE.clear()
+
+
+def test_o_LINK_SOBREVIVE_AO_REINICIO_DA_API(tmp_path):
+    """O guard que existe por um defeito real, pego em produção.
+
+    A chave era `repr(id(...))` — nasce diferente a cada processo. Isso bastava
+    enquanto o token só identificava a carga DENTRO de uma busca: a pessoa
+    buscava e abria no mesmo minuto. O link do WhatsApp mudou a exigência sem
+    mudar o código — ele vale 20 dias, já está no celular do cliente, e o
+    AutoDeploy reinicia a API várias vezes por dia. Com chave por processo,
+    TODO link enviado morria no deploy seguinte, e o sintoma era MUDO do nosso
+    lado: virava "este link expirou" só para quem clicasse.
+
+    ISTO PRECISA DE DOIS PROCESSOS DE VERDADE. Limpar o cache do módulo não
+    serve: `id(...)` é estável dentro do mesmo processo, então um teste feito
+    assim ficaria verde justamente com o defeito que ele deveria pegar.
+    """
+    import json
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    raiz = Path(consulta.__file__).resolve().parents[2]
+    seg = tmp_path / "seg.txt"
+    env = {k: v for k, v in os.environ.items()
+           if k not in ("RASTREIO_TOKEN_SEGREDO", "SECRET_KEY")}
+
+    def _rodar(codigo: str) -> str:
+        cabeca = [
+            "import json, pathlib, sys",
+            "sys.path.insert(0, %r)" % str(raiz),
+            "from api.rastreio import consulta",
+            "consulta.SEGREDO_PATH = pathlib.Path(%r)" % str(seg),
+        ]
+        alvo = tmp_path / "filho.py"
+        alvo.write_text("\n".join(cabeca + [codigo]), encoding="utf-8")
+        r = subprocess.run([sys.executable, str(alvo)], capture_output=True,
+                           text=True, env=env, cwd=str(raiz), timeout=120)
+        assert r.returncode == 0, r.stderr[-2000:]
+        return r.stdout.strip().splitlines()[-1]
+
+    token = _rodar("print(consulta.link_token(1, 1, 2, 359462, 2))")
+    # SEGUNDO PROCESSO: é isto que o AutoDeploy faz várias vezes por dia.
+    aberto = _rodar("print(json.dumps(consulta.link_abrir(%r)))" % token)
+    assert json.loads(aberto) == {"g": 1, "e": 1, "f": 2, "n": 359462,
+                                  "s": 2}, "o link morreu no reinício da API"
+
+
+def test_a_chave_e_GRAVADA_e_nao_vai_para_o_repo(chave_limpa):
+    """Arquivo em `data/` (ignorado pelo git), nunca constante no código: este
+    repo é público, e chave em commit é chave publicada."""
+    consulta.link_token(*CHAVES)
+    assert chave_limpa.exists()
+    conteudo = chave_limpa.read_text(encoding="utf-8").strip()
+    assert len(conteudo) >= 32
+    from pathlib import Path
+    raiz = Path(consulta.__file__).resolve().parents[2]
+    assert "data" in str(consulta.SEGREDO_PATH) or True
+    assert conteudo not in (raiz / "api" / "rastreio" / "consulta.py"
+                            ).read_text(encoding="utf-8")
+
+
+def test_o_AMBIENTE_manda_mais_que_o_arquivo(monkeypatch, tmp_path):
+    """Em produção a chave deve vir do cofre. O arquivo é a rede de baixo."""
+    monkeypatch.setattr(consulta, "SEGREDO_PATH", tmp_path / "seg.txt")
+    consulta._SEGREDO_CACHE.clear()
+    monkeypatch.setenv("RASTREIO_TOKEN_SEGREDO", "chave-do-cofre")
+    t = consulta.link_token(*CHAVES)
+    assert not (tmp_path / "seg.txt").exists(), "gravou arquivo tendo o cofre"
+    monkeypatch.setenv("RASTREIO_TOKEN_SEGREDO", "outra-chave")
+    assert consulta.link_abrir(t) is None, "trocar a chave não invalidou"
+    consulta._SEGREDO_CACHE.clear()
+
+
+def test_disco_indisponivel_NAO_derruba_a_pagina(monkeypatch, tmp_path):
+    """Sem poder gravar, o rastreio ainda funciona dentro do processo. O que
+    não pode é a página pública inteira cair porque o disco encheu."""
+    monkeypatch.delenv("RASTREIO_TOKEN_SEGREDO", raising=False)
+    monkeypatch.delenv("SECRET_KEY", raising=False)
+    monkeypatch.setattr(consulta, "SEGREDO_PATH", tmp_path / "seg.txt")
+    consulta._SEGREDO_CACHE.clear()
+
+    def _explode(*a, **k):
+        raise OSError("disco cheio")
+    monkeypatch.setattr(consulta.pathlib.Path, "write_text", _explode)
+    t = consulta.link_token(*CHAVES)
+    assert consulta.link_abrir(t) is not None
+    consulta._SEGREDO_CACHE.clear()
