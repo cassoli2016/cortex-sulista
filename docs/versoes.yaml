@@ -1,3 +1,27 @@
+- versao: "0.240.0"
+  data: "2026-09-05"
+  novo:
+    - >-
+      Responda CARGAS no WhatsApp e receba a lista do que você acompanha agora,
+      a qualquer hora, com o número de cada carga para poder sair de uma delas.
+      Antes, o único lugar com esses números era a última mensagem horária —
+      quem quisesse sair de uma à noite teria de rolar a conversa para trás, e
+      esse atrito é o que faz a pessoa mandar SAIR e sumir de todas. O rodapé
+      passou a ensinar o comando quando há mais de uma carga.
+  corrigido:
+    - >-
+      Quem cadastrava e cancelava algumas cargas no mesmo dia ficava trancado
+      fora do próprio cadastro: o limite contava as inscrições CRIADAS em 24h,
+      não as ativas, então cancelar não devolvia a vaga. Agora são dois limites
+      com propósitos diferentes — cinco cargas ao mesmo tempo (cancelar libera
+      na hora) e um teto separado, bem mais folgado, contra quem tentasse usar
+      a página para encher o WhatsApp de outra pessoa.
+    - >-
+      Um teste que protegia dados pessoais nunca protegeu nada: a expressão de
+      busca dele tinha um caractere invisível que a fazia não encontrar coluna
+      nenhuma, e todas as verificações passavam sem verificar. Corrigido e
+      conferido com sabotagem; uma varredura nova impede que outro caractere
+      desses entre no código.
 - versao: "0.239.0"
   data: "2026-09-05"
   novo:

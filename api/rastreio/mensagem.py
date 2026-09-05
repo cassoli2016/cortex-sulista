@@ -56,8 +56,14 @@ def rodape(quantas: int, exemplo: str = "") -> str:
     if quantas <= 1:
         return RODAPE
     ex = " (ex.: SAIR %s)" % exemplo if exemplo else ""
-    return ("\n\n_Para sair de UMA, responda SAIR e o número%s. "
-            "Para sair de todas, só SAIR._" % ex)
+    # CARGAS TAMBÉM VAI NO RODAPÉ, e não é excesso: quem quer sair de uma no
+    # meio da noite precisa do NÚMERO dela, e rolar a conversa para trás até
+    # achar a última mensagem horária é justamente o atrito que faz a pessoa
+    # mandar o SAIR seco e sumir. Comando que ninguém sabe que existe não
+    # existe.
+    return ("\n\n_Responda CARGAS para ver todas. "
+            "Para sair de UMA, SAIR e o número%s; para sair de todas, "
+            "só SAIR._" % ex)
 
 #: A ESTRADA. Blocos de cor, não traços: no WhatsApp o que se lê de relance é
 #: a NOTIFICAÇÃO, e ali um `▰▰▱▱` some no meio do texto enquanto um bloco verde

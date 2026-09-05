@@ -459,7 +459,7 @@ def test_o_custo_por_pessoa_e_a_UNICA_saida_individual_do_modulo():
     # que explica por que ela NAO sai daqui, e um teste que a proibisse estaria
     # proibindo a propria documentacao da regra.
     import re as _re
-    colunas = set(_re.findall(r"vf\.(\w+)", fonte))
+    colunas = set(_re.findall(r"\bvf\.(\w+)", fonte))
     for proibida in ("cpffunc", "numeroctps", "codbanco", "contacorrente",
                      "numeropis", "salbase_individual"):
         assert proibida not in colunas, proibida

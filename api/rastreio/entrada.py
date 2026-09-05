@@ -51,6 +51,14 @@ RE_SAIR = re.compile(r"^\s*(sair|parar|cancelar|remover|stop|descadastrar)\b",
 #: continua saindo de tudo, como sempre saiu.
 RE_NUMERO = re.compile(r"^\s*\w+\W{0,3}(\d{3,12})")
 
+#: O que conta como "me mostre o que estou acompanhando". Ser generoso custa
+#: nada: quem pergunta e nao e entendido nao pergunta de novo.
+RE_LISTA = re.compile(
+    r"^\s*(cargas?|lista|listar|status|acompanh\w*|minhas)\b", re.IGNORECASE)
+
+VAZIO = ("Voce nao esta acompanhando nenhuma carga agora. Para acompanhar, "
+         "busque a carga em %s/rastreio e clique em Avisar-me.")
+
 CONFIRMACAO = ("Pronto, você não receberá mais avisos de carga neste número. "
                "Se precisar acompanhar outra carga, é só cadastrar de novo na "
                "página de rastreio.")
@@ -129,6 +137,11 @@ def receber(corpo: dict, token: str | None = None) -> dict:
         log.info("rastreio: webhook sem telefone ou texto reconhecivel")
         return {"ok": True, "acao": "sem_dados"}
 
+    # A LISTA vem antes do SAIR de proposito: "cancelar" casa nos dois, e quem
+    # escreve "minhas cargas" quer ver, nao sair.
+    if RE_LISTA.match(texto) and not RE_SAIR.match(texto):
+        return _responder_lista(fone)
+
     if not RE_SAIR.match(texto):
         # NAO RESPONDEMOS a qualquer mensagem. Um "obrigado" do cliente nao
         # pode virar conversa automatica — e responder a tudo transformaria o
@@ -185,3 +198,45 @@ def receber(corpo: dict, token: str | None = None) -> dict:
              " %s" % numero if numero is not None else "")
     return {"ok": True, "acao": "cancelado", "inscricoes": quantas,
             "numero": numero}
+
+
+def _responder_lista(fone: str) -> dict:
+    """Responde CARGAS com o que este telefone acompanha AGORA.
+
+    POR QUE NO WHATSAPP E NAO NA PAGINA. A pagina e publica e nao sabe quem
+    esta do outro lado; digitar um telefone nela e ver as cargas daquele numero
+    transformaria a tela num consultor de quem-acompanha-o-que. Aqui a prova de
+    identidade e a propria mensagem: so quem tem o aparelho manda dele.
+
+    NUNCA LEVANTA — e uma rota que a Z-API chama de fora.
+    """
+    from api import url_publica
+    from . import aviso, mensagem
+
+    if not numeros.valido(fone):
+        return {"ok": True, "acao": "telefone_invalido"}
+
+    inscricoes = assinatura.listar_por_telefone(fone)
+    if not inscricoes:
+        wa.enviar(numeros.normalizar(fone), VAZIO % url_publica.base(),
+                  usuario="rastreio", origem="rastreio_lista",
+                  regras=resposta.regras())
+        log.info("rastreio: CARGAS sem inscricao (final %s)",
+                 "".join(c for c in fone if c.isdigit())[-4:])
+        return {"ok": True, "acao": "lista_vazia"}
+
+    cargas = [c for c in (aviso._carga_da_inscricao(i) for i in inscricoes) if c]
+    texto = mensagem.montar_varias(cargas)
+    if not texto:
+        # NENHUMA TEM NOVIDADE, mas a pessoa PERGUNTOU — e a quem pergunta se
+        # responde. Calar aqui e diferente de calar no aviso automatico: la o
+        # silencio e a resposta certa, aqui ele parece defeito.
+        texto = ("🚚 Voce acompanha %d carga(s), mas nenhuma tem "
+                 "posicao nova agora." % len(inscricoes))
+    doc = (cargas[0].get("documento") or "").replace("CT-e ", "").strip()         if cargas else ""
+    wa.enviar(numeros.normalizar(fone),
+              texto + mensagem.rodape(max(len(cargas), 2), doc),
+              usuario="rastreio", origem="rastreio_lista",
+              regras=resposta.regras())
+    log.info("rastreio: CARGAS respondido com %d carga(s)", len(inscricoes))
+    return {"ok": True, "acao": "lista", "cargas": len(inscricoes)}

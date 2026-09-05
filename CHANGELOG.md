@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.240.0] — 05/09/2026  ·  CX-05/09/2026-v0.240.0
+
+### Corrigido
+- Quem cadastrava e cancelava algumas cargas no mesmo dia ficava trancado fora do próprio cadastro: o limite contava as inscrições CRIADAS em 24h, não as ativas, então cancelar não devolvia a vaga. Agora são dois limites com propósitos diferentes — cinco cargas ao mesmo tempo (cancelar libera na hora) e um teto separado, bem mais folgado, contra quem tentasse usar a página para encher o WhatsApp de outra pessoa.
+- Um teste que protegia dados pessoais nunca protegeu nada: a expressão de busca dele tinha um caractere invisível que a fazia não encontrar coluna nenhuma, e todas as verificações passavam sem verificar. Corrigido e conferido com sabotagem; uma varredura nova impede que outro caractere desses entre no código.
+
 ## [0.239.0] — 05/09/2026  ·  CX-05/09/2026-v0.239.0
 
 ## [0.238.3] — 05/09/2026  ·  CX-05/09/2026-v0.238.3

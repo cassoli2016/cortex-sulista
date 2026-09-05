@@ -13072,7 +13072,7 @@ function tvTicker(id, itens){
 
   const sep = '<span style="color:#3D5A77">•</span>';
   const linha = itens.map(x => '<span>' + esc(x) + '</span>').join(sep);
-  const assinatura = itens.join('');
+  const assinatura = itens.join('\u0001');
 
   const reduzido = window.matchMedia
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;

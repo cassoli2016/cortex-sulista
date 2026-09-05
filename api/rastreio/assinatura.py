@@ -39,9 +39,18 @@ log = logging.getLogger("cortex.rastreio.assinatura")
 #: cancelar: a carga chega, a pessoa esquece, e o aviso seguiria para sempre.
 DIAS_VALIDADE = 15
 
-#: Teto de inscrições por telefone numa janela. Quem quiser usar a página como
-#: disparador esbarra aqui antes de conseguir volume.
-MAX_POR_FONE = 5
+#: Quantas cargas dá para acompanhar AO MESMO TEMPO. É teto de produto, não de
+#: segurança: cancelar libera a vaga na hora. A mensagem horária é uma só com
+#: todas as cargas dentro, então o custo de cinco é uma mensagem, não cinco.
+MAX_ATIVAS_POR_FONE = 5
+
+#: Quantas inscrições dá para CRIAR num dia. Este é o teto antiabuso: cada
+#: inscrição manda uma mensagem na hora, então cadastrar-e-cancelar em laço
+#: seria um jeito de encher o WhatsApp de um número que não é seu.
+MAX_CRIADAS_24H = 12
+
+#: Nome antigo, mantido porque testes e a Saúde ainda o citam.
+MAX_POR_FONE = MAX_ATIVAS_POR_FONE
 JANELA_FONE_H = 24
 
 #: Teto de telefones acompanhando a MESMA carga. Uma carga tem remetente,
@@ -92,14 +101,40 @@ def inscrever(termo: str, cnpj4: str, carga_id: str, telefone: str,
 
     try:
         with pglocal.get_conn() as conn, conn.cursor() as cur:
+            # DOIS TETOS DIFERENTES, e confundi-los prendeu uma pessoa fora do
+            # próprio cadastro. O primeiro é de PRODUTO: quantas cargas dá para
+            # acompanhar ao mesmo tempo. O segundo é ANTIABUSO: quantas
+            # inscrições dá para criar num dia.
+            #
+            # A regra original contava só as CRIADAS em 24h, e com isso quem
+            # cadastrava e cancelava cinco vezes ficava trancado até o dia
+            # seguinte — sem ter nenhuma ativa. Cancelar tem de LIBERAR a vaga,
+            # senão "sair quando quiser" custa o direito de voltar.
             cur.execute("""
                 SELECT count(*)::int AS n FROM rst_inscricao
-                WHERE telefone = %s AND criado_em > now() - make_interval(hours => %s)""",
-                (fone, JANELA_FONE_H))
-            if cur.fetchone()["n"] >= MAX_POR_FONE:
+                WHERE telefone = ANY(%s) AND ativo AND expira_em > now()""",
+                (numeros.variantes(fone),))
+            if cur.fetchone()["n"] >= MAX_ATIVAS_POR_FONE:
                 return {"ok": False,
-                        "motivo": "Este número já tem muitos acompanhamentos "
-                                  "hoje. Tente novamente amanhã."}
+                        "motivo": "Este número já acompanha %d cargas, que é o "
+                                  "máximo. Responda SAIR e o número de uma "
+                                  "delas no WhatsApp para abrir uma vaga."
+                                  % MAX_ATIVAS_POR_FONE}
+
+            # O TETO ANTIABUSO CONTINUA, e é ele que impede a página de virar
+            # disparador: cada inscrição manda uma mensagem na hora, então
+            # cadastrar-e-cancelar em laço seria um jeito de encher o WhatsApp
+            # de alguém. Ele é folgado o bastante para não atrapalhar quem
+            # troca de carga várias vezes no mesmo dia.
+            cur.execute("""
+                SELECT count(*)::int AS n FROM rst_inscricao
+                WHERE telefone = ANY(%s)
+                  AND criado_em > now() - make_interval(hours => %s)""",
+                (numeros.variantes(fone), JANELA_FONE_H))
+            if cur.fetchone()["n"] >= MAX_CRIADAS_24H:
+                return {"ok": False,
+                        "motivo": "Este número fez muitos cadastros hoje. "
+                                  "Tente novamente amanhã."}
 
             cur.execute("""
                 SELECT count(*)::int AS n FROM rst_inscricao
@@ -303,3 +338,29 @@ def encerrar(ident: int, motivo: str) -> None:
              WHERE id = %s""", (motivo[:40], ident))
     except Exception:  # noqa: BLE001
         pass
+
+
+def listar_por_telefone(telefone: str) -> list[dict]:
+    """As cargas que um telefone acompanha AGORA. Nunca levanta.
+
+    É o que a palavra CARGAS no WhatsApp responde. Sem isto, a única lista que
+    existia era a mensagem horária — e quem quisesse sair de uma no meio da
+    noite não tinha como saber o número dela sem rolar a conversa para trás.
+
+    A BUSCA ACEITA AS DUAS FORMAS do número (com e sem o nono dígito), pela
+    mesma razão do cancelamento: o WhatsApp identifica contas antigas sem ele.
+    """
+    formas = numeros.variantes(telefone)
+    if not formas:
+        return []
+    try:
+        return [dict(r) for r in pglocal.query("""
+            SELECT id, grupo, empresa, filial, numero, serie, telefone,
+                   ultimo_texto, ultimo_envio, envios, criado_em
+            FROM rst_inscricao
+            WHERE telefone = ANY(%s) AND ativo AND expira_em > now()
+            ORDER BY criado_em""", (formas,))]
+    except Exception as exc:  # noqa: BLE001
+        log.warning("rastreio: listagem por telefone falhou: %s",
+                    type(exc).__name__)
+        return []
