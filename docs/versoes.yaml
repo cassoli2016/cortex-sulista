@@ -1,3 +1,32 @@
+- versao: "0.237.0"
+  data: "2026-09-05"
+  novo:
+    - >-
+      O módulo de pneus ganhou o número que faltava: o CPK, custo por
+      quilômetro. Ele não vinha da Prolog — o km chegava vazio nos 2.497
+      movimentos importados, 100% — e passou a sair de casa: odômetro do
+      abastecimento para os cavalos, e para as carretas o km do cavalo que as
+      puxou, pelo engate do manifesto. Cobertura medida: 96% dos pneus de
+      tração e 98% das carretas.
+    - >-
+      O CPK já separa o que se compara do que não se compara. Pneu recapado usa
+      o custo da recapagem, não o do pneu novo; custo fora da faixa física
+      (o cadastro tem de R$ 0,01 a R$ 1,3 milhão) vira lacuna com o valor à
+      vista, para corrigir; e pneu recém-montado fica "em formação" em vez de
+      liderar a lista dos piores só por ainda não ter rodado.
+    - >-
+      Comparação por modelo, que é onde a compra se decide: mediana e não
+      média, mínimo de cinco pneus para o modelo ser avaliado, e o km mediano
+      ao lado do CPK — comparar modelos de maturidades diferentes é o engano
+      que isso evita.
+  corrigido:
+    - >-
+      Duas telas podiam trocar de resultado entre si. O cache do sistema
+      guardava a resposta pelo NOME da função, então duas funções de mesmo nome
+      em partes diferentes do sistema dividiam a mesma entrada e uma devolvia o
+      número da outra. Nenhuma tela existente foi afetada — a conferência
+      varreu as 53 funções cacheadas e só o par novo colidia —, mas o defeito
+      estava lá desde sempre e o sintoma seria um número errado, calado.
 - versao: "0.236.3"
   data: "2026-09-05"
   corrigido:

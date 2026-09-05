@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.237.0] — 05/09/2026  ·  CX-05/09/2026-v0.237.0
+
+### Corrigido
+- Duas telas podiam trocar de resultado entre si. O cache do sistema guardava a resposta pelo NOME da função, então duas funções de mesmo nome em partes diferentes do sistema dividiam a mesma entrada e uma devolvia o número da outra. Nenhuma tela existente foi afetada — a conferência varreu as 53 funções cacheadas e só o par novo colidia —, mas o defeito estava lá desde sempre e o sintoma seria um número errado, calado.
+
 ## [0.236.3] — 05/09/2026  ·  CX-05/09/2026-v0.236.3
 
 ### Corrigido

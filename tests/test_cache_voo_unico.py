@@ -188,3 +188,44 @@ def test_o_pool_cabe_o_maior_leque_da_casa():
     fonte = inspect.getsource(db._get_pool)
     assert "max_size=16" in fonte, "o pool encolheu de novo"
     assert "min_size=2" in fonte
+
+
+# --------------------------------------------------------------------------
+# a chave: nome não basta
+# --------------------------------------------------------------------------
+def test_funcoes_HOMONIMAS_de_modulos_diferentes_NAO_dividem_a_entrada():
+    """O guard de um defeito real, 05/09/2026.
+
+    A chave era `(nome, args, kwargs)`. `api/pneus/km._calcular` e
+    `api/pneus/cpk._calcular` — mesmo nome, mesmo argumento — passaram a
+    dividir a MESMA entrada, e a segunda recebia o resultado da primeira.
+
+    O que salvou foi a sorte: os dois payloads eram diferentes o bastante para
+    estourar um `KeyError` longe daqui. Se tivessem campos parecidos — dois
+    módulos calculando "km" ou "total", que é o normal nesta casa — teria
+    virado número errado em tela, calado, sem exceção nenhuma para investigar.
+
+    `_calcular`, `_dados`, `_montar` são nomes que se repetem naturalmente
+    entre módulos; o guard existe para o próximo par não custar a mesma tarde.
+    """
+    import types
+
+    from api import queries
+
+    def _faz(modulo: str, valor: str):
+        fn = lambda n: {"quem": valor, "n": n}   # noqa: E731
+        fn.__name__ = "_calcular"
+        fn.__module__ = modulo
+        return queries.cached(600)(fn)
+
+    queries._RESP_CACHE.clear()
+    try:
+        a = _faz("api.um.alfa", "alfa")
+        b = _faz("api.dois.beta", "beta")
+        assert a(365)["quem"] == "alfa"
+        assert b(365)["quem"] == "beta", "a segunda recebeu o cache da primeira"
+        # e cada uma continua sendo cacheada de verdade
+        assert a(365)["quem"] == "alfa"
+        assert len(queries._RESP_CACHE) == 2
+    finally:
+        queries._RESP_CACHE.clear()

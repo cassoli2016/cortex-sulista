@@ -81,7 +81,15 @@ def cached(ttl: int = 90, velha_ate: int = 0):
     """
     def deco(fn):
         def wrapper(*args, **kwargs):
-            key = (fn.__name__, repr(args), repr(sorted(kwargs.items())))
+            # O MODULO ENTRA NA CHAVE, e isto NAO e zelo preventivo: sem
+            # ele, duas funcoes com o mesmo nome em modulos diferentes
+            # dividem a mesma entrada e uma devolve o resultado da outra.
+            # Aconteceu em 05/09/2026 entre `pneus/km._calcular` e
+            # `pneus/cpk._calcular`: o CPK passou a devolver o payload do km,
+            # e o sintoma foi um KeyError longe daqui. Se os dois tivessem
+            # campos parecidos, teria virado numero errado em tela, calado.
+            key = (fn.__module__, fn.__name__, repr(args),
+                   repr(sorted(kwargs.items())))
             hit = _RESP_CACHE.get(key)
             agora = _time.time()
             if hit and agora - hit[0] < ttl:

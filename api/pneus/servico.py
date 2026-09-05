@@ -93,3 +93,42 @@ def diagnostico() -> dict:
         "total_na_api": snap.get("total_na_api"),
         "voltas": snap.get("voltas") or 0,
     }
+
+
+def rendimento(janela_dias: int = 365) -> dict:
+    """O CPK: por pneu, por modelo, e a conferência do km.
+
+    NÃO PASSA PELA PROLOG. É esta a diferença entre este bloco e o resto da
+    tela: o instantâneo da Prolog diz o que existe e onde está; o CPK sai do
+    banco da casa (cadastro replicado) cruzado com o ERP (odômetro do
+    abastecimento e engate do manifesto). Quando a Prolog for desligada, este
+    número continua saindo — e é ele que sustenta a decisão de compra.
+
+    A CONFERÊNCIA VAI JUNTO, sempre. Ela é o segundo caminho para o mesmo
+    número: carreta só anda puxada, então o km atribuído a elas tem de ser
+    menor que o rodado pelos cavalos. Mandar o CPK sem ela seria pedir para
+    acreditar; com ela, dá para checar.
+    """
+    from . import cpk as cpkmod
+    from . import km as kmmod
+
+    d = cpkmod.obter(janela_dias)
+    return {
+        "cpk_mediano": d["cpk_mediano"],
+        "avaliados": d["avaliados"],
+        "total": d["total"],
+        # AS LACUNAS SÃO PARTE DA RESPOSTA, não rodapé. 176 pneus em formação e
+        # 251 sem custo não são silêncio: são a lista de trabalho de quem
+        # cuida do cadastro.
+        "em_formacao": d["em_formacao"],
+        "sem_custo": d["sem_custo"],
+        "sem_km": d["sem_km"],
+        "custo_fora_da_faixa": d["custo_fora_da_faixa"],
+        "piso_km": d["piso_km"],
+        "faixa_custo": d["faixa_custo"],
+        "itens": d["itens"],
+        "por_modelo": cpkmod.por_modelo(janela_dias),
+        "km": kmmod.conferir(janela_dias),
+        "leitura_velha": d.get("leitura_velha"),
+        "leitura_em": d.get("leitura_em"),
+    }
