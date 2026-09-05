@@ -88,6 +88,18 @@ def receber(corpo: dict, token: str | None = None) -> dict:
     Devolve sempre 200 para a Z-API: erro aqui faria ela reenfileirar a mesma
     mensagem, e a segunda tentativa encontraria a inscrição já cancelada.
     """
+    # TODA CHAMADA DEIXA RASTRO, e isto veio de uma tarde perdida. Dois
+    # caminhos daqui saiam CALADOS — a nossa propria mensagem voltando e o
+    # texto que nao e SAIR. Com eles mudos, "a Z-API nunca chamou" e "a Z-API
+    # chamou e nos ignoramos" ficam indistinguiveis do lado de ca, e foi
+    # exatamente essa duvida que travou o diagnostico do SAIR que nao
+    # funcionava.
+    #
+    # SO AS CHAVES DO CORPO, nunca o conteudo: telefone e texto de cliente nao
+    # entram em log. As chaves bastam para saber se chegou e em que formato.
+    log.info("rastreio: webhook recebido, campos=%s",
+             sorted(corpo)[:14] if isinstance(corpo, dict) else type(corpo).__name__)
+
     if not _token_ok(token):
         log.warning("rastreio: webhook com token invalido")
         return {"ok": True, "acao": "ignorado"}
@@ -95,6 +107,8 @@ def receber(corpo: dict, token: str | None = None) -> dict:
     # MENSAGEM QUE NOS MESMOS ENVIAMOS volta no webhook. Sem este corte, a
     # confirmacao de saida seria lida como uma nova mensagem de entrada.
     if corpo.get("fromMe") or corpo.get("isGroup"):
+        log.info("rastreio: webhook ignorado (fromMe=%s isGroup=%s)",
+                 bool(corpo.get("fromMe")), bool(corpo.get("isGroup")))
         return {"ok": True, "acao": "ignorado"}
 
     fone, texto = _extrair(corpo)
@@ -108,9 +122,17 @@ def receber(corpo: dict, token: str | None = None) -> dict:
         # NAO RESPONDEMOS a qualquer mensagem. Um "obrigado" do cliente nao
         # pode virar conversa automatica — e responder a tudo transformaria o
         # numero da empresa num robo que ninguem pediu.
+        #
+        # O LOG NAO LEVA O TEXTO, so o tamanho: e o bastante para saber que
+        # chegou mensagem e que ela nao era um pedido de saida.
+        log.info("rastreio: webhook ignorado (nao e SAIR, %d caracteres)",
+                 len(texto))
         return {"ok": True, "acao": "ignorado"}
 
     if not numeros.valido(fone):
+        # SO O TAMANHO, nunca o numero: telefone de cliente nao entra em log.
+        log.info("rastreio: SAIR de telefone invalido (%d digitos)",
+                 len([c for c in fone if c.isdigit()]))
         return {"ok": True, "acao": "telefone_invalido"}
 
     quantas = assinatura.cancelar_por_telefone(fone)
@@ -118,6 +140,14 @@ def receber(corpo: dict, token: str | None = None) -> dict:
         # SO SE RESPONDE A QUEM TINHA INSCRICAO. Sem isso o webhook viraria
         # amplificador: qualquer POST com um telefone faria a casa mandar
         # mensagem para ele.
+        #
+        # E ESTE CAMINHO PRECISA FALAR. Ele e o unico jeito de "o SAIR chegou
+        # mas o telefone nao bate com o gravado" se distinguir de "o SAIR nunca
+        # chegou" — e as duas coisas se parecem exatamente igual do lado de ca.
+        # Os quatro ultimos digitos bastam para conferir e nao identificam
+        # ninguem sozinhos.
+        log.info("rastreio: SAIR sem inscricao ativa (final %s)",
+                 "".join(c for c in fone if c.isdigit())[-4:])
         return {"ok": True, "acao": "sem_inscricao"}
 
     # JANELA ABERTA: esta e uma RESPOSTA, nao um disparo. Quem pede para sair

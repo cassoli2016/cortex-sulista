@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.238.2] — 05/09/2026  ·  CX-05/09/2026-v0.238.2
+
+### Corrigido
+- O recebimento de mensagens do WhatsApp tinha quatro caminhos que terminavam sem deixar rastro, e por isso "a operadora nunca nos chamou" e "ela chamou e nós ignoramos" ficavam idênticos de dentro — foi essa dúvida que travou o diagnóstico do SAIR que não funcionava. Toda chamada passou a registrar o que aconteceu, sem telefone nem texto no registro.
+
 ## [0.238.1] — 05/09/2026  ·  CX-05/09/2026-v0.238.1
 
 ### Corrigido
