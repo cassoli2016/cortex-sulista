@@ -51,23 +51,27 @@ def test_a_lista_publica_do_rastreio_e_EXATAMENTE_esta():
     acrescenta uma rota — e é essa a intenção: a conversa acontece na revisão,
     não depois, na internet.
 
-    Ele JÁ acendeu uma vez, quando o aviso por WhatsApp entrou: eram duas
-    rotas de leitura e passaram a ser quatro, com duas que ESCREVEM. Cada uma
-    dessas quatro tem o freio por IP, e as duas de escrita exigem o mesmo
-    segundo fator da busca — quem quiser acrescentar a quinta lê
-    `api/rastreio/assinatura.py` antes.
+    Ele JÁ acendeu DUAS vezes. Na primeira, quando o aviso por WhatsApp
+    entrou: eram duas rotas de leitura e passaram a ser quatro, com duas que
+    ESCREVEM. Na segunda, quando o link do WhatsApp passou a abrir a carga
+    direto — e essa é a única da lista que NÃO exige o segundo fator (o CNPJ),
+    porque a prova dela é o token assinado. Cada uma tem o freio por IP; quem
+    quiser acrescentar a sétima lê `api/rastreio/assinatura.py` antes.
     """
     assert set(auth._PUBLICAS_RASTREIO) == {
-        "/api/rastreio/buscar", "/api/rastreio/carga",
+        "/api/rastreio/buscar", "/api/rastreio/carga", "/api/rastreio/link",
         "/api/rastreio/assinar", "/api/rastreio/cancelar",
         "/api/rastreio/zap"}
 
 
 def test_cada_rota_publica_tem_a_sua_razao():
-    """As cinco, e por que cada uma esta aberta. Este teste nao mede codigo —
-    mede se quem acrescentar a sexta parou para escrever o motivo dela.
+    """As seis, e por que cada uma esta aberta. Este teste nao mede codigo —
+    mede se quem acrescentar a setima parou para escrever o motivo dela.
 
       buscar/carga   leitura, com segundo fator e freio por IP
+      link           leitura pelo token assinado do WhatsApp — a UNICA sem o
+                     segundo fator, porque o token E a prova: HMAC, prazo
+                     curto, e emitido so para quem ja provou o CNPJ
       assinar        escreve, mesmo segundo fator, e manda a 1a mensagem
       cancelar       escreve, e sair tem de ser mais facil que entrar
       zap            webhook da Z-API; a UNICA acao possivel e descadastrar
@@ -75,6 +79,7 @@ def test_cada_rota_publica_tem_a_sua_razao():
     razoes = {
         "/api/rastreio/buscar": "leitura com segundo fator",
         "/api/rastreio/carga": "leitura com segundo fator",
+        "/api/rastreio/link": "leitura por token assinado, com prazo",
         "/api/rastreio/assinar": "escrita com segundo fator",
         "/api/rastreio/cancelar": "sair e mais facil que entrar",
         "/api/rastreio/zap": "webhook: so descadastra",

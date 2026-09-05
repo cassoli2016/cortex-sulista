@@ -8,6 +8,7 @@ em que alguém a criar, sem ninguém rever nada.
 """
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import logging
@@ -74,6 +75,51 @@ def token(grupo, empresa, filial, numero, serie) -> str:
     assinatura = hmac.new(_segredo(), cru.encode("utf-8"),
                           hashlib.sha256).hexdigest()[:16]
     return "%s-%s" % (hashlib.sha256(cru.encode()).hexdigest()[:16], assinatura)
+
+
+#: Quanto tempo o link do WhatsApp vale. Ele carrega a carga inteira, entao
+#: nao pode viver para sempre: mensagem encaminhada num grupo dura anos, e o
+#: link nao pode durar junto.
+LINK_DIAS = 20
+
+
+def link_token(grupo, empresa, filial, numero, serie) -> str:
+    """Token do link direto, assinado e com prazo.
+
+    VAI NO FRAGMENTO da URL (`#c=`), nunca na query: o que vem depois do `#`
+    nao chega ao servidor nem ao log do proxy. E o mesmo caminho do
+    "esqueci minha senha" da casa.
+
+    Ele carrega a carga porque o link tem de abrir SEM a pessoa digitar nada —
+    era esse o pedido. Em troca, expira: link com prazo encaminhado num grupo
+    para de funcionar sozinho.
+    """
+    ate = int(time.time()) + LINK_DIAS * 86400
+    cru = "%s|%s|%s|%s|%s|%s" % (grupo, empresa, filial, numero, serie, ate)
+    ass = hmac.new(_segredo(), cru.encode("utf-8"), hashlib.sha256).hexdigest()[:20]
+    dados = base64.urlsafe_b64encode(cru.encode("utf-8")).decode().rstrip("=")
+    return "%s.%s" % (dados, ass)
+
+
+def link_abrir(token: str) -> dict | None:
+    """As chaves da carga de um token de link, ou None. Nunca levanta."""
+    try:
+        dados, _, ass = (token or "").partition(".")
+        if not dados or not ass:
+            return None
+        pad = "=" * (-len(dados) % 4)
+        cru = base64.urlsafe_b64decode(dados + pad).decode("utf-8")
+        esperado = hmac.new(_segredo(), cru.encode("utf-8"),
+                            hashlib.sha256).hexdigest()[:20]
+        if not hmac.compare_digest(ass, esperado):
+            return None
+        g, e, f, n, sr, ate = cru.split("|")
+        if int(ate) < time.time():
+            return None
+        return {"g": int(g), "e": int(e), "f": int(f), "n": int(n),
+                "s": int(sr)}
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def _confere_token(t: str, grupo, empresa, filial, numero, serie) -> bool:

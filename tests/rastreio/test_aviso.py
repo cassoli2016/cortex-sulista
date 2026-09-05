@@ -34,7 +34,9 @@ def _carga(**kw) -> dict:
 def test_a_mensagem_diz_progresso_e_o_que_falta():
     t = aviso._texto(_carga())
     assert "62%" in t and "118" in t and "Santos/SP" in t
-    assert "pela rota" in t
+    # COM ROTA CADASTRADA a ressalva NÃO aparece: dizer "linha reta" num
+    # número rodoviário seria uma desculpa que o número não precisa.
+    assert "linha reta" not in t
 
 
 def test_a_mensagem_declara_quando_e_LINHA_RETA():
@@ -48,7 +50,7 @@ def test_a_mensagem_declara_quando_e_LINHA_RETA():
 def test_entrega_gera_mensagem_de_ENTREGUE():
     t = aviso._texto(_carga(estado="entregue",
                             entregue_em="2026-09-04T15:30:00"))
-    assert "ENTREGUE" in t
+    assert "Entregue" in t
 
 
 def test_veiculo_nao_localizado_RECUSA_dizendo_o_motivo():
@@ -57,7 +59,7 @@ def test_veiculo_nao_localizado_RECUSA_dizendo_o_motivo():
     c = _carga()
     c["andamento"] = {"tem_posicao": False, "fora_da_rota": True}
     t = aviso._texto(c)
-    assert t and "localizar" in t.lower()
+    assert t and "localiza" in t.lower()
 
 
 def test_posicao_velha_vira_ressalva_e_nao_numero_antigo():

@@ -239,7 +239,11 @@ const $ = id => document.getElementById(id);
 const esc = s => (s ?? '').toString().replace(/[&<>"]/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-let ULTIMO = {doc:'', cnpj:''};
+/* O que a pessoa digitou na busca, ou `null` quando ela chegou pelo LINK do
+   WhatsApp. A diferença não é cosmética: sem documento e CNPJ em mãos não há
+   como assinar nem cancelar, então o cartão do WhatsApp muda de texto em vez
+   de oferecer um botão que responderia "informe o documento". */
+let ULTIMO = null;
 
 /* Data em horario LOCAL. `toISOString()` em UTC-3 volta um dia — a lição da
    casa, e aqui ela apareceria como "entregue ontem" numa carga de hoje. */
@@ -348,7 +352,7 @@ function pintarDetalhe(c){
           <span><span class="t">${esc(e.rotulo)}</span>
           ${e.em ? `<br><span class="q">${quando(e.em, true)}</span>` : ''}</span>
         </li>`).join('')}</ul>
-      <div class="zap">
+      ${ULTIMO ? `<div class="zap">
         <p><b>Receber por WhatsApp</b><br>Avisamos a cada hora enquanto a carga
           estiver em viagem, e quando ela for entregue.</p>
         <div class="linha">
@@ -359,7 +363,10 @@ function pintarDetalhe(c){
         </div>
         <div id="zapMsg"></div>
         <button class="sair" onclick="cancelarZap()">Já cadastrei e quero parar de receber</button>
-      </div>
+      </div>` : `<div class="zap">
+        <p><b>Você já recebe os avisos desta carga por WhatsApp.</b><br>
+          Para parar, responda <b>SAIR</b> na conversa.</p>
+      </div>`}
     </div></div>`;
   window.scrollTo({top:0, behavior:'smooth'});
   if(c.mapa && (c.mapa.origem || c.mapa.destino)) desenharMapa(c);
@@ -546,7 +553,50 @@ async function zapChamar(rota){
 const assinar = () => zapChamar('assinar');
 const cancelarZap = () => zapChamar('cancelar');
 
-function voltar(){ $('resultado').innerHTML = ''; $('doc').focus(); }
+function voltar(){
+  $('resultado').innerHTML = '';
+  $('msg').innerHTML = '';
+  ULTIMO = null; CARGA_ABERTA = null;
+  $('form').hidden = false;
+  $('doc').focus();
+}
+
+/* ---------------------------------------------------------------- o link
+   O aviso de WhatsApp traz um link que abre ESTA carga sem digitar nada. O
+   token vem no FRAGMENTO (`#c=`) e nao na query — o que vem depois do `#` nao
+   sai do aparelho, entao ele nao fica gravado no log de acesso do Cloudflare
+   nem no nosso. E o mesmo caminho do "esqueci minha senha" desta casa.
+
+   Depois de ler, o fragmento SAI da barra de enderecos: o celular que passa de
+   mao em mao, o print da tela e o historico do navegador sao tres jeitos de
+   o token viajar sozinho, e nenhum deles precisa acontecer. */
+async function abrirPorLink(t){
+  $('form').hidden = true;
+  $('resultado').innerHTML = '<div class="skel">carregando sua carga…</div>';
+  try{
+    const r = await fetch('/api/rastreio/link?t=' + encodeURIComponent(t),
+                          {cache:'no-store'});
+    const d = await r.json();
+    if(d.ok && d.carga){ pintarDetalhe(d.carga); return; }
+    /* LINK VENCIDO NAO E ERRO DA PESSOA. Ela volta para a busca com o motivo
+       dito, em vez de olhar uma tela vazia. */
+    $('form').hidden = false;
+    $('resultado').innerHTML = '';
+    $('msg').innerHTML = '<div class="aviso">Este link expirou. '
+      + 'Busque a carga pelo número do documento.</div>';
+  }catch(e){
+    $('form').hidden = false;
+    $('resultado').innerHTML = '';
+    $('msg').innerHTML = '<div class="erro">Sem conexão. Tente de novo.</div>';
+  }
+}
+
+(function(){
+  const m = /[#&]c=([A-Za-z0-9_.\-]+)/.exec(location.hash || '');
+  if(!m) return;
+  history.replaceState(null, '', location.pathname);
+  abrirPorLink(m[1]);
+})();
 
 $('form').addEventListener('submit', buscar);
 /* So digito nos dois campos: o teclado numerico do celular ja limita, mas

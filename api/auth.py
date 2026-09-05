@@ -318,6 +318,12 @@ _PUBLICAS = ("/api/auth/login", "/api/auth/setup", "/api/auth/setup-status",
 # Cada rota nova aqui abre uma porta na internet. Se voce esta lendo isto para
 # acrescentar uma, o modulo `api/rastreio` explica o que pode sair.
 _PUBLICAS_RASTREIO = ("/api/rastreio/buscar", "/api/rastreio/carga",
+                      # O link assinado do WhatsApp. Publica porque quem clica
+                      # nao tem sessao — a prova e o TOKEN, com HMAC e prazo
+                      # (`consulta.LINK_DIAS`), emitido so para quem ja provou
+                      # o CNPJ ao se inscrever. Sem ela, o aviso de hora em
+                      # hora obrigaria a redigitar documento e CNPJ toda vez.
+                      "/api/rastreio/link",
                       "/api/rastreio/assinar", "/api/rastreio/cancelar",
                       # A Z-API chama esta de fora, entao ela e publica. A
                       # UNICA acao possivel nela e DESCADASTRAR — nao ha

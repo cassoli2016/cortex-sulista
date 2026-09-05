@@ -424,9 +424,19 @@ def obter(termo: str, cnpj4: str, carga_id: str) -> dict:
     if not linhas2:
         return {"ok": True, "carga": None}
 
-    linha = dict(linhas2[0])
-    chaves = {"g": alvo["grupo"], "e": alvo["empresa"], "f": alvo["filial"],
-              "n": alvo["numero"], "s": alvo["serie"]}
+    return {"ok": True, "carga": _montar(dict(linhas2[0]), {
+        "g": alvo["grupo"], "e": alvo["empresa"], "f": alvo["filial"],
+        "n": alvo["numero"], "s": alvo["serie"]})}
+
+
+def _montar(linha: dict, chaves: dict) -> dict:
+    """A carga pública, a partir de UMA linha do detalhe.
+
+    Existe separada porque há DOIS caminhos até aqui — a busca (documento +
+    CNPJ) e o link assinado do WhatsApp — e um segundo lugar montando o mesmo
+    payload é um segundo lugar por onde um campo novo do ERP entra na página
+    pública sem ninguém decidir.
+    """
     _CHAVES_ATUAIS["chaves"] = chaves
     andamento = _andamento(linha)
     # ORIGEM E DESTINO VAO INTEIROS. Nao e incoerencia com a posicao
@@ -440,13 +450,39 @@ def obter(termo: str, cnpj4: str, carga_id: str) -> dict:
     if linha.get("lat_entrega") and linha.get("lng_entrega"):
         pontos["destino"] = {"lat": float(linha["lat_entrega"]),
                              "lng": float(linha["lng_entrega"])}
-    return {"ok": True, "carga": {
+    return {
         # A base é a carga JÁ LIMPA, montada pela mesma lista explícita da
         # busca — o detalhe acrescenta, nunca abre o registro cru.
-        **consulta._limpo(alvo),
+        **consulta._limpo(linha),
         "andamento": andamento,
         "etapas": _linha_do_tempo(linha, andamento),
         "notas": _notas(chaves),
         "mapa": pontos,
         "consultado_em": datetime.now(timezone.utc).isoformat(),
-    }}
+    }
+
+
+def por_link(token: str) -> dict:
+    """A carga de um link assinado do WhatsApp. Nunca levanta.
+
+    O TOKEN É A PROVA, e é a única aqui. Quem o recebeu já provou o CNPJ no
+    cadastro da assinatura; exigir de novo o documento e os quatro dígitos a
+    cada aviso de hora em hora transformaria o link em um formulário, e ninguém
+    o usaria. O que sustenta isso é o que o token é: assinado com HMAC (não se
+    forja nem se incrementa para a carga do vizinho) e com prazo curto
+    (`consulta.LINK_DIAS`), então um encaminhamento no grupo da família não
+    vira acesso permanente.
+    """
+    chaves = consulta.link_abrir(token or "")
+    if not chaves:
+        # MESMA RESPOSTA para token adulterado, expirado e malformado: separar
+        # os motivos diria a quem tenta se o palpite chegou perto.
+        return {"ok": True, "carga": None}
+    try:
+        linhas = db.query(DETALHE_SQL, chaves)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("rastreio: detalhe por link falhou: %s", type(exc).__name__)
+        return {"ok": False, "motivo": "não foi possível consultar agora"}
+    if not linhas:
+        return {"ok": True, "carga": None}
+    return {"ok": True, "carga": _montar(dict(linhas[0]), chaves)}

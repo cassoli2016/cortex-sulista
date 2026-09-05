@@ -364,6 +364,19 @@ def rastreio_carga(req: Request, doc: str = "", cnpj: str = "",
     return _rastreio_freado(req) or JSONResponse(detalhe.obter(doc, cnpj, id))
 
 
+@app.get("/api/rastreio/link")
+def rastreio_link(req: Request, t: str = "") -> JSONResponse:
+    """Abre a carga direto pelo link assinado que foi no WhatsApp.
+
+    O token chega aqui pelo JAVASCRIPT da pagina, lido do FRAGMENTO da URL
+    (`#c=`), e nao pelo endereco que o navegador pede: o que vem depois do `#`
+    nao sai do aparelho. Assim o token de uma carga de cliente nao fica gravado
+    no log de acesso do Cloudflare nem no nosso.
+    """
+    from api.rastreio import detalhe
+    return _rastreio_freado(req) or JSONResponse(detalhe.por_link(t))
+
+
 @app.post("/api/rastreio/assinar")
 def rastreio_assinar(req: Request, doc: str = "", cnpj: str = "",
                      id: str = "", fone: str = "") -> JSONResponse:

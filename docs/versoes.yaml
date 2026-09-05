@@ -1,3 +1,19 @@
+- versao: "0.236.0"
+  data: "2026-09-04"
+  novo:
+    - >-
+      O aviso de carga por WhatsApp ficou legível de relance: barra de
+      progresso desenhada com blocos, emojis para o trecho, a estrada e o
+      semáforo do trânsito, e o horário da última posição. A barra não
+      arredonda para as pontas — 99% nunca aparece como cheio, porque "cheio"
+      é lido como "chegou" e faz quem espera descer para a doca.
+    - >-
+      Toda mensagem passou a trazer um link que abre a carga JÁ ABERTA, sem
+      precisar digitar de novo o documento e o CNPJ. O link é assinado, vence
+      em 20 dias e viaja no fragmento do endereço — a parte que não sai do
+      aparelho, então ele não fica gravado em log de acesso nenhum. Quem chega
+      por ele vê a página inteira, e a própria página apaga o link da barra de
+      endereços depois de ler.
 - versao: "0.235.2"
   data: "2026-09-04"
   corrigido:

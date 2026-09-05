@@ -29,56 +29,16 @@ from __future__ import annotations
 import logging
 
 from ..whatsapp import envio as wa
-from . import assinatura, consulta, detalhe
+from . import assinatura, consulta, detalhe, mensagem
 
 log = logging.getLogger("cortex.rastreio.aviso")
 
-#: Como o texto se despede. Sair é responder uma palavra — quem precisa achar
-#: um site para cancelar bloqueia o número em vez disso.
-RODAPE = "\n\nPara parar de receber, responda SAIR."
-
-
-def _texto(carga: dict) -> str | None:
-    """A mensagem, ou None quando não há o que dizer.
-
-    NENHUM VALOR, nenhum dado sensível: é a mesma regra da página, e aqui ela
-    pesa mais — a mensagem sai do nosso controle no instante em que é entregue,
-    e um encaminhamento não tem como ser desfeito.
-    """
-    a = carga.get("andamento") or {}
-    doc = carga.get("documento") or "Sua carga"
-    destino = carga.get("destino") or "o destino"
-
-    if carga.get("estado") == "entregue":
-        quando = (carga.get("entregue_em") or "")[:16].replace("T", " ")
-        return ("%s: ENTREGUE em %s.%s"
-                % (doc, quando or destino, "\n\nObrigado pela confiança."))
-    if carga.get("estado") == "descarregando":
-        return "%s: o veículo chegou em %s e está em descarga." % (doc, destino)
-
-    if a.get("fora_da_rota"):
-        # RECUSA DIZENDO O MOTIVO, não silêncio: quem contratou o aviso precisa
-        # saber que ele não está enxergando, e não achar que nada mudou.
-        return ("%s: não estamos conseguindo localizar o veículo nesta viagem "
-                "no momento. Seguimos acompanhando." % doc)
-    if a.get("posicao_velha_min"):
-        h = max(1, int(a["posicao_velha_min"] / 60))
-        return ("%s: sem atualização de posição há cerca de %dh. Assim que o "
-                "veículo reportar, avisamos." % (doc, h))
-    if not a.get("tem_posicao"):
-        return None
-
-    pct = a.get("progresso_pct")
-    falta = a.get("falta_km")
-    if pct is None or falta is None:
-        return None
-    como = "pela rota" if a.get("por_rota") else "em linha reta"
-    linha = "%s: %d%% da viagem para %s, faltam cerca de %d km %s." % (
-        doc, pct, destino, round(falta), como)
-    t = a.get("transito")
-    if t and t.get("estado") in ("lento", "parado", "bloqueado"):
-        linha += " Trânsito %s no trecho." % (t.get("rotulo") or "carregado").lower()
-    return linha
+#: A REDAÇÃO MORA EM OUTRO MÓDULO (`mensagem.py`). Ela muda toda semana — uma
+#: palavra, um emoji, um link — e é a única parte que o cliente vê; este
+#: arquivo decide QUANDO mandar e o que fazer com a falha, que é outra
+#: pergunta e muda por outros motivos.
+RODAPE = mensagem.RODAPE
+_texto = mensagem.montar
 
 
 def _carga_da_inscricao(ins: dict) -> dict | None:
@@ -103,10 +63,18 @@ def _carga_da_inscricao(ins: dict) -> dict | None:
         "n": ins["numero"], "s": ins["serie"]}
     estado, rotulo = consulta._estado(linha)
     return {"documento": "CT-e %s" % ins["numero"],
+            "origem": consulta._lugar(linha.get("cidadecoleta"),
+                                      linha.get("ufcoleta")),
             "destino": consulta._lugar(linha.get("destinatario_cidade"),
                                        linha.get("destinatario_uf")),
             "estado": estado, "estado_rotulo": rotulo,
             "entregue_em": consulta._iso(linha.get("dtentrega")),
+            # O LINK QUE ABRE A CARGA JA ABERTA. Assinado e com prazo: sem
+            # isso a pessoa teria de reabrir a pagina e redigitar o documento e
+            # o CNPJ a cada aviso, e o aviso de hora em hora viraria trabalho.
+            "link_token": consulta.link_token(
+                ins["grupo"], ins["empresa"], ins["filial"],
+                ins["numero"], ins["serie"]),
             "andamento": detalhe._andamento(linha)}
 
 
