@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.231.0] — 04/09/2026  ·  CX-04/09/2026-v0.231.0
+
+### Adicionado
+- Primeira parte do "Onde está minha carga?": o motor de busca da futura página pública. Quem tem o número do CT-e ou o da nota fiscal, mais os quatro primeiros dígitos do CNPJ, encontra a carga e vê origem, destino, previsão de entrega e em que pé ela está. A tela em si vem a seguir.
+- A busca NÃO aceita placa, número de frota nem CNPJ sozinho. Placa mais posição ao vivo numa página aberta é ferramenta de roubo de carga, e CNPJ sozinho devolveria a operação inteira de um cliente para quem digitasse o número dele. Só passa documento que o remetente ou o destinatário já têm em mãos.
+
 ## [0.230.0] — 04/09/2026  ·  CX-04/09/2026-v0.230.0
 
 ### Adicionado

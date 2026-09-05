@@ -1,3 +1,17 @@
+- versao: "0.231.0"
+  data: "2026-09-04"
+  adicionado:
+    - >-
+      Primeira parte do "Onde está minha carga?": o motor de busca da futura
+      página pública. Quem tem o número do CT-e ou o da nota fiscal, mais os
+      quatro primeiros dígitos do CNPJ, encontra a carga e vê origem, destino,
+      previsão de entrega e em que pé ela está. A tela em si vem a seguir.
+    - >-
+      A busca NÃO aceita placa, número de frota nem CNPJ sozinho. Placa mais
+      posição ao vivo numa página aberta é ferramenta de roubo de carga, e CNPJ
+      sozinho devolveria a operação inteira de um cliente para quem digitasse o
+      número dele. Só passa documento que o remetente ou o destinatário já têm
+      em mãos.
 - versao: "0.230.0"
   data: "2026-09-04"
   adicionado:
