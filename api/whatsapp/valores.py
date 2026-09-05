@@ -33,6 +33,8 @@ escrito no lugar em que a pessoa está olhando: o próprio atingimento.
 """
 from __future__ import annotations
 
+from api import url_publica
+
 from datetime import date, timedelta
 
 
@@ -55,9 +57,13 @@ def pct(valor) -> str:
         return "0,0%"
 
 
-# A URL pública do painel (túnel Cloudflare). Vai no fim do resumo diário —
-# o clique cai no login de sempre, com MFA; o link em si não abre nada.
-URL_PAINEL = "https://cortex.cassolitech.com.br"
+# A URL pública do painel vem de `api/url_publica`, que é a ÚNICA fonte da
+# casa. Estava cravada aqui e o endereço mudou: no dia seguinte à troca, a
+# mesma pessoa recebeu o resumo diário apontando para o domínio velho e o aviso
+# de carga para o novo, com dez minutos entre um e outro.
+#
+# O clique cai no login de sempre, com MFA; o link em si não abre nada — e é
+# isso que permite mandá-lo por WhatsApp.
 
 _MES_PT = {1: "JANEIRO", 2: "FEVEREIRO", 3: "MARÇO", 4: "ABRIL",
            5: "MAIO", 6: "JUNHO", 7: "JULHO", 8: "AGOSTO",
@@ -254,7 +260,7 @@ def faturamento_diario(visao: dict | None = None,
         "linha_ritmo": linha_ritmo,
         "pontos_atencao": pontos_atencao,
         # atrás do Cloudflare Access: quem clica passa pelo login de sempre
-        "link_painel": URL_PAINEL,
+        "link_painel": url_publica.painel(),
     }
     if not any((d.get("realizado") or 0) > 0 for d in dias) and not (
             fechamento and meta_total > 0):

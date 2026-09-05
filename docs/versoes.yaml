@@ -1,3 +1,12 @@
+- versao: "0.238.1"
+  data: "2026-09-05"
+  corrigido:
+    - >-
+      O endereço do CÓRTEX aparecia em dois domínios diferentes no mesmo
+      WhatsApp: o resumo diário e o aviso do suporte ainda apontavam para o
+      endereço antigo, e o aviso de carga para o novo — com dez minutos entre
+      um e outro no celular da mesma pessoa. Passou a existir um lugar só que
+      responde onde o sistema mora, e um teste impede a próxima cópia.
 - versao: "0.238.0"
   data: "2026-09-05"
   novo:

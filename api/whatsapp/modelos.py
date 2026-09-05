@@ -34,6 +34,8 @@ preenche EXATAMENTE as chaves declaradas aqui.
 """
 from __future__ import annotations
 
+from api import url_publica
+
 import re
 import unicodedata
 from datetime import datetime
@@ -208,7 +210,7 @@ CONTEXTOS: dict[str, dict] = {
             _v("farol_previsao", "📈 fecha na meta / 📉 fecha abaixo", "📉"),
             _v("linha_ritmo", "Ritmo p/ meta — ou média realizada no dia 1º", "Ritmo p/ meta: R$ 340.289,01/dia (8 dias com meta)"),
             _v("pontos_atencao", "Pontos de atenção do dia (ou ✅ sem pontos)", "📉 3 dias seguidos abaixo da meta diária"),
-            _v("link_painel", "Link do painel do CÓRTEX", "https://cortex.cassolitech.com.br"),
+            _v("link_painel", "Link do painel do CÓRTEX", url_publica.painel()),
         ],
     },
     "smartec_prazo": {

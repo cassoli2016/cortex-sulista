@@ -24,19 +24,20 @@ por padrão e entrega quem abriu e quando.
 """
 from __future__ import annotations
 
-import os
+from api import url_publica
 
 #: Onde a página pública mora. Configurável de propósito: este domínio mudou de
 #: `cortex.cassolitech.com.br` para `cortex.sulista.com.br` no meio da
 #: construção, e um endereço cravado no código teria ido junto na mensagem de
 #: todo cliente até alguém reparar.
-PADRAO_BASE = "https://cortex.sulista.com.br"
+PADRAO_BASE = url_publica.PADRAO
 
 
 def base() -> str:
-    """Lida a cada chamada, não no import: assim trocar a variável de ambiente
-    não exige reiniciar a API, e o teste consegue trocá-la."""
-    return (os.environ.get("RASTREIO_URL_BASE") or PADRAO_BASE).rstrip("/")
+    """A MESMA fonte do resto da casa (`api/url_publica`). Antes esta função
+    era a única que lia o endereço de uma variável — e o resultado foi a mesma
+    pessoa recebendo dois links de domínios diferentes no mesmo WhatsApp."""
+    return url_publica.base()
 
 
 #: Como o texto se despede. Sair é responder uma palavra — quem precisa achar

@@ -14,6 +14,8 @@ janela, trilha própria). O sino é DERIVADO — não passa por esta tabela.
 """
 from __future__ import annotations
 
+from api import url_publica
+
 import logging
 import re
 from datetime import datetime, timedelta
@@ -44,7 +46,7 @@ _AO_TIME = {"aberto", "resposta_usuario", "de_volta_ao_suporte", "avaliacao"}
 
 def link_chamado(chamado_id: int) -> str:
     from ..whatsapp import valores
-    return f"{valores.URL_PAINEL}/#sup?chamado={chamado_id}"
+    return url_publica.tela("sup", chamado=chamado_id)
 
 
 def _registrar(esq, chamado_id, mensagem_id, canal, lado, evento, destinatario, resultado, detalhe="",

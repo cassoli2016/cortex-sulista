@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.238.1] — 05/09/2026  ·  CX-05/09/2026-v0.238.1
+
+### Corrigido
+- O endereço do CÓRTEX aparecia em dois domínios diferentes no mesmo WhatsApp: o resumo diário e o aviso do suporte ainda apontavam para o endereço antigo, e o aviso de carga para o novo — com dez minutos entre um e outro no celular da mesma pessoa. Passou a existir um lugar só que responde onde o sistema mora, e um teste impede a próxima cópia.
+
 ## [0.238.0] — 05/09/2026  ·  CX-05/09/2026-v0.238.0
 
 ## [0.237.1] — 05/09/2026  ·  CX-05/09/2026-v0.237.1
