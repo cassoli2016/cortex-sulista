@@ -180,6 +180,37 @@ def valido(bruto: str) -> bool:
         return False
 
 
+def variantes(bruto: str) -> list[str]:
+    """As formas EQUIVALENTES do mesmo celular brasileiro — com e sem o nono
+    dígito. A normalizada vem primeiro.
+
+    POR QUE ISTO EXISTE, e custou uma manhã. O nono dígito entrou nos celulares
+    brasileiros em 2012, mas o identificador que o WhatsApp guarda para uma
+    conta antiga pode continuar sem ele. Então a MESMA pessoa é
+    `5541984251704` quando digita o número na página e `554184251704` quando
+    responde uma mensagem — e uma comparação por igualdade não vê que são a
+    mesma.
+
+    O sintoma foi cruel: o SAIR chegava, era processado, e o banco não achava
+    inscrição nenhuma para cancelar. Do lado de fora, "o SAIR não funciona"; do
+    lado de dentro, silêncio.
+
+    NÃO SE USA ISTO PARA ENVIAR — para enviar existe UMA forma, a normalizada.
+    Isto é para PROCURAR: quem procura tem de achar as duas.
+    """
+    try:
+        n = normalizar(bruto)
+    except TelefoneInvalido:
+        return []
+    fora = [n]
+    ddd, assinante = n[2:4], n[4:]
+    if len(assinante) == 9 and assinante[0] == "9":
+        fora.append(DDI_BR + ddd + assinante[1:])       # tira o nono
+    elif len(assinante) == 8:
+        fora.append(DDI_BR + ddd + "9" + assinante)     # põe o nono
+    return fora
+
+
 def e_grupo(bruto: str) -> bool:
     """Parece id de grupo? Filtro de digitação, não prova de existência."""
     t = _sem_sufixo(bruto)

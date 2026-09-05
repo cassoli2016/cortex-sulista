@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.238.3] — 05/09/2026  ·  CX-05/09/2026-v0.238.3
+
+### Corrigido
+- Responder SAIR no WhatsApp não descadastrava. A mensagem chegava e era processada, mas o número não era encontrado: o WhatsApp identifica contas antigas SEM o nono dígito, então a mesma pessoa é um número quando digita na página e outro quando responde a mensagem. A busca passou a reconhecer as duas formas como a mesma pessoa; o envio continua usando uma só, para ninguém receber a mesma mensagem duas vezes.
+
 ## [0.238.2] — 05/09/2026  ·  CX-05/09/2026-v0.238.2
 
 ### Corrigido

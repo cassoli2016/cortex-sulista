@@ -1,3 +1,13 @@
+- versao: "0.238.3"
+  data: "2026-09-05"
+  corrigido:
+    - >-
+      Responder SAIR no WhatsApp não descadastrava. A mensagem chegava e era
+      processada, mas o número não era encontrado: o WhatsApp identifica contas
+      antigas SEM o nono dígito, então a mesma pessoa é um número quando digita
+      na página e outro quando responde a mensagem. A busca passou a reconhecer
+      as duas formas como a mesma pessoa; o envio continua usando uma só, para
+      ninguém receber a mesma mensagem duas vezes.
 - versao: "0.238.2"
   data: "2026-09-05"
   corrigido:

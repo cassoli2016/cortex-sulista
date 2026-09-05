@@ -229,14 +229,20 @@ def cancelar(termo: str, cnpj4: str, carga_id: str, telefone: str) -> dict:
 def cancelar_por_telefone(telefone: str) -> int:
     """Tira o telefone de TODAS as cargas. É o que a palavra SAIR no WhatsApp
     aciona — quem pede para parar quer parar com tudo, não com uma carga."""
-    if not numeros.valido(telefone):
+    # AS DUAS FORMAS DO MESMO NUMERO. O WhatsApp guarda contas antigas SEM o
+    # nono digito, entao a mesma pessoa e `5541984251704` quando digita na
+    # pagina e `554184251704` quando responde a mensagem. Procurar so pela
+    # normalizada fazia o SAIR chegar, ser processado e nao achar inscricao
+    # nenhuma — "nao funciona" de fora, silencio de dentro.
+    formas = numeros.variantes(telefone)
+    if not formas:
         return 0
     try:
         return pglocal.executar("""
             UPDATE rst_inscricao
                SET ativo = FALSE, cancelado_em = now(), cancelado_por = 'whatsapp'
-             WHERE telefone = %s AND ativo""",
-            (numeros.normalizar(telefone),)) or 0
+             WHERE telefone = ANY(%s) AND ativo""",
+            (formas,)) or 0
     except Exception:  # noqa: BLE001
         return 0
 

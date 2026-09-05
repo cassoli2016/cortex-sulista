@@ -194,3 +194,55 @@ def test_a_resposta_imediata_NAO_fura_o_interruptor_geral():
     from api.whatsapp import config as cfg
     assert r["ativo"] == cfg.ler()["ativo"]
     assert r["limite_dia"] == cfg.ler()["limite_dia"]
+
+
+# --------------------------------------------------------------------------
+# o nono dígito — o que fazia o SAIR "não funcionar"
+# --------------------------------------------------------------------------
+def test_SAIR_do_numero_SEM_o_nono_digito_cancela_o_mesmo(monkeypatch):
+    """O guard do defeito que custou uma manhã inteira de diagnóstico.
+
+    O nono dígito entrou nos celulares brasileiros em 2012, mas o identificador
+    que o WhatsApp guarda para uma conta antiga pode continuar sem ele. A mesma
+    pessoa é `5541984251704` quando digita o número na página e `554184251704`
+    quando responde a mensagem.
+
+    O sintoma foi cruel: o SAIR CHEGAVA, era processado, e o banco não achava
+    inscrição nenhuma. De fora, "o SAIR não funciona"; de dentro, silêncio — e
+    a pessoa que pede para sair e continua recebendo bloqueia o número.
+    """
+    from api.rastreio import assinatura
+
+    guardado = "5541984251704"          # como a página gravou
+    baixados = []
+
+    def _executar(sql, params=None):
+        formas = params[0]
+        baixados.extend([f for f in formas if f == guardado])
+        return len(baixados)
+
+    monkeypatch.setattr(assinatura.pglocal, "executar", _executar)
+    monkeypatch.setattr(entrada.wa, "enviar", lambda f, t, **k: {"ok": True})
+
+    # a Z-API manda SEM o nono
+    r = entrada.receber(_msg("SAIR", fone="554184251704"))
+    assert r["acao"] == "cancelado", "o número sem o nono dígito não casou"
+    assert guardado in baixados
+
+
+def test_a_busca_aceita_as_duas_formas_mas_o_ENVIO_usa_UMA(monkeypatch):
+    """Procurar tem de achar as duas; mandar tem de escolher uma. Enviar para
+    as duas formas entregaria a mesma mensagem duas vezes para a mesma
+    pessoa."""
+    from api.whatsapp import numeros
+    from api.rastreio import assinatura
+
+    formas = numeros.variantes("554184251704")
+    assert len(formas) == 2 and formas[0] == numeros.normalizar("554184251704")
+
+    enviados = []
+    monkeypatch.setattr(assinatura.pglocal, "executar", lambda *a, **k: 1)
+    monkeypatch.setattr(entrada.wa, "enviar",
+                        lambda f, t, **k: (enviados.append(f) or {"ok": True}))
+    entrada.receber(_msg("SAIR", fone="554184251704"))
+    assert len(enviados) == 1, "respondeu para as duas formas do mesmo número"
