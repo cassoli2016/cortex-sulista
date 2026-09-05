@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.251.1] — 05/09/2026  ·  CX-05/09/2026-v0.251.1
+
+### Corrigido
+- O parecer da DRE quebrava numa situação específica: quando o painel não trazia o coeficiente de oscilação, a frase sobre as contas que saíram das listas derrubava a análise inteira. O nome do valor de referência estava escrito errado desde que a função nasceu, e só não aparecia porque o caminho que o usava quase nunca era percorrido.
+- Uma lição registrada ontem no histórico interno estava factualmente errada — eu descrevi um modo de falha que não existe. Reescrita com a correção e com o motivo de ter errado, porque lição errada ensina a coisa errada para quem vier depois.
+
 ## [0.251.0] — 05/09/2026  ·  CX-05/09/2026-v0.251.0
 
 ### Adicionado

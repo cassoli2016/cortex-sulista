@@ -1,3 +1,17 @@
+- versao: "0.251.1"
+  data: "2026-09-05"
+  corrigido:
+    - >-
+      O parecer da DRE quebrava numa situação específica: quando o painel não
+      trazia o coeficiente de oscilação, a frase sobre as contas que saíram das
+      listas derrubava a análise inteira. O nome do valor de referência estava
+      escrito errado desde que a função nasceu, e só não aparecia porque o
+      caminho que o usava quase nunca era percorrido.
+    - >-
+      Uma lição registrada ontem no histórico interno estava factualmente
+      errada — eu descrevi um modo de falha que não existe. Reescrita com a
+      correção e com o motivo de ter errado, porque lição errada ensina a coisa
+      errada para quem vier depois.
 - versao: "0.251.0"
   data: "2026-09-05"
   adicionado:

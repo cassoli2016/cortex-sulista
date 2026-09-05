@@ -556,7 +556,13 @@ def frases(p: dict) -> list[str]:
             "%d contas saíram das listas por oscilar (coeficiente de variação "
             "acima de %.1f), somando %s de variação que não é alvo: atacá-las "
             "é perseguir ruído."
-            % (len(osc), pan.get("cv_instavel") or CV_INSTAVEL, _brl(peso)))
+            # O NOME MORA EM `dre_alavancas`, e o `or` e o que escondia
+            # isto: quando `pan` traz o coeficiente — que e o caso comum —
+            # o lado direito nem e avaliado, e o `NameError` fica esperando
+            # o dia em que o painel vier sem ele. Guard: F821 em
+            # `tests/test_nomes_definidos.py`.
+            % (len(osc), pan.get("cv_instavel") or dre_alavancas.CV_INSTAVEL,
+               _brl(peso)))
 
     prov = p.get("provisoes") or {}
     if prov.get("erro"):

@@ -3167,42 +3167,51 @@ O perfil do menu não estava errado: ele foi calibrado para 78 px. **Parâmetro
 de desenho não se copia entre tamanhos sem medir** — e o que se mede aqui não é
 "ficou bonito", é quantos pixels estouraram.
 
-## Migration é controlada por NÚMERO, e duas sessões colidiram nele (2026-09-05, v0.246.0)
+## Colisão de número de migration entre três sessões — e a crônica que eu escrevi errada (2026-09-05, v0.251.0)
 
-Três sessões trabalhavam no mesmo repositório: uma nos pneus (árvore
-principal), uma no rastreio e uma no portal do cliente, cada uma na sua
-worktree. As duas últimas conversavam sobre o número de VERSÃO, que é a
-colisão de sempre e a que a casa já sabia evitar — buraco na sequência é mais
-barato que topo regredindo.
+Três sessões trabalhavam no mesmo repositório, cada uma na sua frente. Eu tinha
+criado `sql/cortex/0052_pneus_veiculo.sql` e rodado `scripts/migrar_schema.py`:
+o schema `cortex` de produção passou para a versão 52. Ainda não tinha empurrado
+o arquivo. A sessão do portal do cliente, olhando o
+`git ls-tree origin/main sql/cortex/`, viu a sequência parar na 0051 e escolheu
+a 0052 para o arquivo dela.
 
-**A colisão perigosa era outra.** Eu tinha criado `sql/cortex/0052_pneus_veiculo.sql`
-e rodado `scripts/migrar_schema.py`: o schema `cortex` de produção passou para a
-versão 52. Ainda não tinha empurrado o arquivo. A sessão do portal do cliente,
-olhando o `git ls-tree origin/main sql/cortex/`, viu a sequência parar na 0051 e
-escolheu a 0052 para o arquivo dela.
+**A primeira versão desta crônica dizia que o AutoDeploy pularia o DDL em
+silêncio. Isso é FALSO, e a correção veio da outra sessão.** O runner não pula:
+`api/migracoes.pendentes()` compara número **e nome do arquivo**, e número já
+registrado com arquivo diferente levanta `NumeroJaUsado` com a mensagem mandando
+renumerar. A proteção existe desde 27/08/2026 e nasceu exatamente deste caso —
+duas frentes criando o `0009` no mesmo dia.
 
-**Por que isso não é um conflito de git.** Os dois arquivos têm nomes
-diferentes (`0052_pneus_veiculo.sql` e `0052_portal_cliente.sql`), moram em
-lugares diferentes da árvore e o git faz o merge dos dois sem reclamar. O
-conflito só existe dentro do `migrar_schema.py`, que controla por NÚMERO:
+Deixo o erro registrado porque ele é a parte instrutiva: eu inferi o modo de
+falha a partir de "o runner controla por número" sem abrir o `pendentes()`, e
+escrevi a crônica com a confiança de quem mediu. **Crônica errada é pior que
+crônica nenhuma** — ela ensina o modo de falha errado para quem vier depois, e
+vinha assinada como lição aprendida.
 
-> Como a versão 52 já constava aplicada, o AutoDeploy consideraria a 52 feita e
-> **pularia o DDL da outra sessão inteiro**. Sem erro, sem log, sem sintoma. A
-> tabela dela simplesmente não existiria em produção, e a falha apareceria
-> depois — na primeira consulta, longe da causa.
+**O que continua verdadeiro, e é menos dramático:** a colisão não é silenciosa,
+mas é BLOQUEANTE. O `NumeroJaUsado` para a migração inteira até alguém
+renumerar, e enquanto isso nenhuma outra migration pendente entra. Com três
+sessões vivas, combinar o número antes continua valendo — não para evitar
+corrupção, e sim para não travar o deploy de todo mundo.
 
-E o inverso é igualmente ruim: se a migration dela tivesse sido aplicada
-primeiro em outro schema, seriam as MINHAS colunas em `pne_veiculo` que nunca
-existiriam, e o módulo de pneus quebraria ao tentar validar uma posição.
+**E o que engana de verdade é outra coisa**, vivida pela sessão do portal:
+`migrar_schema.py --conferir` responde *"nada pendente (versão 55)"* e isso NÃO
+diz que a sua migration rodou. Lendo "53 < 55, logo foi pulada", ela quase
+renumerou sem necessidade. A pergunta certa não é a versão do schema — é se a
+coluna existe:
 
-**O que resolveu**: as sessões se avisaram antes de qualquer uma aplicar. A do
-portal renumerou para 0053 e não aplicou nada; a 52 continuou sendo a de pneus,
-que já estava no banco.
+```sql
+SELECT 1 FROM information_schema.columns
+ WHERE table_schema = current_schema() AND table_name = %s AND column_name = %s
+```
 
-**A regra que fica.** Antes de escolher o número de uma migration, o
-`git ls-tree origin/main sql/cortex/` NÃO BASTA — ele só enxerga o que já foi
-empurrado, e migration costuma ser aplicada localmente antes de ir para o
-origin. Quando há mais de uma sessão viva, o número tem de ser combinado, como
-já se combina o número da versão. E quem já APLICOU no schema de produção tem
-prioridade sobre quem só criou o arquivo: reverter DDL aplicado é caro, mudar o
-nome de um arquivo que ninguém rodou é de graça.
+**O desfecho tem uma terceira lição, e ela é a que mais assusta:** quem aplicou
+a `0053` no `cortex` de produção não foi ninguém — foi a SUÍTE DE TESTES. O
+startup da API chama `auth.init_db()` no schema padrão, então qualquer
+`TestClient` aplica as migrations pendentes em produção (memória
+`testclient-aplica-migration-em-producao`). Naquele caso era um `ALTER TABLE ADD
+COLUMN` nullable e passou batido. Com DDL destrutivo não passaria. **Rodar a
+suíte completa nesta máquina não é operação neutra.**
+
+
