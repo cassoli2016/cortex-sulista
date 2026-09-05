@@ -4863,6 +4863,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <button role="tab" id="tabpn-compra" data-aba="compra" aria-controls="aba-pn-compra" aria-selected="true" onclick="abaTrocar('pneus','compra')">Compra e reposição <span class="aban" id="pnCompraN"></span></button>
           <button role="tab" id="tabpn-marcas" data-aba="marcas" aria-controls="aba-pn-marcas" aria-selected="false" onclick="abaTrocar('pneus','marcas')">Marcas e rendimento <span class="aban" id="pnMarcasN"></span></button>
           <button role="tab" id="tabpn-cpk" data-aba="cpk" aria-controls="aba-pn-cpk" aria-selected="false" onclick="abaTrocar('pneus','cpk')">CPK e km <span class="aban" id="pnCpkN"></span></button>
+          <button role="tab" id="tabpn-troca" data-aba="troca" aria-controls="aba-pn-troca" aria-selected="false" onclick="abaTrocar('pneus','troca')">Previsão de troca <span class="aban" id="pnTrocaN"></span></button>
           <button role="tab" id="tabpn-risco" data-aba="risco" aria-controls="aba-pn-risco" aria-selected="false" onclick="abaTrocar('pneus','risco')">Risco agora <span class="aban" id="pnRiscoN"></span></button>
           <button role="tab" id="tabpn-parque" data-aba="parque" aria-controls="aba-pn-parque" aria-selected="false" onclick="abaTrocar('pneus','parque')">Parque e vida</button>
         </div>
@@ -4908,6 +4909,25 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <div class="tablewrap tabroll" style="max-height:170px"><table><thead><tr><th>Conferência</th><th class="num">Resultado</th></tr></thead><tbody id="pn-km-confere"></tbody></table></div></div>
             <div class="card"><div class="head"><h2>O que ficou de fora <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Não é rodapé: é a lista de trabalho de quem cuida do cadastro. Em formação = pneu rodou menos que o piso e ainda não diz nada (rankeá-lo puniria sempre o pneu recém-comprado). Sem custo = cadastro sem preço, ou vida recapada sem o custo da recapagem. Custo fora da faixa = o campo tem de R$ 0,01 a R$ 1,3 milhão, e nenhum dos dois é preço de pneu.">i</span></h2></div>
               <div class="tablewrap tabroll" style="max-height:220px"><table><thead><tr><th>Motivo</th><th class="num">Pneus</th></tr></thead><tbody id="pn-cpk-lacunas"></tbody></table></div></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="pneus" data-aba="troca" id="aba-pn-troca" role="tabpanel" aria-labelledby="tabpn-troca" data-ao-abrir="pnTrocaCarregar" hidden>
+          <div class="kpis k4" id="kpis-pn-troca"></div>
+          <div class="card">
+            <div class="head"><h2>Chegam ao limite primeiro <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quantos km faltam até 3 mm (o ponto de sair para recapar — passar disso perde a carcaça, que vale mais que o pneu) e em quantos dias isso acontece NO RITMO daquele veículo. O dia sai do km da placa, não do calendário: mesmo sulco e mesma taxa num cavalo de dupla pegada e numa carreta parada dão datas muito diferentes. A ORIGEM da taxa vai na linha: própria (o pneu tem série), modelo ou frota — três confianças diferentes, e programar por uma achando que é outra é o engano que a coluna evita.">i</span></h2><span class="hint" id="pn-troca-hint"></span></div>
+            <div class="tablewrap tabroll" style="max-height:290px"><table><thead><tr>
+              <th>Placa</th><th>Posição</th><th>Modelo</th><th class="num">Sulco</th><th class="num">Desgaste</th><th class="num">Km até 3mm</th><th class="num">Dias</th><th>Data</th><th>Taxa de</th>
+            </tr></thead><tbody id="pn-troca-lista"></tbody></table></div>
+          </div>
+          <div class="grid2">
+            <div class="card"><div class="head"><h2>Já passaram do limite <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Estes não são previsão: já chegaram. Precisam de oficina hoje, não de entrar no planejamento da semana. Abaixo de 1,6 mm o pneu está ILEGAL (CONTRAN) e o veículo é autuável; entre 1,6 e 3 mm ele ainda é legal mas já perde a carcaça se continuar rodando.">i</span></h2><span class="hint" id="pn-venc-hint"></span></div>
+              <div class="tablewrap tabroll" style="max-height:230px"><table><thead><tr>
+                <th>Placa</th><th>Posição</th><th class="num">Sulco</th><th>Situação</th>
+              </tr></thead><tbody id="pn-troca-vencidos"></tbody></table></div></div>
+            <div class="card"><div class="head"><h2>De onde vem a taxa <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A taxa de desgaste é medida sobre pares de medição do MESMO pneu na MESMA placa, com pelo menos 5.000 km e 0,5 mm de diferença entre elas. Sem esses pisos a mediana da frota dava ZERO — as medições ficavam perto demais para o sulco mudar, e dividir um arredondamento por um km pequeno produz qualquer número. A série cresce a cada medição nova feita no pátio.">i</span></h2></div>
+              <div class="tablewrap tabroll" style="max-height:230px"><table><thead><tr>
+                <th>Origem da taxa</th><th class="num">Pneus</th>
+              </tr></thead><tbody id="pn-troca-origem"></tbody></table></div></div>
           </div>
         </div>
         <div class="aba" data-abas="pneus" data-aba="risco" id="aba-pn-risco" role="tabpanel" aria-labelledby="tabpn-risco" hidden>
@@ -16954,6 +16974,90 @@ function pnCpkPintar(d){
   document.getElementById('pn-cpk-lacunas').innerHTML = lac.map(([r, n, sub]) =>
     `<tr><td>${esc(r)}<br><span class="hint">${esc(sub)}</span></td>
      <td class="num">${(n||0).toLocaleString('pt-BR')}</td></tr>`).join('');
+}
+
+/* ── Previsao de troca ──────────────────────────────────────────────────────
+   Rota propria, como o CPK: nao depende da Prolog e nao pode morrer quando a
+   cota de la estoura. Carrega so ao abrir a aba e guarda o resultado. */
+let DATATROCA = null, trocaSeq = 0;
+
+async function pnTrocaCarregar(){
+  if(DATATROCA){ pnTrocaPintar(DATATROCA); return; }
+  const seq = ++trocaSeq;
+  document.getElementById('pn-troca-lista').innerHTML =
+    '<tr><td colspan="9" class="hint">calculando…</td></tr>';
+  try{
+    const r = await fetch('/api/frota/pneus/troca', {cache:'no-store'});
+    const d = await respostaJSON(r);
+    if(seq !== trocaSeq) return;
+    if(!d.ok){ document.getElementById('pn-troca-lista').innerHTML =
+      `<tr><td colspan="9" class="hint">${esc((d.dados&&d.dados.mensagem)||'não foi possível calcular agora')}</td></tr>`; return; }
+    DATATROCA = d.dados; pnTrocaPintar(DATATROCA);
+  }catch(e){
+    if(seq === trocaSeq) document.getElementById('pn-troca-lista').innerHTML =
+      '<tr><td colspan="9" class="hint">sem conexão com a API</td></tr>';
+  }
+}
+
+function pnTrocaPintar(d){
+  const num = v => v==null ? '—' : Math.round(v).toLocaleString('pt-BR');
+  const mm  = v => v==null ? '—' : v.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' mm';
+
+  document.getElementById('kpis-pn-troca').innerHTML = [
+    kpi('Já passaram do limite', String(d.vencidos_n||0),
+      `${d.ilegais_n||0} abaixo do mínimo legal (1,6 mm)`,
+      (d.ilegais_n||0)>0 ? 'neg' : ((d.vencidos_n||0)>0 ? 'warn' : 'pos'),
+      'Pneus rodando com sulco no ponto de recapagem ou abaixo. Não são previsão: já chegaram, e precisam de oficina hoje. Abaixo de 1,6 mm o veículo é autuável.'),
+    kpi('Trocas em 30 dias', String(d.urgentes_30d||0),
+      'no ritmo atual de cada veículo', (d.urgentes_30d||0)>0 ? 'warn' : '',
+      'Pneus que ainda estão acima do limite mas chegam lá dentro de um mês, no km que aquele veículo vem rodando. É esta a lista que vira agenda de oficina e pedido de compra.'),
+    kpi('Desgaste da frota',
+      d.taxa_frota_mm_1000km==null ? 'n/d'
+        : d.taxa_frota_mm_1000km.toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3})+' mm/1.000 km',
+      d.vida_implicita_km ? `≈ ${num(d.vida_implicita_km)} km de vida (16 a 3 mm)` : 'sem base para medir',
+      '', 'Mediana medida sobre pares de medição do mesmo pneu na mesma placa, com pelo menos 5.000 km e 0,5 mm entre elas. Sem esses pisos a mediana dava ZERO — as medições ficavam perto demais para o sulco mudar.'),
+    kpi('Com previsão', String(d.com_previsao||0),
+      `de ${(d.total||0).toLocaleString('pt-BR')} instalados · ${d.pneus_com_taxa_propria||0} com série própria`,
+      '', 'Quantos pneus têm sulco medido e taxa disponível. Onde não há taxa nenhuma não sai data: data de troca vira ordem de compra, e inventá-la é pior que não responder.'),
+  ].join('');
+
+  const cor = i => i.dias_ate_recape<=15 ? 'var(--red)'
+                 : i.dias_ate_recape<=30 ? 'var(--yellow-700)' : 'var(--n700)';
+  /* TOP-N COM CONTADOR: sem ele a lista vira um total falso. */
+  const top = (d.itens||[]).filter(i => i.dias_ate_recape!=null).slice(0,60);
+  document.getElementById('pn-troca-lista').innerHTML = top.map(i => `
+    <tr><td>${esc(i.placa||'—')}</td><td>${esc(i.posicao||'—')}</td>
+    <td>${esc([i.marca,i.modelo].filter(Boolean).join(' ')||'—')}</td>
+    <td class="num">${mm(i.sulco_mm)}</td>
+    <td class="num">${i.taxa_mm_1000km==null?'—':i.taxa_mm_1000km.toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3})}</td>
+    <td class="num">${num(i.km_ate_recape)}</td>
+    <td class="num"><b style="color:${cor(i)}">${num(i.dias_ate_recape)}</b></td>
+    <td>${esc((i.data_recape||'').split('-').reverse().join('/'))}</td>
+    <td><span class="hint">${esc(i.taxa_origem||'')}</span></td></tr>`).join('') ||
+    '<tr><td colspan="9" class="hint">nenhum pneu com previsão ainda</td></tr>';
+  document.getElementById('pn-troca-hint').textContent =
+    `${top.length} de ${d.com_previsao||0} com previsão · ${d.ressalva||''}`;
+  abaContador('pnTrocaN', d.urgentes_30d||0);
+
+  const venc = d.vencidos||[];
+  document.getElementById('pn-troca-vencidos').innerHTML = venc.slice(0,60).map(i => `
+    <tr><td>${esc(i.placa||'—')}</td><td>${esc(i.posicao||'—')}</td>
+    <td class="num"><b style="color:${i.ilegal?'var(--red)':'var(--yellow-700)'}">${mm(i.sulco_mm)}</b></td>
+    <td>${i.ilegal ? '<b style="color:var(--red)">abaixo do legal</b>' : 'no ponto de recapar'}</td></tr>`).join('') ||
+    '<tr><td colspan="4" class="hint">nenhum pneu abaixo do limite</td></tr>';
+  document.getElementById('pn-venc-hint').textContent =
+    `${Math.min(venc.length,60)} de ${venc.length}`;
+
+  /* A COBERTURA DA TAXA E PARTE DA RESPOSTA: com 2.299 pneus usando a mediana
+     da frota, "previsao" quer dizer uma coisa bem diferente de com 74 usando a
+     serie propria. Esconder isso venderia confianca que o dado nao tem. */
+  const conta = {};
+  (d.itens||[]).forEach(i => { if(i.taxa_origem) conta[i.taxa_origem] = (conta[i.taxa_origem]||0)+1; });
+  const rot = {'própria':'do próprio pneu (série medida)','modelo':'do modelo dele','frota':'da frota (mediana geral)'};
+  document.getElementById('pn-troca-origem').innerHTML =
+    Object.entries(conta).sort((a,b)=>b[1]-a[1]).map(([k,v]) =>
+      `<tr><td>${esc(rot[k]||k)}</td><td class="num">${v.toLocaleString('pt-BR')}</td></tr>`).join('') +
+    `<tr><td><span class="hint">sem taxa — não sai data</span></td><td class="num">${d.sem_taxa||0}</td></tr>`;
 }
 
 function pnMarcasDesenhar(){

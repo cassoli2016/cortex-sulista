@@ -1,3 +1,20 @@
+- versao: "0.243.0"
+  data: "2026-09-05"
+  novo:
+    - >-
+      A previsão de troca chegou à tela: Pneus ganhou a aba "Previsão de
+      troca", com os pneus que chegam ao limite primeiro — quantos km faltam,
+      em quantos dias e em que data, no ritmo daquele veículo. Hoje são 8 nos
+      próximos 30 dias.
+    - >-
+      Ao lado, a lista dos que JÁ passaram do limite, separada da previsão
+      porque é outra decisão: 64 pneus no ponto de recapar, 15 deles abaixo do
+      mínimo legal — esses precisam de oficina hoje, não de planejamento.
+    - >-
+      E um cartão dizendo de onde vem a taxa de cada previsão: do próprio pneu,
+      do modelo ou da média da frota. Com 2.299 pneus usando a média geral e 79
+      com série própria, "previsão" quer dizer coisas bem diferentes — esconder
+      isso venderia uma confiança que o dado ainda não tem.
 - versao: "0.242.0"
   data: "2026-09-05"
   novo:
