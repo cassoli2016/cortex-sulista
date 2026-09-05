@@ -105,15 +105,32 @@ def _taxa_do_par(placa, d0, s0, d1, s1, dias_janela, odo0=None, odo1=None):
     if gasto < DESGASTE_MINIMO_MM:
         return None, "desgaste abaixo do piso de medição", None
 
-    k, origem = None, None
-    if odo0 is not None and odo1 is not None:
+    # O DERIVADO VEM PRIMEIRO, e isto e a INVERSAO de uma decisao que eu tomei
+    # hoje de manha e apresentei como melhoria sem ter medido.
+    #
+    # O QUE EU MEDI DEPOIS, em 275 pares que tem os dois caminhos: eles
+    # concordam em apenas 31% dentro de +-30%, com razao mediana 1,22. Um dos
+    # dois esta errado, e ha como saber qual: o derivado tem validacao
+    # INDEPENDENTE (`km.confrontar`, razao 0,983 em 61 pares contra o hodometro
+    # do ERP); a diferenca de hodometros nao tem nenhuma.
+    #
+    # E HA UMA RAZAO PARA ELA SER RUIM. As tres fontes de hodometro batem com o
+    # ERP como valor ABSOLUTO (razao mediana 0,90 a 0,97) — mas so 45% a 70%
+    # ficam dentro de 10%. A diferenca entre dois numeros grandes com 10% de
+    # erro cada e dominada pelo erro: 400.000 menos 380.000, com essa precisao,
+    # nao mede 20.000 km. Acuracia nao e precisao, e so a segunda serve para
+    # subtrair.
+    #
+    # O hodometro fica como PLANO B para quem nao tem km derivado — e melhor
+    # que nada, e a origem sai declarada para quem le saber com o que esta
+    # lidando.
+    r = kmmod.no_periodo(placa, d0, d1, dias_janela=dias_janela)
+    k, origem = r.get("km"), "derivado"
+    if (not k or k < KM_MINIMO_PAR) and odo0 is not None and odo1 is not None:
         direto = float(odo1) - float(odo0)
         # HODÔMETRO QUE ANDA PARA TRÁS é troca de painel, não km negativo.
         if direto > 0:
             k, origem = direto, "hodômetro"
-    if k is None:
-        r = kmmod.no_periodo(placa, d0, d1, dias_janela=dias_janela)
-        k, origem = r.get("km"), "derivado"
     if not k or k < KM_MINIMO_PAR:
         return None, "km rodado abaixo do piso", None
     return gasto / (k / 1000.0), None, origem

@@ -227,38 +227,40 @@ def test_a_ressalva_viaja_com_o_numero(cenario):
 # --------------------------------------------------------------------------
 # o hodômetro da inspeção manda sobre a derivação
 # --------------------------------------------------------------------------
-def test_o_HODOMETRO_da_inspecao_vence_o_km_derivado(cenario):
-    """Ele é uma subtração entre duas leituras do MESMO painel: não depende de
-    a placa casar com o cadastro do ERP, nem do engate do manifesto, nem da
-    janela de 365 dias. Medição direta ganha de atribuição."""
+def test_o_km_DERIVADO_vence_o_hodometro(cenario):
+    """A INVERSÃO de uma decisão que eu tomei de manhã e apresentei como
+    melhoria sem ter medido.
+
+    Medido depois, em 275 pares que têm os dois caminhos: eles concordam em
+    apenas 31% dentro de ±30%, com razão mediana 1,22. Um dos dois está errado,
+    e dá para saber qual — o derivado tem validação INDEPENDENTE
+    (`km.confrontar`: razão 0,983 em 61 pares contra o hodômetro do ERP); a
+    diferença de hodômetros não tem nenhuma.
+
+    E há razão para ela ser ruim: as três fontes de hodômetro batem com o ERP
+    como valor ABSOLUTO (0,90 a 0,97 de razão mediana), mas só 45% a 70% ficam
+    dentro de 10%. A diferença entre dois números grandes com 10% de erro cada é
+    dominada pelo erro. **Acurácia não é precisão, e só a segunda serve para
+    subtrair.**
+    """
     cenario["serie"] = [dict(_med(1, "AAA1A11", 200, 10.0), km_veiculo=300000),
                         dict(_med(1, "AAA1A11", 10, 8.0), km_veiculo=320000)]
-    cenario["km"] = {"AAA1A11": 999999.0}     # a derivação diria outra coisa
+    cenario["km"] = {"AAA1A11": 40000.0}    # o derivado diz outra coisa
     d = desgaste.obter()
-    # 2 mm em 20.000 km de hodômetro = 0,1 — e não o que a derivação daria
+    # 2 mm em 40.000 km derivados = 0,05 — e não os 0,1 do hodômetro
+    assert d["taxas_pneu"][1] == pytest.approx(0.05)
+    assert d["km_origens"].get("derivado") == 1
+
+
+def test_sem_km_derivado_o_hodometro_e_o_PLANO_B(cenario):
+    """Melhor que nada, e a origem sai declarada para quem lê saber com o que
+    está lidando."""
+    cenario["serie"] = [dict(_med(1, "AAA1A11", 200, 10.0), km_veiculo=300000),
+                        dict(_med(1, "AAA1A11", 10, 8.0), km_veiculo=320000)]
+    cenario["km"] = {}                       # nenhum km derivado
+    d = desgaste.obter()
     assert d["taxas_pneu"][1] == pytest.approx(0.1)
     assert d["km_origens"].get("hodômetro") == 1
-
-
-def test_sem_hodometro_nas_DUAS_pontas_cai_na_derivacao(cenario):
-    """Carreta não tem hodômetro nenhum, e é ela que a derivação atende."""
-    cenario["serie"] = [dict(_med(1, "AAA1A11", 200, 10.0), km_veiculo=300000),
-                        dict(_med(1, "AAA1A11", 10, 8.0), km_veiculo=None)]
-    cenario["km"] = {"AAA1A11": 20000.0}
-    d = desgaste.obter()
-    assert d["taxas_pneu"][1] == pytest.approx(0.1)
-    assert d["km_origens"].get("derivado") == 1
-
-
-def test_hodometro_que_ANDA_PARA_TRAS_cai_na_derivacao(cenario):
-    """Troca de painel, não km negativo. Aceitar isso daria uma taxa negativa,
-    que projetaria um pneu ficando novo com o uso."""
-    cenario["serie"] = [dict(_med(1, "AAA1A11", 200, 10.0), km_veiculo=500000),
-                        dict(_med(1, "AAA1A11", 10, 8.0), km_veiculo=20000)]
-    cenario["km"] = {"AAA1A11": 20000.0}
-    d = desgaste.obter()
-    assert d["taxas_pneu"][1] == pytest.approx(0.1)
-    assert d["km_origens"].get("derivado") == 1
 
 
 def test_a_PROCEDENCIA_do_km_e_contada(cenario):
@@ -269,7 +271,7 @@ def test_a_PROCEDENCIA_do_km_e_contada(cenario):
         dict(_med(1, "P1", 10, 8.0), km_veiculo=320000),
         dict(_med(2, "P2", 200, 10.0), km_veiculo=None),
         dict(_med(2, "P2", 10, 8.0), km_veiculo=None)]
-    cenario["km"] = {"P1": 20000.0, "P2": 20000.0}
+    cenario["km"] = {"P2": 20000.0}      # só P2 tem km derivado
     d = desgaste.obter()
     assert d["km_origens"] == {"hodômetro": 1, "derivado": 1}
 

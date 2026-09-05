@@ -1,3 +1,15 @@
+- versao: "0.251.3"
+  data: "2026-09-05"
+  corrigido:
+    - >-
+      A previsão de troca passou a preferir o cálculo de quilometragem que tem
+      conferência independente, e não o hodômetro lido no pátio. Hoje mais cedo
+      eu tinha invertido essa ordem e apresentado como melhoria — sem ter
+      comparado os dois. Comparados depois, em 275 pneus que têm os dois
+      caminhos, eles concordam em apenas 31% dos casos. A vida estimada de um
+      pneu passou de 122 mil para 130 mil km com a correção, e a cobertura não
+      caiu. O hodômetro continua atendendo quem não tem o outro caminho, e a
+      tela diz qual foi usado.
 - versao: "0.252.0"
   data: "2026-09-05"
   adicionado:
