@@ -267,9 +267,13 @@ function pintarDetalhe(c){
             + 'nova atualização.</div>';
   }else if(a.tem_posicao){
     const pct = a.progresso_pct ?? 0;
+    /* "em linha reta" SO quando e reta. Com a rota do ERP o numero e
+       rodoviario, e chamar os dois da mesma coisa faria a pessoa na doca
+       planejar em cima de um km que nao existe. */
+    const comoMede = a.por_rota ? 'pela rota' : 'em linha reta';
     posicao = `<div class="barra"><i style="width:${pct}%"></i></div>
       <div class="pct"><span><b>${pct}%</b> da viagem</span>
-        <span>faltam <b>${Math.round(a.falta_km)}</b> km em linha reta</span></div>`;
+        <span>faltam <b>${Math.round(a.falta_km)}</b> km ${comoMede}</span></div>`;
     if(a.chegou) posicao += '<div class="aviso">O veículo já está no destino.</div>';
   }
 
@@ -284,7 +288,10 @@ function pintarDetalhe(c){
         ? ' · cerca de ' + t.atraso_min + ' min de atraso no trecho' : ''}</span></div>` : '';
 
   const nums = [];
-  if(a.km_rota) nums.push(['Rota', Math.round(a.km_rota) + ' km']);
+  if(a.km_rota) nums.push([a.por_rota ? 'Rota' : 'Rota (aprox.)',
+                           Math.round(a.km_rota) + ' km']);
+  if(a.percorrido_km != null)
+    nums.push(['Percorrido', Math.round(a.percorrido_km) + ' km']);
   if(c.previsao) nums.push(['Previsão', quando(c.previsao, true)]);
   if(c.agendamento) nums.push(['Agendada', quando(c.agendamento, true)]);
   if(c.entregue_em) nums.push(['Entregue', quando(c.entregue_em, true)]);
@@ -367,9 +374,19 @@ async function desenharMapa(c){
     L.marker([m.destino.lat, m.destino.lng], {icon:pino('#1E7F4F','Entrega')}).addTo(mapa);
     pontos.push([m.destino.lat, m.destino.lng]);
   }
-  if(m.origem && m.destino)
+  /* A ROTA CADASTRADA, quando existe: e o caminho que o veiculo deve fazer,
+     nao um tracejado entre dois pontos. Com ela o mapa mostra o corredor
+     real — e o tracejado so aparece quando nao ha rota, dizendo pela forma
+     que ali e estimativa. */
+  const rota = (c.andamento || {}).rota_pontos || [];
+  if(rota.length > 1){
+    L.polyline(rota.map(p => [p.lat, p.lng]),
+      {color:'#942821', weight:4, opacity:.75}).addTo(mapa);
+    rota.forEach(p => pontos.push([p.lat, p.lng]));
+  }else if(m.origem && m.destino){
     L.polyline([[m.origem.lat,m.origem.lng],[m.destino.lat,m.destino.lng]],
       {color:'#9AA3AE', weight:2, dashArray:'6 8'}).addTo(mapa);
+  }
 
   /* A POSICAO E UM CIRCULO, NUNCA UM ALFINETE. O alfinete promete uma
      precisao que este numero nao tem — ele vem arredondado a ~11 km de

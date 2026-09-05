@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.233.0] — 04/09/2026  ·  CX-04/09/2026-v0.233.0
+
+### Alterado
+- A distância que falta para a carga chegar passou a ser medida pela ROTA cadastrada, não em linha reta. A diferença não é pequena: numa carga com várias paradas, a reta dizia "faltam 22 km" e a estrada tinha 88 — quatro vezes mais, num número que quem espera na doca usa para chamar a equipe.
+- O mapa passou a desenhar o caminho que o veículo deve fazer, com todos os pontos por onde a rota passa, em vez de um tracejado entre a coleta e a entrega. O tracejado só aparece quando não há rota cadastrada — e a tela diz, pela forma e pelo texto, quando o número é aproximado.
+- A carga passou a mostrar quanto já foi percorrido, além do que falta.
+
 ## [0.232.1] — 04/09/2026  ·  CX-04/09/2026-v0.232.1
 
 ### Adicionado

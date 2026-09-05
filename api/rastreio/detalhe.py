@@ -29,9 +29,14 @@ import time
 from datetime import datetime, timezone
 
 from .. import db
-from . import consulta
+from . import consulta, rota
 
 log = logging.getLogger("cortex.rastreio.detalhe")
+
+#: Quanto o veiculo pode se afastar da rota cadastrada e ainda estar nela.
+#: A poligonal tem, em metade das rotas, dois pontos para trezentos km — entao
+#: a folga precisa ser generosa, ou toda viagem viraria "fora da rota".
+FORA_DA_ROTA_KM = 60
 
 #: O raio do circulo que o mapa desenha, em km. A posicao vai arredondada a
 #: uma casa decimal (~11 km) e o circulo diz isso: a REGIAO onde o veiculo
@@ -231,6 +236,12 @@ def _transito(lat: float, lng: float) -> dict | None:
     return lido
 
 
+#: As chaves do conhecimento em curso. Um dicionario de modulo em vez de mais
+#: um parametro em `_andamento`: a funcao ja e chamada de dois lugares e a
+#: assinatura dela e testada.
+_CHAVES_ATUAIS: dict = {}
+
+
 def _andamento(linha: dict) -> dict:
     """Onde a carga está, em distância e progresso — nunca em coordenada."""
     fora: dict = {"tem_posicao": False}
@@ -255,6 +266,45 @@ def _andamento(linha: dict) -> dict:
                      linha.get("lat_entrega"), linha.get("lng_entrega"))
     if falta is None:
         return fora
+
+    # A ROTA REAL MANDA. A reta so existe como plano B, para a viagem sem
+    # trajeto cadastrado — e ela subestima sempre: "faltam 56 km" quando faltam
+    # 80 de asfalto e uma promessa que a operacao nao cumpre, e quem espera na
+    # doca organiza a equipe em cima dela.
+    r = rota.obter(_CHAVES_ATUAIS.get("chaves") or {},
+                   linha.get("destinatario_cidade") or "")
+    if r:
+        pr = rota.progresso(r, pos["lat"], pos["lng"])
+        if pr and pr.get("falta_km") is not None:
+            # AFASTAMENTO DA ROTA no lugar da comparacao de distancias: ele
+            # nao depende de o destino estar a frente, e responde direto a
+            # pergunta "este veiculo esta nesta viagem?".
+            if pr["afastado_km"] > FORA_DA_ROTA_KM:
+                fora["fora_da_rota"] = True
+                return fora
+            fora["tem_posicao"] = True
+            fora["atualizado_ha_min"] = idade
+            fora["progresso_pct"] = pr["progresso_pct"]
+            fora["falta_km"] = pr["falta_km"]
+            fora["km_rota"] = pr["rota_km"]
+            fora["percorrido_km"] = pr["percorrido_km"]
+            fora["rodovia"] = pr.get("rodovia")
+            fora["por_rota"] = True
+            fora["chegou"] = pr["falta_km"] <= RAIO_CHEGADA_KM
+            fora["area"] = {"lat": round(float(pos["lat"]), 1),
+                            "lng": round(float(pos["lng"]), 1),
+                            "raio_km": AREA_RAIO_KM}
+            fora["rota_pontos"] = [{"lat": x["lat"], "lng": x["lng"]}
+                                   for x in r["pontos"]]
+            t = _transito(pos["lat"], pos["lng"])
+            if t:
+                atraso = t.get("atraso_s")
+                fora["transito"] = {
+                    "estado": t.get("estado"), "rotulo": t.get("rotulo"),
+                    "atraso_min": (int(round(atraso / 60.0))
+                                   if isinstance(atraso, (int, float)) and atraso
+                                   else None)}
+            return fora
 
     # O VEICULO PODE NAO ESTAR MAIS NESTA CARGA. O CT-e guarda a placa que
     # levou a mercadoria, e o caminhao segue viagem: entrega, engata outra
@@ -353,9 +403,10 @@ def obter(termo: str, cnpj4: str, carga_id: str) -> dict:
         return {"ok": True, "carga": None}
 
     linha = dict(linhas2[0])
-    andamento = _andamento(linha)
     chaves = {"g": alvo["grupo"], "e": alvo["empresa"], "f": alvo["filial"],
               "n": alvo["numero"], "s": alvo["serie"]}
+    _CHAVES_ATUAIS["chaves"] = chaves
+    andamento = _andamento(linha)
     # ORIGEM E DESTINO VAO INTEIROS. Nao e incoerencia com a posicao
     # arredondada: o endereco de coleta e o de entrega sao de quem despachou e
     # de quem recebe — as duas pontas ja os conhecem. O que se protege e onde
