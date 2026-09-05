@@ -119,6 +119,27 @@ def _taxa_do_par(placa, d0, s0, d1, s1, dias_janela, odo0=None, odo1=None):
     return gasto / (k / 1000.0), None, origem
 
 
+def _pares(obs):
+    """Os pares candidatos a sustentar a taxa, do mais confiável ao mais largo.
+
+    AS PONTAS NÃO SÃO SEMPRE A MELHOR EVIDÊNCIA, e isso custou uma medição
+    errada: a ponta mais antiga da série costuma ser uma FOTO do instantâneo,
+    que não tem hodômetro. Pegar as pontas cegamente jogava para a derivação
+    968 pneus que já tinham o par completo com hodômetro nas duas leituras.
+
+    Mas trocar um pelo outro também não serve: o par com hodômetro tem janela
+    mais curta e cai nos pisos com mais frequência — medido, ele ganhava 26
+    medições diretas e perdia 43 pneus por completo.
+
+    Então saem os dois, nesta ordem. Quem consome tenta o primeiro e cai no
+    segundo se ele não qualificar.
+    """
+    com_km = [o for o in obs if o[2] is not None]
+    if len(com_km) >= 2 and (com_km[0], com_km[-1]) != (obs[0], obs[-1]):
+        yield com_km[0], com_km[-1]
+    yield obs[0], obs[-1]
+
+
 def _mediana(vs):
     v = sorted(vs)
     return v[len(v) // 2] if v else None
@@ -148,9 +169,18 @@ def _calcular(dias_janela: int = JANELA_DIAS) -> dict:
             recusas["série com uma medição só"] = \
                 recusas.get("série com uma medição só", 0) + 1
             continue
-        (d0, s0, k0), (d1, s1, k1) = obs[0], obs[-1]
-        taxa, motivo, origem_km = _taxa_do_par(placa, d0, s0, d1, s1,
-                                               dias_janela, k0, k1)
+        # DOIS PARES, NESTA ORDEM, e o segundo NÃO é redundância. O par com
+        # hodômetro mede direto mas costuma ter janela curta, e janela curta cai
+        # nos pisos; as pontas têm janela larga mas km atribuído. Tentar só o
+        # primeiro perdia 43 pneus para ganhar 26; tentar só o segundo deixava
+        # 968 medições diretas sem uso. Tentar os dois fica com o melhor de
+        # cada série, e a origem sai declarada.
+        taxa = motivo = origem_km = None
+        for (d0, s0, k0), (d1, s1, k1) in _pares(obs):
+            taxa, motivo, origem_km = _taxa_do_par(placa, d0, s0, d1, s1,
+                                                   dias_janela, k0, k1)
+            if taxa is not None:
+                break
         if taxa is None:
             recusas[motivo] = recusas.get(motivo, 0) + 1
             continue

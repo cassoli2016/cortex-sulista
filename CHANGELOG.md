@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.245.1] — 05/09/2026  ·  CX-05/09/2026-v0.245.1
+
+### Corrigido
+- A previsão de troca usava sempre a primeira e a última medição de cada pneu — e a primeira quase sempre é uma foto antiga, sem hodômetro. Com isso 968 pneus que já tinham duas leituras de painel caíam no cálculo indireto. Agora o par medido no painel é tentado primeiro e as pontas ficam de reserva, o que aproveita os dois: a cobertura subiu de 79 para 139 pneus com medição própria, e 26 deles já vêm do hodômetro direto.
+
 ## [0.245.0] — 05/09/2026  ·  CX-05/09/2026-v0.245.0
 
 ## [0.244.0] — 05/09/2026  ·  CX-05/09/2026-v0.244.0

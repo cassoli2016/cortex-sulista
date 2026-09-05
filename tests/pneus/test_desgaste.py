@@ -272,3 +272,42 @@ def test_a_PROCEDENCIA_do_km_e_contada(cenario):
     cenario["km"] = {"P1": 20000.0, "P2": 20000.0}
     d = desgaste.obter()
     assert d["km_origens"] == {"hodômetro": 1, "derivado": 1}
+
+
+def test_o_par_com_hodometro_e_TENTADO_PRIMEIRO_e_as_pontas_ficam_de_reserva(cenario):
+    """O guard de uma escolha que custou duas medições erradas seguidas.
+
+    A ponta mais antiga da série costuma ser uma FOTO do instantâneo, sem
+    hodômetro. Pegar as pontas cegamente jogava para a derivação 968 pneus que
+    já tinham o par completo medido no painel. Mas trocar um pelo outro também
+    não servia: o par com hodômetro tem janela mais curta e cai nos pisos —
+    medido, ganhava 26 medições diretas e perdia 43 pneus por completo.
+
+    Os dois saem, nesta ordem, e quem consome cai no segundo quando o primeiro
+    não qualifica.
+    """
+    obs = [(_d(300), 12.0, None),        # foto antiga, sem hodômetro
+           (_d(60), 10.0, 300000),
+           (_d(10), 8.0, 320000)]
+    pares = list(desgaste._pares(obs))
+    assert len(pares) == 2
+    assert pares[0] == (obs[1], obs[2]), "o par com hodômetro não veio primeiro"
+    assert pares[1] == (obs[0], obs[2]), "as pontas não ficaram de reserva"
+
+
+def test_serie_toda_com_hodometro_nao_gera_par_repetido():
+    obs = [(_d(60), 10.0, 300000), (_d(10), 8.0, 320000)]
+    assert list(desgaste._pares(obs)) == [(obs[0], obs[-1])]
+
+
+def test_quando_o_par_direto_NAO_qualifica_a_taxa_ainda_sai(cenario):
+    """É este o caso que a ordem existe para atender: janela curta demais no
+    hodômetro, janela larga o bastante nas pontas."""
+    cenario["serie"] = [
+        dict(_med(1, "AAA1A11", 300, 12.0), km_veiculo=None),
+        dict(_med(1, "AAA1A11", 12, 10.1), km_veiculo=300000),
+        dict(_med(1, "AAA1A11", 10, 10.0), km_veiculo=300100)]
+    cenario["km"] = {"AAA1A11": 40000.0}
+    d = desgaste.obter()
+    assert d["taxas_pneu"], "perdeu o pneu por causa do par curto"
+    assert d["km_origens"].get("derivado") == 1

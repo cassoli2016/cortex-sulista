@@ -1,3 +1,13 @@
+- versao: "0.245.1"
+  data: "2026-09-05"
+  corrigido:
+    - >-
+      A previsão de troca usava sempre a primeira e a última medição de cada
+      pneu — e a primeira quase sempre é uma foto antiga, sem hodômetro. Com
+      isso 968 pneus que já tinham duas leituras de painel caíam no cálculo
+      indireto. Agora o par medido no painel é tentado primeiro e as pontas
+      ficam de reserva, o que aproveita os dois: a cobertura subiu de 79 para
+      139 pneus com medição própria, e 26 deles já vêm do hodômetro direto.
 - versao: "0.245.0"
   data: "2026-09-05"
   novo:
