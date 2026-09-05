@@ -204,3 +204,67 @@ def test_o_detalhe_REPROVA_o_segundo_fator(monkeypatch):
 def test_sem_os_dois_campos_o_detalhe_recusa():
     assert detalhe.obter("51283", "", "id")["ok"] is False
     assert detalhe.obter("", "0051", "id")["ok"] is False
+
+
+# --------------------------------------------------------------------------
+# quem contratou e quem esta levando
+# --------------------------------------------------------------------------
+def test_o_pagador_NAO_se_repete_quando_e_o_mesmo_cliente():
+    """MEDIDO no banco vivo em 05/09/2026: tomador e pagador do frete são a
+    mesma empresa em 16.960 dos 16.964 CT-e dos últimos 90 dias. Mostrar a
+    mesma razão social em duas linhas é coluna constante — a flag existe para
+    a tela juntar as duas em vez de repetir."""
+    t = detalhe._transporte({"cliente_nome": "TUPY - JOINVILE/SC",
+                             "pagador_nome": "TUPY - JOINVILE/SC"})
+    assert t["pagador_igual_cliente"] is True
+
+
+def test_o_pagador_APARECE_quando_e_outro():
+    """O campo não sai só porque hoje quase nunca difere: no dia em que a
+    operação vender frete com pagador de terceiro, a tela já o mostra."""
+    t = detalhe._transporte({"cliente_nome": "MWM - SAO PAULO/SP",
+                             "pagador_nome": "TUPY - JOINVILE/SC"})
+    assert t["pagador_igual_cliente"] is False
+    assert t["pagador"] == "TUPY - JOINVILE/SC"
+
+
+def test_carga_sem_carreta_NAO_vira_nd():
+    """Cobertura medida: 82,0% dos CT-e têm carreta1. O resto é truck, que não
+    tem implemento — ausência de cadastro seria `n/d`, ausência de implemento
+    é linha que não existe."""
+    t = detalhe._transporte({"placa": "AAA1A11", "carreta": None})
+    assert t["cavalo"] == "AAA1A11"
+    assert t["carreta"] is None
+
+
+def test_o_nome_do_motorista_sai_do_CAIXA_ALTA_do_ERP():
+    """Nome de pessoa gritado numa página que o cliente lê é descuido de
+    cadastro vazando para fora. Os conectivos ficam minúsculos."""
+    assert detalhe._nome_pessoa("JOSE INALDO FERREIRA DA SILVA") == \
+        "Jose Inaldo Ferreira da Silva"
+    assert detalhe._nome_pessoa("  ") is None
+
+
+def test_a_placa_vai_COMO_ESTA_PINTADA_na_porta():
+    """Quem confere na portaria compara caractere a caractere com o veículo
+    parado na frente dele — hífen inventado atrapalha."""
+    t = detalhe._transporte({"placa": " awc2f41 ", "carreta": "jok3008"})
+    assert t["cavalo"] == "AWC2F41" and t["carreta"] == "JOK3008"
+
+
+def test_a_BUSCA_continua_sem_placa_e_sem_motorista(monkeypatch):
+    """A regra que NÃO caiu. O detalhe mostra placa e motorista porque reprova
+    o segundo fator a cada abertura; a lista é só o seletor de qual carga
+    abrir, e um payload de lista com placa seria uma varredura a menos de
+    distância."""
+    from api.rastreio import consulta
+    linha = {"grupo": 1, "empresa": 1, "filial": 2, "numero": 359462,
+             "serie": 2, "dtemissao": None, "dtprevisaoentrega": None,
+             "dtentrega": None, "dtagendamentoentrega": None,
+             "dtiniciodescarga": None, "placa": "AAA1A11",
+             "cidadecoleta": "DIADEMA", "ufcoleta": "SP",
+             "motorista_nome": "JOSE DA SILVA",
+             "destinatario_nome": "CLIENTE X", "destinatario_cidade": "SANTOS",
+             "destinatario_uf": "SP"}
+    assert "AAA1A11" not in repr(consulta._limpo(linha))
+    assert "JOSE" not in repr(consulta._limpo(linha)).upper()

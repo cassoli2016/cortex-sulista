@@ -77,11 +77,18 @@ FORA_DA_ROTA = 1.2
 IDADE_MAX_MIN = 180
 
 #: A carga em si, com o que o detalhe precisa e a busca não devolve.
+#:
+#: OS TRES JOINS DE `cadastro` NAO MULTIPLICAM A LINHA, e isso foi conferido no
+#: banco vivo antes de entrar (regra da casa: join novo se confere dos dois
+#: lados). `cadastro` tem 8.343 linhas para 8.343 `codigo` distintos, e a
+#: consulta com os quatro joins nao dobra nenhum dos CT-e dos ultimos 30 dias.
+#: `cadastro.codigo` E o CNPJ/CPF — nao ha id sequencial nesta base.
 DETALHE_SQL = """
 SELECT c.grupo, c.empresa, c.filial, c.numero, c.serie,
        c.dtemissao, c.dtprevisaoentrega, c.dtentrega,
        c.dtagendamentoentrega, c.dtiniciodescarga,
        trim(c.veiculo)                       AS placa,
+       trim(c.carreta1)                      AS carreta,
        c.cidadecoleta, c.ufcoleta,
        c.latitudecoleta::float8              AS lat_coleta,
        c.longitudecoleta::float8             AS lng_coleta,
@@ -89,9 +96,18 @@ SELECT c.grupo, c.empresa, c.filial, c.numero, c.serie,
        c.longitudeentrega::float8            AS lng_entrega,
        cd.nomefantasia                       AS destinatario_nome,
        cd.cidade                             AS destinatario_cidade,
-       cd.uf                                 AS destinatario_uf
+       cd.uf                                 AS destinatario_uf,
+       coalesce(nullif(trim(mt.nomefantasia),''),
+                nullif(trim(mt.razaosocial),''))  AS motorista_nome,
+       coalesce(nullif(trim(tm.nomefantasia),''),
+                nullif(trim(tm.razaosocial),''))  AS cliente_nome,
+       coalesce(nullif(trim(pg.nomefantasia),''),
+                nullif(trim(pg.razaosocial),''))  AS pagador_nome
 FROM conhecimento c
 LEFT JOIN cadastro cd ON cd.codigo = c.destinatario
+LEFT JOIN cadastro mt ON mt.codigo = c.motorista
+LEFT JOIN cadastro tm ON tm.codigo = c.cnpjcpfcodigotomadorservico
+LEFT JOIN cadastro pg ON pg.codigo = c.cnpjcpfcodigopagadorfrete
 WHERE c.grupo = %(g)s AND c.empresa = %(e)s AND c.filial = %(f)s
   AND c.numero = %(n)s AND c.serie = %(s)s
   AND c.dtcancelamento IS NULL
@@ -372,6 +388,56 @@ def _andamento(linha: dict) -> dict:
     return fora
 
 
+#: Conectivos que ficam em minuscula quando o CAIXA ALTA do ERP vira nome de
+#: gente. Nome de pessoa gritado numa pagina que o cliente le e so descuido de
+#: cadastro vazando para fora.
+_CONECTIVOS = {"de", "da", "do", "das", "dos", "e"}
+
+
+def _nome_pessoa(v) -> str | None:
+    """O nome do motorista como se escreve, a partir do caixa alta do ERP."""
+    partes = (v or "").split()
+    if not partes:
+        return None
+    return " ".join(p.lower() if p.lower() in _CONECTIVOS else p.capitalize()
+                    for p in partes)
+
+
+def _transporte(linha: dict) -> dict:
+    """Quem contratou, quem paga e quem esta levando a carga.
+
+    ESTE BLOCO TEM NOME PROPRIO DE PROPOSITO. Ele e o unico lugar da pagina
+    publica com placa e nome de pessoa, e o `mensagem`/`aviso` monta o texto do
+    WhatsApp por lista explicita de campos — separado assim, ninguem o alcanca
+    por descuido ao escrever uma mensagem nova.
+
+    O PAGADOR QUASE NUNCA E OUTRO. Medido em 05/09/2026: tomador e pagador do
+    frete sao a MESMA empresa em 16.960 dos 16.964 CT-e dos ultimos 90 dias (os
+    quatro restantes nao tem nem um nem outro). Repetir a mesma razao social em
+    duas linhas e coluna constante — a tela junta as duas quando coincidem, e
+    so separa quando ha o que separar. O campo continua saindo porque o dia em
+    que a operacao vender frete com pagador de terceiro, a tela ja o mostra.
+    """
+    cliente = (linha.get("cliente_nome") or "").strip() or None
+    pagador = (linha.get("pagador_nome") or "").strip() or None
+    return {
+        "cliente": cliente,
+        "pagador": pagador,
+        "pagador_igual_cliente": bool(cliente and pagador
+                                      and cliente == pagador),
+        "motorista": _nome_pessoa(linha.get("motorista_nome")),
+        # A placa vai como esta pintada na porta: sem hifen inventado e sem
+        # formatacao nossa, porque quem confere na portaria compara caractere
+        # a caractere com o veiculo parado na frente dele.
+        "cavalo": (linha.get("placa") or "").strip().upper() or None,
+        # CARRETA1 SO. Cobertura medida: 82,0% em 90 dias; a segunda aparece em
+        # 1,6% (bitrem) e a terceira em nenhum CT-e. Sem carreta a linha
+        # simplesmente nao aparece — carga de truck nao tem implemento, e um
+        # "n/d" ali seria falha inventada.
+        "carreta": (linha.get("carreta") or "").strip().upper() or None,
+    }
+
+
 def _linha_do_tempo(linha: dict, andamento: dict) -> list[dict]:
     """A viagem em etapas, para a tela não precisar interpretar datas."""
     etapas = [{"chave": "emitido", "rotulo": "Documento emitido",
@@ -455,6 +521,7 @@ def _montar(linha: dict, chaves: dict) -> dict:
         # busca — o detalhe acrescenta, nunca abre o registro cru.
         **consulta._limpo(linha),
         "andamento": andamento,
+        "transporte": _transporte(linha),
         "etapas": _linha_do_tempo(linha, andamento),
         "notas": _notas(chaves),
         "mapa": pontos,

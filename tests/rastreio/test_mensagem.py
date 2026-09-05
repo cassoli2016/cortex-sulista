@@ -217,8 +217,16 @@ def test_NENHUMA_mensagem_leva_dado_sensivel(estado, andamento):
     c["valor_frete"] = 12345.67
     c["andamento"]["lat"] = -23.6821
     c["andamento"]["placa"] = "AAA1A11"
+    # O BLOCO `transporte` EXISTE NO PAYLOAD DE VERDADE desde 05/09/2026: a
+    # PÁGINA mostra placa e motorista, a MENSAGEM não. Contaminar com a forma
+    # real é o que faz este guard valer — com a forma antiga ele conferia um
+    # payload que não existe mais.
+    c["transporte"] = {"cliente": "TUPY - JOINVILE/SC", "pagador": None,
+                       "pagador_igual_cliente": False,
+                       "motorista": "Fulano de Tal", "cavalo": "AAA1A11",
+                       "carreta": "BBB2B22"}
     t = mensagem.montar(c) or ""
-    for proibido in ("AAA1A11", "Fulano", "12345", "R$", "-23.68"):
+    for proibido in ("AAA1A11", "BBB2B22", "Fulano", "12345", "R$", "-23.68"):
         assert proibido not in t, proibido
 
 

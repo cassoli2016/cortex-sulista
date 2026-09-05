@@ -1,3 +1,38 @@
+- versao: "0.249.0"
+  data: "2026-09-05"
+  adicionado:
+    - >-
+      A página "Onde está minha carga?" passou a dizer quem está levando: o
+      cliente, o pagador do frete, o nome do motorista e as placas do cavalo e
+      da carreta. Quem espera na doca precisa disso para liberar a portaria, e
+      até agora pedia por telefone.
+    - >-
+      Quando o pagador do frete é o próprio cliente — que é o caso de
+      praticamente todo CT-e — as duas informações saem numa linha só, em vez
+      de repetir a mesma empresa duas vezes. No dia em que forem empresas
+      diferentes, a página mostra as duas.
+    - >-
+      Carga de truck, sem implemento, simplesmente não mostra a linha da
+      carreta: ausência de reboque não é informação faltando.
+    - >-
+      Nada disso entra na mensagem de WhatsApp, e é de propósito: a página
+      pede o documento e os quatro dígitos do CNPJ a cada abertura, enquanto
+      uma mensagem encaminhada vive para sempre num grupo. A busca também
+      continua sem aceitar placa — quem procura carga procura pelo documento
+      que tem em mãos.
+  corrigido:
+    - >-
+      Duas seções do histórico de versões nunca chegaram a ser publicadas:
+      "Removido" e "Segurança". O texto estava escrito desde a versão 0.138.0 e
+      não saía no CHANGELOG.md, nem na tela de Documentação, nem no que a API
+      responde — entre o que voltou está o aviso de que a ficha de jornada por
+      motorista saiu do ar sem substituta.
+    - >-
+      E o erro que apagou doze entregas hoje passou a acender sozinho: um nome
+      de seção que o gerador não conheça agora quebra o teste, em vez de
+      engolir o texto calado. O aviso anterior só acendia quando a versão
+      inteira ficava vazia, e por isso essas duas seções passaram por baixo
+      dele durante cem entregas.
 - versao: "0.248.1"
   data: "2026-09-05"
   corrigido:

@@ -81,8 +81,15 @@ def test_a_mensagem_NAO_leva_valor_nem_placa():
     encaminhamento não tem como ser desfeito."""
     c = _carga()
     c["andamento"]["placa"] = "AAA1A11"
+    # A PÁGINA mostra placa e motorista; o WhatsApp, não. São decisões
+    # separadas porque os dois lugares têm alcance separado: a página exige o
+    # segundo fator a cada abertura, a mensagem vive no grupo para sempre.
+    c["transporte"] = {"cliente": "TUPY - JOINVILE/SC", "pagador": None,
+                       "pagador_igual_cliente": False,
+                       "motorista": "Fulano de Tal", "cavalo": "AAA1A11",
+                       "carreta": "BBB2B22"}
     t = aviso._texto(c)
-    for proibido in ("R$", "AAA1A11", "frete"):
+    for proibido in ("R$", "AAA1A11", "BBB2B22", "Fulano", "frete"):
         assert proibido not in t
 
 

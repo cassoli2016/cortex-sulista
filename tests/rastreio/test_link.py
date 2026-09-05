@@ -139,17 +139,54 @@ def test_o_payload_do_link_e_o_MESMO_da_busca(monkeypatch):
              "lat_coleta": None, "lng_coleta": None,
              "lat_entrega": None, "lng_entrega": None,
              "destinatario_nome": "CLIENTE X", "destinatario_cidade": "SANTOS",
-             "destinatario_uf": "SP"}
+             "destinatario_uf": "SP",
+             # O REGISTRO CRU DO ERP TRAZ MAIS QUE ISSO, e o dublê carrega o
+             # excedente de propósito: é ele que denuncia a cópia.
+             "valorfrete": 4200.0, "cnpjcpfcodigotomadorservico": "00514820000606"}
     monkeypatch.setattr(detalhe.db, "query", lambda *a, **k: [linha])
     monkeypatch.setattr(detalhe, "_notas", lambda ch: [])
     monkeypatch.setattr(detalhe, "_andamento", lambda ln: {"tem_posicao": False})
     c = detalhe.por_link(consulta.link_token(*CHAVES))["carga"]
     assert c["documento"] == "CT-e 359462"
     assert c["destino"] == "Santos/SP"
-    # A PLACA NÃO ATRAVESSA. `_limpo` monta por lista explícita; se alguém
-    # trocar isso por uma cópia do registro, a placa aparece aqui.
-    assert "AAA1A11" not in str(c)
+    # O REGISTRO NÃO ATRAVESSA. A montagem é por lista explícita; se alguém
+    # trocar isso por uma cópia do registro, o valor do frete e o CNPJ inteiro
+    # aparecem aqui. A placa saiu deste guard porque ela agora SAI de
+    # propósito — e sai por um campo nomeado, `transporte`, não de carona.
+    assert "4200" not in str(c) and "00514820000606" not in str(c)
 
+
+def test_o_link_leva_o_bloco_transporte(monkeypatch):
+    """QUEM ESPERA NA DOCA PRECISA DA PLACA E DO MOTORISTA, e o link do
+    WhatsApp é justamente o caminho de quem espera na doca — ele já provou o
+    CNPJ no cadastro da assinatura e carrega um token assinado.
+
+    O guard existe para o dia em que alguém "limpar" o payload: a página tem
+    de continuar dizendo que placa liberar na portaria, e o bloco tem de
+    continuar se chamando `transporte`, que é o nome que o `mensagem` NÃO
+    conhece.
+    """
+    linha = {"grupo": 1, "empresa": 1, "filial": 2, "numero": 359462,
+             "serie": 2, "dtemissao": None, "dtprevisaoentrega": None,
+             "dtentrega": None, "dtagendamentoentrega": None,
+             "dtiniciodescarga": None, "placa": "AAA1A11",
+             "carreta": "BBB2B22", "cidadecoleta": "DIADEMA", "ufcoleta": "SP",
+             "lat_coleta": None, "lng_coleta": None,
+             "lat_entrega": None, "lng_entrega": None,
+             "destinatario_nome": "CLIENTE X", "destinatario_cidade": "SANTOS",
+             "destinatario_uf": "SP", "motorista_nome": "JOSE DA SILVA",
+             "cliente_nome": "TUPY - JOINVILE/SC",
+             "pagador_nome": "TUPY - JOINVILE/SC"}
+    monkeypatch.setattr(detalhe.db, "query", lambda *a, **k: [linha])
+    monkeypatch.setattr(detalhe, "_notas", lambda ch: [])
+    monkeypatch.setattr(detalhe, "_andamento", lambda ln: {"tem_posicao": False})
+    t = detalhe.por_link(consulta.link_token(*CHAVES))["carga"]["transporte"]
+    assert t["cavalo"] == "AAA1A11" and t["carreta"] == "BBB2B22"
+    # SEM ACENTO INVENTADO: o ERP grava sem, e a normalização só troca a
+    # caixa. Devolver "José" seria escrever um nome que o cadastro não tem.
+    assert t["motorista"] == "Jose da Silva"
+    assert t["cliente"] == "TUPY - JOINVILE/SC"
+    assert t["pagador_igual_cliente"] is True
 
 # --------------------------------------------------------------------------
 # a página

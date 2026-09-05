@@ -4,6 +4,18 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.249.0] — 05/09/2026  ·  CX-05/09/2026-v0.249.0
+
+### Adicionado
+- A página "Onde está minha carga?" passou a dizer quem está levando: o cliente, o pagador do frete, o nome do motorista e as placas do cavalo e da carreta. Quem espera na doca precisa disso para liberar a portaria, e até agora pedia por telefone.
+- Quando o pagador do frete é o próprio cliente — que é o caso de praticamente todo CT-e — as duas informações saem numa linha só, em vez de repetir a mesma empresa duas vezes. No dia em que forem empresas diferentes, a página mostra as duas.
+- Carga de truck, sem implemento, simplesmente não mostra a linha da carreta: ausência de reboque não é informação faltando.
+- Nada disso entra na mensagem de WhatsApp, e é de propósito: a página pede o documento e os quatro dígitos do CNPJ a cada abertura, enquanto uma mensagem encaminhada vive para sempre num grupo. A busca também continua sem aceitar placa — quem procura carga procura pelo documento que tem em mãos.
+
+### Corrigido
+- Duas seções do histórico de versões nunca chegaram a ser publicadas: "Removido" e "Segurança". O texto estava escrito desde a versão 0.138.0 e não saía no CHANGELOG.md, nem na tela de Documentação, nem no que a API responde — entre o que voltou está o aviso de que a ficha de jornada por motorista saiu do ar sem substituta.
+- E o erro que apagou doze entregas hoje passou a acender sozinho: um nome de seção que o gerador não conheça agora quebra o teste, em vez de engolir o texto calado. O aviso anterior só acendia quando a versão inteira ficava vazia, e por isso essas duas seções passaram por baixo dele durante cem entregas.
+
 ## [0.248.1] — 05/09/2026  ·  CX-05/09/2026-v0.248.1
 
 ### Corrigido
@@ -1453,6 +1465,11 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 - A TELA DA RASTER ASSUMIU O ID `jorn`, que era o da tela antiga. Nao e detalhe tecnico: as concessoes de RBAC ja existentes continuam valendo, e quem tinha a jornada no menu ontem continua tendo hoje. Um id novo exigiria migration so para devolver acesso que as pessoas ja tinham - e, no intervalo, a jornada sumiria do menu de todo mundo que nao e administrador. Favorito antigo (#jorn) tambem continua abrindo.
 - O alerta de "excesso de direcao continua no mes" da Visao Geral mudou de fonte junto: era derivado dos macros do ERP e passou a contar as inconformidades DIRECAO ININTERRUPTA da RasterJOR - a mesma regra dos 5h30 da Lei 13.103, agora NOMEADA por quem apura jornada em vez de deduzida.
 
+### Removido
+- A tela "Jornada do Motorista" do ERP e a "Ficha de Jornada" (a consulta por motorista que se abria a partir dela), com as rotas /api/jornada/painel e /api/jornada/motorista e as consultas que as alimentavam. Modulo orfao volta a ser importado por engano, entao saiu inteiro em vez de ficar sem uso.
+- ATENCAO ao que isto tira: a ficha por motorista nao tem substituta. A tela nova traz o ranking com contagem, taxa por jornada e horas extras de cada um, mas nao a pagina individual com o historico dele. Se ela fizer falta, da para reconstrui-la sobre `jor_jornadas`, que tem o dado por motorista e por dia.
+- A apuracao do ERP CONTINUA EXISTINDO no banco e continua alimentando a folha - o que saiu foi a leitura dela pelo painel, nao o dado.
+
 ## [0.139.0] — 29/08/2026  ·  CX-29/08/2026-v0.139.0
 
 ### Adicionado
@@ -1516,6 +1533,9 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 - A CARGA DA RASTERJOR ESTA PARADA HA 136 DIAS e ninguem tinha notado. O ultimo dado de rasterjor_productivity_report e rasterjor_unconformities e de 15/04/2026; rasterjor_produtividade parou em 18/05 e rasterjor_anomalies em 27/05/2025 - quinze meses. A rotina que alimenta essas tabelas NAO roda no CORTEX, e externa, entao o painel nao conserta: denuncia. Saude do Servidor passa a marcar ERRO com os dias de atraso, e a tela abre com tarja dizendo ate quando vao os numeros.
 - A JANELA DA TELA E ANCORADA NO ULTIMO DADO, nao em hoje. Com a carga parada, uma janela de 90 dias contada de hoje devolveria zero linha e a tela abriria vazia - que se le como "ninguem rodou" em vez de "parou de chegar". Foi exatamente essa confusao que deixou a parada passar meses.
 - O atraso anunciado na tarja conta so as tabelas que a TELA usa. Sem essa distincao, o pior atraso pegava os 459 dias da tabela de anomalias - que a tela nem le - e a tarja anunciava 459 dias sobre numeros de 136. Alarme com o numero errado ensina a ignorar o alarme.
+
+### Segurança
+- O snapshot do Copiloto recebe os KPIs escalares E A DEFASAGEM, nunca a lista de motoristas. A defasagem vai junto de proposito: sem ela o chat responderia sobre jornada como se o dado fosse de hoje.
 
 ## [0.137.0] — 29/08/2026  ·  CX-29/08/2026-v0.137.0
 

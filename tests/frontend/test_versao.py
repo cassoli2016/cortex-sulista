@@ -63,7 +63,30 @@ def test_nenhum_numero_de_versao_se_repete():
 def test_toda_versao_tem_data_e_ao_menos_uma_mudanca():
     for v in documentacao.versoes():
         assert v["data"], v
-        assert v["adicionado"] or v["alterado"] or v["corrigido"], v
+        assert any(v[c] for c in documentacao._CAMPOS), v
+
+
+def test_o_YAML_NAO_TEM_CHAVE_QUE_O_GERADOR_IGNORA():
+    """CHAVE DESCONHECIDA SOME EM SILÊNCIO, e foi assim que doze entregas
+    (0.236.0 a 0.248.0) ficaram sem uma linha no CHANGELOG.md, no /api/versao e
+    na tela #doc: alguém escreveu `novo:` em vez de `adicionado:`, o texto
+    estava lá, e ninguém o via em lugar nenhum.
+
+    O guard acima só acende quando o bloco fica INTEIRAMENTE vazio — foi o que
+    salvou daquela vez. Ele não acendeu para `removido:` e `seguranca:`, que
+    vinham acompanhados de uma chave válida: essas sumiram caladas desde a
+    0.138.0. Este teste é o que fecha o buraco, e lê a chave DE VERDADE do
+    arquivo, não a normalizada por `versoes()`.
+    """
+    import yaml
+    cru = yaml.safe_load(
+        (RAIZ / "docs" / "versoes.yaml").read_text(encoding="utf-8"))
+    conhecidas = set(documentacao._CAMPOS) | {"versao", "data"}
+    estranhas = {v["versao"]: sorted(set(v) - conhecidas)
+                 for v in cru if set(v) - conhecidas}
+    assert not estranhas, (
+        "chave que o gerador ignora — o texto não sai em lugar nenhum: %s"
+        % estranhas)
 
 
 def test_endpoint_exige_sessao():

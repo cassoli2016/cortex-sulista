@@ -26,7 +26,19 @@ VERSOES_YAML = RAIZ / "docs" / "versoes.yaml"
 MANUAL_YAML = RAIZ / "docs" / "manual.yaml"
 INDEX = RAIZ / "api" / "static" / "index.html"
 
-_CAMPOS = ("adicionado", "alterado", "corrigido")
+#: As secoes do Keep a Changelog que este repo usa. **O QUE NAO ESTA AQUI SOME
+#: EM SILENCIO**: `versoes()` monta o item campo a campo, entao uma chave nova
+#: no YAML nao levanta erro nenhum — ela simplesmente nao existe para o
+#: CHANGELOG.md, para o /api/versao e para a tela #doc.
+#:
+#: Foi o que aconteceu com `novo:`, escrito por engano em DOZE entregas
+#: seguidas (0.236.0 a 0.248.0): o texto estava no YAML, ninguem o via em lugar
+#: nenhum, e o unico sinal era o `test_toda_versao_tem_data_e_ao_menos_uma_
+#: mudanca` vermelho em `tests/frontend/` — pasta que ninguem roda ao entregar
+#: um modulo de backend. `removido` e `seguranca` estavam no mesmo caso desde
+#: a 0.138.0, so que acompanhados de uma chave valida, e por isso nem o guard
+#: acendia: sumiam calados.
+_CAMPOS = ("adicionado", "alterado", "corrigido", "removido", "seguranca")
 
 
 # --------------------------------------------------------------- versões
@@ -81,7 +93,9 @@ def changelog_md() -> str:
         "versionamento [SemVer](https://semver.org/lang/pt-BR/).",
         "",
     ]
-    titulo = {"adicionado": "Adicionado", "alterado": "Alterado", "corrigido": "Corrigido"}
+    titulo = {"adicionado": "Adicionado", "alterado": "Alterado",
+              "corrigido": "Corrigido", "removido": "Removido",
+              "seguranca": "Segurança"}
     for v in versoes():
         linhas.append(f"## [{v['versao']}] — {data_br(v['data'])}  ·  {rotulo(v['versao'])}")
         linhas.append("")

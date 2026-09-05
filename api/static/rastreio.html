@@ -122,6 +122,20 @@ button.principal:active{background:#7d211b}
   letter-spacing:.06em;color:var(--n500);text-decoration:none;font-weight:600}
 .num b{display:block;font-family:var(--mono);font-size:19px;margin-top:3px;
   font-weight:600;line-height:1.2}
+/* DUAS COLUNAS JA NO CELULAR, e as linhas largas ocupam as duas. Empilhar as
+   cinco caixas empurrava a barra de progresso para baixo da dobra num 390px —
+   e o progresso e a resposta da pagina. As placas sao curtas e dividem a
+   linha; razao social e nome de gente, nao. */
+.quem{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;
+  margin-top:14px}
+.quem>div{background:var(--n50);border:1px solid var(--n200);border-radius:10px;
+  padding:10px 12px;min-width:0;grid-column:span 2}
+.quem>div.meia{grid-column:span 1}
+.quem u{display:block;font-size:11.5px;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--n500);text-decoration:none;font-weight:600}
+.quem b{display:block;font-size:15px;margin-top:2px;font-weight:600;
+  line-height:1.3;overflow-wrap:anywhere}
+.quem b.pl{font-family:var(--mono);font-size:18px;letter-spacing:.04em}
 .etapas{list-style:none;margin:16px 0 0;padding:0}
 .etapas li{display:grid;grid-template-columns:22px 1fr;gap:10px;
   padding:0 0 14px;position:relative}
@@ -304,6 +318,27 @@ function pintarDetalhe(c){
     ? `<p class="tit">Notas fiscais nesta carga</p><div class="notas">`
       + c.notas.map(n => `<b>${esc(n)}</b>`).join('') + `</div>` : '';
 
+  /* QUEM CONTRATOU E QUEM ESTA LEVANDO. Vem logo depois do estado porque e o
+     que quem espera na doca usa antes de tudo: liberar a portaria. O
+     destinatario mudou de lugar (era uma linha solta de dica) para nao dizer
+     a mesma classe de informacao em dois formatos diferentes. */
+  const tr = c.transporte || {};
+  const quemLinhas = [];
+  if(tr.cliente) quemLinhas.push([tr.pagador_igual_cliente
+    ? 'Cliente e pagador do frete' : 'Cliente', tr.cliente, '']);
+  /* SO SEPARA QUANDO HA O QUE SEPARAR: o pagador e a mesma empresa do cliente
+     em praticamente todo CT-e, e repetir a razao social e coluna constante. */
+  if(tr.pagador && !tr.pagador_igual_cliente)
+    quemLinhas.push(['Pagador do frete', tr.pagador, '']);
+  if(c.destinatario) quemLinhas.push(['Destinatário', c.destinatario, '']);
+  if(tr.motorista) quemLinhas.push(['Motorista', tr.motorista, '']);
+  if(tr.cavalo) quemLinhas.push(['Cavalo', tr.cavalo, 'meia']);
+  if(tr.carreta) quemLinhas.push(['Carreta', tr.carreta, 'meia']);
+  const quem = quemLinhas.length ? '<div class="quem">' + quemLinhas.map(
+    ([r,v,meia]) => `<div class="${meia}"><u>${esc(r)}</u>` +
+    `<b class="${meia ? 'pl' : ''}">${esc(v)}</b></div>`).join('')
+    + '</div>' : '';
+
   const t = a.transito;
   const transito = t ? `<p class="tit">Trânsito onde o veículo está</p>
       <div class="trans t-${esc(t.estado || 'nd')}"><span class="pt"></span>
@@ -331,8 +366,7 @@ function pintarDetalhe(c){
       <div style="margin-top:9px">
         <span class="selo ${SELO[c.estado] || 's-prep'}">${esc(c.estado_rotulo)}</span>
       </div>
-      ${c.destinatario ? `<p class="dica" style="margin-top:9px">Destinatário:
-        ${esc(c.destinatario)}</p>` : ''}
+      ${quem}
       <div style="margin-top:14px">${posicao}</div>
       ${nums.length ? '<div class="nums">' + nums.map(([r,v]) =>
         `<div class="num"><u>${esc(r)}</u><b>${esc(v)}</b></div>`).join('')
