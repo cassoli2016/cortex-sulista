@@ -119,6 +119,7 @@ _FONTES_ROTULO = {
     "premiacao": "Premiação de Motoristas",
     "dre_fechamento": "Fechamento do Mês",
     "pneus": "Pneus",
+    "pneus_cpk": "Pneus — CPK, km e previsão de troca",
     "people": "People Analytics",
     "ferias": "Férias — Vencimento",
     "ferias_custo": "Férias — Custo e passivo",
@@ -318,6 +319,39 @@ def _fontes_do_snapshot() -> dict:
         # nao pode consumir a cota que a coleta agendada precisa.
         from api.pneus import servico as pn
         return pn.obter()
+
+    def _pneus_cpk():
+        """CPK e previsao de troca — os numeros que NAO vem da Prolog.
+
+        Fonte separada de `_pneus` de proposito: aquele e o instantaneo (o que
+        existe e onde esta), este e o que o parque CUSTA e quando vai pedir
+        dinheiro. E ele nao gasta cota nenhuma — sai do banco da casa cruzado
+        com o ERP —, entao continua respondendo no dia em que a Prolog cair.
+        """
+        from api.pneus import servico as pn
+        r = pn.rendimento()
+        t = pn.troca()
+        # SO ESCALAR, como todo o snapshot: sem placa, sem id de pneu. E isso,
+        # e nao um filtro, que permite o fallback externo do chat.
+        return {
+            "cpk_mediano_rs_km": r.get("cpk_mediano"),
+            "pneus_avaliados": r.get("avaliados"),
+            "pneus_sem_custo_no_cadastro": r.get("sem_custo"),
+            "km_medido_12m": (r.get("km") or {}).get("km_cavalos"),
+            "km_confere": (r.get("km") or {}).get("ok"),
+            "melhores_modelos": [
+                {"marca": x.get("marca"), "modelo": x.get("modelo"),
+                 "medida": x.get("medida"), "cpk": x.get("cpk_mediano"),
+                 "pneus": x.get("pneus"), "km_mediano": x.get("km_mediano")}
+                for x in ((r.get("por_modelo") or {}).get("modelos") or [])
+                if x.get("suficiente")][:8],
+            "desgaste_frota_mm_1000km": t.get("taxa_frota_mm_1000km"),
+            "vida_implicita_km": t.get("vida_implicita_km"),
+            "pneus_abaixo_do_limite": t.get("vencidos_n"),
+            "pneus_abaixo_do_legal": t.get("ilegais_n"),
+            "trocas_previstas_30d": t.get("urgentes_30d"),
+            "ressalva": t.get("ressalva"),
+        }
 
     def _people():
         from api.people import get_people
@@ -593,6 +627,7 @@ def _fontes_do_snapshot() -> dict:
         "premiacao": _premiacao,
         "dre_fechamento": _fechamento,
         "pneus": _pneus,
+        "pneus_cpk": _pneus_cpk,
         "people": _people,
         "ferias": _ferias,
         "ferias_custo": _ferias_custo,

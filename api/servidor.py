@@ -1360,6 +1360,40 @@ def _servicos() -> list[dict]:
                 "detalhe": det})
     except Exception as exc:  # noqa: BLE001
         servicos.append({"nome": "Réplica de pneus", "status": "info",
+                         "detalhe": "não foi possível medir (%s)"
+                                    % type(exc).__name__})
+
+    # CPK E PREVISÃO DE TROCA: o que SOBREVIVE ao desligamento da Prolog.
+    #
+    # Cartão próprio, e não uma linha do anterior, porque ele mede outra coisa.
+    # A réplica pergunta "o retrato está chegando?"; este pergunta "o número que
+    # decide compra ainda sai?". Eles falham por motivos diferentes — o CPK sai
+    # do banco da casa cruzado com o ERP, então ele cai quando o ERP cai, não
+    # quando a cota da Prolog estoura.
+    #
+    # A CONFERÊNCIA É O QUE VIRA ALARME, não a existência do número: carreta
+    # tem de rodar menos que cavalo, e o dia em que essa razão passar de 100%
+    # o CPK inteiro está contando km duas vezes — com números perfeitamente
+    # plausíveis, que é o que torna isso perigoso.
+    try:
+        from .pneus import cpk as pneus_cpk
+        from .pneus import km as pneus_km
+        d = pneus_cpk.obter()
+        c = pneus_km.conferir()
+        det = ("%d pneus avaliados · CPK mediano R$ %.4f/km · km confere em %s%%"
+               % (d.get("avaliados") or 0, d.get("cpk_mediano") or 0,
+                  c.get("razao_pct")))
+        if d.get("sem_custo"):
+            det += " · %d sem custo no cadastro" % d["sem_custo"]
+        if d.get("leitura_velha"):
+            det += " · LEITURA DE %s" % d.get("leitura_em")
+        servicos.append({
+            "nome": "Pneus — CPK e km",
+            "status": ("alerta" if not c.get("ok") or not d.get("avaliados")
+                       else "ok"),
+            "detalhe": det})
+    except Exception as exc:  # noqa: BLE001
+        servicos.append({"nome": "Réplica de pneus", "status": "info",
                          "detalhe": "indisponível"})
         log.warning("saude: replica de pneus: %s", exc)
 

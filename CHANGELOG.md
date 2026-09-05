@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.243.1] — 05/09/2026  ·  CX-05/09/2026-v0.243.1
+
+### Corrigido
+- O Copiloto sabia o inventário de pneus mas não sabia o custo: passou a receber o CPK, os melhores modelos, o desgaste da frota e quantos pneus estão abaixo do limite. Perguntar "qual pneu rende mais" agora tem resposta. Só números agregados entram, como no resto do snapshot — nem placa, nem pneu identificado.
+- A Saúde do Servidor ganhou um cartão próprio para o CPK, separado do da réplica: eles falham por motivos diferentes, e o alarme aqui é a conferência do km (carreta tem de rodar menos que cavalo). No dia em que essa razão passar de 100%, o CPK inteiro está contando quilômetro duas vezes — com números plausíveis, que é o que torna isso perigoso.
+
 ## [0.243.0] — 05/09/2026  ·  CX-05/09/2026-v0.243.0
 
 ## [0.242.0] — 05/09/2026  ·  CX-05/09/2026-v0.242.0

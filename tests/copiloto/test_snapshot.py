@@ -137,3 +137,51 @@ def test_deteccao_de_falha_de_banco():
     assert copiloto._e_falha_de_banco(psycopg.OperationalError("x"))
     assert copiloto._e_falha_de_banco(RuntimeError("connection refused"))
     assert not copiloto._e_falha_de_banco(ValueError("coluna inexistente"))
+
+
+# --------------------------------------------------------------------------
+# pneus: o que sobrevive ao desligamento da Prolog
+# --------------------------------------------------------------------------
+def test_o_CPK_dos_pneus_entra_no_snapshot():
+    """A regra da casa: tela ou integração nova entra no snapshot do Copiloto no
+    MESMO commit. Aqui ela pesa mais que o normal — o CPK e a previsão de troca
+    são os números que decidem compra de pneu, e são também os únicos do módulo
+    que NÃO dependem da Prolog. Se o chat souber o inventário e não souber o
+    custo, ele responde a pergunta fácil e cala na que importa."""
+    from api import copiloto
+    fontes = copiloto._fontes_do_snapshot()
+    assert "pneus_cpk" in fontes
+    assert "pneus_cpk" in copiloto._FONTES_ROTULO
+
+
+def test_o_snapshot_de_pneus_leva_SO_ESCALAR(monkeypatch):
+    """PII no snapshot é o que impediria o fallback externo do chat. Placa e id
+    de pneu identificam veículo e ativo — e a lista de melhores modelos é
+    agregada por modelo, nunca por pneu."""
+    import json
+    import re
+
+    from api import copiloto
+    from api.pneus import servico
+
+    monkeypatch.setattr(servico, "rendimento", lambda *a, **k: {
+        "cpk_mediano": 0.03, "avaliados": 10, "sem_custo": 2,
+        "km": {"km_cavalos": 1000.0, "ok": True},
+        "por_modelo": {"modelos": [
+            {"marca": "X", "modelo": "Y", "medida": "Z", "cpk_mediano": 0.02,
+             "pneus": 9, "km_mediano": 30000, "suficiente": True}]},
+        "itens": [{"id": 7, "placa": "ABC1D23", "cpk": 0.02}]})
+    monkeypatch.setattr(servico, "troca", lambda *a, **k: {
+        "taxa_frota_mm_1000km": 0.1, "vida_implicita_km": 130000,
+        "vencidos_n": 3, "ilegais_n": 1, "urgentes_30d": 2, "ressalva": "…",
+        "itens": [{"id": 7, "placa": "ABC1D23", "dias_ate_recape": 5}],
+        "vencidos": [{"id": 8, "placa": "XYZ9Z99"}]})
+
+    d = copiloto._fontes_do_snapshot()["pneus_cpk"]()
+    texto = json.dumps(d, ensure_ascii=False, default=str)
+    assert not re.findall(r"[A-Z]{3}\d[0-9A-Z]\d{2}", texto), "placa no snapshot"
+    assert "itens" not in d and "vencidos" not in d, "lista de pneus no snapshot"
+    # e o que ele PRECISA levar está lá
+    for campo in ("cpk_mediano_rs_km", "desgaste_frota_mm_1000km",
+                  "pneus_abaixo_do_legal", "trocas_previstas_30d"):
+        assert campo in d, campo
