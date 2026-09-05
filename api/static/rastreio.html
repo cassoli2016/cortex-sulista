@@ -134,7 +134,11 @@ button.principal:active{background:#7d211b}
 .feito .bola{background:var(--green);border-color:var(--green)}
 .etapas .t{font-size:14.5px;font-weight:600;line-height:1.3}
 .etapas .q{font-size:12.5px;color:var(--n500);font-family:var(--mono)}
-#mapa{height:230px;margin-top:14px;border-radius:10px;overflow:hidden;
+.legenda{display:flex;flex-wrap:wrap;gap:6px 14px;margin:8px 0 0;
+  font-size:12px;color:var(--n500)}
+.legenda span{display:inline-flex;align-items:center;gap:5px}
+.legenda i{width:10px;height:10px;border-radius:50%;display:inline-block}
+#mapa{height:250px;margin-top:14px;border-radius:10px;overflow:hidden;
   border:1px solid var(--n200);background:var(--n100)}
 .leaflet-container{font-family:var(--font)}
 .notas{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
@@ -329,7 +333,13 @@ function pintarDetalhe(c){
       ${nums.length ? '<div class="nums">' + nums.map(([r,v]) =>
         `<div class="num"><u>${esc(r)}</u><b>${esc(v)}</b></div>`).join('')
         + '</div>' : ''}
-      ${(c.mapa && (c.mapa.origem || c.mapa.destino)) ? '<div id="mapa"></div>' : ''}
+      ${(c.mapa && (c.mapa.origem || c.mapa.destino))
+        ? '<div id="mapa"></div><p class="legenda">'
+          + '<span><i style="background:#636C76"></i>coleta</span>'
+          + '<span><i style="background:#1E7F4F"></i>entrega</span>'
+          + '<span><i style="background:#E0705F;border:1px solid #942821"></i>'
+          + 'onde o veículo está (área aproximada)</span></p>'
+        : ''}
       ${transito}
       ${notas}
       <ul class="etapas">${(c.etapas || []).map(e => `
@@ -389,10 +399,13 @@ async function desenharMapa(c){
     {maxZoom:16, attribution:'© OpenStreetMap'}).addTo(mapa);
 
   const pontos = [];
-  const pino = (cor, titulo) => L.divIcon({className:'', iconSize:[16,16],
-    iconAnchor:[8,8], html:`<div title="${titulo}" style="width:14px;height:14px;
-      border-radius:50%;background:${cor};border:2.5px solid #fff;
-      box-shadow:0 0 0 1px rgba(0,0,0,.25)"></div>`});
+  /* Coleta e entrega DESTA carga sao maiores que as paradas da rota: a rota e
+     o circuito do caminhao, e estes dois pontos sao os que interessam a quem
+     esta lendo. */
+  const pino = (cor, titulo) => L.divIcon({className:'', iconSize:[22,22],
+    iconAnchor:[11,11], html:`<div title="${titulo}" style="width:20px;height:20px;
+      border-radius:50%;background:${cor};border:3px solid #fff;
+      box-shadow:0 0 0 1px rgba(0,0,0,.3)"></div>`});
   if(m.origem){
     L.marker([m.origem.lat, m.origem.lng], {icon:pino('#636C76','Coleta')}).addTo(mapa);
     pontos.push([m.origem.lat, m.origem.lng]);
@@ -409,7 +422,19 @@ async function desenharMapa(c){
   if(rota.length > 1){
     L.polyline(rota.map(p => [p.lat, p.lng]),
       {color:'#942821', weight:4, opacity:.75}).addTo(mapa);
-    rota.forEach(p => pontos.push([p.lat, p.lng]));
+    /* AS PARADAS, NUMERADAS. Rota de coleta vai ate o ponto mais distante e
+       VOLTA recolhendo — sem as paradas marcadas a linha dobra sobre si e
+       parece mapa quebrado. Com o numero da ordem, a mesma linha se le como
+       um circuito. */
+    rota.forEach((p, i) => {
+      L.marker([p.lat, p.lng], {icon: L.divIcon({className:'', iconSize:[18,18],
+        iconAnchor:[9,9],
+        html:`<div title="${esc(p.nome || '')}" style="width:18px;height:18px;
+          border-radius:50%;background:#fff;border:2px solid #942821;
+          color:#942821;font:700 10px/14px var(--font);text-align:center">
+          ${i+1}</div>`})}).addTo(mapa);
+      pontos.push([p.lat, p.lng]);
+    });
   }else if(m.origem && m.destino){
     L.polyline([[m.origem.lat,m.origem.lng],[m.destino.lat,m.destino.lng]],
       {color:'#9AA3AE', weight:2, dashArray:'6 8'}).addTo(mapa);

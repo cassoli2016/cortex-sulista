@@ -140,20 +140,39 @@ def test_a_posicao_publicada_e_ARREDONDADA_e_nao_a_exata(cenario):
     cenario(-28.123456, -50.987654, minutos_atras=1)
     a = detalhe._andamento(_linha())
     area = a["area"]
-    assert area["lat"] == -28.1 and area["lng"] == -51.0
+    # cai na grade do círculo, e a grade NÃO é a coordenada de verdade
+    passo = detalhe.AREA_PASSO_GRAU
+    assert abs(area["lat"] / passo - round(area["lat"] / passo)) < 1e-6
+    assert abs(area["lng"] / passo - round(area["lng"] / passo)) < 1e-6
     assert area["lat"] != -28.123456 and area["lng"] != -50.987654
-    assert area["raio_km"] >= 10, (
-        "o raio encolheu: a página vira rastreador de caminhão")
     # e a coordenada CHEIA nao aparece em lugar nenhum do payload
     texto = repr(a)
     assert "28.123456" not in texto and "50.987654" not in texto
 
 
-def test_o_raio_do_circulo_nao_pode_encolher_em_silencio():
-    """Um teste sobre a CONSTANTE, de propósito. Diminuí-la é a mudança de uma
-    linha que transformaria a página pública num rastreador — e é o tipo de
-    ajuste que passa numa revisão distraída."""
-    assert detalhe.AREA_RAIO_KM >= 10
+def test_o_circulo_e_do_TAMANHO_da_incerteza():
+    """O invariante que substituiu "o raio não pode ser menor que 10 km".
+
+    Aquele teste acendeu quando o raio caiu de 12 para 5 km — e acendeu certo,
+    porque forçou a conversa. Mas o número fixo era a regra errada: o que não
+    pode acontecer é o CÍRCULO PROMETER MAIS PRECISÃO QUE A COORDENADA TEM.
+    Desenhar 2 km em cima de um valor arredondado a 11 km é uma mentira
+    desenhada, e quem olha acredita no desenho.
+
+    Então os dois andam juntos: o raio tem de cobrir o passo do
+    arredondamento. Encolher um sem o outro acende aqui.
+    """
+    passo_km = detalhe.AREA_PASSO_GRAU * 111.0      # 1 grau ~ 111 km
+    assert detalhe.AREA_RAIO_KM >= passo_km * 0.8, (
+        "o círculo (%s km) é menor que a incerteza da coordenada (%.1f km)"
+        % (detalhe.AREA_RAIO_KM, passo_km))
+
+
+def test_a_coordenada_publicada_nunca_e_a_original():
+    """A regra que não muda com o tamanho do círculo."""
+    for lat, lng in ((-23.6794267, -46.3554193), (-22.375943, -47.547378)):
+        assert detalhe._arredondar(lat) != lat
+        assert detalhe._arredondar(lng) != lng
 
 
 def test_sem_coordenada_de_entrega_nao_inventa_progresso(cenario):

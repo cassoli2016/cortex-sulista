@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.234.1] — 04/09/2026  ·  CX-04/09/2026-v0.234.1
+
+### Corrigido
+- O círculo que mostra onde o veículo está caiu de 12 para 5 quilômetros de raio. O anterior cobria metade do ABC e virava o assunto do mapa, escondendo a rota.
+- O mapa passou a marcar as PARADAS da rota, numeradas e com o nome da cidade. Rota de coleta vai até o ponto mais distante e volta recolhendo — sem as paradas marcadas, a linha dobrava sobre si e parecia mapa quebrado, quando era o caminho real.
+- Os pontos de coleta e entrega da carga ficaram maiores que as paradas do circuito, e o mapa ganhou legenda dizendo o que é cada cor.
+
 ## [0.234.0] — 04/09/2026  ·  CX-04/09/2026-v0.234.0
 
 ### Adicionado

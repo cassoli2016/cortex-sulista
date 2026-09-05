@@ -38,11 +38,27 @@ log = logging.getLogger("cortex.rastreio.detalhe")
 #: a folga precisa ser generosa, ou toda viagem viraria "fora da rota".
 FORA_DA_ROTA_KM = 60
 
-#: O raio do circulo que o mapa desenha, em km. A posicao vai arredondada a
-#: uma casa decimal (~11 km) e o circulo diz isso: a REGIAO onde o veiculo
-#: esta, nunca o ponto. Diminuir isto sem conversar transforma a pagina
-#: publica em rastreador de caminhao.
-AREA_RAIO_KM = 12
+#: O raio do circulo que o mapa desenha, em km, e o passo do arredondamento
+#: da coordenada. Os dois andam JUNTOS de proposito: o circulo tem de ser do
+#: tamanho da incerteza real, senao ele mente — desenhar 2 km em cima de uma
+#: coordenada arredondada a 11 km promete uma precisao que o numero nao tem.
+#:
+#: Comecou em 12 km e caiu para 5 depois de ver no mapa: 12 km cobria metade
+#: do ABC e o circulo virava o assunto da tela, escondendo a rota.
+#:
+#: O QUE MUDA NA SEGURANCA, dito com honestidade: pouco, e por um motivo que
+#: so ficou claro com a tela pronta — a ROTA e desenhada. Um circulo sobre uma
+#: rota visivel ja indica o trecho, seja ele de 5 ou de 12 km. O que protege
+#: de verdade continua sendo nao publicar a coordenada, e e isso que o
+#: arredondamento faz.
+AREA_RAIO_KM = 5
+AREA_PASSO_GRAU = 0.05          # ~5,5 km, do tamanho do circulo
+
+
+def _arredondar(v: float) -> float:
+    """Coordenada na grade do circulo. `round(v, 1)` dava 11 km; o passo agora
+    acompanha o raio desenhado."""
+    return round(round(float(v) / AREA_PASSO_GRAU) * AREA_PASSO_GRAU, 4)
 
 #: Abaixo disto o veículo é tratado como CHEGADO. Não é chute: é a ordem de
 #: grandeza de um pátio grande mais o erro do GPS. Menos que isso faria a carga
@@ -291,10 +307,16 @@ def _andamento(linha: dict) -> dict:
             fora["rodovia"] = pr.get("rodovia")
             fora["por_rota"] = True
             fora["chegou"] = pr["falta_km"] <= RAIO_CHEGADA_KM
-            fora["area"] = {"lat": round(float(pos["lat"]), 1),
-                            "lng": round(float(pos["lng"]), 1),
+            fora["area"] = {"lat": _arredondar(pos["lat"]),
+                            "lng": _arredondar(pos["lng"]),
                             "raio_km": AREA_RAIO_KM}
-            fora["rota_pontos"] = [{"lat": x["lat"], "lng": x["lng"]}
+            # AS PARADAS VAO JUNTO. Sem elas, uma rota de coleta que vai ate
+            # o ponto mais distante e VOLTA recolhendo parece uma linha
+            # cruzada, e quem olha conclui que o mapa esta quebrado. Com os
+            # pontos marcados, a mesma linha se le como o que e: um circuito
+            # com paradas.
+            fora["rota_pontos"] = [{"lat": x["lat"], "lng": x["lng"],
+                                    "nome": (x.get("cidadepassa") or "").strip().title()}
                                    for x in r["pontos"]]
             t = _transito(pos["lat"], pos["lng"])
             if t:
@@ -329,8 +351,8 @@ def _andamento(linha: dict) -> dict:
     # numa rodovia. E o que foi decidido para esta pagina, e o mapa desenha um
     # CIRCULO com esse raio em vez de um alfinete — alfinete promete precisao
     # que este numero nao tem, e quem olha acredita no alfinete.
-    fora["area"] = {"lat": round(float(pos["lat"]), 1),
-                    "lng": round(float(pos["lng"]), 1),
+    fora["area"] = {"lat": _arredondar(pos["lat"]),
+                    "lng": _arredondar(pos["lng"]),
                     "raio_km": AREA_RAIO_KM}
     # O TRANSITO le a coordenada CHEIA (ela nao sai daqui) porque a leitura da
     # TomTom e do trecho de estrada, e arredondar antes cairia noutro trecho.
