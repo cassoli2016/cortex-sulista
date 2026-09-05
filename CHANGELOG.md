@@ -4,9 +4,24 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.248.1] — 05/09/2026  ·  CX-05/09/2026-v0.248.1
+
+### Corrigido
+- Doze entregas seguidas ficaram com o texto de novidades escrito e invisível: o histórico de versões só reconhece três seções e eu vinha usando um nome que não é nenhuma delas. O arquivo tinha o texto, o CHANGELOG e a tela de Documentação mostravam a versão vazia. Vinte e três descrições voltaram — desde a estrada com o caminhão na mensagem de WhatsApp até a aba de registro de pneus.
+
 ## [0.248.0] — 05/09/2026  ·  CX-05/09/2026-v0.248.0
 
+### Adicionado
+- A tela de Pneus ganhou a aba "Registrar": dá para lançar por ela que um pneu foi montado num veículo, retirado, baixado ou medido — e isso fica gravado no CÓRTEX, não na Prolog. É a primeira vez que o módulo escreve em vez de só copiar.
+- A posição não se digita, se escolhe: a lista vem do diagrama de eixos daquele veículo. Campo livre é o jeito de encher o cadastro de posições que não existem, e depois ninguém sabe quais são reais.
+- Quando o sistema recusa, ele diz por quê e o texto chega inteiro — "a posição 1DE de ABC1D23 já está com o pneu X" é informação para quem digitou, não erro técnico. E a lista embaixo mostra só o que foi lançado aqui, separado do que veio importado, que é o número a acompanhar enquanto a operação migra.
+
 ## [0.246.0] — 05/09/2026  ·  CX-05/09/2026-v0.246.0
+
+### Adicionado
+- O CÓRTEX passou a saber registrar movimento de pneu por conta própria: montar num veículo, remover, dar baixa e lançar uma medição de sulco. Até aqui ele só copiava o que a Prolog registrava; agora ele grava, e continua gravando no dia em que a integração acabar.
+- O que separa isso de um formulário são as recusas. A posição tem de existir naquele veículo e tem de estar livre — dois pneus na mesma posição é o erro que não se descobre, porque o inventário fecha e o custo por quilômetro passa a dividir por um km que só um dos dois rodou. O estado do pneu tem de permitir o movimento, o hodômetro e o sulco têm de caber na faixa do possível, e o motivo da baixa vem da lista, não de texto livre.
+- Cada veículo passou a ter o diagrama de eixos dele, o que é o que permite dizer "a posição 3DE existe neste caminhão". De brinde veio um número que ninguém media: 42 veículos estão com menos pneus do que o diagrama prevê, 172 pneus no total — parte deles são carretas desmontadas, mas não todos.
 
 ## [0.245.1] — 05/09/2026  ·  CX-05/09/2026-v0.245.1
 
@@ -15,7 +30,16 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [0.245.0] — 05/09/2026  ·  CX-05/09/2026-v0.245.0
 
+### Adicionado
+- O CÓRTEX passou a trazer as inspeções de pneu como elas realmente são: alguém foi ao pátio, mediu os quatro sulcos e a pressão de cada pneu do veículo, e o registro guarda a data e o HODÔMETRO daquele momento. Até aqui só existiam as medições que vinham de carona numa movimentação.
+- Com o hodômetro na inspeção, o desgaste vira uma subtração entre duas leituras do mesmo painel — em vez de depender de cruzar a placa com o abastecimento e o engate. O cálculo antigo continua atendendo as carretas, que não têm hodômetro, e a previsão passou a dizer qual dos dois sustentou cada número.
+
 ## [0.244.0] — 05/09/2026  ·  CX-05/09/2026-v0.244.0
+
+### Adicionado
+- O CÓRTEX passou a guardar as tabelas que dizem o que as coisas significam no controle de pneus: os 44 diagramas de eixo (quais posições cada tipo de veículo tem, com quantos pneus em cada eixo) e os 18 motivos de descarte. Elas vinham da Prolog e só existiam lá — sem elas, no dia em que a integração acabar, o histórico vira uma coleção de códigos que ninguém consegue ler.
+- A tabela de diagramas estava vazia desde que o módulo nasceu. É ela que permite afirmar que a posição "3DE" existe naquele veículo — e sem isso um cadastro próprio de montagem aceitaria qualquer coisa digitada.
+- A Saúde do Servidor passou a medir essas tabelas. O alarme não é o dia a dia: é elas estarem vazias, porque vazio quer dizer que a cópia nunca aconteceu — e isso só se descobre quando já é tarde.
 
 ## [0.243.1] — 05/09/2026  ·  CX-05/09/2026-v0.243.1
 
@@ -25,7 +49,17 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [0.243.0] — 05/09/2026  ·  CX-05/09/2026-v0.243.0
 
+### Adicionado
+- A previsão de troca chegou à tela: Pneus ganhou a aba "Previsão de troca", com os pneus que chegam ao limite primeiro — quantos km faltam, em quantos dias e em que data, no ritmo daquele veículo. Hoje são 8 nos próximos 30 dias.
+- Ao lado, a lista dos que JÁ passaram do limite, separada da previsão porque é outra decisão: 64 pneus no ponto de recapar, 15 deles abaixo do mínimo legal — esses precisam de oficina hoje, não de planejamento.
+- E um cartão dizendo de onde vem a taxa de cada previsão: do próprio pneu, do modelo ou da média da frota. Com 2.299 pneus usando a média geral e 79 com série própria, "previsão" quer dizer coisas bem diferentes — esconder isso venderia uma confiança que o dado ainda não tem.
+
 ## [0.242.0] — 05/09/2026  ·  CX-05/09/2026-v0.242.0
+
+### Adicionado
+- O módulo de pneus passou a prever QUANDO cada pneu chega ao limite, por desgaste medido e não por calendário: quantos milímetros ele perde a cada mil quilômetros, quantos km ainda faltam e em que data isso acontece no ritmo daquele veículo. Dois pneus montados no mesmo dia, um num cavalo de dupla pegada e outro numa carreta parada, chegam ao limite com meses de diferença — e é essa diferença que a previsão mostra.
+- A previsão diz de onde veio a taxa usada: do próprio pneu, do modelo dele ou da frota. As três respondem a mesma pergunta com confianças bem diferentes, e apresentá-las iguais faria alguém programar a troca de um pneu pela média de outros sem saber. Onde não há base nenhuma, não sai data — sai a lacuna com o motivo.
+- Pneu que JÁ passou do limite sai numa lista separada da previsão: ele não "chega lá em zero dias", ele já chegou, e precisa de oficina hoje. Hoje são 64 nessa situação, 15 deles abaixo do mínimo legal.
 
 ## [0.241.1] — 05/09/2026  ·  CX-05/09/2026-v0.241.1
 
@@ -34,13 +68,25 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [0.241.0] — 05/09/2026  ·  CX-05/09/2026-v0.241.0
 
+### Adicionado
+- A tela de Pneus ganhou a aba "CPK e km": o custo por quilômetro por modelo, que é onde a compra se decide. Mediana e não média, mínimo de cinco pneus para o modelo ser avaliado, e o km mediano ao lado do CPK — comparar modelos de maturidades muito diferentes é o engano que isso evita.
+- A aba mostra também de onde vem o km e as duas conferências dele, na tela e não no log: carreta tem de rodar menos que cavalo, e o número bate com o hodômetro que a Prolog registra na montagem. Mandar o CPK sem isso seria pedir para acreditar.
+- As lacunas são parte da resposta, não rodapé: quantos pneus ainda não rodaram o bastante para serem avaliados, quantos estão sem custo no cadastro e quantos têm custo impossível. É a lista de trabalho de quem cuida do cadastro.
+
 ## [0.240.0] — 05/09/2026  ·  CX-05/09/2026-v0.240.0
+
+### Adicionado
+- Responda CARGAS no WhatsApp e receba a lista do que você acompanha agora, a qualquer hora, com o número de cada carga para poder sair de uma delas. Antes, o único lugar com esses números era a última mensagem horária — quem quisesse sair de uma à noite teria de rolar a conversa para trás, e esse atrito é o que faz a pessoa mandar SAIR e sumir de todas. O rodapé passou a ensinar o comando quando há mais de uma carga.
 
 ### Corrigido
 - Quem cadastrava e cancelava algumas cargas no mesmo dia ficava trancado fora do próprio cadastro: o limite contava as inscrições CRIADAS em 24h, não as ativas, então cancelar não devolvia a vaga. Agora são dois limites com propósitos diferentes — cinco cargas ao mesmo tempo (cancelar libera na hora) e um teto separado, bem mais folgado, contra quem tentasse usar a página para encher o WhatsApp de outra pessoa.
 - Um teste que protegia dados pessoais nunca protegeu nada: a expressão de busca dele tinha um caractere invisível que a fazia não encontrar coluna nenhuma, e todas as verificações passavam sem verificar. Corrigido e conferido com sabotagem; uma varredura nova impede que outro caractere desses entre no código.
 
 ## [0.239.0] — 05/09/2026  ·  CX-05/09/2026-v0.239.0
+
+### Adicionado
+- Quem acompanha mais de uma carga passou a receber UMA mensagem por hora com todas elas, e não uma por carga. Com cinco cargas eram 70 mensagens por dia para a mesma pessoa — acima do teto de 60 por número, então ela simplesmente parava de receber no meio da tarde, sem nenhum aviso. E cinco notificações por hora do mesmo número é o que faz alguém bloquear o contato.
+- Dá para sair de UMA carga sem sair das outras: responda SAIR e o número (ex.: SAIR 94537). O rodapé só ensina essa sintaxe quando há mais de uma carga, para não complicar o caso comum, e SAIR sozinho continua cancelando tudo. Quando o número não é de nenhuma carga da pessoa, nada é cancelado — cair para "cancela tudo" faria quem quis sair de uma sair de todas sem ter pedido.
 
 ## [0.238.3] — 05/09/2026  ·  CX-05/09/2026-v0.238.3
 
@@ -59,6 +105,10 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [0.238.0] — 05/09/2026  ·  CX-05/09/2026-v0.238.0
 
+### Adicionado
+- A barra de progresso do aviso de WhatsApp virou uma estrada com o caminhão em cima: blocos verdes atrás dele, brancos à frente, bandeira quadriculada na entrega. Na notificação do celular, que é onde a mensagem é lida de relance, um traço somia no meio do texto — um bloco colorido não some. O caminhão nunca chega à última posição antes de 100%: ali ele seria lido como "chegou".
+- O link do "acompanhe ao vivo" caiu de 96 para 60 caracteres — de três linhas para uma. O endereço ficou "/r" e o código foi compactado. Os links já enviados continuam funcionando: recusá-los transformaria "encurtamos o link" em "os links que você recebeu pararam".
+
 ## [0.237.1] — 05/09/2026  ·  CX-05/09/2026-v0.237.1
 
 ### Corrigido
@@ -67,6 +117,11 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 - O hodômetro vem sujo e agora é limpo na entrada: 31 de 478 leituras traziam valores impossíveis (1 km, 134 km, 7,3 milhões) e 28 placas vinham com espaço ou tabulação, o que fazia o veículo não casar com o cadastro — em silêncio, virando "sem km".
 
 ## [0.237.0] — 05/09/2026  ·  CX-05/09/2026-v0.237.0
+
+### Adicionado
+- O módulo de pneus ganhou o número que faltava: o CPK, custo por quilômetro. Ele não vinha da Prolog — o km chegava vazio nos 2.497 movimentos importados, 100% — e passou a sair de casa: odômetro do abastecimento para os cavalos, e para as carretas o km do cavalo que as puxou, pelo engate do manifesto. Cobertura medida: 96% dos pneus de tração e 98% das carretas.
+- O CPK já separa o que se compara do que não se compara. Pneu recapado usa o custo da recapagem, não o do pneu novo; custo fora da faixa física (o cadastro tem de R$ 0,01 a R$ 1,3 milhão) vira lacuna com o valor à vista, para corrigir; e pneu recém-montado fica "em formação" em vez de liderar a lista dos piores só por ainda não ter rodado.
+- Comparação por modelo, que é onde a compra se decide: mediana e não média, mínimo de cinco pneus para o modelo ser avaliado, e o km mediano ao lado do CPK — comparar modelos de maturidades diferentes é o engano que isso evita.
 
 ### Corrigido
 - Duas telas podiam trocar de resultado entre si. O cache do sistema guardava a resposta pelo NOME da função, então duas funções de mesmo nome em partes diferentes do sistema dividiam a mesma entrada e uma devolvia o número da outra. Nenhuma tela existente foi afetada — a conferência varreu as 53 funções cacheadas e só o par novo colidia —, mas o defeito estava lá desde sempre e o sintoma seria um número errado, calado.
@@ -87,6 +142,10 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 - O link que vai no aviso de WhatsApp morria a cada atualização do sistema. A chave que assina esses links nascia junto com o processo da API — o que bastava quando o link só valia dentro de uma busca, mas não quando ele fica 20 dias no celular do cliente e o sistema se atualiza várias vezes por dia. Quem clicasse depois de uma atualização veria "este link expirou", e ninguém aqui ficaria sabendo. A chave passou a ser gravada em arquivo protegido, e a Saúde do Servidor mede a proteção dele.
 
 ## [0.236.0] — 04/09/2026  ·  CX-04/09/2026-v0.236.0
+
+### Adicionado
+- O aviso de carga por WhatsApp ficou legível de relance: barra de progresso desenhada com blocos, emojis para o trecho, a estrada e o semáforo do trânsito, e o horário da última posição. A barra não arredonda para as pontas — 99% nunca aparece como cheio, porque "cheio" é lido como "chegou" e faz quem espera descer para a doca.
+- Toda mensagem passou a trazer um link que abre a carga JÁ ABERTA, sem precisar digitar de novo o documento e o CNPJ. O link é assinado, vence em 20 dias e viaja no fragmento do endereço — a parte que não sai do aparelho, então ele não fica gravado em log de acesso nenhum. Quem chega por ele vê a página inteira, e a própria página apaga o link da barra de endereços depois de ler.
 
 ## [0.235.2] — 04/09/2026  ·  CX-04/09/2026-v0.235.2
 

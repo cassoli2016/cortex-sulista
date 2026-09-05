@@ -1,6 +1,16 @@
+- versao: "0.248.1"
+  data: "2026-09-05"
+  corrigido:
+    - >-
+      Doze entregas seguidas ficaram com o texto de novidades escrito e
+      invisível: o histórico de versões só reconhece três seções e eu vinha
+      usando um nome que não é nenhuma delas. O arquivo tinha o texto, o
+      CHANGELOG e a tela de Documentação mostravam a versão vazia. Vinte e três
+      descrições voltaram — desde a estrada com o caminhão na mensagem de
+      WhatsApp até a aba de registro de pneus.
 - versao: "0.248.0"
   data: "2026-09-05"
-  novo:
+  adicionado:
     - >-
       A tela de Pneus ganhou a aba "Registrar": dá para lançar por ela que um
       pneu foi montado num veículo, retirado, baixado ou medido — e isso fica
@@ -18,7 +28,7 @@
       enquanto a operação migra.
 - versao: "0.246.0"
   data: "2026-09-05"
-  novo:
+  adicionado:
     - >-
       O CÓRTEX passou a saber registrar movimento de pneu por conta própria:
       montar num veículo, remover, dar baixa e lançar uma medição de sulco. Até
@@ -49,7 +59,7 @@
       139 pneus com medição própria, e 26 deles já vêm do hodômetro direto.
 - versao: "0.245.0"
   data: "2026-09-05"
-  novo:
+  adicionado:
     - >-
       O CÓRTEX passou a trazer as inspeções de pneu como elas realmente são:
       alguém foi ao pátio, mediu os quatro sulcos e a pressão de cada pneu do
@@ -63,7 +73,7 @@
       dois sustentou cada número.
 - versao: "0.244.0"
   data: "2026-09-05"
-  novo:
+  adicionado:
     - >-
       O CÓRTEX passou a guardar as tabelas que dizem o que as coisas significam
       no controle de pneus: os 44 diagramas de eixo (quais posições cada tipo
@@ -96,7 +106,7 @@
       vezes — com números plausíveis, que é o que torna isso perigoso.
 - versao: "0.243.0"
   data: "2026-09-05"
-  novo:
+  adicionado:
     - >-
       A previsão de troca chegou à tela: Pneus ganhou a aba "Previsão de
       troca", com os pneus que chegam ao limite primeiro — quantos km faltam,
@@ -113,7 +123,7 @@
       isso venderia uma confiança que o dado ainda não tem.
 - versao: "0.242.0"
   data: "2026-09-05"
-  novo:
+  adicionado:
     - >-
       O módulo de pneus passou a prever QUANDO cada pneu chega ao limite, por
       desgaste medido e não por calendário: quantos milímetros ele perde a cada
@@ -144,7 +154,7 @@
       feitas no pátio, essas, ficaram todas.
 - versao: "0.241.0"
   data: "2026-09-05"
-  novo:
+  adicionado:
     - >-
       A tela de Pneus ganhou a aba "CPK e km": o custo por quilômetro por
       modelo, que é onde a compra se decide. Mediana e não média, mínimo de
@@ -163,7 +173,7 @@
       cuida do cadastro.
 - versao: "0.240.0"
   data: "2026-09-05"
-  novo:
+  adicionado:
     - >-
       Responda CARGAS no WhatsApp e receba a lista do que você acompanha agora,
       a qualquer hora, com o número de cada carga para poder sair de uma delas.
@@ -187,7 +197,7 @@
       desses entre no código.
 - versao: "0.239.0"
   data: "2026-09-05"
-  novo:
+  adicionado:
     - >-
       Quem acompanha mais de uma carga passou a receber UMA mensagem por hora
       com todas elas, e não uma por carga. Com cinco cargas eram 70 mensagens
@@ -232,7 +242,7 @@
       responde onde o sistema mora, e um teste impede a próxima cópia.
 - versao: "0.238.0"
   data: "2026-09-05"
-  novo:
+  adicionado:
     - >-
       A barra de progresso do aviso de WhatsApp virou uma estrada com o
       caminhão em cima: blocos verdes atrás dele, brancos à frente, bandeira
@@ -268,7 +278,7 @@
       em silêncio, virando "sem km".
 - versao: "0.237.0"
   data: "2026-09-05"
-  novo:
+  adicionado:
     - >-
       O módulo de pneus ganhou o número que faltava: o CPK, custo por
       quilômetro. Ele não vinha da Prolog — o km chegava vazio nos 2.497
@@ -328,7 +338,7 @@
       arquivo protegido, e a Saúde do Servidor mede a proteção dele.
 - versao: "0.236.0"
   data: "2026-09-04"
-  novo:
+  adicionado:
     - >-
       O aviso de carga por WhatsApp ficou legível de relance: barra de
       progresso desenhada com blocos, emojis para o trecho, a estrada e o
