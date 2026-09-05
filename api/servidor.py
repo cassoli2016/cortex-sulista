@@ -1393,6 +1393,34 @@ def _servicos() -> list[dict]:
                        else "ok"),
             "detalhe": det})
     except Exception as exc:  # noqa: BLE001
+        servicos.append({"nome": "Pneus — CPK e km", "status": "info",
+                         "detalhe": "não foi possível calcular (%s)"
+                                    % type(exc).__name__})
+
+    # AS TABELAS DE DOMINIO, e este cartao existe por causa do PRAZO. Elas sao
+    # o que a casa precisa ter ANTES de a Prolog sair: sem os diagramas nao ha
+    # como validar posicao, e sem os motivos o `pne_evento.motivo` fica sendo um
+    # codigo que so ela sabe ler. Nada aqui alarma no dia a dia — o alarme e
+    # estar VAZIO, porque vazio quer dizer que a copia nunca aconteceu.
+    try:
+        from .pneus import cadastro as pneus_cad
+        e = pneus_cad.estado()
+        if e.get("erro"):
+            servicos.append({"nome": "Pneus — tabelas de domínio",
+                             "status": "info",
+                             "detalhe": "banco da casa indisponível"})
+        else:
+            mot = sum((e.get("motivos") or {}).values())
+            servicos.append({
+                "nome": "Pneus — tabelas de domínio",
+                "status": "alerta" if not e.get("diagramas") else "ok",
+                "detalhe": ("%d diagrama(s) de eixo · %d motivo(s) de descarte"
+                            % (e.get("diagramas") or 0, mot))})
+    except Exception as exc:  # noqa: BLE001
+        servicos.append({"nome": "Pneus — tabelas de domínio", "status": "info",
+                         "detalhe": "não foi possível medir (%s)"
+                                    % type(exc).__name__})
+    except Exception as exc:  # noqa: BLE001
         servicos.append({"nome": "Réplica de pneus", "status": "info",
                          "detalhe": "indisponível"})
         log.warning("saude: replica de pneus: %s", exc)

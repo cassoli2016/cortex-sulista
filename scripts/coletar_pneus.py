@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from api.pneus import cliente as cli
+from api.pneus import cadastro, cliente as cli
 from api.pneus import coleta
 
 alvos = [a.upper() for a in sys.argv[1:] if a.upper() in cli.STATUS] or None
@@ -60,6 +60,18 @@ try:
     rs = replica.semear()
     print(f"  replica: {rs.get('pneus')} pneu(s) · +{rs.get('novos')} novo(s) · "
           f"{rs.get('vidas')} vida(s) · {rs.get('inspecoes')} inspecao(oes)")
+
+    # AS TABELAS DE DOMINIO ANTES do historico, e de proposito: sao 2
+    # requisicoes contra as 8 do historico, quase nunca mudam, e sao elas que
+    # dao SIGNIFICADO ao que o historico traz. Se a cota acabar no meio, e
+    # melhor ter o dicionario e menos historia do que o contrario.
+    try:
+        rc = cadastro.sincronizar()
+        print("  dominio: %s diagrama(s), %s motivo(s)%s"
+              % (rc.get("diagramas"), rc.get("motivos"),
+                 "" if rc.get("ok") else " (com falha: %s)" % rc.get("erro")))
+    except Exception as exc:  # noqa: BLE001
+        print("  dominio: FALHOU (%s)" % type(exc).__name__)
 
     rh = historico.sincronizar()
     marca = "" if rh.get("ok") else "  [PAROU: %s]" % (rh.get("erro") or "")[:60]

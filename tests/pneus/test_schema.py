@@ -33,9 +33,14 @@ def test_as_tabelas_do_modulo_existem(esquema_pg):
         WHERE table_schema = %s AND table_name LIKE 'pne_%%'
         ORDER BY 1""", (esquema_pg,))
     nomes = {r["table_name"] for r in linhas}
+    # A LISTA E EXATA de proposito: tabela nova no modulo acende aqui, e a
+    # conversa acontece na revisao. `pne_motivo` entrou em 05/09/2026 com as
+    # tabelas de dominio da Prolog (motivos de descarte) — sem ela,
+    # `pne_evento.motivo` fica sendo um codigo que so a Prolog sabe ler, e o
+    # objetivo declarado e que um dia ela nao esteja mais la.
     assert nomes == {"pne_diagrama", "pne_evento", "pne_inspecao",
-                     "pne_modelo", "pne_pneu", "pne_sync", "pne_veiculo",
-                     "pne_vida"}
+                     "pne_modelo", "pne_motivo", "pne_pneu", "pne_sync",
+                     "pne_veiculo", "pne_vida"}
 
 
 def test_o_status_do_pneu_e_fechado(esquema_pg):

@@ -1,3 +1,21 @@
+- versao: "0.244.0"
+  data: "2026-09-05"
+  novo:
+    - >-
+      O CÓRTEX passou a guardar as tabelas que dizem o que as coisas significam
+      no controle de pneus: os 44 diagramas de eixo (quais posições cada tipo
+      de veículo tem, com quantos pneus em cada eixo) e os 18 motivos de
+      descarte. Elas vinham da Prolog e só existiam lá — sem elas, no dia em
+      que a integração acabar, o histórico vira uma coleção de códigos que
+      ninguém consegue ler.
+    - >-
+      A tabela de diagramas estava vazia desde que o módulo nasceu. É ela que
+      permite afirmar que a posição "3DE" existe naquele veículo — e sem isso
+      um cadastro próprio de montagem aceitaria qualquer coisa digitada.
+    - >-
+      A Saúde do Servidor passou a medir essas tabelas. O alarme não é o dia a
+      dia: é elas estarem vazias, porque vazio quer dizer que a cópia nunca
+      aconteceu — e isso só se descobre quando já é tarde.
 - versao: "0.243.1"
   data: "2026-09-05"
   corrigido:

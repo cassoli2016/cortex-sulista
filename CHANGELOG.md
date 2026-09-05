@@ -4,6 +4,8 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.244.0] — 05/09/2026  ·  CX-05/09/2026-v0.244.0
+
 ## [0.243.1] — 05/09/2026  ·  CX-05/09/2026-v0.243.1
 
 ### Corrigido
