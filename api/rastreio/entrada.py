@@ -35,6 +35,7 @@ import re
 
 from ..whatsapp import envio as wa
 from ..whatsapp import numeros
+from ..whatsapp import resposta
 from . import assinatura
 
 log = logging.getLogger("cortex.rastreio.entrada")
@@ -119,7 +120,12 @@ def receber(corpo: dict, token: str | None = None) -> dict:
         # mensagem para ele.
         return {"ok": True, "acao": "sem_inscricao"}
 
+    # JANELA ABERTA: esta e uma RESPOSTA, nao um disparo. Quem pede para sair
+    # e nao recebe nada nao tenta de novo — bloqueia o numero, e o bloqueio
+    # atinge o numero que fala com todos os outros clientes. Com a janela
+    # normal (08:00-20:00), um SAIR as 22h cancelava em silencio: exatamente a
+    # promessa que a mensagem faz e nao cumpria. Ver `whatsapp/resposta.py`.
     wa.enviar(numeros.normalizar(fone), CONFIRMACAO, usuario="rastreio",
-              origem="rastreio_saida")
+              origem="rastreio_saida", regras=resposta.regras())
     log.info("rastreio: %d inscricao(oes) canceladas por SAIR", quantas)
     return {"ok": True, "acao": "cancelado", "inscricoes": quantas}

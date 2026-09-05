@@ -149,3 +149,48 @@ def test_com_segredo_configurado_ele_passa_a_ser_exigido(cenario, monkeypatch):
     assert entrada.receber(_msg("SAIR"), token="errado")["acao"] == "ignorado"
     assert entrada.receber(_msg("SAIR"), token="s3gr3d0")["acao"] == "cancelado"
     assert len(e["enviados"]) == 1
+
+
+# --------------------------------------------------------------------------
+# a janela — e a lição que não foi generalizada da primeira vez
+# --------------------------------------------------------------------------
+def test_a_confirmacao_de_SAIR_NAO_e_barrada_pela_janela_noturna(monkeypatch):
+    """O guard que faltava, e que custou um teste real com o SAIR sem resposta.
+
+    A janela (08:00–20:00) existe para a empresa não DISPARAR mensagem em
+    cliente de madrugada, e continua valendo para o aviso de hora em hora. Mas
+    a confirmação de saída não é disparo: é resposta a uma palavra que a pessoa
+    acabou de escrever. Barrada, ela cancela em silêncio — e quem pede para
+    sair e não recebe nada não tenta de novo: bloqueia o número, que é o número
+    que fala com todos os outros clientes.
+
+    A MESMA LIÇÃO já tinha sido aprendida na primeira mensagem do cadastro, às
+    23h08, e foi consertada só lá. Este teste existe porque generalizar custava
+    dois minutos e não foi feito.
+    """
+    vistos = {}
+
+    monkeypatch.setattr(entrada.assinatura, "cancelar_por_telefone",
+                        lambda f: 1)
+    monkeypatch.setattr(entrada.wa, "enviar",
+                        lambda f, t, **k: (vistos.update(k) or {"ok": True}))
+    assert entrada.receber(_msg("SAIR"))["acao"] == "cancelado"
+
+    regras = vistos.get("regras") or {}
+    assert regras.get("janela_inicio") == "00:00"
+    assert regras.get("janela_fim") == "23:59"
+    # `regras` SUBSTITUI a configuração inteira, não remenda: passar só a
+    # janela derruba o envio num KeyError em `ativo`.
+    for campo in ("ativo", "limite_dia", "intervalo_seg"):
+        assert campo in regras, "o envio perdeu %r ao trocar a janela" % campo
+
+
+def test_a_resposta_imediata_NAO_fura_o_interruptor_geral():
+    """Janela aberta não é passe livre. Se a casa desligou o WhatsApp, nem a
+    resposta imediata sai — senão o interruptor geral deixaria de valer
+    justamente pelo caminho que ninguém está olhando."""
+    from api.whatsapp import resposta
+    r = resposta.regras()
+    from api.whatsapp import config as cfg
+    assert r["ativo"] == cfg.ler()["ativo"]
+    assert r["limite_dia"] == cfg.ler()["limite_dia"]

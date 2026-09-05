@@ -184,15 +184,9 @@ def _primeira_mensagem(alvo: dict, fone: str) -> bool:
         # janela derruba o envio num KeyError em `c["ativo"]`. Entao parte-se
         # da geral e troca-se UM campo — assim o interruptor, o limite do dia e
         # o teto por numero continuam valendo, que e o ponto.
-        from ..whatsapp import config as wcfg
-        geral = wcfg.ler()
+        from ..whatsapp import resposta
         r = wa.enviar(fone, texto + aviso.RODAPE, usuario="rastreio",
-                      origem="rastreio_cadastro",
-                      regras={**geral,
-                              "limite_numero": geral["limite_dia"],
-                              "limite_modelo": None,
-                              "janela_inicio": "00:00",
-                              "janela_fim": "23:59"})
+                      origem="rastreio_cadastro", regras=resposta.regras())
         return bool(r.get("ok"))
     except Exception as exc:  # noqa: BLE001
         log.warning("rastreio: primeira mensagem falhou: %s",

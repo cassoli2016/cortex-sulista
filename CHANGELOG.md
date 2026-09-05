@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.236.3] — 05/09/2026  ·  CX-05/09/2026-v0.236.3
+
+### Corrigido
+- Quem respondia SAIR fora do horário comercial era descadastrado, mas não recebia a confirmação: a janela de envio (8h às 20h) barrava a resposta. Prometer "responda SAIR" e não responder é o pior jeito de errar aqui — quem pede para sair e não recebe nada bloqueia o número, e o bloqueio atinge o número que fala com todos os outros clientes. A confirmação passou a sair a qualquer hora, junto com a primeira mensagem do cadastro; as duas usam agora a mesma regra, num lugar só.
+
 ## [0.236.2] — 04/09/2026  ·  CX-04/09/2026-v0.236.2
 
 ### Corrigido
