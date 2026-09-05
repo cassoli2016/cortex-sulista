@@ -221,3 +221,71 @@ def test_a_cobertura_e_DITA_em_vez_de_suposta(banco):
     banco["trechos"] = [_trecho("ABC1D23", 10, 700, dias=7)]
     d = km.de_placas(["ABC1D23", "XYZ9Z99", "QQQ0Q00"])
     assert (d["pedidas"], d["com_km"]) == (3, 1)
+
+
+# --------------------------------------------------------------------------
+# o segundo caminho — o hodômetro da Prolog
+# --------------------------------------------------------------------------
+def test_o_confronto_compara_os_DOIS_CAMINHOS(banco, monkeypatch):
+    """Vale mais que qualquer teste deste arquivo.
+
+    Um caminho sai do odômetro do abastecimento no ERP; o outro é o número que
+    um borracheiro digitou na Prolog no dia da montagem. Eles não têm uma linha
+    de código em comum — concordar por acaso é implausível. Medido em produção
+    (05/09/2026): razão mediana 0,98 em 61 pares.
+    """
+    from api import pglocal
+
+    banco["trechos"] = [_trecho("ABC1D23", 5, 10000, dias=30)]
+
+    def _erp(sql, p=None):
+        if "current_date - 60" in sql:   # só a ODO_HOJE_SQL tem
+            return [{"placa": "ABC1D23", "odo": 110000}]
+        return list(banco["trechos"])
+    monkeypatch.setattr(km.db, "query", _erp)
+    monkeypatch.setattr(pglocal, "query", lambda sql, p=None: [
+        {"id": 1, "placa": "ABC1D23", "km_inst": 100000,
+         "inst_em": _d(40), "placa_evento": "ABC1D23"}])
+
+    r = km.confrontar(365)
+    # direto = 110.000 - 100.000 = 10.000; derivado = 10.000 -> razão 1,0
+    assert r["pares"] == 1 and r["razao_mediana"] == 1.0 and r["ok"]
+
+
+def test_pneu_que_MUDOU_DE_VEICULO_sai_do_confronto(banco, monkeypatch):
+    """O par compararia hodômetros de caminhões diferentes — e a diferença
+    seria lida como erro do nosso cálculo."""
+    from api import pglocal
+    banco["trechos"] = [_trecho("ABC1D23", 5, 10000, dias=30)]
+
+    def _erp(sql, p=None):
+        if "current_date - 60" in sql:   # só a ODO_HOJE_SQL tem
+            return [{"placa": "ABC1D23", "odo": 110000}]
+        return list(banco["trechos"])
+    monkeypatch.setattr(km.db, "query", _erp)
+    monkeypatch.setattr(pglocal, "query", lambda sql, p=None: [
+        {"id": 1, "placa": "ABC1D23", "km_inst": 100000,
+         "inst_em": _d(40), "placa_evento": "OUTRA99"}])
+
+    r = km.confrontar(365)
+    assert r["pares"] == 0
+    assert r["motivo"], "sem par comparável tem de DIZER, não devolver ok"
+
+
+def test_a_RESSALVA_do_confronto_viaja_junto(banco, monkeypatch):
+    """Só há hodômetro em veículo que tem hodômetro: o confronto cobre a
+    tração e NÃO cobre o engate, que atende 83% dos pneus da frota. Vender
+    esta conferência como se cobrisse tudo seria pior que não tê-la."""
+    from api import pglocal
+    banco["trechos"] = [_trecho("ABC1D23", 5, 10000, dias=30)]
+
+    def _erp(sql, p=None):
+        if "current_date - 60" in sql:   # só a ODO_HOJE_SQL tem
+            return [{"placa": "ABC1D23", "odo": 110000}]
+        return list(banco["trechos"])
+    monkeypatch.setattr(km.db, "query", _erp)
+    monkeypatch.setattr(pglocal, "query", lambda sql, p=None: [
+        {"id": 1, "placa": "ABC1D23", "km_inst": 100000,
+         "inst_em": _d(40), "placa_evento": "ABC1D23"}])
+    r = km.confrontar(365)
+    assert r["so_tracao"] is True and "engate" in r["ressalva"]

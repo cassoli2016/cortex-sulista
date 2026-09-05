@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.237.1] — 05/09/2026  ·  CX-05/09/2026-v0.237.1
+
+### Corrigido
+- A coleta da Prolog lia 8 dos 20 campos que ela devolve. Placa, posição no eixo e HODÔMETRO estavam no retorno desde sempre e ficavam de fora — as três colunas correspondentes estavam 100% vazias nos eventos importados. Passaram a ser lidas, e a coleta agora PREENCHE também os eventos já gravados em vez de pular; na primeira volta encheu 2.159 deles.
+- O hodômetro da Prolog virou a segunda conferência do km: ele é digitado por quem monta o pneu, e o nosso vem do abastecimento e do engate — dois caminhos sem nada em comum. Eles concordam com diferença de 2% (razão mediana 0,98 em 61 comparações), o que dá base para confiar no CPK. Vale para os veículos com hodômetro; as carretas seguem com a conferência mais fraca, e a tela diz isso.
+- O hodômetro vem sujo e agora é limpo na entrada: 31 de 478 leituras traziam valores impossíveis (1 km, 134 km, 7,3 milhões) e 28 placas vinham com espaço ou tabulação, o que fazia o veículo não casar com o cadastro — em silêncio, virando "sem km".
+
 ## [0.237.0] — 05/09/2026  ·  CX-05/09/2026-v0.237.0
 
 ### Corrigido

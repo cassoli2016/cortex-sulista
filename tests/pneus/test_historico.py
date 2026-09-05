@@ -194,3 +194,91 @@ def test_a_cota_estourada_NAO_derruba_a_coleta(monkeypatch):
     assert r["ok"] is False
     assert "429" in r["erro"] or "cota" in r["erro"].lower()
     assert gravado["erro"], "o motivo da parada não foi registrado"
+
+
+# --------------------------------------------------------------------------
+# os campos que a casa NÃO lia — e a lição da Gobrax outra vez
+# --------------------------------------------------------------------------
+def test_o_hodometro_e_lido_e_tem_FAIXA_FISICA():
+    """O guard de um achado real, 05/09/2026.
+
+    `odometerReading` estava no payload desde sempre e a casa não lia: a coluna
+    `km_veiculo` ficou 100% vazia nos 2.497 eventos importados, e sem hodômetro
+    não há km de vida — o denominador do CPK. É a lição da Gobrax (14
+    indicadores devolvidos, 3 lidos) repetida com outro fornecedor.
+
+    E ele vem sujo: medidos numa página de 100 processos, 31 de 478 movimentos
+    traziam valores fora da faixa — 1, 134 e 7.359.990. Nenhum é caminhão. Fora
+    da faixa vira NULO, porque um hodômetro errado não estraga o CPK: ele o
+    estraga EM SILÊNCIO, com número plausível.
+    """
+    assert h._odometro({"odometerReading": 377000}) == 377000
+    for absurdo in (1, 134, 7359990, 0, -5, None, "", "abc"):
+        assert h._odometro({"odometerReading": absurdo}) is None, absurdo
+    assert h._odometro({}) is None
+
+
+def test_a_placa_vem_SUJA_e_e_limpa_na_entrada():
+    """28 das 478 chegaram com tabulação ou espaço nas bordas. Sem o `strip` o
+    cruzamento com o cadastro do ERP falha nessas — e falha calado, virando
+    'veículo sem km' em vez de erro."""
+    for cru, limpo in (("\tFZS5B14", "FZS5B14"), (" SSY9G19", "SSY9G19"),
+                       ("STK5C17\t", "STK5C17"), ("abc1d23", "ABC1D23")):
+        assert h._placa({"vehicle": {"licensePlate": cru}}) == limpo
+    assert h._placa({"vehicle": {"licensePlate": "   "}}) is None
+    assert h._placa({}) is None
+
+
+def test_o_evento_ja_gravado_RECEBE_os_campos_novos(esquema_pg):
+    """O guard do backfill, contra o banco DE VERDADE.
+
+    Com `ON CONFLICT DO NOTHING`, os 2.497 eventos já coletados ficariam sem
+    placa, posição e hodômetro PARA SEMPRE — só os futuros teriam km, e o
+    buraco não teria sintoma nenhum.
+
+    Este teste grava DUAS vezes o mesmo movimento: primeiro sem os campos
+    (como a coleta antiga fazia), depois com eles. Só o `DO UPDATE` faz a
+    segunda passada preencher a primeira. E ele roda no Postgres real porque
+    a diferença entre DO NOTHING e DO UPDATE só existe lá — um dublê de cursor
+    aceitaria as duas e o teste ficaria verde com o defeito de volta.
+    """
+    from api import pglocal
+
+    proc = {"submittedAt": "2026-08-31T17:44:38Z",
+            "submittedBy": {"name": "FULANO"},
+            "vehicle": {"licensePlate": "	TBB6B01"},
+            "tireRelocations": [{
+                "id": "7470789", "tireId": "1650908",
+                "source": "INVENTORY", "destination": "INSTALLED",
+                "tirePositionDestinationNomenclature": "TDE",
+                "tireLifeCycleAtRelocation": 3}]}
+
+    with pglocal.get_conn(esquema=esquema_pg) as conn, conn.cursor() as cur:
+        cur.execute("INSERT INTO pne_modelo (marca, modelo) VALUES ('X','Y') "
+                    "RETURNING id")
+        modelo = cur.fetchone()["id"]
+        cur.execute("INSERT INTO pne_pneu (serie, modelo_id, filial, status, "
+                    "vida_atual, prolog_id) "
+                    "VALUES ('30394',%s,'MTZ','rodando',3,'1650908')",
+                    (modelo,))
+
+        # PRIMEIRA VOLTA, como a coleta antiga: sem hodômetro no payload.
+        novos = h._gravar_processo(cur, dict(proc, odometerReading=None), [], [0])
+        assert novos == 1
+        cur.execute("SELECT placa, posicao, km_veiculo FROM pne_evento")
+        antes = cur.fetchone()
+        assert antes["km_veiculo"] is None
+
+        # SEGUNDA VOLTA, com o payload inteiro. É este o backfill.
+        atualizados = [0]
+        novos = h._gravar_processo(cur, dict(proc, odometerReading=90724), [],
+                                   atualizados)
+        assert novos == 0, "contou backfill como história nova"
+        assert atualizados[0] == 1
+
+        cur.execute("SELECT placa, posicao, km_veiculo FROM pne_evento")
+        linhas = cur.fetchall()
+        assert len(linhas) == 1, "duplicou o evento em vez de atualizar"
+        d = linhas[0]
+        assert d["km_veiculo"] == 90724, "o evento já gravado não recebeu o km"
+        assert d["placa"] == "TBB6B01" and d["posicao"] == "TDE"

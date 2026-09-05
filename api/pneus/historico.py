@@ -107,6 +107,36 @@ def _tipo(rel: dict, proc: dict) -> str:
     return "inventario"
 
 
+#: Faixa física do hodômetro de um caminhão. Medido na página de 100 processos
+#: (05/09/2026): 31 de 478 movimentos vinham fora dela — valores 1, 134 e
+#: 7.359.990. Nenhum dos três é caminhão; são o campo em branco preenchido no
+#: susto e o dedo no zero. Fora da faixa vira NULO, nunca km.
+ODO_MIN, ODO_MAX = 1000, 3_000_000
+
+
+def _odometro(proc: dict):
+    """O hodômetro do processo, ou None. É ele que dá o km da VIDA do pneu — a
+    diferença entre a instalação e a remoção — e por isso ele não pode virar
+    zero nem número absurdo: os dois estragam o CPK em silêncio."""
+    v = proc.get("odometerReading")
+    try:
+        v = int(v)
+    except (TypeError, ValueError):
+        return None
+    return v if ODO_MIN <= v <= ODO_MAX else None
+
+
+def _placa(proc: dict):
+    """A placa do veículo do processo.
+
+    VEM SUJA: 28 das 478 chegaram com tabulação ou espaço nas bordas
+    (`'	FZS5B14'`, `'STK5C17	'`). Sem o `strip` o cruzamento com o cadastro
+    do ERP falha nessas — e falha em silêncio, virando "veículo sem km".
+    """
+    v = ((proc.get("vehicle") or {}).get("licensePlate") or "").strip().upper()
+    return v or None
+
+
 def _sulcos(rel: dict) -> list | None:
     """Os quatro sulcos, NA ORDEM em que a Prolog os nomeia: interno, meio
     interno, meio externo, externo. A ordem é o que torna o array legível — sem
@@ -145,7 +175,8 @@ def _gravar_estado(cursor: str | None, registros: int, erro: str | None) -> None
         (ROTA, cursor, agora, None if erro else agora, registros, erro, agora))
 
 
-def _gravar_processo(cur, proc: dict, perdidos: list) -> int:
+def _gravar_processo(cur, proc: dict, perdidos: list,
+                     atualizados: list) -> int:
     """Grava os pneus de UM processo. Devolve quantos eventos entraram.
 
     `perdidos` recebe os `tireId` que nao existem no nosso banco. Eles NAO
@@ -202,19 +233,46 @@ def _gravar_processo(cur, proc: dict, perdidos: list) -> int:
                 cur.execute("UPDATE pne_pneu SET modelo_id = %s WHERE id = %s",
                             (cur.fetchone()["id"], pneu_id))
 
+        # PLACA, POSICAO E HODOMETRO. Estavam no payload desde sempre e a casa
+        # nao lia: as tres colunas ficaram 100% vazias nos 2.497 eventos
+        # importados, e sem hodometro nao ha km de vida — que e o denominador
+        # do CPK. E a licao da Gobrax outra vez (14 indicadores, 3 lidos): ler
+        # a resposta INTEIRA do fornecedor uma vez custa dez minutos.
+        #
+        # POSICAO SO EXISTE NA INSTALACAO, e isso nao e lacuna: medido, ela vem
+        # em 100% dos movimentos com destino INSTALLED e em 0% dos outros —
+        # pneu que vai para o estoque nao tem posicao em eixo nenhum.
         cur.execute("""
             INSERT INTO pne_evento
                 (pneu_id, tipo, ocorrido_em, vida, observacao, origem,
-                 usuario, prolog_id)
-            VALUES (%s,%s,%s,%s,%s,'prolog',%s,%s)
-            ON CONFLICT (origem, prolog_id) DO NOTHING""",
+                 usuario, prolog_id, placa, posicao, km_veiculo)
+            VALUES (%s,%s,%s,%s,%s,'prolog',%s,%s,%s,%s,%s)
+            ON CONFLICT (origem, prolog_id) DO UPDATE SET
+                -- DO UPDATE, e nao DO NOTHING, de proposito: os eventos ja
+                -- coletados precisam RECEBER os campos novos na proxima volta.
+                -- Com DO NOTHING eles ficariam vazios para sempre e so os
+                -- futuros teriam km — um buraco que ninguem veria.
+                placa      = COALESCE(EXCLUDED.placa,      pne_evento.placa),
+                posicao    = COALESCE(EXCLUDED.posicao,    pne_evento.posicao),
+                km_veiculo = COALESCE(EXCLUDED.km_veiculo, pne_evento.km_veiculo)
+            RETURNING (xmax = 0) AS inserido""",
             (pneu_id, _tipo(rel, proc), quando,
              rel.get("tireLifeCycleAtRelocation"),
              # O PAR CRU vai junto: o mapa acima e nosso e pode estar errado, e
              # sem o original nao ha como descobrir depois.
              "%s -> %s" % (rel.get("source"), rel.get("destination")),
-             quem, rel_id))
-        novos += cur.rowcount
+             quem, rel_id, _placa(proc),
+             (rel.get("tirePositionDestinationNomenclature") or "").strip() or None,
+             _odometro(proc)))
+        # NOVO x ATUALIZADO. Com `DO UPDATE` o `rowcount` e 1 nos dois casos, e
+        # o contador de "eventos novos" passaria a somar tambem o retrabalho de
+        # backfill — a coleta pareceria estar achando historia nova quando so
+        # esta preenchendo coluna. `xmax = 0` distingue INSERT de UPDATE.
+        linha = cur.fetchone()
+        if linha and linha["inserido"]:
+            novos += 1
+        else:
+            atualizados[0] += 1
 
         sulcos = _sulcos(rel)
         if sulcos or rel.get("pressure") is not None:
@@ -246,7 +304,8 @@ def _gravar_processo(cur, proc: dict, perdidos: list) -> int:
     return novos
 
 
-def _mes_completo(cur, cli, mes: str, orcamento: int, perdidos: list):
+def _mes_completo(cur, cli, mes: str, orcamento: int, perdidos: list,
+                  atualizados: list):
     """Varre um mês. Devolve (requisições gastas, eventos novos, terminou)."""
     de, ate = _limites(mes)
     gastas = novos = 0
@@ -258,7 +317,7 @@ def _mes_completo(cur, cli, mes: str, orcamento: int, perdidos: list):
             "pageSize": PAGINA, "pageNumber": pagina})
         gastas += 1
         for proc in (r.get("content") or []):
-            novos += _gravar_processo(cur, proc, perdidos)
+            novos += _gravar_processo(cur, proc, perdidos, atualizados)
         if r.get("lastPage") or r.get("empty"):
             return gastas, novos, True
         pagina += 1
@@ -282,13 +341,18 @@ def sincronizar(orcamento: int = ORCAMENTO) -> dict:
     gastas = novos = 0
     meses = []
     perdidos: list = []
+    # LISTA DE UM ELEMENTO como contador compartilhado: `_gravar_processo` roda
+    # por processo e precisa somar num lugar so, sem devolver tupla por todas
+    # as camadas.
+    atualizados: list = [0]
     erro = None
 
     try:
         with pglocal.get_conn() as conn, conn.cursor() as cur:
             # O MES CORRENTE SEMPRE: ele ainda recebe movimento, e um cursor
             # que so anda para tras nunca voltaria para busca-lo.
-            g, n, fim = _mes_completo(cur, cli, _mes(hoje), orcamento - gastas, perdidos)
+            g, n, fim = _mes_completo(cur, cli, _mes(hoje),
+                                      orcamento - gastas, perdidos, atualizados)
             gastas += g
             novos += n
             meses.append({"mes": _mes(hoje), "completo": fim, "eventos": n})
@@ -296,7 +360,8 @@ def sincronizar(orcamento: int = ORCAMENTO) -> dict:
             alvo = cursor or _mes(hoje)
             while gastas < orcamento and alvo > PISO:
                 alvo = _anterior(alvo)
-                g, n, fim = _mes_completo(cur, cli, alvo, orcamento - gastas, perdidos)
+                g, n, fim = _mes_completo(cur, cli, alvo, orcamento - gastas,
+                                          perdidos, atualizados)
                 gastas += g
                 novos += n
                 meses.append({"mes": alvo, "completo": fim, "eventos": n})
@@ -312,7 +377,8 @@ def sincronizar(orcamento: int = ORCAMENTO) -> dict:
 
     _gravar_estado(cursor, novos, erro)
     return {"ok": erro is None, "erro": erro, "requisicoes": gastas,
-            "eventos_novos": novos, "cursor": cursor, "meses": meses,
+            "eventos_novos": novos, "eventos_atualizados": atualizados[0],
+            "cursor": cursor, "meses": meses,
             "piso": PISO,
             # SE DECLARA: pneu do movimento que nao existe no nosso banco e
             # sinal de que a semeadura ficou para tras, nao ruido.

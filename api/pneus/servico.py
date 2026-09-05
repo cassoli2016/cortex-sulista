@@ -129,6 +129,11 @@ def rendimento(janela_dias: int = 365) -> dict:
         "itens": d["itens"],
         "por_modelo": cpkmod.por_modelo(janela_dias),
         "km": kmmod.conferir(janela_dias),
+        # O SEGUNDO CAMINHO, e ele vale mais que a conferência de
+        # impossibilidade: compara o km derivado aqui com o hodômetro que um
+        # borracheiro digitou na Prolog no dia da montagem. Os dois não têm uma
+        # linha em comum, então concordar por acaso é implausível.
+        "km_confronto": kmmod.confrontar(janela_dias),
         "leitura_velha": d.get("leitura_velha"),
         "leitura_em": d.get("leitura_em"),
     }

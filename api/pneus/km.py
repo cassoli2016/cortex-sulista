@@ -311,3 +311,104 @@ def no_periodo(placa: str, de, ate=None, dias_janela: int = 365) -> dict:
         fora["motivo"] = ("o período começa antes da janela medida (%s) — "
                           "o km é PARCIAL" % inicio_janela.isoformat())
     return fora
+
+
+# --------------------------------------------------------------------------
+# o SEGUNDO caminho — o hodômetro que a Prolog grava na instalação
+# --------------------------------------------------------------------------
+#: Fora disto o par não compara a mesma coisa (pneu que mudou de veículo,
+#: hodômetro trocado, cadastro errado). Não é tolerância de erro: é o que
+#: separa "par comparável" de "par sem sentido".
+CONFRONTO_MAX_KM = 300000
+
+ODO_HOJE_SQL = r"""
+SELECT upper(trim(veiculo_nome)) AS placa,
+       max(NULLIF(REGEXP_REPLACE(odometro::text,'\D','','g'),'')::bigint) AS odo
+FROM sulista.ctaplus_abastecimentos
+WHERE data_inicio_abastecimento >= current_date - 60
+GROUP BY 1
+"""
+
+INSTALACOES_SQL = """
+SELECT p.id, upper(trim(p.placa_atual)) AS placa,
+       e.km_veiculo AS km_inst, e.ocorrido_em AS inst_em,
+       e.placa AS placa_evento
+FROM pne_pneu p JOIN LATERAL (
+  SELECT km_veiculo, ocorrido_em, placa FROM pne_evento
+  WHERE pneu_id = p.id AND tipo = 'instalacao' AND km_veiculo IS NOT NULL
+  ORDER BY ocorrido_em DESC LIMIT 1) e ON true
+WHERE p.placa_atual IS NOT NULL AND trim(p.placa_atual) <> ''
+"""
+
+
+def _confrontar(dias_janela: int = 365) -> dict:
+    """Compara o km derivado aqui com o hodômetro que a Prolog gravou.
+
+    POR QUE ISTO VALE MAIS QUE QUALQUER TESTE DAQUI. Os dois caminhos não têm
+    uma linha em comum: um sai do odômetro do abastecimento no ERP mais o
+    engate do manifesto; o outro é um número que um borracheiro digitou na
+    Prolog no dia da montagem. Concordar por acaso é implausível.
+
+    MEDIDO em 05/09/2026, 61 pares comparáveis: razão mediana **0,98**, p10
+    0,94, p90 1,01 — 2% de diferença entre duas medições independentes.
+
+    O QUE ELE NÃO COBRE, e isto precisa ser dito: só há hodômetro em veículo que
+    tem hodômetro, então todo par comparável é de TRAÇÃO. O método do engate,
+    que atende 83% dos pneus da frota, continua sem segundo caminho — o que ele
+    tem é a conferência de impossibilidade (`conferir()`), que é mais fraca.
+    """
+    from api import pglocal
+
+    hoje = {r["placa"]: r["odo"] for r in db.query(ODO_HOJE_SQL, {})}
+    razoes = []
+    sem_odo_hoje = mudou_de_veiculo = fora_da_faixa = sem_km_derivado = 0
+
+    for a in pglocal.query(INSTALACOES_SQL, {}):
+        # A PLACA DO EVENTO MANDA. Se o pneu mudou de veículo desde a
+        # instalação, o par compara hodômetros de caminhões diferentes.
+        if a["placa_evento"] and a["placa_evento"] != a["placa"]:
+            mudou_de_veiculo += 1
+            continue
+        odo = hoje.get(a["placa"])
+        if not odo:
+            sem_odo_hoje += 1
+            continue
+        direto = float(odo) - float(a["km_inst"])
+        if not (0 < direto < CONFRONTO_MAX_KM):
+            fora_da_faixa += 1
+            continue
+        meu = no_periodo(a["placa"], a["inst_em"], dias_janela=dias_janela)
+        if meu.get("km") is None or meu["km"] < 1000:
+            sem_km_derivado += 1
+            continue
+        razoes.append(meu["km"] / direto)
+
+    razoes.sort()
+    n = len(razoes)
+    if not n:
+        return {"pares": 0, "ok": None,
+                "motivo": "nenhum par comparável — a coleta do histórico ainda "
+                          "não trouxe hodômetro de instalação suficiente"}
+    dentro = sum(1 for r in razoes if 0.7 <= r <= 1.3)
+    mediana = razoes[n // 2]
+    return {
+        "pares": n,
+        "razao_mediana": round(mediana, 3),
+        "razao_p10": round(razoes[n // 10], 3),
+        "razao_p90": round(razoes[(9 * n) // 10], 3),
+        "dentro_de_30pct": dentro,
+        "dentro_pct": round(100.0 * dentro / n),
+        # A FAIXA É LARGA de propósito: o que se quer saber é se os dois
+        # caminhos medem a MESMA coisa, não se batem no terceiro decimal.
+        "ok": 0.85 <= mediana <= 1.15,
+        "descartados": {"mudou_de_veiculo": mudou_de_veiculo,
+                        "sem_odometro_recente": sem_odo_hoje,
+                        "diferenca_fora_da_faixa": fora_da_faixa,
+                        "sem_km_derivado": sem_km_derivado},
+        "so_tracao": True,
+        "ressalva": ("só há hodômetro em veículo que tem hodômetro — este "
+                     "confronto cobre a tração, não o engate das carretas"),
+    }
+
+
+confrontar = queries.cached(3600, velha_ate=6 * 3600)(_confrontar)
