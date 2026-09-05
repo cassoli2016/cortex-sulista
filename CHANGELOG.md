@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.251.2] — 05/09/2026  ·  CX-05/09/2026-v0.251.2
+
+### Alterado
+- A base da previsão de troca de pneus quase quadruplicou: passou de 139 para 528 pneus com desgaste medido no próprio pneu, e de 11 para 25 modelos com base suficiente. A maioria das medições agora vem do hodômetro lido no painel, não de cálculo indireto — 297 contra 234. A taxa da frota praticamente não se moveu com a base quadruplicando (0,106 para 0,108 mm por mil km), o que é o melhor sinal de que ela está medindo o que diz medir.
+
+### Corrigido
+- O contador da coleta de inspeções somava como "nova" toda medição que ele tocava, inclusive as do mês corrente relidas a cada passada. O número parecia progresso e era retrabalho — e é sobre ele que alguém decidiria se a coleta está andando. Agora ele separa as novas das revisitadas.
+
 ## [0.251.1] — 05/09/2026  ·  CX-05/09/2026-v0.251.1
 
 ### Corrigido

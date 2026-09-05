@@ -134,7 +134,8 @@ def _gravar_estado(cursor, registros: int, erro: str | None) -> None:
         pass
 
 
-def _gravar_inspecao(cur, insp: dict, perdidos: list) -> int:
+def _gravar_inspecao(cur, insp: dict, perdidos: list,
+                     revisitadas: list) -> int:
     """Grava as medidas de UMA inspeção. Devolve quantas entraram."""
     quando = insp.get("submittedAt")
     ident = str(insp.get("id") or "").strip()
@@ -172,7 +173,8 @@ def _gravar_inspecao(cur, insp: dict, perdidos: list) -> int:
                 km_veiculo = COALESCE(EXCLUDED.km_veiculo,
                                       pne_inspecao.km_veiculo),
                 placa      = COALESCE(EXCLUDED.placa, pne_inspecao.placa),
-                posicao    = COALESCE(EXCLUDED.posicao, pne_inspecao.posicao)""",
+                posicao    = COALESCE(EXCLUDED.posicao, pne_inspecao.posicao)
+            RETURNING (xmax = 0) AS inserido""",
             (pneu["id"], quando, sulcos, m.get("measuredPressure"),
              m.get("recommendedPressure"), placa,
              # A POSICAO VEM COMO INTEIRO aqui (a sigla so existe no endpoint
@@ -181,11 +183,21 @@ def _gravar_inspecao(cur, insp: dict, perdidos: list) -> int:
              (str(m["tirePositionAtInspection"])
               if m.get("tirePositionAtInspection") is not None else None),
              odo, quem, "insp:%s:%s" % (ident, tire)))
-        n += 1
+        # NOVA x REVISITADA. Com `DO UPDATE` o `rowcount` e 1 nos dois casos, e
+        # o contador dizia "4.296 medidas" numa rodada em que boa parte era o
+        # mes corrente sendo relido — o numero parecia progresso e era
+        # retrabalho. `xmax = 0` distingue INSERT de UPDATE. E o mesmo defeito
+        # que ja tinha aparecido no contador do historico.
+        linha = cur.fetchone()
+        if linha and linha["inserido"]:
+            n += 1
+        else:
+            revisitadas[0] += 1
     return n
 
 
-def _mes_completo(cur, cli, mes: str, orcamento: int, perdidos: list):
+def _mes_completo(cur, cli, mes: str, orcamento: int, perdidos: list,
+                  revisitadas: list):
     """Varre um mês. Devolve (requisições gastas, medidas novas, terminou)."""
     de, ate = _limites(mes)
     gastas = novas = 0
@@ -203,7 +215,7 @@ def _mes_completo(cur, cli, mes: str, orcamento: int, perdidos: list):
             "pageSize": PAGINA, "pageNumber": pagina})
         gastas += 1
         for insp in (r.get("content") or []):
-            novas += _gravar_inspecao(cur, insp, perdidos)
+            novas += _gravar_inspecao(cur, insp, perdidos, revisitadas)
         if r.get("lastPage") or r.get("empty"):
             return gastas, novas, True
         pagina += 1
@@ -221,13 +233,15 @@ def sincronizar(orcamento: int = ORCAMENTO) -> dict:
     gastas = novas = 0
     meses: list = []
     perdidos: list = []
+    revisitadas: list = [0]
     erro = None
 
     try:
         with pglocal.get_conn() as conn, conn.cursor() as cur:
             # O MES CORRENTE SEMPRE: ele ainda recebe inspecao, e um cursor que
             # so anda para tras nunca voltaria para busca-lo.
-            g, n, fim = _mes_completo(cur, cli, _mes(hoje), orcamento, perdidos)
+            g, n, fim = _mes_completo(cur, cli, _mes(hoje), orcamento,
+                                      perdidos, revisitadas)
             gastas += g
             novas += n
             meses.append({"mes": _mes(hoje), "completo": fim, "medidas": n})
@@ -236,7 +250,7 @@ def sincronizar(orcamento: int = ORCAMENTO) -> dict:
             while gastas < orcamento and alvo > PISO:
                 alvo = _anterior(alvo)
                 g, n, fim = _mes_completo(cur, cli, alvo, orcamento - gastas,
-                                          perdidos)
+                                          perdidos, revisitadas)
                 gastas += g
                 novas += n
                 meses.append({"mes": alvo, "completo": fim, "medidas": n})
@@ -252,7 +266,7 @@ def sincronizar(orcamento: int = ORCAMENTO) -> dict:
 
     _gravar_estado(cursor, novas, erro)
     return {"ok": erro is None, "erro": erro, "requisicoes": gastas,
-            "medidas": novas, "cursor": cursor, "meses": meses, "piso": PISO,
+            "medidas": novas, "revisitadas": revisitadas[0], "cursor": cursor, "meses": meses, "piso": PISO,
             # SE DECLARA: medida de pneu que nao existe no nosso banco e sinal
             # de que a semeadura ficou para tras, nao ruido.
             "pneus_nao_encontrados": len(set(perdidos))}

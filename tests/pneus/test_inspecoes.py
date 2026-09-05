@@ -48,17 +48,21 @@ class _Cur:
     def __init__(self, conhece=(1650908,)):
         self.conhece = {str(x) for x in conhece}
         self.gravados = []
-        self._ultimo = None
+        self._resposta = None
 
     def execute(self, sql, params=None):
+        # DUAS CONSULTAS COM RESPOSTAS DIFERENTES, e confundi-las já quebrou o
+        # teste do pneu desconhecido: a BUSCA responde None quando não acha, e o
+        # INSERT responde o `RETURNING (xmax = 0)`. Um `fetchone` que devolvesse
+        # a mesma coisa nos dois faria a busca "achar" sempre.
         if "FROM pne_pneu WHERE prolog_id" in sql:
-            self._ultimo = ({"id": 7} if params[0] in self.conhece else None)
+            self._resposta = ({"id": 7} if params[0] in self.conhece else None)
         else:
             self.gravados.append((sql, params))
-            self._ultimo = None
+            self._resposta = {"inserido": True}
 
     def fetchone(self):
-        return self._ultimo
+        return self._resposta
 
 
 # --------------------------------------------------------------------------
@@ -66,7 +70,7 @@ class _Cur:
 # --------------------------------------------------------------------------
 def test_a_medida_grava_sulcos_pressao_placa_e_HODOMETRO():
     cur = _Cur()
-    assert inspecoes._gravar_inspecao(cur, _insp(), []) == 1
+    assert inspecoes._gravar_inspecao(cur, _insp(), [], [0]) == 1
     _, p = cur.gravados[0]
     assert [float(x) for x in p[2]] == [10.0, 9.5, 9.4, 9.0]
     assert p[3] == 116.0 and p[4] == 120.0
@@ -112,28 +116,28 @@ def test_pneu_DESCONHECIDO_nao_vira_cadastro_inventado():
     não. Criar aqui seria inventar cadastro a partir de uma medida."""
     cur = _Cur(conhece=())
     perdidos = []
-    assert inspecoes._gravar_inspecao(cur, _insp(), perdidos) == 0
+    assert inspecoes._gravar_inspecao(cur, _insp(), perdidos, [0]) == 0
     assert perdidos == ["1650908"], "o perdido sumiu em silêncio"
 
 
 def test_medida_sem_sulco_E_sem_pressao_nao_vira_linha():
     cur = _Cur()
     vazia = _insp(medidas=[{"tireId": 1650908}])
-    assert inspecoes._gravar_inspecao(cur, vazia, []) == 0
+    assert inspecoes._gravar_inspecao(cur, vazia, [], [0]) == 0
 
 
 def test_inspecao_sem_data_ou_sem_id_e_DESCARTADA():
     """Sem data ela não entra na série; sem id não há chave para não duplicar."""
     cur = _Cur()
-    assert inspecoes._gravar_inspecao(cur, dict(_insp(), submittedAt=None), []) == 0
-    assert inspecoes._gravar_inspecao(cur, dict(_insp(), id=None), []) == 0
+    assert inspecoes._gravar_inspecao(cur, dict(_insp(), submittedAt=None), [], [0]) == 0
+    assert inspecoes._gravar_inspecao(cur, dict(_insp(), id=None), [], [0]) == 0
 
 
 def test_a_posicao_INTEIRA_fica_crua():
     """A sigla só existe no endpoint de movimentação. Código sem tabela de
     domínio não vira rótulo inventado."""
     cur = _Cur()
-    inspecoes._gravar_inspecao(cur, _insp(), [])
+    inspecoes._gravar_inspecao(cur, _insp(), [], [0])
     _, p = cur.gravados[0]
     assert "321" in p
 
@@ -158,7 +162,7 @@ def test_a_paginacao_comeca_em_ZERO_neste_endpoint():
     aparece como "esse mês veio menor". O endpoint de movimentação começa em 1;
     regra genérica vale por ENDPOINT."""
     cli, cur = _Cli(), _Cur()
-    inspecoes._mes_completo(cur, cli, "2026-08", 5, [])
+    inspecoes._mes_completo(cur, cli, "2026-08", 5, [], [0])
     assert cli.chamadas[0]["pageNumber"] == 0
 
 
@@ -166,13 +170,13 @@ def test_includeMeasures_VAI_SEMPRE():
     """Sem ele a resposta é 200 com as inspeções vazias de medida — idêntico a
     "não mediram nada", e a coleta ficaria varrendo meses e gravando zero."""
     cli, cur = _Cli(), _Cur()
-    inspecoes._mes_completo(cur, cli, "2026-08", 5, [])
+    inspecoes._mes_completo(cur, cli, "2026-08", 5, [], [0])
     assert all(c.get("includeMeasures") for c in cli.chamadas)
 
 
 def test_o_mes_inteiro_e_varrido_ate_a_ultima_pagina():
     cli, cur = _Cli(paginas=3), _Cur()
-    gastas, novas, fim = inspecoes._mes_completo(cur, cli, "2026-08", 9, [])
+    gastas, novas, fim = inspecoes._mes_completo(cur, cli, "2026-08", 9, [], [0])
     assert (gastas, novas, fim) == (3, 3, True)
 
 
@@ -180,7 +184,7 @@ def test_o_ORCAMENTO_interrompe_sem_marcar_o_mes_como_completo():
     """Mês pela metade não pode avançar o cursor: a próxima execução refaz o
     mês inteiro, e refazer é barato porque tudo entra por chave natural."""
     cli, cur = _Cli(paginas=10), _Cur()
-    gastas, _, fim = inspecoes._mes_completo(cur, cli, "2026-08", 2, [])
+    gastas, _, fim = inspecoes._mes_completo(cur, cli, "2026-08", 2, [], [0])
     assert gastas == 2 and fim is False
 
 
@@ -217,3 +221,25 @@ def test_os_limites_do_mes_cobrem_o_mes_INTEIRO():
     assert inspecoes._limites("2026-02") == ("2026-02-01", "2026-02-28")
     assert inspecoes._limites("2024-02") == ("2024-02-01", "2024-02-29")
     assert inspecoes._limites("2026-08") == ("2026-08-01", "2026-08-31")
+
+
+def test_medida_REVISITADA_nao_conta_como_nova():
+    """O guard de um contador que mentia.
+
+    Com `ON CONFLICT ... DO UPDATE`, o `rowcount` é 1 tanto no insert quanto no
+    update. O contador dizia "4.296 medidas" numa rodada em que boa parte era o
+    mês corrente sendo relido pela enésima vez — o número parecia progresso e
+    era retrabalho, e é sobre ele que alguém decidiria se a coleta está andando.
+
+    É o mesmo defeito que já tinha aparecido no contador do histórico. Aparecer
+    duas vezes é o que faz um guard valer mais que um conserto.
+    """
+    class _Repetido(_Cur):
+        def execute(self, sql, params=None):
+            super().execute(sql, params)
+            if "INSERT INTO pne_inspecao" in sql:
+                self._resposta = {"inserido": False}   # a linha já existia
+
+    cur, revis = _Repetido(), [0]
+    assert inspecoes._gravar_inspecao(cur, _insp(), [], revis) == 0
+    assert revis[0] == 1, "a revisita não foi contada em lugar nenhum"
