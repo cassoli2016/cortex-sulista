@@ -255,3 +255,49 @@ class _Conn:
 
 def _conn_falsa(*a, **k):
     return _Conn()
+
+
+def test_a_primeira_mensagem_NAO_e_barrada_pela_janela_noturna(monkeypatch):
+    """O defeito relatado: cadastrei e nao chegou.
+
+    Medido as 23h08 — a inscricao gravou e o envio foi recusado com "Fora da
+    janela de envio (08:00-20:00)". A janela existe para a empresa nao disparar
+    em cliente de madrugada, e continua valendo para o aviso HORARIO. Mas a
+    primeira mensagem nao e disparo: e resposta a um botao apertado ha dois
+    segundos, com o celular na mao. Barra-la faz o recurso parecer quebrado.
+
+    O guard olha as REGRAS que o envio recebe, porque e nelas que a decisao
+    mora — testar o horario do relogio faria o teste passar de dia e falhar de
+    noite, que e o pior tipo de teste que existe.
+    """
+    from api.rastreio import assinatura
+
+    capturado = {}
+    alvo = {"grupo": 1, "empresa": 1, "filial": 1, "numero": 51283, "serie": 1}
+    monkeypatch.setattr(assinatura.consulta, "buscar_cru",
+                        lambda t, c: ([alvo], None))
+    monkeypatch.setattr(assinatura.consulta, "token", lambda *a: "ID")
+    monkeypatch.setattr(assinatura.pglocal, "get_conn", _conn_falsa)
+    monkeypatch.setattr(aviso, "_carga_da_inscricao", lambda i: _carga())
+    monkeypatch.setattr(
+        aviso.wa, "enviar",
+        lambda f, t, **k: (capturado.update(k) or {"ok": True}))
+
+    assinatura.inscrever("51283", "0051", "ID", "11987654321", "1.2.3.4")
+    regras = capturado.get("regras") or {}
+    assert regras.get("janela_inicio") == "00:00"
+    assert regras.get("janela_fim") == "23:59"
+    # E O RESTO DA CONFIGURACAO CONTINUA VALENDO. `regras` SUBSTITUI a config
+    # inteira — passar so a janela derruba o envio num KeyError em `ativo`, e
+    # passar so metade desligaria o interruptor e os limites em silencio.
+    for campo in ("ativo", "limite_dia", "limite_numero"):
+        assert campo in regras, "o envio perdeu %r ao trocar a janela" % campo
+
+
+def test_o_aviso_HORARIO_continua_respeitando_a_janela(cenario):
+    """A excecao e so da primeira mensagem. O disparo automatico de hora em
+    hora nao pode acordar ninguem — e e ele que roda sem ninguem olhando."""
+    enviados = cenario([_ins()], _carga())
+    aviso.rodar()
+    # o aviso horario nao passa `regras`: vale a janela geral
+    assert enviados, "nada foi enviado no cenario"

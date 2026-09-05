@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.235.2] — 04/09/2026  ·  CX-04/09/2026-v0.235.2
+
+### Corrigido
+- Quem cadastrava o telefone fora do horário comercial não recebia a primeira mensagem: a janela de envio da casa (8h às 20h) a barrava. A janela existe para a empresa não disparar em cliente de madrugada e continua valendo para o aviso de hora em hora — mas a primeira mensagem não é disparo, é resposta a um botão que a pessoa acabou de apertar, com o celular na mão. Ela passou a sair a qualquer hora.
+
 ## [0.235.1] — 04/09/2026  ·  CX-04/09/2026-v0.235.1
 
 ### Corrigido

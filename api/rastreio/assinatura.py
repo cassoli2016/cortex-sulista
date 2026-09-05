@@ -168,8 +168,31 @@ def _primeira_mensagem(alvo: dict, fone: str) -> bool:
             # a primeira coisa que a pessoa recebe tem de ser a carga dela.
             return False
         from ..whatsapp import envio as wa
+        # JANELA PROPRIA, e so para ESTA mensagem.
+        #
+        # A janela geral (08:00-20:00) existe para a empresa nao disparar
+        # mensagem em cliente de madrugada, e continua valendo para o aviso
+        # horario. Mas esta aqui nao e disparo: e resposta a um botao que a
+        # pessoa apertou ha dois segundos, com o celular na mao. Bloquea-la
+        # faz o recurso parecer quebrado — medido as 23h08, a inscricao gravou
+        # e a mensagem foi recusada com "fora da janela".
+        #
+        # A casa ja preve isso: `regras_efetivas` deixa o modelo AMPLIAR a
+        # janela, e documenta que quem edita decide. Aqui quem decide e este
+        # comentario.
+        # `regras` SUBSTITUI a configuracao inteira, nao remenda: passar so a
+        # janela derruba o envio num KeyError em `c["ativo"]`. Entao parte-se
+        # da geral e troca-se UM campo — assim o interruptor, o limite do dia e
+        # o teto por numero continuam valendo, que e o ponto.
+        from ..whatsapp import config as wcfg
+        geral = wcfg.ler()
         r = wa.enviar(fone, texto + aviso.RODAPE, usuario="rastreio",
-                      origem="rastreio_cadastro")
+                      origem="rastreio_cadastro",
+                      regras={**geral,
+                              "limite_numero": geral["limite_dia"],
+                              "limite_modelo": None,
+                              "janela_inicio": "00:00",
+                              "janela_fim": "23:59"})
         return bool(r.get("ok"))
     except Exception as exc:  # noqa: BLE001
         log.warning("rastreio: primeira mensagem falhou: %s",

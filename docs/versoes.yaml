@@ -1,3 +1,13 @@
+- versao: "0.235.2"
+  data: "2026-09-04"
+  corrigido:
+    - >-
+      Quem cadastrava o telefone fora do horário comercial não recebia a
+      primeira mensagem: a janela de envio da casa (8h às 20h) a barrava. A
+      janela existe para a empresa não disparar em cliente de madrugada e
+      continua valendo para o aviso de hora em hora — mas a primeira mensagem
+      não é disparo, é resposta a um botão que a pessoa acabou de apertar, com
+      o celular na mão. Ela passou a sair a qualquer hora.
 - versao: "0.235.1"
   data: "2026-09-04"
   corrigido:
