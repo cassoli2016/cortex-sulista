@@ -1,3 +1,21 @@
+- versao: "0.248.0"
+  data: "2026-09-05"
+  novo:
+    - >-
+      A tela de Pneus ganhou a aba "Registrar": dá para lançar por ela que um
+      pneu foi montado num veículo, retirado, baixado ou medido — e isso fica
+      gravado no CÓRTEX, não na Prolog. É a primeira vez que o módulo escreve
+      em vez de só copiar.
+    - >-
+      A posição não se digita, se escolhe: a lista vem do diagrama de eixos
+      daquele veículo. Campo livre é o jeito de encher o cadastro de posições
+      que não existem, e depois ninguém sabe quais são reais.
+    - >-
+      Quando o sistema recusa, ele diz por quê e o texto chega inteiro — "a
+      posição 1DE de ABC1D23 já está com o pneu X" é informação para quem
+      digitou, não erro técnico. E a lista embaixo mostra só o que foi lançado
+      aqui, separado do que veio importado, que é o número a acompanhar
+      enquanto a operação migra.
 - versao: "0.246.0"
   data: "2026-09-05"
   novo:

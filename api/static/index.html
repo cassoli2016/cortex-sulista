@@ -4864,6 +4864,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <button role="tab" id="tabpn-marcas" data-aba="marcas" aria-controls="aba-pn-marcas" aria-selected="false" onclick="abaTrocar('pneus','marcas')">Marcas e rendimento <span class="aban" id="pnMarcasN"></span></button>
           <button role="tab" id="tabpn-cpk" data-aba="cpk" aria-controls="aba-pn-cpk" aria-selected="false" onclick="abaTrocar('pneus','cpk')">CPK e km <span class="aban" id="pnCpkN"></span></button>
           <button role="tab" id="tabpn-troca" data-aba="troca" aria-controls="aba-pn-troca" aria-selected="false" onclick="abaTrocar('pneus','troca')">Previsão de troca <span class="aban" id="pnTrocaN"></span></button>
+          <button role="tab" id="tabpn-registrar" data-aba="registrar" aria-controls="aba-pn-registrar" aria-selected="false" onclick="abaTrocar('pneus','registrar')">Registrar</button>
           <button role="tab" id="tabpn-risco" data-aba="risco" aria-controls="aba-pn-risco" aria-selected="false" onclick="abaTrocar('pneus','risco')">Risco agora <span class="aban" id="pnRiscoN"></span></button>
           <button role="tab" id="tabpn-parque" data-aba="parque" aria-controls="aba-pn-parque" aria-selected="false" onclick="abaTrocar('pneus','parque')">Parque e vida</button>
         </div>
@@ -4928,6 +4929,39 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <div class="tablewrap tabroll" style="max-height:230px"><table><thead><tr>
                 <th>Origem da taxa</th><th class="num">Pneus</th>
               </tr></thead><tbody id="pn-troca-origem"></tbody></table></div></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="pneus" data-aba="registrar" id="aba-pn-registrar" role="tabpanel" aria-labelledby="tabpn-registrar" data-ao-abrir="pnRegAbrir" hidden>
+          <div class="card">
+            <div class="head"><h2>Registrar movimento <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Grava NO CÓRTEX, não na Prolog. É isto que faz o módulo sobreviver ao desligamento da integração: o evento fica com origem 'cortex' e a coleta nunca o sobrescreve. Toda gravação entra na trilha de auditoria antes de acontecer.">i</span></h2><span class="hint">grava no CÓRTEX, com origem própria</span></div>
+            <div class="grid2">
+              <div>
+                <label class="lbl" for="pnRegSerie">Pneu (número de série)</label>
+                <div class="linha"><input id="pnRegSerie" type="text" placeholder="ex.: 30394" autocomplete="off">
+                  <button class="btn" onclick="pnRegBuscar()">Procurar</button></div>
+                <div id="pnRegFicha" class="hint" style="margin-top:9px"></div>
+              </div>
+              <div>
+                <label class="lbl" for="pnRegAcao">O que aconteceu</label>
+                <select id="pnRegAcao" onchange="pnRegTrocarAcao()">
+                  <option value="inspecionar">Medi o sulco / a pressão</option>
+                  <option value="instalar">Montei num veículo</option>
+                  <option value="remover">Retirei do veículo</option>
+                  <option value="sucatear">Dei baixa</option>
+                </select>
+              </div>
+            </div>
+            <div id="pnRegCampos" class="grid2" style="margin-top:18px"></div>
+            <div class="linha" style="margin-top:18px">
+              <button class="btn" id="pnRegBtn" onclick="pnRegGravar()" disabled>Registrar</button>
+              <span id="pnRegMsg" class="hint"></span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Últimos movimentos registrados aqui <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Só os de origem CÓRTEX — o que esta casa gravou, separado do que veio importado da Prolog. É esta lista que cresce à medida que a operação migra para cá.">i</span></h2><span class="hint" id="pn-reg-hint"></span></div>
+            <div class="tablewrap tabroll" style="max-height:230px"><table><thead><tr>
+              <th>Quando</th><th>Pneu</th><th>O quê</th><th>Veículo</th><th>Posição</th><th class="num">Hodômetro</th><th>Quem</th>
+            </tr></thead><tbody id="pn-reg-lista"></tbody></table></div>
           </div>
         </div>
         <div class="aba" data-abas="pneus" data-aba="risco" id="aba-pn-risco" role="tabpanel" aria-labelledby="tabpn-risco" hidden>
@@ -17058,6 +17092,177 @@ function pnTrocaPintar(d){
     Object.entries(conta).sort((a,b)=>b[1]-a[1]).map(([k,v]) =>
       `<tr><td>${esc(rot[k]||k)}</td><td class="num">${v.toLocaleString('pt-BR')}</td></tr>`).join('') +
     `<tr><td><span class="hint">sem taxa — não sai data</span></td><td class="num">${d.sem_taxa||0}</td></tr>`;
+}
+
+/* ── Registrar movimento ────────────────────────────────────────────────────
+   Grava NO CORTEX. E esta aba que faz o modulo sobreviver ao desligamento da
+   Prolog: o evento sai com origem `cortex` e a coleta nunca o sobrescreve.
+
+   A TELA NAO DEIXA DIGITAR POSICAO. Campo livre e o jeito de encher o banco de
+   `3DE` em carreta de dois eixos — a lista vem do diagrama do veiculo. O
+   servidor valida de novo, porque tela nao e seguranca; mas oferecer a lista
+   evita o erro em vez de recusar depois. */
+let PNREG = null, PNMOTIVOS = null;
+
+async function pnRegAbrir(){
+  pnRegTrocarAcao();
+  pnRegRecentes();
+  if(!PNMOTIVOS){
+    try{
+      const r = await fetch('/api/frota/pneus/motivos', {cache:'no-store'});
+      const d = await respostaJSON(r);
+      PNMOTIVOS = (d.ok && d.dados.motivos) || [];
+    }catch(e){ PNMOTIVOS = []; }
+  }
+}
+
+async function pnRegBuscar(){
+  const serie = (document.getElementById('pnRegSerie').value || '').trim();
+  const ficha = document.getElementById('pnRegFicha');
+  document.getElementById('pnRegBtn').disabled = true;
+  PNREG = null;
+  if(!serie){ ficha.textContent = 'informe o número de série'; return; }
+  ficha.textContent = 'procurando…';
+  try{
+    const r = await fetch('/api/frota/pneus/ficha?serie=' + encodeURIComponent(serie),
+                          {cache:'no-store'});
+    const d = await respostaJSON(r);
+    if(!d.ok || !d.dados || !d.dados.id){
+      ficha.textContent = (d.dados && d.dados.mensagem) || 'pneu não encontrado';
+      return;
+    }
+    PNREG = d.dados;
+    /* O ESTADO ATUAL FICA A VISTA: e ele que decide o que a pessoa pode fazer,
+       e ver "sucata" antes de tentar montar poupa uma recusa. */
+    ficha.innerHTML = '<b>' + esc(PNREG.marca || '') + ' ' + esc(PNREG.modelo || '')
+      + '</b> ' + esc(PNREG.medida || '') + ' · vida ' + (PNREG.vida || '?')
+      + ' · <b>' + esc(PNREG.status || '?') + '</b>'
+      + (PNREG.placa ? ' · em ' + esc(PNREG.placa) + ' ' + esc(PNREG.posicao || '')
+                     : ' · fora de veículo');
+    document.getElementById('pnRegBtn').disabled = false;
+    pnRegTrocarAcao();
+  }catch(e){ ficha.textContent = 'sem conexão com a API'; }
+}
+
+function pnRegTrocarAcao(){
+  const acao = document.getElementById('pnRegAcao').value;
+  const alvo = document.getElementById('pnRegCampos');
+  const km = '<div><label class="lbl" for="pnRegKm">Hodômetro do veículo (km)</label>'
+    + '<input id="pnRegKm" type="text" inputmode="numeric" placeholder="opcional">'
+    + '<span class="hint">em branco é melhor que inventado — km errado vira data de troca errada</span></div>';
+  if(acao === 'instalar'){
+    alvo.innerHTML = '<div><label class="lbl" for="pnRegPlaca">Placa</label>'
+      + '<div class="linha"><input id="pnRegPlaca" type="text" placeholder="ABC1D23"'
+      + ' oninput="this.value=this.value.toUpperCase()" onchange="pnRegPosicoes()">'
+      + '<button class="btn" onclick="pnRegPosicoes()">Ver posições</button></div>'
+      + '<label class="lbl" for="pnRegPos" style="margin-top:9px">Posição</label>'
+      + '<select id="pnRegPos"><option value="">— escolha a placa primeiro —</option></select>'
+      + '<span class="hint" id="pnRegPosHint"></span></div>' + km;
+  } else if(acao === 'remover'){
+    alvo.innerHTML = km
+      + '<div><label class="lbl" for="pnRegMotivo">Motivo (opcional)</label>'
+      + '<input id="pnRegMotivo" type="text" placeholder="ex.: rodízio"></div>';
+  } else if(acao === 'sucatear'){
+    const ops = (PNMOTIVOS || []).map(function(m){
+      return '<option value="' + m.id + '">' + esc(m.rotulo) + '</option>'; }).join('');
+    alvo.innerHTML = '<div><label class="lbl" for="pnRegMotivoId">Motivo da baixa</label>'
+      + '<select id="pnRegMotivoId"><option value="">— escolha —</option>' + ops + '</select>'
+      + '<span class="hint">a lista vem do cadastro; motivo digitado vira dez grafias da mesma coisa</span></div>';
+  } else {
+    const campos = [0,1,2,3].map(function(i){
+      return '<input id="pnRegS' + i + '" type="text" inputmode="decimal" placeholder="0,0" style="width:70px">';
+    }).join('');
+    alvo.innerHTML = '<div><label class="lbl">Sulcos (mm) — interno, meio interno, meio externo, externo</label>'
+      + '<div class="linha">' + campos + '</div>'
+      + '<span class="hint">o MENOR dos quatro é o que a lei mede</span>'
+      + '<label class="lbl" for="pnRegPsi" style="margin-top:9px">Pressão (psi)</label>'
+      + '<input id="pnRegPsi" type="text" inputmode="decimal" placeholder="opcional"></div>' + km;
+  }
+}
+
+async function pnRegPosicoes(){
+  const placa = (document.getElementById('pnRegPlaca').value || '').trim().toUpperCase();
+  const sel = document.getElementById('pnRegPos');
+  const hint = document.getElementById('pnRegPosHint');
+  if(!placa) return;
+  hint.textContent = 'lendo o diagrama…';
+  try{
+    const r = await fetch('/api/frota/pneus/posicoes?placa=' + encodeURIComponent(placa),
+                          {cache:'no-store'});
+    const d = await respostaJSON(r);
+    const pos = (d.ok && d.dados.posicoes) || [];
+    sel.innerHTML = pos.length
+      ? '<option value="">— escolha —</option>' + pos.map(function(p){
+          return '<option>' + esc(p) + '</option>'; }).join('')
+      : '<option value="">— sem diagrama —</option>';
+    hint.textContent = pos.length
+      ? esc(d.dados.diagrama || '') + ' · ' + pos.length + ' posições'
+        + (d.dados.aviso ? ' · ' + esc(d.dados.aviso) : '')
+      : ((d.dados && d.dados.motivo) || 'não sabemos as posições deste veículo');
+  }catch(e){ hint.textContent = 'sem conexão com a API'; }
+}
+
+function pnRegNum(id){
+  const e = document.getElementById(id);
+  if(!e) return null;
+  const v = (e.value || '').trim().replace(/\./g, '').replace(',', '.');
+  return v === '' ? null : Number(v);
+}
+
+async function pnRegGravar(){
+  if(!PNREG) return;
+  const acao = document.getElementById('pnRegAcao').value;
+  const msg = document.getElementById('pnRegMsg');
+  const corpo = {acao: acao, pneu: PNREG.id, km: pnRegNum('pnRegKm')};
+  if(acao === 'instalar'){
+    corpo.placa = (document.getElementById('pnRegPlaca').value || '').trim().toUpperCase();
+    corpo.posicao = document.getElementById('pnRegPos').value;
+  } else if(acao === 'remover'){
+    corpo.motivo = (document.getElementById('pnRegMotivo').value || '').trim();
+  } else if(acao === 'sucatear'){
+    corpo.motivo_id = Number(document.getElementById('pnRegMotivoId').value || 0);
+  } else {
+    corpo.sulcos = [0,1,2,3].map(function(i){ return pnRegNum('pnRegS' + i); });
+    corpo.pressao = pnRegNum('pnRegPsi');
+  }
+  document.getElementById('pnRegBtn').disabled = true;
+  msg.textContent = 'registrando…';
+  try{
+    const r = await fetch('/api/frota/pneus/movimento', {method: 'POST',
+      headers: {'Content-Type': 'application/json'}, body: JSON.stringify(corpo)});
+    const d = await respostaJSON(r);
+    /* A RECUSA E LEGIVEL e vem inteira do servidor: "a posicao 1DE de ABC1D23
+       ja esta com o pneu X" e informacao para quem digitou, nao erro tecnico. */
+    if(!d.ok){
+      msg.innerHTML = '<b style="color:var(--red)">'
+        + esc((d.dados && d.dados.mensagem) || 'não foi possível registrar') + '</b>';
+      return;
+    }
+    msg.innerHTML = '<b style="color:var(--green-700)">registrado</b>';
+    PNREG = null;
+    document.getElementById('pnRegSerie').value = '';
+    document.getElementById('pnRegFicha').textContent = '';
+    pnRegRecentes();
+  }catch(e){ msg.textContent = 'sem conexão com a API'; }
+  finally{ document.getElementById('pnRegBtn').disabled = !PNREG; }
+}
+
+async function pnRegRecentes(){
+  try{
+    const r = await fetch('/api/frota/pneus/recentes', {cache:'no-store'});
+    const d = await respostaJSON(r);
+    const itens = (d.ok && d.dados.itens) || [];
+    document.getElementById('pn-reg-lista').innerHTML = itens.map(function(i){
+      return '<tr><td>' + esc((i.quando || '').replace('T', ' ').slice(0, 16)) + '</td>'
+        + '<td>' + esc(i.serie || '') + '</td><td>' + esc(i.tipo || '') + '</td>'
+        + '<td>' + esc(i.placa || '—') + '</td><td>' + esc(i.posicao || '—') + '</td>'
+        + '<td class="num">' + (i.km == null ? '—' : Math.round(i.km).toLocaleString('pt-BR')) + '</td>'
+        + '<td>' + esc(i.usuario || '') + '</td></tr>';
+    }).join('') ||
+      '<tr><td colspan="7" class="hint">nada registrado aqui ainda — tudo o que existe veio importado</td></tr>';
+    document.getElementById('pn-reg-hint').textContent =
+      itens.length ? (itens.length + ' mais recentes') : '';
+  }catch(e){}
 }
 
 function pnMarcasDesenhar(){

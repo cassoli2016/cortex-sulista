@@ -3481,6 +3481,163 @@ def rh_headcount() -> JSONResponse:
         return _folha_erro(exc)
 
 
+@app.get("/api/frota/pneus/ficha")
+def frota_pneus_ficha(serie: str = "") -> JSONResponse:
+    """UM pneu pelo numero de serie, para a tela de registro.
+
+    O ESTADO ATUAL VEM JUNTO e e o campo que mais importa aqui: e ele que
+    decide o que a pessoa pode fazer, e ver "sucata" na tela antes de tentar
+    montar poupa uma recusa que pareceria arbitraria.
+    """
+    from api import pglocal
+    alvo = (serie or "").strip()
+    if len(alvo) < 2:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "serie_curta", "mensagem": "Informe o numero de serie."})
+    try:
+        r = pglocal.query("""
+            SELECT p.id, p.serie, p.status, p.vida_atual AS vida,
+                   upper(trim(p.placa_atual)) AS placa, p.posicao_atual AS posicao,
+                   m.marca, m.modelo, m.medida
+            FROM pne_pneu p LEFT JOIN pne_modelo m ON m.id = p.modelo_id
+            WHERE upper(trim(p.serie)) = upper(%s) LIMIT 1""", (alvo,))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("pneus/ficha falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "ficha_indisponivel",
+            "mensagem": "Nao foi possivel consultar agora."})
+    if not r:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "nao_encontrado",
+            "mensagem": "Nenhum pneu com essa serie."})
+    return JSONResponse(dict(r[0]))
+
+
+@app.get("/api/frota/pneus/recentes")
+def frota_pneus_recentes(limite: int = 30) -> JSONResponse:
+    """Os ultimos movimentos que ESTA CASA gravou.
+
+    SO ORIGEM `cortex`, de proposito: a lista existe para mostrar o que ja
+    migrou para ca, separado dos 6 mil eventos importados. Misturar os dois
+    esconderia justamente o numero que interessa acompanhar.
+    """
+    from api import pglocal
+    try:
+        r = pglocal.query("""
+            SELECT e.ocorrido_em AS quando, p.serie, e.tipo, e.placa, e.posicao,
+                   e.km_veiculo AS km, e.usuario, e.motivo
+            FROM pne_evento e JOIN pne_pneu p ON p.id = e.pneu_id
+            WHERE e.origem = 'cortex'
+            ORDER BY e.ocorrido_em DESC LIMIT %s""",
+            (max(1, min(200, limite)),))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("pneus/recentes falhou: %s", type(exc).__name__)
+        return JSONResponse({"itens": []})
+    return JSONResponse({"itens": [
+        {**dict(x), "quando": x["quando"].isoformat() if x["quando"] else None,
+         "km": float(x["km"]) if x["km"] is not None else None} for x in r]})
+
+
+@app.get("/api/frota/pneus/posicoes")
+def frota_pneus_posicoes(placa: str = "") -> JSONResponse:
+    """As posicoes que um veiculo aceita, para a tela nao deixar digitar.
+
+    Campo livre de posicao e o jeito de encher o banco de `3DE` em carreta de
+    dois eixos. A lista sai do diagrama do veiculo cruzado com o que os
+    veiculos IRMAOS realmente tem montado.
+    """
+    from api.pneus import movimento
+    try:
+        return JSONResponse(movimento.posicoes_do_veiculo(placa))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("pneus/posicoes falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "posicoes_indisponiveis",
+            "mensagem": "Nao foi possivel ler as posicoes do veiculo."})
+
+
+@app.post("/api/frota/pneus/movimento")
+async def frota_pneus_movimento(req: Request) -> JSONResponse:
+    """Registra um movimento de pneu NO CORTEX.
+
+    RECUSA E 4xx, NAO 5xx. `MovimentoInvalido` e uma recusa legivel — "a
+    posicao ja esta com o pneu X" e informacao para quem digitou, e ela tem de
+    CHEGAR: o Cloudflare troca o corpo de 5xx pela pagina dele e a mensagem
+    morre no caminho.
+
+    `sem_travar` porque a rota e `async` e tudo aqui e I/O de banco: sem ele o
+    servidor INTEIRO para pelo tempo da escrita.
+    """
+    from api.pneus.movimento import MovimentoInvalido
+    from api.pneus import movimento
+
+    try:
+        corpo = await req.json()
+    except Exception:  # noqa: BLE001
+        corpo = {}
+    if not isinstance(corpo, dict):
+        corpo = {}
+
+    quem = (getattr(req.state, "sessao", None) or {}).get("email") or ""
+    ip = _ip_do_cliente(req)
+    acao = (corpo.get("acao") or "").strip().lower()
+    try:
+        pneu = int(corpo.get("pneu") or 0)
+    except (TypeError, ValueError):
+        pneu = 0
+    if not pneu:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "sem_pneu", "mensagem": "Informe o pneu."})
+
+    try:
+        if acao == "instalar":
+            r = await sem_travar(movimento.instalar, pneu,
+                                 corpo.get("placa") or "",
+                                 corpo.get("posicao") or "",
+                                 corpo.get("km"), quem, ip)
+        elif acao == "remover":
+            r = await sem_travar(movimento.remover, pneu, corpo.get("km"),
+                                 corpo.get("motivo") or "", quem, ip)
+        elif acao == "sucatear":
+            r = await sem_travar(movimento.sucatear, pneu,
+                                 int(corpo.get("motivo_id") or 0), quem, ip)
+        elif acao == "inspecionar":
+            r = await sem_travar(movimento.inspecionar, pneu,
+                                 corpo.get("sulcos") or [],
+                                 corpo.get("pressao"), corpo.get("km"),
+                                 quem, ip)
+        else:
+            return JSONResponse(status_code=HTTP_RECUSA, content={
+                "erro": "acao_desconhecida",
+                "mensagem": "Acao invalida. Use instalar, remover, sucatear "
+                            "ou inspecionar."})
+    except MovimentoInvalido as exc:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "movimento_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        # AQUI SIM e falha NOSSA, e o tipo vai para o log sem o `str(exc)`
+        # cru: mensagem de excecao de banco carrega SQL e as vezes valor.
+        log.warning("pneus/movimento (%s) falhou: %s", acao, type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_interno",
+            "mensagem": "Nao foi possivel registrar o movimento."})
+    return JSONResponse(r)
+
+
+@app.get("/api/frota/pneus/motivos")
+def frota_pneus_motivos() -> JSONResponse:
+    """Os motivos de baixa, para a tela oferecer LISTA e nao campo livre."""
+    from api import pglocal
+    try:
+        return JSONResponse({"motivos": [
+            dict(r) for r in pglocal.query(
+                "SELECT id, rotulo FROM pne_motivo "
+                "WHERE especie = 'descarte' AND ativo ORDER BY rotulo")]})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("pneus/motivos falhou: %s", type(exc).__name__)
+        return JSONResponse({"motivos": []})
+
+
 @app.get("/api/frota/pneus/troca")
 def frota_pneus_troca(dias: int = 365) -> JSONResponse:
     """Previsao de troca por DESGASTE MEDIDO — nao por calendario.
