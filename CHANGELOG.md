@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.231.1] — 04/09/2026  ·  CX-04/09/2026-v0.231.1
+
+### Adicionado
+- Segunda parte do "Onde está minha carga?": o detalhe de cada carga, com a linha do tempo da viagem (documento emitido, em viagem, chegou para descarga, entregue), o quilômetro da rota e o quanto já foi percorrido.
+- A posição aparece como DISTÂNCIA E PROGRESSO — "faltam 96 km, 90% da viagem" — nunca como ponto no mapa. Numa página aberta, a coordenada de um caminhão serve para interceptá-lo; a distância responde o que quem espera a carga precisa saber. A conta é feita com dado nosso, sem fornecedor externo.
+- Quando o veículo já está em outra viagem, ou quando a última posição é velha demais, a página DIZ que não conseguiu localizar a carga em vez de mostrar um número plausível. Abrir a carga exige o documento e o CNPJ de novo: um link encaminhado não abre nada sozinho.
+
 ## [0.231.0] — 04/09/2026  ·  CX-04/09/2026-v0.231.0
 
 ### Adicionado

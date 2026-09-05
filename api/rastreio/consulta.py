@@ -216,11 +216,16 @@ def _iso(v) -> str | None:
     return v.isoformat() if hasattr(v, "isoformat") else str(v)
 
 
-def buscar(termo: str, cnpj4: str) -> dict:
-    """Acha cargas pelo documento em mãos. Nunca levanta.
+def buscar_cru(termo: str, cnpj4: str) -> tuple[list, str | None]:
+    """Os registros CRUS das cargas. **NUNCA vai para o navegador.**
 
-    `termo` é o número do CT-e, o número da nota ou a chave de acesso de
-    qualquer um dos dois. `cnpj4` são os quatro primeiros dígitos do CNPJ.
+    Existe porque o detalhe precisa das chaves internas do documento, e a
+    alternativa — devolvê-las dentro do payload de `buscar()` — poria os
+    registros do ERP a um `JSONResponse` de distância da página pública. Aqui
+    a separação é estrutural: quem chama `buscar()` não tem como vazar o cru
+    nem por descuido.
+
+    Devolve `(linhas, motivo_da_recusa)`.
     """
     t = _so_digitos(termo)
     c4 = _so_digitos(cnpj4)
@@ -234,17 +239,35 @@ def buscar(termo: str, cnpj4: str) -> dict:
     num = None if chave else t
     params = {"num": num, "chave": chave, "cnpj4": c4, "teto": TETO}
 
-    achadas: dict[str, dict] = {}
+    vistos: dict[str, dict] = {}
     for sql in (CTE_SQL, NF_SQL):
         try:
             for r in db.query(sql, params):
-                carga = _limpo(r)
-                achadas.setdefault(carga["id"], carga)
+                d = dict(r)
+                chave = token(d["grupo"], d["empresa"], d["filial"],
+                              d["numero"], d["serie"])
+                vistos.setdefault(chave, d)
         except Exception as exc:  # noqa: BLE001
             log.warning("rastreio: consulta falhou: %s", type(exc).__name__)
-            return {"ok": False, "motivo": "não foi possível consultar agora"}
+            return [], "não foi possível consultar agora"
+    return list(vistos.values()), None
 
-    lista = sorted(achadas.values(),
+
+def buscar(termo: str, cnpj4: str) -> dict:
+    """Acha cargas pelo documento em mãos, JÁ LIMPAS. Nunca levanta.
+
+    `termo` é o número do CT-e, o número da nota ou a chave de acesso de
+    qualquer um dos dois. `cnpj4` são os quatro primeiros dígitos do CNPJ.
+    """
+    if len(_so_digitos(termo)) < 3:
+        return {"ok": False, "motivo": "informe o número do CT-e ou da nota"}
+    if len(_so_digitos(cnpj4)) != 4:
+        return {"ok": False,
+                "motivo": "informe os 4 primeiros dígitos do CNPJ"}
+    linhas, motivo = buscar_cru(termo, cnpj4)
+    if motivo:
+        return {"ok": False, "motivo": motivo}
+    lista = sorted((_limpo(r) for r in linhas),
                    key=lambda x: x.get("emitido_em") or "", reverse=True)
     return {"ok": True, "cargas": lista, "total": len(lista),
             # A MESMA RESPOSTA para "não existe" e "não é sua": dizer "existe,
