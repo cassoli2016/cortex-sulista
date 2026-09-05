@@ -12,6 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from api.pneus import cadastro, cliente as cli
+from api.pneus import inspecoes
 from api.pneus import coleta
 
 alvos = [a.upper() for a in sys.argv[1:] if a.upper() in cli.STATUS] or None
@@ -72,6 +73,18 @@ try:
                  "" if rc.get("ok") else " (com falha: %s)" % rc.get("erro")))
     except Exception as exc:  # noqa: BLE001
         print("  dominio: FALHOU (%s)" % type(exc).__name__)
+
+    # AS INSPECOES DEPOIS DO DOMINIO e antes do historico. Elas sao o que a
+    # curva de desgaste precisa (sulco medido no patio, com data e hodometro) e
+    # hoje sao a maior lacuna do modulo: 79 pneus com taxa propria contra 2.299
+    # usando a mediana da frota.
+    try:
+        ri = inspecoes.sincronizar()
+        print("  inspecoes: +%s medida(s) em %s requisicao(oes) - recuado ate %s%s"
+              % (ri.get("medidas"), ri.get("requisicoes"), ri.get("cursor"),
+                 "" if ri.get("ok") else "  [PAROU: %s]" % (ri.get("erro") or "")[:60]))
+    except Exception as exc:  # noqa: BLE001
+        print("  inspecoes: FALHOU (%s)" % type(exc).__name__)
 
     rh = historico.sincronizar()
     marca = "" if rh.get("ok") else "  [PAROU: %s]" % (rh.get("erro") or "")[:60]

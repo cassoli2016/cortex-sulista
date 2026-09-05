@@ -1,3 +1,17 @@
+- versao: "0.245.0"
+  data: "2026-09-05"
+  novo:
+    - >-
+      O CÓRTEX passou a trazer as inspeções de pneu como elas realmente são:
+      alguém foi ao pátio, mediu os quatro sulcos e a pressão de cada pneu do
+      veículo, e o registro guarda a data e o HODÔMETRO daquele momento. Até
+      aqui só existiam as medições que vinham de carona numa movimentação.
+    - >-
+      Com o hodômetro na inspeção, o desgaste vira uma subtração entre duas
+      leituras do mesmo painel — em vez de depender de cruzar a placa com o
+      abastecimento e o engate. O cálculo antigo continua atendendo as
+      carretas, que não têm hodômetro, e a previsão passou a dizer qual dos
+      dois sustentou cada número.
 - versao: "0.244.0"
   data: "2026-09-05"
   novo:

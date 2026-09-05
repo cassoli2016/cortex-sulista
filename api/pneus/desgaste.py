@@ -62,7 +62,7 @@ JANELA_DIAS = 365
 
 SERIE_SQL = """
 SELECT i.pneu_id, upper(trim(i.placa)) AS placa, i.medido_em::date AS d,
-       i.sulcos_mm, p.modelo_id, p.vida_atual,
+       i.sulcos_mm, i.km_veiculo, p.modelo_id, p.vida_atual,
        upper(trim(p.placa_atual)) AS placa_atual, p.posicao_atual, p.status,
        m.marca, m.modelo, m.medida
 FROM pne_inspecao i
@@ -86,18 +86,37 @@ def _menor(sulcos) -> float | None:
     return min(vs) if vs else None
 
 
-def _taxa_do_par(placa, d0, s0, d1, s1, dias_janela):
-    """mm por 1.000 km entre duas medições, ou None com o motivo."""
+def _taxa_do_par(placa, d0, s0, d1, s1, dias_janela, odo0=None, odo1=None):
+    """mm por 1.000 km entre duas medições, ou None com o motivo.
+
+    O HODÔMETRO DA INSPEÇÃO MANDA quando existe nas duas pontas. Ele é uma
+    subtração entre duas leituras do MESMO painel — não depende de a placa
+    casar com o cadastro do ERP, nem do engate do manifesto, nem da janela de
+    365 dias. A derivação de `api/pneus/km.py` continua como plano B para o par
+    que não tem as duas leituras, e é ela que atende as carretas, que não têm
+    hodômetro nenhum.
+
+    Devolve (taxa, motivo, origem_do_km) — e a origem viaja junto porque as
+    duas medem a mesma coisa com confianças diferentes.
+    """
     if s1 > s0 + TOLERANCIA_SUBIDA_MM:
-        return None, "sulco subiu (rodízio, recapagem ou leitura trocada)"
+        return None, "sulco subiu (rodízio, recapagem ou leitura trocada)", None
     gasto = s0 - s1
     if gasto < DESGASTE_MINIMO_MM:
-        return None, "desgaste abaixo do piso de medição"
-    r = kmmod.no_periodo(placa, d0, d1, dias_janela=dias_janela)
-    k = r.get("km")
+        return None, "desgaste abaixo do piso de medição", None
+
+    k, origem = None, None
+    if odo0 is not None and odo1 is not None:
+        direto = float(odo1) - float(odo0)
+        # HODÔMETRO QUE ANDA PARA TRÁS é troca de painel, não km negativo.
+        if direto > 0:
+            k, origem = direto, "hodômetro"
+    if k is None:
+        r = kmmod.no_periodo(placa, d0, d1, dias_janela=dias_janela)
+        k, origem = r.get("km"), "derivado"
     if not k or k < KM_MINIMO_PAR:
-        return None, "km rodado abaixo do piso"
-    return gasto / (k / 1000.0), None
+        return None, "km rodado abaixo do piso", None
+    return gasto / (k / 1000.0), None, origem
 
 
 def _mediana(vs):
@@ -116,22 +135,26 @@ def _calcular(dias_janela: int = JANELA_DIAS) -> dict:
         s = _menor(r["sulcos_mm"])
         if s is None:
             continue
-        series.setdefault((r["pneu_id"], r["placa"]), []).append((r["d"], s))
+        series.setdefault((r["pneu_id"], r["placa"]), []).append(
+            (r["d"], s, r.get("km_veiculo")))
         ficha.setdefault(r["pneu_id"], r)
 
     taxas_pneu: dict = {}
     por_modelo: dict = {}
     recusas: dict = {}
+    origens: dict = {}
     for (pid, placa), obs in series.items():
         if len(obs) < 2:
             recusas["série com uma medição só"] = \
                 recusas.get("série com uma medição só", 0) + 1
             continue
-        (d0, s0), (d1, s1) = obs[0], obs[-1]
-        taxa, motivo = _taxa_do_par(placa, d0, s0, d1, s1, dias_janela)
+        (d0, s0, k0), (d1, s1, k1) = obs[0], obs[-1]
+        taxa, motivo, origem_km = _taxa_do_par(placa, d0, s0, d1, s1,
+                                               dias_janela, k0, k1)
         if taxa is None:
             recusas[motivo] = recusas.get(motivo, 0) + 1
             continue
+        origens[origem_km] = origens.get(origem_km, 0) + 1
         # UM PNEU PODE TER RODADO EM DUAS PLACAS na janela. Fica a MAIOR taxa:
         # ela é a que chega ao limite primeiro, e é sobre ela que se programa.
         if taxa > taxas_pneu.get(pid, 0):
@@ -153,6 +176,10 @@ def _calcular(dias_janela: int = JANELA_DIAS) -> dict:
         "modelos_com_taxa": len(taxa_modelo),
         "modelos_medidos": len(por_modelo),
         "recusas": recusas,
+        # DE ONDE VEIO O KM DE CADA PAR. Hodômetro é medição direta; derivado é
+        # atribuição. Ver o quanto de cada um sustenta a taxa da frota é o que
+        # separa "a curva está boa" de "a curva está inteira em cima do plano B".
+        "km_origens": origens,
         "piso_km": KM_MINIMO_PAR,
         "piso_mm": DESGASTE_MINIMO_MM,
         "janela_dias": dias_janela,
