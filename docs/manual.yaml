@@ -3,6 +3,40 @@ sistema: 'O CÓRTEX é o painel de gestão da Transportadora Sulista S/A. Ele l�
   — financeiro, comercial, operação, frota, pessoas e controladoria. Nenhum número é digitado aqui: tudo
   vem do ERP, e cada card diz no ⓘ de qual tabela e de qual regra ele saiu.'
 glossario:
+- termo: Minha Operação (portal do cliente)
+  definicao: >-
+    A tela que o CLIENTE abre para ver a operação dele — cargas em curso,
+    permanência do veículo e histórico de volume e rotas. É a única tela cujo
+    usuário não é da casa, e por isso a única com DOIS níveis de acesso: o
+    perfil diz que ela abre, e o vínculo `cliente_cnpj_raiz` do usuário diz
+    QUAIS LINHAS aparecem. Sem vínculo a tela recusa — inclusive para
+    administrador, porque ser admin responde "que telas", não "de quem é a
+    operação". O vínculo é a RAIZ do CNPJ (8 dígitos) e não o CNPJ completo:
+    o ERP cadastra uma linha por filial, e as quatro plantas da Iochpe-Maxion
+    são a mesma empresa.
+- termo: Permanência (carregamento e descarga)
+  definicao: >-
+    Tempo entre a chegada e a saída do veículo, medido pelos apontamentos da
+    operação (ocorrências SAC 394→395 no carregamento, 396→397 na descarga).
+    Cobre cerca de 72% das cargas — bem mais que a entrega no prazo, que só é
+    medível em 8,7% delas. Sai em TRÊS FAIXAS e não num número só porque o
+    contrato de freetime distingue por mercadoria e o apontamento não diz qual
+    mercadoria era: dentro do menor freetime é aderente sob qualquer contrato,
+    acima do maior é excedente sob qualquer contrato, e no meio a resposta
+    depende de um dado que não temos — e a tela diz isso em vez de escolher um
+    lado. Permanência acima de 24h vira "não medido": é apontamento
+    atravessando dias, não veículo parado.
+- termo: Por que o portal não mostra entrega no prazo
+  definicao: >-
+    Porque o ERP não tem prazo de entrega confiável. Medido em 05/09/2026 sobre
+    12 meses da Iochpe-Maxion: `dtprevisaoentrega` é IGUAL à data de emissão em
+    80,3% dos CT-es — é preenchimento default, não compromisso. Sobre a
+    previsão crua o indicador sai em 91,2% "no prazo", número que parece ótimo
+    e não significa nada. Restringindo aos CT-es com prazo de verdade e entrega
+    registrada, a régua cobriria 634 de 7.285 cargas: 8,7% da operação. Um
+    indicador de pontualidade que mede 8,7% e se apresenta como nível de
+    serviço é pior que não ter indicador — mais ainda num painel que o cliente
+    lê, porque ele cobra em cima. O que o portal mede é permanência.
 - termo: Em jogo (aba "Onde atacar")
   definicao: >-
     O tamanho da conta que uma decisão MEXE por mês — não a economia que ela
@@ -613,6 +647,7 @@ grupos:
   - jornf
   - cex
   - sac
+  - cliop
   - port
   - gr
   - agr

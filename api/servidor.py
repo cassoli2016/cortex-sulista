@@ -407,6 +407,59 @@ def _servico_auditoria(d: dict) -> dict:
     return {"nome": nome, "status": "ok", "detalhe": " · ".join(partes)}
 
 
+def _portal_cliente() -> dict:
+    """Quantos logins de cliente existem, e a coluna que os sustenta existe?
+
+    POR QUE ESTA LINHA EXISTE. O portal e a unica tela cujo dado depende de uma
+    COLUNA DE CADASTRO estar preenchida: sem `cliente_cnpj_raiz`, a tela abre e
+    recusa. Do lado de dentro isso e invisivel — ninguem da casa abre o portal,
+    entao o unico jeito de descobrir que ele nunca funcionou seria o cliente
+    reclamar. Aqui a instalacao se declara.
+
+    A COLUNA AUSENTE E UM ESTADO DE VERDADE, nao um erro a esconder: o
+    AutoDeploy NAO roda migration (conferido em 05/09/2026 no
+    `scripts/autodeploy.ps1`), entao existe uma janela real entre o codigo
+    chegar e alguem rodar o `migrar_schema.py`. Nessa janela a tela de Usuarios
+    quebra, e este cartao e o que diz por que.
+    """
+    from . import auth as _auth
+
+    nome = "Portal do cliente (Minha Operação)"
+    try:
+        with _auth._conn() as c:
+            existe = c.execute(
+                """SELECT 1 FROM information_schema.columns
+                    WHERE table_schema = current_schema()
+                      AND table_name = 'usuarios'
+                      AND column_name = 'cliente_cnpj_raiz'""").fetchone()
+            if not existe:
+                return {"nome": nome, "status": "erro",
+                        "detalhe": ("a coluna `usuarios.cliente_cnpj_raiz` não "
+                                    "existe — falta aplicar a migration 0053 "
+                                    "(uv run python scripts/migrar_schema.py); "
+                                    "até lá a tela de Usuários também falha")}
+            r = c.execute(
+                """SELECT count(*) AS logins,
+                          count(DISTINCT cliente_cnpj_raiz) AS clientes,
+                          sum(CASE WHEN ativo = 1 THEN 1 ELSE 0 END) AS ativos
+                     FROM usuarios WHERE cliente_cnpj_raiz IS NOT NULL""").fetchone()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: portal do cliente: %s", type(exc).__name__)
+        return {"nome": nome, "status": "info", "detalhe": "conferência indisponível"}
+
+    if not r or not r["logins"]:
+        # SEM VINCULO NAO E FALHA, e instalacao incompleta — a mesma regra das
+        # integracoes sem credencial. `info`, nunca vermelho: alarme que nao
+        # distingue "quebrado" de "ainda nao usado" treina a ignorar alarme.
+        return {"nome": nome, "status": "info",
+                "detalhe": ("nenhum login vinculado a cliente — a tela existe e "
+                            "recusa quem a abrir, que é o esperado")}
+    partes = ["%d login(s) em %d cliente(s)" % (r["logins"], r["clientes"])]
+    if (r["ativos"] or 0) < r["logins"]:
+        partes.append("%d inativo(s)" % (r["logins"] - (r["ativos"] or 0)))
+    return {"nome": nome, "status": "ok", "detalhe": " · ".join(partes)}
+
+
 def _brl_mi(v: float) -> str:
     """R$ curto, para caber num cartao: milhoes acima de 1 mi, milhares acima
     de mil. Cartao de monitoramento nao e demonstrativo — o centavo exato sai
@@ -1258,6 +1311,15 @@ def _servicos() -> list[dict]:
         servicos.append({"nome": "Auditoria de uso (trilha)", "status": "info",
                          "detalhe": "camada indisponível"})
         log.warning("saude: auditoria: %s", exc)
+
+    # PORTAL DO CLIENTE. Fica junto da auditoria porque a pergunta e da mesma
+    # familia: quem esta entrando, e com que alcance.
+    try:
+        servicos.append(_portal_cliente())
+    except Exception as exc:  # noqa: BLE001
+        servicos.append({"nome": "Portal do cliente (Minha Operação)",
+                         "status": "info", "detalhe": "conferência indisponível"})
+        log.warning("saude: portal do cliente: %s", exc)
 
     # MAPA CONTÁBIL do ERP. Vem logo depois dos bancos porque é a mesma
     # pergunta um nível acima: o banco responde, mas o que ele responde ainda

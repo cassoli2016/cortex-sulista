@@ -4390,6 +4390,60 @@ def portaria() -> JSONResponse:
             "erro": "erro_consulta", "mensagem": "Erro ao consultar a portaria."})
 
 
+# ---------------------------------------------------------------- portal do cliente
+# UMA ROTA SÓ, com `aba` como parâmetro, e não três rotas. O middleware é
+# fail-closed por PREFIXO (`/api/portal/cliente` -> tela `cliop`): com três
+# caminhos, esquecer de mapear um deles no futuro seria 403 para todo mundo —
+# ruim, mas visível. O risco real é o inverso: acrescentar `/api/portal/…`
+# fora do prefixo mapeado e abrir dado de cliente sem escopo. Um caminho só,
+# com o escopo aplicado em UM lugar, é o que não tem essa borda.
+@app.get("/api/portal/cliente")
+def portal_cliente_dados(request: Request, aba: str = "agora",
+                         dt_de: str | None = None, dt_ate: str | None = None,
+                         dias: int = 45, meses: int = 12) -> JSONResponse:
+    """Minha Operação: os dados do cliente vinculado à SESSÃO.
+
+    A raiz do CNPJ NÃO vem da requisição — vem da sessão. É a diferença entre
+    um portal e um buscador de operação alheia: se o cliente fosse um
+    parâmetro, bastaria trocá-lo na barra de endereço para ler a carteira do
+    vizinho, e o RBAC por tela não veria problema nenhum nisso (a tela é a
+    mesma, o usuário tem acesso a ela).
+    """
+    from . import portal_cliente
+
+    try:
+        raiz = portal_cliente.escopo(request.state.sessao)
+    except portal_cliente.SemEscopo:
+        # 403 e mensagem que diz o que FAZER. Recusa legível é 4xx: um 5xx
+        # aqui teria o corpo trocado pela página do Cloudflare e o usuário
+        # veria "erro interno" onde o que falta é um cadastro.
+        return JSONResponse(status_code=403, content={
+            "erro": "sem_vinculo_cliente",
+            "mensagem": ("Este login não está vinculado a um cliente. "
+                         "Peça ao administrador para preencher o vínculo em "
+                         "Administração › Usuários.")})
+    try:
+        if aba == "permanencia":
+            hoje = date.today()
+            dt_ate = dt_ate or hoje.isoformat()
+            dt_de = dt_de or hoje.replace(day=1).isoformat()
+            return JSONResponse(portal_cliente.get_permanencia(raiz, dt_de, dt_ate))
+        if aba == "historico":
+            return JSONResponse(portal_cliente.get_historico(raiz, max(1, min(24, meses))))
+        return JSONResponse(portal_cliente.get_agora(raiz, max(1, min(180, dias))))
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco de dados."})
+    except Exception as exc:  # noqa: BLE001
+        # TIPO da exceção no log, nunca o texto para fora.
+        log.warning("portal_cliente falhou (%s): %s", aba, type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao consultar a operação."})
+
+
 @app.get("/api/operacao/sac-freetime")
 def sac_freetime(dt_de: str | None = None, dt_ate: str | None = None) -> JSONResponse:
     from datetime import timedelta

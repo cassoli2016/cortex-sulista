@@ -89,6 +89,7 @@ _FONTES_ROTULO = {
     "precos_pecas": "Preço de Peças",
     "compras_da_os": "Manutenção — Compras da OS",
     "suporte": "Suporte — chamados",
+    "portal_cliente": "Minha Operação (portal do cliente)",
     "auditoria_uso": "Auditoria — acessos e uso do painel",
     "financeiro_caixa": "Fluxo de Caixa e Bancos",
     "analise_km_ano": "Análise de KM",
@@ -305,6 +306,55 @@ def _fontes_do_snapshot() -> dict:
                 "atrasados": len(e["atrasados"]),
                 "sem_posicao": len(e["sem_posicao"])}
 
+    def _portal_cliente():
+        """O portal do cliente, do lado de DENTRO: como está a operação das
+        contas que têm login no portal.
+
+        SEM CNPJ E SEM NOME DE CLIENTE. O snapshot vai para o chat, que pode
+        cair no modelo externo quando não há Ollama — e é exatamente o fato de
+        ele levar só escalar que permite esse fallback existir. Contagem de
+        cargas e percentual de permanência não identificam ninguém; a raiz do
+        CNPJ identificaria, e ela fica aqui dentro só para montar a consulta.
+
+        LÊ O BANCO LOCAL para saber quais raízes existem (é uma coluna de
+        `usuarios`, custo de nada) e o ERP para os números — a mesma consulta
+        da tela, com o mesmo cache. Não dispara coleta externa nenhuma.
+        """
+        from api import portal_cliente as pc
+        from api import auth as _auth
+
+        with _auth._conn() as c:
+            raizes = [r["cliente_cnpj_raiz"] for r in c.execute(
+                """SELECT DISTINCT cliente_cnpj_raiz FROM usuarios
+                    WHERE cliente_cnpj_raiz IS NOT NULL AND ativo = 1""").fetchall()]
+        if not raizes:
+            # Instalação sem portal configurado NÃO é falha: é recurso não
+            # usado ainda. Dizer isso é diferente de sumir da lista.
+            return {"clientes_com_portal": 0,
+                    "nota": "nenhum login vinculado a cliente"}
+
+        em_curso = 0
+        acima_desc = []
+        for raiz in raizes:
+            try:
+                em_curso += pc.get_agora(raiz, 45).get("em_curso") or 0
+                perm = pc.get_permanencia(
+                    raiz, hoje.replace(day=1).isoformat(), fim)
+                d = perm.get("descarga") or {}
+                if d.get("fora_pct") is not None:
+                    acima_desc.append(d["fora_pct"])
+            except Exception:  # noqa: BLE001
+                continue
+        return {
+            "clientes_com_portal": len(raizes),
+            "cargas_em_curso": em_curso,
+            "descarga_acima_do_freetime_pct": (
+                round(sum(acima_desc) / len(acima_desc), 1) if acima_desc else None),
+            "nota": ("percentual sobre as descargas medidas no mês corrente, "
+                     "contra o MAIOR freetime do contrato (o contrato distingue "
+                     "por mercadoria e o apontamento não diz qual era)"),
+        }
+
     def _premiacao():
         from api.premiacao import servico as prem
         return prem.obter(mes_passado)    # SEM force: nao chamar a Gobrax aqui
@@ -517,6 +567,7 @@ def _fontes_do_snapshot() -> dict:
         # e recompra precoce — escalares, sem placa nem número de OS
         "compras_da_os": lambda: __import__(
             "api.manutencao_compras", fromlist=["snapshot_copiloto"]).snapshot_copiloto(),
+        "portal_cliente": _portal_cliente,
         # Suporte: só escalares do banco local (nada de título, nome, e-mail)
         "suporte": lambda: __import__("api.suporte.chamados", fromlist=["resumo"]).resumo(),
         # Auditoria de uso: contagens e medianas, sem e-mail e sem IP —

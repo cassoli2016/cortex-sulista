@@ -12,6 +12,172 @@
 
 ---
 
+## O portal do cliente e o indicador que não existia (2026-09-05)
+
+A tela `cliop` ("Minha Operação") nasceu de um pedido curto — "um painel para
+o cliente Iochpe Maxion" — e quase virou um painel de nível de serviço com um
+indicador falso na capa. O que impediu foi medir antes de desenhar.
+
+### A previsão de entrega do ERP não é um prazo
+
+`conhecimento.dtprevisaoentrega` parece o campo óbvio para pontualidade. Sobre
+os 7.285 CT-es de 12 meses da Maxion:
+
+| medida | resultado |
+|---|---|
+| previsão **igual** à data de emissão | **80,3%** (4.828 de 6.016) |
+| entregas exatamente na data prevista | 90,5% |
+| "no prazo" pela previsão crua | **91,2%** |
+| CT-es com prazo de verdade (previsão > emissão) | 1.188 (16,3%) |
+| CT-es com prazo de verdade **e** entrega registrada | **634 (8,7%)** |
+| "no prazo" só sobre esses 634 | 95,1% |
+
+É a MESMA armadilha das ordens de compra (previsão de entrega = dia da emissão
+em 80% das OCs), num campo diferente e numa tela diferente. A regra generaliza:
+**data que o ERP preenche por default não é compromisso** — antes de derivar
+atraso de um campo de prazo, medir a distribuição dele contra a data de origem.
+
+O 91,2% é o número perigoso: alto, redondo, e mede quase nada. Publicado numa
+tela que o CLIENTE lê, ele deixa de ser um erro interno e vira um compromisso
+que a Sulista não sabia que assumiu. O painel não mostra pontualidade, e o
+`docs/manual.yaml` diz por quê — indicador ausente com motivo escrito é
+honesto; indicador presente medindo 8,7% da operação, não.
+
+### O que a operação registra de verdade: as ocorrências SAC
+
+O que salvou a tela foi ler `coleta_ocorrencia` inteira em vez de procurar um
+campo de data. As ocorrências SAC formam uma linha do tempo com hora — 394
+chegada para carregamento, 395 saída, 400 em viagem, 396 chegada para
+descarga, 397 fim de descarga, 401 viagem finalizada — e cobrem **~72%** das
+cargas, contra os 8,7% da pontualidade.
+
+Dois achados na leitura, os dois do mesmo tipo (estado tirado de registro que
+a operação não é obrigada a fazer):
+
+- **O marco terminal é o 397, não o 401.** Numa janela de 45 dias com 738
+  cargas, 671 tinham 397 e **UMA** tinha 401. Fechar a carga pelo 401 deixaria
+  a operação inteira eternamente "em curso" na tela do cliente — a carga
+  chegou, descarregou, e o portal continuaria dizendo que está a caminho.
+- **`dtentrega` satura em 65-70%, não em 100%.** A queda nos meses recentes
+  (46% em junho, 16% em julho) é maturação; o platô dos meses maduros é 65%.
+  Um terço das cargas entregues nunca ganha data de entrega — então "sem data"
+  não significa "não entregue".
+
+Campos que pareciam servir e não serviam, todos medidos e todos zero:
+`dtagendamentoentrega` (0,0%), `dtiniciodescarga` (0,0%), a tabela
+`agendamentoentrega` (0 linhas) e `coleta.dtdeadline` (2 linhas em 12 meses).
+**Coluna sempre vazia se preenche ou se remove** — aqui, se remove do desenho.
+
+### O freetime que o `DISTINCT ON` desempatava no escuro
+
+O contrato de freetime (`sulista.sac_freetimecliente`) parecia uma linha por
+cliente. A Iochpe-Maxion tem QUATRO ativas, todas no agrupamento 8, todas na
+filial 20, **todas com o mesmo `dtinicio` (01/08/2024)**:
+
+| linha | descarga | observação |
+|---|---|---|
+| 33 | 3,0h | (genérica, `distingueoperacao` 2) |
+| 34 | 6,5h | ESCADAS |
+| 35 | 6,5h | RODAS |
+| 38 | 6,5h | CONJUNTOS |
+
+Não é histórico de vigência: é **uma régua por mercadoria**. E a ocorrência SAC
+não diz qual mercadoria era. Um `DISTINCT ON (agrupamentocliente) ORDER BY
+dtinicio DESC NULLS LAST` — que é o padrão certo para tabela de vigência, e é o
+que o `SAC_FT_REP` de `api/queries.py` faz hoje — desempata **ao acaso** entre
+quatro linhas empatadas. Medido: a aderência da descarga de agosto sai 38,6%
+com a régua de 3h e cerca de 70% com a de 6,5h, sem uma linha de código mudar.
+
+A saída não foi escolher. O portal mostra TRÊS FAIXAS (agosto/2026, 451
+descargas medidas): 38,6% dentro de 3h, 31,3% entre 3h e 6,5h, 30,2% acima de
+6,5h. A faixa do meio é o que o sistema não sabe responder, dita como tal.
+**Régua ambígua se declara; ela não se resolve por sorteio.**
+
+O defeito no `SAC_FT_REP` **continua de pé** (05/09/2026) — é a tela `sac`, de
+outra frente, e merece a própria entrega. Fica registrado aqui porque achado
+medido que não vira crônica se perde.
+
+### Escopo por linha, numa casa que só tinha escopo por tela
+
+O RBAC do CÓRTEX responde "que telas você abre". O portal exigiu a segunda
+pergunta — "quais linhas são suas" — e não há RLS: o AVA é réplica
+somente-leitura de um ERP de terceiro, onde não se cria política nenhuma.
+
+O escopo mora em `api/portal_cliente.escopo()`, e ele **levanta** em vez de
+devolver vazio. A diferença não é estilo: `strpos(cast(... AS text), '') = 1`
+casa com TODAS as linhas, então uma raiz vazia não é um filtro que barra — é um
+filtro que não filtra, sem erro nenhum. Admin também é recusado: ser admin
+responde "que telas", não "de quem é a operação", e liberar tudo para ele
+criaria a única sessão do sistema capaz de abrir a carteira inteira.
+
+**O vínculo é a RAIZ do CNPJ (8 dígitos), não o `agrupamentocliente` do ERP.**
+O agrupamento existe, seria o caminho óbvio, e em 05/09/2026 tinha TRÊS dos
+QUATRO CNPJs da empresa — faltava o 61156113000680 (Contagem/MG). Escopar por
+ele entregaria um portal que esconde uma planta inteira do cliente, sem erro,
+e o sintoma seria "faltam cargas" meses depois. Agrupamento é cadastro mantido
+à mão; a raiz é o próprio documento. Para decidir QUEM VÊ O QUÊ vale o
+documento. (O agrupamento segue valendo para o freetime, que é cláusula
+comercial e mora nele mesmo.)
+
+### O `information_schema` sem filtro de schema mente
+
+O detector "a migration já rodou?" nasceu assim:
+
+```sql
+SELECT 1 FROM information_schema.columns
+ WHERE table_name = 'usuarios' AND column_name = 'cliente_cnpj_raiz'
+```
+
+Respondeu **existe** — e não existia no schema `cortex`. A coluna estava num
+`teste_aud_07a1a0a2f1`, sobra de uma suíte antiga no MESMO banco. O guard
+mentiria exatamente no estado que ele foi escrito para pegar: diria verde
+enquanto a tela de Usuários caía. Falta `AND table_schema = current_schema()`.
+
+### A janela entre o código e a migration é real
+
+O `scripts/autodeploy.ps1` **não** roda `migrar_schema.py` (conferido em
+05/09/2026). Entre o código chegar e alguém aplicar a DDL há minutos ou dias, e
+nessa janela o cadastro de usuário quebraria inteiro: o formulário manda
+`cliente_cnpj_raiz` sempre (vazio vira `None`, que significa "limpa o
+vínculo"), então todo `UPDATE` tocaria uma coluna inexistente — por causa de
+uma tela que ninguém ainda usa.
+
+Avisar não bastava: **guard que avisa depois de a tela cair avisa tarde.** O
+código TOLERA a ausência (ignora o campo, a lista devolve `NULL::text`), e a
+Saúde do Servidor acende vermelho com o comando exato. As duas coisas, não uma.
+
+### Migration em paralelo: o runner protege, o `--conferir` engana
+
+Durante esta entrega três sessões trabalharam ao mesmo tempo e a `0052` foi
+pedida por duas. Vale registrar o que é medo e o que é real, porque a versão
+assustadora circulou entre as sessões e está errada.
+
+**O runner NÃO pula em silêncio.** `api/migracoes.pendentes()` compara número
+**e nome do arquivo**, e número repetido com arquivo diferente levanta
+`NumeroJaUsado` com a mensagem mandando renumerar. Essa proteção existe desde
+27/08/2026, e nasceu exatamente do caso temido (duas frentes criando o `0009`
+no mesmo dia). Quem for numerar migration não precisa temer o pulo mudo — o
+que ele precisa é não IGNORAR o erro alto quando ele aparecer.
+
+**O que engana de verdade é o `--conferir`.** Ele responde "nada pendente
+(versão 55)" quando o registro está em dia — e isso NÃO quer dizer que a sua
+migration rodou. Em 05/09/2026 ele disse "nada pendente" para uma 0053 que eu
+achava não aplicada; ela já estava, e a leitura de que "53 < 55, logo foi
+pulada" era minha, não do runner. **A pergunta certa não é a versão do schema,
+é a coluna**: `information_schema.columns` (com `table_schema =
+current_schema()`, ver acima) responde o que existe; o número responde só o
+que alguém registrou.
+
+**E quem aplicou a 0053 não fui eu: foi a suíte de testes.** O startup da API
+chama `auth.init_db()` no schema PADRÃO, e um `TestClient` levantado em
+qualquer teste aplica as migrations pendentes no `cortex` de produção. Já está
+documentado (memória `testclient-aplica-migration-em-producao`) e continua
+valendo — aqui o efeito foi benigno, porque era um `ALTER TABLE ADD COLUMN`
+nullable. Não seria benigno com DDL destrutivo, e é por isso que rodar a suíte
+completa nesta máquina nunca é uma operação neutra.
+
+---
+
 ## Migração dos SQLite e o sensor da Saúde (2026-08)
 
 

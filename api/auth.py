@@ -90,6 +90,13 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "jorn":    ("Jornada do Motorista", "Operação"),
     "cex":     ("Custos Extras", "Operação"),
     "sac":     ("SAC / Freetime", "Operação"),
+    # A ÚNICA TELA DESTA CASA CUJO USUÁRIO NÃO É DA CASA. O perfil dá acesso à
+    # tela; QUAIS LINHAS ele vê vem do vínculo `usuarios.cliente_cnpj_raiz`,
+    # aplicado no servidor por `api/portal_cliente.escopo()` (fail-closed:
+    # sem vínculo, 403 — inclusive para admin). Dar `cliop` a alguém sem
+    # vínculo entrega uma tela que recusa, e é assim de propósito: o modo de
+    # falha seguro é não mostrar nada, nunca mostrar a carteira inteira.
+    "cliop":   ("Minha Operação", "Operação"),
     "port":    ("Portaria", "Operação"),
     "oc":      ("Ordens de Compra", "Suprimentos"),
     "custos":  ("Painel de Custos", "Suprimentos"),
@@ -283,6 +290,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/operacao/custos-extras",   frozenset({"cex"})),
     ("/api/operacao/sac-freetime",    frozenset({"sac"})),
     ("/api/operacao/portaria",        frozenset({"port"})),
+    ("/api/portal/cliente",           frozenset({"cliop"})),
     ("/api/comercial/crm",            frozenset({"crm"})),
     # mais específica ANTES: /clientes-lista começa com /clientes e cairia na
     # regra do painel comercial, barrando quem só tem a Consulta de Cliente
@@ -1026,6 +1034,13 @@ def sessao_atual(token: str | None) -> dict | None:
         "telefone": u["telefone"] or "", "cargo": u["cargo"] or "",
         "setor": u["setor"] or "", "ramal": u["ramal"] or "",
         "foto_em": u["foto_em"],
+        # Vínculo de cliente do portal (`cliop`). `.get()` e não `u[...]`: a
+        # coluna nasceu em 0053 e esta função roda a CADA requisição
+        # autenticada — num banco ainda não migrado, o acesso direto derrubaria
+        # o LOGIN de todo mundo por causa de uma tela que nem está no ar.
+        # NULL/ausente é o estado normal (gente da casa) e é o estado SEGURO:
+        # quem lê isto é `portal_cliente.escopo()`, que recusa sem vínculo.
+        "cliente_cnpj_raiz": (dict(u).get("cliente_cnpj_raiz") or ""),
         "token_ver": u["token_ver"], "exp": claims["exp"], "iat": claims["iat"],
         "sid": claims.get("sid"),   # sessao da auditoria de uso
 
@@ -1040,7 +1055,8 @@ def _payload_me(s: dict) -> dict:
     # discordarem em algum caso de borda.
     dados = {k: s[k] for k in ("id", "nome", "email", "perfil", "perfil_id",
                                "admin", "telas", "deve_trocar_senha",
-                               "telefone", "cargo", "setor", "ramal", "foto_em")}
+                               "telefone", "cargo", "setor", "ramal", "foto_em",
+                               "cliente_cnpj_raiz")}
     dados["telefone_fmt"] = telefones.formatar(s["telefone"]) if s["telefone"] else ""
     return dados
 
@@ -1160,6 +1176,41 @@ _CAMPOS_TEXTO = {"cargo": 60, "setor": 60, "ramal": 12}
 _ROTULO = {"cargo": "cargo", "setor": "setor", "ramal": "ramal"}
 
 
+_TEM_VINCULO: dict = {}
+
+
+def tem_coluna_vinculo() -> bool:
+    """A coluna `usuarios.cliente_cnpj_raiz` já existe neste banco?
+
+    POR QUE ISTO EXISTE, e por que não é paranoia: o `scripts/autodeploy.ps1`
+    NÃO roda `migrar_schema.py` (conferido em 05/09/2026). Entre o código
+    chegar em produção e alguém aplicar a migration 0053 há uma janela de
+    minutos ou de dias — e nela TODA gravação de usuário falharia, porque o
+    formulário manda a chave sempre (vazia vira `None`, que é "limpa o
+    vínculo"). A tela de Usuários cairia inteira por causa de uma tela que
+    ninguém ainda usa.
+
+    Memoizado porque a resposta só muda quando alguém aplica a migration, e aí
+    o processo reinicia (o AutoDeploy reinicia a API a cada deploy). Consultar
+    o `information_schema` a cada gravação seria pagar uma ida ao banco para
+    responder uma pergunta cuja resposta é fixa dentro do processo.
+    """
+    if "v" not in _TEM_VINCULO:
+        try:
+            with _conn() as c:
+                _TEM_VINCULO["v"] = bool(c.execute(
+                    """SELECT 1 FROM information_schema.columns
+                        WHERE table_schema = current_schema()
+                          AND table_name = 'usuarios'
+                          AND column_name = 'cliente_cnpj_raiz'""").fetchone())
+        except Exception:  # noqa: BLE001
+            # Sem conseguir perguntar, assume que NÃO tem: o custo de errar
+            # para este lado é o vínculo não gravar (e a Saúde acusar); errar
+            # para o outro é a tela de Usuários parar de salvar.
+            return False
+    return _TEM_VINCULO["v"]
+
+
 def _cadastro_do_payload(payload: dict) -> tuple[dict, str | None]:
     """Os campos opcionais que vieram no payload, já normalizados.
 
@@ -1178,6 +1229,37 @@ def _cadastro_do_payload(payload: dict) -> tuple[dict, str | None]:
                 dados["telefone"] = telefones.normalizar(bruto)
             except telefones.TelefoneInvalido as exc:
                 return {}, str(exc)
+    # VÍNCULO DE CLIENTE (portal `cliop`). Chave AUSENTE = não mexe;
+    # chave VAZIA = LIMPA o vínculo. É a regra de edição parcial da casa, e
+    # aqui ela tem peso de segurança: se "ausente" e "vazio" fossem a mesma
+    # coisa, qualquer edição de telefone que não reenviasse o campo apagaria
+    # (ou pior, manteria por acidente) o escopo de um usuário de cliente.
+    #
+    # Guarda só DÍGITOS: "61.156.113/0001-75" colado do cadastro do ERP vira
+    # `61156113`. Aceitar o CNPJ inteiro e cortar é melhor que recusar — quem
+    # preenche isso está com a tela do ERP aberta do lado, e o campo de lá tem
+    # pontuação. O que NÃO se aceita é qualquer coisa que não vire 8 dígitos:
+    # raiz errada é portal vazio, que ninguém reporta como erro de cadastro.
+    if payload.get("cliente_cnpj_raiz", _AUSENTE) is not _AUSENTE:
+        cru = str(payload.get("cliente_cnpj_raiz") or "").strip()
+        bruto = "".join(ch for ch in cru if ch.isdigit())
+        # LIMPAR é campo VAZIO, não campo sem dígito: "abc" (ou um nome de
+        # empresa digitado no lugar do CNPJ) apagaria o vínculo em silêncio,
+        # e o dono do login perderia o portal sem ninguém ver erro nenhum.
+        if not tem_coluna_vinculo():
+            # Migration 0053 pendente. O campo é IGNORADO em silêncio de
+            # propósito: recusar a gravação inteira faria o admin não
+            # conseguir mudar um ramal por causa de um campo que ele nem
+            # preencheu. Quem grita é a Saúde do Servidor, que tem cartão
+            # vermelho para exatamente este estado.
+            pass
+        elif not cru:
+            dados["cliente_cnpj_raiz"] = None
+        elif len(bruto) in (8, 14):
+            dados["cliente_cnpj_raiz"] = bruto[:8]
+        else:
+            return {}, ("O vínculo de cliente é a raiz do CNPJ: 8 dígitos "
+                        "(ou o CNPJ completo, com 14).")
     for campo, limite in _CAMPOS_TEXTO.items():
         if payload.get(campo, _AUSENTE) is _AUSENTE:
             continue
@@ -1664,11 +1746,14 @@ def usuarios_lista() -> JSONResponse:
                       p.admin AS perfil_admin, u.ativo, u.deve_trocar_senha,
                       u.bloqueado_ate, u.criado_em, u.ultimo_login,
                       u.telefone, u.cargo, u.setor, u.ramal,
+                      {vinculo}
                       f.atualizado_em AS foto_em
                FROM usuarios u
                JOIN perfis p ON p.id=u.perfil_id
                LEFT JOIN usuario_fotos f ON f.usuario_id=u.id
-               ORDER BY u.nome""").fetchall()
+               ORDER BY u.nome""".format(
+                   vinculo=("u.cliente_cnpj_raiz," if tem_coluna_vinculo()
+                            else "NULL::text AS cliente_cnpj_raiz,"))).fetchall()
     # `foto_em` (e nunca os bytes) é o que a lista precisa: diz se há foto e
     # serve de versão na URL da imagem, para trocar de foto aparecer na hora
     # sem que o navegador precise deixar de cachear as outras.

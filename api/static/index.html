@@ -2575,6 +2575,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#mvb" class="sub" data-view="mvb" title="Frota própria ou agregado, rota a rota"><span class="ic" data-ic="mvb"></span><span>Frota Própria × Agregado</span></a>
         <a href="#gr" class="sub" data-view="gr" title="Gerenciamento de Risco — eventos do rastreamento, cobertura de GR nas viagens e a saúde do fluxo"><span class="ic" data-ic="gric"></span><span>Gerenciamento de Risco</span></a>
         <a href="#jorn" class="sub" data-view="jorn" title="Jornada do Motorista (Lei 13.103) — apuração da RasterJOR, com as inconformidades nomeadas pelo fornecedor"><span class="ic" data-ic="jornic"></span><span>Jornada do Motorista</span></a>
+        <a href="#cliop" class="sub" data-view="cliop" title="Minha Operação — o portal do cliente: cargas em curso, permanência e histórico da operação dele"><span class="ic" data-ic="cliopic"></span><span>Minha Operação</span></a>
         <a href="#milkrun" class="sub" data-view="milkrun" title="Operação MWM: chegada e saída detectadas pelo rastreamento"><span class="ic" data-ic="milkic"></span><span>Operação MWM</span></a>
         <a href="#poli" class="sub" data-view="poli" title="Permanência na Planta — quanto tempo o veículo passa dentro da planta da Tupy e em quais polígonos"><span class="ic" data-ic="poliic"></span><span>Permanência na Planta</span></a>
         <a href="#port" class="sub" data-view="port" title="Portaria — controle de pátio e autorização de saída"><span class="ic" data-ic="porta"></span><span>Portaria</span></a>
@@ -5646,6 +5647,70 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="tablewrap tabroll" id="sac-coletas" style="max-height:520px"></div>
         </div>
       </section>
+      <!-- ===================== MINHA OPERAÇÃO (portal do cliente) =====================
+           A tela do CLIENTE. O que ela mostra sai de `api/portal_cliente.py`,
+           escopado pelo vínculo da SESSÃO — a raiz do CNPJ nunca vem daqui.
+           Se esta tela abrir para alguém sem vínculo, ela mostra o aviso de
+           cadastro e mais nada: a API responde 403 e é assim de propósito. -->
+      <section class="view" id="view-cliop">
+        <div class="kpis k4" id="kpis-cliop"></div>
+        <div class="subtabs" role="tablist" data-abas="cliop" aria-label="Seções desta tela">
+          <button role="tab" id="tabcliop-agora" data-aba="agora" aria-controls="aba-cliop-agora" aria-selected="true" onclick="abaTrocar('cliop','agora')">Agora <span class="aban" id="abancliopAgora" data-fixo="1"></span></button>
+          <button role="tab" id="tabcliop-perm" data-aba="perm" aria-controls="aba-cliop-perm" aria-selected="false" onclick="abaTrocar('cliop','perm')">Permanência</button>
+          <button role="tab" id="tabcliop-hist" data-aba="hist" aria-controls="aba-cliop-hist" aria-selected="false" onclick="abaTrocar('cliop','hist')">Histórico</button>
+        </div>
+
+        <div class="aba" data-abas="cliop" data-aba="agora" id="aba-cliop-agora" role="tabpanel" aria-labelledby="tabcliop-agora">
+          <div class="card">
+            <div class="head"><h2>Onde estão as cargas agora <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="As cargas ainda no ar, contadas por rota. Complementa os números do topo, que contam por etapa do trajeto: um diz em que ponto do percurso a frota está, o outro diz em quais trechos. Rota sem carga em curso não aparece.">i</span></h2><span class="hint" id="cliop-agora-rotas-hint"></span></div>
+            <div class="chartwrap">
+              <div id="chartCliopAgora" style="width:100%;height:200px" role="img" aria-label="Cargas em curso por rota."></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Cargas em curso <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="As cargas da sua operação que ainda não tiveram FIM DE DESCARGA registrado, na janela dos últimos 45 dias. O estado vem do evento que a operação registrou (chegada para carregamento, saída, em viagem, chegada para descarga), nunca da falta de uma data. Carga sem nenhum evento registrado não aparece aqui — ela não some, ela ainda não foi apontada.">i</span></h2><span class="hint" id="cliop-agora-hint"></span></div>
+            <div class="tablewrap tabroll" style="max-height:520px"><table><thead><tr>
+              <th>Coleta</th><th>Rota</th><th>Veículo</th><th>Situação</th><th>Desde</th>
+            </tr></thead><tbody id="cliop-agora"></tbody></table></div>
+          </div>
+        </div>
+
+        <div class="aba" data-abas="cliop" data-aba="perm" id="aba-cliop-perm" role="tabpanel" aria-labelledby="tabcliop-perm" data-ao-abrir="cliopPermanencia" hidden>
+          <div class="card">
+            <div class="head"><h2>Permanência do veículo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Tempo entre a chegada e a saída, medido pelos apontamentos da operação (SAC 394→395 no carregamento e 396→397 na descarga). O contrato de freetime distingue por mercadoria e o apontamento não diz qual mercadoria era — por isso a leitura sai em três faixas em vez de um número só. Permanências acima de 24h são tratadas como não medidas: quase sempre são apontamentos que atravessaram dias, não veículo parado.">i</span></h2><span class="hint" id="cliop-perm-hint"></span></div>
+            <div class="cardfilters">
+              <input type="date" id="fCliopDe">
+              <span style="color:var(--n500)">até</span>
+              <input type="date" id="fCliopAte">
+              <button class="btn" onclick="cliopPermanencia()">Atualizar</button>
+            </div>
+            <div class="chartwrap">
+              <div id="chartCliopPerm" style="width:100%;height:240px" role="img" aria-label="Permanência em carregamento e descarga, repartida entre dentro do freetime, zona que depende da mercadoria e excedente."></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Freetime contratado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="As linhas de freetime ativas do seu contrato. Quando há mais de uma (por mercadoria), a tela mostra a faixa entre a menor e a maior em vez de escolher uma — escolher seria inventar um número.">i</span></h2><span class="hint" id="cliop-ft-hint"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Etapa</th><th class="num">Mediana</th><th class="num">Dentro</th><th class="num">Depende da mercadoria</th><th class="num">Excedente</th><th class="num">Não medido</th>
+            </tr></thead><tbody id="cliop-perm-tab"></tbody></table></div>
+          </div>
+        </div>
+
+        <div class="aba" data-abas="cliop" data-aba="hist" id="aba-cliop-hist" role="tabpanel" aria-labelledby="tabcliop-hist" data-ao-abrir="cliopHistorico" hidden>
+          <div class="card">
+            <div class="head"><h2>Cargas por mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Coletas emitidas por mês na sua operação, nos últimos 12 meses. O intervalo de meses é gerado, não colhido do banco: mês sem carga aparece como mês sem carga, e não emenda o mês anterior no seguinte. O mês corrente está incompleto e vai hachurado.">i</span></h2><span class="hint" id="cliop-hist-hint"></span></div>
+            <div class="chartwrap">
+              <div id="chartCliopHist" style="width:100%;height:230px" role="img" aria-label="Cargas por mês nos últimos doze meses."></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Rotas mais usadas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="As dez rotas com mais cargas no período, por cidade de origem e destino. O contador do rodapé diz quantas rotas e quantas cargas ficaram fora da lista — a soma da tabela não é o total da operação.">i</span></h2><span class="hint" id="cliop-rotas-hint"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Rota</th><th class="num">Cargas</th><th class="num">% do período</th>
+            </tr></thead><tbody id="cliop-rotas"></tbody></table></div>
+          </div>
+        </div>
+      </section>
       <section class="view" id="view-mprev">
         <div class="kpis" id="kpis-mprev"></div>
         <div class="card"><div class="head"><h2>Trações (por km) <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Veículos com motor, ativos, fora das atividades ENC e ADM, com plano de manutenção preventiva na fnc_manutencaopreventiva_gridview do ERP. Faltam = marcador da próxima troca menos o odômetro atual (último abastecimento CTA Plus, com o marcador do ERP como reserva). Entra quem já passou ou está a menos de 10% do intervalo.">i</span></h2><span class="hint" id="hintMprevT"></span></div>
@@ -7971,6 +8036,7 @@ const ICONS = {
   rhic: IC('<circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17.5" cy="9.5" r="2.4"/><path d="M15.5 20a5 5 0 0 1 6-4.5"/>'),
   hcic: IC('<circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/>'),
   gauge: IC('<path d="M4 20a8 8 0 1 1 16 0"/><path d="M13.5 14.5 16 10"/><circle cx="12" cy="20" r="1.2"/>'),
+  cliopic: IC('<path d="M3 21h18"/><path d="M4 21V10l5 3V10l5 3V8l5 3v10"/><path d="M9 21v-3.5h3V21"/>'),
   sacic: IC('<path d="M5 13v-1a7 7 0 0 1 14 0v1"/><rect x="3" y="13" width="3.5" height="6" rx="1.5"/><rect x="17.5" y="13" width="3.5" height="6" rx="1.5"/><path d="M19 19v.5a3 3 0 0 1-3 3h-2"/>'),
   folhaic: IC('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9.5h4M7 13h6"/><circle cx="16.5" cy="11.5" r="2.3"/><path d="M16.5 10v3"/>'),
   qualic: IC('<rect x="4" y="3" width="16" height="13" rx="2"/><path d="M8 7.5h8M8 11h5"/><circle cx="12" cy="17" r="3"/><path d="m10.5 19.5-1 3 2.5-1.3 2.5 1.3-1-3"/>'),
@@ -8082,7 +8148,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { tvcom:'Painel TV — Comunicação', home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', aud:'Auditoria e Uso',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { tvcom:'Painel TV — Comunicação', home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', aud:'Auditoria e Uso',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -8354,7 +8420,7 @@ const VIEW_GROUP = {home:'',cop:'',
   com:'Com',clif:'Com',crm:'Com',rent:'Com',drecli:'Com',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',banc:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',antport:'Fin',fluxcon:'Fin',rec:'Fin',
   dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',ctecp:'Ctr',
-  torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',pedagio:'Ope',
+  torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',cliop:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',pedagio:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',pecas:'Sup',
   prodveic:'Bi',fat:'Ctr',gr:'Ope',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',tvcom:'Bi',
@@ -8569,7 +8635,7 @@ function semFilterbar(v){
   // nela, então a barra aparecia sem um único campo — só o botão "Aplicar
   // filtros", que não tinha o que aplicar.
   return v==='cop'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
-         v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
+         v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
          v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='antport'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila';
 }
 function currentView(){
@@ -8664,7 +8730,7 @@ function router(){
   document.getElementById('grpFluxcon').style.display = fluxcon ? 'flex' : 'none';
   const ges = (v==='gestao');
   const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = semFilterbar(v) ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='gesacao'||v==='gesata'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='prem'||v==='doc'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='gesacao'||v==='gesata'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='prem'||v==='doc'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', semFilterbar(v)); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -8688,7 +8754,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,pecas:DATAPECAS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,aud:loadAud,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,aud:loadAud,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -10531,7 +10597,7 @@ function reloadCurrent(){
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,prodveic:loadProdveic,
-    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
+    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
     cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,aud:loadAud,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   (M[currentView()]||load)();
 }
@@ -21335,6 +21401,225 @@ function sacDefaults(){
   if(ate && !ate.value) ate.value=hoje.toISOString().slice(0,10);
   if(de && !de.value){ const d=new Date(hoje); d.setDate(d.getDate()-30); de.value=d.toISOString().slice(0,10); }
 }
+/* ===================== MINHA OPERACAO (portal do cliente) =====================
+   A tela do cliente. Tres abas, uma rota (`/api/portal/cliente?aba=`), e o
+   escopo mora no SERVIDOR: nenhuma destas funcoes manda cliente nenhum, e e
+   por isso que nao ha como pedir a operacao do vizinho trocando a URL.
+
+   O 403 `sem_vinculo_cliente` e ESPERADO, nao e erro de sistema: e o que a API
+   responde para um login sem vinculo. Ele vira aviso de cadastro em vez de
+   banner vermelho -- quem abre a tela nesse estado e o admin conferindo, e
+   "erro ao consultar" mandaria ele procurar defeito onde falta um campo. */
+let CLIOP_SEQ = 0;
+
+async function cliopBuscar(aba, extra){
+  const p = new URLSearchParams(Object.assign({aba}, extra || {}));
+  const r = await fetch('/api/portal/cliente?' + p.toString(), {cache:'no-store'});
+  const resp = await respostaJSON(r);
+  const dados = resp.dados;
+  if(!resp.ok && dados && dados.erro === 'sem_vinculo_cliente'){
+    const e = new Error(dados.mensagem); e.semVinculo = true; throw e;
+  }
+  if(!resp.ok) throw new Error((dados && dados.mensagem) || 'Erro ao consultar a operacao.');
+  return dados;
+}
+
+function cliopSemVinculo(msg){
+  document.getElementById('kpis-cliop').innerHTML = '';
+  const t = document.getElementById('cliop-agora');
+  if(t) t.innerHTML = '<tr><td colspan="5" style="color:var(--n500);padding:18px">'
+    + esc(msg) + '</td></tr>';
+  const h = document.getElementById('cliop-agora-hint');
+  if(h) h.textContent = 'sem vinculo de cliente';
+}
+
+/* A TARJA DA LEITURA VELHA. `cached(velha_ate=)` devolve a ultima leitura boa
+   quando o ERP falha, e a tela e OBRIGADA a dizer: numero velho servido calado
+   e pior que tela vazia, porque ninguem desconfia dele. */
+function cliopTarja(d){
+  if(!d || !d.leitura_velha) return '';
+  const min = Math.round((d.leitura_idade_s || 0) / 60);
+  return ' &middot; <b style="color:var(--yellow-700)">leitura de ' + min
+       + ' min atras</b> (o ERP nao respondeu agora)';
+}
+
+async function loadCliop(){
+  const seq = ++CLIOP_SEQ;
+  skelKpis('kpis-cliop', 4);
+  try{
+    const d = await cliopBuscar('agora', {dias: 45});
+    if(seq !== CLIOP_SEQ) return;
+    hideBanner();
+    const cargas = d.cargas || [];
+    /* Contagem por marco, para a banda de KPI. O nome do marco vem do
+       SERVIDOR, que o leu da tabela de dominio do ERP -- a tela nao traduz
+       codigo nenhum, justamente para nao inventar rotulo. */
+    const por = {};
+    cargas.forEach(function(c){ por[c.marco] = (por[c.marco] || 0) + 1; });
+    const emViagem = por['Em viagem'] || 0;
+    const naDescarga = (por['Chegada para descarga'] || 0) + (por['Aguardando descarga'] || 0);
+    const noCarreg = (por['Chegada para carregamento'] || 0)
+                   + (por['Aguardando carregamento'] || 0)
+                   + (por['Saida do carregamento'] || 0)
+                   + (por['Sa\u00edda do carregamento'] || 0);
+    document.getElementById('kpis-cliop').innerHTML = [
+      kpi('Cargas em curso', (d.em_curso || 0).toLocaleString('pt-BR'),
+          'ainda sem fim de descarga apontado', ''),
+      kpi('Em viagem', emViagem.toLocaleString('pt-BR'), 'a caminho do destino', ''),
+      kpi('No destino', naDescarga.toLocaleString('pt-BR'),
+          'chegou e aguarda ou esta em descarga', ''),
+      kpi('Na origem', noCarreg.toLocaleString('pt-BR'), 'carregando ou pronto para sair', ''),
+    ].join('');
+    abaContador('abancliopAgora', d.em_curso || 0);
+    document.getElementById('cliop-agora-hint').innerHTML =
+      esc('janela de ' + (d.janela_dias || 45) + ' dias \u00b7 '
+          + (d.concluidas_na_janela || 0) + ' concluidas no periodo') + cliopTarja(d);
+    document.getElementById('cliop-agora').innerHTML = cargas.length ? cargas.map(function(c){
+      return '<tr><td class="num">' + esc(String(c.coleta)) + '</td>'
+        + '<td>' + esc(c.origem + '/' + c.uf_origem + ' \u2192 ' + c.destino + '/' + c.uf_destino) + '</td>'
+        + '<td>' + esc(c.placa || '\u2014') + '</td>'
+        + '<td>' + esc(c.marco) + '</td>'
+        + '<td>' + esc(c.marco_em || '\u2014') + '</td></tr>';
+    }).join('')
+      : '<tr><td colspan="5" style="color:var(--n500)">nenhuma carga em curso na janela</td></tr>';
+
+    /* Cargas em curso POR ROTA. Barras ordenadas do maior para o menor, sem
+       top-N: numa operacao concentrada (25 rotas no ano, a maior com 41% do
+       volume) o que esta no ar agora sao poucas rotas, e cortar a cauda
+       esconderia justamente a carga solta que ninguem esta olhando. */
+    const porRota = {};
+    cargas.forEach(function(c){
+      const k = c.origem + '/' + c.uf_origem + ' \u2192 ' + c.destino + '/' + c.uf_destino;
+      porRota[k] = (porRota[k] || 0) + 1;
+    });
+    const pares = Object.keys(porRota).map(function(k){ return [k, porRota[k]]; })
+                        .sort(function(a, b){ return b[1] - a[1]; });
+    const maxR = Math.max.apply(null, [1].concat(pares.map(function(x){ return x[1]; })));
+    document.getElementById('cliop-agora-rotas-hint').textContent =
+      pares.length ? pares.length + ' rota(s) com carga em curso' : '';
+    ecDesenhar('chartCliopAgora', pares.length ? function(){
+      const o = ecOpcoes(pares.map(function(x){ return x[0]; }), maxR,
+                         {sombra:true, left:56, bottom:56});
+      o.xAxis.axisLabel = Object.assign({}, o.xAxis.axisLabel || {},
+        {interval:0, rotate: pares.length > 4 ? 22 : 0, fontSize:10});
+      o.series = [ecBarras('Cargas', pares.map(function(x){ return x[1]; }),
+                           CC.navy400, {largura:38})];
+      o.yAxis = ecEixoValor(maxR, 'contagem');
+      return o;
+    } : null, 'nenhuma carga em curso na janela');
+  }catch(e){
+    if(seq !== CLIOP_SEQ) return;
+    if(e.semVinculo){ hideBanner(); cliopSemVinculo(e.message); return; }
+    showBanner('Nao foi possivel carregar a sua operacao.', e.message);
+  }
+}
+
+/* Leitor de campo proprio: `V` existe, mas e `const` DENTRO de outras
+   funcoes -- nao e global. Chamar de ca daria ReferenceError e a aba abriria
+   em branco, sem erro visivel na tela. */
+function _cliopV(id){ const e = document.getElementById(id); return e ? e.value : ''; }
+
+function _cliopCel(v, suf){
+  return v != null ? (v + (suf || '')) : '<span style="color:var(--n500)">n/d</span>';
+}
+
+async function cliopPermanencia(){
+  const hoje = new Date();
+  /* Datas em horario LOCAL: `toISOString()` em UTC-3 volta um dia e o periodo
+     nasce errado no primeiro dia do mes. */
+  if(!_cliopV('fCliopDe')) document.getElementById('fCliopDe').value =
+    _iso(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+  if(!_cliopV('fCliopAte')) document.getElementById('fCliopAte').value = _iso(hoje);
+  try{
+    const d = await cliopBuscar('permanencia', {dt_de: _cliopV('fCliopDe'), dt_ate: _cliopV('fCliopAte')});
+    const ft = d.freetime || {};
+    const linhas = [['Carregamento', d.carga || {}], ['Descarga', d.descarga || {}]];
+    document.getElementById('cliop-perm-tab').innerHTML = linhas.map(function(par){
+      const nome = par[0], x = par[1];
+      return '<tr><td>' + nome + '</td>'
+        + '<td class="num">' + (x.mediana_h != null
+            ? x.mediana_h.toLocaleString('pt-BR',{maximumFractionDigits:1}) + ' h'
+            : '<span style="color:var(--n500)">n/d</span>') + '</td>'
+        + '<td class="num">' + _cliopCel(x.dentro_pct, '%') + '</td>'
+        + '<td class="num">' + _cliopCel(x.zona_pct, '%') + '</td>'
+        + '<td class="num">' + _cliopCel(x.fora_pct, '%') + '</td>'
+        /* NAO MEDIDO e n/d em cinza, nunca zero verde: sao as permanencias
+           acima de 24h, que sao apontamento atravessando dias. */
+        + '<td class="num" style="color:var(--n500)">' + (x.fora_da_regua || 0) + '</td></tr>';
+    }).join('');
+
+    document.getElementById('cliop-ft-hint').textContent = ft.contratos
+      ? (ft.ambiguo
+         ? ft.contratos + ' contratos ativos \u00b7 carregamento ' + ft.carga_piso
+           + 'h \u00b7 descarga entre ' + ft.descarga_piso + 'h e ' + ft.descarga_teto
+           + 'h conforme a mercadoria'
+         : 'carregamento ' + ft.carga_piso + 'h \u00b7 descarga ' + ft.descarga_piso + 'h')
+      : 'sem freetime cadastrado \u2014 a tela nao classifica sem regua';
+    document.getElementById('cliop-perm-hint').innerHTML =
+      esc((d.cargas_no_periodo || 0) + ' cargas no periodo') + cliopTarja(d);
+
+    const dentro = linhas.map(function(par){ return par[1].dentro || 0; });
+    const zona   = linhas.map(function(par){ return par[1].zona   || 0; });
+    const fora   = linhas.map(function(par){ return par[1].fora   || 0; });
+    const total  = Math.max(1, (d.carga || {}).n || 0, (d.descarga || {}).n || 0);
+    const tem = ((d.carga || {}).n || 0) + ((d.descarga || {}).n || 0) > 0;
+    ecDesenhar('chartCliopPerm', tem ? function(){
+      const o = ecOpcoes(['Carregamento','Descarga'], total,
+                         {legenda:true, sombra:true, left:56});
+      o.legend = {bottom:0, data:['Dentro do freetime','Depende da mercadoria','Excedente']};
+      o.series = [
+        ecBarras('Dentro do freetime', dentro, CC.verde, {empilhar:'p', largura:56, raio:false}),
+        ecBarras('Depende da mercadoria', zona, CC.amarelo, {empilhar:'p', largura:56, raio:false}),
+        ecBarras('Excedente', fora, CC.vermelho, {empilhar:'p', largura:56}),
+      ];
+      o.yAxis = ecEixoValor(total, 'contagem');
+      return o;
+    } : null, 'sem apontamento de permanencia no periodo');
+  }catch(e){
+    if(e.semVinculo){ cliopSemVinculo(e.message); return; }
+    showBanner('Nao foi possivel carregar a permanencia.', e.message);
+  }
+}
+
+async function cliopHistorico(){
+  try{
+    const d = await cliopBuscar('historico', {meses: 12});
+    const meses = d.meses || [];
+    const rotulos = meses.map(function(m){ return m.mes.slice(5) + '/' + m.mes.slice(2,4); });
+    const vals = meses.map(function(m){ return m.cargas; });
+    const parcial = meses.map(function(m){ return !!m.parcial; });
+    const max = Math.max.apply(null, [1].concat(vals));
+    document.getElementById('cliop-hist-hint').innerHTML =
+      esc((d.cargas_total || 0).toLocaleString('pt-BR') + ' cargas em '
+          + meses.length + ' meses') + cliopTarja(d);
+    ecDesenhar('chartCliopHist', vals.some(function(v){ return v > 0; }) ? function(){
+      const o = ecOpcoes(rotulos, max, {sombra:true, left:56});
+      /* O mes corrente vai HACHURADO -- sem isso a ultima coluna despenca todo
+         dia 1o e alguem le queda de demanda onde so ha mes pela metade. */
+      o.series = [ecBarras('Cargas', vals, CC.navy400, {parcial: parcial, largura:34})];
+      o.yAxis = ecEixoValor(max, 'contagem');
+      return o;
+    } : null, 'sem cargas no periodo');
+
+    const rotas = d.rotas || [];
+    document.getElementById('cliop-rotas').innerHTML = rotas.length ? rotas.map(function(r){
+      return '<tr><td>' + esc(r.rota) + '</td>'
+        + '<td class="num">' + r.cargas.toLocaleString('pt-BR') + '</td>'
+        + '<td class="num">' + (r.pct != null ? r.pct + '%' : '\u2014') + '</td></tr>';
+    }).join('')
+      : '<tr><td colspan="3" style="color:var(--n500)">sem rotas no periodo</td></tr>';
+    /* CONTADOR do top-N: sem ele a soma da tabela vira o total da operacao na
+       cabeca de quem le. */
+    document.getElementById('cliop-rotas-hint').textContent =
+      d.rotas_mostradas + ' de ' + d.rotas_total + ' rotas \u00b7 '
+      + (d.cargas_nas_rotas_mostradas || 0).toLocaleString('pt-BR') + ' das '
+      + (d.cargas_total || 0).toLocaleString('pt-BR') + ' cargas';
+  }catch(e){
+    if(e.semVinculo){ cliopSemVinculo(e.message); return; }
+    showBanner('Nao foi possivel carregar o historico.', e.message);
+  }
+}
+
 async function loadSac(){
   sacDefaults();
   const seq=++sacSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
@@ -30564,6 +30849,7 @@ function podeVer(v){ if(v==='jornf') v='jorn'; if(v==='sup') return !!USER;   //
    tecla sem rede. Os atalhos de conteúdo só PREPARAM a consulta (preenchem
    o campo e disparam), quem busca de verdade é a tela de destino. */
 const BUSCA_SINONIMOS = {
+  cliop:['portal do cliente','portal','minha operacao','cliente','iochpe','maxion','permanencia','freetime','estadia','patio','carga em curso','onde esta minha carga','nivel de servico','sla'],
   tvcom:['rastreador','rastreadora','comunicacao','sem sinal','mudo','localizador','carreta sem sinal','3s','raster','onixsat','sem posicao'],
   cob:['inadimplencia','inadimplente','devedor','cobranca','vencido','atraso cliente','regua'],
   receber:['recebivel','duplicata','titulo a receber','cliente deve','aging'],
@@ -35694,6 +35980,10 @@ function gesUsuarioModal(id){
         <div style="flex:1"><label for="gu-ramal">Ramal</label>
           <input type="text" id="gu-ramal" inputmode="numeric" value="${u?esc(u.ramal||''):''}"></div>
       </div>
+      <div><label for="gu-cliente">Vínculo de cliente <span style="font-weight:400;text-transform:none">(só para login de CLIENTE — deixe vazio para gente da casa)</span></label>
+        <input type="text" id="gu-cliente" inputmode="numeric" placeholder="raiz do CNPJ, 8 dígitos"
+               value="${u?esc(u.cliente_cnpj_raiz||''):''}">
+        <div class="hint" style="margin-top:4px">Preenchido, este login passa a enxergar na tela <b>Minha Operação</b> apenas as cargas dessa empresa — e nada mais do CÓRTEX que o perfil não permita. Vazio é o normal.</div></div>
       <div><label for="gu-senha">${u?'Resetar senha (opcional — usuário troca no próximo login)':'Senha temporária (usuário troca no primeiro login)'}</label>
         <input type="password" id="gu-senha" autocomplete="new-password"></div>
       ${u?`<div><label><input type="checkbox" id="gu-ativo" ${u.ativo?'checked':''}> Usuário ativo</label></div>`:''}
@@ -35709,6 +35999,7 @@ async function gesUsuarioSalvar(id){
     nome:V('gu-nome'), email:V('gu-email'),
     perfil_id:+document.getElementById('gu-perfil').value,
     telefone:V('gu-tel'), cargo:V('gu-cargo'), setor:V('gu-setor'), ramal:V('gu-ramal'),
+    cliente_cnpj_raiz:V('gu-cliente'),
   };
   if(FOTOED.valor!==undefined) payload.foto=FOTOED.valor;
   const senha=document.getElementById('gu-senha').value||'';
@@ -36706,6 +36997,7 @@ boot();
         <a href="#mvb" onclick="fecharDrawer()"><span class="ic" data-ic="mvb"></span>Frota Própria × Agregado</a>
         <a href="#gr" onclick="fecharDrawer()"><span class="ic" data-ic="gric"></span>Gerenciamento de Risco</a>
         <a href="#jorn" onclick="fecharDrawer()"><span class="ic" data-ic="jornic"></span>Jornada do Motorista</a>
+        <a href="#cliop" onclick="fecharDrawer()"><span class="ic" data-ic="cliopic"></span>Minha Operação</a>
         <a href="#milkrun" onclick="fecharDrawer()"><span class="ic" data-ic="milkic"></span>Operação MWM</a>
         <a href="#poli" onclick="fecharDrawer()"><span class="ic" data-ic="poliic"></span>Permanência na Planta</a>
         <a href="#port" onclick="fecharDrawer()"><span class="ic" data-ic="porta"></span>Portaria</a>

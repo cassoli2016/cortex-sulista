@@ -4,6 +4,21 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.252.0] — 05/09/2026  ·  CX-05/09/2026-v0.252.0
+
+### Adicionado
+- Nova tela "Minha Operação": o portal do cliente. É a primeira tela do CÓRTEX feita para quem NÃO trabalha aqui — o cliente entra com o login dele e vê as cargas dele, e só as dele. Estreia com a Iochpe-Maxion.
+- Quem vê o quê agora tem duas perguntas, não uma. O perfil continua dizendo QUE TELAS a pessoa abre; o novo campo "Vínculo de cliente", no cadastro de usuário, diz DE QUEM é a operação que ela enxerga. Sem vínculo a tela recusa — inclusive para administrador, porque ser admin responde "que telas", não "de quem é a carga".
+- O vínculo é a raiz do CNPJ (os 8 primeiros dígitos), e não o CNPJ inteiro, porque o ERP cadastra uma linha por filial: as quatro plantas da Iochpe-Maxion (Cruzeiro/SP, Resende/RJ, Contagem/MG e Limeira/SP) são a mesma empresa, e quem é de Cruzeiro precisa ver a carga que chegou em Resende. Dá para colar o CNPJ completo do ERP, com pontuação: o sistema guarda a raiz.
+- Aba "Agora": as cargas que ainda estão no ar, cada uma com o ponto do trajeto em que a operação a apontou pela última vez — chegou para carregar, saiu, em viagem, chegou para descarregar. A situação vem do apontamento que existe, nunca da falta de uma data.
+- Aba "Permanência": quanto tempo o veículo ficou parado no carregamento e na descarga, contra o freetime do contrato. O número sai em TRÊS faixas — dentro, excedente, e "depende da mercadoria" — porque o contrato tem um freetime para cada tipo de carga e o apontamento não diz qual carga era. A faixa do meio é a parte que o sistema honestamente não sabe responder, e ele diz isso em vez de escolher um lado.
+- Aba "Histórico": volume de cargas mês a mês e as rotas mais usadas, com o contador dizendo quantas rotas e quantas cargas ficaram fora da lista.
+- A Saúde do Servidor ganhou o cartão do portal: quantos logins de cliente existem, e um alerta vermelho com o comando exato quando falta aplicar a migration da coluna do vínculo.
+
+### Alterado
+- O portal NÃO mostra "entrega no prazo", e isso é decisão, não falta. A data de previsão de entrega do ERP é igual à data de emissão em 80% dos CT-es: é preenchimento automático, não compromisso combinado. Sobre ela o indicador daria 91% de pontualidade, um número que agrada e não significa nada; medindo só onde existe prazo de verdade, a régua cobre 8,7% das cargas. Indicador que mede 8,7% e se apresenta como nível de serviço é pior que indicador nenhum — mais ainda numa tela que o cliente lê, porque ele fecha conta em cima. O que o portal mede é permanência, que a operação registra em cerca de 72% das cargas.
+- Permanência acima de 24 horas aparece como "não medido", em cinza, e vai contada à parte: quase sempre é apontamento que atravessou dias, não veículo parado no pátio. Entraria como número enorme e verdadeiro na aparência, empurrando a média para longe da operação real.
+
 ## [0.251.2] — 05/09/2026  ·  CX-05/09/2026-v0.251.2
 
 ### Alterado
