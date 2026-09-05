@@ -364,6 +364,37 @@ def rastreio_carga(req: Request, doc: str = "", cnpj: str = "",
     return _rastreio_freado(req) or JSONResponse(detalhe.obter(doc, cnpj, id))
 
 
+@app.post("/api/rastreio/assinar")
+def rastreio_assinar(req: Request, doc: str = "", cnpj: str = "",
+                     id: str = "", fone: str = "") -> JSONResponse:
+    """Passa a avisar um telefone sobre uma carga, de hora em hora.
+
+    ESCRITA VINDA DA INTERNET, sem conta e sem login — o modulo
+    `api/rastreio/assinatura.py` explica as quatro contencoes. O freio da busca
+    vale aqui tambem: sem ele, o mesmo IP tentaria pares de quatro digitos ate
+    achar uma carga para a qual inscrever um numero.
+    """
+    from api.rastreio import assinatura
+    freado = _rastreio_freado(req)
+    if freado:
+        return freado
+    return JSONResponse(assinatura.inscrever(doc, cnpj, id, fone,
+                                             _ip_do_cliente(req)))
+
+
+@app.post("/api/rastreio/cancelar")
+def rastreio_cancelar(req: Request, doc: str = "", cnpj: str = "",
+                      id: str = "", fone: str = "") -> JSONResponse:
+    """Para de avisar. SAIR E MAIS FACIL QUE ENTRAR, de proposito: opt-out
+    dificil nao reduz cancelamento — vira bloqueio do numero da empresa, e ai
+    todos os outros clientes param de receber tambem."""
+    from api.rastreio import assinatura
+    freado = _rastreio_freado(req)
+    if freado:
+        return freado
+    return JSONResponse(assinatura.cancelar(doc, cnpj, id, fone))
+
+
 @app.get("/sw.js")
 def service_worker() -> FileResponse:
     # servido da RAIZ (não de /static) para o escopo do SW ser "/" — senão

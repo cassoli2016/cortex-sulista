@@ -1,0 +1,184 @@
+# -*- coding: utf-8 -*-
+"""O aviso horário da carga por WhatsApp.
+
+O QUE ESTES GUARDS PROTEGEM não é o recurso: é o NÚMERO DA EMPRESA. Esta é a
+única mensagem da casa que sai sozinha, de hora em hora, para o telefone de
+alguém que não é usuário do sistema. Se ela repetir, a pessoa bloqueia — e o
+bloqueio não atinge esta mensagem, atinge o número que atende todos os outros
+clientes.
+
+TRÊS RESPOSTAS, como todo aviso automático daqui: manda, cala porque não há o
+que dizer, ou recusa DIZENDO o motivo. A quarta — parar em silêncio — é a que
+não pode existir, porque é indistinguível de "está tudo calmo".
+"""
+from __future__ import annotations
+
+import pytest
+
+from api.rastreio import aviso
+
+
+def _carga(**kw) -> dict:
+    base = {"documento": "CT-e 51283", "destino": "Santos/SP",
+            "estado": "em_viagem", "estado_rotulo": "Em viagem",
+            "entregue_em": None,
+            "andamento": {"tem_posicao": True, "progresso_pct": 62,
+                          "falta_km": 118, "por_rota": True}}
+    base.update(kw)
+    return base
+
+
+# --------------------------------------------------------------------------
+# o texto
+# --------------------------------------------------------------------------
+def test_a_mensagem_diz_progresso_e_o_que_falta():
+    t = aviso._texto(_carga())
+    assert "62%" in t and "118" in t and "Santos/SP" in t
+    assert "pela rota" in t
+
+
+def test_a_mensagem_declara_quando_e_LINHA_RETA():
+    """Sem rota cadastrada o número é reta, e chamar os dois da mesma coisa
+    faria quem espera na doca planejar em cima de um km que não existe."""
+    c = _carga()
+    c["andamento"]["por_rota"] = False
+    assert "linha reta" in aviso._texto(c)
+
+
+def test_entrega_gera_mensagem_de_ENTREGUE():
+    t = aviso._texto(_carga(estado="entregue",
+                            entregue_em="2026-09-04T15:30:00"))
+    assert "ENTREGUE" in t
+
+
+def test_veiculo_nao_localizado_RECUSA_dizendo_o_motivo():
+    """Calar aqui seria pior: quem contratou o aviso acharia que nada mudou,
+    quando na verdade paramos de enxergar."""
+    c = _carga()
+    c["andamento"] = {"tem_posicao": False, "fora_da_rota": True}
+    t = aviso._texto(c)
+    assert t and "localizar" in t.lower()
+
+
+def test_posicao_velha_vira_ressalva_e_nao_numero_antigo():
+    c = _carga()
+    c["andamento"] = {"tem_posicao": False, "posicao_velha_min": 240}
+    t = aviso._texto(c)
+    assert t and "4h" in t
+
+
+def test_sem_posicao_e_sem_ressalva_NAO_inventa_mensagem():
+    """Cala porque não há o que dizer — a terceira das três respostas."""
+    c = _carga()
+    c["andamento"] = {"tem_posicao": False}
+    assert aviso._texto(c) is None
+
+
+def test_a_mensagem_NAO_leva_valor_nem_placa():
+    """A mensagem sai do nosso controle no instante em que é entregue, e um
+    encaminhamento não tem como ser desfeito."""
+    c = _carga()
+    c["andamento"]["placa"] = "AAA1A11"
+    t = aviso._texto(c)
+    for proibido in ("R$", "AAA1A11", "frete"):
+        assert proibido not in t
+
+
+# --------------------------------------------------------------------------
+# o que protege o número da empresa
+# --------------------------------------------------------------------------
+@pytest.fixture
+def cenario(monkeypatch):
+    enviados = []
+
+    def _montar(inscricoes, carga):
+        monkeypatch.setattr(aviso.assinatura, "ativas", lambda: inscricoes)
+        monkeypatch.setattr(aviso, "_carga_da_inscricao", lambda i: carga)
+        monkeypatch.setattr(aviso.wa, "enviar",
+                            lambda fone, texto, **k: (
+                                enviados.append((fone, texto)) or {"ok": True}))
+        monkeypatch.setattr(aviso.assinatura, "marcar_envio",
+                            lambda i, t: None)
+        monkeypatch.setattr(aviso.assinatura, "encerrar", lambda i, m: None)
+        return enviados
+    return _montar
+
+
+def _ins(**kw) -> dict:
+    base = {"id": 1, "grupo": 1, "empresa": 1, "filial": 1, "numero": 51283,
+            "serie": 1, "telefone": "5511987654321", "ultimo_texto": None,
+            "ultimo_envio": None, "envios": 0}
+    base.update(kw)
+    return base
+
+
+def test_mensagem_IGUAL_a_anterior_nao_e_reenviada(cenario):
+    """O guard central.
+
+    Caminhão parado gera a mesma frase 24 vezes por dia. A pessoa bloqueia o
+    número — e o estrago não é a mensagem, é a reputação do número que atende
+    todos os outros clientes.
+    """
+    carga = _carga()
+    texto = aviso._texto(carga)
+    enviados = cenario([_ins(ultimo_texto=texto)], carga)
+    r = aviso.rodar()
+    assert enviados == [], "a mesma mensagem foi enviada de novo"
+    assert r["iguais"] == 1 and r["enviados"] == 0
+
+
+def test_mensagem_DIFERENTE_e_enviada(cenario):
+    carga = _carga()
+    enviados = cenario([_ins(ultimo_texto="qualquer coisa antiga")], carga)
+    r = aviso.rodar()
+    assert len(enviados) == 1 and r["enviados"] == 1
+
+
+def test_toda_mensagem_diz_como_SAIR(cenario):
+    """Opt-out difícil não reduz cancelamento: vira bloqueio do número."""
+    enviados = cenario([_ins()], _carga())
+    aviso.rodar()
+    assert "SAIR" in enviados[0][1]
+
+
+def test_a_entrega_ENCERRA_a_inscricao(cenario, monkeypatch):
+    """Ninguém volta para cancelar depois que a carga chegou, e o aviso
+    seguiria até o prazo expirar."""
+    encerradas = []
+    carga = _carga(estado="entregue", entregue_em="2026-09-04T15:30:00")
+    cenario([_ins()], carga)
+    monkeypatch.setattr(aviso.assinatura, "encerrar",
+                        lambda i, m: encerradas.append((i, m)))
+    r = aviso.rodar()
+    assert encerradas and encerradas[0][1] == "entregue"
+    assert r["encerradas"] == 1
+
+
+def test_o_ENSAIO_nao_envia_nada(cenario):
+    """É como se confere o texto antes de ele sair para o número de um
+    cliente."""
+    enviados = cenario([_ins()], _carga())
+    r = aviso.rodar(ensaio=True)
+    assert enviados == []
+    assert r["ensaio"] is True and r["amostra"]
+
+
+def test_envio_recusado_e_CONTADO_e_nao_marcado_como_enviado(monkeypatch):
+    """Aceitar não é entregar. Marcar o envio de uma recusa faria a próxima
+    passada achar que a mensagem já saiu — e a pessoa nunca receberia."""
+    marcados = []
+    monkeypatch.setattr(aviso.assinatura, "ativas", lambda: [_ins()])
+    monkeypatch.setattr(aviso, "_carga_da_inscricao", lambda i: _carga())
+    monkeypatch.setattr(aviso.wa, "enviar",
+                        lambda f, t, **k: {"ok": False, "erro": "sem conexao"})
+    monkeypatch.setattr(aviso.assinatura, "marcar_envio",
+                        lambda i, t: marcados.append(i))
+    r = aviso.rodar()
+    assert r["falhas"] == 1 and r["enviados"] == 0
+    assert marcados == [], "recusa foi marcada como enviada"
+
+
+def test_sem_inscricao_a_rotina_nao_faz_nada(monkeypatch):
+    monkeypatch.setattr(aviso.assinatura, "ativas", lambda: [])
+    r = aviso.rodar()
+    assert r["inscricoes"] == 0 and r["enviados"] == 0

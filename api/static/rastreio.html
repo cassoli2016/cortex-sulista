@@ -150,6 +150,21 @@ button.principal:active{background:#7d211b}
 .aviso{margin-top:14px;padding:11px 12px;border-radius:9px;font-size:13.5px;
   background:rgba(185,119,9,.12);color:var(--yellow-700);
   border:1px solid rgba(185,119,9,.28)}
+.zap{margin-top:16px;padding:14px;border:1px solid var(--n200);
+  border-radius:10px;background:var(--n50)}
+.zap p{margin:0 0 10px;font-size:13.5px;color:var(--n600);line-height:1.45}
+.zap .linha{display:flex;gap:8px;align-items:stretch}
+.zap input{flex:1;min-width:0}
+.zap button{min-height:48px;padding:0 16px;border:0;border-radius:9px;
+  background:var(--brand);color:#fff;font:inherit;font-size:15px;
+  font-weight:700;cursor:pointer;white-space:nowrap}
+.zap button:disabled{opacity:.55}
+.zap .sair{background:none;color:var(--n500);font-weight:600;font-size:13.5px;
+  padding:10px 0;min-height:44px;text-decoration:underline;cursor:pointer;
+  border:0;display:block}
+.ok{margin-top:10px;padding:11px 12px;border-radius:9px;font-size:13.5px;
+  background:rgba(30,127,79,.12);color:var(--green);
+  border:1px solid rgba(30,127,79,.28)}
 button.voltar{background:none;border:0;color:var(--orange-500);font:inherit;
   font-size:14.5px;font-weight:600;padding:10px 0;cursor:pointer;
   min-height:44px;display:flex;align-items:center;gap:6px}
@@ -322,6 +337,18 @@ function pintarDetalhe(c){
           <span><span class="t">${esc(e.rotulo)}</span>
           ${e.em ? `<br><span class="q">${quando(e.em, true)}</span>` : ''}</span>
         </li>`).join('')}</ul>
+      <div class="zap">
+        <p><b>Receber por WhatsApp</b><br>Avisamos a cada hora enquanto a carga
+          estiver em viagem, e quando ela for entregue.</p>
+        <div class="linha">
+          <input id="fone" type="tel" inputmode="numeric"
+                 placeholder="DDD + número" autocomplete="tel"
+                 aria-label="Telefone para receber avisos">
+          <button id="btnZap" onclick="assinar()">Avisar-me</button>
+        </div>
+        <div id="zapMsg"></div>
+        <button class="sair" onclick="cancelarZap()">Já cadastrei e quero parar de receber</button>
+      </div>
     </div></div>`;
   window.scrollTo({top:0, behavior:'smooth'});
   if(c.mapa && (c.mapa.origem || c.mapa.destino)) desenharMapa(c);
@@ -444,9 +471,38 @@ async function abrir(id){
       + '&id=' + encodeURIComponent(id), {cache:'no-store'});
     const d = await r.json();
     if(!d.ok || !d.carga){ await buscar(); return; }
+    CARGA_ABERTA = id;
     pintarDetalhe(d.carga);
   }catch(e){ await buscar(); }
 }
+
+let CARGA_ABERTA = null;
+
+async function zapChamar(rota){
+  const fone = ($('fone').value || '').trim();
+  const msg = $('zapMsg');
+  if(fone.replace(/\D/g,'').length < 10){
+    msg.innerHTML = '<div class="erro">Informe o DDD e o número.</div>';
+    return;
+  }
+  $('btnZap').disabled = true;
+  msg.innerHTML = '';
+  try{
+    const q = 'doc=' + encodeURIComponent(ULTIMO.doc)
+            + '&cnpj=' + encodeURIComponent(ULTIMO.cnpj)
+            + '&id=' + encodeURIComponent(CARGA_ABERTA)
+            + '&fone=' + encodeURIComponent(fone);
+    const r = await fetch('/api/rastreio/' + rota + '?' + q, {method:'POST'});
+    const d = await r.json();
+    msg.innerHTML = d.ok
+      ? '<div class="ok">' + esc(d.aviso || 'Pronto.') + '</div>'
+      : '<div class="erro">' + esc(d.motivo || 'Não foi possível.') + '</div>';
+  }catch(e){
+    msg.innerHTML = '<div class="erro">Sem conexão. Tente de novo.</div>';
+  }finally{ $('btnZap').disabled = false; }
+}
+const assinar = () => zapChamar('assinar');
+const cancelarZap = () => zapChamar('cancelar');
 
 function voltar(){ $('resultado').innerHTML = ''; $('doc').focus(); }
 

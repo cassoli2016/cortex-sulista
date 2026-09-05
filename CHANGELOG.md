@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.234.0] — 04/09/2026  ·  CX-04/09/2026-v0.234.0
+
+### Adicionado
+- Quem acompanha uma carga na página pública pode agora cadastrar um telefone e receber a situação dela por WhatsApp, de hora em hora, enquanto estiver em viagem — e um aviso final quando for entregue. O descadastro fica na mesma tela, e toda mensagem diz como sair.
+- Mensagem igual à anterior não é reenviada. Um caminhão parado geraria a mesma frase 24 vezes por dia, e quem recebe bloquearia o número — o prejuízo não seria esse aviso, seria o número que atende todos os outros clientes.
+- Os avisos saem das 6h às 21h. Aviso de carga às 3 da manhã é o tipo de mensagem que faz a pessoa bloquear o contato; quem precisar do dado de madrugada abre a página, que responde a qualquer hora.
+
 ## [0.233.0] — 04/09/2026  ·  CX-04/09/2026-v0.233.0
 
 ### Alterado

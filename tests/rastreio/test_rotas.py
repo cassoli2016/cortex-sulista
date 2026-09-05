@@ -46,12 +46,20 @@ def test_o_resto_do_api_continua_fechado():
         assert not auth._rota_publica(rota), "%s ficou aberta" % rota
 
 
-def test_a_lista_publica_do_rastreio_tem_SO_as_duas():
+def test_a_lista_publica_do_rastreio_e_EXATAMENTE_esta():
     """Um teste sobre o TAMANHO da exceção. Ele fica vermelho quando alguém
     acrescenta uma rota — e é essa a intenção: a conversa acontece na revisão,
-    não depois, na internet."""
+    não depois, na internet.
+
+    Ele JÁ acendeu uma vez, quando o aviso por WhatsApp entrou: eram duas
+    rotas de leitura e passaram a ser quatro, com duas que ESCREVEM. Cada uma
+    dessas quatro tem o freio por IP, e as duas de escrita exigem o mesmo
+    segundo fator da busca — quem quiser acrescentar a quinta lê
+    `api/rastreio/assinatura.py` antes.
+    """
     assert set(auth._PUBLICAS_RASTREIO) == {
-        "/api/rastreio/buscar", "/api/rastreio/carga"}
+        "/api/rastreio/buscar", "/api/rastreio/carga",
+        "/api/rastreio/assinar", "/api/rastreio/cancelar"}
 
 
 # --------------------------------------------------------------------------
