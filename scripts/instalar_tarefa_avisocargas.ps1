@@ -82,11 +82,6 @@ if (-not (Test-Path $uv)) { throw "uv nao encontrado. Instale ou ajuste o PATH."
 Write-Host "repo: $repo"
 Write-Host "uv:   $uv"
 
-# DE 20 EM 20 MINUTOS, e a razao e a cota da Prolog. Cada execucao avanca 8
-# paginas de 100; sao ~86 paginas para varrer as quatro filiais, ou seja 11
-# execucoes para fechar uma volta - cerca de 4 horas. Coletar mais rapido
-# esbarra no 429 e derruba a integracao inteira; mais devagar deixa o retrato
-# velho demais para decidir troca de pneu.
 # PYTHON DO VENV, CAMINHO ABSOLUTO. Antes era `uv run python
 # scripts\avisar_cargas.py` com -WorkingDirectory, e o caminho relativo NAO
 # resolvia: a tarefa tentava abrir C:\Windows\System32\scripts\avisar_cargas.py

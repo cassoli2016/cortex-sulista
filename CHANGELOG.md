@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.236.2] — 04/09/2026  ·  CX-04/09/2026-v0.236.2
+
+### Corrigido
+- O script que registra a tarefa do aviso de cargas explicava a cadência errada: falava de "20 em 20 minutos" e da cota da Prolog, texto herdado do script de pneus. A tarefa sempre foi de hora em hora, das 6h às 21h — só a explicação estava errada, e explicação errada num script de instalação é a que faz alguém mexer no gatilho certo.
+
 ## [0.236.1] — 04/09/2026  ·  CX-04/09/2026-v0.236.1
 
 ### Corrigido
