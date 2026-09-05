@@ -1,3 +1,19 @@
+- versao: "0.235.0"
+  data: "2026-09-04"
+  adicionado:
+    - >-
+      Responder SAIR no WhatsApp agora descadastra de verdade, e o sistema
+      confirma. Toda mensagem já prometia isso; prometer e não atender é pior
+      que não prometer, porque quem responde e continua recebendo bloqueia o
+      número — e o bloqueio atinge o contato que fala com todos os outros
+      clientes.
+    - >-
+      Vale "sair", "parar", "cancelar", "remover" e "stop", com ou sem
+      pontuação. E o cancelamento tira o número de TODAS as cargas: quem pede
+      para parar quer parar com tudo.
+    - >-
+      Qualquer outra mensagem NÃO gera resposta automática. Um "obrigado" do
+      cliente não pode virar conversa com robô.
 - versao: "0.234.2"
   data: "2026-09-04"
   alterado:

@@ -59,7 +59,28 @@ def test_a_lista_publica_do_rastreio_e_EXATAMENTE_esta():
     """
     assert set(auth._PUBLICAS_RASTREIO) == {
         "/api/rastreio/buscar", "/api/rastreio/carga",
-        "/api/rastreio/assinar", "/api/rastreio/cancelar"}
+        "/api/rastreio/assinar", "/api/rastreio/cancelar",
+        "/api/rastreio/zap"}
+
+
+def test_cada_rota_publica_tem_a_sua_razao():
+    """As cinco, e por que cada uma esta aberta. Este teste nao mede codigo —
+    mede se quem acrescentar a sexta parou para escrever o motivo dela.
+
+      buscar/carga   leitura, com segundo fator e freio por IP
+      assinar        escreve, mesmo segundo fator, e manda a 1a mensagem
+      cancelar       escreve, e sair tem de ser mais facil que entrar
+      zap            webhook da Z-API; a UNICA acao possivel e descadastrar
+    """
+    razoes = {
+        "/api/rastreio/buscar": "leitura com segundo fator",
+        "/api/rastreio/carga": "leitura com segundo fator",
+        "/api/rastreio/assinar": "escrita com segundo fator",
+        "/api/rastreio/cancelar": "sair e mais facil que entrar",
+        "/api/rastreio/zap": "webhook: so descadastra",
+    }
+    assert set(auth._PUBLICAS_RASTREIO) == set(razoes), (
+        "rota publica nova sem razao escrita neste teste")
 
 
 # --------------------------------------------------------------------------

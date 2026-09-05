@@ -318,7 +318,12 @@ _PUBLICAS = ("/api/auth/login", "/api/auth/setup", "/api/auth/setup-status",
 # Cada rota nova aqui abre uma porta na internet. Se voce esta lendo isto para
 # acrescentar uma, o modulo `api/rastreio` explica o que pode sair.
 _PUBLICAS_RASTREIO = ("/api/rastreio/buscar", "/api/rastreio/carga",
-                      "/api/rastreio/assinar", "/api/rastreio/cancelar")
+                      "/api/rastreio/assinar", "/api/rastreio/cancelar",
+                      # A Z-API chama esta de fora, entao ela e publica. A
+                      # UNICA acao possivel nela e DESCADASTRAR — nao ha
+                      # caminho que crie, cobre ou revele nada, e errar para o
+                      # lado de "parou de avisar" e o lado seguro.
+                      "/api/rastreio/zap")
 
 # Autoservice de conta: exige sessão válida (checado antes), mas nenhuma tela
 # específica — todo usuário autenticado pode ver o próprio perfil/trocar a

@@ -395,6 +395,26 @@ def rastreio_cancelar(req: Request, doc: str = "", cnpj: str = "",
     return JSONResponse(assinatura.cancelar(doc, cnpj, id, fone))
 
 
+@app.post("/api/rastreio/zap")
+async def rastreio_zap(req: Request) -> JSONResponse:
+    """Webhook de entrada do WhatsApp — hoje so a palavra SAIR.
+
+    SEMPRE 200, mesmo quando ignora: erro aqui faz a Z-API reenfileirar a mesma
+    mensagem, e a segunda tentativa encontraria a inscricao ja cancelada.
+    """
+    from api.rastreio import entrada
+    try:
+        corpo = await req.json()
+    except Exception:  # noqa: BLE001
+        return JSONResponse({"ok": True, "acao": "corpo_invalido"})
+    if not isinstance(corpo, dict):
+        return JSONResponse({"ok": True, "acao": "corpo_invalido"})
+    # I/O BLOQUEANTE EM ROTA ASYNC PASSA POR `sem_travar`: sem isso o envio da
+    # confirmacao seguraria o servidor INTEIRO pelo tempo da chamada a Z-API.
+    return JSONResponse(await sem_travar(
+        entrada.receber, corpo, req.headers.get("x-cortex-token")))
+
+
 @app.get("/sw.js")
 def service_worker() -> FileResponse:
     # servido da RAIZ (não de /static) para o escopo do SW ser "/" — senão

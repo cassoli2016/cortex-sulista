@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.235.0] — 04/09/2026  ·  CX-04/09/2026-v0.235.0
+
+### Adicionado
+- Responder SAIR no WhatsApp agora descadastra de verdade, e o sistema confirma. Toda mensagem já prometia isso; prometer e não atender é pior que não prometer, porque quem responde e continua recebendo bloqueia o número — e o bloqueio atinge o contato que fala com todos os outros clientes.
+- Vale "sair", "parar", "cancelar", "remover" e "stop", com ou sem pontuação. E o cancelamento tira o número de TODAS as cargas: quem pede para parar quer parar com tudo.
+- Qualquer outra mensagem NÃO gera resposta automática. Um "obrigado" do cliente não pode virar conversa com robô.
+
 ## [0.234.2] — 04/09/2026  ·  CX-04/09/2026-v0.234.2
 
 ### Alterado
