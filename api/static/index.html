@@ -2500,6 +2500,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <span class="ic" data-ic="tv"></span><span>Painéis TV</span><span class="ic chev" data-ic="chev"></span>
         </button>
         <div class="subs2 closed" id="subsTv">
+          <a href="#tvcli" class="sub sub2" data-view="tvcli" title="Painel de Operação do Cliente para TV"><span class="ic" data-ic="tvcliic"></span><span>Cliente</span></a>
           <a href="#tvcom" class="sub sub2" data-view="tvcom" title="Painel de Comunicação com as rastreadoras para TV"><span class="ic" data-ic="tvcomic"></span><span>Comunicação</span></a>
           <a href="#tvdir" class="sub sub2" data-view="tvdir" title="Painel da Diretoria para TV"><span class="ic" data-ic="tvdiric"></span><span>Diretoria</span></a>
           <a href="#tvfat" class="sub sub2" data-view="tvfat" title="Painel de Faturamento para TV"><span class="ic" data-ic="tvfatic"></span><span>Faturamento</span></a>
@@ -3801,6 +3802,33 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="tv-card tv-wide" style="grid-column:span 2">
             <div class="tv-label">Caixa projetado por mês <span id="tvdir-flx-sub" style="text-transform:none;letter-spacing:0;color:#8FA6BC"></span></div>
             <div class="tvd-serie" id="tvdir-fluxo"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PAINEL DE TV — OPERAÇÃO DO CLIENTE.
+           Mural da operação de UM cliente, para a sala de operação ou para a
+           planta dele. Sem aba e sem tooltip: ninguém clica numa TV, e cada
+           número se explica no rótulo.
+
+           DE QUEM É A OPERAÇÃO: a mesma regra da tela `cliop`, sem exceção —
+           quem tem vínculo vê o dele e não escolhe; gente da casa vê o cliente
+           escolhido na `cliop`, que fica lembrado no navegador. Uma TV não tem
+           operador para escolher, então sem escolha ela DIZ isso em vez de
+           mostrar a conta de alguém que ninguém pediu. -->
+      <section class="view" id="view-tvcli">
+        <div class="tv-head"><div class="tv-left"><img class="tv-logo" src="/static/sulista-logo-branco.svg" alt="Sulista"><span class="tv-upd tv-next"></span></div><div class="tv-title"><h2 id="tvcli-titulo">OPERAÇÃO DO CLIENTE</h2><span class="tv-farol" id="tvcli-farol" style="display:none"></span></div><div class="tv-right"><span class="tv-clock"></span><a href="javascript:tvFull()" title="tela cheia" aria-label="Tela cheia">⛶</a><a href="#home" title="sair do modo TV" aria-label="Sair do modo TV">✕</a></div></div>
+        <div class="tv-grid" id="tvcli-k1"></div>
+        <div class="tv-grid" id="tvcli-k2" style="margin-top:22px"></div>
+        <div class="tv-grid" style="margin-top:22px">
+          <div class="tv-card tv-wide" style="grid-column:span 2">
+            <div class="tv-label">Cargas em curso — onde estão agora</div>
+            <table class="tv-tab"><thead><tr><th>Coleta</th><th>Rota</th><th>Veículo</th><th>Situação</th></tr></thead>
+            <tbody id="tvcli-cargas"></tbody></table>
+          </div>
+          <div class="tv-card tv-wide" style="grid-column:span 2">
+            <div class="tv-label">Cargas em curso por rota <span id="tvcli-rotas-sub" style="text-transform:none;letter-spacing:0;color:#8FA6BC"></span></div>
+            <div class="tvd-serie" id="tvcli-rotas"></div>
           </div>
         </div>
       </section>
@@ -5653,6 +5681,11 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
            Se esta tela abrir para alguém sem vínculo, ela mostra o aviso de
            cadastro e mais nada: a API responde 403 e é assim de propósito. -->
       <section class="view" id="view-cliop">
+        <div class="cardfilters" id="cliop-seletor" hidden>
+          <label for="fCliopCliente" style="color:var(--n500)">Cliente</label>
+          <select id="fCliopCliente" onchange="cliopTrocarCliente()" style="min-width:280px"></select>
+          <span class="hint" id="cliop-seletor-hint"></span>
+        </div>
         <div class="kpis k4" id="kpis-cliop"></div>
         <div class="subtabs" role="tablist" data-abas="cliop" aria-label="Seções desta tela">
           <button role="tab" id="tabcliop-agora" data-aba="agora" aria-controls="aba-cliop-agora" aria-selected="true" onclick="abaTrocar('cliop','agora')">Agora <span class="aban" id="abancliopAgora" data-fixo="1"></span></button>
@@ -8130,6 +8163,7 @@ const ICONS = {
   gric: IC('<path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="M12 8v4M12 15.5v.5"/>'),
   fatic: IC('<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h6M8 17h4"/>'),
   tvcomic: IC('<path d="M12 13a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M12 13v8"/><path d="M7.8 15.2a6 6 0 0 1 0-8.4M16.2 6.8a6 6 0 0 1 0 8.4"/><path d="M4.9 18.1a10 10 0 0 1 0-14.2M19.1 3.9a10 10 0 0 1 0 14.2"/>'),
+  tvcliic: IC('<rect x="2.5" y="4" width="19" height="12.5" rx="2"/><path d="M8 20.5h8"/><path d="M12 16.5v4"/><path d="M6.5 12.5l3-3 2.5 2.5 4.5-4.5"/>'),
   tvdiric: IC('<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M9 21h6M12 17v4"/><path d="M7 14v-3M11 14V8M15 14v-4M19 14v-6"/>'),
   tvfatic: IC('<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M9 21h6M12 17v4"/><path d="M6.5 13.5 10 10l2.5 2.5L17.5 8"/>'),
 };
@@ -8148,7 +8182,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { tvcom:'Painel TV — Comunicação', home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', aud:'Auditoria e Uso',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { tvcom:'Painel TV — Comunicação', home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', aud:'Auditoria e Uso',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -8423,7 +8457,7 @@ const VIEW_GROUP = {home:'',cop:'',
   torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',cliop:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',pedagio:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',pecas:'Sup',
-  prodveic:'Bi',fat:'Ctr',gr:'Ope',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',tvcom:'Bi',
+  prodveic:'Bi',fat:'Ctr',gr:'Ope',tvcli:'Bi',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',tvcom:'Bi',
   rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',people:'Rh',des:'Rh',gestao:'Adm',srv:'Adm',sup:'Spt',supfila:'Spt',doc:'Adm',aud:'Adm',gesacao:'Ges',gesata:'Ges',
   // Telemetria e ANTT tinham grupo na barra lateral mas ficaram de fora deste
   // mapa: o acordeao nao abria sozinho ao navegar para elas (agora a busca
@@ -8568,7 +8602,7 @@ function qsView(k){
     if(V('fEmiDe'))p.set('dt_de',V('fEmiDe'));
     if(V('fEmiAte'))p.set('dt_ate',V('fEmiAte'));
     if(T('fMulPlaca'))p.set('placa',T('fMulPlaca'));
-  } else if(k==='tvfat' || k==='tvope' || k==='tvdir' || k==='tvcom'){
+  } else if(k==='tvfat' || k==='tvope' || k==='tvdir' || k==='tvcom' || k==='tvcli'){
   } else if(k==='cont'){
     if(V('fCompDe'))p.set('comp_de',V('fCompDe'));
     if(V('fCompAte'))p.set('comp_ate',V('fCompAte'));
@@ -8652,7 +8686,7 @@ function router(){
   document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on', s.id==='view-'+v));
   window.scrollTo(0,0);
   const cont=document.getElementById('content'); if(cont) cont.scrollTop=0;
-  const ehTv = v==='tvfat' || v==='tvope' || v==='tvdir' || v==='tvcom';
+  const ehTv = v==='tvfat' || v==='tvope' || v==='tvdir' || v==='tvcom' || v==='tvcli';
   document.body.classList.toggle('tvmode', ehTv);
   document.body.classList.toggle('tvwall', v==='tvope');
   setTimeout(tvChecaFull, 50);
@@ -8663,7 +8697,7 @@ function router(){
     if(v==='tvope') tvTour=setInterval(tvTourPasso, 20000);
     TV_NEXT=Date.now()+60000;
     tvTimer=setInterval(()=>{ TV_NEXT=Date.now()+60000;
-      const cv=currentView(); if(cv==='tvfat') loadTvFat(); else if(cv==='tvope') loadTvOpe(); else if(cv==='tvdir') loadTvDir(); else if(cv==='tvcom') loadTvCom(); }, 60000);
+      const cv=currentView(); if(cv==='tvfat') loadTvFat(); else if(cv==='tvope') loadTvOpe(); else if(cv==='tvdir') loadTvDir(); else if(cv==='tvcom') loadTvCom(); else if(cv==='tvcli') loadTvCli(); }, 60000);
     tvClock=setInterval(()=>{
       document.querySelectorAll('.tv-clock').forEach(e=>{
         e.textContent=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); });
@@ -8754,7 +8788,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,pecas:DATAPECAS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,aud:loadAud,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,aud:loadAud,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -8905,7 +8939,7 @@ function telaCheiaAlternar(){
 
 function telaCheiaSincronizar(){
   const v = (typeof currentView === 'function') ? currentView() : '';
-  const ehTv = v === 'tvfat' || v === 'tvope' || v === 'tvdir' || v === 'tvcom';
+  const ehTv = v === 'tvfat' || v === 'tvope' || v === 'tvdir' || v === 'tvcom' || v === 'tvcli';
   const cheia = telaCheiaAtiva() && !ehTv;
   document.body.classList.toggle('painelfull', cheia);
   const sair = document.getElementById('btnFullSair');
@@ -10598,7 +10632,7 @@ function reloadCurrent(){
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,prodveic:loadProdveic,
     torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
-    cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,aud:loadAud,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+    cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,aud:loadAud,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   (M[currentView()]||load)();
 }
 
@@ -12693,7 +12727,7 @@ function veicToggle(i){
 let tvReflow=null;
 function tvChecaFull(){
   const v=currentView();
-  const ehTv = v==='tvfat' || v==='tvope' || v==='tvdir' || v==='tvcom';
+  const ehTv = v==='tvfat' || v==='tvope' || v==='tvdir' || v==='tvcom' || v==='tvcli';
   const fs = !!document.fullscreenElement ||
              (window.innerHeight>=screen.height-2 && window.innerWidth>=screen.width-2);
   const antes=document.body.classList.contains('tvfull');
@@ -12701,7 +12735,7 @@ function tvChecaFull(){
   if(tvMap) setTimeout(()=>tvMap.invalidateSize(), 300);
   if(ehTv && antes!==(ehTv&&fs)){          // mudou o modo: re-renderiza na altura nova
     clearTimeout(tvReflow);
-    tvReflow=setTimeout(()=>{ if(v==='tvope') loadTvOpe(); else if(v==='tvdir') loadTvDir(); else if(v==='tvcom') loadTvCom(); else loadTvFat(); }, 350);
+    tvReflow=setTimeout(()=>{ if(v==='tvope') loadTvOpe(); else if(v==='tvdir') loadTvDir(); else if(v==='tvcom') loadTvCom(); else if(v==='tvcli') loadTvCli(); else loadTvFat(); }, 350);
   }
 }
 document.addEventListener('fullscreenchange', tvChecaFull);
@@ -12805,6 +12839,129 @@ async function loadTvFat(){
    subtítulo do atingimento (a lição do resumo de WhatsApp: 20% às 11h é certo
    e desastroso ao mesmo tempo, e a marca vai onde a pessoa está olhando). */
 let tvDirSeq=0, tvDirOk=false;
+let tvCliSeq = 0, tvCliOk = false;
+
+/* PAINEL DE TV DA OPERACAO DO CLIENTE.
+
+   Sem aba, sem tooltip, sem clique: cada numero se explica no rotulo. Le as
+   MESMAS rotas da tela `cliop` -- a parede e o painel nao podem discordar, e
+   um terceiro recorte so para a TV seria mais um numero para conciliar.
+
+   DE QUEM E A OPERACAO: o servidor decide (`portal_cliente.alvo`). Quem tem
+   vinculo ve o dele; gente da casa ve o que escolheu na `cliop`, lembrado no
+   navegador. Uma TV nao tem quem escolha, entao sem escolha ela DIZ isso. */
+async function loadTvCli(){
+  const seq = ++tvCliSeq;
+  try{
+    let raiz = '';
+    try{ raiz = localStorage.getItem('cliop.raiz') || ''; }catch(e){}
+    const q = new URLSearchParams({aba:'agora', dias:'45'});
+    if(raiz) q.set('raiz', raiz);
+    const rA = await fetch('/api/portal/cliente?' + q.toString(), {cache:'no-store'});
+    const dA = await rA.json();
+    if(seq !== tvCliSeq) return;
+    if(!rA.ok){ tvErro('tvcli-k1', tvCliOk); return; }
+
+    if(dA.escolher){
+      /* Estado honesto: a TV nao escolhe por ninguem. Diz o que fazer e para. */
+      document.getElementById('tvcli-k1').innerHTML =
+        '<div class="tv-card tv-wide" style="grid-column:span 4">'
+        + '<div class="tv-label">Nenhum cliente escolhido</div>'
+        + '<div class="tv-sub">Abra <b>Minha Operação</b> neste navegador, '
+        + 'escolha o cliente, e volte a esta tela — a escolha fica lembrada.</div></div>';
+      document.getElementById('tvcli-k2').innerHTML = '';
+      document.getElementById('tvcli-cargas').innerHTML = '';
+      document.getElementById('tvcli-rotas').innerHTML = '';
+      return;
+    }
+
+    const q2 = new URLSearchParams({aba:'permanencia'});
+    if(raiz) q2.set('raiz', raiz);
+    const rP = await fetch('/api/portal/cliente?' + q2.toString(), {cache:'no-store'});
+    const dP = rP.ok ? await rP.json() : {};
+    if(seq !== tvCliSeq) return;
+    tvCliOk = true;
+
+    const cargas = dA.cargas || [];
+    const por = {};
+    cargas.forEach(function(c){ por[c.marco] = (por[c.marco] || 0) + 1; });
+    const emViagem   = por['Em viagem'] || 0;
+    const naDescarga = (por['Chegada para descarga'] || 0) + (por['Aguardando descarga'] || 0);
+    const naOrigem   = (por['Chegada para carregamento'] || 0)
+                     + (por['Aguardando carregamento'] || 0)
+                     + (por['Sa\u00edda do carregamento'] || 0);
+
+    /* O TITULO nomeia o cliente. Painel de cliente sem dizer QUAL cliente e o
+       jeito de alguem na sala de operacao ler a conta errada e agir. */
+    const tit = document.getElementById('tvcli-titulo');
+    if(tit) tit.textContent = 'OPERAÇÃO — ' + (dA.cliente_nome || dA.cliente_raiz || 'CLIENTE');
+
+    document.getElementById('tvcli-k1').innerHTML = [
+      tvCard('Cargas em curso', String(dA.em_curso || 0), '',
+             'sem fim de descarga apontado · últimos ' + (dA.janela_dias || 45) + ' dias'),
+      tvCard('Em viagem', String(emViagem), '', 'a caminho do destino'),
+      tvCard('No destino', String(naDescarga), '', 'chegou · aguardando ou descarregando'),
+      tvCard('Na origem', String(naOrigem), '', 'carregando ou pronto para sair'),
+    ].join('');
+
+    /* PERMANENCIA: o numero da parede e o EXCEDENTE em qualquer contrato --
+       o unico dos tres que nao depende da mercadoria. Mostrar o "dentro"
+       sozinho numa TV daria a impressao de aderencia que a faixa do meio nao
+       sustenta, e numa parede ninguem tem onde ler a ressalva. */
+    const de = dP.descarga || {}, ft = dP.freetime || {};
+    const mediana = de.mediana_h;
+    const foraPct = de.fora_pct;
+    /* Semaforo DISCRETO e so quando ha regua: sem freetime cadastrado nao ha
+       o que classificar, e verde sem regua e verde inventado. */
+    const cls = (foraPct == null) ? '' : (foraPct <= 10 ? 'ok' : (foraPct <= 25 ? 'warn' : 'ruim'));
+    const faixa = ft.contratos
+      ? (ft.ambiguo ? ft.descarga_piso + 'h a ' + ft.descarga_teto + 'h conforme a mercadoria'
+                    : 'freetime de ' + ft.descarga_piso + 'h')
+      : 'sem freetime cadastrado';
+    document.getElementById('tvcli-k2').innerHTML = [
+      tvCard('Permanência na descarga', mediana != null
+               ? mediana.toLocaleString('pt-BR',{maximumFractionDigits:1}) + ' h' : 'n/d',
+             '', 'mediana do mês · ' + faixa),
+      tvCard('Acima do freetime', foraPct != null ? foraPct + '%' : 'n/d', cls,
+             'excedente em qualquer contrato · ' + (de.n || 0) + ' descargas medidas'),
+      tvCard('Permanência na carga', (dP.carga || {}).mediana_h != null
+               ? dP.carga.mediana_h.toLocaleString('pt-BR',{maximumFractionDigits:1}) + ' h' : 'n/d',
+             '', 'mediana do mês · freetime de ' + (ft.carga_piso != null ? ft.carga_piso + 'h' : 'n/d')),
+      tvCard('Cargas no mês', String(dP.cargas_no_periodo || 0), '',
+             'com apontamento de carga ou descarga'),
+    ].join('');
+
+    /* TABELA DA TV: quem limita e o RENDERIZADOR, nao o CSS -- rolagem dentro
+       do card e inutil numa parede que ninguem toca. 10 linhas e o que cabe. */
+    document.getElementById('tvcli-cargas').innerHTML = cargas.length
+      ? cargas.slice(0, 10).map(function(c){
+          return '<tr><td>' + esc(String(c.coleta)) + '</td>'
+            + '<td>' + esc(c.origem + '/' + c.uf_origem + ' \u2192 ' + c.destino + '/' + c.uf_destino) + '</td>'
+            + '<td>' + esc(c.placa || '\u2014') + '</td>'
+            + '<td>' + esc(c.marco) + '</td></tr>';
+        }).join('')
+      : '<tr><td colspan="4">nenhuma carga em curso</td></tr>';
+
+    const porRota = {};
+    cargas.forEach(function(c){
+      const k = c.destino + '/' + c.uf_destino;
+      porRota[k] = (porRota[k] || 0) + 1;
+    });
+    const pares = Object.keys(porRota).map(function(k){ return [k, porRota[k]]; })
+                        .sort(function(a, b){ return b[1] - a[1]; }).slice(0, 8);
+    const maxR = Math.max.apply(null, [1].concat(pares.map(function(x){ return x[1]; })));
+    document.getElementById('tvcli-rotas-sub').textContent =
+      pares.length ? ' · por destino · ' + cargas.length + ' cargas' : '';
+    document.getElementById('tvcli-rotas').innerHTML = pares.map(function(x){
+      return '<div class="tvd-col"><span class="v">' + x[1] + '</span>'
+        + '<i style="height:' + Math.max(2, 100 * x[1] / maxR).toFixed(1) + '%"></i>'
+        + '<b>' + esc(x[0]) + '</b></div>';
+    }).join('') || '';
+  }catch(e){
+    if(seq === tvCliSeq) tvErro('tvcli-k1', tvCliOk);
+  }
+}
+
 async function loadTvDir(){
   const seq=++tvDirSeq;
   try{
@@ -21411,9 +21568,14 @@ function sacDefaults(){
    banner vermelho -- quem abre a tela nesse estado e o admin conferindo, e
    "erro ao consultar" mandaria ele procurar defeito onde falta um campo. */
 let CLIOP_SEQ = 0;
+/* De quem e a operacao na tela. Vazio = ainda nao escolhido (gente da casa) ou
+   travado pelo vinculo (gente do cliente) -- os dois casos NAO mandam `raiz`,
+   e e o servidor que decide. A tela nunca inventa um cliente. */
+let CLIOP_RAIZ = '';
 
 async function cliopBuscar(aba, extra){
   const p = new URLSearchParams(Object.assign({aba}, extra || {}));
+  if(CLIOP_RAIZ) p.set('raiz', CLIOP_RAIZ);
   const r = await fetch('/api/portal/cliente?' + p.toString(), {cache:'no-store'});
   const resp = await respostaJSON(r);
   const dados = resp.dados;
@@ -21422,6 +21584,44 @@ async function cliopBuscar(aba, extra){
   }
   if(!resp.ok) throw new Error((dados && dados.mensagem) || 'Erro ao consultar a operacao.');
   return dados;
+}
+
+/* O servidor mandou escolher. Monta a lista UMA vez e para por aqui: a tela
+   fica com o seletor e sem numero nenhum, que e o estado honesto de "ainda nao
+   perguntei de quem". Preencher com o primeiro cliente da lista seria mostrar
+   a conta de alguem que ninguem pediu. */
+function cliopMontarSeletor(d){
+  const sel = document.getElementById('fCliopCliente');
+  const barra = document.getElementById('cliop-seletor');
+  const lista = d.clientes || [];
+  sel.innerHTML = '<option value="">— escolha o cliente —</option>'
+    + lista.map(function(c){
+        return '<option value="' + esc(c.raiz) + '">' + esc(c.nome)
+             + ' (' + c.cargas.toLocaleString('pt-BR') + ')</option>';
+      }).join('');
+  sel.value = CLIOP_RAIZ || '';
+  barra.hidden = false;
+  document.getElementById('cliop-seletor-hint').textContent =
+    lista.length + ' clientes com carga nos últimos 12 meses · o número entre '
+    + 'parênteses é a carga em que o cliente é o pagador do frete';
+  /* Lembra a escolha por NAVEGADOR, nao por sessao: quem opera abre a mesma
+     conta todo dia, e re-escolher a cada F5 e o tipo de atrito que faz a tela
+     nao ser usada. localStorage pode falhar (aba anonima, site data
+     bloqueado), entao tudo em try/catch e a tela funciona sem ele. */
+  if(!CLIOP_RAIZ){
+    let ultimo = '';
+    try{ ultimo = localStorage.getItem('cliop.raiz') || ''; }catch(e){}
+    if(ultimo && lista.some(function(c){ return c.raiz === ultimo; })){
+      sel.value = ultimo; CLIOP_RAIZ = ultimo; return true;   // recarrega
+    }
+  }
+  return false;
+}
+
+function cliopTrocarCliente(){
+  CLIOP_RAIZ = document.getElementById('fCliopCliente').value || '';
+  try{ localStorage.setItem('cliop.raiz', CLIOP_RAIZ); }catch(e){}
+  if(CLIOP_RAIZ) loadCliop();
 }
 
 function cliopSemVinculo(msg){
@@ -21450,6 +21650,22 @@ async function loadCliop(){
     const d = await cliopBuscar('agora', {dias: 45});
     if(seq !== CLIOP_SEQ) return;
     hideBanner();
+    if(d.escolher){
+      /* Gente da casa sem cliente escolhido. Se havia um lembrado e valido, o
+         seletor devolve `true` e a gente recarrega ja com ele. */
+      if(cliopMontarSeletor(d)){ loadCliop(); return; }
+      document.getElementById('kpis-cliop').innerHTML = '';
+      document.getElementById('cliop-agora').innerHTML =
+        '<tr><td colspan="5" style="color:var(--n500);padding:18px">'
+        + 'Escolha um cliente acima para ver a operação dele.</td></tr>';
+      document.getElementById('cliop-agora-hint').textContent = '';
+      ecDesenhar('chartCliopAgora', null, 'escolha um cliente');
+      return;
+    }
+    /* `travado` vem do SERVIDOR. A tela nao deduz "é cliente" de não ter
+       recebido lista: deduzir daria um seletor escondido por acidente no dia
+       em que a lista falhasse. */
+    document.getElementById('cliop-seletor').hidden = !!d.travado;
     const cargas = d.cargas || [];
     /* Contagem por marco, para a banda de KPI. O nome do marco vem do
        SERVIDOR, que o leu da tabela de dominio do ERP -- a tela nao traduz
@@ -36923,6 +37139,7 @@ boot();
     <div class="dgrp" data-grp="Bi">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Business Intelligence</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
+        <a href="#tvcli" onclick="fecharDrawer()"><span class="ic" data-ic="tvcliic"></span>Painéis TV — Cliente</a>
         <a href="#tvcom" onclick="fecharDrawer()"><span class="ic" data-ic="tvcomic"></span>Painéis TV — Comunicação</a>
         <a href="#tvdir" onclick="fecharDrawer()"><span class="ic" data-ic="tvdiric"></span>Painéis TV — Diretoria</a>
         <a href="#tvfat" onclick="fecharDrawer()"><span class="ic" data-ic="tvfatic"></span>Painéis TV — Faturamento</a>

@@ -131,6 +131,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "telhod":  ("Hodômetro e Rastro", "Telemetria"),
     "prodveic": ("Produtividade de Veículos", "Business Intelligence"),
     "fat":     ("Faturamento Detalhado", "Controladoria"),
+    "tvcli":   ("Painel TV — Operação do Cliente", "Business Intelligence"),
     "tvfat":   ("Painel TV — Faturamento", "Business Intelligence"),
     "tvope":   ("Painel TV — Operação", "Business Intelligence"),
     "tvcom":   ("Painel TV — Comunicação", "Business Intelligence"),
@@ -290,7 +291,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/operacao/custos-extras",   frozenset({"cex"})),
     ("/api/operacao/sac-freetime",    frozenset({"sac"})),
     ("/api/operacao/portaria",        frozenset({"port"})),
-    ("/api/portal/cliente",           frozenset({"cliop"})),
+    ("/api/portal/cliente",           frozenset({"cliop", "tvcli"})),
     ("/api/comercial/crm",            frozenset({"crm"})),
     # mais específica ANTES: /clientes-lista começa com /clientes e cairia na
     # regra do painel comercial, barrando quem só tem a Consulta de Cliente

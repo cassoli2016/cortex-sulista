@@ -9,11 +9,25 @@ glossario:
     permanência do veículo e histórico de volume e rotas. É a única tela cujo
     usuário não é da casa, e por isso a única com DOIS níveis de acesso: o
     perfil diz que ela abre, e o vínculo `cliente_cnpj_raiz` do usuário diz
-    QUAIS LINHAS aparecem. Sem vínculo a tela recusa — inclusive para
-    administrador, porque ser admin responde "que telas", não "de quem é a
-    operação". O vínculo é a RAIZ do CNPJ (8 dígitos) e não o CNPJ completo:
+    QUAIS LINHAS aparecem. Quem TEM vínculo é gente do cliente: vê a operação
+    dele e não escolhe — se mandar outro cliente na requisição, o servidor
+    ignora. Quem NÃO tem vínculo é gente da casa: escolhe de quem quer ver,
+    numa lista dos clientes com carga nos últimos 12 meses. A escolha fica
+    lembrada no navegador, e é ela que o painel de TV usa.
+    O vínculo é a RAIZ do CNPJ (8 dígitos) e não o CNPJ completo:
     o ERP cadastra uma linha por filial, e as quatro plantas da Iochpe-Maxion
     são a mesma empresa.
+- termo: Painel TV — Operação do Cliente
+  definicao: >-
+    A versão de parede da tela Minha Operação, para a sala de operação ou para
+    a planta do cliente: cargas em curso, onde cada uma está, permanência
+    contra o freetime e as cargas por destino. Sem aba e sem tooltip — ninguém
+    clica nem passa o mouse numa TV, então cada número se explica no rótulo —
+    e com tela cheia pelo botão ⛶. Mostra o MESMO número da tela: lê as mesmas
+    rotas, para a parede e o painel nunca discordarem numa reunião. Quem tem
+    vínculo vê a operação dele; para gente da casa a TV usa o cliente
+    escolhido na tela Minha Operação, e sem escolha ela diz isso em vez de
+    mostrar a conta de alguém que ninguém pediu.
 - termo: Permanência (carregamento e descarga)
   definicao: >-
     Tempo entre a chegada e a saída do veículo, medido pelos apontamentos da
@@ -719,6 +733,7 @@ grupos:
     explicar sozinho, de longe, para quem passa pelo corredor.
   telas:
   - prodveic
+  - tvcli
   - tvfat
   - tvdir
   - tvope

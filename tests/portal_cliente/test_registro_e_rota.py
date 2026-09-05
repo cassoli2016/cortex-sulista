@@ -50,10 +50,17 @@ def test_1_a_tela_esta_no_RBAC():
 
 
 def test_2_a_rota_esta_mapeada_e_e_fail_closed():
-    """Rota `/api/*` não mapeada é 403 para não-admin — mapear é o que a liga."""
+    """Rota `/api/*` não mapeada é 403 para não-admin — mapear é o que a liga.
+
+    DUAS telas liberam o mesmo prefixo, como `analise-km` já faz para `km` e
+    `tvope`: a TV lê exatamente a mesma rota da tela. Sem `tvcli` aqui, um
+    perfil só de TV (o da sala de operação, que é o caso de uso) levaria 403 e
+    o painel nasceria quebrado — e o RBAC não acharia estranho, porque a rota
+    nunca teria sido dele.
+    """
     mapeadas = [telas for prefixo, telas in auth.ROTA_TELAS
                 if prefixo == "/api/portal/cliente"]
-    assert mapeadas == [frozenset({"cliop"})]
+    assert mapeadas == [frozenset({"cliop", "tvcli"})]
 
 
 def test_2b_a_tela_NAO_e_de_todo_usuario_logado():
@@ -125,27 +132,34 @@ def _req(sessao):
     return r
 
 
-def test_sem_vinculo_a_rota_devolve_403_LEGIVEL():
-    """Recusa legível é 4xx.
+def test_gente_da_casa_sem_escolha_recebe_a_LISTA_e_nao_um_403(monkeypatch):
+    """A regra mudou em 05/09/2026, e mudou por decisão de quem opera.
 
-    Um 5xx aqui teria o corpo trocado pela página do Cloudflare e o usuário
-    leria "erro interno" onde o que falta é um cadastro.
+    Antes a tela recusava quem não tivesse vínculo — inclusive gente da casa
+    com a tela no perfil, que é justamente quem deveria abri-la para atender o
+    cliente. Agora quem tem a tela e não tem vínculo ESCOLHE: 200 com a lista.
+    A trava do usuário de cliente não mudou nada (ver
+    `test_quem_tem_VINCULO_nao_escolhe_nem_pedindo`).
     """
     import json
 
+    monkeypatch.setattr(pc, "get_clientes", lambda dias=365: {
+        "clientes": [{"raiz": "61156113", "nome": "IOCHPE-MAXION S.A.", "cargas": 6826}],
+        "janela_dias": dias, "fonte": "dublê"})
     resp = main.portal_cliente_dados(_req({"admin": True}), aba="agora")
-    assert resp.status_code == 403
+    assert resp.status_code == 200
     corpo = json.loads(bytes(resp.body))
-    assert corpo["erro"] == "sem_vinculo_cliente"
-    assert "Administração" in corpo["mensagem"]
+    assert corpo["escolher"] is True and corpo["travado"] is False
+    assert corpo["clientes"][0]["raiz"] == "61156113"
 
 
-def test_a_raiz_vem_da_SESSAO_e_nao_do_parametro(monkeypatch):
+def test_o_parametro_raiz_NAO_vence_o_vinculo_na_rota(monkeypatch):
     """A propriedade que separa um portal de um buscador de operação alheia.
 
-    Se o cliente fosse parâmetro, trocar a URL leria a carteira do vizinho — e
-    o RBAC por tela não veria problema nenhum, porque a tela é a mesma e o
-    usuário tem acesso a ela.
+    A rota passou a aceitar `raiz` para gente da casa escolher. O que NÃO pode
+    mudar é quem manda: com vínculo, o parâmetro é ignorado. Aqui isso é
+    cobrado ponta a ponta — não só em `alvo()` — porque é na rota que alguém
+    acrescentaria "só um caso especial" mais adiante.
     """
     vistos = []
 
@@ -155,13 +169,29 @@ def test_a_raiz_vem_da_SESSAO_e_nao_do_parametro(monkeypatch):
                 "janela_dias": dias, "fonte": "dublê"}
 
     monkeypatch.setattr(pc, "get_agora", _agora)
+    monkeypatch.setattr(pc, "nome_do_cliente", lambda r: "DUBLÊ")
+    # cliente pedindo a operação de OUTRO cliente
+    main.portal_cliente_dados(_req({"cliente_cnpj_raiz": RAIZ}),
+                              aba="agora", raiz="02162259")
+    # ... e pedindo sem nada
     main.portal_cliente_dados(_req({"cliente_cnpj_raiz": RAIZ}), aba="agora")
-    assert vistos == [RAIZ]
+    assert vistos == [RAIZ, RAIZ], vistos
 
-    # A assinatura não aceita cliente/raiz/cnpj como parâmetro — nem por engano.
-    import inspect
-    params = set(inspect.signature(main.portal_cliente_dados).parameters)
-    assert not (params & {"raiz", "cliente", "cnpj", "cliente_cnpj_raiz"})
+
+def test_a_resposta_diz_de_QUEM_e_o_numero(monkeypatch):
+    """Painel de cliente que não nomeia o cliente é como alguém lê a conta
+    errada e age em cima — e numa TV ninguém vai conferir o filtro."""
+    import json
+
+    monkeypatch.setattr(pc, "get_agora", lambda raiz, dias=45: {
+        "cargas": [], "em_curso": 0, "concluidas_na_janela": 0,
+        "janela_dias": dias, "fonte": "dublê"})
+    monkeypatch.setattr(pc, "nome_do_cliente", lambda r: "IOCHPE-MAXION S.A.")
+    resp = main.portal_cliente_dados(_req({"cliente_cnpj_raiz": RAIZ}), aba="agora")
+    corpo = json.loads(bytes(resp.body))
+    assert corpo["cliente_raiz"] == RAIZ
+    assert corpo["cliente_nome"] == "IOCHPE-MAXION S.A."
+    assert corpo["travado"] is True
 
 
 def test_a_janela_pedida_e_limitada(monkeypatch):
@@ -281,3 +311,77 @@ def test_a_saude_acusa_a_migration_pendente_com_o_COMANDO(monkeypatch):
     assert cartao["status"] == "erro"
     assert "migrar_schema.py" in cartao["detalhe"]
     assert "0053" in cartao["detalhe"]
+
+
+# ================================================ o painel de TV (`tvcli`)
+
+def test_tv_registrada_no_RBAC_e_no_grupo_de_BI():
+    assert auth.TELAS["tvcli"] == ("Painel TV — Operação do Cliente",
+                                   "Business Intelligence")
+
+
+def test_tv_nos_DOIS_E_TV():
+    """A régua e a auditoria de espaços têm listas SEPARADAS de telas de TV.
+
+    Entrar em uma só faz a outra medir a TV com a régua de painel comum —
+    1050px contra 900px — e acusar uma tela que está certa, ou pior, deixar
+    passar uma que não está.
+    """
+    import sys
+    sys.path.insert(0, str(ROOT))
+    import scripts.medir_paineis as medir
+    import scripts.auditar_espacos as espacos
+    assert "tvcli" in medir.E_TV
+    assert "tvcli" in espacos.E_TV
+
+
+def test_tv_esta_nas_QUATRO_grafias_da_lista_de_telas_de_TV():
+    """O `index.html` repete a disjunção das telas de TV em quatro grafias.
+
+    Faltar em uma delas não quebra nada visível: a tela abre, só não entra em
+    modo TV, ou não recarrega sozinha, ou não redesenha ao virar tela cheia.
+    Defeito sem sintoma é o que este teste existe para pegar — e a duplicação
+    em si está anotada na crônica como dívida.
+    """
+    for grafia in (
+        "k==='tvfat' || k==='tvope' || k==='tvdir' || k==='tvcom' || k==='tvcli'",
+        "v==='tvfat' || v==='tvope' || v==='tvdir' || v==='tvcom' || v==='tvcli'",
+        "v === 'tvfat' || v === 'tvope' || v === 'tvdir' || v === 'tvcom' || v === 'tvcli'",
+    ):
+        assert grafia in INDEX, grafia
+    assert "else if(cv==='tvcli') loadTvCli();" in INDEX      # tick de 60s
+    assert "else if(v==='tvcli') loadTvCli();" in INDEX       # reflow
+
+
+def test_tv_tem_view_icone_menu_e_carregador():
+    assert 'id="view-tvcli"' in INDEX
+    assert "tvcli:'Painel TV — Operação do Cliente'" in INDEX
+    assert "tvcli:'Bi'" in INDEX
+    assert "tvcliic: IC(" in INDEX
+    assert INDEX.count("tvcli:loadTvCli") == 2
+    assert INDEX.count('href="#tvcli"') >= 2          # sidebar + gaveta
+
+
+def test_tv_nao_tem_ABA_nem_TOOLTIP():
+    """Regra dura do mural: ninguém clica numa TV, e ninguém passa o mouse.
+
+    Cada número se explica no rótulo. Uma sub-aba num painel de parede esconde
+    metade do conteúdo para sempre; um `title` esconde a explicação de todos.
+    """
+    bloco = INDEX.split('id="view-tvcli"')[1].split("</section>")[0]
+    assert "subtabs" not in bloco
+    assert 'class="aba"' not in bloco
+    assert "title=" not in bloco.replace('title="tela cheia"', "").replace(
+        'title="sair do modo TV"', "")
+
+
+def test_tv_tem_TELA_CHEIA():
+    """É o pedido que originou o painel: acompanhar a operação em tela cheia."""
+    bloco = INDEX.split('id="view-tvcli"')[1].split("</section>")[0]
+    assert "tvFull()" in bloco
+
+
+def test_tv_esta_no_manual():
+    manual = yaml.safe_load((ROOT / "docs" / "manual.yaml").read_text(encoding="utf-8"))
+    telas = [t for g in manual["grupos"] for t in g.get("telas", [])]
+    assert "tvcli" in telas

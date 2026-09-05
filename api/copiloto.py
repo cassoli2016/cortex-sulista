@@ -331,7 +331,8 @@ def _fontes_do_snapshot() -> dict:
             # Instalação sem portal configurado NÃO é falha: é recurso não
             # usado ainda. Dizer isso é diferente de sumir da lista.
             return {"clientes_com_portal": 0,
-                    "nota": "nenhum login vinculado a cliente"}
+                    "nota": ("nenhum login de CLIENTE cadastrado; a tela é usada "
+                             "por gente da casa escolhendo o cliente")}
 
         em_curso = 0
         acima_desc = []

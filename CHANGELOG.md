@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.253.0] — 05/09/2026  ·  CX-05/09/2026-v0.253.0
+
+### Adicionado
+- Novo painel de TV: "Painéis TV › Cliente". É a tela Minha Operação em formato de parede, para a sala de operação acompanhar as cargas de um cliente sem ninguém precisar mexer — cargas em curso e onde cada uma está, permanência contra o freetime, e as cargas por destino. Tela cheia pelo botão ⛶, como nos outros painéis de TV.
+- O painel de TV mostra o MESMO número da tela, porque lê as mesmas consultas. Um recorte só para a parede seria mais um número para conciliar na hora em que os dois discordassem numa reunião.
+
+### Alterado
+- Gente da casa passa a ver a tela Minha Operação. Antes ela recusava quem não tivesse vínculo de cliente — inclusive quem tinha a tela no perfil, que é justamente quem precisa dela para atender o cliente. Agora quem não tem vínculo ESCOLHE de quem quer ver, numa lista dos clientes com carga nos últimos 12 meses, e a escolha fica lembrada no navegador.
+- Quem TEM vínculo continua trancado nele, e isso não afrouxou em nada: se um login de cliente pedir a operação de outro cliente, o servidor ignora o pedido e devolve a dele. É o que separa um portal de uma consulta livre da operação alheia.
+- Toda resposta passa a dizer de QUEM é o número que está na tela. Painel de cliente que não nomeia o cliente é como alguém lê a conta errada e age em cima — e numa TV, onde ninguém confere o filtro, é pior.
+
 ## [0.252.1] — 05/09/2026  ·  CX-05/09/2026-v0.252.1
 
 ### Corrigido

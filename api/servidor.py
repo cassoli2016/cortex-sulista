@@ -452,8 +452,8 @@ def _portal_cliente() -> dict:
         # integracoes sem credencial. `info`, nunca vermelho: alarme que nao
         # distingue "quebrado" de "ainda nao usado" treina a ignorar alarme.
         return {"nome": nome, "status": "info",
-                "detalhe": ("nenhum login vinculado a cliente — a tela existe e "
-                            "recusa quem a abrir, que é o esperado")}
+                "detalhe": ("nenhum login de cliente cadastrado — gente da casa "
+                            "com a tela no perfil já usa, escolhendo o cliente")}
     partes = ["%d login(s) em %d cliente(s)" % (r["logins"], r["clientes"])]
     if (r["ativos"] or 0) < r["logins"]:
         partes.append("%d inativo(s)" % (r["logins"] - (r["ativos"] or 0)))

@@ -4400,37 +4400,47 @@ def portaria() -> JSONResponse:
 @app.get("/api/portal/cliente")
 def portal_cliente_dados(request: Request, aba: str = "agora",
                          dt_de: str | None = None, dt_ate: str | None = None,
-                         dias: int = 45, meses: int = 12) -> JSONResponse:
-    """Minha Operação: os dados do cliente vinculado à SESSÃO.
+                         dias: int = 45, meses: int = 12,
+                         raiz: str | None = None) -> JSONResponse:
+    """Minha Operação, para os dois leitores da tela.
 
-    A raiz do CNPJ NÃO vem da requisição — vem da sessão. É a diferença entre
-    um portal e um buscador de operação alheia: se o cliente fosse um
-    parâmetro, bastaria trocá-lo na barra de endereço para ler a carteira do
-    vizinho, e o RBAC por tela não veria problema nenhum nisso (a tela é a
-    mesma, o usuário tem acesso a ela).
+    `raiz` existe para GENTE DA CASA escolher de quem quer ver, e é ignorado
+    para quem tem vínculo — a decisão mora em `portal_cliente.alvo()`, que
+    consulta o vínculo ANTES de olhar o parâmetro. É essa ordem que impede a
+    tela de virar um buscador da operação alheia: um usuário de cliente pode
+    mandar o `raiz` que quiser, que ele continua no CNPJ dele.
+
+    Sem vínculo e sem escolha a resposta é 200 com a lista de clientes, não
+    403: quem abriu a tela tem direito a ela, só ainda não disse de quem.
     """
     from . import portal_cliente
 
     try:
-        raiz = portal_cliente.escopo(request.state.sessao)
-    except portal_cliente.SemEscopo:
-        # 403 e mensagem que diz o que FAZER. Recusa legível é 4xx: um 5xx
-        # aqui teria o corpo trocado pela página do Cloudflare e o usuário
-        # veria "erro interno" onde o que falta é um cadastro.
-        return JSONResponse(status_code=403, content={
-            "erro": "sem_vinculo_cliente",
-            "mensagem": ("Este login não está vinculado a um cliente. "
-                         "Peça ao administrador para preencher o vínculo em "
-                         "Administração › Usuários.")})
+        alvo, travado = portal_cliente.alvo(request.state.sessao, raiz)
+    except portal_cliente.PrecisaEscolher:
+        try:
+            return JSONResponse({"escolher": True, "travado": False,
+                                 **portal_cliente.get_clientes(365)})
+        except Exception as exc:  # noqa: BLE001
+            log.warning("portal_cliente lista falhou: %s", type(exc).__name__)
+            return JSONResponse(status_code=503, content={
+                "erro": "erro_consulta",
+                "mensagem": "Não foi possível listar os clientes."})
     try:
+        # `travado` e `alvo` vão em TODA resposta: a tela precisa saber se
+        # esconde o seletor, e quem está vendo precisa saber de quem é o
+        # número na frente dele. Painel de cliente sem dizer qual cliente é
+        # exatamente o jeito de alguém da casa ler a conta errada e agir.
+        selo = {"travado": travado, "cliente_raiz": alvo,
+                "cliente_nome": portal_cliente.nome_do_cliente(alvo)}
         if aba == "permanencia":
             hoje = date.today()
             dt_ate = dt_ate or hoje.isoformat()
             dt_de = dt_de or hoje.replace(day=1).isoformat()
-            return JSONResponse(portal_cliente.get_permanencia(raiz, dt_de, dt_ate))
+            return JSONResponse({**portal_cliente.get_permanencia(alvo, dt_de, dt_ate), **selo})
         if aba == "historico":
-            return JSONResponse(portal_cliente.get_historico(raiz, max(1, min(24, meses))))
-        return JSONResponse(portal_cliente.get_agora(raiz, max(1, min(180, dias))))
+            return JSONResponse({**portal_cliente.get_historico(alvo, max(1, min(24, meses))), **selo})
+        return JSONResponse({**portal_cliente.get_agora(alvo, max(1, min(180, dias))), **selo})
     except psycopg.OperationalError as exc:
         log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={

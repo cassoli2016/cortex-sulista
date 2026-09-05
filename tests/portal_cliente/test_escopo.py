@@ -306,3 +306,81 @@ def test_o_topN_de_rotas_leva_contador(monkeypatch):
     d = pc.get_historico(RAIZ, 12)
     assert d["rotas_mostradas"] == 10 and d["rotas_total"] == 15
     assert d["cargas_nas_rotas_mostradas"] < d["cargas_total"]
+
+
+# ============================================================ os dois leitores
+
+def test_quem_tem_VINCULO_nao_escolhe_nem_pedindo():
+    """A trava. É a propriedade que separa um portal de um buscador.
+
+    Um usuário de cliente pode mandar o `raiz` que quiser — inclusive o de um
+    concorrente que ele conheça — e continua no CNPJ dele. Se esta prova cair,
+    a tela vira consulta livre da operação alheia com o RBAC achando tudo
+    normal: a tela é a mesma e ele tem acesso a ela.
+    """
+    cli = {"cliente_cnpj_raiz": RAIZ}
+    for pedida in (None, "", "02162259", "84683374", "abcdefgh", "   "):
+        assert pc.alvo(cli, pedida) == (RAIZ, True), pedida
+
+
+def test_gente_da_casa_escolhe_e_nao_nasce_travada():
+    casa = {"admin": True, "telas": ["cliop"]}
+    assert pc.alvo(casa, "02162259") == ("02162259", False)
+
+
+def test_gente_da_casa_sem_escolha_PEDE_escolha_em_vez_de_recusar():
+    """Não é 403: quem abriu a tela tem direito a ela, só não disse de quem."""
+    with pytest.raises(pc.PrecisaEscolher):
+        pc.alvo({"admin": True}, None)
+    with pytest.raises(pc.PrecisaEscolher):
+        pc.alvo({}, "nao-e-raiz")
+
+
+def test_o_vinculo_e_consultado_ANTES_do_parametro():
+    """A ordem É a segurança, e por isso ela é cobrada aqui.
+
+    Escrita ao contrário — usar `pedida` e cair no vínculo quando ela falta —
+    a mesma função deixaria um usuário de cliente ler outro cliente. O teste
+    acima já pega o comportamento; este pega a INTENÇÃO no texto, para que
+    inverter a ordem exija apagar uma prova que diz por que ela existe.
+    """
+    import inspect
+    corpo = inspect.getsource(pc.alvo)
+    assert corpo.index("escopo(sess)") < corpo.index("pedida or")
+
+
+def test_a_lista_de_clientes_NAO_recebe_raiz():
+    """A única função não escopada do módulo, e ela não aceita raiz nenhuma.
+
+    É o que impede alguém de, mais adiante, "reusar" a lista dentro de um
+    caminho de cliente sem perceber que acabou de tirar o escopo.
+    """
+    import inspect
+    assert "raiz" not in inspect.signature(pc.get_clientes).parameters
+
+
+def test_a_lista_agrega_por_RAIZ_e_rotula_pela_razao_social(monkeypatch):
+    """Quatro filiais viram UMA linha, com o nome da EMPRESA.
+
+    O fantasia do ERP traz a filial no nome ("IOCHPE MAXION - RESENDE/RJ"):
+    agregado por raiz, rotular por ele faria quem escolhe ler "Resende" e
+    achar que Cruzeiro ficou de fora.
+    """
+    assert "GROUP BY 1" in pc.CLIENTES_SQL
+    assert "substr(cast(c.cnpjcpfcodigopagadorfrete AS text), 1, 8)" in pc.CLIENTES_SQL
+    i_razao = pc.CLIENTES_SQL.index("razaosocial")
+    i_fantasia = pc.CLIENTES_SQL.index("nomefantasia")
+    assert i_razao < i_fantasia, "razão social tem de vir antes do fantasia"
+
+    monkeypatch.setattr(pc.db, "query", lambda *a, **k: [
+        {"raiz": "61156113", "nome": "IOCHPE-MAXION S.A.", "cargas": 6826}])
+    d = pc.get_clientes(365)
+    assert d["clientes"][0]["raiz"] == "61156113"
+
+
+def test_o_nome_do_cliente_e_ROTULO_e_nunca_derruba_a_tela(monkeypatch):
+    """Nome é enfeite; número é o dado. Falha no nome não pode levar o painel."""
+    def _explode(*a, **k):
+        raise RuntimeError("ERP fora")
+    monkeypatch.setattr(pc.db, "query", _explode)
+    assert pc.nome_do_cliente(RAIZ) == ""

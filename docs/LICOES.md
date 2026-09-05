@@ -97,6 +97,56 @@ O defeito no `SAC_FT_REP` **continua de pé** (05/09/2026) — é a tela `sac`, 
 outra frente, e merece a própria entrega. Fica registrado aqui porque achado
 medido que não vira crônica se perde.
 
+### A trava certa no lugar errado (mesmo dia, 05/09/2026)
+
+A primeira versão recusava TODO MUNDO sem vínculo — e isso incluía gente da
+casa com a tela no perfil, que é justamente quem abre o portal para atender o
+cliente. Eu tinha lido "fail-closed" como "recusa quem não é cliente", quando o
+que a regra exige é **não deixar ninguém ver o que não é dele**. Não são a
+mesma frase: a segunda é satisfeita dando a escolha a quem o RBAC já deixou
+entrar.
+
+O conserto não afrouxa a trava, ele a move para onde ela vale — `alvo()`:
+
+```
+vínculo?  -> é o dele, e o parâmetro é IGNORADO   (travado)
+sem vínculo -> escolhe                             (gente da casa)
+```
+
+**A ordem é a segurança.** Escrita ao contrário (usar o parâmetro e cair no
+vínculo quando ele falta), a MESMA função deixaria um usuário de cliente ler
+outro cliente só mandando `?raiz=`, e nada no RBAC acharia estranho — a tela é
+a mesma e ele tem acesso a ela. Há guard para o comportamento e outro para a
+ordem no texto da função, para inverter exigir apagar a prova que diz por quê.
+
+Duas coisas que caíram junto e valem para qualquer tela com dois leitores:
+
+- **`travado` vem do SERVIDOR, a tela não deduz.** Deduzir "é cliente" de "não
+  recebi lista" esconderia o seletor por acidente no dia em que a lista
+  falhasse — e o cliente veria uma tela que parece dele.
+- **Toda resposta diz de QUEM é o número.** Painel de cliente sem o nome do
+  cliente é como alguém lê a conta errada e age em cima; numa TV, onde ninguém
+  confere o filtro, é pior.
+
+E o cartão da Saúde e o verbete do manual foram corrigidos no MESMO commit:
+os dois afirmavam "a tela recusa quem a abrir", que deixou de ser verdade.
+Afirmação errada num cartão de diagnóstico é pior que cartão nenhum.
+
+### A lista de telas de TV existe em quatro grafias
+
+O painel de TV do cliente (`tvcli`) precisou entrar em **oito** lugares: os
+seis registros de tela nova, mais os dois `E_TV` (a régua de altura e a
+auditoria de espaços). Dentro do `index.html`, porém, a disjunção das telas de
+TV está escrita em quatro grafias diferentes — `k===`, `v===` colada,
+`v ===` espaçada, e as chamadas nominais no tick de 60 s e no reflow.
+
+Faltar em uma delas não quebra nada visível: a tela abre, só não entra em modo
+TV, ou não se atualiza sozinha, ou não redesenha ao virar tela cheia. É a
+mesma família de defeito das seis telas — ausência sem sintoma. Não refatorei
+para um `E_TV` único porque havia duas outras sessões editando o arquivo no
+mesmo dia; fica como **dívida anotada**, com um teste que cobra as quatro
+grafias para que a próxima TV não redescubra isso sozinha.
+
 ### Escopo por linha, numa casa que só tinha escopo por tela
 
 O RBAC do CÓRTEX responde "que telas você abre". O portal exigiu a segunda

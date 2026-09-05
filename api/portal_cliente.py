@@ -23,6 +23,23 @@ cadastro mantido à mão; a raiz do CNPJ é o próprio documento. Para DECIDIR
 QUEM VÊ O QUÊ vale o documento. (O agrupamento continua valendo para o
 freetime contratado, que é um contrato comercial e mora nele mesmo.)
 
+DOIS LEITORES, UM DELES TRANCADO
+================================
+A tela serve o CLIENTE e serve a CASA, e a diferença entre eles não é o
+perfil — é o VÍNCULO:
+
+- **usuário com vínculo** (gente do cliente) enxerga a operação dele e só ela.
+  Ele não escolhe: se mandar um cliente na requisição, o servidor IGNORA.
+  Sem isso a tela deixaria de ser um portal e viraria um buscador da operação
+  alheia, com o RBAC achando tudo normal — a tela é a mesma, ele tem acesso.
+- **usuário sem vínculo** (gente da casa) ESCOLHE de quem quer ver. Quem lhe
+  deu a tela no perfil deu isso de propósito: é a mesma decisão que dá a tela
+  `com` ou `clif`, que já listam a carteira inteira para quem as tem.
+
+A ordem importa e está em `alvo()`: o vínculo é consultado PRIMEIRO, e só a
+sua ausência abre a escolha. Inverter isso — aceitar o parâmetro e cair no
+vínculo quando ele falta — seria a mesma função com a trava do lado errado.
+
 O QUE NÃO SAI DAQUI
 ===================
 Nome e telefone de motorista, CPF, valor de frete, custo, e a operação de
@@ -109,16 +126,116 @@ def escopo(sess: dict | None) -> str:
     viraria um filtro que não filtra, sem erro nenhum. Levantar é o que garante
     que o caminho "sem escopo" não tem para onde seguir.
 
-    Admin NÃO é exceção aqui. Ser admin do CÓRTEX responde "que telas", não
-    "de quem é a operação"; um admin sem vínculo não tem operação de cliente
-    para ver, e liberar tudo para ele criaria a única sessão do sistema em que
-    a tela mostra a carteira inteira — que é justamente o que o portal não pode
-    ser capaz de fazer.
+    Admin não é exceção: ser admin responde "que telas", não "de quem é a
+    operação". Isto aqui responde uma coisa só — "esta sessão está TRANCADA em
+    algum cliente?" — e para gente da casa a resposta é não, o que abre a
+    escolha em `alvo()` em vez de recusar. Quem decide se alguém da casa entra
+    é o RBAC da tela, como em qualquer outra.
     """
     raiz = ((sess or {}).get("cliente_cnpj_raiz") or "").strip()
     if not RE_RAIZ.match(raiz):
         raise SemEscopo("sessão sem vínculo de cliente")
     return raiz
+
+
+class PrecisaEscolher(Exception):
+    """Gente da casa abriu a tela sem dizer de quem. Não é erro: é a tela
+    esperando a escolha, e a rota responde 200 com a lista de clientes."""
+
+
+def alvo(sess: dict | None, pedida: str | None) -> tuple[str, bool]:
+    """De quem é a operação que ESTA requisição vai ler. Devolve (raiz, travado).
+
+    A ORDEM É A SEGURANÇA. O vínculo vem primeiro e vence sempre; `pedida` só
+    é olhado quando não há vínculo nenhum. Escrito ao contrário — usar
+    `pedida` e cair no vínculo quando ela falta — a mesma função deixaria um
+    usuário de cliente ler outro cliente só mandando o parâmetro, e nada no
+    RBAC acharia estranho.
+
+    `travado=True` diz à tela que não há o que escolher; ela esconde o seletor
+    em vez de oferecer uma escolha que o servidor vai ignorar.
+    """
+    try:
+        return escopo(sess), True
+    except SemEscopo:
+        pass
+    escolha = (pedida or "").strip()
+    if RE_RAIZ.match(escolha):
+        return escolha, False
+    raise PrecisaEscolher("nenhum cliente escolhido")
+
+
+# O NOME de UMA raiz. Consulta escopada: recebe a raiz e devolve o nome dela,
+# nunca uma lista. Existe porque um painel de cliente que nao diz QUAL cliente
+# e o jeito de alguem na sala de operacao ler a conta errada e agir em cima --
+# e numa TV, onde ninguem vai conferir o filtro, isso e pior.
+NOME_SQL = """
+SELECT coalesce(nullif(trim(cd.razaosocial),''),
+                nullif(trim(cd.nomefantasia),''), '') AS nome
+FROM cadastro cd
+WHERE strpos(cast(cd.codigo AS text), %(raiz)s) = 1
+ORDER BY length(cast(cd.codigo AS text)), cd.codigo
+LIMIT 1
+"""
+
+
+@cached(ttl=3600, velha_ate=86400)
+def nome_do_cliente(raiz: str) -> str:
+    """Razao social da raiz, ou vazio. Nunca levanta: e rotulo, nao dado.
+
+    TTL longo e `velha_ate` de um dia porque razao social nao muda de manha
+    para tarde -- e porque a alternativa, o painel perder o nome do cliente
+    num tropeco do ERP, deixaria a parede mostrando numeros sem dono.
+    """
+    try:
+        linhas = db.query(NOME_SQL, {"raiz": raiz})
+        return (linhas[0]["nome"] if linhas else "") or ""
+    except Exception:  # noqa: BLE001
+        log.warning("nome do cliente falhou para a raiz pedida")
+        return ""
+
+
+# QUEM APARECE NA LISTA de quem escolhe: cliente com carga no período, do mais
+# volumoso para o menos. Não é a carteira comercial (isso é a tela `com`) — é
+# quem a operação de fato moveu, que é a pergunta desta tela. A raiz sai
+# agregada: as quatro filiais da Iochpe-Maxion viram UMA linha, senão quem
+# escolhe teria de adivinhar qual planta traz a operação inteira.
+CLIENTES_SQL = """
+SELECT substr(cast(c.cnpjcpfcodigopagadorfrete AS text), 1, 8) AS raiz,
+       -- RAZAO SOCIAL antes do fantasia: a raiz e a EMPRESA, e o fantasia do
+       -- ERP traz a filial no nome ("IOCHPE MAXION - RESENDE/RJ"). Agregado
+       -- por raiz, o `max()` escolheria uma planta ao acaso para rotular as
+       -- quatro, e quem escolhe leria "Resende" achando que perdeu Cruzeiro.
+       max(coalesce(nullif(trim(cd.razaosocial),''),
+                    nullif(trim(cd.nomefantasia),''), '(sem nome)')) AS nome,
+       count(*) AS cargas
+FROM coleta c
+LEFT JOIN cadastro cd ON cd.codigo = c.cnpjcpfcodigopagadorfrete
+WHERE c.dtcancelamento IS NULL
+  AND c.dtemissao >= current_date - %(dias)s
+  AND length(cast(c.cnpjcpfcodigopagadorfrete AS text)) >= 8
+GROUP BY 1
+HAVING count(*) > 0
+ORDER BY 3 DESC
+"""
+
+
+@cached(ttl=600, velha_ate=7200)
+def get_clientes(dias: int = 365) -> dict:
+    """Os clientes que a operação moveu, para quem escolhe.
+
+    NÃO leva raiz nenhuma na assinatura de propósito: é a única função deste
+    módulo que não é escopada, e ela só é chamada por quem NÃO tem vínculo.
+    Deixá-la sem o parâmetro é o que impede alguém de, mais adiante, "reusar"
+    ela num caminho de cliente sem perceber.
+    """
+    linhas = db.query(CLIENTES_SQL, {"dias": int(dias)})
+    return {
+        "clientes": [{"raiz": r["raiz"], "nome": r["nome"], "cargas": r["cargas"]}
+                     for r in linhas],
+        "janela_dias": int(dias),
+        "fonte": f"ERP AVA · coleta · pagador do frete · {int(dias)} dias · leitura",
+    }
 
 
 # O filtro de cliente, em SQL. Sai daqui e de nenhum outro lugar: uma segunda
