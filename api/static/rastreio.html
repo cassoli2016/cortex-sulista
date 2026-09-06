@@ -60,11 +60,28 @@ body{margin:0;background:var(--n50);color:var(--n900);font-family:var(--font);
 
 /* ------------------------------------------------------------------ caixa */
 .wrap{width:min(100%,560px);margin:0 auto;padding:0 14px}
+/* A BUSCA CONTINUA ESTREITA, o detalhe e que alarga. Dois campos e um botao
+   numa faixa de 1160px seriam um formulario perdido no meio do monitor: a
+   largura serve ao conteudo que existe, e na busca ele e curto. A classe entra
+   quando o detalhe e pintado e sai quando ele fecha. */
+body.detalhe .wrap{width:min(100%,1160px)}
+/* E A CAIXA DA BUSCA SAI INTEIRA, nao so o formulario: esconder o `<form>`
+   deixava a moldura do cartao vazia no topo do detalhe — uma faixa branca de
+   1160px sem nada dentro, que e pior que o formulario, porque nao se explica.
+   Amarrado a MESMA classe que decide a largura: um estado, um lugar. */
+body.detalhe #secBusca{display:none}
 .card{background:var(--n0);border:1px solid var(--n200);border-radius:var(--radius);
   margin-top:14px;overflow:hidden}
 .card-in{padding:16px}
 
 form{display:grid;gap:2px}
+/* `hidden` NAO VALIA NESTA PAGINA, e o defeito era invisivel no codigo: a
+   regra acima e de AUTOR e `[hidden]{display:none}` vem da folha do NAVEGADOR
+   — autor vence, entao `form.hidden = true` virava decoracao. Quem chegava
+   pelo link do WhatsApp sempre viu o formulario de busca acima da carga, ainda
+   que `abrirPorLink` mande escode-lo desde o primeiro dia. A regra existia,
+   estava certa e perdia a briga; so o navegador diz quem venceu. */
+form[hidden]{display:none}
 label{display:block;font-size:12.5px;font-weight:600;color:var(--n600);
   margin:10px 0 5px;letter-spacing:.01em}
 label:first-of-type{margin-top:0}
@@ -200,6 +217,40 @@ button.voltar{background:none;border:0;color:var(--orange-500);font:inherit;
   .card-in{padding:20px}
   .nums{grid-template-columns:repeat(4,minmax(0,1fr))}
 }
+
+/* ------------------------------------------------------------ duas colunas
+   NO MONITOR A PAGINA ERA UMA TIRA. A coluna de 560px e a medida certa para o
+   celular — que e o caso normal, porque esta pagina chega por link de WhatsApp
+   — mas num monitor ela deixava o mapa em 250px no meio de uma pilha longa,
+   com a tela inteira sobrando dos dois lados. O mapa e a resposta visual da
+   pagina: ele merece a altura que existe.
+
+   O REARRANJO NAO TOCA NO CELULAR, e isto e o ponto do `display:contents`: ate
+   980px os tres invólucros somem da arvore de layout e os blocos continuam
+   filhos diretos do cartao, na MESMA ordem de hoje — cabecalho, quem,
+   progresso, numeros, mapa, transito, notas, etapas, WhatsApp. Nao ha um
+   segundo layout para o celular manter; ha um layout a mais para o monitor.
+
+   A ORDEM DO DOM E A DO CELULAR, e a grade e que reordena no monitor: o mapa
+   vive entre os numeros e as etapas no HTML (onde o celular o quer) e vai para
+   a coluna da direita por `grid-column`, sem mudar de lugar no documento. */
+.det, .det>div{display:contents}
+
+@media (min-width:980px){
+  .det{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,420px);
+       gap:0 25px;align-items:start}
+  .det>div{display:block;min-width:0}
+  /* `minmax(0,...)` nas DUAS trilhas, nunca `1fr` cru: `1fr` e
+     `minmax(auto,1fr)` e nao encolhe abaixo do min-content — foi assim que um
+     card nasceu fora da tela em 01/09/2026, sem erro nenhum. */
+  .det-a1{grid-column:1;grid-row:1}
+  .det-a2{grid-column:1;grid-row:2}
+  /* O MAPA ACOMPANHA A LEITURA. Quem le as etapas la embaixo continua vendo
+     onde o veiculo esta — que e a pergunta que trouxe a pessoa aqui. */
+  .det-b{grid-column:2;grid-row:1/span 2;position:sticky;top:18px}
+  #mapa{height:clamp(360px,58vh,560px);margin-top:0}
+  .det-b .tit:first-child{margin-top:18px}
+}
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:.001ms !important;transition-duration:.001ms !important}
 }
@@ -259,6 +310,12 @@ const esc = s => (s ?? '').toString().replace(/[&<>"]/g,
    de oferecer um botão que responderia "informe o documento". */
 let ULTIMO = null;
 
+/* O mapa em cena, para poder remedi-lo quando a janela muda de largura.
+   DECLARADO AQUI EM CIMA, junto dos outros: `let` no fim do arquivo lido por
+   função definida antes é a zona morta temporal que já derrubou o script desta
+   casa no boot — e o sintoma é a página inteira parada, não um erro no mapa. */
+let MAPA_ABERTO = null;
+
 /* Data em horario LOCAL. `toISOString()` em UTC-3 volta um dia — a lição da
    casa, e aqui ela apareceria como "entregue ontem" numa carga de hoje. */
 function quando(iso, comHora){
@@ -274,7 +331,19 @@ function quando(iso, comHora){
 const SELO = {em_viagem:'s-viagem', entregue:'s-entregue',
               descarregando:'s-descarga', preparando:'s-prep'};
 
+/* A ULTIMA LISTA ENCONTRADA. Guardá-la é o que permite voltar do detalhe para
+   ela sem consultar de novo — e sem a pessoa redigitar documento e CNPJ, que
+   era o que o "voltar" fazia na prática. */
+let ULTIMA_LISTA = null;
+
 function pintarLista(d){
+  ULTIMA_LISTA = d;
+  // O mapa que estava em cena morreu com o `innerHTML`: soltar a referencia
+  // aqui evita o `resize` chamar `invalidateSize` num mapa sem contentor.
+  MAPA_ABERTO = null;
+  document.body.classList.remove('detalhe');
+  // Na LISTA o formulario volta: ali ele serve — é de onde se busca de novo.
+  $('form').hidden = false;
   if(!d.cargas.length){
     $('resultado').innerHTML =
       '<div class="card"><div class="vazio">Não encontramos nenhuma carga com '
@@ -291,6 +360,7 @@ function pintarLista(d){
 }
 
 function pintarDetalhe(c){
+  MAPA_ABERTO = null;
   const a = c.andamento || {};
   let posicao = '';
   if(a.fora_da_rota){
@@ -357,9 +427,17 @@ function pintarDetalhe(c){
     nums.push(['Atualizado', a.atualizado_ha_min < 1 ? 'agora'
       : 'há ' + a.atualizado_ha_min + ' min']);
 
+  /* O BOTAO DE VOLTAR DIZ PARA ONDE VOLTA. Ele mandava sempre para o
+     formulario vazio, e quem tinha achado tres cargas e abriu a errada
+     precisava buscar tudo de novo — com o documento e o CNPJ na mao. */
+  const temLista = !!(ULTIMA_LISTA && ULTIMA_LISTA.cargas
+                      && ULTIMA_LISTA.cargas.length > 1);
+  const rotulo = temLista ? '← Voltar para a lista' : '← Outra busca';
+
   $('resultado').innerHTML = `
-    <button class="voltar" onclick="voltar()">← Outra busca</button>
-    <div class="card"><div class="card-in">
+    <button class="voltar" onclick="voltar()">${rotulo}</button>
+    <div class="card"><div class="card-in"><div class="det">
+      <div class="det-a1">
       <span class="doc">${esc(c.documento)}</span>
       <div class="rota" style="margin-top:6px">${esc(c.origem || '—')}
         <span class="seta">→</span> ${esc(c.destino || '—')}</div>
@@ -371,6 +449,8 @@ function pintarDetalhe(c){
       ${nums.length ? '<div class="nums">' + nums.map(([r,v]) =>
         `<div class="num"><u>${esc(r)}</u><b>${esc(v)}</b></div>`).join('')
         + '</div>' : ''}
+      </div>
+      <div class="det-b">
       ${(c.mapa && (c.mapa.origem || c.mapa.destino))
         ? '<div id="mapa"></div><p class="legenda">'
           + '<span><i style="background:#636C76"></i>coleta</span>'
@@ -381,6 +461,8 @@ function pintarDetalhe(c){
         : ''}
       ${transito}
       ${notas}
+      </div>
+      <div class="det-a2">
       <ul class="etapas">${(c.etapas || []).map(e => `
         <li class="${e.feito ? 'feito' : ''}"><span class="bola"></span>
           <span><span class="t">${esc(e.rotulo)}</span>
@@ -401,7 +483,16 @@ function pintarDetalhe(c){
         <p><b>Você já recebe os avisos desta carga por WhatsApp.</b><br>
           Para parar, responda <b>SAIR</b> na conversa.</p>
       </div>`}
-    </div></div>`;
+      </div>
+    </div></div></div>`;
+  document.body.classList.add('detalhe');
+  /* O FORMULARIO SAI DE CENA ENQUANTO A CARGA ESTA ABERTA. Ele ficava no topo
+     do detalhe, e a pessoa que acabou de achar a carga via primeiro os dois
+     campos que ela ja preencheu — no monitor, com a largura do detalhe, um
+     formulario vazio de 1160px antes da resposta. Quem quiser outra busca tem
+     o botao logo acima do cartao, que agora diz para onde leva. Era assim que
+     a entrada por LINK ja se comportava; o caminho pela busca e que destoava. */
+  $('form').hidden = true;
   window.scrollTo({top:0, behavior:'smooth'});
   if(c.mapa && (c.mapa.origem || c.mapa.destino)) desenharMapa(c);
 }
@@ -410,6 +501,23 @@ function pintarDetalhe(c){
    numero da nota ainda nem sabe se vai abrir alguma carga. Carregar na
    abertura da pagina puniria todo mundo no 4G do patio pelo mapa que talvez
    ninguem veja. Vendorizado, nunca CDN — a regra vale igual aqui. */
+/* O LEAFLET MEDE O CONTENTOR UMA VEZ, e a altura dele agora MUDA com a largura
+   da janela (250px empilhado, ate 560px na coluna da direita). Sem remedir, o
+   mapa arrastado de um lado para o outro do breakpoint fica com metade cinza —
+   e o sintoma e mudo: nenhum erro, so um mapa errado. */
+let _remedir = null;
+window.addEventListener('resize', () => {
+  if(!MAPA_ABERTO) return;
+  clearTimeout(_remedir);
+  _remedir = setTimeout(() => {
+    /* rAF duplo: o `resize` chega antes de a grade assentar, e medir no
+       primeiro quadro devolve a altura velha. */
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if(MAPA_ABERTO) MAPA_ABERTO.invalidateSize();
+    }));
+  }, 120);
+});
+
 let _leaflet = null;
 function carregarLeaflet(){
   if(_leaflet) return _leaflet;
@@ -435,8 +543,15 @@ async function desenharMapa(c){
     el.remove(); return;
   }
   const m = c.mapa, a = c.andamento || {};
-  const mapa = L.map(el, {zoomControl:false, attributionControl:true,
+  /* NO MONITOR NAO HAVIA COMO DAR ZOOM. Sem controle e sem roda, o mapa era
+     uma figura fixa: no celular ainda dá para pinçar com dois dedos, no
+     desktop não sobra gesto nenhum. O controle entra só na largura em que ele
+     não come o mapa; a roda continua desligada nos dois, senão rolar a página
+     com o cursor sobre o mapa vira zoom e a leitura trava. */
+  const largo = window.matchMedia('(min-width:980px)').matches;
+  const mapa = L.map(el, {zoomControl:largo, attributionControl:true,
                           scrollWheelZoom:false});
+  MAPA_ABERTO = mapa;
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
     {maxZoom:16, attribution:'© OpenStreetMap'}).addTo(mapa);
 
@@ -555,6 +670,10 @@ async function abrir(id){
     const d = await r.json();
     if(!d.ok || !d.carga){ await buscar(); return; }
     CARGA_ABERTA = id;
+    // UMA entrada de histórico por carga aberta, e só quando ela ABRE de
+    // verdade: empilhar antes da resposta deixaria um "voltar" que não desfaz
+    // nada quando o detalhe falha e a busca é refeita.
+    history.pushState({carga: id}, '', location.pathname);
     pintarDetalhe(d.carga);
   }catch(e){ await buscar(); }
 }
@@ -587,13 +706,49 @@ async function zapChamar(rota){
 const assinar = () => zapChamar('assinar');
 const cancelarZap = () => zapChamar('cancelar');
 
+/* VOLTAR VOLTA PARA ONDE SE VEIO, e antes não voltava para lugar nenhum: a
+   função limpava o resultado E zerava `ULTIMO`, então quem tinha achado três
+   cargas, aberto a errada e clicado em "voltar" caía no formulário vazio e
+   precisava buscar tudo de novo. Com uma lista guardada, o caminho de volta é
+   a lista; sem ela — quem chegou pelo link do WhatsApp — é a busca. */
 function voltar(){
+  /* O BOTAO DA TELA E O DO APARELHO FAZEM A MESMA COISA, e por isso o botao da
+     tela DELEGA ao histórico em vez de desenhar sozinho: se ele restaurasse a
+     lista por conta própria, a entrada empilhada continuaria lá e o "voltar"
+     seguinte — o do aparelho — sairia da página com a pessoa achando que ia
+     para a busca. Um caminho de volta só. */
+  if(CARGA_ABERTA){ history.back(); return; }
+  novaBusca();
+}
+
+function restaurar(){
+  CARGA_ABERTA = null;
+  $('msg').innerHTML = '';
+  if(ULTIMA_LISTA && ULTIMA_LISTA.cargas && ULTIMA_LISTA.cargas.length > 1){
+    pintarLista(ULTIMA_LISTA);
+    window.scrollTo({top:0, behavior:'smooth'});
+    return;
+  }
+  novaBusca();
+}
+
+function novaBusca(){
   $('resultado').innerHTML = '';
   $('msg').innerHTML = '';
-  ULTIMO = null; CARGA_ABERTA = null;
+  ULTIMO = null; CARGA_ABERTA = null; ULTIMA_LISTA = null; MAPA_ABERTO = null;
+  document.body.classList.remove('detalhe');
   $('form').hidden = false;
   $('doc').focus();
 }
+
+/* O BOTAO VOLTAR DO APARELHO. Sem isto ele SAI DA PAGINA: a pessoa abre a
+   carga, aperta voltar por reflexo e perde a consulta inteira — no celular,
+   que é de onde quase todo mundo chega. A entrada de histórico não muda a
+   barra de endereços (`location.pathname`, o mesmo que o token já usa ao ser
+   apagado), então nada do que identifica a carga viaja na URL. */
+window.addEventListener('popstate', () => {
+  if(CARGA_ABERTA) restaurar();
+});
 
 /* ---------------------------------------------------------------- o link
    O aviso de WhatsApp traz um link que abre ESTA carga sem digitar nada. O

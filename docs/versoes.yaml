@@ -1,3 +1,30 @@
+- versao: "0.263.1"
+  data: "2026-09-06"
+  adicionado:
+    - >-
+      A página pública de rastreio ganhou um layout próprio para computador.
+      Até agora ela era desenhada para o celular — que é de onde quase todo
+      mundo chega, pelo link do WhatsApp — e no monitor virava uma tira
+      estreita no meio da tela, com um mapa pequeno espremido no meio de uma
+      lista longa. Em telas largas o conteúdo passa a ocupar duas colunas: à
+      esquerda a carga, o andamento e o cadastro de avisos; à direita o mapa,
+      agora grande e acompanhando a rolagem, com o trânsito e as notas fiscais.
+      No celular nada mudou.
+    - >-
+      No computador o mapa passou a ter botões de mais e menos zoom. Antes não
+      havia nenhuma forma de aproximar ou afastar: no celular dá para usar dois
+      dedos, no computador não sobrava gesto nenhum.
+  corrigido:
+    - >-
+      O botão de voltar agora volta. Quem procurava uma carga, recebia uma
+      lista com várias e abria a errada não tinha caminho de volta: o botão
+      levava ao formulário vazio e era preciso digitar tudo de novo. Agora ele
+      devolve a lista encontrada, e o botão de voltar do próprio celular passou
+      a funcionar — antes ele saía da página e a consulta se perdia.
+    - >-
+      O formulário de busca não fica mais em cima da carga aberta. Quem clicava
+      no link do WhatsApp via primeiro dois campos vazios e só depois a carga
+      que veio ver; quem tinha buscado via os campos que acabara de preencher.
 - versao: "0.263.0"
   data: "2026-09-06"
   corrigido:
