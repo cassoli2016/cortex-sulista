@@ -406,6 +406,21 @@ barra empilhada, não donut.
   `DISTINCT ON (chave) … ORDER BY chave, data DESC NULLS LAST`, nunca join
   direto; `max(a)`+`max(b)` são máximos independentes; conferir a contagem dos
   dois lados de CADA join novo (o total mudou de ordem de grandeza? é o join).
+- **JOIN que só responde "sim ou não" vira EXISTS** — e a diferença é de ordem
+  de grandeza, não de estilo. A consulta do Orçamento juntava
+  `agrupadorgerencial` e só olhava `descricao IS NOT NULL`: 3 meses 0,9 s,
+  9 meses 7,5 s, **24 meses estourando o `statement_timeout`**. O plano vira
+  sozinho com o tamanho (na janela grande ele casava só por `grupo`, que tem
+  meia dúzia de valores, e filtrava `reduzido` depois — produto cartesiano
+  sobre 2,5 mi de linhas). **A defesa contra plano que vira não é achar um
+  plano melhor, é escrever a consulta de forma que não exista plano ruim
+  disponível**: `EXISTS` não pode multiplicar linha. Quem só precisa da
+  resposta usa `agrupador_gerencial.existe()`; quem precisa do NOME continua em
+  `left_join()`. Uma CTE pré-calculada era mais rápida na janela pequena e
+  estourava igual na grande — velocidade em teste pequeno não é o critério.
+- **Consulta lenta contra o ERP: medir com o servidor VAZIO antes de acusar a
+  carga alheia.** 60,2 s três vezes com zero consultas ativas é defeito nosso;
+  o mesmo número dentro da janela de degradação não é evidência de nada.
 - **Coluna zerada com KPI cheio = join quebrado** (conferir se a coluna do `ON`
   tem dado).
 - **Estado de fluxo vem do CAMPO de estado, nunca da ausência de data**
@@ -540,6 +555,12 @@ barra empilhada, não donut.
 - **Verde que nunca ficaria vermelho não conferiu nada** — sabotar o alvo e ver
   o teste falhar leva trinta segundos; campo ausente em conferidor vira ACHADO,
   não silêncio.
+  - **A SABOTAGEM também se confere.** Provar que o alvo mudou ANTES de ler o
+    resultado: um script de edição cujo `assert` estourou deixa o arquivo
+    intacto, o teste passa, e verde de sabotagem que não aconteceu é idêntico a
+    verde de guard robusto. Aconteceu em 06/09/2026, e escondeu um guard que era
+    verde-para-sempre (a regex casava com texto da própria fonte que ele
+    varria).
 - **Teste que depende do relógio acusa a pessoa errada** — dublê com data
   acompanha o relógio que a página lê, nunca data fixa.
 - **Dublê de fornecedor copia o corpo REAL**, campos "inúteis" inclusive

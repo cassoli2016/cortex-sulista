@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.258.2] — 06/09/2026  ·  CX-06/09/2026-v0.258.2
+
+### Corrigido
+- A importação do Orçamento voltou a funcionar na janela de dois anos. Ela buscava o histórico do razão juntando a tabela de agrupador do ERP só para saber SE a conta tem classificação — sem nunca usar o nome dela. O banco resolvia esse encontro de um jeito que piorava sozinho conforme a janela crescia: três meses saíam em 1 segundo, nove meses em 7, e dois anos passavam do limite de um minuto e a importação era cancelada.
+- A mesma pergunta agora é feita sem juntar tabela nenhuma, e o resultado é exatamente o mesmo — conferido linha a linha nas janelas em que as duas versões conseguiam terminar. A tela do Orçamento carrega o histórico de doze meses em 9 segundos, contra 56 antes.
+
 ## [0.258.1] — 06/09/2026  ·  CX-06/09/2026-v0.258.1
 
 ### Corrigido

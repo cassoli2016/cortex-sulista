@@ -3399,6 +3399,109 @@ o carimbo: era artefato do dublê (as outras rotas devolvendo `{}`). Comparaçã
 entre dois estados só vale se os dois forem medidos igual — foi exatamente o
 que faltou na acusação à consulta de OC, três horas antes, no mesmo dia.
 
+## O join que só respondia "sim" (2026-09-06, v0.258.2)
+
+A suíte completa, rodada logo depois da entrega anterior, voltou com quatro
+vermelhos em `tests/orcamento/test_plano.py` —
+`QueryCanceled: statement timeout`. A tentação era óbvia e errada: era o mesmo
+erro do ERP que eu acabara de diagnosticar, três horas antes, no mesmo dia.
+
+**Não era.** Medi com zero consultas ativas no ERP, às 11h, fora da janela ruim,
+três vezes seguidas: 60,2 s sempre. Uma consulta que bate no teto do
+`statement_timeout` com o servidor vazio não é vítima de carga alheia.
+
+### O número que apontou o lugar
+
+```
+ 3 meses:  0,9s     820 linhas
+ 9 meses:  7,5s   2.531 linhas
+24 meses:  ESTOURA os 60s
+```
+
+Quatro vezes mais dado, **oitenta vezes mais tempo**. Isso não é volume — é o
+plano mudando. E o `EXPLAIN` das duas janelas entregou tudo:
+
+```
+ 3 meses:  Merge Cond: ((l.grupo = ag.grupo) AND (l.reduzido = ag.reduzido))
+24 meses:  Merge Cond:  (l.grupo = ag.grupo)          <- só o grupo
+           Join Filter: (ag.reduzido = l.reduzido)    <- reduzido virou filtro
+```
+
+O `grupo` tem meia dúzia de valores distintos. Casar só por ele contra as 584
+linhas do agrupador é quase um produto cartesiano sobre 2,5 milhões de
+lançamentos. **O mesmo SQL, sem uma linha mudada, escolhe um plano bom numa
+janela pequena e um catastrófico numa grande** — e é por isso que nenhum teste
+pequeno jamais acusaria isso, nem revisão de código nenhuma.
+
+### O que estava errado não era o plano, era a pergunta
+
+A consulta juntava a tabela do agrupador e depois só olhava
+`ag.descricao IS NOT NULL` no WHERE. **Nada do agrupador entrava no resultado.**
+O join inteiro existia para responder sim ou não.
+
+Um `EXISTS` responde a mesma coisa e não pode multiplicar linha, então o
+planejador o resolve como semi-join com hash das 584 linhas: **24 meses em
+~20 s** (medido cinco vezes: 20,3 a 22,2 s), e a tela do Orçamento caiu de 56 s
+para 9,1 s na janela de doze meses.
+
+A troca só vale porque as duas perguntas são a mesma: o `min(descricao)` da
+fonte é NULL exatamente quando não existe linha com `descricao` preenchida.
+E isso não foi deduzido e sim conferido — hash do conjunto inteiro de
+resultados, idêntico em 3, 6 e 9 meses, as janelas em que as duas versões
+completam e dá para comparar.
+
+### Uma alternativa que parecia melhor e era pior
+
+Tentei também pré-calcular as contas elegíveis numa CTE (1.328 linhas em vez de
+2,5 milhões). Em 9 meses foi a mais rápida das três — 1,5 s contra 7,5 s. Em 24
+meses **estourou o timeout igual à versão original**: sem estatísticas sobre o
+resultado da CTE, o planejador vira de plano outra vez.
+
+A lição não é "CTE é ruim". É que **a defesa contra plano que vira não é achar
+um plano melhor, é escrever a consulta de um jeito que não deixa o planejador
+escolher errado.** `EXISTS` não tem plano ruim disponível: ele não pode
+multiplicar linha. Foi por isso que ele ganhou, e não por ser mais rápido no
+teste pequeno — onde, aliás, ele perdia.
+
+### O helper foi para o módulo dono, e não para onde eu estava mexendo
+
+O `EXISTS` precisa do mesmo cast de tipo que a fonte (`grupo` é varchar desde
+que a Contabilidade recriou a tabela em 02/09). Escrevê-lo dentro de
+`api/orcamento/sql.py` teria funcionado — e teria criado a segunda cópia de uma
+regra que existe justamente porque duas cópias divergem em silêncio. O guard da
+casa proíbe `JOIN` na tabela crua e permite `FROM`, então a cópia teria passado
+pelo teste e violado o motivo dele.
+
+`existe()` mora em `api/agrupador_gerencial.py`, ao lado de `left_join()`, e o
+cast virou `_GRUPO_INT`, usado pelos dois. No dia da próxima recriação da
+tabela, conserta-se um lugar.
+
+### E o guard que eu escrevi passou com o defeito reintroduzido
+
+Escrevi um teste que varre as consultas e acusa quem junta a fonte sem nunca
+ler `descricao`. Ele nasceu com zero violações — a varredura mostrou que todas
+as outras (DRE, Contabilidade, Custos, Previsão) usam o nome de verdade.
+
+Então sabotei: devolvi o `left_join()` ao Orçamento. **O guard continuou
+verde.**
+
+O motivo: a própria `FONTE` contém `min(ag_.descricao) AS descricao`, e minha
+regex de "usa o nome" casava com ela. Toda consulta parecia usar o nome, e o
+teste nunca poderia ficar vermelho. Um teste que eu teria empurrado como
+proteção e que não protegia de nada.
+
+O conserto é uma linha — tirar o texto da `FONTE` antes de procurar — mas o que
+vale registrar é que **a sabotagem foi a única coisa que o encontrou**. É a
+segunda vez neste arquivo que ela pega um guard meu verde-para-sempre (a
+primeira foi o teste da cópia do cache, em 03/09). Trinta segundos de sabotagem
+contra um teste que mentiria por meses.
+
+Detalhe de bancada, porque custou tempo duas vezes: a primeira sabotagem
+**não chegou a ser aplicada** — o `assert` do meu script de edição estourou, o
+arquivo ficou intacto, e o teste passou. Verde de sabotagem que não aconteceu
+parece verde de guard robusto. Sabotagem também se confere: antes de ler o
+resultado, provar que o alvo mudou mesmo.
+
 ## A rede que só duas telas tinham (2026-09-06, v0.258.0)
 
 Três dias depois de a rede existir, ela foi usada em produção — e mostrou que

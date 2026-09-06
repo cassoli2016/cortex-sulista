@@ -228,3 +228,95 @@ def test_a_contabilidade_ainda_MOSTRA_a_conta_mal_classificada():
 
     sql = " ".join(queries.CONTAB_CONTAS_SQL.split())
     assert "ag.descricao IS NOT NULL OR" in sql
+
+
+# ==========================================================================
+# JOIN QUE SO RESPONDE SIM OU NAO, e o que ele custou (06/09/2026)
+# ==========================================================================
+
+MODULOS_SQL = ("api.queries", "api.orcamento.sql", "api.previsao.sql",
+               "api.custos_sql")
+
+
+def _constantes_sql(modulo):
+    import importlib
+    mod = importlib.import_module(modulo)
+    for nome in sorted(dir(mod)):
+        v = getattr(mod, nome)
+        if isinstance(v, str) and "agrupadorgerencial" in v:
+            yield nome, v
+
+
+def test_ninguem_JUNTA_a_fonte_so_para_saber_SE_a_conta_tem_agrupador():
+    """O join que so responde sim ou nao sai caro, e o preco cresce sozinho.
+
+    A consulta do historico do Orcamento usava `left_join()` e so olhava
+    `ag.descricao IS NOT NULL` no WHERE -- nada do agrupador entrava no
+    resultado. Medido: 3 meses 0,9 s, 9 meses 7,5 s, 24 meses ESTOURA os 60 s
+    do `statement_timeout`. Quatro vezes mais dado, oitenta vezes mais tempo,
+    porque o plano vira com o tamanho:
+
+        Merge Cond:  (l.grupo = ag.grupo)      <- so o grupo
+        Join Filter: (ag.reduzido = l.reduzido)
+
+    `grupo` tem meia duzia de valores distintos: casar so por ele contra 584
+    linhas de agrupador e quase um produto cartesiano sobre 2,5 milhoes de
+    lancamentos. Na janela de 3 meses o MESMO SQL casava pelas duas colunas e
+    ia bem -- por isso nenhum teste pequeno jamais acusaria.
+
+    Quem so precisa da resposta sim/nao usa `agrupador_gerencial.existe()`, que
+    o planejador resolve como semi-join com hash: 24 meses em ~20 s, resultado
+    identico.
+
+    Este guard nasceu com ZERO violacoes -- a varredura mostrou que todas as
+    outras consultas leem `descricao` de verdade. Ele existe para que a
+    proxima nao volte a juntar por inercia.
+    """
+    import re
+
+    from api import agrupador_gerencial as ag
+
+    culpados = []
+    for modulo in MODULOS_SQL:
+        for nome, sql in _constantes_sql(modulo):
+            junta = "LEFT JOIN (SELECT" in sql and "min(ag_.descricao)" in sql
+            if not junta:
+                continue
+            # A FONTE SAI DO TEXTO ANTES DA BUSCA, e esta linha e o guard do
+            # guard. A primeira versao procurava `.descricao` no SQL inteiro --
+            # e o `min(ag_.descricao)` de dentro da propria FONTE casava, entao
+            # TODA consulta parecia "usar o nome" e o teste passava mesmo com o
+            # defeito reintroduzido. Descoberto sabotando: o SQL voltou a
+            # juntar, e o verde continuou verde.
+            corpo = sql.replace(ag.FONTE, " ")
+            usa_nome = re.search(r"\.descricao\b(?!\s+IS\s+NOT\s+NULL)", corpo)
+            if not usa_nome:
+                culpados.append("%s.%s" % (modulo, nome))
+    assert not culpados, (
+        "estas consultas JUNTAM a fonte do agrupador e nunca leem o nome dele "
+        "— troque por agrupador_gerencial.existe(), que nao multiplica linha "
+        "e nao deixa o plano virar com o tamanho da janela: %s" % culpados)
+
+
+def test_o_existe_carrega_o_MESMO_cast_da_fonte():
+    """Uma regra de cast, dois usos. Se `existe()` tivesse a copia dele, o dia
+    em que a Contabilidade recriar a tabela consertaria metade da casa."""
+    from api import agrupador_gerencial as ag
+    assert ag._GRUPO_INT in ag.FONTE, "a fonte deixou de usar o cast comum"
+    assert ag._GRUPO_INT in ag.existe("l"), "o existe() tem cast proprio"
+    e = ag.existe("l")
+    assert e.startswith("EXISTS (SELECT 1") and "ag_.descricao IS NOT NULL" in e
+    # e ele NAO pode multiplicar linha: sem JOIN, sem GROUP BY
+    assert "JOIN" not in e.upper()
+
+
+def test_o_existe_e_o_left_join_respondem_a_MESMA_pergunta():
+    """`min(descricao)` da fonte e NULL exatamente quando nao ha linha com
+    descricao preenchida — e e essa equivalencia que autoriza a troca."""
+    from api import agrupador_gerencial as ag
+    j = ag.left_join("ag", "l")
+    e = ag.existe("l")
+    for lado in (j, e):
+        assert "ag_.reduzido" in lado or "ag.reduzido" in lado
+    # os dois casam pelas DUAS colunas: foi casar so por uma que custou caro
+    assert "reduzido" in e and "grupo" in e
