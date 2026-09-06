@@ -442,6 +442,150 @@ async def rastreio_zap(req: Request) -> JSONResponse:
         entrada.receber, corpo, req.headers.get("x-cortex-token")))
 
 
+# ===========================================================================
+# APP DO MOTORISTA — a operacao DELE, no celular dele.
+#
+# Escopo e fases: `docs/APP_MOTORISTA.md`. O contrato do modulo (o que sai, o
+# que nao sai, e por que a identidade e separada) esta em
+# `api/motorista/__init__.py` — LEIA antes de acrescentar rota aqui.
+#
+# ESTAS ROTAS SAO PUBLICAS PARA O MIDDLEWARE E GUARDADAS NO MODULO. O
+# middleware do painel so sabe validar cookie de painel e responderia 401 a uma
+# sessao de motorista valida; quem recusa e `sessao.exigir()`, que LEVANTA.
+#
+# **Rota nova aqui sem `_eu(req)` e rota aberta ao mundo.** A falha e MUDA — a
+# rota funciona, devolve o dado certo, e nao pergunta quem esta lendo. Ha teste
+# varrendo `/api/motorista/*` e cobrando o guard.
+# ===========================================================================
+def _mot_recusa(mensagem: str, *, status: int = HTTP_RECUSA) -> JSONResponse:
+    return JSONResponse(status_code=status,
+                        content={"erro": "recusa", "mensagem": mensagem})
+
+
+def _eu(req: Request) -> dict:
+    """A sessao do motorista desta requisicao. Levanta `SemSessao`."""
+    from api.motorista import sessao as msessao
+    return msessao.exigir(req)
+
+
+@app.get("/motorista")
+def motorista_pagina() -> FileResponse:
+    return FileResponse(STATIC / "motorista.html",
+                        headers={"Cache-Control": "no-cache, must-revalidate"})
+
+
+@app.post("/api/motorista/entrar")
+async def motorista_entrar(req: Request) -> JSONResponse:
+    """Pede o codigo. RESPONDE IGUAL para numero que existe e que nao existe.
+
+    Inclusive quando o envio falha e quando o freio corta — a resposta unica e
+    o que impede esta rota de virar uma maquina de descobrir quem dirige para
+    esta empresa. `entrada.pedir` explica as cinco contencoes.
+
+    `sem_travar` porque a ida a Z-API e I/O BLOQUEANTE numa rota `async`: sem
+    ele, o servidor INTEIRO para pelo tempo da chamada ao fornecedor.
+    """
+    from api.motorista import entrada as ment
+    try:
+        corpo = await req.json()
+    except Exception:  # noqa: BLE001
+        corpo = {}
+    if not isinstance(corpo, dict):
+        corpo = {}
+    return JSONResponse(await sem_travar(
+        ment.pedir, str(corpo.get("telefone") or ""),
+        ip=_ip_do_cliente(req)))
+
+
+@app.post("/api/motorista/confirmar")
+async def motorista_confirmar(req: Request) -> JSONResponse:
+    """Confere o codigo e abre a sessao.
+
+    Devolve `{"escolher": [...]}` — 200, nao recusa — quando o telefone serve a
+    mais de um motorista. Sao 5 casos em 585 medidos, e nesse caminho o codigo
+    NAO e consumido: a pessoa acabou de prova-lo.
+    """
+    from api.motorista import entrada as ment
+    from api.motorista import sessao as msessao
+    try:
+        corpo = await req.json()
+    except Exception:  # noqa: BLE001
+        corpo = {}
+    if not isinstance(corpo, dict):
+        corpo = {}
+    try:
+        r = await sem_travar(
+            ment.confirmar, str(corpo.get("telefone") or ""),
+            str(corpo.get("codigo") or ""),
+            aparelho=str(corpo.get("aparelho") or ""),
+            motorista=str(corpo.get("motorista") or ""),
+            ip=_ip_do_cliente(req),
+            agente=req.headers.get("user-agent", ""))
+    except ment.Recusa as exc:
+        return _mot_recusa(str(exc))
+    if r.get("escolher"):
+        return JSONResponse(r)
+
+    auth.audit("motorista:" + r["motorista_codigo"], "motorista_entrou",
+               alvo=r["motorista_codigo"], detalhe=f"sessao {r['sessao_id']}",
+               ip=_ip_do_cliente(req))
+    # O TOKEN NAO VAI NO CORPO: ele e o cookie, e cookie HttpOnly e o que
+    # impede um script na pagina de ler a sessao. Devolver os dois seria
+    # oferecer a copia legivel do que se acabou de proteger.
+    resp = JSONResponse({"ok": True, "nome": r["nome"]})
+    msessao.gravar_cookie(resp, r["token"], req)
+    return resp
+
+
+@app.get("/api/motorista/eu")
+def motorista_eu(req: Request) -> JSONResponse:
+    from api.motorista import sessao as msessao
+    try:
+        sess = _eu(req)
+    except msessao.SemSessao:
+        return _mot_recusa("Faca login para continuar.", status=401)
+    return JSONResponse({"nome": sess["nome"],
+                         "telefone": sess["telefone"]})
+
+
+@app.post("/api/motorista/sair")
+def motorista_sair(req: Request) -> JSONResponse:
+    """Sair NUNCA falha por falta de sessao: quem clicou ja quer estar fora, e
+    um 401 aqui deixaria o cookie no aparelho de quem pediu para sair."""
+    from api.motorista import sessao as msessao
+    try:
+        sess = _eu(req)
+    except msessao.SemSessao:
+        sess = None
+    if sess:
+        msessao.encerrar(sess["sessao_id"])
+        auth.audit("motorista:" + sess["motorista_codigo"], "motorista_saiu",
+                   alvo=sess["motorista_codigo"], ip=_ip_do_cliente(req))
+    resp = JSONResponse({"ok": True})
+    msessao.apagar_cookie(resp, req)
+    return resp
+
+
+@app.get("/api/motorista/viagem")
+def motorista_viagem(req: Request) -> JSONResponse:
+    from api.motorista import sessao as msessao
+    from api.motorista import viagem as mviagem
+    try:
+        sess = _eu(req)
+    except msessao.SemSessao:
+        return _mot_recusa("Faca login para continuar.", status=401)
+    try:
+        return JSONResponse(mviagem.minha(sess))
+    except Exception as exc:  # noqa: BLE001
+        # O ERP e replica de producao de TERCEIRO e ja teve manha ruim. O
+        # cache com ultima leitura boa cobre a maior parte; passado o prazo
+        # dele, a recusa aqui e LEGIVEL e 4xx — 5xx o Cloudflare troca pela
+        # pagina dele e o motorista ve um erro que nao diz nada.
+        log.warning("viagem do motorista falhou: %s", type(exc).__name__)
+        return _mot_recusa("Nao consegui falar com o sistema agora. "
+                           "Tente de novo em alguns minutos.")
+
+
 @app.get("/sw.js")
 def service_worker() -> FileResponse:
     # servido da RAIZ (não de /static) para o escopo do SW ser "/" — senão

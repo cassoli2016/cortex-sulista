@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1E172F">
+<title>CÓRTEX · Motorista</title>
+<link rel="icon" href="/static/favicon.png">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<!--
+  APP DO MOTORISTA — pagina PROPRIA, e nao uma tela do index.html.
+
+  O leitor esta na cabine, com a mao suja, num 4G de beira de rodovia, muitas
+  vezes com a tela no sol. Tres consequencias que mandam em tudo aqui:
+
+  1. PESO. O index.html tem 2,5 MB antes do ECharts. Esta pagina nao carrega
+     biblioteca nenhuma, nao usa webfont (o stack do sistema ja esta no
+     aparelho) e cabe num pedido so. Se um dia alguem precisar de grafico
+     aqui, a pergunta certa e se o grafico precisa existir.
+  2. POLEGAR. Uma coluna, alvo de toque grande (44px e o minimo que se acerta
+     em movimento), nada lado a lado. A regua de paineis da casa mede desktop
+     de 900px e nao serve para medir esta pagina.
+  3. SOL. Contraste alto no tema claro; o escuro segue o aparelho.
+
+  O QUE NAO ESTA AQUI, DE PROPOSITO: valor de frete, custo, CKM, resultado, e a
+  operacao de qualquer outro motorista. A API tambem nao devolve — nao e a
+  tela que filtra (`api/motorista/viagem.py` explica por que).
+-->
+<style>
+:root{
+  --brand:#942821; --brand-claro:#E0705F; --ink-marca:#1E172F;
+  --accent:#E85D10;
+  --ok:#1E7F4F; --aviso:#B97709; --erro:#C03221;
+  --fundo:#F4F5F7; --papel:#FFFFFF; --linha:#DFE3E8;
+  --ink:#14181D; --ink2:#636C76;
+  --r:14px;
+  /* Escala da casa: 9/18/25 e nada mais. */
+  --e1:9px; --e2:18px; --e3:25px;
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --fundo:#14181D; --papel:#1E232A; --linha:#2C333C;
+    --ink:#EEF1F4; --ink2:#9AA4AF;
+    --ok:#4ADE80; --aviso:#FBBF24; --erro:#F87171;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--fundo); color:var(--ink);
+  font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  -webkit-text-size-adjust:100%;
+  padding:0 var(--e2) calc(var(--e3) + env(safe-area-inset-bottom));
+  max-width:520px; margin:0 auto;
+}
+header{
+  display:flex; align-items:center; gap:var(--e1);
+  padding:var(--e2) 0 var(--e1);
+}
+.logo{
+  width:32px;height:32px;border-radius:50%;flex:0 0 auto;
+  background:linear-gradient(160deg,var(--brand) 0%,var(--accent) 55%,#2B3A67 100%);
+}
+.marca{font-weight:700;letter-spacing:.11em;font-size:15px}
+.marca small{display:block;font-weight:500;letter-spacing:0;font-size:12px;color:var(--ink2)}
+.card{
+  background:var(--papel); border:1px solid var(--linha); border-radius:var(--r);
+  padding:var(--e2); margin-bottom:var(--e2);
+}
+h1{font-size:19px;margin:0 0 var(--e1)}
+h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);margin:0 0 var(--e1);font-weight:600}
+p{margin:0 0 var(--e1)}
+p:last-child{margin-bottom:0}
+label{display:block;font-size:13px;color:var(--ink2);margin-bottom:6px}
+/* Regra de componente nasce QUALIFICADA: `.campo` sozinha (0,1,0) perde para
+   qualquer `.card input` que apareca depois, e o padding escrito nunca vale.
+   So o navegador diz quem venceu a especificidade — nao o texto do CSS. */
+.card input.campo{
+  width:100%; font:inherit; font-size:18px; padding:12px var(--e1);
+  border:1px solid var(--linha); border-radius:10px;
+  background:var(--fundo); color:var(--ink); min-height:48px;
+}
+.card input.campo:focus{outline:2px solid var(--accent);outline-offset:1px}
+.card button.btn{
+  width:100%; min-height:52px; font:inherit; font-size:17px; font-weight:600;
+  border:0; border-radius:10px; background:var(--brand); color:#fff;
+  margin-top:var(--e2); cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+}
+.card button.btn[disabled]{opacity:.55}
+.card button.btn.claro{background:transparent;color:var(--ink2);border:1px solid var(--linha);font-weight:500;min-height:46px}
+.msg{border-radius:10px;padding:12px var(--e1);font-size:14px;margin-top:var(--e2)}
+.msg.erro{background:color-mix(in srgb,var(--erro) 14%,transparent);color:var(--erro)}
+.msg.ok{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok)}
+.tarja{background:color-mix(in srgb,var(--aviso) 16%,transparent);color:var(--aviso);
+       border-radius:10px;padding:10px var(--e1);font-size:13px;margin-bottom:var(--e2)}
+.rota{display:flex;align-items:center;gap:var(--e1);margin:var(--e2) 0}
+.rota .pt{flex:1 1 0;min-width:0}
+.rota .cid{font-size:18px;font-weight:600;line-height:1.25}
+.rota .rot{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
+.rota .seta{flex:0 0 auto;color:var(--brand-claro);font-size:22px}
+.linhas{border-top:1px solid var(--linha);margin-top:var(--e2)}
+.linha{display:flex;justify-content:space-between;gap:var(--e2);
+       padding:11px 0;border-bottom:1px solid var(--linha);font-size:15px}
+.linha:last-child{border-bottom:0}
+.linha b{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.vazio{display:inline-block;background:color-mix(in srgb,var(--aviso) 18%,transparent);
+       color:var(--aviso);border-radius:6px;padding:2px 8px;font-size:12px;font-weight:600}
+.escolha button{width:100%;text-align:left;font:inherit;padding:14px var(--e1);
+       min-height:52px;background:var(--fundo);color:var(--ink);
+       border:1px solid var(--linha);border-radius:10px;margin-bottom:var(--e1);cursor:pointer}
+.rodape{color:var(--ink2);font-size:12px;text-align:center;padding-top:var(--e1)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo" aria-hidden="true"></div>
+  <div class="marca">CÓRTEX<small>Motorista</small></div>
+</header>
+
+<!-- ------------------------------------------------------------- entrar -->
+<section id="tela-entrar" hidden>
+  <div class="card">
+    <h1>Entrar</h1>
+    <p style="color:var(--ink2);font-size:14px">
+      Digite o seu celular. Enviamos um código pelo WhatsApp.</p>
+    <label for="fone">Celular com DDD</label>
+    <input class="campo" id="fone" type="tel" inputmode="tel"
+           autocomplete="tel" placeholder="(47) 99999-8888">
+    <button class="btn" id="b-pedir">Receber código</button>
+    <div class="msg" id="m-entrar" hidden></div>
+  </div>
+  <p class="rodape">Não recebeu? Fale com a torre.</p>
+</section>
+
+<!-- ------------------------------------------------------------- código -->
+<section id="tela-codigo" hidden>
+  <div class="card">
+    <h1>Código</h1>
+    <p style="color:var(--ink2);font-size:14px">
+      Digite os 6 números que chegaram no seu WhatsApp.</p>
+    <label for="codigo">Código</label>
+    <input class="campo" id="codigo" type="text" inputmode="numeric"
+           autocomplete="one-time-code" maxlength="6"
+           style="letter-spacing:.35em;text-align:center;font-size:26px">
+    <button class="btn" id="b-confirmar">Entrar</button>
+    <button class="btn claro" id="b-voltar">Trocar o número</button>
+    <div class="msg" id="m-codigo" hidden></div>
+  </div>
+</section>
+
+<!-- -------------------------------------------------------- quem é você -->
+<section id="tela-escolha" hidden>
+  <div class="card">
+    <h1>Quem está entrando?</h1>
+    <p style="color:var(--ink2);font-size:14px">
+      Este celular está cadastrado para mais de um motorista.</p>
+    <div class="escolha" id="lista-escolha"></div>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------------- viagem -->
+<section id="tela-viagem" hidden>
+  <div class="tarja" id="tarja-velha" hidden></div>
+  <div class="card" id="card-viagem"></div>
+  <button class="btn claro" id="b-sair"
+          style="width:100%;min-height:46px;background:transparent;color:var(--ink2);border:1px solid var(--linha);border-radius:10px;font:inherit;cursor:pointer">Sair</button>
+  <p class="rodape" id="rodape-nome"></p>
+</section>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------- utilidades
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g,
+  (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// SEMPRE por aqui, nunca `r.json()` cru. O Cloudflare TROCA o corpo de 5xx
+// pela pagina dele: um `.json()` direto estoura em "Unexpected token <" e o
+// motorista ve "erro de rede" quando o que houve foi o proxy respondendo no
+// lugar da API. Sessao expirada (401) tambem se distingue aqui.
+async function pedir(url, opcoes) {
+  let r;
+  try {
+    r = await fetch(url, Object.assign({ headers: { "Content-Type": "application/json" } }, opcoes || {}));
+  } catch (e) {
+    return { ok: false, status: 0, mensagem: "Sem conexão. Tente de novo." };
+  }
+  let dados = null;
+  try { dados = await r.json(); } catch (e) { dados = null; }
+  if (r.ok) return { ok: true, status: r.status, dados: dados || {} };
+  return {
+    ok: false, status: r.status,
+    mensagem: (dados && dados.mensagem) ||
+      (r.status === 401 ? "Sua sessão terminou. Entre de novo."
+                        : "Não consegui completar agora. Tente de novo.")
+  };
+}
+
+// Id OPACO do aparelho. Nao e fingerprint e nao descreve o telefone de
+// ninguem: e um numero aleatorio que so serve para "sair de todos os
+// aparelhos" e para a casa ver o mesmo login em dois lugares.
+function aparelho() {
+  let id = "";
+  try { id = localStorage.getItem("cortex_mot_ap") || ""; } catch (e) { id = ""; }
+  if (!id) {
+    id = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
+    try { localStorage.setItem("cortex_mot_ap", id); } catch (e) { /* aba anonima */ }
+  }
+  return id;
+}
+
+function mostrar(qual) {
+  ["tela-entrar", "tela-codigo", "tela-escolha", "tela-viagem"]
+    .forEach((id) => { $(id).hidden = (id !== qual); });
+  window.scrollTo(0, 0);
+}
+
+function aviso(elId, texto, tipo) {
+  const el = $(elId);
+  el.className = "msg " + (tipo || "erro");
+  el.textContent = texto;
+  el.hidden = !texto;
+}
+
+function ocupado(btn, sim, rotulo) {
+  btn.disabled = sim;
+  btn.textContent = sim ? "Aguarde…" : rotulo;
+}
+
+// ------------------------------------------------------------------- entrar
+let foneAtual = "";
+let codigoAtual = "";
+
+$("b-pedir").addEventListener("click", async () => {
+  const fone = $("fone").value.trim();
+  if (fone.replace(/\D/g, "").length < 10) {
+    return aviso("m-entrar", "Digite o celular com DDD.");
+  }
+  aviso("m-entrar", "");
+  ocupado($("b-pedir"), true);
+  const r = await pedir("/api/motorista/entrar",
+    { method: "POST", body: JSON.stringify({ telefone: fone }) });
+  ocupado($("b-pedir"), false, "Receber código");
+  if (!r.ok) return aviso("m-entrar", r.mensagem);
+  foneAtual = fone;
+  mostrar("tela-codigo");
+  // A MENSAGEM E A MESMA para numero que existe e que nao existe — e por isso
+  // ela aparece aqui, na tela do codigo, e nao como "enviado com sucesso".
+  aviso("m-codigo", r.dados.mensagem || "", "ok");
+  $("codigo").focus();
+});
+
+$("b-voltar").addEventListener("click", () => {
+  aviso("m-codigo", "");
+  $("codigo").value = "";
+  mostrar("tela-entrar");
+});
+
+async function confirmar(motorista) {
+  const codigo = codigoAtual || $("codigo").value.trim();
+  if (codigo.replace(/\D/g, "").length !== 6) {
+    return aviso("m-codigo", "O código tem 6 números.");
+  }
+  const btn = $("b-confirmar");
+  ocupado(btn, true);
+  const r = await pedir("/api/motorista/confirmar", {
+    method: "POST",
+    body: JSON.stringify({
+      telefone: foneAtual, codigo: codigo,
+      aparelho: aparelho(), motorista: motorista || ""
+    })
+  });
+  ocupado(btn, false, "Entrar");
+  if (!r.ok) { mostrar("tela-codigo"); return aviso("m-codigo", r.mensagem); }
+
+  if (r.dados.escolher) {
+    codigoAtual = codigo;          // o codigo NAO foi consumido: da para reusar
+    const lista = $("lista-escolha");
+    lista.innerHTML = "";
+    r.dados.escolher.forEach((m) => {
+      const b = document.createElement("button");
+      b.textContent = m.nome || m.codigo;
+      b.dataset.codigo = m.codigo;
+      b.addEventListener("click", () => confirmar(b.dataset.codigo));
+      lista.appendChild(b);
+    });
+    return mostrar("tela-escolha");
+  }
+  codigoAtual = "";
+  $("codigo").value = "";
+  await abrirViagem(r.dados.nome || "");
+}
+
+$("b-confirmar").addEventListener("click", () => confirmar(""));
+$("codigo").addEventListener("keydown", (e) => { if (e.key === "Enter") confirmar(""); });
+$("fone").addEventListener("keydown", (e) => { if (e.key === "Enter") $("b-pedir").click(); });
+
+// ------------------------------------------------------------------- viagem
+function idade(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return "";
+  const min = Math.round((Date.now() - d.getTime()) / 60000);
+  if (min < 60) return min + " min";
+  const h = Math.floor(min / 60);
+  return h < 24 ? h + "h" : Math.floor(h / 24) + " dias";
+}
+
+function horario(iso) {
+  if (!iso) return "";
+  const [dia, hora] = String(iso).split(" ");
+  const [a, m, d] = (dia || "").split("-");
+  return (d && m) ? `${d}/${m} ${hora || ""}`.trim() : String(iso);
+}
+
+function desenharViagem(dados) {
+  const v = dados.viagem;
+  const card = $("card-viagem");
+  if (!v) {
+    card.innerHTML = "<h1>Nenhuma viagem em curso</h1>" +
+      "<p style='color:var(--ink2);font-size:14px'>Quando a sua próxima viagem " +
+      "sair, ela aparece aqui.</p>";
+    return;
+  }
+  const linhas = [];
+  const placas = [v.placa].concat(v.carretas || []).filter(Boolean);
+  if (placas.length) linhas.push(["Placa", placas.join(" · ")]);
+  if (v.saida) linhas.push(["Saída", horario(v.saida)]);
+  if (v.previsao_chegada) linhas.push(["Previsão de chegada", horario(v.previsao_chegada)]);
+  if (v.numero) linhas.push(["Programação", v.numero]);
+
+  card.innerHTML =
+    "<h2>Minha viagem</h2>" +
+    "<h1 style='margin-bottom:0'>" + esc(v.cliente || "Sem cliente informado") + "</h1>" +
+    (v.vazio ? "<p style='margin-top:var(--e1)'><span class='vazio'>VIAGEM VAZIA</span></p>" : "") +
+    "<div class='rota'>" +
+      "<div class='pt'><div class='rot'>De</div><div class='cid'>" + esc(v.origem || "—") + "</div></div>" +
+      "<div class='seta' aria-hidden='true'>→</div>" +
+      "<div class='pt' style='text-align:right'><div class='rot'>Para</div><div class='cid'>" + esc(v.destino || "—") + "</div></div>" +
+    "</div>" +
+    "<div class='linhas'>" +
+      linhas.map(([r, val]) =>
+        "<div class='linha'><span>" + esc(r) + "</span><b>" + esc(val) + "</b></div>").join("") +
+    "</div>";
+}
+
+async function abrirViagem(nome) {
+  mostrar("tela-viagem");
+  $("rodape-nome").textContent = nome || "";
+  const r = await pedir("/api/motorista/viagem");
+  if (!r.ok) {
+    if (r.status === 401) return mostrar("tela-entrar");
+    $("card-viagem").innerHTML = "<h1>Não consegui carregar</h1><p style='color:var(--ink2);font-size:14px'>" +
+      esc(r.mensagem) + "</p>";
+    return;
+  }
+  // NUMERO VELHO SERVIDO CALADO E PIOR QUE TELA VAZIA, porque ninguem
+  // desconfia dele. Quando o cache devolve a ultima leitura boa, a tarja e
+  // OBRIGATORIA — e diz a idade, que e o que decide se da para usar.
+  const t = $("tarja-velha");
+  if (r.dados.leitura_velha) {
+    t.textContent = "Sem conexão com o sistema agora. Estes dados são de " +
+      (idade(r.dados.leitura_em) || "algum tempo") + " atrás.";
+    t.hidden = false;
+  } else {
+    t.hidden = true;
+  }
+  desenharViagem(r.dados);
+}
+
+$("b-sair").addEventListener("click", async () => {
+  await pedir("/api/motorista/sair", { method: "POST" });
+  foneAtual = ""; codigoAtual = "";
+  $("fone").value = ""; $("codigo").value = "";
+  aviso("m-entrar", ""); aviso("m-codigo", "");
+  mostrar("tela-entrar");
+});
+
+// -------------------------------------------------------------------- boot
+(async function () {
+  const r = await pedir("/api/motorista/eu");
+  if (r.ok) { await abrirViagem(r.dados.nome || ""); }
+  else { mostrar("tela-entrar"); $("fone").focus(); }
+})();
+</script>
+</body>
+</html>

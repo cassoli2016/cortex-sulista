@@ -340,6 +340,25 @@ _PUBLICAS_RASTREIO = ("/api/rastreio/buscar", "/api/rastreio/carga",
                       # lado de "parou de avisar" e o lado seguro.
                       "/api/rastreio/zap")
 
+# APP DO MOTORISTA (`api/motorista`, pagina `motorista.html`).
+#
+# A DIFERENCA PARA O RASTREIO: la a porta e aberta de verdade; aqui ela so
+# TROCA DE PORTEIRO. O motorista tem sessao — cookie proprio (`cortex_mot`),
+# tabela propria (`mot_sessoes`) e vinculo proprio (`mot_vinculos`) — mas ela e
+# ILEGIVEL para este middleware, que so sabe validar cookie de painel e
+# responderia 401 a uma sessao perfeitamente valida.
+#
+# Quem segura a porta e `motorista.sessao.exigir()`, que LEVANTA. Toda rota
+# deste modulo, menos as duas de entrada, comeca por ela — e ha teste varrendo
+# as rotas `/api/motorista/*` para cobrar isso, porque a falha e MUDA: a rota
+# funciona, devolve o dado certo, e nao pergunta quem esta lendo.
+#
+# POR QUE O MOTORISTA NAO E UM `usuarios`: `sql/cortex/0057_motorista.sql`
+# explica as tres razoes. A consequencia que importa aqui e que nenhuma sessao
+# de motorista alcanca rota nenhuma do painel — o cookie nem e enviado para
+# elas (`sessao.COOKIE_PATH`).
+_PUBLICAS_MOTORISTA = ("/api/motorista/",)
+
 # Autoservice de conta: exige sessão válida (checado antes), mas nenhuma tela
 # específica — todo usuário autenticado pode ver o próprio perfil/trocar a
 # própria senha/sair. /api/gestao/* não entra aqui: já é checado à parte
@@ -418,7 +437,14 @@ def _rota_publica(path: str) -> bool:
             # WhatsApp — o link cabe numa linha em vez de tres. Os dois valem:
             # trocar um pelo outro quebraria os links ja enviados.
             or path in ("/rastreio", "/rastreio/", "/r", "/r/")
-            or path in _PUBLICAS_RASTREIO)
+            or path in _PUBLICAS_RASTREIO
+            # O app do motorista: a pagina e toda a API dele. Prefixo, e nao
+            # lista de caminhos, porque o porteiro nao e este middleware —
+            # esquecer de listar uma rota nova aqui daria 401 num app que
+            # funciona, e o sintoma mandaria procurar o defeito no lugar
+            # errado. Quem recusa e `motorista.sessao.exigir()`.
+            or path in ("/motorista", "/motorista/")
+            or path.startswith(_PUBLICAS_MOTORISTA))
 
 
 def _local_direto(headers: Headers, cliente: str) -> bool:

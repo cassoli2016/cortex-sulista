@@ -460,6 +460,67 @@ def _portal_cliente() -> dict:
     return {"nome": nome, "status": "ok", "detalhe": " · ".join(partes)}
 
 
+def _app_motorista() -> dict:
+    """O app do motorista existe do lado de FORA, e por isso ele precisa disto.
+
+    Ninguem da casa abre `motorista.html`. Se o vinculo nao for cadastrado, se
+    a migration nao rodar, ou se o codigo parar de chegar no WhatsApp, o unico
+    sintoma e um motorista que nao consegue entrar — e ele nao abre chamado,
+    ele liga para a torre, que e o telefonema que o app existe para tirar. O
+    silencio, aqui, e o defeito.
+
+    A TABELA AUSENTE E UM ESTADO DE VERDADE: o AutoDeploy NAO roda migration,
+    entao ha uma janela real entre o codigo chegar e alguem rodar o
+    `migrar_schema.py`. Nessa janela o app inteiro recusa, e este cartao diz
+    por que — em vez de a Saude afirmar que esta tudo bem porque nada quebrou
+    do lado de dentro.
+
+    SEM VINCULO NAO E FALHA, E INSTALACAO INCOMPLETA (`info`, nunca vermelho):
+    e a mesma regra da integracao sem credencial. Alarme que nao distingue
+    "quebrado" de "ainda nao usado" treina todo mundo a ignorar alarme.
+    """
+    nome = "App do motorista"
+    try:
+        with pglocal.get_conn() as conn, conn.cursor() as cur:
+            cur.execute(
+                """SELECT 1 FROM information_schema.tables
+                    WHERE table_schema = current_schema()
+                      AND table_name = 'mot_vinculos'""")
+            if not cur.fetchone():
+                return {"nome": nome, "status": "info",
+                        "detalhe": ("tabelas do app ainda não existem — falta "
+                                    "aplicar a migration 0057 (uv run python "
+                                    "scripts/migrar_schema.py)")}
+            cur.execute(
+                """SELECT (SELECT count(*) FROM mot_vinculos WHERE ativo) AS ativos,
+                          (SELECT count(*) FROM mot_vinculos) AS total,
+                          (SELECT count(*) FROM mot_sessoes
+                            WHERE encerrada_em IS NULL
+                              AND vista_em > now() - interval '7 days') AS vivas,
+                          (SELECT count(*) FROM mot_codigos
+                            WHERE criado_em > now() - interval '24 hours') AS pedidos,
+                          (SELECT max(criada_em) FROM mot_sessoes) AS ultima""")
+            r = cur.fetchone()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: app do motorista: %s", type(exc).__name__)
+        return {"nome": nome, "status": "info", "detalhe": "conferência indisponível"}
+
+    if not r or not r["ativos"]:
+        return {"nome": nome, "status": "info",
+                "detalhe": ("nenhum motorista vinculado — sem vínculo o app "
+                            "recusa todo mundo (uv run python "
+                            "scripts/vincular_motoristas.py)")}
+    partes = ["%d vinculado(s)" % r["ativos"]]
+    if (r["total"] or 0) > r["ativos"]:
+        partes.append("%d desligado(s)" % (r["total"] - r["ativos"]))
+    partes.append("%d sessão(ões) na semana" % (r["vivas"] or 0))
+    partes.append("%d código(s) em 24 h" % (r["pedidos"] or 0))
+    if r["ultima"]:
+        partes.append("última entrada %s" % _ha_quanto(
+            _idade_min(r["ultima"].isoformat())))
+    return {"nome": nome, "status": "ok", "detalhe": " · ".join(partes)}
+
+
 def _brl_mi(v: float) -> str:
     """R$ curto, para caber num cartao: milhoes acima de 1 mi, milhares acima
     de mil. Cartao de monitoramento nao e demonstrativo — o centavo exato sai
@@ -1320,6 +1381,16 @@ def _servicos() -> list[dict]:
         servicos.append({"nome": "Portal do cliente (Minha Operação)",
                          "status": "info", "detalhe": "conferência indisponível"})
         log.warning("saude: portal do cliente: %s", exc)
+
+    # APP DO MOTORISTA. Junto do portal do cliente porque a pergunta e a mesma
+    # familia — quem entra de FORA da casa —, e porque nos dois o silencio e o
+    # defeito: ninguem daqui abre essas telas para descobrir que quebraram.
+    try:
+        servicos.append(_app_motorista())
+    except Exception as exc:  # noqa: BLE001
+        servicos.append({"nome": "App do motorista", "status": "info",
+                         "detalhe": "conferência indisponível"})
+        log.warning("saude: app do motorista: %s", exc)
 
     # MAPA CONTÁBIL do ERP. Vem logo depois dos bancos porque é a mesma
     # pergunta um nível acima: o banco responde, mas o que ele responde ainda

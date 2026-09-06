@@ -90,6 +90,7 @@ _FONTES_ROTULO = {
     "compras_da_os": "Manutenção — Compras da OS",
     "suporte": "Suporte — chamados",
     "portal_cliente": "Minha Operação (portal do cliente)",
+    "app_motorista": "App do Motorista — adesão",
     "auditoria_uso": "Auditoria — acessos e uso do painel",
     "financeiro_caixa": "Fluxo de Caixa e Bancos",
     "analise_km_ano": "Análise de KM",
@@ -258,6 +259,26 @@ def _smartec_snapshot() -> dict:
 def _desempenho() -> dict:
     from api import desempenho
     return desempenho.snapshot()
+
+
+def _app_motorista() -> dict:
+    """Adesão ao app do motorista — SÓ CONTAGENS.
+
+    Nome, telefone e código de motorista NÃO entram, e não é zelo: o snapshot
+    inteiro vai para o prompt do chat, que pode cair no fallback externo
+    (OpenRouter). É por levar só escalar que esse fallback pode existir.
+
+    A pergunta que isto responde no chat é de gestão — "quantos motoristas já
+    usam o app?" —, e ela não tem resposta em tela nenhuma do painel: o app
+    vive do lado de fora.
+    """
+    from api import pglocal
+    r = pglocal.um(
+        """SELECT (SELECT count(*) FROM mot_vinculos WHERE ativo) AS vinculados,
+                  (SELECT count(*) FROM mot_sessoes
+                    WHERE encerrada_em IS NULL
+                      AND vista_em > now() - interval '30 days') AS ativos_30d""")
+    return dict(r or {"vinculados": 0, "ativos_30d": 0})
 
 
 def _fontes_do_snapshot() -> dict:
@@ -692,6 +713,9 @@ def _fontes_do_snapshot() -> dict:
         # de um chat e exatamente o que a regra de PII da casa existe para
         # impedir -- e e o que permite o fallback externo do Copiloto.
         "desempenho": _desempenho,
+        # O app do motorista vive FORA do painel: nenhuma tela daqui
+        # responde "quantos motoristas ja usam". So contagens.
+        "app_motorista": _app_motorista,
     }
 
 

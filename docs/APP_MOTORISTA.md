@@ -1,10 +1,50 @@
 # App do Motorista — escopo inicial
 
-> Rascunho de escopo, branch `feat/app-motorista`, worktree `cortex-motorista`.
-> **Nada aqui foi implementado.** Este documento é o acordo do que se vai
-> construir, na ordem, e — mais importante — do que NÃO se vai construir e por
-> quê. Ele muda a cada rodada de ajuste com quem opera.
-> Data do rascunho: 05/09/2026 · base: `main` em v0.255.0.
+> Escopo e acordo do app, branch `feat/app-motorista`, worktree
+> `cortex-motorista`. Diz o que se vai construir, na ordem, e — mais
+> importante — o que NÃO se vai construir e por quê. Muda a cada rodada de
+> ajuste com quem opera.
+> Rascunho 05/09/2026 · **núcleo da fase 1 construído em 06/09/2026** (§0) ·
+> base: `main` em v0.255.0.
+
+---
+
+## 0. O que já está construído (06/09/2026, branch `feat/app-motorista`)
+
+O núcleo da fase 1: **entrar** e **minha viagem**. Nada foi entregue ao `main`
+e a migration NÃO foi aplicada em produção — de propósito, porque o escopo
+ainda está em ajuste e migration aplicada trava o conteúdo do arquivo.
+
+| | |
+|---|---|
+| `sql/cortex/0057_motorista.sql` | `mot_vinculos` (quem é motorista no app), `mot_codigos` (só o SHA-256), `mot_sessoes` (linha viva, com "visto por último") |
+| `api/motorista/__init__.py` | o CONTRATO do módulo — o que sai, o que não sai, e por que a identidade é separada |
+| `api/motorista/sessao.py` | cookie `cortex_mot`, JWT com `tipo`, 30 dias deslizantes, `exigir()` que levanta |
+| `api/motorista/entrada.py` | código de 6 dígitos no WhatsApp, resposta uniforme, quatro contenções |
+| `api/motorista/viagem.py` | a viagem em curso, com cache de última leitura boa (6 h) |
+| `api/static/motorista.html` | **16 KB**, uma coluna, sem vendor, sem webfont, claro e escuro |
+| `scripts/vincular_motoristas.py` | cadastra e desliga vínculos, em ondas (`--limite`), sem escrever nada sem `--aplicar` |
+| Saúde do Servidor + snapshot do Copiloto | no mesmo commit, como manda a casa |
+| `tests/motorista/` | 41 testes; 5 guards **provados por sabotagem** (sem eles o teste fica vermelho) |
+
+**Provado ponta a ponta contra o ERP de verdade**: pedir código → confirmar →
+cookie → a viagem em curso de um motorista real (Cruzeiro/SP → Sete Lagoas/MG,
+placa + carreta, saída e previsão), com o WhatsApp dublado — nada saiu da
+máquina.
+
+### O que falta para alguém usar de verdade
+
+1. **Aplicar a migration 0057** em produção (`scripts/migrar_schema.py`). Até
+   lá o app recusa todo mundo, e a Saúde do Servidor diz exatamente isso.
+2. **Cadastrar os primeiros vínculos** (`scripts/vincular_motoristas.py
+   --aplicar --limite N`), em ondas por causa do teto de 60 destinatários/dia
+   do WhatsApp — ver §6.
+3. **A tela de administração no painel** (vincular, desligar, ver quem entrou).
+   Hoje isso é script; script é suficiente para a piloto, não para a operação.
+4. **Decidir a instância do WhatsApp** (`MOTORISTA_ZAP_INSTANCIA`): o número
+   principal fala com clientes e o teto do dia é compartilhado.
+5. Versão e bloco em `docs/versoes.yaml` — ficam para a entrega ao `main`, com
+   o número combinado com as outras worktrees (são nove).
 
 ---
 
@@ -85,14 +125,31 @@ Este app traz a terceira, e ela é a mais estreita das três: **qual motorista
 você é**. Não é "as linhas da minha empresa" — é "as linhas de UMA pessoa", e
 essa pessoa é PII inteira (CPF, CNH, jornada, salário indireto via premiação).
 
-O caminho é o mesmo que `cliop` abriu, porque ele já foi discutido e tem guard:
-uma coluna em `usuarios` (`motorista_codigo`, casando com `cadastro.codigo` do
-ERP), **NULL como estado normal e SEGURO**, e um `escopo()` que **levanta**
-quando não há vínculo — nunca devolve `None`, que alguém adiante trataria como
-"sem filtro". Nenhuma consulta deste módulo se monta sem um código de motorista.
+**ESTE RASCUNHO DIZIA "uma coluna em `usuarios`", COPIANDO O `cliop`. NA
+IMPLEMENTAÇÃO (06/09/2026) A DECISÃO MUDOU**, e a razão vale mais que a
+mudança. O usuário do `cliop` é gente que loga no PAINEL: tem e-mail, tem
+senha, e o perfil dele decide telas. O motorista não abre o painel — abre
+`motorista.html`, não tem tela nenhuma e entra por código no WhatsApp. Pô-lo em
+`usuarios` custaria três coisas:
 
-Um usuário com `motorista_codigo` **não escolhe** de quem quer ver. Se mandar
-um código na requisição, o servidor ignora — igual ao `cliop`.
+1. ~300 contas de painel cujo único obstáculo contra abrir o CÓRTEX inteiro
+   seria um perfil com zero telas;
+2. e-mail sintético para 485 dos 606 motoristas (só 121 têm e-mail) —
+   identidade inventada por nós, que ninguém confere, no lugar onde a
+   identidade segura tudo;
+3. `/api/auth/esqueci-senha` é público e trabalha por e-mail: motorista em
+   `usuarios` herdaria esse caminho de graça.
+
+**O motorista vive em `mot_vinculos`**, com cookie próprio (`cortex_mot`,
+`path=/api/motorista` — o navegador nem o envia ao painel), sessão própria
+(`mot_sessoes`) e porteiro próprio (`sessao.exigir()`, que LEVANTA — nunca
+devolve `None`, que alguém adiante trataria como "sem filtro"). O preço é uma
+segunda autenticação para manter; o que se compra é que **nenhuma sessão de
+motorista alcança rota nenhuma do painel**.
+
+O que NÃO mudou do `cliop` é o que importa: o escopo vem da SESSÃO, nunca do
+pedido. `viagem.minha(sessao)` não tem parâmetro de motorista, e há teste que
+falha se alguém acrescentar um.
 
 ### Como o motorista entra (medido; falta só confirmar a escolha)
 
@@ -108,12 +165,14 @@ A recomendação é **(b) com (a) de retaguarda**: quem não tiver telefone
 cadastrado entra por CPF+senha, e o RH corrige o cadastro depois. Com 95,3% de
 cobertura, a retaguarda atende ~14 pessoas — é exceção, não segundo caminho.
 
-**O vínculo não é só uma coluna, é um cadastro que alguém mantém.** Ele casa
-`usuarios.motorista_codigo` com `cadastro.codigo`, e quem entra pelo telefone só
-vira usuário quando o telefone bate com UM motorista ativo. Motorista que sai da
-casa (ou agregado que troca de transportadora) tem de perder o acesso — e isso
-não acontece sozinho: **é regra de desligamento**, e entra na tela de
-administração da fase 1, com a data do último frete à vista de quem administra.
+**O vínculo não é só uma linha, é um cadastro que alguém mantém.** Ele casa
+`mot_vinculos.motorista_codigo` com `cadastro.codigo` do ERP, e quem entra pelo
+telefone só entra quando o número bate com um motorista VINCULADO e ativo —
+ter dirigido para a empresa não basta. Motorista que sai da casa (ou agregado
+que troca de transportadora) tem de perder o acesso, e isso **não acontece
+sozinho**: é regra de desligamento, com gente responsável. Hoje o cadastro e o
+desligamento saem por `scripts/vincular_motoristas.py`; a tela de administração
+é o próximo passo (§0).
 
 ---
 
@@ -137,9 +196,14 @@ exceção deliberada, não um esquecimento:
   vincular usuário↔motorista, ver os apontamentos que chegaram, conciliar com
   o ERP. Essa é tela de perfil normal, com os seis registros de sempre.
 
-O app é **PWA**: a casa já tem `manifest.json`, `sw.js` e Web Push
-(`api/push.py`, VAPID) funcionando. Manifest e service worker **próprios** para
-esta página — o da casa aponta para o `index.html`.
+**PWA fica para depois, de propósito.** A casa já tem `manifest.json`, `sw.js`
+e Web Push (`api/push.py`, VAPID) funcionando, e o app vai querer os três — com
+manifest e service worker PRÓPRIOS, porque os da casa apontam para o
+`index.html`. Mas service worker é cache, e cache mal feito serve uma versão
+velha do app para sempre, sem sintoma e sem jeito de o motorista limpar. Ele
+entra quando houver o que instalar de verdade (fase 1 inteira), não junto do
+primeiro login. Hoje a página é uma URL que se abre no navegador — o que basta
+para a piloto.
 
 ---
 
