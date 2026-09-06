@@ -364,6 +364,45 @@ def _rastreio_freado(req: Request) -> JSONResponse | None:
         "motivo": "Muitas consultas seguidas. Aguarde alguns minutos."})
 
 
+# ---------------------------------------------------------------------------
+# MONITORAMENTOS DE CARGA — o painel de administracao do rastreio.
+#
+# O OUTRO LADO DO BALCAO PUBLICO. Quem se inscreve na pagina de rastreio nao
+# tem conta, e por isso nada do que acontece ali aparecia aqui dentro: quantas
+# pessoas acompanham uma carga agora, quantas foram avisadas, quem cancelou e
+# por que. Estas rotas sao AUTENTICADAS e com RBAC por tela (`mon`) — e o
+# prefixo e `/api/monitoramentos`, fora de `/api/rastreio/*`, de proposito:
+# aquele prefixo tem excecoes publicas em `auth._PUBLICAS_RASTREIO`, e uma
+# tela de administracao nao pode fazer vizinhanca com elas.
+# ---------------------------------------------------------------------------
+@app.get("/api/monitoramentos")
+def monitoramentos(dias: int = 14) -> JSONResponse:
+    from api.rastreio import painel
+    return JSONResponse(painel.painel(dias))
+
+
+@app.post("/api/monitoramentos/encerrar")
+async def monitoramentos_encerrar(req: Request) -> JSONResponse:
+    """Encerra uma inscricao pela tela. AUDITORIA ANTES DA ACAO."""
+    from api.rastreio import painel
+    quem = (getattr(req.state, "sessao", None) or {}).get("email") or ""
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = None
+    if not isinstance(body, dict) or not body.get("id"):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Informe a inscricao."})
+    auth.audit(quem, "monitoramento_encerrar", str(body.get("id")))
+    r = await sem_travar(painel.encerrar, body["id"], quem)
+    if not r.get("ok"):
+        # RECUSA LEGIVEL E 4xx: "ja encerrada" nao e falha nossa, e um 5xx
+        # aqui viraria a pagina do Cloudflare no lugar da mensagem.
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "recusado", "mensagem": r.get("motivo") or "nao foi possivel"})
+    return JSONResponse(r)
+
+
 @app.get("/api/rastreio/buscar")
 def rastreio_buscar(req: Request, doc: str = "",
                     cnpj: str = "") -> JSONResponse:
@@ -4625,6 +4664,19 @@ def alertas_digest() -> PlainTextResponse:
 @app.on_event("startup")
 def _startup_push() -> None:
     push.iniciar_scheduler()  # digest diário; no-op se VAPID não configurado
+
+
+@app.on_event("startup")
+def _startup_aviso_carga() -> None:
+    """O relogio do aviso de carga. No-op se o WhatsApp nao esta configurado.
+
+    MORA AQUI, e nao numa tarefa do Windows, por dois motivos que estao no
+    docstring de `api/rastreio/agendador.py`: a hora cheia nao e o relogio de
+    quem pediu, e a tarefa agendada do aviso NAO ESTAVA REGISTRADA nesta
+    maquina — o que dispara o envio hoje nao esta escrito neste repositorio.
+    """
+    from api.rastreio import agendador
+    agendador.iniciar()
 
 
 @app.on_event("startup")

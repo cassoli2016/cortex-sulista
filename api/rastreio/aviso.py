@@ -97,6 +97,26 @@ def rodar(*, ensaio: bool = False, limite: int | None = None) -> dict:
     if limite:
         inscricoes = inscricoes[:limite]
 
+    # SÓ QUEM ESTÁ VENCIDO. O relógio é o do TELEFONE, contado do pedido dele
+    # (ou da última mensagem que recebeu), e não a hora cheia do servidor.
+    #
+    # O QUE ISTO MUDA ENQUANTO O GATILHO FOR DE HORA EM HORA: nada piora e uma
+    # coisa melhora — some a mensagem repetida logo depois do cadastro. A
+    # cadência vira "no máximo uma por hora, no primeiro ciclo em que já se
+    # passaram 60 minutos". Para virar 13h38 em vez de 14h00, o gatilho tem de
+    # rodar a cada 10 minutos; nenhuma linha daqui muda quando isso acontecer.
+    #
+    # `desde_min` nulo é inscrição sem âncora legível — trata-se como VENCIDA:
+    # errar para o lado de avisar quem espera a carga é melhor que calar.
+    vencidas, cedo = [], 0
+    for ins in inscricoes:
+        desde = ins.get("desde_min")
+        if desde is None or desde >= assinatura.INTERVALO_MIN:
+            vencidas.append(ins)
+        else:
+            cedo += 1
+    inscricoes = vencidas
+
     # AGRUPA POR TELEFONE. `ativas()` já vem ordenada pelo último envio, e o
     # `setdefault` preserva essa ordem dentro de cada grupo.
     por_fone: dict = {}
@@ -105,6 +125,10 @@ def rodar(*, ensaio: bool = False, limite: int | None = None) -> dict:
 
     fora = {"inscricoes": len(inscricoes), "telefones": len(por_fone),
             "enviados": 0, "iguais": 0, "sem_texto": 0, "encerradas": 0,
+            # AINDA NO PRAZO não é falha e não é silêncio: é a terceira
+            # resposta do aviso — "calei porque não era hora" — e ela precisa
+            # sair no relatório, senão a tarefa parece ter feito nada.
+            "cedo": cedo,
             "falhas": 0, "ensaio": ensaio, "amostra": []}
 
     for fone, grupo in por_fone.items():

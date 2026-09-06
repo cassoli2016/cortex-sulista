@@ -1,5 +1,17 @@
 # Tarefa agendada: AVISO HORARIO DAS CARGAS por WhatsApp.
 #
+# ESTA TAREFA DEIXOU DE SER NECESSARIA em 05/09/2026. O relogio do aviso passou
+# a viver DENTRO da API (`api/rastreio/agendador.py`), que ja sobe pela tarefa
+# "Cortex Sulista - API", e acorda a cada 10 minutos em vez de na hora cheia —
+# porque a cadencia agora conta do momento em que a PESSOA pediu, nao do
+# relogio do servidor.
+#
+# O script continua aqui e continua funcionando. Rodar os dois nao duplica
+# mensagem: quem decide se manda e o intervalo por telefone
+# (`assinatura.INTERVALO_MIN`) contra a ultima mensagem gravada, entao dois
+# gatilhos leem a mesma ancora e chegam a mesma conclusao. Se voce registrar
+# esta tarefa, ela vira uma rede de seguranca; nao registrar e o normal.
+#
 # Quem se inscreveu na pagina publica de rastreio recebe, de hora em hora, como
 # esta a carga dele — enquanto ela estiver em viagem. A entrega encerra a
 # inscricao, e mensagem IGUAL a anterior nao e reenviada: caminhao parado

@@ -1,3 +1,53 @@
+- versao: "0.256.0"
+  data: "2026-09-05"
+  adicionado:
+    - >-
+      Tela nova, em Administração: "Monitoramentos de Carga". Ela mostra quem
+      está acompanhando carga pela página pública neste momento — a carga, o
+      trecho, o telefone, quantos avisos já saíram e quando foi o último — o
+      que já foi monitorado, e como cada acompanhamento terminou. Até agora
+      nada disso aparecia dentro de casa: quem se inscreve não tem conta, a
+      inscrição nascia, avisava e morria sem ninguém ver.
+    - >-
+      "Expirou sozinha" e "cancelou" são linhas separadas na conta. A inscrição
+      morre sozinha em 15 dias porque ninguém volta para cancelar; misturar as
+      duas faria a taxa de cancelamento parecer maior do que é — e é ela que
+      diz se o aviso está incomodando alguém.
+    - >-
+      A tela também mostra os limites que a página aplica e quem está perto
+      deles. Bater o teto é alguém que TENTOU acompanhar mais uma carga e não
+      conseguiu, e isso não aparecia em lugar nenhum.
+    - >-
+      O Copiloto e a Saúde do Servidor passaram a saber dos monitoramentos. Na
+      Saúde o alarme é específico: só acende com inscrição ativa e nenhum aviso
+      em 24 horas — abaixo disso o silêncio é normal, porque mensagem igual à
+      anterior não é reenviada.
+  alterado:
+    - >-
+      O aviso de carga por WhatsApp passou a contar de hora em hora A PARTIR DO
+      MOMENTO EM QUE A PESSOA PEDIU, e não mais da hora cheia do servidor. Quem
+      se inscreve às 12h38 é avisado às 13h38, não às 13h00. O relógio saiu da
+      tarefa agendada e passou a viver dentro do próprio sistema, que é o que
+      permite essa precisão.
+    - >-
+      A tela de Auditoria e a de Monitoramentos deixaram de mostrar a barra de
+      filtros. Os campos Filial, Data de referência e Vencimento apareciam
+      preenchíveis e as duas telas não os usam — cada uma tem o próprio
+      seletor de período. Campo que aceita valor e não muda nada é pior que
+      campo nenhum, porque quem filtra acredita no resultado.
+    - >-
+      Ferramenta nova para quem administra o servidor: um script que lista e
+      apaga os schemas de teste esquecidos no banco, com aprovação por schema
+      e em lote para os antigos. Eram 25, somando 104 MB. Ele nunca toca no
+      banco de verdade e pula o que estiver em uso por uma rodada de testes.
+  corrigido:
+    - >-
+      Quem se inscrevia para acompanhar uma carga recebia DUAS mensagens quase
+      iguais em poucos minutos: a de confirmação e, logo em seguida, a do ciclo
+      seguinte. O sistema não registrava a primeira, então tratava a pessoa
+      como se ela nunca tivesse sido avisada. Duas mensagens iguais em vinte
+      minutos é o que faz alguém bloquear o número — e o bloqueio atinge o
+      número que fala com todos os outros clientes.
 - versao: "0.255.0"
   data: "2026-09-05"
   adicionado:

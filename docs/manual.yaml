@@ -51,6 +51,24 @@ glossario:
     indicador de pontualidade que mede 8,7% e se apresenta como nível de
     serviço é pior que não ter indicador — mais ainda num painel que o cliente
     lê, porque ele cobra em cima. O que o portal mede é permanência.
+- termo: Monitoramento de carga
+  definicao: >-
+    O pedido de UMA pessoa para acompanhar UMA carga pelo WhatsApp, feito na
+    página pública "Onde está minha carga?". Não é rastreamento de veículo:
+    quem se inscreve não vê onde o caminhão está, vê quanto falta e em que
+    etapa a carga dela está. A inscrição exige o documento em mãos (CT-e ou
+    nota) mais os quatro primeiros dígitos do CNPJ, morre sozinha em 15 dias
+    porque ninguém volta para cancelar, e é encerrada pelo próprio sistema
+    quando a carga é entregue. Um telefone pode monitorar até cinco cargas ao
+    mesmo tempo, e cada carga aceita até oito telefones.
+- termo: Aviso que não se repete
+  definicao: >-
+    O aviso do monitoramento sai de hora em hora, mas mensagem IDÊNTICA à
+    anterior não é reenviada. Por isso "último aviso" antigo não é defeito: um
+    caminhão parado a noite inteira produz, corretamente, zero envio. A regra
+    existe para proteger a reputação do número de WhatsApp da empresa — 24
+    mensagens iguais por dia fazem a pessoa bloquear o número que atende todos
+    os outros clientes.
 - termo: Em jogo (aba "Onde atacar")
   definicao: >-
     O tamanho da conta que uma decisão MEXE por mês — não a economia que ela
@@ -762,10 +780,11 @@ grupos:
 - nome: Administração
   resumo: >-
     Usuários, perfis e permissões por tela, saúde da máquina onde a API roda, a auditoria de uso
-    (quem entra, por quanto tempo e em que telas, além da trilha de ações que já existia) e esta
-    documentação.
+    (quem entra, por quanto tempo e em que telas, além da trilha de ações que já existia), o
+    acompanhamento dos monitoramentos de carga pedidos na página pública, e esta documentação.
   telas:
   - gestao
   - srv
   - aud
+  - mon
   - doc

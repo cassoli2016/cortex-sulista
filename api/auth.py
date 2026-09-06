@@ -142,6 +142,10 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     # Auditoria e tela PROPRIA, com RBAC proprio: quem audita nao precisa da
     # Gestao inteira (usuarios, perfis, senhas) para ler a trilha.
     "aud":     ("Auditoria e Uso", "Administração"),
+    # O painel dos monitoramentos da pagina publica de rastreio. Tela PROPRIA,
+    # e nao um pedaco da Gestao: quem atende quem esta esperando a carga nao
+    # precisa de usuarios, perfis e senhas para isso.
+    "mon":     ("Monitoramentos de Carga", "Administração"),
     "supfila": ("Suporte — Atendimento", "Suporte"),
 }
 
@@ -152,6 +156,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/financeiro/filtros",       frozenset(TELAS)),
     # documentação e versão: qualquer usuário logado, com qualquer tela
     ("/api/auditoria",                frozenset({"aud"})),
+    ("/api/monitoramentos",           frozenset({"mon"})),
     ("/api/documentacao",             frozenset(TELAS)),
     ("/api/versao",                   frozenset(TELAS)),
     ("/api/telemetria/consumo/atualizar", frozenset({"telcon"})),

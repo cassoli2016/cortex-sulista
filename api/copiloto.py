@@ -90,6 +90,7 @@ _FONTES_ROTULO = {
     "compras_da_os": "Manutenção — Compras da OS",
     "suporte": "Suporte — chamados",
     "portal_cliente": "Minha Operação (portal do cliente)",
+    "monitoramentos_carga": "Monitoramentos de Carga",
     "auditoria_uso": "Auditoria — acessos e uso do painel",
     "financeiro_caixa": "Fluxo de Caixa e Bancos",
     "analise_km_ano": "Análise de KM",
@@ -296,6 +297,19 @@ def _fontes_do_snapshot() -> dict:
                 "indicadores": [{"rotulo": i["rotulo"], "mediana": i["mediana"],
                                  "p25": i["p25"], "p75": i["p75"]}
                                 for i in r["indicadores"]]}
+
+    def _monitoramentos():
+        # SO CONTAGENS. Telefone e nome de quem espera a carga sao PII e nao
+        # entram no snapshot — e e isso, nao um filtro magico, que permite o
+        # fallback externo do chat. O que sobra responde o que se pergunta:
+        # quantas pessoas estao acompanhando carga agora e quantas ja foram
+        # avisadas.
+        from api.rastreio import painel as _pn
+        r = _pn.painel()["resumo"]
+        return {k: r[k] for k in
+                ("ativas", "cargas_ativas", "fones_ativos", "novas_24h",
+                 "total", "encerradas", "expiradas", "por_entrega",
+                 "cargas", "fones", "envios", "ultimo_envio_min")}
 
     def _comunicacao():
         # CONTAGENS, nao placas: quantos estao calados e contra que universo.
@@ -692,6 +706,9 @@ def _fontes_do_snapshot() -> dict:
         # de um chat e exatamente o que a regra de PII da casa existe para
         # impedir -- e e o que permite o fallback externo do Copiloto.
         "desempenho": _desempenho,
+        # A pagina publica de rastreio e a unica superficie da casa sem login,
+        # e ate agora o Copiloto nao sabia que ela existia.
+        "monitoramentos_carga": _monitoramentos,
     }
 
 
