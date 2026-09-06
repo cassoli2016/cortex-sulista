@@ -4,6 +4,18 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.258.0] — 06/09/2026  ·  CX-06/09/2026-v0.258.0
+
+### Adicionado
+- Trinta telas deixaram de morrer quando o ERP tem um dia ruim. Quando a consulta não volta, a tela agora mostra a última leitura boa com uma tarja no alto dizendo de que hora ela é ("Leitura de 04:47 — o ERP não respondeu agora"). Antes só a Visão Geral fazia isso; o resto do portal mostrava "banco inacessível" e a manhã começava sem número. Um número de vinte minutos atrás, DITO na tela, dá para trabalhar; tela em branco não.
+- A tarja vale por até duas horas. Passado esse prazo a tela volta a dizer que não conseguiu ler, porque número de ontem não serve para decidir hoje.
+
+### Alterado
+- A Torre de Controle, a Segurança, a Portaria e a Programação de Cargas continuam mostrando erro em vez de número velho, e isso é de propósito: elas respondem "onde está agora" e "o que já foi alocado". Uma posição de vinte minutos atrás, mesmo com aviso, é a que alguém usaria para dizer onde o veículo está — nessas telas, ficar sem resposta é mais seguro que receber a resposta de antes.
+
+### Corrigido
+- No Portal do Cliente, o aviso de leitura atrasada dizia sempre "0 min atrás", qualquer que fosse a idade do número. Agora diz a idade real.
+
 ## [0.257.2] — 06/09/2026  ·  CX-06/09/2026-v0.257.2
 
 ### Alterado

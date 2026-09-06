@@ -51,6 +51,34 @@ def _trava_da_chave(key):
         return trava
 
 
+# A REDE, e a REGRA DE QUEM A RECEBE.
+#
+# 2 horas: a janela ruim de 06/09/2026 durou 10 minutos e a de 04/09 durou
+# quase duas horas (56 timeouts entre 07h e 09h). Passado o prazo vira erro de
+# novo -- numero de ontem nao serve para trabalhar hoje, e a partir de certa
+# idade a tela vazia volta a ser a resposta honesta.
+#
+# O CRITERIO E A RESOLUCAO DA PROPRIA TELA, e nao "analitico x operacional".
+# A pergunta e uma so: a leitura de duas horas atras muda algum numero que esta
+# publicado ali?
+#
+#   - Se a menor faixa que a tela mostra e um DIA ou uma COMPETENCIA, nao muda.
+#     O DRE de vinte minutos atras e o mesmo DRE; "comunicou hoje" continua
+#     sendo "comunicou hoje". Estas recebem a rede.
+#   - Se a tela publica MINUTOS ou a palavra "agora" -- posicao do veiculo,
+#     evento de risco, quem esta no patio, o que ja foi alocado na programacao
+#     --, muda. Nelas a rede vira perigo: a tarja avisa, mas a decisao que a
+#     pessoa toma olhando uma posicao velha ja foi tomada, e tela vazia e a
+#     resposta honesta porque manda procurar o dado em outro lugar.
+#
+# Este criterio foi escrito DEPOIS de ele pegar um erro meu: eu tinha deixado a
+# comunicacao das rastreadoras (`comrast`) de fora por soar "operacional",
+# enquanto o painel de TV do MESMO assunto ja tinha a rede ha semanas. Os dois
+# agrupam por dias sem posicao. "Soa operacional" nao e criterio -- a menor
+# faixa que a tela publica e, e da para conferir lendo a tela.
+VELHA_ATE = 2 * 3600
+
+
 def cached(ttl: int = 90, velha_ate: int = 0):
     """Cache com TTL, VOO ÚNICO e, opcionalmente, ÚLTIMA LEITURA BOA.
 
@@ -545,7 +573,7 @@ def _agrupar_natureza(linhas: list[dict]) -> list[dict]:
     return sorted(acc.values(), key=lambda x: -x["total"])
 
 
-@cached(ttl=90)
+@cached(ttl=90, velha_ate=VELHA_ATE)
 def get_overview(filial: int | None = None, data_ref: str | None = None,
                  horizonte: int = 12, venc_de: str | None = None,
                  venc_ate: str | None = None) -> dict:
@@ -1021,7 +1049,7 @@ def _com_exclusoes(sql: str, chs: list) -> str:
     return sql.replace(marca, marca + dre_exclusoes.filtro_sql("l", len(chs)))
 
 
-@cached(ttl=300)
+@cached(ttl=300, velha_ate=VELHA_ATE)
 def get_dre(comp_de: str, comp_ate: str) -> dict:
     de, ate = _comp_bounds(comp_de, comp_ate)
     # mesmo intervalo, um ano antes (comparativo a/a)
@@ -1434,7 +1462,7 @@ VG_OC_SQL = _oc.VG_OC_SQL
 _oc_status = _oc.oc_status
 
 
-@cached(ttl=120)
+@cached(ttl=120, velha_ate=VELHA_ATE)
 def get_oc_pendentes(dias_min: int = _oc.DIAS_PARADA) -> dict:
     """Em aberto, todo o histórico: fila de aprovação de agora e aprovadas sem
     nota. Não segue o filtro de período da tela — OC velha é justamente o alvo."""
@@ -1505,7 +1533,7 @@ ORDER BY p.valor_medio DESC
 """
 
 
-@cached(ttl=300)
+@cached(ttl=300, velha_ate=VELHA_ATE)
 def get_recorrentes(meses: int = 6, min_meses: int = 5) -> dict:
     rows = db.query(REC_SQL, {"meses": meses, "min_meses": min_meses})
     hoje = rows[0]["hoje"] if rows else date.today().day
@@ -1558,7 +1586,7 @@ def get_recorrentes(meses: int = 6, min_meses: int = 5) -> dict:
     }
 
 
-@cached(ttl=90)
+@cached(ttl=90, velha_ate=VELHA_ATE)
 def get_ordens_compra(filial: int | None, dt_de: str, dt_ate: str,
                       status: str | None = None, fornecedor: str | None = None,
                       criador: int | None = None, aprovador: int | None = None) -> dict:
@@ -1667,7 +1695,7 @@ GROUP BY 1
 """
 
 
-@cached(ttl=90)
+@cached(ttl=90, velha_ate=VELHA_ATE)
 def get_agregados(filial: int | None, dt_de: str, dt_ate: str,
                   modalidade: str | None = None, transportador: str | None = None) -> dict:
     params = {"filial": filial, "dt_de": dt_de, "dt_ate": dt_ate,
@@ -1806,7 +1834,7 @@ ORDER BY 5 DESC LIMIT 25
 """
 
 
-@cached(ttl=300)
+@cached(ttl=300, velha_ate=VELHA_ATE)
 def get_make_vs_buy(comp_de: str, comp_ate: str) -> dict:
     de, ate = _comp_bounds(comp_de, comp_ate)
     params = {"de": de, "ate": ate}
@@ -2165,7 +2193,7 @@ SELECT codigo, sum(realizado)::float8 AS realizado FROM (
 """
 
 
-@cached(ttl=90)
+@cached(ttl=90, velha_ate=VELHA_ATE)
 def get_comercial(filial: int | None, dt_de: str, dt_ate: str,
                   cliente: str | None = None) -> dict:
     params = {"filial": filial, "dt_de": dt_de, "dt_ate": dt_ate, "cliente": cliente}
@@ -2881,7 +2909,7 @@ GROUP BY 1 ORDER BY 4 DESC
 """
 
 
-@cached(ttl=90)
+@cached(ttl=90, velha_ate=VELHA_ATE)
 def get_combustivel(dt_de: str, dt_ate: str, modalidade: str | None = None,
                     placa: str | None = None, posto: str | None = None,
                     combustivel: str | None = None) -> dict:
@@ -3145,7 +3173,7 @@ SELECT x.placa, sum(x.km)::float8 AS km FROM (
 """
 
 
-@cached(ttl=90)
+@cached(ttl=90, velha_ate=VELHA_ATE)
 def get_manutencao(filial: int | None, dt_de: str, dt_ate: str,
                    placa: str | None = None, status: str = "todas") -> dict:
     status = status if status in ("todas", "abertas", "fechadas") else "todas"
@@ -3421,7 +3449,7 @@ def _custo_vazio_proprio(dt_de: str, dt_ate: str, filial: int | None = None,
     }
 
 
-@cached(ttl=90)
+@cached(ttl=90, velha_ate=VELHA_ATE)
 def get_analise_km(filial: int | None, dt_de: str, dt_ate: str,
                    modalidade: str | None = None) -> dict:
     params = {"filial": filial, "dt_de": dt_de, "dt_ate": dt_ate, "modalidade": modalidade}
@@ -3683,7 +3711,7 @@ GROUP BY 1, 2 ORDER BY 1, 3 DESC
 """
 
 
-@cached(ttl=300)
+@cached(ttl=300, velha_ate=VELHA_ATE)
 def get_veiculos(modalidade: str | None = None, situacao: str = "ativos",
                  grupo: str | None = None) -> dict:
     params = {"modalidade": modalidade, "situacao": situacao, "grupo": grupo}
@@ -3938,7 +3966,7 @@ WHERE r.veiculo = %(placa)s AND r.dtinfracao >= current_date - interval '12 mont
 """
 
 
-@cached(ttl=60)
+@cached(ttl=60, velha_ate=VELHA_ATE)
 def get_veiculo_ficha(placa: str, dias: int = 30) -> dict:
     placa = (placa or "").strip().upper()
     if not placa:
@@ -4051,14 +4079,14 @@ ORDER BY 1
 """
 
 
-@cached(ttl=900)
+@cached(ttl=900, velha_ate=VELHA_ATE)
 def get_clientes_lista() -> dict:
     """Nomes dos agrupamentos de cliente para o autocomplete da Consulta de
     Cliente. São ~34 grupos — consulta de uma tabela só, cacheada."""
     return {"clientes": [r["cliente"] for r in db.query(CLIF_LISTA_SQL, None)]}
 
 
-@cached(ttl=120)
+@cached(ttl=120, velha_ate=VELHA_ATE)
 def get_cliente_ficha(cliente: str, comp_de: str, comp_ate: str) -> dict:
     from collections import defaultdict as _dd
     import unicodedata as _ud
@@ -4251,7 +4279,7 @@ GROUP BY 1 ORDER BY 2 DESC
 """
 
 
-@cached(ttl=90)
+@cached(ttl=90, velha_ate=VELHA_ATE)
 def get_multas(dt_de: str, dt_ate: str, placa: str | None = None,
                orgao: str | None = None) -> dict:
     params = {"dt_de": dt_de, "dt_ate": dt_ate, "placa": placa, "orgao": orgao}
@@ -4652,7 +4680,7 @@ ORDER BY 5 DESC LIMIT 30
 """
 
 
-@cached(ttl=300)
+@cached(ttl=300, velha_ate=VELHA_ATE)
 def get_rentabilidade(filial: int | None, dt_de: str, dt_ate: str,
                       cliente: str | None = None) -> dict:
     params = {"filial": filial, "dt_de": dt_de, "dt_ate": dt_ate, "cliente": cliente}
@@ -4772,7 +4800,7 @@ GROUP BY 1 ORDER BY 4 DESC LIMIT 20
 """
 
 
-@cached(ttl=120)
+@cached(ttl=120, velha_ate=VELHA_ATE)
 def get_contabil(comp_de: str, comp_ate: str, busca: str | None = None) -> dict:
     de, ate = _comp_bounds(comp_de, comp_ate)
     params = {"de": de, "ate": ate, "busca": busca}
@@ -4921,7 +4949,7 @@ WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
 """
 
 
-@cached(ttl=90)
+@cached(ttl=90, velha_ate=VELHA_ATE)
 def get_cobranca(filial: int | None, cliente: str | None = None) -> dict:
     params = {"filial": filial, "cliente": cliente}
     MAX_TIT = 30
@@ -5061,7 +5089,7 @@ LIMIT 200
 """
 
 
-@cached(ttl=120)
+@cached(ttl=120, velha_ate=VELHA_ATE)
 def get_custos_extras(dt_de: str, dt_ate: str) -> dict:
     """Custos extras (acessórios) por CT-e no período, com status de cobrança."""
     params = {"dt_de": dt_de, "dt_ate": dt_ate}
@@ -5195,7 +5223,7 @@ ORDER BY ac.descricao, ft.filial
 """
 
 
-@cached(ttl=180)
+@cached(ttl=180, velha_ate=VELHA_ATE)
 def get_sac_freetime(dt_de: str, dt_ate: str) -> dict:
     """SAC/Freetime: estadia estimada excedente por cliente + freetime de
     referência. Valores são ESTIMATIVA (regra padrão de freetime)."""
@@ -5303,7 +5331,7 @@ WHERE retorno.ds_grupoproduto='MANUTENCAO PREVENTIVA' AND retorno.modeloveiculo 
 """
 
 
-@cached(ttl=300)
+@cached(ttl=300, velha_ate=VELHA_ATE)
 def get_manutencao_preventiva(horizonte: int = 30) -> dict:
     """Revisões preventivas próximas/vencidas — trações por km, carretas por data.
 
@@ -5468,7 +5496,7 @@ def _comrast_faixa(dias) -> tuple[int, str]:
     return 8, "mais de 60 dias"
 
 
-@cached(ttl=120)
+@cached(ttl=120, velha_ate=VELHA_ATE)
 def get_comunicacao_rastreadora() -> dict:
     """Saúde de comunicação da frota com a rastreadora (última posição)."""
     hoje = date.today()
@@ -5627,7 +5655,7 @@ def _qual_cert_status(dias) -> str:
     return "ok"
 
 
-@cached(ttl=300)
+@cached(ttl=300, velha_ate=VELHA_ATE)
 def get_qualidade() -> dict:
     """Certidões/licenças com semáforo de vencimento + auditorias internas."""
     with db.get_conn() as conn, conn.cursor() as cur:
@@ -5847,7 +5875,7 @@ LIMIT 100
 """
 
 
-@cached(ttl=180)
+@cached(ttl=180, velha_ate=VELHA_ATE)
 def get_crm() -> dict:
     """CRM: leads (funil), pipeline de projetos e repactuações."""
     with db.get_conn() as conn, conn.cursor() as cur:
@@ -5931,7 +5959,7 @@ ORDER BY v.resultado, v.dtinclusao DESC
 """
 
 
-@cached(ttl=300)
+@cached(ttl=300, velha_ate=VELHA_ATE)
 def get_rh() -> dict:
     """Vagas de recrutamento (pipeline de RH). Sem PII do candidato."""
     with db.get_conn() as conn, conn.cursor() as cur:
@@ -6241,7 +6269,7 @@ LIMIT 500
 """
 
 
-@cached(ttl=90)
+@cached(ttl=90, velha_ate=VELHA_ATE)
 def get_lancamentos_bancarios(dt_de: str, dt_ate: str, conta: str | None = None,
                                busca: str | None = None) -> dict:
     de_d, ate_d = date.fromisoformat(dt_de), date.fromisoformat(dt_ate)
@@ -6514,7 +6542,7 @@ GROUP BY 1
 """
 
 
-@cached(ttl=180)
+@cached(ttl=180, velha_ate=VELHA_ATE)
 def get_fluxo_detalhe(de: str, ate: str) -> dict:
     params = {"de": de, "ate": ate}
     with db.get_conn() as conn, conn.cursor() as cur:
@@ -6747,7 +6775,7 @@ MESES_PT = ("jan", "fev", "mar", "abr", "mai", "jun",
             "jul", "ago", "set", "out", "nov", "dez")
 
 
-@cached(ttl=90)
+@cached(ttl=90, velha_ate=VELHA_ATE)
 def get_fluxo_consolidado(gran: str = "semana", dias: int = 180) -> dict:
     with db.get_conn() as conn, conn.cursor() as cur:
         cur.execute(ANTEC_SALDO_SQL)
@@ -7148,7 +7176,7 @@ def _antec_simular(dias_lista, rec_por_dia, pag_por_dia, saldo_inicial,
     return linhas, operacoes, nao_coberto
 
 
-@cached(ttl=90)
+@cached(ttl=90, velha_ate=VELHA_ATE)
 def get_antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
                     incluir_vencidos: bool = False,
                     exigir_portal: bool = False,
