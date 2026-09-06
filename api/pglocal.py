@@ -62,6 +62,7 @@ try:  # pool é opcional: sem a dependência sincronizada, conecta direto
 except ImportError:  # pragma: no cover
     ConnectionPool = None
 
+from . import processos
 from .db import _load_env  # o .env já é lido por api/db.py; não ler duas vezes
 
 _load_env()
@@ -123,7 +124,12 @@ def _get_pool() -> "ConnectionPool":
             # 20 cobre o threadpool do uvicorn com folga; o PostgreSQL local
             # aceita 100 e tem 9 em uso. min_size=2 para a primeira requisição
             # depois de um período parado não pagar o handshake.
-            min_size=2, max_size=20, max_idle=300, timeout=10,
+            #
+            # DIVIDIDO PELO NÚMERO DE PROCESSOS: o pool é por processo, e com
+            # `--workers 4` seriam 80 conexões contra o teto de 100 — que num
+            # boot com respawn viraria 120. Ver `api/processos.py`.
+            min_size=2, max_size=processos.fatia_do_pool(20),
+            max_idle=300, timeout=10,
             # AQUI o check vale a pena, ao contrário do pool do ERP: é
             # loopback, custa 0,043 ms (lá custava 20 ms), e o serviço do
             # PostgreSQL reinicia sozinho em atualização do Windows.

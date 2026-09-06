@@ -462,6 +462,14 @@ barra empilhada, não donut.
   falha NOSSA (o Cloudflare TROCA o corpo de 5xx pela página dele — a mensagem
   nunca chega). Na tela, **sempre `respostaJSON(r)`** — distingue sessão
   expirada, proxy respondendo no lugar da API e erro interno.
+- **O `startup` roda em CADA worker do uvicorn** (medido: 4 a **6** vezes com
+  `--workers 4`, porque o Windows respawna worker), e os pools são POR
+  PROCESSO. Quem sobe relógio no `on_event("startup")` passa por
+  `lider.sou_o_agendador()` — senão o aviso de carga manda WhatsApp REAL uma
+  vez por worker; e quem dimensiona pool usa `processos.fatia_do_pool()` —
+  senão 4×20 = 80 conexões contra o teto de 100 do banco local.
+  `WEB_CONCURRENCY` é a fonte única (é a que o uvicorn já lê). Guard:
+  `tests/test_lider_e_workers.py`.
 - **Em rota `async def`, todo I/O bloqueante passa por `sem_travar()`**
   (`api/main.py`) — senão trava o servidor INTEIRO pelo tempo da chamada.
   O `TestClient` não pega; `tests/test_rotas_nao_travam.py` sobe uvicorn real.

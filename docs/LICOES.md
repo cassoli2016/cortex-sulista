@@ -4274,3 +4274,113 @@ Defender exigem administrador, que esta sessao nao tem.
   fotografia: refaca a medicao antes de executar um item antigo da lista.
 - **Desfazer a mudanca que nao se justificou faz parte.** O plano de energia
   voltou ao que era.
+
+---
+
+## Os workers, e o relogio que tocaria quatro vezes (2026-09-06, v0.262.0)
+
+O achado 04 da auditoria tinha sido RECUSADO por medicao horas antes: depois de
+01+02+03 a fila que ele resolveria nao existia mais (60 acessos simultaneos em
+93 ms, `/api/health` sob carga em 0,9x). A decisao de fazer assim mesmo veio de
+quem opera, e ela mudou o que "fazer o 04" significa — porque a medida seguinte
+achou coisa que a recusa nao tinha achado.
+
+### O que o experimento isolado mostrou
+
+App minimo, `--workers 4`, so contando quantas vezes o `@app.on_event("startup")`
+roda:
+
+| volta | startups | erro |
+|---|---|---|
+| 1 | 4 | — |
+| 2 | **6** | `WinError 10022` x4 (dois workers morreram e o uvicorn respawnou) |
+| 3 | 4 | — |
+
+**O startup roda em CADA worker**, e num boot ruim roda MAIS que o numero de
+workers. Um desses startups sobe o relogio do aviso de carga, que manda
+WhatsApp REAL para quem esta esperando carga. Quatro workers, quatro mensagens
+iguais para o mesmo cliente — e o gate de credencial nao segura nada, porque
+nesta bancada o WhatsApp esta configurado de verdade.
+
+E uma segunda conta: os pools sao POR PROCESSO. `max_size=20` do banco da casa
+x 4 = 80 conexoes contra o `max_connections=100` que ja tem 9 em uso; no boot
+com respawn, 120. A falha apareceria como "nao consigo entrar no sistema".
+
+### A eleicao, e por que `pg_try_advisory_lock`
+
+1. **Nao precisa de infraestrutura nova.** O Redis do `pyproject` nunca foi
+   ligado; liga-lo para isto seria uma peca a mais para falhar.
+2. **A trava e de SESSAO, nao de transacao**: morre junto com a conexao. Se o
+   lider cair, o proprio PostgreSQL solta a lideranca — sem temporizador, sem
+   ninguem para limpar. Medido: matando o lider, o processo seguinte assume.
+3. **A conexao fica FORA do pool**, presa num global do modulo. Conexao de pool
+   volta para a fila e seria reusada por outro trecho — e a trava iria junto,
+   entregando a lideranca a quem so queria consultar.
+
+Prova ponta a ponta, com o `api/lider.py` REAL dentro de um app isolado sob
+`uvicorn --workers 4`: **4 startups, 1 agendador eleito**, duas voltas seguidas.
+O app real NAO foi usado de proposito — subir a `api.main` com workers ligaria o
+agendador de verdade, e uma mensagem indevida ja e uma a mais.
+
+### A lacuna que os primeiros testes nao pegavam
+
+Os testes provavam que a ELEICAO funciona. Nao provavam que ela esta LIGADA:
+apagar a linha do `main.py` passaria com 9 verdes, e o defeito so apareceria no
+celular do cliente. Tres testes de FIACAO fecharam isso — `_startup_aviso_carga`
+e `_startup_push` chamados direto, com o lider forcado dos dois lados, e o
+`max_size` do pool conferido no objeto do pool, nao na conta.
+
+Seis sabotagens conferidas, todas vermelhas no alvo: tirar cada um dos dois
+gates, deixar todos serem lideres, tirar a divisao do pool, tirar o piso e
+deixar a suite virar agendadora.
+
+### O que NAO foi ligado, e por que
+
+`WEB_CONCURRENCY` fica em **1**, que e o estado de hoje. Esta entrega da a
+SEGURANCA para ligar, nao liga. O motivo esta na tabela la em cima: uma em tres
+subidas teve worker morrendo no Windows. Trazer a capacidade e o risco de
+estreia na mesma entrega faria as duas coisas serem avaliadas como uma so —
+e a primeira ja esta provada, a segunda nao.
+
+### O guard da casa pegou o meu defeito, e ele estava "errado"
+
+A suite fechou com UMA falha:
+`test_o_cache_voo_unico.py::test_o_pool_cabe_o_maior_leque_da_casa`. Ele lia o
+TEXTO-FONTE — `"max_size=16" in inspect.getsource(db._get_pool)` — que e
+exatamente o que o `CLAUDE.md` proibe em teste. Facil concluir "guard fragil,
+a string mudou, atualiza a string e segue".
+
+Seria o erro caro. **O guard estava certo e eu estava errado.** A conta dele:
+a Visao Geral abre `len(grupos) + 1` = 5 conexoes de uma vez, todas do MESMO
+processo. Meu `fatia_do_pool` tinha nascido com piso **4**. Com 4 workers, o
+pool de cada processo seria 4 — e um unico carregamento da Visao Geral pediria
+5 vagas num pool de 4, esperando por si mesmo ate o `timeout`. E o
+`PoolTimeout` de 04/09/2026 de volta, agora causado pela correcao que veio
+melhorar concorrencia.
+
+O piso virou `LEQUE_MAXIMO + 1`, com o numero nomeado e o motivo escrito ao
+lado. E o guard foi REESCRITO para afirmar o numero EFETIVO em vez do texto:
+lendo a fonte, ele passaria de novo com `max_size=16` escrito e um piso errado
+ao lado — acendeu pelo motivo certo por sorte, e a sorte nao e reproduzivel.
+
+Na mesma passagem, os MEUS testes tambem estavam errados: codificavam o piso 4
+como numero magico (`assert fatia_do_pool(20) == 5`). Passaram a afirmar a
+RELACAO — `> LEQUE_MAXIMO`, parametrizado em 1, 2, 4, 8 e 16 workers —, que e
+o que a regra quer dizer.
+
+### O que fica como regra
+
+- **Guard que acende contra mudanca sua merece ser LIDO, nao atualizado.** Este
+  parecia fragil (lia texto-fonte, e a string tinha mudado) e estava apontando
+  um defeito real. A pergunta certa nao e "por que ele quebrou", e "o que ele
+  sabe que eu nao sei".
+- **Numero magico em teste esconde a regra.** `== 5` nao diz por que 5; a regra
+  e "maior que o maior leque de uma requisicao so", e escrita assim ela
+  acompanha a mudanca do leque sozinha.
+- **Recusar por medicao nao fecha o assunto: a implementacao pode achar o que a
+  recusa nao achou.** A recusa mediu o beneficio (zero). So a implementacao
+  mediu o CUSTO — e o custo era mensagem duplicada para cliente.
+- **Teste de mecanismo nao e teste de fiacao.** Provar que a peca funciona e
+  metade; a outra metade e provar que alguem a chama.
+- **Capacidade e ativacao sao entregas diferentes.** Ligar junto teria
+  misturado uma coisa provada com uma nao provada.

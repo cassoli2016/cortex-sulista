@@ -30,8 +30,8 @@ from fastapi.responses import JSONResponse as _JSONResponseBase
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
-from . import (alertas, auth, copiloto, db, documentacao, dre_cliente, push, queries,
-               queries_folha, servidor)
+from . import (alertas, auth, copiloto, db, documentacao, dre_cliente, lider,
+               push, queries, queries_folha, servidor)
 
 
 class JSONResponse(_JSONResponseBase):
@@ -4970,6 +4970,10 @@ def alertas_digest() -> PlainTextResponse:
 # --- Push (notificações no celular) — autoatendimento por usuário logado -----
 @app.on_event("startup")
 def _startup_push() -> None:
+    # SÓ NO LÍDER: com `--workers`, o startup roda em cada processo e o digest
+    # sairia uma vez por worker. Ver `api/lider.py`.
+    if not lider.sou_o_agendador():
+        return
     push.iniciar_scheduler()  # digest diário; no-op se VAPID não configurado
 
 
@@ -4982,6 +4986,11 @@ def _startup_aviso_carga() -> None:
     quem pediu, e a tarefa agendada do aviso NAO ESTAVA REGISTRADA nesta
     maquina — o que dispara o envio hoje nao esta escrito neste repositorio.
     """
+    # SÓ NO LÍDER. Medido em 06/09/2026 com um app isolado: `--workers 4` roda
+    # o startup 4 a 6 vezes (o uvicorn respawna worker no Windows), e este
+    # relógio manda WhatsApp REAL para quem espera carga. Ver `api/lider.py`.
+    if not lider.sou_o_agendador():
+        return
     from api.rastreio import agendador
     agendador.iniciar()
 

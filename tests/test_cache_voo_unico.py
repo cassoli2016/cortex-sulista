@@ -175,19 +175,35 @@ def test_a_falha_nao_deixa_a_trava_presa():
     assert consulta() == {"ok": True}      # travaria aqui se não liberasse
 
 
-def test_o_pool_cabe_o_maior_leque_da_casa():
+def test_o_pool_cabe_o_maior_leque_da_casa(monkeypatch):
     """`max_size` tem de ser maior que o maior leque de threads da casa.
 
     A Visão Geral abre `len(grupos) + 1` = 5 conexões de uma vez. Com o pool
-    em 6, sobrava UMA vaga para o sistema inteiro.
+    em 6, sobrava UMA vaga para o sistema inteiro (04/09/2026).
+
+    ESTE GUARD LIA O TEXTO-FONTE (`"max_size=16" in inspect.getsource(...)`) e
+    foi reescrito em 06/09/2026, quando o `max_size` passou a ser dividido
+    entre os workers. Ele acendeu certo — o piso da divisão tinha nascido 4, e
+    com 4 workers a Visão Geral pediria 5 vagas num pool de 4, travando em si
+    mesma —, mas acendeu pelo motivo errado: a string tinha mudado. Lendo o
+    texto, ele passaria de novo com `max_size=16` escrito e um piso errado ao
+    lado. Agora afirma o NÚMERO EFETIVO, que é o que a aplicação usa.
     """
-    import inspect
+    from api import processos
 
-    from api import db
+    for quantos in (1, 2, 4, 8, 16):
+        monkeypatch.setenv("WEB_CONCURRENCY", str(quantos))
+        for total, nome in ((16, "ERP"), (20, "banco da casa")):
+            vagas = processos.fatia_do_pool(total)
+            assert vagas > processos.LEQUE_MAXIMO, (
+                f"pool do {nome} com {quantos} workers: {vagas} vagas para um "
+                f"leque de {processos.LEQUE_MAXIMO} — uma requisição sozinha "
+                "esperaria por si mesma até o timeout")
 
-    fonte = inspect.getsource(db._get_pool)
-    assert "max_size=16" in fonte, "o pool encolheu de novo"
-    assert "min_size=2" in fonte
+    # com um processo (o padrão de hoje) nada encolheu
+    monkeypatch.delenv("WEB_CONCURRENCY", raising=False)
+    assert processos.fatia_do_pool(16) == 16, "o pool do ERP encolheu de novo"
+    assert processos.fatia_do_pool(20) == 20, "o pool do banco da casa encolheu"
 
 
 # --------------------------------------------------------------------------

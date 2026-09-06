@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.262.0] — 06/09/2026  ·  CX-06/09/2026-v0.262.0
+
+### Adicionado
+- O sistema passa a poder rodar em vários processos ao mesmo tempo, sem que isso duplique os avisos automáticos. Havia uma armadilha séria no caminho: as rotinas que rodam sozinhas — o aviso de carga por WhatsApp e o resumo diário — sobem junto com a aplicação, e com quatro processos elas subiriam quatro vezes, mandando a mesma mensagem quatro vezes para o mesmo cliente. Agora apenas um dos processos assume esse papel, escolhido pelo próprio banco de dados; se ele cair, outro assume sozinho.
+- As conexões com os bancos também passaram a ser divididas entre os processos. Sem isso, quatro processos abririam oitenta conexões contra um limite de cem, e a falha apareceria para quem usa como "não consigo entrar no sistema".
+- Um teste antigo da casa impediu um defeito que esta própria mudança teria criado: ao dividir as conexões entre processos, a divisão ficou menor do que uma única tela precisa de uma vez, e a Visão Geral passaria a esperar por si mesma. O limite mínimo agora acompanha o maior número de consultas paralelas que uma tela faz.
+- A configuração continua em UM processo, como está hoje: o que esta versão entrega é a segurança para ligar, não a mudança em si. Nos testes, uma em cada três subidas com vários processos teve falha do próprio servidor no Windows — então ligar isso é uma decisão separada, e agora ela pode ser tomada sem risco de mensagem duplicada.
+
 ## [0.261.2] — 06/09/2026  ·  CX-06/09/2026-v0.261.2
 
 ### Alterado

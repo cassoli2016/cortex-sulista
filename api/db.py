@@ -10,6 +10,8 @@ import time
 from contextlib import contextmanager
 from pathlib import Path
 
+from . import processos
+
 import psycopg
 from psycopg.rows import dict_row
 
@@ -151,7 +153,11 @@ def _get_pool() -> "ConnectionPool":
         # pagava o handshake inteiro com o usuário esperando.
         _pool = ConnectionPool(
             _conninfo(), kwargs={"row_factory": dict_row},
-            min_size=2, max_size=16, max_idle=300, timeout=15,
+            # dividido pelo número de processos (ver `api/processos.py`): o ERP
+            # é réplica de produção de TERCEIRO e divide o usuário com um Power
+            # BI — 4 workers × 16 seriam 64 conexões nossas lá dentro.
+            min_size=2, max_size=processos.fatia_do_pool(16),
+            max_idle=300, timeout=15,
             # `max_lifetime`: conexão parada morre calada (NAT, firewall, ERP
             # reiniciando). Reciclar de hora em hora custa um handshake
             # amortizado e limita há quanto tempo uma conexão pode estar
