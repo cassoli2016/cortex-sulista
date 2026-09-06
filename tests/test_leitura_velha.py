@@ -152,3 +152,172 @@ def test_a_visao_geral_declara_a_janela_de_duas_horas():
     import inspect
     fonte = inspect.getsource(queries)
     assert "@cached(ttl=60, velha_ate=2 * 3600)\ndef get_visao_geral" in fonte
+
+
+# ==========================================================================
+# QUEM RECEBE A REDE, E QUEM NÃO PODE RECEBER
+#
+# Em 06/09/2026 o ERP degradou entre 04:41 e 04:51. A Visão Geral sobreviveu
+# (serviu a leitura de 259 s antes, carimbada) e o resto do portal mostrou
+# "banco inacessível" — duas telas tinham a rede e trinta e seis não tinham.
+# A rede foi então estendida por um critério, e o critério é o que estes
+# testes guardam.
+# ==========================================================================
+
+# Telas que publicam MINUTOS ou a palavra "agora". Servir leitura velha aqui
+# não é conforto, é perigo: a tarja avisa, mas a decisão que a pessoa toma
+# olhando uma posição de vinte minutos atrás já foi tomada.
+TEMPO_REAL = ("get_torre", "get_seguranca", "get_portaria", "get_programacao")
+
+
+def _decorador_de(nome):
+    """O `@cached(...)` que está imediatamente acima de `def <nome>`."""
+    import inspect
+    import re
+    linhas = inspect.getsource(queries).split("\n")
+    for i, l in enumerate(linhas):
+        if re.match(r"def %s\b" % nome, l):
+            for j in range(i - 1, max(i - 4, -1), -1):
+                m = re.match(r"@cached\((.*)\)$", linhas[j].strip())
+                if m:
+                    return m.group(1)
+            return None
+    raise AssertionError("%s não existe mais em queries.py" % nome)
+
+
+@pytest.mark.parametrize("nome", TEMPO_REAL)
+def test_tela_de_TEMPO_REAL_nao_pode_ter_a_rede(nome):
+    """O guard mais importante deste arquivo, e o único que protege de um erro
+    que NÃO aparece na tela de quem o cometeu.
+
+    Estender a rede é tentador e parece sempre uma melhoria: a tela para de
+    morrer. Numa torre de controle ela para de morrer MENTINDO — a posição de
+    duas horas atrás, com tarja e tudo, é a que alguém vai usar para dizer onde
+    o veículo está. Quem acrescentar `velha_ate` aqui vai fazê-lo de boa fé,
+    achando que está fazendo o mesmo que foi feito no DRE.
+    """
+    dec = _decorador_de(nome)
+    assert dec is not None, "%s perdeu o @cached" % nome
+    assert "velha_ate" not in dec, (
+        "%s publica minutos ('onde está agora'): leitura velha aqui vira "
+        "decisão tomada sobre posição que não existe mais. Se a tela mudou de "
+        "resolução e hoje só publica dias, mude ESTA lista e diga por quê."
+        % nome)
+
+
+@pytest.mark.parametrize("nome", [
+    "get_dre", "get_overview", "get_contabil", "get_comercial", "get_cobranca",
+    "get_fluxo_consolidado", "get_manutencao", "get_combustivel", "get_multas",
+    "get_veiculos", "get_rh", "get_qualidade", "get_comunicacao_rastreadora",
+])
+def test_painel_de_resolucao_DIARIA_tem_a_rede(nome):
+    """O outro lado: sem isto a rede some numa refatoração e ninguém percebe
+    até o próximo dia ruim do ERP, que é quando ela seria útil.
+
+    `comrast` está aqui de propósito. Ele ficou de fora na primeira versão por
+    soar "operacional", enquanto o painel de TV do MESMO assunto já tinha a
+    rede — os dois agrupam por dias sem posição. O critério é a menor faixa que
+    a tela publica, não o grupo do menu.
+    """
+    dec = _decorador_de(nome)
+    assert dec and "velha_ate" in dec, (
+        "%s perdeu a rede: no próximo dia ruim do ERP esta tela morre de novo"
+        % nome)
+
+
+def test_a_janela_e_a_MESMA_para_todo_mundo():
+    """Uma constante, não trinta números soltos: janelas diferentes por tela
+    seriam trinta decisões que ninguém tomou."""
+    import inspect
+    import re
+    fonte = inspect.getsource(queries)
+    soltos = set(re.findall(r"@cached\([^)]*velha_ate=(?!VELHA_ATE)([^,)]+)",
+                            fonte))
+    # a Visão Geral e o painel de TV vieram antes da constante e escrevem
+    # o mesmo valor à mão; qualquer valor NOVO fora disso é o que se proíbe
+    assert soltos <= {"2 * 3600"}, (
+        "janela escrita à mão fora da constante VELHA_ATE: %s" % soltos)
+    assert queries.VELHA_ATE == 2 * 3600
+
+
+# ==========================================================================
+# O CARIMBO QUE ATRAVESSA A REDE
+#
+# A ponte entre o `cached` e a tela é um CABEÇALHO, e não o corpo. O corpo já
+# trazia o carimbo, mas ler o corpo obrigaria cada tela a lembrar de olhar —
+# e foi assim que a segunda tarja da casa nasceu lendo `leitura_idade_s`, um
+# campo que nunca existiu, e dizendo "0 min atrás" para sempre.
+#
+# O cabeçalho vale para toda rota que exista hoje ou venha a existir, sem que
+# ninguém precise lembrar de nada. E aparece no `curl` e no DevTools, o que
+# torna o estado visível DURANTE o incidente — que foi o que faltou em
+# 06/09/2026, quando a única forma de saber que a rede tinha agido era achar
+# uma linha no log do servidor.
+# ==========================================================================
+
+def test_a_resposta_velha_sai_CARIMBADA_no_cabecalho():
+    from api.main import JSONResponse
+    r = JSONResponse({"saldo": 10.0, "leitura_velha": True,
+                      "leitura_em": "2026-09-06 04:47:00",
+                      "leitura_idade_seg": 259})
+    assert r.headers.get("X-Leitura-Velha") == "1"
+    assert r.headers.get("X-Leitura-Em") == "2026-09-06 04:47:00"
+    assert r.headers.get("X-Leitura-Idade") == "259"
+
+
+def test_a_resposta_BOA_nao_leva_carimbo_nenhum():
+    """Se o carimbo saísse sempre, a tarja apareceria sempre e não
+    significaria nada — que é o mesmo que não existir."""
+    from api.main import JSONResponse
+    r = JSONResponse({"saldo": 10.0})
+    assert r.headers.get("X-Leitura-Velha") is None
+
+
+def test_o_carimbo_nao_atrapalha_o_resto_da_resposta():
+    """O `JSONResponse` da casa já fazia duas coisas (converter tipo do banco,
+    não estourar no `render`). Acrescentar a terceira não pode custar as duas
+    primeiras nem mexer no status."""
+    from decimal import Decimal
+
+    from api.main import JSONResponse
+    r = JSONResponse({"v": Decimal("1.5"), "leitura_velha": True,
+                      "leitura_idade_seg": 60}, status_code=200)
+    assert r.body == b'{"v":1.5,"leitura_velha":true,"leitura_idade_seg":60}'
+    assert JSONResponse([1, 2, 3]).body == b"[1,2,3]"
+    assert JSONResponse({"erro": "x"}, status_code=409).status_code == 409
+
+
+def test_o_valor_do_cabecalho_e_ASCII():
+    """Header com acento é campo minado entre proxies, e o Cloudflare está no
+    caminho. A tela é que formata o texto; o servidor manda dado."""
+    from api.main import JSONResponse
+    r = JSONResponse({"leitura_velha": True, "leitura_em": "2026-09-06 04:47:00",
+                      "leitura_idade_seg": 259})
+    for k, v in r.headers.items():
+        if k.startswith("x-leitura"):
+            v.encode("ascii")   # levanta se alguém puser texto humano aqui
+
+
+def test_a_tela_le_o_CABECALHO_e_nao_o_corpo():
+    """Guard do desenho. Voltar a ler o corpo obrigaria a clonar e reparsear
+    cada resposta — uma tabela de mil linhas parseada duas vezes em toda
+    consulta — e devolveria a cada tela a chance de esquecer."""
+    import pathlib
+    html = (pathlib.Path("api/static/index.html").read_text(encoding="utf-8"))
+    assert "velhaRegistrar(u, r)" in html, "o gancho do fetch foi desligado"
+    assert "X-Leitura-Velha" in html and "X-Leitura-Idade" in html
+    # e ninguém pode ter ressuscitado o campo que não existe
+    assert "leitura_idade_s " not in html and "leitura_idade_s'" not in html
+    assert "leitura_idade_s |" not in html and "leitura_idade_s||" not in html
+
+
+def test_existe_UMA_tarja_na_casa():
+    """Duas telas desenhando a mesma tarja à mão foi como uma delas ficou
+    dizendo '0 min atrás' sem que ninguém notasse. A terceira cópia seria a
+    próxima a divergir."""
+    import pathlib
+    import re
+    html = pathlib.Path("api/static/index.html").read_text(encoding="utf-8")
+    criadores = re.findall(r"className\s*=\s*'avisofaixa'", html)
+    assert len(criadores) <= 1, (
+        "mais de um lugar cria a faixa de aviso à mão: %d" % len(criadores))

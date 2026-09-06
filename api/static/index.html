@@ -1662,6 +1662,12 @@ button.avatar{border:0;cursor:pointer}
 :root[data-theme="dark"] .avisofaixa,
 :root:not([data-theme="light"]) .avisofaixa{
   background:#3A2E12;border-color:#FBBF24;color:#FBBF24}
+/* O painel de TV nao segue o tema (regra da casa), entao a tarja precisa do
+   proprio par: no fundo escuro da TV a faixa creme seria a placa clara no meio
+   do painel que a auditoria de superficies existe para impedir. Ambar do
+   semaforo de TV, que e o mesmo do tema escuro -- o significado nao muda com o
+   meio, so o tom. */
+body.tvmode #tarja-velha{background:#3A2E12;border-color:#FBBF24;color:#FBBF24}
 .lg-body button.lg-link{background:none;border:0;padding:4px 6px;cursor:pointer;
   font:600 13px/1.3 var(--font);color:var(--orange-500);border-radius:6px}
 .lg-body button.lg-link:hover{text-decoration:underline}
@@ -8769,6 +8775,7 @@ function currentView(){
 function router(){
   if(!USER) return;                              // nada roda antes do login
   const v = currentView();
+  velhaLimpar();       // a tarja fala da tela ATUAL; quem carrega repoe
   audTela(v);          // auditoria de uso: a tela aberta e o sinal de vida
   favBotao();          // a estrela reflete a tela ATUAL, entao muda com ela
   document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on', s.id==='view-'+v));
@@ -11971,20 +11978,6 @@ function skelKpis(id, n){
       `<div class="val"><span class="skel" style="width:75%;height:26px;margin:4px 0"></span></div>`+
       `<div class="sub"><span class="skel" style="width:85%;height:10px"></span></div></div>`).join('');
 }
-function homeTarjaVelha(d){
-  const alvo = document.getElementById('view-home');
-  let t = document.getElementById('home-velha');
-  if(!d || !d.leitura_velha){ if(t) t.remove(); return; }
-  if(!t){
-    t = document.createElement('div');
-    t.id = 'home-velha'; t.className = 'avisofaixa';
-    alvo.insertBefore(t, alvo.firstChild);
-  }
-  const min = Math.round((d.leitura_idade_seg||0)/60);
-  const hora = (d.leitura_em||'').slice(11,16);
-  t.textContent = 'Leitura de ' + hora + (min ? ' (há ' + min + ' min)' : '')
-    + '. O ERP não respondeu agora — os números abaixo são dessa hora.';
-}
 async function loadHome(){
   const seq = ++homeSeq;
   skelKpis('kpis-home-caixa',4); skelKpis('kpis-home-fin',4); skelKpis('kpis-home-op',4);
@@ -11995,10 +11988,6 @@ async function loadHome(){
     const r=await fetch('/api/visao-geral',{cache:'no-store'});
     const d=await r.json();
     if(seq!==homeSeq) return;
-    /* LEITURA VELHA: o ERP nao respondeu e o servidor devolveu a ultima boa.
-       A tarja e obrigatoria — numero velho servido calado e pior que tela
-       vazia, porque ninguem desconfia dele. */
-    homeTarjaVelha(d);
     if(!r.ok){ showBanner(d.mensagem||'Erro ao montar a visão geral.', d.detalhe); return; }
     hideBanner(); DATAHOME=d; renderHome(d);
   }catch(e){ if(seq===homeSeq) showBanner('Não foi possível falar com a API.', e.message); }
@@ -21909,7 +21898,10 @@ function cliopSemVinculo(msg){
    e pior que tela vazia, porque ninguem desconfia dele. */
 function cliopTarja(d){
   if(!d || !d.leitura_velha) return '';
-  const min = Math.round((d.leitura_idade_s || 0) / 60);
+  /* `leitura_idade_seg`, com o `seg`. Escrito `leitura_idade_s`, este
+     numero era `undefined || 0` e a tarja dizia "0 min atras" em toda
+     ocorrencia -- um defeito que so aparece no dia ruim. */
+  const min = Math.round((d.leitura_idade_seg || 0) / 60);
   return ' &middot; <b style="color:var(--yellow-700)">leitura de ' + min
        + ' min atras</b> (o ERP nao respondeu agora)';
 }
@@ -31298,6 +31290,61 @@ function _cargaFundo(init){
   if(typeof h.get === 'function') return !!h.get('X-Carga-Fundo');
   return !!(h['X-Carga-Fundo'] || h['x-carga-fundo']);
 }
+/* ===================== A TARJA DA LEITURA VELHA =====================
+   UMA para o portal inteiro, e e por isso que ela existe assim.
+
+   `queries.cached(velha_ate=)` devolve a ULTIMA LEITURA BOA quando o ERP nao
+   responde, e a regra da casa e que a tela DIGA: numero velho servido calado e
+   pior que tela vazia, porque ninguem desconfia dele. Enquanto duas telas
+   tinham a rede, duas telas desenhavam a tarja a mao -- e uma das duas lia o
+   campo com o nome errado, entao dizia "0 min atras" para sempre. Ninguem viu,
+   porque a tarja so aparece no dia ruim, que e o dia em que ninguem esta
+   conferindo o texto dela.
+
+   Com trinta telas na rede, trinta desenhos a mao seriam trinta chances de
+   esquecer -- e esquecer nao deixa rastro. Entao o servidor carimba um
+   CABECALHO (`X-Leitura-Velha`, no JSONResponse da casa) e este gancho o le.
+   Custa uma leitura de header, nao um segundo parse do corpo, e vale para toda
+   rota que exista hoje ou venha a existir, sem que ninguem precise lembrar.
+
+   A chave e o CAMINHO sem query: a mesma tela com outro filtro responde de
+   novo, e a resposta boa apaga a velha daquele endpoint. */
+const VELHAS = new Map();
+function velhaRegistrar(u, r){
+  if(!u.startsWith('/api/')) return;
+  const chave = u.split('?')[0];
+  let mudou = false;
+  if(r.headers.get('X-Leitura-Velha')){
+    VELHAS.set(chave, {em: r.headers.get('X-Leitura-Em') || '',
+                       idade: +(r.headers.get('X-Leitura-Idade') || 0)});
+    mudou = true;
+  } else if(VELHAS.delete(chave)) mudou = true;
+  if(mudou) velhaPintar();
+}
+function velhaLimpar(){ if(VELHAS.size){ VELHAS.clear(); velhaPintar(); } }
+function velhaPintar(){
+  const cont = document.getElementById('content');
+  let t = document.getElementById('tarja-velha');
+  if(!VELHAS.size || !cont){ if(t) t.remove(); return; }
+  if(!t){
+    t = document.createElement('div');
+    t.id = 'tarja-velha'; t.className = 'avisofaixa';
+    /* `status` e nao `alert`: o leitor de tela anuncia quando terminar a
+       frase em curso, em vez de interromper quem esta lendo os numeros. */
+    t.setAttribute('role', 'status');
+    cont.insertBefore(t, cont.firstChild);
+  }
+  /* A MAIS VELHA MANDA. Se duas consultas da tela estao velhas com idades
+     diferentes, prometer a menor seria escolher o numero mais simpatico. */
+  let pior = null;
+  VELHAS.forEach(v => { if(!pior || v.idade > pior.idade) pior = v; });
+  const min = Math.round((pior.idade || 0) / 60);
+  const hora = (pior.em || '').slice(11, 16);
+  t.textContent = 'Leitura de ' + (hora || 'antes')
+    + (min ? ' (há ' + min + ' min)' : '')
+    + '. O ERP não respondeu agora — os números desta tela são dessa hora.';
+}
+
 const _fetch0 = window.fetch.bind(window);
 window.fetch = async (input, init) => {       // 401 em qualquer chamada => volta ao login
   const u = String(typeof input==='string' ? input : (input && input.url) || '');
@@ -31307,6 +31354,7 @@ window.fetch = async (input, init) => {       // 401 em qualquer chamada => volt
     const r = await _fetch0(input, init);
     if (r.status===401 && u.startsWith('/api/') && !u.startsWith('/api/auth/')) { USER=null; pararTimers(); mostrarLogin('login'); }
     if (!r.ok && u.startsWith('/api/')) _repErro('HTTP '+r.status+' '+u);
+    if (r.ok) velhaRegistrar(u, r);   // leitura velha => tarja, em toda tela
     return r;
   } finally { if (conta) CARGA.termina(); }
 };

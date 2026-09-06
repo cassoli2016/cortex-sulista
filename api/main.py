@@ -86,6 +86,47 @@ class JSONResponse(_JSONResponseBase):
             f"{type(o).__name__} não vai para JSON — converta no módulo que "
             "leu o dado, onde dá para saber o que ele significa")
 
+    # ------------------------------------------------------------------
+    # O CARIMBO DA LEITURA VELHA VIRA CABEÇALHO, e por isso vale para TODAS
+    # as rotas de uma vez.
+    #
+    # `queries.cached(velha_ate=)` carimba o PAYLOAD (`leitura_velha`), e a
+    # regra da casa é que a tela mostre. Enquanto duas telas tinham a rede,
+    # duas telas desenhavam a tarja à mão — e uma das duas lia o campo com o
+    # nome errado (`leitura_idade_s` em vez de `leitura_idade_seg`), então
+    # dizia "0 min atrás" para sempre. Ninguém percebeu porque a tarja só
+    # aparece no dia ruim, que é justamente o dia em que ninguém está
+    # conferindo o texto dela.
+    #
+    # Com trinta telas ganhando a rede, trinta desenhos à mão seriam trinta
+    # chances de esquecer — e esquecer aqui não deixa rastro: a tela mostra
+    # número velho CALADO, que é o pior dos três estados possíveis (pior que
+    # tela vazia, porque ninguém desconfia dele).
+    #
+    # O cabeçalho resolve no lugar por onde todo payload já passa. O
+    # navegador o lê sem reabrir o corpo (o gancho do `fetch` custa uma
+    # leitura de header, não um segundo parse de uma tabela de mil linhas), e
+    # ele também aparece no `curl` e no DevTools — o que faz o estado ficar
+    # visível justamente durante o incidente, que foi o que faltou hoje.
+    # ------------------------------------------------------------------
+    def __init__(self, content=None, status_code: int = 200,
+                 headers: dict | None = None, *args, **kwargs):
+        if isinstance(content, dict) and content.get("leitura_velha"):
+            headers = dict(headers or {})
+            # ASCII no valor: header com acento é campo minado entre proxies,
+            # e o Cloudflare está no caminho. A tela formata o texto.
+            headers["X-Leitura-Velha"] = "1"
+            headers["X-Leitura-Em"] = str(content.get("leitura_em") or "")
+            headers["X-Leitura-Idade"] = str(
+                int(content.get("leitura_idade_seg") or 0))
+            # Sem isto o navegador ENXERGA a resposta e NÃO enxerga os
+            # cabeçalhos: numa resposta same-origin comum não haveria
+            # problema, mas o portal passa por proxy e a regra de exposição
+            # é barata o bastante para não depender disso.
+            headers["Access-Control-Expose-Headers"] = (
+                "X-Leitura-Velha, X-Leitura-Em, X-Leitura-Idade")
+        super().__init__(content, status_code, headers, *args, **kwargs)
+
     def render(self, content) -> bytes:
         # mesmas opções do Starlette; só entra o `default`
         return json.dumps(content, ensure_ascii=False, allow_nan=False,

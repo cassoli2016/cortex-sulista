@@ -3399,6 +3399,112 @@ o carimbo: era artefato do dublê (as outras rotas devolvendo `{}`). Comparaçã
 entre dois estados só vale se os dois forem medidos igual — foi exatamente o
 que faltou na acusação à consulta de OC, três horas antes, no mesmo dia.
 
+## A rede que só duas telas tinham (2026-09-06, v0.258.0)
+
+Três dias depois de a rede existir, ela foi usada em produção — e mostrou que
+tinha sido instalada em dois lugares de trinta e oito.
+
+O usuário abriu com *"A aplicação não está carregando as informações"*. O ERP
+degradou entre 04:41 e 04:51: `SELECT 1` respondia em 0,14 s enquanto um
+`count(*)` real **falhou em 81,9 s** e, minutos depois, rodou em 0,10 s. As
+onze consultas da Visão Geral, medidas uma a uma com o servidor recuperado,
+somaram 5,7 s. O pool estava são (5 conexões simultâneas em 0,08 s, nenhuma
+espera). `QueryCanceled`, não `PoolTimeout` — carga do outro lado, não defeito
+nosso. Mesma armadilha de 03/09, mesma disciplina: **repetir a medição antes de
+concluir**, e desta vez eu repeti.
+
+### A linha do log que separou o portal em dois
+
+```
+04:51:33 cortex.queries    get_visao_geral falhou (QueryCanceled); servindo leitura de 259 s atras
+04:51:33 cortex.financeiro banco inacessivel: canceling statement due to statement timeout   (x9)
+```
+
+A rede funcionou **exatamente como projetada** — e cobria a home. As outras
+trinta e seis consultas com `@cached` não tinham pedido `velha_ate`, então
+mostraram erro. "É opt-in" era a decisão certa em 03/09, quando havia uma tela
+protegida e nenhuma experiência de campo; três dias depois virou a explicação
+de por que o portal inteiro caiu enquanto uma tela ficou de pé.
+
+### O que a distribuição das falhas mostrou, e que eu não teria adivinhado
+
+```
+hora do dia:  04h:18  05h:7  06h:2  07h:11  08h:31  09h:17  14h:2  16h:2
+por dia:      31/08:2  01/09:3  02/09:4  03/09:7  04/09:56  06/09:12
+```
+
+**86 dos 90 timeouts entre 04h e 09h**, e crescendo. Não é aleatório: é a
+janela do Power BI que compartilha o ERP (memória `erp-compartilhado-com-powerbi`).
+Uma janela ruim é incidente; seis manhãs seguidas é o horário de funcionamento
+da dependência, e é isso que justifica a rede deixar de ser exceção.
+
+### O critério — e ele nasceu de um erro meu, no meio do trabalho
+
+A primeira classificação que escrevi foi "painel analítico recebe, tela
+operacional não". Soa bem e é ruim: ao aplicá-la, deixei a comunicação das
+rastreadoras (`comrast`) de fora por soar operacional — enquanto o painel de TV
+**do mesmo assunto** já tinha a rede havia semanas. Os dois agrupam por *dias*
+sem posição. "Soa operacional" não é critério; é impressão.
+
+> **O critério é a RESOLUÇÃO DA PRÓPRIA TELA.** A leitura de duas horas atrás
+> muda algum número que está publicado ali? Se a menor faixa que a tela mostra
+> é um DIA ou uma COMPETÊNCIA, não muda — o DRE de vinte minutos atrás é o
+> mesmo DRE, e "comunicou hoje" continua sendo "comunicou hoje". Se a tela
+> publica MINUTOS ou "agora", muda.
+
+Trinta e uma consultas receberam a rede. Quatro não podem receber — torre,
+segurança, portaria e programação —, e essa é a metade importante da decisão:
+ali a rede não é conforto, é perigo. A tarja avisa, mas a decisão que a pessoa
+toma olhando uma posição de vinte minutos atrás **já foi tomada**. Tela vazia
+manda procurar o dado em outro lugar; tela com número velho, não. O guard que
+protege isso é o único deste trabalho que defende de um erro que não aparece na
+tela de quem o comete — quem acrescentar `velha_ate` na torre vai fazê-lo de
+boa fé, achando que está repetindo o que foi feito no DRE.
+
+### A tarja que existia, era chamada, e mentia
+
+Com duas telas na rede havia duas tarjas escritas à mão. Uma delas lia
+`d.leitura_idade_s`. O campo é `leitura_idade_seg`. `undefined || 0` → **"0 min
+atrás", em toda ocorrência, desde sempre.**
+
+Ela passava em qualquer leitura de código: a função existia, estava correta na
+forma, era chamada no lugar certo. Só o valor era mentira — e a tarja só
+aparece no dia ruim, que é precisamente o dia em que ninguém está conferindo o
+texto dela. Trinta telas significariam trinta chances de repetir isso.
+
+Por isso a tarja passou a ser **uma só, alimentada por CABEÇALHO HTTP**: o
+`JSONResponse` da casa carimba `X-Leitura-Velha` quando o payload vem carimbado
+(um lugar, mesma lógica do "converter aqui mata a família inteira" que já
+justificava aquela classe), e o gancho do `fetch` no `index.html` desenha. Vale
+para toda rota que exista hoje ou venha a existir, sem ninguém lembrar de nada.
+Cabeçalho e não corpo porque ler o corpo obrigaria a clonar e reparsear cada
+resposta — uma tabela de mil linhas parseada duas vezes por consulta — e
+devolveria a cada tela a chance de esquecer. De brinde, o estado passou a
+aparecer no `curl` e no DevTools, que é o que faltou no dia do incidente:
+a única forma de saber que a rede tinha agido era achar uma linha no log.
+
+### As sabotagens
+
+Seis guards novos, seis sabotagens, seis vermelhos:
+
+| sabotagem | ficou vermelho |
+|---|---|
+| `velha_ate` na torre de controle | `test_tela_de_TEMPO_REAL_nao_pode_ter_a_rede[get_torre]` |
+| tirar a rede do DRE | `test_painel_de_resolucao_DIARIA_tem_a_rede[get_dre]` |
+| janela de 45 min escrita à mão | `test_a_janela_e_a_MESMA_para_todo_mundo` |
+| desligar o gancho do `fetch` | 4 dos 5 testes de navegador |
+| ler `X-Leitura-Idade-s` (o defeito real) | `test_a_tarja_APARECE...` |
+| não limpar a tarja ao trocar de tela | `test_trocar_de_tela_nao_carrega...` |
+
+A quinta é a que importa: ela **reproduz o defeito que estava no ar** e prova
+que o teste novo o teria pego. Guard que não fica vermelho ao encenar o bug que
+existiu não conferiu nada.
+
+E a prova final foi com o ERP de verdade: leitura boa (0,5 s), conexão
+sabotada, entrada envelhecida à mão — a rota devolveu **HTTP 200, 9.887 bytes
+de números anteriores e os três cabeçalhos**. O elo rota → `cached` →
+`JSONResponse` → HTTP era o único que os testes de unidade não cobriam.
+
 ## O guard que eu não rodei, e a versão que subiu vermelha (2026-09-03, v0.217.2)
 
 A faixa da marca no e-mail (v0.217.1) foi empurrada com **oito testes

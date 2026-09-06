@@ -341,11 +341,25 @@ barra empilhada, não donut.
   período compartilhados exigem `emiPresetSync()`.
 - **Tela de painel não morre por dependência externa com dia ruim.** O ERP é
   réplica de produção de TERCEIRO: `cached(ttl, velha_ate=)` devolve a ÚLTIMA
-  LEITURA BOA carimbada (`leitura_velha`, `leitura_em`, idade) quando a
-  consulta falha, e a tela é OBRIGADA a mostrar a tarja — número velho servido
-  calado é pior que tela vazia, porque ninguém desconfia dele. É opt-in
-  (`get_visao_geral`: 2 h), devolve CÓPIA (quem recebe não corrompe o cache) e
-  passado o prazo vira erro.
+  LEITURA BOA carimbada quando a consulta falha, e a tela é OBRIGADA a mostrar
+  a tarja — número velho servido calado é pior que tela vazia, porque ninguém
+  desconfia dele. Devolve CÓPIA (quem recebe não corrompe o cache) e passado o
+  prazo (`queries.VELHA_ATE`, 2 h) vira erro.
+  - **O critério de quem recebe a rede é a RESOLUÇÃO DA PRÓPRIA TELA**, não o
+    grupo do menu: se a menor faixa que ela publica é um DIA ou uma
+    COMPETÊNCIA, a leitura de duas horas atrás não muda nada do que está ali e
+    a rede entra. Se a tela publica MINUTOS ou "agora" (torre, segurança,
+    portaria, programação), a rede vira PERIGO — a tarja avisa, mas a decisão
+    tomada sobre uma posição velha já foi tomada, e ali tela vazia é a resposta
+    honesta. Guard em `tests/test_leitura_velha.py`, com a lista das que não
+    podem receber.
+  - **A tarja é UMA na casa e vem de CABEÇALHO HTTP** (`X-Leitura-Velha`,
+    carimbado no `JSONResponse` de `api/main.py`), não do corpo: o gancho do
+    `fetch` no `index.html` a desenha para qualquer rota, existente ou futura,
+    sem que ninguém precise lembrar. Enquanto eram duas tarjas escritas à mão,
+    uma delas lia `leitura_idade_s` — campo que nunca existiu — e dizia
+    "0 min atrás" para sempre; defeito que só aparece no dia ruim, que é o dia
+    em que ninguém confere o texto da tarja.
 - **Zero que é ausência de lançamento não é desempenho** — é `n/d` em cinza,
   jamais verde. KPI que só pode dar zero por falta de preenchimento mostra
   "não informado" com a cobertura ("informado em X de Y").
