@@ -561,6 +561,12 @@ barra empilhada, não donut.
     verde de guard robusto. Aconteceu em 06/09/2026, e escondeu um guard que era
     verde-para-sempre (a regex casava com texto da própria fonte que ele
     varria).
+  - **Dublê que se monta a partir da constante testada não testa a constante.**
+    O teste do cartão de janelas do ERP fabricava a linha de log com
+    `erp_janelas.RESGATE`; sabotar a constante sabotava junto o que o teste
+    fabricava, e ele seguia verde. Entrada de teste que representa formato
+    EXTERNO (linha de log, corpo de fornecedor, arquivo do ERP) é LITERAL
+    copiado do real — nunca derivada do código que vai lê-la.
 - **Teste que depende do relógio acusa a pessoa errada** — dublê com data
   acompanha o relógio que a página lê, nunca data fixa.
 - **Dublê de fornecedor copia o corpo REAL**, campos "inúteis" inclusive

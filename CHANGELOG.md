@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.260.1] — 06/09/2026  ·  CX-06/09/2026-v0.260.1
+
+### Adicionado
+- A Saúde do Servidor ganhou o cartão "Janelas ruins do ERP". Ele conta quantas vezes o ERP parou de responder, quando, por quanto tempo e quantas consultas caíram em cada episódio — e mostra em que horas do dia elas se concentram. Serve para levar número em vez de impressão à conversa com quem administra o ERP: hoje ele mostra 24 episódios em seis dias, com 96% dos cancelamentos entre 04h e 09h.
+- O cartão só fica em alerta se houve episódio nas últimas 24 horas. Episódio de ontem é fato do passado, e alarme que fica aceso ensina a ignorar o painel.
+
+### Segurança
+- O envio de notificação para celular não sobe mais durante uma rodada de testes. Como esta máquina é a de produção, as credenciais estão configuradas de verdade e uma bateria de testes que cruzasse o horário do resumo diário dispararia notificação real no telefone das pessoas. Nada indevido chegou a ser enviado. A mesma porta no aviso de carga por WhatsApp foi fechada na versão anterior.
+
 ## [0.260.0] — 06/09/2026  ·  CX-06/09/2026-v0.260.0
 
 ### Adicionado

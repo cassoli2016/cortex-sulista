@@ -3466,6 +3466,78 @@ o carimbo: era artefato do dublê (as outras rotas devolvendo `{}`). Comparaçã
 entre dois estados só vale se os dois forem medidos igual — foi exatamente o
 que faltou na acusação à consulta de OC, três horas antes, no mesmo dia.
 
+## Medir a dependência em vez de lembrar dela (2026-09-06, v0.259.0)
+
+Duas manhãs derrubadas em quatro dias, e nas duas o assunto chegou como
+impressão: *"o sistema estava lento hoje de manhã"*. Impressão não sustenta
+conversa com quem administra o ERP.
+
+O cartão novo da Saúde lê o log que **já existe** — nenhum coletor, nenhuma
+tabela, nenhuma conexão. Um coletor seria mais uma coisa para falhar em
+silêncio, e justamente no dia ruim; o log é escrito pelo caminho que já falha,
+então ele não pode estar mudo enquanto houver falha. O preço é a cobertura (o
+arquivo rotaciona em 5 MB), e o cartão **diz desde quando mede** em vez de
+deixar quem lê supor que "24 janelas" é o total da história.
+
+O retrato que ele deu no primeiro dia:
+
+```
+24 janelas desde 31/08 · 99 cancelamentos · 96% entre 04h e 09h
+a pior: 04/09 07:57–08:53 (56 min, 32 cancelamentos)
+```
+
+**Não é "o ERP é lento". É "o ERP tem horário de funcionamento"** — e isso tem
+dono e hora, que é o que se leva para a conversa.
+
+### O número que vai substituir o outro
+
+Contar só cancelamento cegaria este cartão exatamente porque o portal melhorou.
+Desde que 31 consultas ganharam a rede (v0.258.0), a degradação que antes
+virava `timeout` na tela agora vira leitura velha — e a rede engole a exceção
+antes de a rota vê-la, então **a linha de timeout desaparece**. O resgate passa
+a ser o único rastro do incidente. Os dois são contados, separados, e uma
+janela absorvida inteira pela rede se descreve por isso em vez de por
+"0 consultas canceladas" — zero que não é ausência de nada, é o melhor desfecho
+possível.
+
+### O terceiro verde-para-sempre do mesmo dia
+
+O teste fabricava a linha de log a partir de `erp_janelas.RESGATE`. Sabotar a
+constante sabotava junto o que o teste fabricava: o dublê passava a falar a
+língua errada e o teste continuava verde. Um teste que **não pode** detectar a
+constante errada, que é a única coisa que ele existia para detectar.
+
+Com as linhas viradas em literais copiados do log real, a mesma sabotagem
+derruba cinco testes.
+
+> Entrada de teste que representa formato EXTERNO — linha de log, corpo de
+> fornecedor, arquivo do ERP — é literal copiado do real, nunca derivada do
+> código que vai lê-la.
+
+E, pela segunda vez no dia, duas sabotagens **não chegaram a ser aplicadas** (um
+travessão na string quebrou o script de edição) e produziram verdes que
+pareciam robustez. Confirmar que o alvo mudou virou parte do rito.
+
+### A porta que a outra sessão achou, e a metade que coube aqui
+
+A sessão do Rastreio avisou que `TestClient` dispara o
+`@app.on_event("startup")` — a mesma porta por onde a suíte já aplicava
+migration em produção — e que o startup sobe as threads de agendador. Nesta
+bancada as credenciais são reais, então o gate de credencial não segura nada:
+uma suíte longa mandaria WhatsApp e notificação **de verdade** para as pessoas.
+Nada indevido saiu; foi sorte de calendário, não desenho.
+
+Eles fecharam o aviso de carga; aqui fechou o `push`. O gate foi para
+`api/sob_teste.py`, neutro, porque regra de segurança não pode virar uma cópia
+por agendador — no dia em que ela mudar tem de haver um lugar só. A ordem
+importa e tem teste próprio: `"pytest" in sys.modules` ANTES da variável de
+ambiente, que só existe DURANTE um teste e não na coleta nem numa fixture de
+módulo — que é justamente quando o startup roda.
+
+E o gate vem antes do gate de credencial. Numa instalação sem VAPID a ordem não
+mudaria nada, e é por isso que ela precisa ser deliberada: aqui a credencial
+existe.
+
 ## O join que só respondia "sim" (2026-09-06, v0.258.2)
 
 A suíte completa, rodada logo depois da entrega anterior, voltou com quatro

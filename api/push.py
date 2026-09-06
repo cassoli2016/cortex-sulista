@@ -22,6 +22,7 @@ import time
 from datetime import datetime
 
 from . import migracoes, pglocal
+from .sob_teste import sob_teste
 
 log = logging.getLogger("cortex.push")
 
@@ -213,9 +214,32 @@ def _loop() -> None:
 
 
 def iniciar_scheduler() -> None:
-    """Sobe a thread do digest diário (idempotente; só se VAPID configurado)."""
+    """Sobe a thread do digest diário. Idempotente, e NUNCA sob pytest.
+
+    O GATE DE CREDENCIAL NÃO SEGURA NADA NESTA BANCADA. `habilitado()` pergunta
+    se o VAPID está configurado — e está, porque aqui é a máquina de produção.
+    `TestClient` dispara o `@app.on_event("startup")` (a mesma porta por onde a
+    suíte já aplicava migration no banco de produção), o startup chama esta
+    função, e a thread fica viva pelo resto da rodada checando de 5 em 5
+    minutos se deu a hora do digest. Uma suíte de 35 minutos que cruze a hora
+    marcada dispara notificação REAL no celular das pessoas, sem ninguém ter
+    pedido.
+
+    A exposição aqui é menor que a do aviso de carga — um digest por DIA, em
+    hora fixa, com marcador no banco que impede repetição — mas a PORTA é
+    idêntica, e "menor" não é "fechada": basta a rodada cruzar a hora.
+
+    Encontrado em 06/09/2026 pela sessão que cuida do Rastreio, ao caçar a
+    mesma forma no agendador dela: lá o rastro foi um `RuntimeError` no log da
+    API de produção cuja causa era o `monkeypatch` de um teste.
+    """
     global _started
-    if _started or not habilitado():
+    if _started:
+        return
+    if sob_teste():
+        log.info("push: rodada de teste — scheduler nao iniciado")
+        return
+    if not habilitado():
         return
     _started = True
     threading.Thread(target=_loop, daemon=True, name="push-digest").start()

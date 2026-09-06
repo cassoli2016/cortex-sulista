@@ -592,6 +592,83 @@ def _brl_mi(v: float) -> str:
 _AGRUPADOR_TTL = 300.0
 _agrupador_cache: tuple[float, dict] | None = None
 
+# 300 s pela mesma razão: a Saúde repinta de 5 em 5 s e a leitura varre o log
+# inteiro. Custa 0,03 s, então não é o custo que manda aqui — é que refazer a
+# varredura 60 vezes por minuto para um número que muda algumas vezes por dia
+# é trabalho que não vira informação.
+_JANELAS_TTL = 300.0
+_janelas_cache: tuple[float, dict] | None = None
+
+
+def _janelas_erp(forcar: bool = False) -> dict:
+    global _janelas_cache
+    agora = time.monotonic()
+    if (not forcar and _janelas_cache
+            and (agora - _janelas_cache[0]) < _JANELAS_TTL):
+        return _janelas_cache[1]
+    from . import erp_janelas
+    d = erp_janelas.medir()
+    _janelas_cache = (agora, d)
+    return d
+
+
+def _servico_janelas_erp(d: dict) -> dict:
+    """Quantas vezes o ERP teve dia ruim, e a que horas.
+
+    POR QUE ESTE CARTÃO EXISTE. O ERP é réplica de produção de TERCEIRO,
+    compartilhada com um Power BI que roda sem `statement_timeout`. Ele derrubou
+    a manhã em 03/09/2026 e de novo em 06/09/2026, e nas duas vezes o assunto
+    chegou como impressão — "o sistema estava lento hoje de manhã". Impressão
+    não sustenta conversa com quem administra o ERP; "24 janelas em 6 dias, 96%
+    dos cancelamentos entre 04h e 09h, a pior de 56 minutos" sustenta.
+
+    NÃO ALARMA POR SER ANTIGO. Janela é fato do passado: uma de ontem não é um
+    problema de agora, e pintar vermelho por ela treinaria a ignorar o cartão —
+    que é o oposto do que ele existe para fazer. Só o que aconteceu nas últimas
+    24 h muda a cor.
+
+    Função PURA sobre a medição — o I/O é do `_janelas_erp()`.
+    """
+    nome = "Janelas ruins do ERP"
+    if not d.get("legivel"):
+        return {"nome": nome, "status": "info",
+                "detalhe": d.get("motivo") or "sem log para medir"}
+
+    janelas, ultima = d.get("janelas") or [], d.get("ultima")
+    if not janelas:
+        return {"nome": nome, "status": "ok",
+                "detalhe": "nenhuma desde %s" % (d.get("desde") or "o início do log")}
+
+    partes = ["%d janela(s) desde %s" % (len(janelas), (d.get("desde") or "?")[:16])]
+    if ultima:
+        # CADA JANELA SE DESCREVE PELO QUE ACONTECEU NELA. Escrever sempre "N
+        # consultas canceladas" produzia "0 consulta(s) cancelada(s)" na janela
+        # que a rede absorveu inteira — um zero que não é ausência de nada, é o
+        # melhor desfecho possível, e lido como número solto não diz isso.
+        #
+        # E os dois números vão continuar convivendo: desde que 31 consultas
+        # ganharam a rede, a degradação que antes virava timeout agora costuma
+        # virar leitura velha. Contar só o cancelamento cegaria este cartão
+        # justamente porque o portal melhorou.
+        efeito = []
+        if ultima["timeouts"]:
+            efeito.append("%d consulta(s) cancelada(s)" % ultima["timeouts"])
+        if ultima["resgates"]:
+            efeito.append("%d leitura(s) velha(s) servida(s)" % ultima["resgates"])
+        partes.append("última %s–%s (%d min%s)"
+                      % (ultima["inicio"][5:], ultima["fim"], ultima["minutos"],
+                         ", " + " e ".join(efeito) if efeito else ""))
+    # A CONCENTRAÇÃO É O ACHADO. "O ERP é lento" não leva a lugar nenhum; "96%
+    # dos cancelamentos caem entre 04h e 09h" aponta uma janela de carga com
+    # dono e horário, e é isso que se leva para a conversa.
+    if d.get("pct_manha") is not None:
+        partes.append("%.0f%% dos cancelamentos entre 04h e 09h" % d["pct_manha"])
+    if d.get("resgates"):
+        partes.append("a rede segurou %d leitura(s) no período" % d["resgates"])
+    return {"nome": nome,
+            "status": "alerta" if d.get("janelas_24h") else "ok",
+            "detalhe": " · ".join(partes)}
+
 
 def _agrupador(forcar: bool = False) -> dict:
     global _agrupador_cache
@@ -1457,6 +1534,17 @@ def _servicos() -> list[dict]:
         servicos.append({"nome": "Mapa contábil (agrupador gerencial)",
                          "status": "info", "detalhe": "conferência indisponível"})
         log.warning("saude: agrupador gerencial: %s", exc)
+
+    # O ERP como DEPENDÊNCIA, e não como banco: o cartão acima diz se o que ele
+    # responde ainda serve; este diz com que frequência ele deixa de responder.
+    # Duas manhãs derrubadas em quatro dias viraram "o sistema estava lento", e
+    # impressão não sustenta conversa com quem administra o ERP.
+    try:
+        servicos.append(_servico_janelas_erp(_janelas_erp()))
+    except Exception as exc:  # noqa: BLE001
+        servicos.append({"nome": "Janelas ruins do ERP",
+                         "status": "info", "detalhe": "medição indisponível"})
+        log.warning("saude: janelas do erp: %s", exc)
 
     # Gestão: mora no banco local, então vem logo depois dele. A tela vazia por
     # migration faltando é indistinguível de tela vazia por falta de uso — esta
