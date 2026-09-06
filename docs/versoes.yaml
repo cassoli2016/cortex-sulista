@@ -1,3 +1,11 @@
+- versao: "0.260.3"
+  data: "2026-09-06"
+  alterado:
+    - >-
+      Anotadas duas regras de conferência que custaram quatro testes falsos no
+      mesmo dia. Nada muda nas telas: é documentação de como a casa confere o
+      próprio trabalho.
+
 - versao: "0.260.2"
   data: "2026-09-06"
   corrigido:

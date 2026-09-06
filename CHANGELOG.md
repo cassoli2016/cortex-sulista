@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.260.3] — 06/09/2026  ·  CX-06/09/2026-v0.260.3
+
+### Alterado
+- Anotadas duas regras de conferência que custaram quatro testes falsos no mesmo dia. Nada muda nas telas: é documentação de como a casa confere o próprio trabalho.
+
 ## [0.260.2] — 06/09/2026  ·  CX-06/09/2026-v0.260.2
 
 ### Alterado

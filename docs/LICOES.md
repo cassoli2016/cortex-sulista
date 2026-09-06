@@ -3518,6 +3518,40 @@ E, pela segunda vez no dia, duas sabotagens **não chegaram a ser aplicadas** (u
 travessão na string quebrou o script de edição) e produziram verdes que
 pareciam robustez. Confirmar que o alvo mudou virou parte do rito.
 
+### O quarto verde-para-sempre, e este passou pela minha revisão
+
+A sessão do Rastreio achou, no dia seguinte: a lista da varredura dizia
+`"aviso-carga"`. **A thread se chama `rastreio-aviso`.**
+
+A varredura procurava um nome que não existe. Ela passaria igual com a thread
+viva mandando WhatsApp para clientes — exatamente o defeito que ela existe para
+pegar, aprovado por ela.
+
+O que me levou até lá é mais específico do que "faltou sabotar", e é o que vale
+guardar. O teste é parametrizado com dois nomes. Eu sabotei o `push-digest`
+(tirei o gate do `push.py`), vi vermelho, e concluí que **o teste** funcionava.
+Não funcionava: eu tinha provado o mecanismo, não os alvos. E o parâmetro que
+deixei sem sabotar foi justamente o que aponta para o módulo da outra frente —
+o que a gente trata como "já conferido por quem escreveu".
+
+> Em guard parametrizado, cada parâmetro é um guard e pede a própria sabotagem.
+
+Há ainda o espelho da lição da véspera, e as duas juntas fecham o par:
+
+- entrada de teste que representa formato EXTERNO (linha de log, corpo de
+  fornecedor) é literal copiado do real, **nunca derivada do código que vai
+  lê-la** — senão sabotar o código sabota junto o teste;
+- string escrita à mão que descreve o **CÓDIGO** (nome de thread, de rota, de
+  tabela) precisa ser conferida **contra o código** — senão ela pode nomear
+  algo que não existe e nunca ficar vermelha.
+
+Eu tinha consertado a primeira metade horas antes e cometi a segunda no mesmo
+arquivo. O conserto delas não foi trocar a string: é um guard que lê o `name=`
+no fonte de quem sobe cada thread, então renomear a thread e esquecer a lista
+volta a acender. Verifiquei sabotando os dois caminhos, em vez de aceitar de
+palavra — sem o gate, o parâmetro `[rastreio-aviso]` fica vermelho, o que é a
+prova de que a varredura passou a cobrir aquela thread de verdade.
+
 ### A porta que a outra sessão achou, e a metade que coube aqui
 
 A sessão do Rastreio avisou que `TestClient` dispara o

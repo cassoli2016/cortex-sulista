@@ -567,6 +567,18 @@ barra empilhada, não donut.
     fabricava, e ele seguia verde. Entrada de teste que representa formato
     EXTERNO (linha de log, corpo de fornecedor, arquivo do ERP) é LITERAL
     copiado do real — nunca derivada do código que vai lê-la.
+  - **E o espelho disso: string escrita à mão que descreve o CÓDIGO precisa ser
+    conferida CONTRA o código.** A varredura de agendadores procurava a thread
+    `aviso-carga`; ela se chama `rastreio-aviso`. A varredura passaria com a
+    thread viva mandando WhatsApp — o defeito que ela existe para pegar,
+    aprovado por ela. Lista de nomes/rotas/tabelas leva um guard que prova que
+    cada item EXISTE na fonte.
+  - **Em guard parametrizado, cada parâmetro é um guard e pede a PRÓPRIA
+    sabotagem.** Foi assim que o `aviso-carga` passou: sabotei `push-digest`,
+    vi vermelho e conclui que o teste funcionava. Sabotar um parâmetro prova o
+    MECANISMO; não prova que os outros nomeiam alvo real. Vale em dobro quando
+    o parâmetro aponta para módulo de outra frente, que é o que a gente tende a
+    tratar como já conferido.
 - **Teste que depende do relógio acusa a pessoa errada** — dublê com data
   acompanha o relógio que a página lê, nunca data fixa.
 - **Dublê de fornecedor copia o corpo REAL**, campos "inúteis" inclusive
