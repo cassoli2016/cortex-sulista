@@ -96,7 +96,7 @@ def ciclo(monkeypatch):
                             lambda f, t, **k: (estado["enviados"].append((f, t))
                                                or {"ok": True}))
         monkeypatch.setattr(aviso.assinatura, "marcar_envio",
-                            lambda i, t: estado["marcados"].append(i))
+                            lambda i, t, **k: estado["marcados"].append(i))
         monkeypatch.setattr(aviso.assinatura, "encerrar",
                             lambda i, m: estado["encerradas"].append(i))
         return estado
@@ -106,7 +106,8 @@ def ciclo(monkeypatch):
 def _ins(ident, numero, fone="5541984251704", **kw):
     base = {"id": ident, "grupo": 1, "empresa": 1, "filial": 2,
             "numero": numero, "serie": 1, "telefone": fone,
-            "ultimo_texto": None, "ultimo_envio": None, "envios": 0}
+            "ultimo_texto": None, "ultima_assinatura": None,
+            "ultimo_envio": None, "envios": 0}
     base.update(kw)
     return base
 
@@ -142,8 +143,9 @@ def test_a_ENTREGA_encerra_SO_a_carga_entregue(ciclo):
 
 
 def test_mensagem_IGUAL_a_do_ciclo_anterior_nao_se_repete(ciclo):
-    texto = mensagem.montar_varias([_carga("111"), _carga("222")])
-    ins = [_ins(1, 111, ultimo_texto=texto), _ins(2, 222, ultimo_texto=texto)]
+    assin = mensagem.assinatura([_carga("111"), _carga("222")])
+    ins = [_ins(1, 111, ultima_assinatura=assin),
+           _ins(2, 222, ultima_assinatura=assin)]
     e = ciclo(ins, {1: _carga("111"), 2: _carga("222")})
     r = aviso.rodar()
     assert e["enviados"] == [] and r["iguais"] == 2

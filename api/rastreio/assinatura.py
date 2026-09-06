@@ -31,7 +31,7 @@ from datetime import datetime, timedelta, timezone
 
 from .. import pglocal
 from ..whatsapp import numeros
-from . import consulta
+from . import consulta, mensagem
 
 log = logging.getLogger("cortex.rastreio.assinatura")
 
@@ -189,12 +189,14 @@ def inscrever(termo: str, cnpj4: str, carga_id: str, telefone: str,
     #
     # A falha do envio NAO desfaz a inscricao: o cadastro esta gravado, a
     # tarefa horaria pega o proximo ciclo, e a tela diz o que aconteceu.
-    texto_inicial = _primeira_mensagem(alvo, fone)
+    texto_inicial, assin_inicial = _primeira_mensagem(alvo, fone)
     primeira = bool(texto_inicial)
     if primeira:
         # ISTO É O QUE ANCORA O RELÓGIO NO PEDIDO. Sem gravar, a inscrição
-        # nasce "nunca avisada" e o próximo ciclo a trata como atrasada.
-        marcar_envio(ident, texto_inicial)
+        # nasce "nunca avisada" e o próximo ciclo a trata como atrasada — e
+        # sem a ASSINATURA junto ele não teria com o que comparar, repetindo
+        # na primeira hora a mensagem que a pessoa acabou de ler.
+        marcar_envio(ident, texto_inicial, assin=assin_inicial)
 
     return {"ok": True, "id": ident,
             "telefone": numeros.formatar(fone),
@@ -208,14 +210,19 @@ def inscrever(termo: str, cnpj4: str, carga_id: str, telefone: str,
                       "ciclo de envio.")}
 
 
-def _primeira_mensagem(alvo: dict, fone: str) -> str | None:
-    """Manda o estado da carga agora. Devolve O TEXTO enviado, ou None.
+def _primeira_mensagem(alvo: dict, fone: str) -> tuple[str | None, str]:
+    """Manda o estado da carga agora. Devolve `(texto, assinatura)`.
 
-    DEVOLVE O TEXTO, E NÃO UM BOOLEANO, porque quem chama precisa GRAVÁ-LO. Sem
-    isso a inscrição nascia com `ultimo_envio` nulo e `ultimo_texto` nulo — e o
-    ciclo seguinte, sem ter com o que comparar, mandava tudo de novo. Medido em
-    05/09/2026: a inscrição das 12h38 recebeu a mensagem de cadastro e outra às
-    13h00, vinte e dois minutos depois, com o mesmo conteúdo.
+    DEVOLVE O QUE FOI DITO, E NÃO UM BOOLEANO, porque quem chama precisa
+    GRAVÁ-LO. Sem isso a inscrição nascia sem âncora — e o ciclo seguinte, sem
+    ter com o que comparar, mandava tudo de novo. Medido em 05/09/2026: a
+    inscrição das 12h38 recebeu a mensagem de cadastro e outra às 13h00, vinte
+    e dois minutos depois, com o mesmo conteúdo.
+
+    E DEVOLVE OS DOIS, não só o texto: é a ASSINATURA que o próximo ciclo
+    compara. Ancorar só o texto deixaria a primeira hora de toda inscrição sem
+    proteção nenhuma — exatamente a hora em que a pessoa acabou de dar o número
+    e está mais propensa a bloquear.
     """
     try:
         from . import aviso
@@ -227,7 +234,8 @@ def _primeira_mensagem(alvo: dict, fone: str) -> str | None:
         if not texto:
             # SEM O QUE DIZER nao vira mensagem vazia nem "cadastro efetuado":
             # a primeira coisa que a pessoa recebe tem de ser a carga dela.
-            return None
+            return None, ""
+        assin = mensagem.assinatura([carga])
         from ..whatsapp import envio as wa
         # JANELA PROPRIA, e so para ESTA mensagem.
         #
@@ -248,15 +256,14 @@ def _primeira_mensagem(alvo: dict, fone: str) -> str | None:
         from ..whatsapp import resposta
         r = wa.enviar(fone, texto + aviso.RODAPE, usuario="rastreio",
                       origem="rastreio_cadastro", regras=resposta.regras())
-        # O TEXTO CRU, sem o rodapé: é ele que o ciclo seguinte compara com o
-        # que vai mandar, e o rodapé muda de uma mensagem para outra (leva o
-        # número do documento). Gravar o texto com rodapé faria a comparação
-        # nunca casar, e a mensagem repetida voltaria por outra porta.
-        return texto if r.get("ok") else None
+        # O TEXTO CRU, sem o rodapé: é o que quem atende vê como "a última
+        # mensagem", e o rodapé muda de uma mensagem para outra (leva o número
+        # do documento). Quem compara é a assinatura, que já nasce limpa disso.
+        return (texto, assin) if r.get("ok") else (None, "")
     except Exception as exc:  # noqa: BLE001
         log.warning("rastreio: primeira mensagem falhou: %s",
                     type(exc).__name__)
-        return None
+        return None, ""
 
 
 def cancelar(termo: str, cnpj4: str, carga_id: str, telefone: str) -> dict:
@@ -339,7 +346,8 @@ def ativas() -> list[dict]:
     try:
         return [dict(r) for r in pglocal.query("""
             SELECT id, grupo, empresa, filial, numero, serie, telefone,
-                   ultimo_texto, ultimo_envio, envios, criado_em,
+                   ultimo_texto, ultima_assinatura, ultimo_envio, envios,
+                   criado_em,
                    -- A ÂNCORA DO TELEFONE, calculada no banco para não
                    -- depender do relógio de quem lê. `max(ultimo_envio)` é a
                    -- última vez que FALAMOS com ele; quando nunca falamos,
@@ -361,12 +369,26 @@ def ativas() -> list[dict]:
         return []
 
 
-def marcar_envio(ident: int, texto: str) -> None:
+def marcar_envio(ident: int, texto: str, *, assin: str = "") -> None:
+    """Grava o que saiu. `assin` é o que decide o PRÓXIMO envio.
+
+    OS DOIS TÊM PAPÉIS DIFERENTES e por isso são duas colunas: `ultimo_texto` é
+    para quem atende saber o que o cliente recebeu; `ultima_assinatura` é a
+    comparação do ciclo seguinte. Guardar só o texto foi o defeito de
+    06/09/2026 — ele muda a cada ciclo pelo frescor da posição, e a comparação
+    nunca casava.
+
+    `assin` é NOMEADO e tem padrão vazio porque o valor certo é sempre
+    calculado por quem tem as cargas em mãos. Um posicional a mais seria
+    preenchido com o texto por engano no primeiro chamador distraído — e o
+    sintoma disso é mudo: volta a mandar mensagem repetida, sem erro nenhum.
+    """
     try:
         pglocal.executar("""
             UPDATE rst_inscricao
-               SET ultimo_envio = now(), ultimo_texto = %s, envios = envios + 1
-             WHERE id = %s""", (texto, ident))
+               SET ultimo_envio = now(), ultimo_texto = %s,
+                   ultima_assinatura = %s, envios = envios + 1
+             WHERE id = %s""", (texto, assin, ident))
     except Exception:  # noqa: BLE001
         pass
 

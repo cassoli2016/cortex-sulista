@@ -234,3 +234,111 @@ def test_a_saida_e_UMA_PALAVRA_no_rodape():
     """Quem precisa achar um site para cancelar bloqueia o número em vez
     disso — e o bloqueio atinge o número que fala com todos os clientes."""
     assert "SAIR" in mensagem.RODAPE
+
+
+# --------------------------------------------------------------------------
+# a assinatura do que MUDOU
+# --------------------------------------------------------------------------
+# Ela é o freio da mensagem repetida. Os guards abaixo são pares: cada um que
+# exige SILÊNCIO tem um irmão que exige MENSAGEM, porque um freio que nunca
+# solta é pior que o defeito — a pessoa deixa de saber que a carga chegou.
+def _andamento(**kw) -> dict:
+    base = {"tem_posicao": True, "progresso_pct": 40, "falta_km": 300,
+            "km_rota": 500, "por_rota": True, "atualizado_ha_min": 3,
+            "transito": {"estado": "livre", "rotulo": "Fluxo livre"}}
+    base.update(kw)
+    return base
+
+
+def test_a_assinatura_IGNORA_o_frescor_da_posicao():
+    """O NÚMERO QUE CAUSOU O DEFEITO. `Atualizado há 3 min` vira `há 4 min`
+    sozinho, a cada ciclo, com o caminhão parado no mesmo metro."""
+    a = mensagem.assinatura([_carga(andamento=_andamento(atualizado_ha_min=3))])
+    b = mensagem.assinatura([_carga(andamento=_andamento(atualizado_ha_min=99))])
+    assert a == b
+
+
+def test_a_assinatura_IGNORA_o_atraso_em_minutos_do_transito():
+    """O semáforo é o mesmo, a decisão de quem espera é a mesma. `Fluxo livre`
+    virando `Fluxo livre (~1 min de atraso)` não é notícia."""
+    livre = {"estado": "livre", "rotulo": "Fluxo livre"}
+    a = mensagem.assinatura([_carga(andamento=_andamento(transito=livre))])
+    b = mensagem.assinatura([_carga(andamento=_andamento(
+        transito={**livre, "atraso_min": 1}))])
+    assert a == b
+
+
+def test_a_assinatura_MUDA_quando_o_semaforo_do_transito_muda():
+    """Livre virando parado é o aviso que faz a pessoa remarcar a doca."""
+    a = mensagem.assinatura([_carga(andamento=_andamento())])
+    b = mensagem.assinatura([_carga(andamento=_andamento(
+        transito={"estado": "parado", "rotulo": "Parado"}))])
+    assert a != b
+
+
+def test_a_assinatura_IGNORA_movimento_IMPERCEPTIVEL():
+    """Três quilômetros numa viagem de quinhentos não são notícia — e virariam
+    uma mensagem por hora, que é o que faz alguém bloquear o número."""
+    a = mensagem.assinatura([_carga(andamento=_andamento(falta_km=310))])
+    b = mensagem.assinatura([_carga(andamento=_andamento(falta_km=308))])
+    assert a == b
+
+
+def test_a_assinatura_MUDA_quando_o_caminhao_ANDA_de_verdade():
+    a = mensagem.assinatura([_carga(andamento=_andamento(
+        progresso_pct=40, falta_km=300))])
+    b = mensagem.assinatura([_carga(andamento=_andamento(
+        progresso_pct=52, falta_km=240))])
+    assert a != b
+
+
+def test_a_assinatura_MUDA_na_ENTREGA():
+    """A mensagem que a pessoa esperou a viagem inteira para receber não pode
+    ser engolida por degrau nenhum."""
+    a = mensagem.assinatura([_carga()])
+    b = mensagem.assinatura([_carga(estado="entregue",
+                                    entregue_em="2026-09-06T18:20:00")])
+    assert a != b
+
+
+def test_a_assinatura_MUDA_quando_ENTRA_uma_carga_nova():
+    """O CONJUNTO é notícia. Quem acompanhava uma e cadastrou a segunda precisa
+    receber a mensagem nova mesmo que a primeira não tenha se mexido um metro —
+    e é a mensagem consolidada que lista as duas."""
+    uma = _carga()
+    outra = _carga(documento="CT-e 94540")
+    assert mensagem.assinatura([uma]) != mensagem.assinatura([uma, outra])
+
+
+def test_a_assinatura_NAO_depende_da_ORDEM_das_cargas():
+    """`ativas()` ordena pelo último envio, e essa ordem muda sozinha entre
+    ciclos. Sem ordenar, a mesma situação assinaria diferente e a mensagem
+    repetida voltaria pela porta que a assinatura existe para fechar."""
+    uma, outra = _carga(), _carga(documento="CT-e 94540")
+    assert mensagem.assinatura([uma, outra]) == mensagem.assinatura([outra, uma])
+
+
+def test_o_SILENCIO_do_rastreador_assina_por_FAIXA():
+    """"Não reporta há 3h" virando "há 4h" é o mesmo defeito com outra roupa:
+    o número cresce sozinho sem nada ter mudado. Dentro da faixa, silêncio;
+    mudando de faixa, um aviso que de fato diz outra coisa."""
+    def _mudo(minutos):
+        return mensagem.assinatura([_carga(andamento={
+            "tem_posicao": False, "posicao_velha_min": minutos})])
+
+    assert _mudo(150) == _mudo(200), "mesma faixa não é notícia"
+    assert _mudo(150) != _mudo(600), "silêncio de 10h não é o de 2h30"
+
+
+def test_sem_o_que_dizer_a_assinatura_e_VAZIA():
+    """`montar()` devolve None aqui. Assinatura não vazia faria o aviso gravar
+    uma âncora para uma mensagem que nunca saiu."""
+    assert mensagem.assinatura([_carga(andamento={"tem_posicao": False})]) == ""
+
+
+def test_a_assinatura_NAO_leva_o_LINK_nem_o_token():
+    """O token é assinado com prazo: ele muda a cada montagem. Deixá-lo entrar
+    faria a assinatura mudar sempre — o defeito de novo, por outra porta."""
+    a = mensagem.assinatura([_carga(link_token="token-de-agora")])
+    b = mensagem.assinatura([_carga(link_token="outro-token-qualquer")])
+    assert a == b and TOKEN not in a

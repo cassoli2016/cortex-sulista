@@ -8,10 +8,13 @@ justamente quando a integração quebra.
 
 O QUE PROTEGE O NÚMERO DA EMPRESA, e isto vale mais que qualquer recurso aqui:
 
-1. **Mensagem idêntica à anterior não é reenviada.** Um caminhão parado geraria
-   a mesma frase 24 vezes por dia; a pessoa bloqueia o número, e o estrago não
-   é a mensagem — é a reputação do número que atende todos os outros clientes.
-   Comparar com `ultimo_texto` custa uma coluna e evita isso.
+1. **Mensagem que não diz nada de novo não é reenviada.** Um caminhão parado
+   geraria a mesma frase 24 vezes por dia; a pessoa bloqueia o número, e o
+   estrago não é a mensagem — é a reputação do número que atende todos os
+   outros clientes. Quem decide é a ASSINATURA do que mudou
+   (`mensagem.assinatura`), nunca o texto: o texto carrega o frescor da posição
+   e por isso muda a cada ciclo mesmo com a carga parada — foi assim que seis
+   mensagens idênticas saíram em quatro horas, em 06/09/2026.
 2. **A entrega encerra a inscrição**, com uma última mensagem. Ninguém volta
    para cancelar depois que a carga chegou.
 3. **Toda mensagem diz como sair**, e sair não exige nada além de responder.
@@ -151,11 +154,21 @@ def rodar(*, ensaio: bool = False, limite: int | None = None) -> dict:
         doc = (cargas[0].get("documento") or "").replace("CT-e ", "").strip()
         completo = texto + mensagem.rodape(len(cargas), doc)
 
-        # MENSAGEM IGUAL NAO SE REPETE. E o que separa "aviso de hora em hora"
-        # de "24 mensagens iguais por dia" — e a segunda faz a pessoa bloquear
-        # o numero da empresa. Comparar pelo primeiro do grupo basta: todos
-        # recebem o MESMO texto gravado.
-        if texto == (pares[0][0].get("ultimo_texto") or ""):
+        # NADA MUDOU NAO SE REPETE. E o que separa "aviso de hora em hora" de
+        # "24 mensagens iguais por dia" — e a segunda faz a pessoa bloquear o
+        # numero da empresa.
+        #
+        # QUEM DECIDE E A ASSINATURA, NUNCA O TEXTO (06/09/2026). Comparar o
+        # texto renderizado parecia a coisa obvia e era o defeito: ele carrega
+        # `Atualizado ha N min` e o atraso do transito em minutos, dois numeros
+        # que mudam a cada ciclo por construcao. A comparacao quase nunca
+        # casava, e o telefone do CT-e 94540 recebeu seis mensagens em quatro
+        # horas dizendo `2%` e `faltam 648 km` — sempre.
+        #
+        # Comparar pelo primeiro do grupo continua bastando: todos recebem a
+        # MESMA mensagem, logo a mesma assinatura.
+        assin = mensagem.assinatura(cargas)
+        if assin and assin == (pares[0][0].get("ultima_assinatura") or ""):
             fora["iguais"] += len(pares)
             continue
 
@@ -174,7 +187,7 @@ def rodar(*, ensaio: bool = False, limite: int | None = None) -> dict:
 
         fora["enviados"] += 1
         for ins, carga in pares:
-            assinatura.marcar_envio(ins["id"], texto)
+            assinatura.marcar_envio(ins["id"], texto, assin=assin)
             if carga.get("estado") == "entregue":
                 # A ENTREGA ENCERRA — só a dela. As outras cargas do mesmo
                 # telefone seguem sendo avisadas, e é isso que a consolidação

@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from api.rastreio import aviso
+from api.rastreio import aviso, mensagem
 
 
 def _carga(**kw) -> dict:
@@ -109,7 +109,7 @@ def cenario(monkeypatch):
                             lambda fone, texto, **k: (
                                 enviados.append((fone, texto)) or {"ok": True}))
         monkeypatch.setattr(aviso.assinatura, "marcar_envio",
-                            lambda i, t: None)
+                            lambda i, t, **k: None)
         monkeypatch.setattr(aviso.assinatura, "encerrar", lambda i, m: None)
         return enviados
     return _montar
@@ -118,7 +118,7 @@ def cenario(monkeypatch):
 def _ins(**kw) -> dict:
     base = {"id": 1, "grupo": 1, "empresa": 1, "filial": 1, "numero": 51283,
             "serie": 1, "telefone": "5511987654321", "ultimo_texto": None,
-            "ultimo_envio": None, "envios": 0}
+            "ultima_assinatura": None, "ultimo_envio": None, "envios": 0}
     base.update(kw)
     return base
 
@@ -131,18 +131,99 @@ def test_mensagem_IGUAL_a_anterior_nao_e_reenviada(cenario):
     todos os outros clientes.
     """
     carga = _carga()
-    texto = aviso._texto(carga)
-    enviados = cenario([_ins(ultimo_texto=texto)], carga)
+    assin = mensagem.assinatura([carga])
+    enviados = cenario([_ins(ultima_assinatura=assin)], carga)
     r = aviso.rodar()
     assert enviados == [], "a mesma mensagem foi enviada de novo"
     assert r["iguais"] == 1 and r["enviados"] == 0
 
 
-def test_mensagem_DIFERENTE_e_enviada(cenario):
-    carga = _carga()
-    enviados = cenario([_ins(ultimo_texto="qualquer coisa antiga")], carga)
+def test_SO_O_FRESCOR_mudando_nao_gera_mensagem(cenario):
+    """A REGRESSÃO DE 06/09/2026, e o guard que faltava.
+
+    O ciclo anterior comparava o TEXTO RENDERIZADO. O texto carrega
+    `🕐 Atualizado há N min` e o atraso do trânsito em minutos — dois números
+    que mudam a cada ciclo por construção, com a carga parada no mesmo lugar.
+    A comparação nunca casava, e o telefone inscrito no CT-e 94540 recebeu seis
+    mensagens em quatro horas dizendo `2%` e `faltam 648 km`, sempre.
+
+    O DUBLÊ AQUI É O QUE O GUARD ANTIGO NÃO TINHA: duas leituras da MESMA carga
+    parada, tiradas em ciclos diferentes. O guard antigo fabricava o texto
+    anterior a partir da mesma carga — dois textos idênticos byte a byte, uma
+    comparação que casava por construção, e um verde que não conferia nada.
+    """
+    andamento = {"tem_posicao": True, "progresso_pct": 2, "falta_km": 648,
+                 "km_rota": 662, "por_rota": True,
+                 "transito": {"estado": "livre", "rotulo": "Fluxo livre"}}
+    antes = _carga(andamento={**andamento, "atualizado_ha_min": 3})
+    # O CAMINHÃO NÃO SAIU DO LUGAR: mesmo percentual, mesmos km, mesmo
+    # semáforo. Só o relógio andou, e o provedor passou a estimar um minuto de
+    # atraso no trecho.
+    agora = _carga(andamento={
+        **andamento, "atualizado_ha_min": 4,
+        "transito": {"estado": "livre", "rotulo": "Fluxo livre",
+                     "atraso_min": 1}})
+
+    assert aviso._texto(antes) != aviso._texto(agora), \
+        "o dublê precisa reproduzir o texto que MUDAVA; se ele for igual, " \
+        "este guard passa por vacuidade e não prova nada"
+
+    enviados = cenario([_ins(ultima_assinatura=mensagem.assinatura([antes]))],
+                       agora)
+    r = aviso.rodar()
+    assert enviados == [], "mensagem repetida saiu: nada mudou para o cliente"
+    assert r["iguais"] == 1 and r["enviados"] == 0
+
+
+def test_andar_o_BASTANTE_gera_mensagem(cenario):
+    """O outro lado do mesmo guard: silêncio só enquanto nada acontece.
+
+    Um degrau de materialidade que engolisse a viagem inteira seria pior que o
+    defeito — a pessoa deixaria de saber que a carga chegou perto.
+    """
+    antes = _carga(andamento={"tem_posicao": True, "progresso_pct": 2,
+                              "falta_km": 648, "por_rota": True})
+    agora = _carga(andamento={"tem_posicao": True, "progresso_pct": 22,
+                              "falta_km": 515, "por_rota": True})
+    enviados = cenario([_ins(ultima_assinatura=mensagem.assinatura([antes]))],
+                       agora)
     r = aviso.rodar()
     assert len(enviados) == 1 and r["enviados"] == 1
+
+
+def test_a_ENTREGA_sempre_gera_mensagem(cenario):
+    """Mudança de ESTADO passa por cima de qualquer degrau: a entrega é a
+    única mensagem que a pessoa esperou a viagem inteira para receber."""
+    antes = _carga()
+    agora = _carga(estado="entregue", entregue_em="2026-09-06T18:20:00")
+    enviados = cenario([_ins(ultima_assinatura=mensagem.assinatura([antes]))],
+                       agora)
+    r = aviso.rodar()
+    assert len(enviados) == 1 and r["enviados"] == 1
+    assert "Entregue" in enviados[0][1]
+
+
+def test_mensagem_DIFERENTE_e_enviada(cenario):
+    carga = _carga()
+    enviados = cenario([_ins(ultima_assinatura="qualquer coisa antiga")], carga)
+    r = aviso.rodar()
+    assert len(enviados) == 1 and r["enviados"] == 1
+
+
+def test_o_TEXTO_gravado_nao_decide_mais_o_reenvio(cenario):
+    """Quem decide é a assinatura, e só ela.
+
+    Enquanto `ultimo_texto` tivesse voto, bastaria uma mudança de redação —
+    um emoji novo, uma palavra — para toda a base receber uma rodada de
+    mensagens que não noticiam nada. A redação muda toda semana; o que a
+    pessoa precisa saber, não.
+    """
+    carga = _carga()
+    enviados = cenario([_ins(ultimo_texto="um texto completamente diferente",
+                             ultima_assinatura=mensagem.assinatura([carga]))],
+                       carga)
+    r = aviso.rodar()
+    assert enviados == [] and r["iguais"] == 1
 
 
 def test_toda_mensagem_diz_como_SAIR(cenario):
@@ -246,7 +327,7 @@ def test_a_inscricao_GRAVA_o_envio_inicial(monkeypatch):
     monkeypatch.setattr(aviso, "_carga_da_inscricao", lambda i: _carga())
     monkeypatch.setattr(aviso.wa, "enviar", lambda f, t, **k: {"ok": True})
     monkeypatch.setattr(assinatura, "marcar_envio",
-                        lambda i, t: marcados.append((i, t)))
+                        lambda i, t, **k: marcados.append((i, t, k)))
 
     assinatura.inscrever("51283", "0051", "ID", "11987654321", "1.2.3.4")
     assert len(marcados) == 1, "o envio inicial tem de ser gravado"
@@ -255,6 +336,13 @@ def test_a_inscricao_GRAVA_o_envio_inicial(monkeypatch):
     # comparação do ciclo seguinte nunca casar, e a mensagem repetida voltaria
     # por outra porta — a mesma que este guard fecha.
     assert "SAIR" not in marcados[0][1]
+    # E A ASSINATURA VAI JUNTO. Sem ela a inscrição nasceria com nada para
+    # comparar, e o primeiro ciclo — dentro da hora seguinte ao cadastro —
+    # repetiria a mensagem que a pessoa acabou de ler. É a hora em que ela mais
+    # facilmente bloqueia o número: acabou de dá-lo.
+    assert marcados[0][2].get("assin"), \
+        "o envio inicial gravou o texto mas não a assinatura"
+    assert marcados[0][2]["assin"] == mensagem.assinatura([_carga()])
 
 
 def test_envio_inicial_RECUSADO_nao_ancora_o_relogio(monkeypatch):
@@ -273,7 +361,7 @@ def test_envio_inicial_RECUSADO_nao_ancora_o_relogio(monkeypatch):
     monkeypatch.setattr(aviso.wa, "enviar",
                         lambda f, t, **k: {"ok": False, "erro": "fora da janela"})
     monkeypatch.setattr(assinatura, "marcar_envio",
-                        lambda i, t: marcados.append((i, t)))
+                        lambda i, t, **k: marcados.append((i, t, k)))
 
     assinatura.inscrever("51283", "0051", "ID", "11987654321", "1.2.3.4")
     assert marcados == []

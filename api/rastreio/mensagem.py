@@ -265,3 +265,103 @@ def montar_varias(cargas: list[dict]) -> str | None:
         if i < len(blocos) - 1:
             linhas.append("")
     return "\n".join(linhas)
+
+
+# --------------------------------------------------------------------------
+# a assinatura do que MUDOU
+# --------------------------------------------------------------------------
+#
+# POR QUE ELA EXISTE, e o estrago que a ausência dela custou. Até 06/09/2026
+# quem decidia reenviar era o TEXTO: `aviso.rodar()` comparava a mensagem
+# pronta com a anterior. Só que a mensagem carrega o frescor da posição
+# (`🕐 Atualizado há 3 min`) e o atraso do trânsito em minutos — dois números
+# que mudam a cada ciclo POR CONSTRUÇÃO. A comparação quase nunca casava.
+#
+# Medido na trilha: o telefone inscrito no CT-e 94540 recebeu 14 mensagens, e
+# as seis últimas, ao longo de quatro horas, diziam a mesma coisa — `2%`,
+# `faltam 648 km de 662`. Para quem espera a carga, nada aconteceu quatro vezes
+# seguidas; para o WhatsApp, foi uma empresa mandando quatro mensagens numa
+# tarde. O estrago não é a mensagem: é a reputação do número que atende todos
+# os outros clientes.
+#
+# A ASSINATURA É O CONTRÁRIO DO TEXTO. O texto quer ser fresco; a assinatura
+# quer ser ESTÁVEL, e só muda quando muda algo que faria a pessoa agir de outro
+# jeito — chegou, parou, saiu da rota, andou um pedaço de estrada que se nota.
+# O texto continua trazendo o frescor: ele só perde o voto sobre o reenvio.
+
+#: Degraus de materialidade. Andar 3 km numa viagem de 662 não é notícia; andar
+#: 25 é. Os dois degraus convivem porque medem coisas diferentes: o percentual
+#: pega a viagem curta (25 km nela é meia viagem), o km pega a longa (5 pontos
+#: nela são 33 km). Quem chegar primeiro solta a mensagem.
+#:
+#: O TETO DE UMA POR HORA CONTINUA VALENDO por cima disto
+#: (`assinatura.INTERVALO_MIN`), então o pior caso não piorou: o que muda é o
+#: piso — antes não havia nenhum.
+PASSO_PCT = 5
+PASSO_KM = 25
+
+#: Faixas do silêncio do rastreador, em minutos. Sem elas a mensagem "não
+#: reporta há cerca de 3h" viraria "há 4h", "há 5h"… de hora em hora, que é o
+#: mesmo defeito com outra roupa: o número cresce sozinho sem nada ter mudado.
+#: Com as faixas, um silêncio longo rende no máximo quatro avisos, e cada um
+#: diz uma coisa de fato diferente.
+FAIXAS_SILENCIO = (120, 360, 720)
+
+
+def _faixa(valor: float, cortes) -> int:
+    """Em qual faixa `valor` cai. Fora de todas, a última."""
+    for i, corte in enumerate(cortes):
+        if valor < corte:
+            return i
+    return len(cortes)
+
+
+def _assinatura_de_uma(carga: dict) -> str:
+    """O estado de UMA carga, reduzido ao que importa para quem espera.
+
+    A ORDEM DAS PERGUNTAS É A MESMA DE `montar()`, e isso não é elegância: se
+    as duas divergirem, existe um caminho em que o texto muda e a assinatura
+    não — e a pessoa deixa de receber a mensagem que a avisaria da entrega.
+    """
+    a = carga.get("andamento") or {}
+    doc = carga.get("documento") or "?"
+    estado = carga.get("estado") or ""
+
+    if estado in ("entregue", "descarregando"):
+        # A DATA DA ENTREGA FICA DE FORA: ela é imutável depois de gravada, e
+        # o estado sozinho já separa "chegou" de "está vindo".
+        return "%s|%s" % (doc, estado)
+    if a.get("fora_da_rota"):
+        return "%s|fora" % doc
+    if a.get("posicao_velha_min"):
+        return "%s|mudo:%d" % (doc, _faixa(float(a["posicao_velha_min"]),
+                                           FAIXAS_SILENCIO))
+
+    pct, falta = a.get("progresso_pct"), a.get("falta_km")
+    if not a.get("tem_posicao") or pct is None or falta is None:
+        # `montar()` devolve None aqui — não há mensagem, então não há
+        # assinatura. Quem chama trata o vazio.
+        return ""
+
+    # O TRÂNSITO ENTRA PELO ESTADO, NUNCA PELO ATRASO EM MINUTOS. "Fluxo livre"
+    # virando "Fluxo livre (~1 min de atraso)" é ruído do provedor: o semáforo
+    # é o mesmo, a decisão de quem espera é a mesma. Foi por essa diferença de
+    # um minuto que uma das mensagens repetidas saiu.
+    t = (a.get("transito") or {}).get("estado") or "nd"
+    return "%s|v:%d:%d:%s" % (doc, int(pct) // PASSO_PCT,
+                              int(round(float(falta))) // PASSO_KM, t)
+
+
+def assinatura(cargas: list[dict]) -> str:
+    """A assinatura da MENSAGEM inteira — todas as cargas do telefone.
+
+    ORDENADA de propósito: as cargas chegam na ordem do último envio, que muda
+    sozinha entre ciclos. Sem ordenar, a mesma situação assinaria diferente e a
+    mensagem repetida voltaria pela porta que este módulo existe para fechar.
+
+    O DOCUMENTO ENTRA EM CADA PEDAÇO porque o CONJUNTO também é notícia: quem
+    acompanhava uma carga e cadastrou a segunda precisa receber a mensagem nova
+    mesmo que a primeira não tenha se mexido um metro.
+    """
+    partes = sorted(p for p in (_assinatura_de_uma(c) for c in cargas) if p)
+    return "\n".join(partes)

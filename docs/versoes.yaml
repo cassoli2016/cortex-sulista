@@ -1,3 +1,26 @@
+- versao: "0.263.0"
+  data: "2026-09-06"
+  corrigido:
+    - >-
+      Quem acompanha uma carga pelo WhatsApp para de receber mensagem repetida.
+      O aviso continua saindo no máximo de hora em hora, mas agora só quando há
+      de fato o que contar: o veículo andou um trecho que se nota, o trânsito
+      mudou de cor, a carga chegou ou a entrega foi feita. Com o caminhão
+      parado, o sistema fica calado — e volta a falar assim que algo muda.
+    - >-
+      O que estava acontecendo: quem esperava uma carga recebia a mesma
+      mensagem de hora em hora, com o mesmo percentual e os mesmos quilômetros
+      restantes, mudando só a linha do relógio ("atualizado há 3 minutos" para
+      "há 4 minutos"). Um telefone chegou a receber catorze mensagens sobre a
+      mesma carga, seis delas idênticas em quatro horas. A proteção contra
+      repetição existia, mas comparava o texto inteiro da mensagem — e o texto
+      mudava sozinho a cada envio, por causa justamente do relógio. Agora a
+      comparação é sobre o que mudou na viagem, não sobre como a frase ficou
+      escrita.
+    - >-
+      A primeira mensagem, a que sai no momento do cadastro, também passou a
+      valer como referência. Antes, quem se cadastrava podia receber outra
+      quase igual dentro da primeira hora.
 - versao: "0.262.2"
   data: "2026-09-06"
   corrigido:
