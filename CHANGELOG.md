@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.260.2] — 06/09/2026  ·  CX-06/09/2026-v0.260.2
+
+### Alterado
+- A regra que impede um agendador de subir durante os testes passou a ter um lugar só no sistema, em vez de uma cópia por agendador. No dia em que ela precisar mudar, muda num arquivo.
+
+### Corrigido
+- A verificação que garante que nenhum agendador sobe durante os testes procurava por um nome que não existe, e por isso passava sempre — ela teria aprovado exatamente o defeito que existe para pegar. Agora o nome é conferido contra o código, então renomear um agendador e esquecer a lista acende na hora.
+
 ## [0.260.1] — 06/09/2026  ·  CX-06/09/2026-v0.260.1
 
 ### Adicionado

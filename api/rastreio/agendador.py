@@ -41,10 +41,17 @@ exatamente o defeito que isto existe para corrigir.
 from __future__ import annotations
 
 import logging
-import os
-import sys
 import threading
 import time
+
+#: A DETECÇÃO MORA NUM LUGAR SÓ (`api/sob_teste.py`), e isto aqui é só o
+#: apontador. A regra é de segurança — "não subir thread que fala com cliente
+#: dentro de uma rodada de teste" — e regra de segurança com duas cópias é a
+#: que se conserta no arquivo errado no dia em que precisar mudar.
+#:
+#: O nome fica no espaço deste módulo de propósito: é por `agendador.sob_teste`
+#: que os testes daqui o substituem, e `iniciar()` o resolve pelo global.
+from ..sob_teste import sob_teste  # noqa: E402
 
 log = logging.getLogger("cortex.rastreio.agendador")
 
@@ -106,28 +113,6 @@ def _laco() -> None:
         except Exception as exc:  # noqa: BLE001
             log.warning("agendador do aviso: %s", type(exc).__name__)
         _dorme(CICLO_S)
-
-
-def sob_teste() -> bool:
-    """Este processo é uma rodada de testes?
-
-    A PERGUNTA VALE UMA MENSAGEM NO CELULAR DE UM CLIENTE, e por pouco não
-    custou. `TestClient` dispara o `@app.on_event("startup")` — é a mesma porta
-    por onde a suíte já aplicava migration no banco de produção — e o startup
-    sobe esta thread. Na BANCADA o WhatsApp está configurado de verdade, então
-    o gate de credencial não segura nada: passados os 120 s de folga, uma suíte
-    de 35 minutos mandaria aviso REAL para o telefone de quem está esperando
-    carga, a cada dez minutos, sem ninguém ter pedido.
-
-    Visto no log de produção em 06/09/2026, no primeiro dia no ar: um
-    `RuntimeError` de ciclo cuja causa era o `monkeypatch` de
-    `test_o_ciclo_NUNCA_levanta` — ou seja, a thread de uma rodada de TESTE
-    escrevendo no log da API.
-
-    `"pytest" in sys.modules` e não uma variável de ambiente: a variável exige
-    que alguém lembre de exportá-la, e quem esquece descobre pelo cliente.
-    """
-    return "pytest" in sys.modules or bool(os.environ.get("PYTEST_CURRENT_TEST"))
 
 
 def iniciar() -> None:

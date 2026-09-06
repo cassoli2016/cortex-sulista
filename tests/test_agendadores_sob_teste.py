@@ -37,11 +37,32 @@ from api import push, sob_teste as st
 
 # Os agendadores que o startup sobe. `auth.init_db` tambem roda no startup, mas
 # e outro assunto (migration em producao) e tem lugar proprio.
-AGENDADORES = ("push-digest", "aviso-carga")
+#
+# OS NOMES SAO OS REAIS, e isso precisou de conserto em 06/09/2026: a lista
+# dizia "aviso-carga" e a thread se chama "rastreio-aviso"
+# (`api/rastreio/agendador.py`). A varredura passava por VACUIDADE — procurava
+# um nome que nao existe, entao passaria igual com a thread viva. Guard que
+# nomeia errado o alvo e guard que nunca ficaria vermelho.
+AGENDADORES = ("push-digest", "rastreio-aviso")
 
 
 def _threads_vivas() -> set[str]:
     return {t.name for t in threading.enumerate()}
+
+
+def test_os_nomes_da_lista_EXISTEM_no_codigo():
+    """A lista acima ja nomeou uma thread que nao existe, e a varredura passou
+    por vacuidade durante uma entrega inteira. Este guard le o nome no FONTE de
+    quem sobe a thread: renomea-la la e esquecer a lista aqui volta a acender."""
+    from pathlib import Path
+    from api.rastreio import agendador
+    fontes = "\n".join(
+        Path(m.__file__).read_text(encoding="utf-8")
+        for m in (push, agendador))
+    for nome in AGENDADORES:
+        assert 'name="%s"' % nome in fontes, (
+            "a lista fala de uma thread chamada %r que nenhum agendador cria — "
+            "varredura que nomeia errado o alvo nunca fica vermelha" % nome)
 
 
 # --------------------------------------------------------------------------
@@ -94,7 +115,7 @@ def test_o_agendador_do_aviso_de_carga_TAMBEM_nao_sobe():
     from api.rastreio import agendador
     antes = _threads_vivas()
     agendador.iniciar()
-    assert "aviso-carga" not in (_threads_vivas() - antes)
+    assert "rastreio-aviso" not in (_threads_vivas() - antes)
 
 
 @pytest.mark.parametrize("nome", AGENDADORES)
