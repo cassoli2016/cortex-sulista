@@ -1381,7 +1381,79 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
 #tvMapa{position:absolute;inset:0;border-radius:0.42vw;z-index:1}
 #tvCliMapa{position:absolute;inset:0;border-radius:0.42vw;z-index:1}
 .tvc-mapa{position:relative;min-height:9.5vw}
-.tvc-gauge,.tvc-rosca{display:flex;align-items:center;justify-content:center;gap:1.1vw;min-height:9.5vw}
+/* PAINEL DO CLIENTE: hierarquia e presenca.
+   O vocabulario de cor NAO muda -- sao as mesmas tres do semaforo de TV, e
+   continuam discretas. O que muda e o tamanho e o brilho, que e o que faz um
+   numero ser lido do outro lado da sala. */
+/* A grade da segunda linha NAO estica os cards ate a altura do mais alto:
+   com `stretch` (o padrao), o cartao do medidor acompanhava a tabela e sobrava
+   meia tela de vazio embaixo do arco. Numa parede, vazio nao e respiro -- e
+   espaco que podia estar dizendo alguma coisa. */
+.tvc-linha2{align-items:start}
+/* `1fr` E `minmax(auto,1fr)`: a trilha nao encolhe abaixo do min-content, e uma
+   tabela `nowrap` de quatro colunas empurrou o card para FORA da tela -- sem
+   erro nenhum, exatamente como a casa ja documentou para as grades de cards. A
+   regua de largura nao pega painel de TV (ela pula os E_TV), entao aqui o
+   cuidado e manual. */
+#view-tvcli .tv-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+/* E a tabela reparte a largura que TEM, em vez de pedir a que queria: com
+   `fixed` as colunas dividem o card e o `text-overflow` faz o resto. */
+#view-tvcli .tv-tab{table-layout:fixed}
+/* Com `fixed` as colunas dividem IGUAL se ninguem disser o contrario, e a
+   rota -- que e a mais longa -- saia cortada no meio do nome da cidade
+   enquanto "Coleta" sobrava largura. As proporcoes vem do conteudo real:
+   rota e o dobro de qualquer outra. */
+#view-tvcli .tv-tab th:nth-child(1){width:12%}
+#view-tvcli .tv-tab th:nth-child(2){width:37%}
+#view-tvcli .tv-tab th:nth-child(3){width:16%}
+#view-tvcli .tv-tab th:nth-child(4){width:17%}
+#view-tvcli .tv-tab th:nth-child(5){width:18%}
+/* A tabela desta tela ocupa METADE da largura, com quatro colunas: na fonte
+   de 21px do padrao de TV o proprio numero da coleta saia com reticencias.
+   Ela e a unica coisa aqui que se le de perto (quem precisa de linha a linha
+   abre a tela), entao ela cede o tamanho para os numeros que se leem de longe. */
+#view-tvcli .tv-tab{font-size:clamp(14px,1.15vw,20px)}
+#view-tvcli .tv-tab td{padding:9px 10px}
+/* A TABELA DA TV NAO QUEBRA LINHA. Rota e situacao em duas linhas dobram a
+   altura de cada registro e a lista come a tela inteira; numa parede, texto
+   cortado com reticencias se le melhor que texto empilhado. */
+#tvcli-cargas td,#view-tvcli .tv-tab th{white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.tvc-hero{display:flex;align-items:center;gap:2.2vw}
+.tvc-hero .n{font-size:clamp(64px,7.4vw,150px);font-weight:800;line-height:.92;
+  font-variant-numeric:tabular-nums;letter-spacing:-.02em;color:#fff}
+.tvc-hero .lado{display:flex;flex-direction:column;gap:.55vw;min-width:0}
+/* CHIP DE ETAPA: o ponto colorido carrega o estado e o numero vem colado.
+   Sem tooltip numa TV, cor sozinha nao diz nada -- tem de vir com o rotulo. */
+.tvc-chip{display:flex;align-items:center;gap:.55vw;font-size:clamp(13px,1.05vw,21px);
+  color:#C6D4E2;white-space:nowrap}
+.tvc-chip i{width:.85vw;height:.85vw;border-radius:50%;flex:none;
+  box-shadow:0 0 .7vw currentColor}
+.tvc-chip b{color:#fff;font-weight:800;font-variant-numeric:tabular-nums}
+/* O BRILHO segue a cor do proprio arco: nao acrescenta significado, so faz o
+   estado alcancar a distancia. `drop-shadow` e no elemento, entao o arco
+   verde brilha verde e o vermelho brilha vermelho, sem regra nova. */
+.tvc-gauge svg,.tvc-rosca svg{filter:drop-shadow(0 0 .5vw rgba(0,0,0,.45))}
+.tvc-glow{box-shadow:inset 0 0 0 2px currentColor,0 0 1.6vw -.4vw currentColor}
+/* TICKER: a unica coisa que se move na tela, e por isso a que chama. Anda so
+   quando ha o que dizer; parado, o painel fica quieto. */
+.tvc-tick{margin-top:22px;background:#0F2135;border-radius:14px;overflow:hidden;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 3%,#000 97%,transparent);
+  mask-image:linear-gradient(90deg,transparent,#000 3%,#000 97%,transparent);
+  border:1px solid #1E3A54;height:3.1vw;display:flex;align-items:center}
+.tvc-tick-in{display:flex;gap:3vw;white-space:nowrap;padding-left:100%;
+  animation:tvcTick 34s linear infinite;font-size:clamp(14px,1.15vw,23px);
+  font-weight:700;color:#E5EDF4}
+.tvc-tick-in span{display:inline-flex;align-items:center;gap:.5vw}
+.tvc-tick-in i{width:.7vw;height:.7vw;border-radius:50%;flex:none;
+  box-shadow:0 0 .6vw currentColor}
+@keyframes tvcTick{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+/* Parede nao e lugar de exigir atencao de quem nao pode desviar o olhar, e
+   ha quem passe mal com movimento. Sem animacao, o texto fica legivel parado. */
+@media (prefers-reduced-motion: reduce){
+  .tvc-tick-in{animation:none;padding-left:1.5vw}
+}
+.tvc-gauge,.tvc-rosca{display:flex;align-items:center;justify-content:center;gap:1.1vw;min-height:11vw}
 .tvc-leg{display:flex;flex-direction:column;gap:0.32vw}
 .tvc-leg span{display:flex;align-items:center;gap:0.4vw;font-size:clamp(10px,0.78vw,15px);color:#C6D4E2;white-space:nowrap}
 .tvc-leg i{width:0.62vw;height:0.62vw;border-radius:2px;flex:none}
@@ -3832,30 +3904,51 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
            mostrar a conta de alguém que ninguém pediu. -->
       <section class="view" id="view-tvcli">
         <div class="tv-head"><div class="tv-left"><img class="tv-logo" src="/static/sulista-logo-branco.svg" alt="Sulista"><span class="tv-upd tv-next"></span></div><div class="tv-title"><h2 id="tvcli-titulo">OPERAÇÃO DO CLIENTE</h2><span class="tv-farol" id="tvcli-farol" style="display:none"></span></div><div class="tv-right"><span class="tv-clock"></span><a href="javascript:tvFull()" title="tela cheia" aria-label="Tela cheia">⛶</a><a href="#home" title="sair do modo TV" aria-label="Sair do modo TV">✕</a></div></div>
-        <div class="tv-grid" id="tvcli-k1"></div>
-        <div class="tv-grid" style="margin-top:22px">
-          <div class="tv-card">
-            <div class="tv-label">Dentro do freetime</div>
-            <div id="tvcli-gauge" class="tvc-gauge"></div>
-            <div class="tv-sub" id="tvcli-gauge-sub"></div>
-          </div>
-          <div class="tv-card">
-            <div class="tv-label">Cargas em curso por etapa</div>
-            <div id="tvcli-rosca" class="tvc-rosca"></div>
-            <div class="tv-sub" id="tvcli-rosca-sub"></div>
+
+        <!-- LINHA 1: o numero que a sala precisa ver da porta, e o mapa.
+             O heroi junta o TOTAL com a repartição por etapa: numa parede,
+             obrigar o olho a somar quatro cartoes para chegar no total e
+             perder a leitura de tres segundos que a TV existe para dar. -->
+        <div class="tv-grid">
+          <div class="tv-card" style="grid-column:span 2">
+            <div class="tv-label">Cargas em curso</div>
+            <div class="tvc-hero">
+              <div class="n" id="tvcli-hero">—</div>
+              <div class="lado" id="tvcli-etapas"></div>
+            </div>
+            <div class="tv-sub" id="tvcli-hero-sub"></div>
           </div>
           <div class="tv-card tvc-mapa" style="grid-column:span 2">
             <div id="tvCliMapa"></div>
             <div class="tv-regiao" id="tvcli-mapa-sub">Cargas em curso</div>
           </div>
         </div>
-        <div class="tv-grid" style="margin-top:22px">
-          <div class="tv-card tv-wide" style="grid-column:span 4">
+
+        <!-- LINHA 2: as duas figuras e a lista. A lista fica MENOR de
+             proposito: numa parede ela e referencia, nao leitura -- quem
+             precisa de linha a linha abre a tela, nao a TV. -->
+        <div class="tv-grid tvc-linha2" style="margin-top:22px">
+          <div class="tv-card" id="tvcli-card-gauge">
+            <div class="tv-label">Dentro do freetime</div>
+            <div id="tvcli-gauge" class="tvc-gauge"></div>
+            <div class="tv-sub" id="tvcli-gauge-sub"></div>
+          </div>
+          <div class="tv-card">
+            <div class="tv-label">Por etapa do trajeto</div>
+            <div id="tvcli-rosca" class="tvc-rosca"></div>
+            <div class="tv-sub" id="tvcli-rosca-sub"></div>
+          </div>
+          <div class="tv-card tv-wide" style="grid-column:span 2">
             <div class="tv-label">Cargas em curso — onde estão agora</div>
-            <table class="tv-tab"><thead><tr><th>Coleta</th><th>Rota</th><th>Veículo</th><th>Situação</th></tr></thead>
+            <table class="tv-tab"><thead><tr><th>Coleta</th><th>Rota</th><th>Veículo</th><th>Situação</th><th>Previsão</th></tr></thead>
             <tbody id="tvcli-cargas"></tbody></table>
           </div>
         </div>
+
+        <!-- O TICKER e a unica coisa que se move, e por isso e o que chama.
+             So aparece quando ha o que dizer: parede que alarma sempre e
+             parede que ninguem olha. -->
+        <div class="tvc-tick" id="tvcli-tick" hidden><div class="tvc-tick-in" id="tvcli-tick-in"></div></div>
       </section>
 
       <!-- PAINEL DE TV — COMUNICAÇÃO VEÍCULOS x RASTREADORA.
@@ -12994,10 +13087,13 @@ async function tvCliMapa(cargas, resumo){
   const r = resumo || {};
   const sub = document.getElementById('tvcli-mapa-sub');
   if(sub){
-    const fontes = Object.keys(r.fontes || {}).join(' + ') || '—';
+    /* O RODAPE NAO NOMEIA FORNECEDOR. Quem nos vende rastreamento e assunto
+       nosso; para quem le a parede o que importa e quantos veiculos tem
+       posicao e que idade ela tem. A procedencia por fornecedor continua no
+       payload, para a Saude e o diagnostico interno. */
     sub.textContent = pts.length
       ? (r.com_posicao + ' de ' + r.veiculos + ' veículos · ' + r.frescas
-         + ' com posição de até ' + (r.fresca_ate_min || 120) + ' min · ' + fontes)
+         + ' com posição de até ' + (r.fresca_ate_min || 120) + ' min')
       : 'sem posição para as cargas em curso';
   }
 }
@@ -13054,7 +13150,7 @@ function tvCliGauge(pct, cls, zona){
      dado que nao temos. */
   const ate = Math.max(0, Math.min(100, (zona == null ? pct : pct + zona)));
   const arcoAte = ate * 1.319;
-  return '<svg viewBox="0 0 100 58" style="width:9.5vw">'
+  return '<svg viewBox="0 0 100 58" style="width:13vw">'
     + '<path d="M8 50 A42 42 0 0 1 92 50" fill="none" stroke="#1E3A54" stroke-width="9" stroke-linecap="round"/>'
     + (ate > pct
         ? '<path d="M8 50 A42 42 0 0 1 92 50" fill="none" stroke="#FBBF24" stroke-width="9"'
@@ -13063,7 +13159,7 @@ function tvCliGauge(pct, cls, zona){
         : '')
     + '<path d="M8 50 A42 42 0 0 1 92 50" fill="none" stroke="' + cor + '" stroke-width="9" stroke-linecap="round"'
     + ' stroke-dasharray="' + arco.toFixed(1) + ' 300"/>'
-    + '<text x="50" y="47" text-anchor="middle" font-size="19" font-weight="800" fill="' + cor + '">'
+    + '<text x="50" y="47" text-anchor="middle" font-size="21" font-weight="800" fill="' + cor + '">'
     + pct.toFixed(0) + '%</text>'
     + (ate > pct
         ? '<text x="50" y="57" text-anchor="middle" font-size="8" fill="#FBBF24">até '
@@ -13091,7 +13187,7 @@ function tvCliRosca(fatias){
     ini += dash;
     return el;
   }).join('');
-  const svg = '<svg viewBox="0 0 100 100" style="width:8.6vw">' + aneis
+  const svg = '<svg viewBox="0 0 100 100" style="width:11.5vw">' + aneis
     + '<text x="50" y="47" text-anchor="middle" font-size="21" font-weight="800" fill="#fff">'
     + total + '</text>'
     + '<text x="50" y="61" text-anchor="middle" font-size="9" fill="#8FA6BC">CARGAS</text></svg>';
@@ -13113,20 +13209,21 @@ async function loadTvCli(){
     const rA = await fetch('/api/portal/cliente?' + q.toString(), {cache:'no-store'});
     const dA = await rA.json();
     if(seq !== tvCliSeq) return;
-    if(!rA.ok){ tvErro('tvcli-k1', tvCliOk); return; }
+    if(!rA.ok){ tvErro('tvcli-etapas', tvCliOk); return; }
 
     if(dA.escolher){
       /* Estado honesto: a TV nao escolhe por ninguem. Diz o que fazer e para. */
-      document.getElementById('tvcli-k1').innerHTML =
-        '<div class="tv-card tv-wide" style="grid-column:span 4">'
-        + '<div class="tv-label">Nenhum cliente escolhido</div>'
-        + '<div class="tv-sub">Abra <b>Minha Operação</b> neste navegador, '
-        + 'escolha o cliente, e volte a esta tela — a escolha fica lembrada.</div></div>';
+      document.getElementById('tvcli-hero').textContent = '—';
+      document.getElementById('tvcli-etapas').innerHTML =
+        '<div class="tv-sub">Abra <b>Minha Operação</b> neste navegador, escolha '
+        + 'o cliente, e volte a esta tela — a escolha fica lembrada.</div>';
+      document.getElementById('tvcli-hero-sub').textContent = 'nenhum cliente escolhido';
       document.getElementById('tvcli-gauge').innerHTML = '';
       document.getElementById('tvcli-gauge-sub').textContent = '';
       document.getElementById('tvcli-rosca').innerHTML = '';
       document.getElementById('tvcli-rosca-sub').textContent = '';
       document.getElementById('tvcli-cargas').innerHTML = '';
+      document.getElementById('tvcli-tick').hidden = true;
       if(tvCliLayer) tvCliLayer.clearLayers();
       const sub = document.getElementById('tvcli-mapa-sub');
       if(sub) sub.textContent = 'nenhum cliente escolhido';
@@ -13148,38 +13245,49 @@ async function loadTvCli(){
     const naOrigem   = (por['Chegada para carregamento'] || 0)
                      + (por['Aguardando carregamento'] || 0)
                      + (por['Sa\u00edda do carregamento'] || 0);
+    const total = dA.em_curso || 0;
 
-    /* O TITULO nomeia o cliente. Painel de cliente sem dizer QUAL cliente e o
-       jeito de alguem na sala de operacao ler a conta errada e agir. */
+    /* O TITULO nomeia o cliente. Painel de cliente que nao diz QUAL cliente e
+       o jeito de alguem na sala de operacao ler a conta errada e agir. */
     const tit = document.getElementById('tvcli-titulo');
     if(tit) tit.textContent = 'OPERAÇÃO — ' + (dA.cliente_nome || dA.cliente_raiz || 'CLIENTE');
 
-    document.getElementById('tvcli-k1').innerHTML = [
-      tvCard('Cargas em curso', String(dA.em_curso || 0), '',
-             'manifesto ainda não encerrado · últimos ' + (dA.janela_dias || 45) + ' dias'),
-      tvCard('Em viagem', String(emViagem), '', 'a caminho do destino'),
-      tvCard('No destino', String(naDescarga), '', 'chegou · aguardando ou descarregando'),
-      tvCard('Na origem', String(naOrigem), '', 'carregando ou pronto para sair'),
-    ].join('');
+    /* HEROI: o total grande, e as etapas ao lado como chips. Cada chip leva o
+       NUMERO junto da cor -- sem tooltip numa TV, cor sozinha nao diz nada. */
+    document.getElementById('tvcli-hero').textContent = total.toLocaleString('pt-BR');
+    /* CARGA SEM APONTAMENTO NAO APARECE no painel do cliente (06/09/2026):
+       o que o portal teria a dizer sobre ela e "nao sabemos por onde anda", e
+       isso e processo nosso, nao informacao do cliente. O servidor tambem ja
+       a tira da lista; aqui as etapas sao so as tres do trajeto. */
+    const etapas = [
+      ['Em viagem',  emViagem,   '#4ADE80'],
+      ['No destino', naDescarga, '#FBBF24'],
+      ['Na origem',  naOrigem,   '#8FA6BC'],
+    ];
+    document.getElementById('tvcli-etapas').innerHTML = etapas.map(function(e){
+      return '<span class="tvc-chip" style="color:' + e[2] + '">'
+        + '<i style="background:' + e[2] + '"></i>'
+        + '<span style="color:#C6D4E2">' + e[0] + '</span> <b>' + e[1] + '</b></span>';
+    }).join('');
+    document.getElementById('tvcli-hero-sub').textContent =
+      'manifesto ainda não encerrado · últimos ' + (dA.janela_dias || 45) + ' dias · '
+      + (dA.concluidas_na_janela || 0) + ' concluídas no período';
 
-    /* PERMANENCIA: o numero da parede e o EXCEDENTE em qualquer contrato --
-       o unico dos tres que nao depende da mercadoria. Mostrar o "dentro"
-       sozinho numa TV daria a impressao de aderencia que a faixa do meio nao
-       sustenta, e numa parede ninguem tem onde ler a ressalva. */
     const de = dP.descarga || {}, ca = dP.carga || {}, ft = dP.freetime || {};
 
-    /* MEDIDOR: aderencia ao freetime na descarga. O numero e o DENTRO (a
-       leitura positiva que uma parede pede), com semaforo DISCRETO -- e so
-       quando ha regua: sem freetime cadastrado nao ha o que classificar, e
-       verde sem regua e verde inventado.
-
-       Usa a faixa "dentro do piso", a mais conservadora das tres: e a unica
-       que vale sob QUALQUER contrato. Num mural ninguem le a ressalva de que
-       a faixa do meio depende da mercadoria. */
+    /* MEDIDOR: a faixa conservadora, com o teto em ambar por cima. */
     const dentroPct = de.dentro_pct;
     const cls = (dentroPct == null) ? '' : (dentroPct >= 80 ? 'ok' : (dentroPct >= 60 ? 'warn' : 'ruim'));
     document.getElementById('tvcli-gauge').innerHTML = tvCliGauge(
       dentroPct == null ? null : dentroPct, cls, de.zona_pct);
+    /* O CARD inteiro acende na cor do estado. E o mesmo semaforo, discreto --
+       so alcanca mais longe que um numero pequeno no meio do cartao. */
+    const card = document.getElementById('tvcli-card-gauge');
+    if(card){
+      const cor = cls === 'ok' ? '#4ADE80' : (cls === 'warn' ? '#FBBF24' : (cls ? '#F87171' : ''));
+      card.className = 'tv-card' + (cor ? ' tvc-glow' : '');
+      card.style.color = cor || '';
+    }
     document.getElementById('tvcli-gauge-sub').textContent = ft.contratos
       ? ((de.dentro || 0) + ' de ' + (de.n || 0) + ' descargas dentro de '
          + tvH(ft.descarga_piso)
@@ -13188,15 +13296,7 @@ async function loadTvCli(){
          + ' · mediana ' + tvH(de.mediana_h))
       : 'sem freetime cadastrado para este cliente';
 
-    /* ROSCA: as cargas em curso por etapa do trajeto. Mesmas contagens da
-       banda de cima, em forma -- de longe a proporcao se le antes do numero. */
-    /* A fatia SEM APONTAMENTO nao e enfeite: desde que o manifesto passou a
-       fechar a viagem, a carga emitida e ainda nao apontada aparece no painel
-       -- e ela nao esta em nenhuma das tres etapas. Sem esta fatia o anel
-       dizia "nenhuma carga em curso" ao lado de um KPI dizendo 10. */
-    const semApont = (dA.em_curso || 0) - naOrigem - emViagem - naDescarga;
     document.getElementById('tvcli-rosca').innerHTML = tvCliRosca([
-      {rot:'Sem apontamento', n: Math.max(0, semApont), cor:'#6E7883'},
       {rot:'Na origem',  n: naOrigem,   cor:'#8FA6BC'},
       {rot:'Em viagem',  n: emViagem,   cor:'#4ADE80'},
       {rot:'No destino', n: naDescarga, cor:'#FBBF24'},
@@ -13205,21 +13305,101 @@ async function loadTvCli(){
       'carregamento: mediana ' + tvH(ca.mediana_h)
       + ' · ' + (dP.cargas_no_periodo || 0) + ' cargas apontadas no mês';
 
-    /* TABELA DA TV: quem limita e o RENDERIZADOR, nao o CSS -- rolagem dentro
-       do card e inutil numa parede que ninguem toca. 10 linhas e o que cabe. */
+    /* TABELA: 6 linhas. Quem limita e o RENDERIZADOR, nao o CSS -- rolagem
+       dentro do card e inutil numa parede que ninguem toca. E numa parede a
+       lista e referencia: quem precisa de linha a linha abre a tela. */
     document.getElementById('tvcli-cargas').innerHTML = cargas.length
-      ? cargas.slice(0, 10).map(function(c){
-          return '<tr><td>' + esc(String(c.coleta)) + '</td>'
-            + '<td>' + esc(c.origem + '/' + c.uf_origem + ' \u2192 ' + c.destino + '/' + c.uf_destino) + '</td>'
-            + '<td>' + esc(c.placa || '\u2014') + '</td>'
-            + '<td>' + esc(c.marco) + '</td></tr>';
-        }).join('')
-      : '<tr><td colspan="4">nenhuma carga em curso</td></tr>';
+      ? (function(){
+          const hoje = _iso(new Date());
+          /* Compara TEXTO com TEXTO no mesmo formato ("AAAA-MM-DD HH:MM"): a
+             comparacao lexicografica bate com a cronologica nesse formato, e
+             evita fabricar um Date por linha so para saber se ja passou. */
+          const d0 = new Date();
+          const agora = hoje + ' ' + String(d0.getHours()).padStart(2,'0')
+                             + ':' + String(d0.getMinutes()).padStart(2,'0');
+          return cargas.slice(0, 6).map(function(c){
+            /* A PREVISAO so existe para quem ja saiu: antes disso nao ha de
+               onde contar, e travessao e mais honesto que hora inventada.
+               O DIA vem junto da hora -- numa parede, "09:45" sozinho e lido
+               como hoje, e a rota de 14h chega amanha. */
+            /* PREVISAO JA VENCIDA acende. A hora que passou e o unico
+               estado desta coluna que pede alguma coisa de quem olha: o
+               veiculo devia ter chegado e nao chegou. Mostrada igual a todas
+               as outras, ela some no meio da lista -- que foi o que o primeiro
+               desenho fez.
+               Ambar, e nao vermelho: a mediana e ESTIMATIVA de historico, e
+               uma em cada duas viagens passa dela por definicao. Vermelho aqui
+               chamaria de problema o que muitas vezes e so a metade de cima da
+               distribuicao. */
+            const venceu = c.eta && c.eta < agora;
+            const eta = c.eta
+              ? '<span style="color:' + (venceu ? '#FBBF24' : '#E5EDF4') + '">'
+                + c.eta.slice(11) + '</span> <span style="color:#8FA6BC">'
+                + (c.eta.slice(0,10) === hoje ? 'hoje' : fmtD(c.eta.slice(0,10)))
+                + '</span>'
+              : '<span style="color:#8FA6BC">\u2014</span>';
+            return '<tr><td>' + esc(String(c.coleta)) + '</td>'
+              + '<td>' + esc(c.origem + '/' + c.uf_origem + ' \u2192 ' + c.destino + '/' + c.uf_destino) + '</td>'
+              + '<td>' + esc(c.placa || '\u2014') + '</td>'
+              + '<td>' + esc(c.marco) + '</td>'
+              + '<td>' + eta + '</td></tr>';
+          }).join('');
+        })()
+      : '<tr><td colspan="5">nenhuma carga em curso</td></tr>';
 
     tvCliMapa(cargas, dA.posicao);
+    tvCliTicker(dA, dP, {emViagem: emViagem, total: total});
   }catch(e){
-    if(seq === tvCliSeq) tvErro('tvcli-k1', tvCliOk);
+    if(seq === tvCliSeq) tvErro('tvcli-etapas', tvCliOk);
   }
+}
+
+/* O TICKER diz o que MERECE atencao, e nada mais. Parede que alarma sempre e
+   parede que ninguem olha -- entao ele so aparece quando ha achado, e cada
+   linha e um fato com numero, nunca um aviso generico. */
+function tvCliTicker(dA, dP, n){
+  const cx = document.getElementById('tvcli-tick');
+  const el = document.getElementById('tvcli-tick-in');
+  if(!cx || !el) return;
+  const itens = [];
+  const pos = dA.posicao || {};
+  const de = dP.descarga || {};
+
+  const semPos = (pos.veiculos || 0) - (pos.com_posicao || 0);
+  if(semPos > 0){
+    itens.push(['#F87171', semPos + ' veículo(s) das cargas em curso sem posição no rastreamento']);
+  }
+  const velhas = (pos.com_posicao || 0) - (pos.frescas || 0);
+  if(velhas > 0){
+    itens.push(['#FBBF24', velhas + ' com posição de mais de ' + (pos.fresca_ate_min || 120) + ' min']);
+  }
+  const vencidas = (dA.cargas || []).filter(function(c){
+    if(!c.eta) return false;
+    const d0 = new Date();
+    const agora = _iso(d0) + ' ' + String(d0.getHours()).padStart(2,'0')
+                           + ':' + String(d0.getMinutes()).padStart(2,'0');
+    return c.eta < agora;
+  }).length;
+  if(vencidas > 0){
+    itens.push(['#FBBF24', vencidas + ' carga(s) passaram da estimativa de chegada']);
+  }
+  if(de.fora_pct != null && de.fora > 0){
+    itens.push(['#F87171', de.fora + ' descarga(s) acima do freetime em qualquer contrato no mês ('
+                + de.fora_pct + '%)']);
+  }
+  if(de.fora_da_regua){
+    itens.push(['#8FA6BC', de.fora_da_regua + ' permanência(s) acima de 24h não medida(s) — '
+                + 'apontamento atravessando dias']);
+  }
+  if(!itens.length){ cx.hidden = true; el.innerHTML = ''; return; }
+  cx.hidden = false;
+  /* DUAS COPIAS da lista: a animacao anda 100% da largura e volta ao inicio,
+     entao sem a segunda copia a faixa fica vazia metade do tempo. */
+  const linha = itens.map(function(it){
+    return '<span style="color:' + it[0] + '"><i style="background:' + it[0] + '"></i>'
+         + '<span style="color:#E5EDF4">' + esc(it[1]) + '</span></span>';
+  }).join('');
+  el.innerHTML = linha + linha;
 }
 
 async function loadTvDir(){

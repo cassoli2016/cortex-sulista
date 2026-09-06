@@ -4,6 +4,21 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.259.0] — 06/09/2026  ·  CX-06/09/2026-v0.259.0
+
+### Alterado
+- O painel de TV do cliente foi redesenhado para ser lido DA PORTA DA SALA. O número de cargas em curso virou o elemento principal da tela, com a repartição por etapa ao lado dele — antes era preciso somar quatro cartões para chegar no total, o que desfaz a leitura de três segundos que um painel de parede existe para dar.
+- O medidor e a rosca ficaram maiores, e o cartão do freetime passa a acender inteiro na cor do estado. Não há cor nova: é o mesmo semáforo de sempre, com o mesmo significado — o que mudou é o tamanho e o brilho, que é o que faz um número alcançar o outro lado da sala.
+- Faixa de alertas no rodapé, que passa devagar e só aparece quando há o que dizer: veículo sem posição, posição velha, carga sem apontamento, descarga acima do freetime. Cada linha é um fato com número — parede que alarma sempre é parede que ninguém olha. Quem pediu menos movimento no sistema operacional vê a faixa parada.
+- A lista de cargas ficou menor e não quebra mais em duas linhas. Numa parede ela é referência, não leitura: quem precisa de linha a linha abre a tela.
+- A lista de cargas em curso passou a mostrar a PREVISÃO DE CHEGADA de quem já saiu, calculada pelo tempo que aquela rota costuma levar no histórico de seis meses — porta a porta, já com fila e parada dentro. Rota com poucas viagens fica em branco: melhor nada que um número sem lastro. Previsão que já passou aparece em âmbar, e não em vermelho, porque é mediana e por definição uma em cada duas viagens passa dela.
+- O painel não nomeia mais o fornecedor de rastreamento. Quem nos vende o sinal é assunto nosso; para quem lê a parede o que importa é quantos veículos têm posição e que idade ela tem, e isso continua ali.
+- Carga que ainda não teve nenhum apontamento da operação não aparece mais. O que o painel teria a dizer sobre ela é "não sabemos por onde anda", e isso é processo nosso, não informação do cliente — ela entra na tela no instante do primeiro apontamento. O efeito colateral fica dito: a carga emitida hoje só aparece no dia seguinte, que é quando o apontamento costuma chegar.
+
+### Corrigido
+- A tela "Minha Operação" não serve mais número velho quando o ERP falha — ela mostra o erro. As outras telas continuam com a rede, porque publicam mês ou dia e uma leitura de duas horas atrás não muda nada nelas; esta publica ONDE A CARGA ESTÁ AGORA, com posição de veículo ao lado, e serve uma parede onde ninguém clica para conferir a procedência. Ali, tela vazia é a resposta honesta.
+- A lista de cargas do painel de TV empurrava a página para o lado quando a rota era comprida, e o cartão nascia meio fora da tela sem erro nenhum.
+
 ## [0.258.3] — 06/09/2026  ·  CX-06/09/2026-v0.258.3
 
 ### Corrigido

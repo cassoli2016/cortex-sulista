@@ -90,6 +90,7 @@ from __future__ import annotations
 
 import logging
 import re
+from datetime import datetime, timedelta
 
 from . import db
 from .queries import cached
@@ -251,7 +252,7 @@ def get_clientes(dias: int = 365) -> dict:
         "clientes": [{"raiz": r["raiz"], "nome": r["nome"], "cargas": r["cargas"]}
                      for r in linhas],
         "janela_dias": int(dias),
-        "fonte": f"ERP AVA · coleta · pagador do frete · {int(dias)} dias · leitura",
+        "fonte": f"Sistema de gestão · pagador do frete · {int(dias)} dias · leitura",
     }
 
 
@@ -382,6 +383,71 @@ WHERE c.dtcancelamento IS NULL
 ORDER BY coalesce(mdf.encerrado_em, ev.vf, ev.fd, ev.cd, ev.ev, ev.sc, ev.cc,
                   c.dtemissao) DESC
 """
+
+
+#: Quanto tempo a rota leva, pelo NOSSO historico. Chave: "ORIGEM/UF|DESTINO/UF".
+#:
+#: TRES FONTES DE TEMPO convivem nesta casa e NUNCA se fundem num numero so: o
+#: ETA que o programador digitou no ERP (erra mais de 2h em metade dos casos,
+#: medido), o da TomTom (transito de agora, so viagem ativa, tela Torre) e o
+#: historico proprio. Aqui e o TERCEIRO, e o rotulo diz isso -- "estimativa
+#: pelo historico", nunca "previsao" seca, que numa parede vira promessa.
+#:
+#: A mediana de deslocamento e PORTA A PORTA e ja inclui fila e pernoite: nao
+#: e o tempo de rodar, e o tempo que o veiculo fica preso, que e o que quem
+#: espera a carga quer saber.
+def _eta_por_rota() -> dict:
+    """Mediana de deslocamento por rota, do modulo de ciclos. Cache de 1 h la.
+
+    Rota com menos de `N_MIN` viagens NAO entra: e a regra do proprio modulo
+    ("rota com menos de 10 amostras mostra n/d, nunca numero"), e reimplementa-la
+    com outro piso aqui criaria duas reguas para a mesma pergunta.
+    """
+    try:
+        from . import programacao_ciclos as _cic
+        return {
+            (r["ori"] or "") + "|" + (r["dst"] or ""): (r["desloc_med_h"], r["n"])
+            for r in _cic.get_ciclos().get("rotas", [])
+            if r.get("desloc_med_h") and (r.get("n") or 0) >= _cic.N_MIN
+        }
+    except Exception:  # noqa: BLE001
+        # A previsao e ACRESCIMO: sem ela a carga continua na tela dizendo onde
+        # esta. Derrubar o painel por causa do enfeite seria trocar o dado pelo
+        # adorno.
+        log.warning("ciclos indisponivel: painel sai sem previsao de chegada")
+        return {}
+
+
+def _eta(r: dict, cod: int, rotas: dict) -> dict:
+    """Previsão de chegada da carga, ou vazio. Calculada da LINHA CRUA.
+
+    Mora aqui, e não no laço que monta o payload, porque precisa dos horários
+    que o payload NÃO leva: a lista de campos da carga é explícita de propósito
+    e `t_saiu_carga` não está nela. A primeira versão tentou ler o horário do
+    payload, achou `None` em tudo e devolveu previsão nenhuma — sem erro. Foi
+    o próprio guard da lista explícita que obrigou a notar.
+
+    A CONTAGEM COMEÇA NA SAÍDA DO CARREGAMENTO, que é onde o histórico também
+    começa (`programacaoembarque` conta de `dtsaida` a `dtchegada`). Contar do
+    "em viagem" daria uma previsão mais curta para a mesma estrada, e duas
+    cargas lado a lado chegariam em horas diferentes conforme qual evento a
+    operação apontou.
+    """
+    vazio = {"eta": None, "eta_amostras": None}
+    if cod not in (395, 400):
+        return vazio
+    chave = ((r.get("origem") or "") + "/" + (r.get("uf_origem") or "") + "|"
+             + (r.get("destino") or "") + "/" + (r.get("uf_destino") or ""))
+    med = rotas.get(chave)
+    base = r.get("t_saiu_carga") or r.get("t_viagem")
+    if not med or not base:
+        return vazio
+    try:
+        q = datetime.strptime(base, "%Y-%m-%d %H:%M")
+    except (TypeError, ValueError):
+        return vazio
+    return {"eta": (q + timedelta(hours=float(med[0]))).strftime("%Y-%m-%d %H:%M"),
+            "eta_amostras": med[1]}
 
 
 def _marco(r: dict) -> tuple[int, str, str]:
@@ -591,26 +657,26 @@ GROUP BY 1,2,3,4,5
 """
 
 
-@cached(ttl=120, velha_ate=7200)
+@cached(ttl=120)
 def get_agora(raiz: str, dias: int = 45) -> dict:
-    """As cargas no ar agora, por marco. Fonte: SAC + coleta.
+    """As cargas no ar agora. Fonte: coleta + SAC + MDF-e + posição.
 
-    `velha_ate` de 2h: o ERP é réplica de produção de terceiro e já degradou
-    uma manhã inteira. Uma leitura de 40 minutos atrás, DITA na tela, é
-    honesta e serve; portal em branco na cara do cliente não é nenhum dos
-    dois. A tarja é obrigatória — número velho servido calado é pior que tela
-    vazia, porque ninguém desconfia dele.
+    SEM REDE DE LEITURA VELHA, de propósito, e é a única das quatro funções
+    deste módulo que não tem. O critério é a RESOLUÇÃO DA PRÓPRIA TELA: as
+    outras publicam mês ou dia, e uma leitura de duas horas atrás não muda
+    nada do que está ali. Esta publica ONDE A CARGA ESTÁ AGORA, com posição
+    de veículo ao lado — e serve um painel de PAREDE, onde ninguém clica para
+    conferir a procedência.
+
+    Servir posição de duas horas atrás aqui não é ser resiliente, é mentir com
+    tarja: a decisão que alguém tomar olhando o mural já foi tomada quando ele
+    lê o aviso. Tela vazia com erro é a resposta honesta para esta.
     """
     linhas = db.query(AGORA_SQL, {"raiz": raiz, "dias": int(dias)})
+    rotas = _eta_por_rota() if linhas else {}
     cargas, concluidas = [], 0
     for r in linhas:
         cod, rotulo, quando = _marco(r)
-        # NÃO se descarta carga sem apontamento. Havia um `continue` aqui, de
-        # quando a consulta partia dos eventos — e ele sobreviveu à inversão
-        # descartando exatamente o que ela passou a trazer: a carga emitida
-        # hoje, ainda sem marco, que é a que mais interessa numa parede.
-        # Mudar a consulta sem mudar quem a consome preserva o defeito antigo
-        # em silêncio.
         if not em_curso(r):
             concluidas += 1
             continue
@@ -624,7 +690,21 @@ def get_agora(raiz: str, dias: int = 45) -> dict:
             "destino": r["destino"], "uf_destino": r["uf_destino"],
             "placa": r["placa"],
             "marco": rotulo, "marco_cod": cod, "marco_em": quando,
+            **_eta(r, cod, rotas),
         })
+    # CARGA SEM NENHUM APONTAMENTO NÃO VAI PARA O PAINEL DO CLIENTE, por
+    # decisão de quem opera (06/09/2026). Ela EXISTE — a coleta foi emitida e o
+    # manifesto não fechou — mas o que o portal teria a dizer sobre ela é
+    # "não sabemos por onde anda", e isso é processo nosso, não informação do
+    # cliente. Ela volta à tela no instante em que a operação apontar o
+    # primeiro marco.
+    #
+    # O QUE ISSO CUSTA, e fica dito: a carga emitida hoje some do painel até o
+    # primeiro apontamento, que chega com cerca de um dia de atraso. O número
+    # `sem_apontamento` continua saindo na resposta para quem precise medir
+    # esse buraco por dentro — some da TELA, não da conta.
+    sem_apontamento = [c for c in cargas if not c["marco_cod"]]
+    cargas = [c for c in cargas if c["marco_cod"]]
     # POSIÇÃO das cargas que ainda estão no ar. Só as placas DESTAS cargas —
     # `atuais()` devolve a frota inteira (278 placas em 05/09/2026) e o que
     # sai daqui é o recorte do cliente. Fatiar depois de ler é de propósito:
@@ -662,12 +742,15 @@ def get_agora(raiz: str, dias: int = 45) -> dict:
             # continuam com as cargas e o mapa DIZ que está sem posição.
             log.warning("posições do portal falharam: mapa sai vazio")
 
+    # PREVISAO DE CHEGADA, so para quem ja saiu e ainda nao chegou. Antes de
+    # sair nao ha de onde contar; depois de chegar o numero nao serve mais.
     for c in cargas:
         c["pos"] = pos.get(c["placa"]) if c["placa"] else None
 
     return {
         "cargas": cargas,
         "em_curso": len(cargas),
+        "sem_apontamento": len(sem_apontamento),
         "concluidas_na_janela": concluidas,
         "janela_dias": int(dias),
         # A COBERTURA do mapa vai junto: "12 de 66 com posição" é o que impede
@@ -678,10 +761,14 @@ def get_agora(raiz: str, dias: int = 45) -> dict:
         # parecer metade do que e.
         "posicao": {**resumo_pos, "veiculos": len(placas),
                     "fresca_ate_min": _POS_FRESCA_MIN},
-        "fonte": ("ERP AVA · coleta (a espinha) + ocorrências SAC 394-401 (os "
-                  "marcos) + MDF-e encerrado (o fim da viagem) · "
-                  f"janela de {int(dias)} dias · posição por api/posicoes "
-                  "(ERP + Gobrax, vence a mais recente) · leitura"),
+        # A FONTE NÃO NOMEIA FORNECEDOR. Este payload alimenta uma tela e uma
+        # parede que o CLIENTE lê, e o nome de quem nos vende rastreamento é
+        # assunto nosso — para o cliente o que importa é a idade da leitura,
+        # que continua saindo. A procedência por fornecedor segue no campo
+        # `fonte` de cada posição, para a Saúde e o diagnóstico interno.
+        "fonte": ("Sistema de gestão · coleta, apontamentos de operação e "
+                  "encerramento do manifesto · "
+                  f"janela de {int(dias)} dias · posição do rastreamento · leitura"),
     }
 
 
@@ -719,8 +806,8 @@ def get_permanencia(raiz: str, dt_de: str, dt_ate: str) -> dict:
         "freetime": ft,
         "cargas_no_periodo": len(linhas),
         "periodo": {"de": dt_de, "ate": dt_ate},
-        "fonte": ("ERP AVA · ocorrências SAC 394→395 (carga) e 396→397 "
-                  "(descarga) + sulista.sac_freetimecliente · "
+        "fonte": ("Sistema de gestão · apontamentos de chegada e saída no "
+                  "carregamento e na descarga + freetime do contrato · "
                   f"permanências acima de {CAP_H:.0f}h tratadas como n/d · leitura"),
     }
 
@@ -772,5 +859,5 @@ def get_historico(raiz: str, meses: int = 12) -> dict:
         "rotas_total": len(rotas),
         "cargas_nas_rotas_mostradas": sum(n for _, n in top),
         "cargas_total": total,
-        "fonte": f"ERP AVA · coleta · {int(meses)} meses até hoje · leitura",
+        "fonte": f"Sistema de gestão · {int(meses)} meses até hoje · leitura",
     }
