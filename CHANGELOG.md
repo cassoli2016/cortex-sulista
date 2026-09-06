@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.258.3] — 06/09/2026  ·  CX-06/09/2026-v0.258.3
+
+### Corrigido
+- Uma rodada de testes podia mandar aviso de carga DE VERDADE para o telefone de um cliente. O relógio do aviso passou a viver dentro do sistema ontem, e ele sobe junto com a API — inclusive quando quem sobe a API é a suíte de testes, nesta máquina, onde o WhatsApp está configurado de verdade. Uma rodada longa mandaria mensagem a cada dez minutos, sem ninguém ter pedido. Agora o relógio reconhece que está numa rodada de teste e não sobe.
+- O sinal disso ficou no registro da API no primeiro dia no ar: uma falha de ciclo cuja causa era um teste, ou seja, um processo de teste escrevendo no registro do sistema. Nenhuma mensagem indevida chegou a sair — a folga de dois minutos antes do primeiro ciclo cobriu as rodadas curtas, e as longas caíram fora do horário de envio.
+
 ## [0.258.2] — 06/09/2026  ·  CX-06/09/2026-v0.258.2
 
 ### Corrigido
