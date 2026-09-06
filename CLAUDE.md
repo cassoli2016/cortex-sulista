@@ -444,6 +444,17 @@ barra empilhada, não donut.
 - **Serialização converte no LIMITE do módulo** (`float()`, `.isoformat()`);
   o `JSONResponse` da casa é a rede (Decimal/date estouram DEPOIS do
   `try/except` da rota, em `render()` — 500 em `text/plain` sem pista).
+- **`FileResponse` NÃO responde 304 — quem responde é o `StaticFiles`.**
+  Emitir `ETag` não é implementar cache condicional: a página da raiz devolvia
+  200 com 712 KB a cada F5 enquanto `/static/*` devolvia 304 no MESMO servidor.
+  E **middleware de compressão recomprime a CADA requisição** — 206 ms por
+  carregamento dos 2,5 MB do `index.html`, que num processo único vira fila
+  para o sistema inteiro (`/api/health` 2,8× mais lento com 10 pessoas abrindo
+  o painel; 20 juntas saturavam 95% de UM núcleo de 28). Página grande servida
+  fora do `/static` passa por `api/main._servir()`: comprime UMA vez sob trava
+  (chave = `(mtime, tamanho)` do ARQUIVO, não o boot do processo), ETag do
+  CONTEÚDO (`git checkout` mexe no mtime sem mudar um byte) e 304 escrito à
+  mão. Guard: `tests/test_pagina_do_painel.py`.
 - Exceção para fora **nunca com `str(exc)` cru** em integração — na Z-API e na
   TomTom a URL É a credencial; tudo passa pelo `_sanitizar` do cliente. Log
   leva o TIPO da exceção.

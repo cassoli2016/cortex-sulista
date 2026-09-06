@@ -1,3 +1,26 @@
+- versao: "0.258.1"
+  data: "2026-09-06"
+  corrigido:
+    - >-
+      O painel abre muito mais rápido, e o efeito é maior justamente quando
+      mais gente entra ao mesmo tempo. A página tem 2,5 MB e o servidor a
+      recomprimia INTEIRA a cada carregamento: vinte pessoas abrindo juntas
+      levavam 1,9 segundo cada uma e ocupavam sozinhas um núcleo do
+      processador. Agora a compressão é feita uma única vez, e as mesmas vinte
+      pessoas são atendidas em 20 milissegundos no total.
+    - >-
+      Apertar F5 deixou de baixar a página de novo. O navegador já guardava
+      uma cópia e perguntava ao servidor se ela ainda valia, mas o servidor
+      respondia mandando os 712 KB outra vez, sempre — mesmo sem nada ter
+      mudado. Agora ele responde "continua valendo" e o painel reaparece na
+      hora, sem consumir dado de quem está no celular.
+    - >-
+      Enquanto o servidor comprimia a página, todo o resto do sistema esperava
+      na fila: com dez pessoas abrindo o painel, uma chamada simples ficava
+      quase três vezes mais lenta. Essa fila deixou de existir.
+    - >-
+      A mesma correção vale para a página pública de rastreio de carga (o link
+      que vai no WhatsApp) e para o service worker do aplicativo no celular.
 - versao: "0.258.0"
   data: "2026-09-06"
   adicionado:

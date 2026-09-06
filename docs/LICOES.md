@@ -3609,4 +3609,98 @@ startup da API chama `auth.init_db()` no schema padrão, então qualquer
 COLUMN` nullable e passou batido. Com DDL destrutivo não passaria. **Rodar a
 suíte completa nesta máquina não é operação neutra.**
 
+---
 
+## A pagina que se recomprimia sozinha, e o 304 que o FastAPI nao da (2026-09-06, v0.258.1)
+
+Auditoria de desempenho para responder uma pergunta de operacao: *o que
+acontece quando trinta pessoas usarem isto ao mesmo tempo?* A resposta nao
+estava na maquina. Ela e um i7-14700 com 20 nucleos, 31,7 GB e NVMe, e o
+CORTEX inteiro usava **48 MB de RAM e um nucleo**. O gargalo era o que se faz
+a cada requisicao.
+
+### O que foi medido
+
+Contra a API em producao, na porta 8010:
+
+| medida | resultado |
+|---|---|
+| `GET /` com gzip | **206,4 ms** · 712 713 bytes |
+| `GET /` sem gzip | 19,5 ms · 2 541 666 bytes |
+| `GET /` com o proprio ETag em `If-None-Match` | **HTTP 200** com 712 713 bytes |
+| o mesmo em `/static/vendor/echarts.min.js` | HTTP 304 · 0 bytes |
+| 20 carregamentos simultaneos | 3 458 ms · **95% de UM nucleo** (a maquina tem 28) |
+| `/api/health` com o servidor ocioso | 60,5 ms |
+| `/api/health` com 10 pessoas abrindo a pagina | **169,9 ms** (2,8x) |
+
+### As duas causas, e a segunda e a que ninguem procura
+
+**A primeira e visivel depois que se olha:** o `GZipMiddleware` comprime a
+resposta a cada requisicao, e a resposta aqui e um arquivo de 2,5 MB. Nivel 9,
+88,9 ms so de compressao medidos fora do servidor — o resto e o custo de
+passar 2,5 MB em pedacos pela pilha ASGI. Num processo unico, isso e CPU
+exclusiva: enquanto comprime, ninguem mais e atendido, e foi por isso que uma
+rota trivial como o `/api/health` triplicou sem que nada tivesse mudado nela.
+
+**A segunda e muda.** O `FileResponse` EMITE o `ETag` e o `Last-Modified` — a
+resposta parece perfeitamente cacheavel. Mas quem implementa requisicao
+condicional no Starlette e o `StaticFiles`, no `is_not_modified()`; o
+`FileResponse` sozinho nao olha `If-None-Match` nunca. O resultado e um
+sistema que **parece** ter cache: o navegador guarda a copia, pergunta se
+ainda vale, e recebe os 712 KB de volta com HTTP 200. Todo F5 de todo mundo.
+
+A prova que separou as duas hipoteses foi comparar `/` com `/static/*` no
+MESMO servidor: a mesma requisicao condicional, um devolvendo 304 e o outro
+200. Nao era o navegador, nao era o Cloudflare, nao era o header — era a
+classe de resposta.
+
+### A correcao, e o que ela nao muda
+
+Comprimir UMA vez, guardar os bytes, e responder 304 quando o navegador ja
+tem a versao. Medido com os dois estados montados igual (mesmo uvicorn, mesmo
+arquivo, mesmo cliente, no mesmo script):
+
+| | antes | depois |
+|---|---|---|
+| `GET /` repetido | 98,4 ms | **13,3 ms** |
+| F5 (`If-None-Match`) | HTTP 200 · 711 746 B · 118,5 ms | **HTTP 304 · 0 B · 0,8 ms** |
+| 20 pessoas juntas | 1 902 ms | **20 ms** |
+
+Tres decisoes que nao sao obvias:
+
+- **A chave dos bytes guardados e `(mtime, tamanho)` DO ARQUIVO, nao o boot do
+  processo.** O AutoDeploy reinicia a API a cada deploy, entao guardar por
+  processo quase sempre bastaria — mas o `index.html` e servido do DISCO de
+  proposito, e ja foi editado sem restart aqui. Com a chave no processo, a
+  pagina velha ficaria no ar ate alguem reiniciar, calada. O `stat()` custa
+  microssegundos.
+- **O ETag e do CONTEUDO, nao do mtime.** `git checkout` mexe no mtime sem
+  mudar um byte: com ETag de mtime, todo deploy que nem tocasse na pagina
+  reenviaria 712 KB para todo mundo — trocando um desperdicio por outro.
+- **A trava do voo unico nao e zelo.** Sem ela, o primeiro pico depois de um
+  deploy comprime 2,5 MB uma vez POR REQUISICAO simultanea — exatamente a
+  tempestade que a correcao existe para acabar. Mesma forma do
+  `queries.cached`: confere, tranca, confere de novo.
+- **`Cache-Control: no-cache` ficou.** O painel muda toda semana e revalidar
+  sempre e a politica certa; o que mudou foi o PRECO de revalidar.
+
+### O que fica como regra
+
+- **`FileResponse` nao responde 304 — `StaticFiles` responde.** Emitir `ETag`
+  nao e implementar cache condicional, e a diferenca so aparece medindo a
+  requisicao condicional de verdade. Toda pagina servida da raiz (fora do
+  `/static`) precisa do 304 escrito a mao.
+- **Middleware de compressao recomprime a CADA requisicao.** Para conteudo
+  estatico e grande, comprimir uma vez e guardar; o `Content-Encoding` posto na
+  propria resposta faz o `GZipMiddleware` deixar passar intacto.
+- **Um processo unico transforma custo de CPU em fila para todo mundo.** O
+  sintoma nao aparece na rota culpada: aparece na rota mais barata do sistema,
+  que e onde ninguem vai procurar.
+- **Numero de desempenho so vale comparado com o par medido IGUAL.** Os dois
+  estados aqui foram montados no mesmo script, com o mesmo uvicorn e o mesmo
+  cliente — comparar contra a producao seria comparar dois processos com
+  cargas diferentes.
+
+Guard: `tests/test_pagina_do_painel.py` (14 testes). Cada um foi visto
+VERMELHO com o alvo sabotado — 304 desligado, cache removido, `Vary` apagado e
+ETag trocado para mtime — antes de valer como verde.
