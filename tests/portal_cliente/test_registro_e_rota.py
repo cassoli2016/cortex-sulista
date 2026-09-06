@@ -385,3 +385,102 @@ def test_tv_esta_no_manual():
     manual = yaml.safe_load((ROOT / "docs" / "manual.yaml").read_text(encoding="utf-8"))
     telas = [t for g in manual["grupos"] for t in g.get("telas", [])]
     assert "tvcli" in telas
+
+
+# ==================================== mapa, medidor e rosca no painel de TV
+
+def _bloco_tv():
+    return INDEX.split('id="view-tvcli"')[1].split("</section>")[0]
+
+
+def test_o_mapa_da_TV_tem_classe_PROPRIA_e_nao_a_da_Torre():
+    """`.tvw-mapa` traz `grid-row:1/3;grid-column:2` cravado do layout da Torre.
+
+    Reusar a classe trouxe junto um POSICIONAMENTO que não era meu: o inline
+    vencia o `grid-column`, mas o `grid-row` continuava valendo e jogava o card
+    para a primeira linha da grade. Só o render mostrou — é a regra da casa,
+    a regra de CSS pode existir, estar certa e não valer.
+    """
+    bloco = _bloco_tv()
+    assert 'class="tv-card tvc-mapa"' in bloco
+    assert "tvw-mapa" not in bloco
+    assert ".tvc-mapa{" in INDEX
+
+
+def test_o_mapa_usa_leaflet_da_casa_e_nao_CDN():
+    """Leaflet é vendorizado; `ensureLeaflet` é quem carrega."""
+    assert "await ensureLeaflet()" in INDEX.split("async function tvCliMapa")[1][:400]
+
+
+def test_o_mapa_agrupa_o_que_esta_no_mesmo_patio():
+    """Numa operação planta a planta os veículos param no MESMO ponto.
+
+    Sem agrupar, o render mostrou seis etiquetas ilegíveis empilhadas em
+    Cruzeiro. Grupo de um mostra a PLACA; grupo maior mostra a contagem.
+    """
+    corpo = INDEX.split("async function tvCliMapa")[1].split("\n}")[0]
+    assert "toFixed(2)" in corpo, "a grade de agrupamento sumiu"
+    assert "veíc." in corpo
+
+
+def test_posicao_velha_NAO_some_do_mapa():
+    corpo = INDEX.split("async function tvCliMapa")[1].split("\n}")[0]
+    assert "todasVelhas" in corpo
+    assert "#6E7883" in corpo, "a cor de posição velha sumiu"
+
+
+def test_a_cobertura_do_mapa_vai_na_tela():
+    """"33 de 33 veículos" impede olhar os pontos e concluir que aquilo é a
+    operação inteira; a idade impede tomar posição de ontem por posição de
+    agora."""
+    corpo = INDEX.split("async function tvCliMapa")[1].split("\n}")[0]
+    assert "veículos" in corpo and "fresca_ate_min" in corpo
+    assert "fontes" in corpo
+
+
+# O medidor e a rosca sao cobrados por COMPORTAMENTO em
+# `tests/frontend/test_tvcli_figuras.py`, onde as funcoes sao EXECUTADAS no
+# navegador. A primeira versao deste guard lia o texto-fonte do arquivo --
+# "o `path` esta la", "a palavra `zona` aparece" -- e ficou VERDE com a
+# funcao sabotada, porque codigo morto continua escrito. Guard de texto
+# sobrevive aqui so onde o que se afirma E o texto: uma classe de CSS, um
+# registro de tela, uma chamada que precisa existir.
+
+
+def test_o_medidor_usa_o_MESMO_fator_de_arco_da_Torre():
+    """Dois arcos com medidas diferentes na mesma casa seriam duas verdades
+    sobre o que é "cheio"."""
+    assert INDEX.count("* 1.319") >= 1
+    corpo = INDEX.split("function tvCliGauge")[1].split("\n}")[0]
+    assert "1.319" in corpo
+
+
+def test_sem_regua_o_medidor_NAO_inventa_verde():
+    corpo = INDEX.split("function tvCliGauge")[1].split("\n}")[0]
+    assert "sem régua de freetime" in corpo
+
+
+def test_a_rosca_leva_rotulo_DIRETO_porque_TV_nao_tem_tooltip():
+    corpo = INDEX.split("function tvCliRosca")[1].split("\n}")[0]
+    assert "tvc-leg" in corpo
+    assert "title=" not in corpo
+
+
+def test_a_rosca_declara_por_que_e_rosca_e_nao_barra():
+    """A casa prefere barra empilhada quando UMA categoria domina.
+
+    Aqui as etapas ficam equilibradas, que é o caso em que o anel funciona — e
+    isso está escrito, para quem mudar saber que a escolha foi medida e não
+    estética.
+    """
+    ctx = INDEX.split("function tvCliRosca")[0][-1200:]
+    assert "barra empilhada" in ctx and "domina" in ctx
+
+
+def test_numero_em_portugues_leva_VIRGULA():
+    """"6.5h" saiu no mural do render real: concatenar float na string entrega
+    o separador do JavaScript, não o do país."""
+    assert "function tvH(v)" in INDEX
+    corpo = INDEX.split("async function loadTvCli")[1].split("\nasync function")[0]
+    assert "tvH(" in corpo
+    assert "descarga_piso + 'h'" not in corpo

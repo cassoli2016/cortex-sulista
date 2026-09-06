@@ -28,6 +28,35 @@ glossario:
     vínculo vê a operação dele; para gente da casa a TV usa o cliente
     escolhido na tela Minha Operação, e sem escolha ela diz isso em vez de
     mostrar a conta de alguém que ninguém pediu.
+
+    Traz um MAPA com os veículos que estão levando as cargas em curso — só os
+    do cliente, nunca a frota — agrupados por pátio, porque numa operação de
+    planta a planta eles param no mesmo ponto e as etiquetas se empilhariam.
+    Veículo com posição velha não some do mapa: aparece em cinza, porque
+    sumir com ele é pior que mostrá-lo com a idade à mostra. O rodapé do mapa
+    diz quantos veículos têm posição, quantos são recentes e de qual fonte
+    (o CÓRTEX junta o rastreamento do ERP e a Gobrax, e vence a leitura mais
+    nova).
+
+    Traz também um MEDIDOR da aderência ao freetime e uma ROSCA das cargas por
+    etapa. O medidor mostra DOIS arcos: o cheio é o que está dentro sob
+    qualquer contrato, e o âmbar por cima é até onde o número poderia ir se
+    toda a faixa do meio fosse mercadoria de maior tolerância. Um arco só
+    mostraria 39% em vermelho escondendo que o teto é 70% — e numa parede
+    ninguém lê a ressalva no rodapé.
+- termo: Cargas em curso (o que fecha uma viagem)
+  definicao: >-
+    Uma carga sai da lista de "em curso" quando o MANIFESTO ELETRÔNICO dela é
+    encerrado, não quando a operação aponta o fim da descarga. Os dois foram
+    medidos em 05/09/2026 sobre 45 dias: o apontamento cobre 86,7% das cargas
+    e o manifesto 98,7% — e as discordâncias são de mão única, 93 cargas já
+    encerradas que o apontamento ainda dava como a caminho, e nenhuma no
+    sentido contrário. Faz sentido: encerrar o MDF-e é obrigação fiscal com
+    prazo, que a SEFAZ cobra; apontar fim de descarga é rotina que ninguém
+    multa. O apontamento fica como reserva para o 1,2% sem manifesto.
+    Carga recém-emitida, ainda sem nenhum apontamento, aparece como "sem
+    apontamento" em vez de sumir — antes ela não existia para a tela, e era
+    justamente a operação do dia.
 - termo: Permanência (carregamento e descarga)
   definicao: >-
     Tempo entre a chegada e a saída do veículo, medido pelos apontamentos da

@@ -97,6 +97,77 @@ O defeito no `SAC_FT_REP` **continua de pé** (05/09/2026) — é a tela `sac`, 
 outra frente, e merece a própria entrega. Fica registrado aqui porque achado
 medido que não vira crônica se perde.
 
+### Quem fecha a viagem é o manifesto, e eu tinha escolhido o registro errado
+
+O painel dizia **66 cargas a caminho**. Todas as 66 já tinham chegado.
+
+Eu havia escolhido o evento SAC 397 (fim de descarga) como marco terminal,
+depois de medir que o 401 ("viagem finalizada") aparecia UMA vez em 738 cargas.
+A escolha estava certa entre os dois candidatos que eu tinha olhado — e errada,
+porque eu não tinha olhado o candidato certo. Quem opera perguntou se o
+manifesto não seria mais preciso. Era.
+
+| 45 dias da Maxion, 774 coletas | cobertura |
+|---|---|
+| fim de descarga (SAC 397) | 86,7% |
+| viagem finalizada (SAC 401) | 0,1% |
+| **MDF-e encerrado** | **98,7%** |
+
+E as discordâncias são de **mão única**: 93 cargas sem 397 já tinham manifesto
+encerrado; NENHUMA com 397 tinha manifesto aberto. O MDF-e encerrado é
+superconjunto estrito do apontamento.
+
+**O porquê é estrutural, e é o que faz a regra durar:** encerrar o MDF-e é
+obrigação FISCAL com prazo, que a SEFAZ cobra; apontar fim de descarga é rotina
+operacional que ninguém multa. **Entre um registro que alguém é OBRIGADO a
+fazer e outro que seria bom fazer, o estado vem do primeiro.** Vale para
+qualquer tela desta casa que precise saber se algo terminou.
+
+O caso concreto que fecha o argumento: a coleta 20114 tinha como último
+apontamento "Em viagem" às 20:00 de 04/09, e o manifesto dela foi encerrado às
+22:13 do mesmo dia. Duas horas depois. A viagem acabou; a operação só não
+apontou.
+
+### E a operação do DIA estava invisível
+
+Consertar o terminal expôs um defeito maior embaixo. A consulta partia de
+`coleta_ocorrencia` e dava `JOIN` na coleta: **carga sem apontamento não
+existia para o painel**. Medido no mesmo dia — a Maxion tinha 5 coletas
+emitidas em 05/09 e ZERO eventos SAC, uma delas com manifesto ABERTO, isto é,
+viajando naquele instante. A operação do dia inteira estava fora da tela, e
+nada acusava, porque para o painel aquelas cargas não existiam.
+
+O apontamento chega com ~1 dia de atraso; a coleta existe no instante em que é
+emitida. **A espinha tem de ser o que EXISTE, e o apontamento é detalhe
+pendurado nele** — invertido, a tela some justamente com o que é mais recente,
+que numa parede de operação é o que mais importa.
+
+E há uma armadilha no conserto: inverter a consulta não bastou. Havia um
+`if not cod: continue` no consumidor, resquício de quando a consulta partia
+dos eventos, que continuou descartando exatamente as linhas que a inversão
+passou a trazer — o painel seguiu mostrando zero. **Mudar a consulta sem mudar
+quem a consome preserva o defeito antigo em silêncio.**
+
+### Três detalhes do mesmo dia que só o desenho na tela mostrou
+
+Nada disso apareceu em teste; apareceu em renderizar o painel com dado real e
+olhar a imagem.
+
+1. **`LATERAL` correlacionado é por LINHA.** O manifesto entrou primeiro como
+   `LEFT JOIN LATERAL`: 9,45 s numa janela de 45 dias, porque a cadeia de três
+   tabelas rodava uma vez por coleta. O mesmo resultado agregado num CTE, de
+   uma passada só: **0,98 s**. Painel de parede recarrega a cada 60 segundos.
+2. **A janela do manifesto tem de ser MAIOR que a das cargas.** O MDF-e que
+   fecha uma carga do começo do período pode ter sido emitido antes dele.
+   Cortar os dois no mesmo dia deixa carga velha eternamente "em curso" na
+   BORDA da janela — defeito que só aparece nas linhas mais antigas, onde
+   ninguém procura.
+3. **Corrigir o número expôs uma contradição na parede.** Com a regra nova as
+   10 cargas em curso ficaram todas em "sem apontamento", e a rosca — que só
+   tinha as três etapas do trajeto — passou a dizer "nenhuma carga em curso"
+   ao lado de um KPI dizendo 10. Duas afirmações opostas na mesma tela são
+   piores que qualquer uma das duas sozinha. Faltava a fatia.
+
 ### A trava certa no lugar errado (mesmo dia, 05/09/2026)
 
 A primeira versão recusava TODO MUNDO sem vínculo — e isso incluía gente da

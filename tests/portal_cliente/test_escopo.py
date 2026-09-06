@@ -139,7 +139,9 @@ def test_o_marco_e_o_evento_mais_avancado_registrado():
 
 def test_carga_sem_evento_nenhum_nao_inventa_estado():
     cod, rotulo, _ = pc._marco(_linha())
-    assert cod == 0 and rotulo == "Sem registro"
+    # "Sem apontamento", e nao "sem registro": a COLETA existe e está na tela.
+    # O que falta é a operação ter apontado por onde ela passou.
+    assert cod == 0 and rotulo == "Sem apontamento"
 
 
 def test_o_TERMINAL_e_fim_de_descarga_e_NAO_viagem_finalizada():
@@ -157,8 +159,75 @@ def test_o_TERMINAL_e_fim_de_descarga_e_NAO_viagem_finalizada():
     assert pc.em_curso(a_caminho)
 
 
-def test_carga_sem_evento_nao_conta_como_em_curso():
-    assert not pc.em_curso(_linha())
+def test_carga_sem_apontamento_CONTA_como_em_curso():
+    """A inversão de 05/09/2026, e a que mais muda o painel.
+
+    Antes a carga sem evento nem aparecia: a consulta partia de
+    `coleta_ocorrencia`. No dia da medição a Maxion tinha 5 coletas e ZERO
+    eventos SAC — uma delas com manifesto ABERTO, viajando naquele instante —
+    e a operação do dia inteira estava invisível, sem nada acusar.
+
+    A coleta existe e o manifesto não fechou: isso é carga no ar cujo trajeto
+    ninguém apontou, não carga que não existe.
+    """
+    assert pc.em_curso(_linha())
+    assert not pc.em_curso(_linha(mdfe_encerrado=1))
+
+
+def test_o_MANIFESTO_fecha_a_viagem_mesmo_sem_apontamento():
+    """Medido: 93 cargas sem fim de descarga já tinham o MDF-e encerrado, e
+    NENHUMA com fim de descarga tinha manifesto aberto.
+
+    Encerrar o MDF-e é obrigação fiscal com prazo; apontar fim de descarga é
+    rotina que ninguém multa. Entre um registro obrigatório e um desejável, o
+    estado vem do obrigatório.
+    """
+    viajando = _linha(t_viagem="2026-09-04 20:00")
+    assert pc.em_curso(viajando)
+    viajando_com_mdfe = _linha(t_viagem="2026-09-04 20:00", mdfe_encerrado=1)
+    assert not pc.em_curso(viajando_com_mdfe)
+
+
+def test_sem_manifesto_o_fim_de_descarga_ainda_decide():
+    """O 397 é a RESERVA para o 1,2% sem manifesto — sem ela essas cargas
+    ficariam em curso para sempre."""
+    assert not pc.em_curso(_linha(t_fim_desc="2026-09-01 16:00", mdfe_encerrado=0))
+    assert pc.em_curso(_linha(t_cheg_desc="2026-09-01 14:00", mdfe_encerrado=0))
+
+
+def test_a_consulta_agrega_o_manifesto_ANTES_de_juntar():
+    """Coleta pode estar em vários CT-es e o CT-e em vários MDF-es.
+
+    Join cru multiplicaria a carga e o "em curso" viraria contagem inflada e
+    plausível — o modo de falha que a casa já documentou. E o agregado tem de
+    ser um CTE, não um LATERAL por linha: medido, o LATERAL levava 9,45 s numa
+    janela de 45 dias, contra 0,98 s assim. Painel de parede recarrega a cada
+    60 segundos.
+    """
+    assert "mdf AS (" in pc.AGORA_SQL
+    assert "LEFT JOIN LATERAL" not in pc.AGORA_SQL
+    assert "GROUP BY 1,2,3,4,5,6,7)" in pc.AGORA_SQL
+
+
+def test_a_janela_do_manifesto_e_MAIOR_que_a_das_cargas():
+    """O manifesto que fecha uma carga do começo da janela pode ter sido
+    emitido antes dela. Cortar os dois no mesmo dia deixaria carga velha
+    eternamente em curso na BORDA do período."""
+    assert "%(dias)s + 30" in pc.AGORA_SQL
+
+
+def test_a_espinha_e_a_COLETA_e_o_apontamento_e_detalhe():
+    """`FROM coleta` com `LEFT JOIN ev`, nunca o contrário.
+
+    Invertido, carga sem apontamento desaparece — e é justamente a de hoje,
+    a que mais importa numa parede.
+    """
+    corpo = pc.AGORA_SQL
+    assert "FROM coleta c" in corpo
+    assert "LEFT JOIN ev ON" in corpo
+    # a inversao literal: o `ev` nao pode voltar a ser a tabela de partida
+    # a ordem no texto prova a inversao: a coleta vem antes, o evento depois
+    assert corpo.index("FROM coleta c") < corpo.index("LEFT JOIN ev ON")
 
 
 def test_os_rotulos_dos_marcos_vem_da_tabela_de_dominio():
@@ -278,11 +347,76 @@ def test_o_payload_da_carga_e_lista_EXPLICITA(monkeypatch):
     d = pc.get_agora(RAIZ, 45)
     assert d["em_curso"] == 1
     carga = d["cargas"][0]
+    # O conjunto é EXATO de propósito: acrescentar campo aqui tem de ser uma
+    # decisão, não um efeito colateral de mexer na consulta. `pos` entrou em
+    # 05/09/2026 com o mapa do painel de TV, e entrou montado campo a campo
+    # como todo o resto.
     assert set(carga) == {"coleta", "emissao", "origem", "uf_origem", "destino",
-                          "uf_destino", "placa", "marco", "marco_cod", "marco_em"}
+                          "uf_destino", "placa", "marco", "marco_cod", "marco_em",
+                          "pos"}
     texto = repr(carga)
     assert "8123" not in texto and "FULANO" not in texto
     assert "61156113000175" not in texto
+
+
+def test_a_posicao_diz_de_onde_veio_e_que_idade_tem(monkeypatch):
+    """Regra de `api/posicoes`, que o mapa não pode perder no caminho.
+
+    Mapa que mistura fontes sem dizer qual é qual transforma "a Gobrax está
+    fora" em "a frota sumiu". E posição velha não some do mapa: aparece
+    marcada, porque sumir com ela faz o veículo desaparecer, que é pior.
+    """
+    monkeypatch.setattr(pc.db, "query", lambda *a, **k: [{
+        "coleta": 1, "emissao": "2026-09-04", "origem": "CRUZEIRO",
+        "uf_origem": "SP", "destino": "RESENDE", "uf_destino": "RJ",
+        "placa": "BCW8A71", "t_cheg_carga": None, "t_saiu_carga": None,
+        "t_viagem": "2026-09-04 11:00", "t_cheg_desc": None,
+        "t_fim_desc": None, "t_finalizada": None}])
+    from api import posicoes
+    monkeypatch.setattr(posicoes, "atuais", lambda *a, **k: {"posicoes": {
+        "BCW8A71": {"lat": -22.5, "lon": -44.9, "velocidade": 62,
+                    "fonte": "erp", "idade_min": 4.3}}})
+    d = pc.get_agora(RAIZ, 45)
+    pos = d["cargas"][0]["pos"]
+    assert set(pos) == {"lat", "lon", "velocidade", "fonte", "idade_min", "velha"}
+    assert pos["fonte"] == "erp" and pos["idade_min"] == 4.3
+    assert pos["velha"] is False
+    assert d["posicao"]["com_posicao"] == 1 and d["posicao"]["veiculos"] == 1
+
+
+def test_posicao_VELHA_nao_some_do_mapa(monkeypatch):
+    monkeypatch.setattr(pc.db, "query", lambda *a, **k: [{
+        "coleta": 1, "emissao": "2026-09-04", "origem": "C", "uf_origem": "SP",
+        "destino": "D", "uf_destino": "RJ", "placa": "AAA1A11",
+        "t_cheg_carga": None, "t_saiu_carga": None, "t_viagem": "2026-09-04 11:00",
+        "t_cheg_desc": None, "t_fim_desc": None, "t_finalizada": None}])
+    from api import posicoes
+    monkeypatch.setattr(posicoes, "atuais", lambda *a, **k: {"posicoes": {
+        "AAA1A11": {"lat": -22.5, "lon": -44.9, "velocidade": 0,
+                    "fonte": "gobrax", "idade_min": 2127.8}}})
+    d = pc.get_agora(RAIZ, 45)
+    pos = d["cargas"][0]["pos"]
+    assert pos is not None and pos["velha"] is True
+    assert d["posicao"]["com_posicao"] == 1
+    assert d["posicao"]["frescas"] == 0      # contada, e fora da conta de fresca
+
+
+def test_falha_da_POSICAO_nao_derruba_as_cargas(monkeypatch):
+    """O mapa é acréscimo; a carga é o dado."""
+    monkeypatch.setattr(pc.db, "query", lambda *a, **k: [{
+        "coleta": 1, "emissao": "2026-09-04", "origem": "C", "uf_origem": "SP",
+        "destino": "D", "uf_destino": "RJ", "placa": "AAA1A11",
+        "t_cheg_carga": None, "t_saiu_carga": None, "t_viagem": "2026-09-04 11:00",
+        "t_cheg_desc": None, "t_fim_desc": None, "t_finalizada": None}])
+    from api import posicoes
+
+    def _explode(*a, **k):
+        raise RuntimeError("rastreamento fora")
+    monkeypatch.setattr(posicoes, "atuais", _explode)
+    d = pc.get_agora(RAIZ, 45)
+    assert d["em_curso"] == 1
+    assert d["cargas"][0]["pos"] is None
+    assert d["posicao"]["com_posicao"] == 0
 
 
 def test_a_serie_mensal_e_GERADA_e_nao_colhida(monkeypatch):

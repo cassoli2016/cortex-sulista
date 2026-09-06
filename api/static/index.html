@@ -1379,6 +1379,13 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
 .tvw .tv-sub{font-size:clamp(9px,0.66vw,13px);margin-top:0.1vw}
 .tvw-mapa{grid-row:1/3;grid-column:2;position:relative}
 #tvMapa{position:absolute;inset:0;border-radius:0.42vw;z-index:1}
+#tvCliMapa{position:absolute;inset:0;border-radius:0.42vw;z-index:1}
+.tvc-mapa{position:relative;min-height:9.5vw}
+.tvc-gauge,.tvc-rosca{display:flex;align-items:center;justify-content:center;gap:1.1vw;min-height:9.5vw}
+.tvc-leg{display:flex;flex-direction:column;gap:0.32vw}
+.tvc-leg span{display:flex;align-items:center;gap:0.4vw;font-size:clamp(10px,0.78vw,15px);color:#C6D4E2;white-space:nowrap}
+.tvc-leg i{width:0.62vw;height:0.62vw;border-radius:2px;flex:none}
+.tvc-leg b{color:#fff;font-weight:800}
 .tv-regiao{position:absolute;top:0.7vw;left:0.7vw;z-index:500;background:rgba(11,25,38,.85);color:#E5EDF4;
   padding:0.35vw 0.9vw;border-radius:999px;font-size:clamp(10px,0.8vw,15px);font-weight:700;letter-spacing:.05em}
 .tv-vmk{color:#fff;font-weight:800;font-family:var(--mono);font-size:clamp(9px,0.6vw,12px);line-height:1;
@@ -3820,16 +3827,27 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <section class="view" id="view-tvcli">
         <div class="tv-head"><div class="tv-left"><img class="tv-logo" src="/static/sulista-logo-branco.svg" alt="Sulista"><span class="tv-upd tv-next"></span></div><div class="tv-title"><h2 id="tvcli-titulo">OPERAÇÃO DO CLIENTE</h2><span class="tv-farol" id="tvcli-farol" style="display:none"></span></div><div class="tv-right"><span class="tv-clock"></span><a href="javascript:tvFull()" title="tela cheia" aria-label="Tela cheia">⛶</a><a href="#home" title="sair do modo TV" aria-label="Sair do modo TV">✕</a></div></div>
         <div class="tv-grid" id="tvcli-k1"></div>
-        <div class="tv-grid" id="tvcli-k2" style="margin-top:22px"></div>
         <div class="tv-grid" style="margin-top:22px">
-          <div class="tv-card tv-wide" style="grid-column:span 2">
+          <div class="tv-card">
+            <div class="tv-label">Dentro do freetime</div>
+            <div id="tvcli-gauge" class="tvc-gauge"></div>
+            <div class="tv-sub" id="tvcli-gauge-sub"></div>
+          </div>
+          <div class="tv-card">
+            <div class="tv-label">Cargas em curso por etapa</div>
+            <div id="tvcli-rosca" class="tvc-rosca"></div>
+            <div class="tv-sub" id="tvcli-rosca-sub"></div>
+          </div>
+          <div class="tv-card tvc-mapa" style="grid-column:span 2">
+            <div id="tvCliMapa"></div>
+            <div class="tv-regiao" id="tvcli-mapa-sub">Cargas em curso</div>
+          </div>
+        </div>
+        <div class="tv-grid" style="margin-top:22px">
+          <div class="tv-card tv-wide" style="grid-column:span 4">
             <div class="tv-label">Cargas em curso — onde estão agora</div>
             <table class="tv-tab"><thead><tr><th>Coleta</th><th>Rota</th><th>Veículo</th><th>Situação</th></tr></thead>
             <tbody id="tvcli-cargas"></tbody></table>
-          </div>
-          <div class="tv-card tv-wide" style="grid-column:span 2">
-            <div class="tv-label">Cargas em curso por rota <span id="tvcli-rotas-sub" style="text-transform:none;letter-spacing:0;color:#8FA6BC"></span></div>
-            <div class="tvd-serie" id="tvcli-rotas"></div>
           </div>
         </div>
       </section>
@@ -12911,6 +12929,90 @@ async function loadTvFat(){
    e desastroso ao mesmo tempo, e a marca vai onde a pessoa está olhando). */
 let tvDirSeq=0, tvDirOk=false;
 let tvCliSeq = 0, tvCliOk = false;
+let tvCliMap = null, tvCliLayer = null;
+
+/* O MAPA DA TV DO CLIENTE. So as cargas EM CURSO dele -- nunca a frota, nunca
+   outro cliente. O recorte vem do servidor; aqui so se desenha o que chegou.
+
+   O Leaflet mede o container UMA vez: sob `hidden` a medida vale zero para
+   sempre, e o sintoma e mudo (mapa cinza, sem erro). Por isso o
+   `invalidateSize()` a cada passada e o `setTimeout` na criacao -- o mesmo
+   remedio que a Torre usa. */
+async function tvCliMapa(cargas, resumo){
+  try{ await ensureLeaflet(); }catch(e){ return; }
+  const el = document.getElementById('tvCliMapa');
+  if(!el) return;
+  if(!tvCliMap){
+    tvCliMap = L.map('tvCliMapa', {scrollWheelZoom:false, zoomControl:false,
+                                   attributionControl:false}).setView([-24.8,-47.5], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(tvCliMap);
+    tvCliLayer = L.layerGroup().addTo(tvCliMap);
+    setTimeout(function(){ tvCliMap.invalidateSize(); }, 500);
+  } else { tvCliMap.invalidateSize(); }
+  tvCliLayer.clearLayers();
+
+  /* UMA MARCA POR VEICULO, nao por carga: um caminhao leva varios CT-es (66
+     cargas em 33 veiculos, medido), e uma marca por carga empilharia pontos
+     identicos no mesmo pixel dando impressao de frota maior. */
+  const porPlaca = {};
+  (cargas || []).forEach(function(c){
+    if(!c.pos || !c.placa) return;
+    if(!porPlaca[c.placa]) porPlaca[c.placa] = {pos:c.pos, placa:c.placa, cargas:0};
+    porPlaca[c.placa].cargas += 1;
+  });
+
+  /* AGRUPA O QUE ESTA NO MESMO PATIO. Numa operacao de planta a planta os
+     veiculos ficam parados no MESMO ponto -- em Cruzeiro e Resende eles se
+     empilham, e o render mostrou seis etiquetas ilegiveis uma por cima da
+     outra. ~1,1 km de grade (0,01 grau) e o suficiente para separar patios
+     vizinhos e juntar o que esta no mesmo. Grupo de um continua mostrando a
+     PLACA; grupo maior mostra a contagem, porque seis placas num ponto so nao
+     se leem de longe de jeito nenhum. */
+  const grupos = {};
+  Object.keys(porPlaca).forEach(function(pl){
+    const v = porPlaca[pl], p = v.pos;
+    const k = p.lat.toFixed(2) + ',' + p.lon.toFixed(2);
+    if(!grupos[k]) grupos[k] = {lat:p.lat, lon:p.lon, veics:[], paradas:0, velhas:0, cargas:0};
+    const g = grupos[k];
+    g.veics.push(pl);
+    g.cargas += v.cargas;
+    if(p.velha) g.velhas += 1;
+    if(!(p.velocidade > 0)) g.paradas += 1;
+  });
+
+  const pts = [];
+  Object.keys(grupos).forEach(function(k){
+    const g = grupos[k], n = g.veics.length;
+    /* POSICAO VELHA NAO SOME DO MAPA, aparece marcada: sumir com ela faria o
+       veiculo desaparecer, que e pior que mostra-lo com a idade a mostra. */
+    const todasVelhas = g.velhas === n;
+    const andando = g.paradas < n;
+    const cor = todasVelhas ? '#6E7883' : (andando ? '#4ADE80' : '#FBBF24');
+    const rot = n === 1 ? esc(g.veics[0]) : (n + ' veíc.');
+    L.marker([g.lat, g.lon], {
+      icon: L.divIcon({className:'', iconSize:null, iconAnchor:[18,9],
+        html:'<div class="tv-vmk' + (!todasVelhas && andando ? ' mov' : '')
+             + '" style="background:' + cor + '">' + rot + '</div>'}),
+      zIndexOffset: n > 1 ? 500 : 0,
+    }).addTo(tvCliLayer);
+    pts.push([g.lat, g.lon]);
+  });
+  if(pts.length){
+    try{ tvCliMap.fitBounds(L.latLngBounds(pts), {padding:[40,40], maxZoom:9}); }catch(e){}
+  }
+  /* A COBERTURA vai no rodape do mapa. "33 de 33 veiculos" impede alguem de
+     olhar os pontos e concluir que aquilo e a operacao inteira; e a idade da
+     leitura impede tomar posicao de ontem por posicao de agora. */
+  const r = resumo || {};
+  const sub = document.getElementById('tvcli-mapa-sub');
+  if(sub){
+    const fontes = Object.keys(r.fontes || {}).join(' + ') || '—';
+    sub.textContent = pts.length
+      ? (r.com_posicao + ' de ' + r.veiculos + ' veículos · ' + r.frescas
+         + ' com posição de até ' + (r.fresca_ate_min || 120) + ' min · ' + fontes)
+      : 'sem posição para as cargas em curso';
+  }
+}
 
 /* PAINEL DE TV DA OPERACAO DO CLIENTE.
 
@@ -12921,6 +13023,98 @@ let tvCliSeq = 0, tvCliOk = false;
    DE QUEM E A OPERACAO: o servidor decide (`portal_cliente.alvo`). Quem tem
    vinculo ve o dele; gente da casa ve o que escolheu na `cliop`, lembrado no
    navegador. Uma TV nao tem quem escolha, entao sem escolha ela DIZ isso. */
+/* MEDIDOR E ROSCA DESENHADOS A MAO, e nao em ECharts.
+
+   A casa manda "grafico e ECharts, e so ECharts", com UMA excecao ja escrita:
+   o gauge de meta dos paineis de TV. Aqui a excecao se estende a rosca, e vale
+   dizer por que em vez de deixar a proxima pessoa achar que foi descuido:
+
+   - nenhum painel de TV carrega ECharts hoje (as series sao `div`, o gauge sao
+     dois `path`), e puxar 990 KB para uma parede que fica ligada o dia inteiro
+     seria pagar caro por duas figuras simples;
+   - a paleta dos paineis de TV e FIXA e nao segue o tema; o ECharts COPIA as
+     cores do `CC`, que e a paleta clara, e sairia claro sobre fundo escuro;
+   - TV nao tem tooltip. O que o ECharts da de melhor -- interacao -- e
+     exatamente o que uma parede nao usa.
+
+   As duas figuras seguem as regras que valem para qualquer grafico da casa:
+   semaforo DISCRETO (nao degrade), rotulo direto ao lado, e nada de numero
+   sem unidade. */
+/* Horas em portugues: `3` vira "3h" e `6.5` vira "6,5h". Concatenar o float
+   direto na string entregava "6.5h" no mural -- e numero com separador errado
+   numa parede e o tipo de detalhe que faz quem le duvidar do resto. */
+function tvH(v){
+  return v == null ? 'n/d'
+    : v.toLocaleString('pt-BR', {maximumFractionDigits:1}) + 'h';
+}
+
+function tvCliGauge(pct, cls, zona){
+  if(pct == null){
+    return '<div class="tv-sub" style="text-align:center">sem régua de freetime<br>cadastrada para este cliente</div>';
+  }
+  /* 1.319 e o fator do arco: 100% preenche 131,9 de um dasharray de 300.
+     E o mesmo numero do gauge de meta da Torre -- dois arcos com medidas
+     diferentes na mesma casa seriam duas verdades sobre "cheio". */
+  const cor = cls === 'ok' ? '#4ADE80' : (cls === 'warn' ? '#FBBF24' : '#F87171');
+  const arco = Math.max(0, Math.min(100, pct)) * 1.319;
+  /* DOIS ARCOS, e nao um. O verde e o que esta dentro sob QUALQUER contrato; o
+     ambar por cima e ate onde o numero poderia ir se toda a faixa do meio
+     fosse mercadoria de 6,5h. Um arco so mostrava 39% em vermelho e escondia
+     que o teto e ~70% -- justamente a ambiguidade que este painel existe para
+     nao esconder, e que numa parede ninguem vai ler no rodape.
+     O NUMERO continua sendo o conservador: e o unico que nao depende de um
+     dado que nao temos. */
+  const ate = Math.max(0, Math.min(100, (zona == null ? pct : pct + zona)));
+  const arcoAte = ate * 1.319;
+  return '<svg viewBox="0 0 100 58" style="width:9.5vw">'
+    + '<path d="M8 50 A42 42 0 0 1 92 50" fill="none" stroke="#1E3A54" stroke-width="9" stroke-linecap="round"/>'
+    + (ate > pct
+        ? '<path d="M8 50 A42 42 0 0 1 92 50" fill="none" stroke="#FBBF24" stroke-width="9"'
+          + ' stroke-linecap="round" opacity="0.55"'
+          + ' stroke-dasharray="' + arcoAte.toFixed(1) + ' 300"/>'
+        : '')
+    + '<path d="M8 50 A42 42 0 0 1 92 50" fill="none" stroke="' + cor + '" stroke-width="9" stroke-linecap="round"'
+    + ' stroke-dasharray="' + arco.toFixed(1) + ' 300"/>'
+    + '<text x="50" y="47" text-anchor="middle" font-size="19" font-weight="800" fill="' + cor + '">'
+    + pct.toFixed(0) + '%</text>'
+    + (ate > pct
+        ? '<text x="50" y="57" text-anchor="middle" font-size="8" fill="#FBBF24">até '
+          + ate.toFixed(0) + '%</text>'
+        : '')
+    + '</svg>';
+}
+
+/* ROSCA. A casa prefere barra empilhada quando UMA categoria domina, porque
+   fatia de 3% num anel nao se le. Aqui as etapas ficam equilibradas (medido em
+   05/09/2026: 30 em viagem, 33 no destino, 3 na origem), que e o caso em que o
+   anel funciona -- e o total no meio responde "quantas ao todo" sem uma
+   segunda leitura. Se um dia uma etapa passar a dominar, o certo e trocar por
+   barra, nao encolher a fatia. */
+function tvCliRosca(fatias){
+  const total = fatias.reduce(function(a, f){ return a + f.n; }, 0);
+  if(!total) return '<div class="tv-sub" style="text-align:center">nenhuma carga em curso</div>';
+  const R = 34, C = 2 * Math.PI * R;
+  let ini = 0;
+  const aneis = fatias.filter(function(f){ return f.n > 0; }).map(function(f){
+    const frac = f.n / total, dash = frac * C;
+    const el = '<circle cx="50" cy="50" r="' + R + '" fill="none" stroke="' + f.cor + '"'
+      + ' stroke-width="15" stroke-dasharray="' + dash.toFixed(2) + ' ' + (C - dash).toFixed(2) + '"'
+      + ' stroke-dashoffset="' + (-ini).toFixed(2) + '" transform="rotate(-90 50 50)"/>';
+    ini += dash;
+    return el;
+  }).join('');
+  const svg = '<svg viewBox="0 0 100 100" style="width:8.6vw">' + aneis
+    + '<text x="50" y="47" text-anchor="middle" font-size="21" font-weight="800" fill="#fff">'
+    + total + '</text>'
+    + '<text x="50" y="61" text-anchor="middle" font-size="9" fill="#8FA6BC">CARGAS</text></svg>';
+  /* ROTULO DIRETO: sem tooltip, a legenda leva o numero junto da cor. */
+  const leg = '<div class="tvc-leg">' + fatias.map(function(f){
+    return '<span><i style="background:' + f.cor + '"></i>' + esc(f.rot)
+         + ' <b>' + f.n + '</b></span>';
+  }).join('') + '</div>';
+  return svg + leg;
+}
+
 async function loadTvCli(){
   const seq = ++tvCliSeq;
   try{
@@ -12940,9 +13134,14 @@ async function loadTvCli(){
         + '<div class="tv-label">Nenhum cliente escolhido</div>'
         + '<div class="tv-sub">Abra <b>Minha Operação</b> neste navegador, '
         + 'escolha o cliente, e volte a esta tela — a escolha fica lembrada.</div></div>';
-      document.getElementById('tvcli-k2').innerHTML = '';
+      document.getElementById('tvcli-gauge').innerHTML = '';
+      document.getElementById('tvcli-gauge-sub').textContent = '';
+      document.getElementById('tvcli-rosca').innerHTML = '';
+      document.getElementById('tvcli-rosca-sub').textContent = '';
       document.getElementById('tvcli-cargas').innerHTML = '';
-      document.getElementById('tvcli-rotas').innerHTML = '';
+      if(tvCliLayer) tvCliLayer.clearLayers();
+      const sub = document.getElementById('tvcli-mapa-sub');
+      if(sub) sub.textContent = 'nenhum cliente escolhido';
       return;
     }
 
@@ -12969,7 +13168,7 @@ async function loadTvCli(){
 
     document.getElementById('tvcli-k1').innerHTML = [
       tvCard('Cargas em curso', String(dA.em_curso || 0), '',
-             'sem fim de descarga apontado · últimos ' + (dA.janela_dias || 45) + ' dias'),
+             'manifesto ainda não encerrado · últimos ' + (dA.janela_dias || 45) + ' dias'),
       tvCard('Em viagem', String(emViagem), '', 'a caminho do destino'),
       tvCard('No destino', String(naDescarga), '', 'chegou · aguardando ou descarregando'),
       tvCard('Na origem', String(naOrigem), '', 'carregando ou pronto para sair'),
@@ -12979,28 +13178,44 @@ async function loadTvCli(){
        o unico dos tres que nao depende da mercadoria. Mostrar o "dentro"
        sozinho numa TV daria a impressao de aderencia que a faixa do meio nao
        sustenta, e numa parede ninguem tem onde ler a ressalva. */
-    const de = dP.descarga || {}, ft = dP.freetime || {};
-    const mediana = de.mediana_h;
-    const foraPct = de.fora_pct;
-    /* Semaforo DISCRETO e so quando ha regua: sem freetime cadastrado nao ha
-       o que classificar, e verde sem regua e verde inventado. */
-    const cls = (foraPct == null) ? '' : (foraPct <= 10 ? 'ok' : (foraPct <= 25 ? 'warn' : 'ruim'));
-    const faixa = ft.contratos
-      ? (ft.ambiguo ? ft.descarga_piso + 'h a ' + ft.descarga_teto + 'h conforme a mercadoria'
-                    : 'freetime de ' + ft.descarga_piso + 'h')
-      : 'sem freetime cadastrado';
-    document.getElementById('tvcli-k2').innerHTML = [
-      tvCard('Permanência na descarga', mediana != null
-               ? mediana.toLocaleString('pt-BR',{maximumFractionDigits:1}) + ' h' : 'n/d',
-             '', 'mediana do mês · ' + faixa),
-      tvCard('Acima do freetime', foraPct != null ? foraPct + '%' : 'n/d', cls,
-             'excedente em qualquer contrato · ' + (de.n || 0) + ' descargas medidas'),
-      tvCard('Permanência na carga', (dP.carga || {}).mediana_h != null
-               ? dP.carga.mediana_h.toLocaleString('pt-BR',{maximumFractionDigits:1}) + ' h' : 'n/d',
-             '', 'mediana do mês · freetime de ' + (ft.carga_piso != null ? ft.carga_piso + 'h' : 'n/d')),
-      tvCard('Cargas no mês', String(dP.cargas_no_periodo || 0), '',
-             'com apontamento de carga ou descarga'),
-    ].join('');
+    const de = dP.descarga || {}, ca = dP.carga || {}, ft = dP.freetime || {};
+
+    /* MEDIDOR: aderencia ao freetime na descarga. O numero e o DENTRO (a
+       leitura positiva que uma parede pede), com semaforo DISCRETO -- e so
+       quando ha regua: sem freetime cadastrado nao ha o que classificar, e
+       verde sem regua e verde inventado.
+
+       Usa a faixa "dentro do piso", a mais conservadora das tres: e a unica
+       que vale sob QUALQUER contrato. Num mural ninguem le a ressalva de que
+       a faixa do meio depende da mercadoria. */
+    const dentroPct = de.dentro_pct;
+    const cls = (dentroPct == null) ? '' : (dentroPct >= 80 ? 'ok' : (dentroPct >= 60 ? 'warn' : 'ruim'));
+    document.getElementById('tvcli-gauge').innerHTML = tvCliGauge(
+      dentroPct == null ? null : dentroPct, cls, de.zona_pct);
+    document.getElementById('tvcli-gauge-sub').textContent = ft.contratos
+      ? ((de.dentro || 0) + ' de ' + (de.n || 0) + ' descargas dentro de '
+         + tvH(ft.descarga_piso)
+         + (ft.ambiguo ? ' · ' + (de.zona || 0) + ' entre ' + tvH(ft.descarga_piso)
+                         + ' e ' + tvH(ft.descarga_teto) + ' conforme a mercadoria' : '')
+         + ' · mediana ' + tvH(de.mediana_h))
+      : 'sem freetime cadastrado para este cliente';
+
+    /* ROSCA: as cargas em curso por etapa do trajeto. Mesmas contagens da
+       banda de cima, em forma -- de longe a proporcao se le antes do numero. */
+    /* A fatia SEM APONTAMENTO nao e enfeite: desde que o manifesto passou a
+       fechar a viagem, a carga emitida e ainda nao apontada aparece no painel
+       -- e ela nao esta em nenhuma das tres etapas. Sem esta fatia o anel
+       dizia "nenhuma carga em curso" ao lado de um KPI dizendo 10. */
+    const semApont = (dA.em_curso || 0) - naOrigem - emViagem - naDescarga;
+    document.getElementById('tvcli-rosca').innerHTML = tvCliRosca([
+      {rot:'Sem apontamento', n: Math.max(0, semApont), cor:'#6E7883'},
+      {rot:'Na origem',  n: naOrigem,   cor:'#8FA6BC'},
+      {rot:'Em viagem',  n: emViagem,   cor:'#4ADE80'},
+      {rot:'No destino', n: naDescarga, cor:'#FBBF24'},
+    ]);
+    document.getElementById('tvcli-rosca-sub').textContent =
+      'carregamento: mediana ' + tvH(ca.mediana_h)
+      + ' · ' + (dP.cargas_no_periodo || 0) + ' cargas apontadas no mês';
 
     /* TABELA DA TV: quem limita e o RENDERIZADOR, nao o CSS -- rolagem dentro
        do card e inutil numa parede que ninguem toca. 10 linhas e o que cabe. */
@@ -13013,21 +13228,7 @@ async function loadTvCli(){
         }).join('')
       : '<tr><td colspan="4">nenhuma carga em curso</td></tr>';
 
-    const porRota = {};
-    cargas.forEach(function(c){
-      const k = c.destino + '/' + c.uf_destino;
-      porRota[k] = (porRota[k] || 0) + 1;
-    });
-    const pares = Object.keys(porRota).map(function(k){ return [k, porRota[k]]; })
-                        .sort(function(a, b){ return b[1] - a[1]; }).slice(0, 8);
-    const maxR = Math.max.apply(null, [1].concat(pares.map(function(x){ return x[1]; })));
-    document.getElementById('tvcli-rotas-sub').textContent =
-      pares.length ? ' · por destino · ' + cargas.length + ' cargas' : '';
-    document.getElementById('tvcli-rotas').innerHTML = pares.map(function(x){
-      return '<div class="tvd-col"><span class="v">' + x[1] + '</span>'
-        + '<i style="height:' + Math.max(2, 100 * x[1] / maxR).toFixed(1) + '%"></i>'
-        + '<b>' + esc(x[0]) + '</b></div>';
-    }).join('') || '';
+    tvCliMapa(cargas, dA.posicao);
   }catch(e){
     if(seq === tvCliSeq) tvErro('tvcli-k1', tvCliOk);
   }
@@ -21751,7 +21952,7 @@ async function loadCliop(){
                    + (por['Sa\u00edda do carregamento'] || 0);
     document.getElementById('kpis-cliop').innerHTML = [
       kpi('Cargas em curso', (d.em_curso || 0).toLocaleString('pt-BR'),
-          'ainda sem fim de descarga apontado', ''),
+          'manifesto ainda não encerrado', ''),
       kpi('Em viagem', emViagem.toLocaleString('pt-BR'), 'a caminho do destino', ''),
       kpi('No destino', naDescarga.toLocaleString('pt-BR'),
           'chegou e aguarda ou esta em descarga', ''),

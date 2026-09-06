@@ -40,6 +40,23 @@ A ordem importa e está em `alvo()`: o vínculo é consultado PRIMEIRO, e só a
 sua ausência abre a escolha. Inverter isso — aceitar o parâmetro e cair no
 vínculo quando ele falta — seria a mesma função com a trava do lado errado.
 
+POSIÇÃO NO MAPA: por que aqui pode e no rastreio público não
+============================================================
+`api/rastreio/` recusa placa e coordenada exata, e a razão está escrita lá:
+uma página ABERTA que aceita placa e devolve onde o caminhão está agora é
+ferramenta de roubo de carga — quem quiser interceptar não precisa de mais
+nada além da placa, que está pintada na porta.
+
+Aqui a diferença não é de grau, é de natureza: há login, o vínculo diz de quem
+é a carga, e o mapa só recebe as placas das cargas EM CURSO daquele cliente —
+nunca a frota, nunca outro cliente. É o mesmo raciocínio que já libera a placa
+nesta tela. Quem vê é a operação (ou o dono da carga), não um desconhecido que
+digitou um número.
+
+O que o mapa NÃO faz, e não deve passar a fazer: aceitar placa como ENTRADA.
+Escolher um caminhão e perguntar onde ele está é a função que o rastreio
+recusou; mostrar onde estão as cargas que já são suas é outra coisa.
+
 O QUE NÃO SAI DAQUI
 ===================
 Nome e telefone de motorista, CPF, valor de frete, custo, e a operação de
@@ -268,6 +285,19 @@ FILTRO_CLIENTE = """(   strpos(cast(c.cnpjcpfcodigotomadorservico AS text), %(ra
 # por código em vez de `DISTINCT ON` porque o pareamento por par (chegada,
 # saída) já precisa das colunas separadas para a permanência — é a mesma
 # varredura servindo às duas perguntas, e é o que cabe no timeout do AVA.
+# A ESPINHA É A COLETA, e os apontamentos são DETALHE dela.
+#
+# A primeira versão partia de `coleta_ocorrencia` e dava JOIN na coleta: carga
+# sem apontamento simplesmente não existia para o painel. Medido em 05/09/2026,
+# e é grave: naquele dia a Maxion tinha 5 coletas e ZERO eventos SAC — uma
+# delas com manifesto ABERTO, isto é, viajando naquele instante. A operação do
+# DIA inteira estava invisível, e o painel não tinha como acusar, porque para
+# ele aquelas cargas não existiam.
+#
+# O apontamento SAC chega com atraso (~1 dia) e cobre 86,7%; a coleta existe no
+# instante em que é emitida. Partir do que existe e pendurar o que foi apontado
+# é a ordem certa — e a carga sem apontamento aparece dizendo "sem registro",
+# que é honesto e visível, em vez de sumir.
 AGORA_SQL = """
 WITH ev AS (
   SELECT grupo,empresa,filial,unidade,diferenciadornumero,serie,numero,
@@ -280,6 +310,39 @@ WITH ev AS (
   FROM coleta_ocorrencia
   WHERE ocorrencia IN (394,395,396,397,400,401)
     AND dtocorrencia >= current_date - %(dias)s
+  GROUP BY 1,2,3,4,5,6,7),
+-- O MANIFESTO, agregado de UMA vez em vez de consultado por carga.
+--
+-- A primeira versao fazia isto num LATERAL correlacionado: 9,45 s numa janela
+-- de 45 dias, porque a cadeia de tres tabelas rodava UMA VEZ POR COLETA. Num
+-- painel de parede que recarrega a cada 60 s isso nao serve. Agregado assim e
+-- uma passada so sobre os MDF-es da janela, e a coleta faz um LEFT JOIN.
+--
+-- A JANELA DO MDF-e e MAIOR que a das coletas (+30 dias) de proposito: o
+-- manifesto que fecha uma carga do comeco da janela pode ter sido emitido
+-- antes dela. Cortar os dois no mesmo dia deixaria carga velha eternamente
+-- "em curso" na BORDA do periodo -- defeito que so aparece nas cargas mais
+-- antigas da janela, e que ninguem procuraria ali.
+mdf AS (
+  SELECT cc.grupo, cc.empresa,
+         cc.filialdocumento              AS filial,
+         cc.unidadedocumento             AS unidade,
+         cc.diferenciadornumerodocumento AS dif,
+         cc.seriedocumento               AS serie,
+         cc.numerodocumento              AS numero,
+         max(CASE WHEN me.situacaomdfe = 7 THEN 1 ELSE 0 END) AS encerrado,
+         max(me.dtencerramento)                               AS encerrado_em
+  FROM manifestoeletronico me
+  JOIN manifestoeletronico_composicao mec
+    ON mec.grupo=me.grupo AND mec.empresa=me.empresa AND mec.filial=me.filial
+   AND mec.unidade=me.unidade AND mec.diferenciadornumero=me.diferenciadornumero
+   AND mec.serie=me.serie AND mec.numero=me.numero
+  JOIN conhecimento_composicao cc
+    ON cc.grupo=mec.grupo AND cc.empresa=mec.empresa
+   AND cc.filial=mec.filialdocumento AND cc.unidade=mec.unidadedocumento
+   AND cc.diferenciadornumero=mec.diferenciadornumerodocumento
+   AND cc.serie=mec.seriedocumento AND cc.numero=mec.numerodocumento
+  WHERE me.dtemissao >= current_date - (%(dias)s + 30)
   GROUP BY 1,2,3,4,5,6,7)
 SELECT c.numero AS coleta,
        to_char(c.dtemissao,'YYYY-MM-DD')        AS emissao,
@@ -293,14 +356,31 @@ SELECT c.numero AS coleta,
        to_char(ev.ev,'YYYY-MM-DD HH24:MI') AS t_viagem,
        to_char(ev.cd,'YYYY-MM-DD HH24:MI') AS t_cheg_desc,
        to_char(ev.fd,'YYYY-MM-DD HH24:MI') AS t_fim_desc,
-       to_char(ev.vf,'YYYY-MM-DD HH24:MI') AS t_finalizada
-FROM ev
-JOIN coleta c ON c.grupo=ev.grupo AND c.empresa=ev.empresa AND c.filial=ev.filial
-  AND c.unidade=ev.unidade AND c.diferenciadornumero=ev.diferenciadornumero
-  AND c.serie=ev.serie AND c.numero=ev.numero
+       to_char(ev.vf,'YYYY-MM-DD HH24:MI') AS t_finalizada,
+       coalesce(mdf.encerrado, 0)                     AS mdfe_encerrado,
+       to_char(mdf.encerrado_em,'YYYY-MM-DD HH24:MI') AS mdfe_em
+FROM coleta c
+LEFT JOIN ev ON ev.grupo=c.grupo AND ev.empresa=c.empresa AND ev.filial=c.filial
+  AND ev.unidade=c.unidade AND ev.diferenciadornumero=c.diferenciadornumero
+  AND ev.serie=c.serie AND ev.numero=c.numero
+-- O CT-e do cliente liga a coleta ao manifesto. A CADEIA e
+-- coleta -> conhecimento_composicao -> manifestoeletronico_composicao.
+-- A tabela `manifesto` (a nao-eletronica) NAO entra: o `manifestoeletronico`
+-- nao se liga a ela por chave nenhuma que exista -- medido em 05/09/2026,
+-- `filialdocumentoorigem` e NULL nos 3.184 MDF-es de 30 dias, e o
+-- `numerodocumentoorigem` nao casa com `manifesto.numero` (0 de 3.184). Ja o
+-- `manifestoeletronico_composicao` casa com `conhecimento` em 5.962 de 5.962.
+-- Quem tentar "melhorar" isto passando pelo manifesto vai achar zero linhas
+-- e concluir que o cliente nao tem viagem.
+LEFT JOIN mdf ON mdf.grupo=c.grupo AND mdf.empresa=c.empresa
+  AND mdf.filial=c.filial AND mdf.unidade=c.unidade
+  AND mdf.dif=c.diferenciadornumero AND mdf.serie=c.serie
+  AND mdf.numero=c.numero
 WHERE c.dtcancelamento IS NULL
+  AND c.dtemissao >= current_date - %(dias)s
   AND """ + FILTRO_CLIENTE + """
-ORDER BY coalesce(ev.vf, ev.fd, ev.cd, ev.ev, ev.sc, ev.cc) DESC
+ORDER BY coalesce(mdf.encerrado_em, ev.vf, ev.fd, ev.cd, ev.ev, ev.sc, ev.cc,
+                  c.dtemissao) DESC
 """
 
 
@@ -318,24 +398,55 @@ def _marco(r: dict) -> tuple[int, str, str]:
         col = campos.get(cod)
         if col and r.get(col):
             return cod, MARCOS[cod], r[col]
-    return 0, "Sem registro", ""
+    return 0, "Sem apontamento", ""
 
 
-#: O marco TERMINAL é o 397 (fim de descarga), não o 401 (viagem finalizada).
-#: Medido em 05/09/2026: numa janela de 45 dias com 738 cargas da Maxion, 671
-#: tinham 397 e UMA tinha 401 — o 401 aparece em ~45% do histórico (2.296 de
-#: 5.137 no ano) e some no recente. Fechar a carga pelo 401 deixaria a
-#: operação inteira eternamente "em curso" na tela do cliente: a carga chegou,
-#: descarregou, e o portal continuaria dizendo que ela está a caminho. É o
-#: mesmo erro de sempre — estado tirado da AUSÊNCIA de um registro que a
-#: operação não tem obrigação de fazer.
+#: QUEM FECHA A VIAGEM É O MANIFESTO; o evento operacional é a reserva.
+#:
+#: A primeira versão fechava pelo evento SAC 397 (fim de descarga), depois de
+#: descartar o 401 (viagem finalizada), que aparecia UMA vez em 738 cargas.
+#: Quem opera apontou que o manifesto seria mais preciso, e a medição deu razão
+#: a ele — 45 dias da Maxion, 774 coletas:
+#:
+#:     com fim de descarga (397) ....  671   86,7%
+#:     com viagem finalizada (401) ..    1    0,1%
+#:     com MDF-e ENCERRADO .......... 764   98,7%
+#:
+#: E as discordâncias são de MÃO ÚNICA: 93 cargas sem 397 já tinham o manifesto
+#: encerrado — o portal dizia "a caminho" para carga que já chegou — e NENHUMA
+#: com 397 tinha manifesto aberto. O MDF-e encerrado é superconjunto estrito do
+#: apontamento: fecha tudo que o 397 fecha, e mais 93.
+#:
+#: Faz sentido que seja assim, e é o que sustenta a regra: encerrar o MDF-e é
+#: obrigação FISCAL com prazo, que a SEFAZ cobra; apontar fim de descarga é
+#: rotina operacional que ninguém multa. Entre um registro que alguém é
+#: OBRIGADO a fazer e outro que seria bom fazer, o estado vem do primeiro.
+#:
+#: O 397 fica como RESERVA para o 1,2% sem manifesto — descartá-lo deixaria
+#: essas cargas em curso para sempre, que é o defeito que esta regra existe
+#: para não ter.
 TERMINAL = 397
 
 
 def em_curso(r: dict) -> bool:
-    """A carga ainda está no ar? Terminal = fim de descarga (ver TERMINAL)."""
+    """A carga ainda está no ar?
+
+    O MANIFESTO MANDA. Encerrado, a viagem acabou — não importa o que a
+    operação apontou ou deixou de apontar. Só na ausência de manifesto é que o
+    evento de fim de descarga decide.
+
+    CARGA SEM APONTAMENTO NENHUM CONTA COMO EM CURSO, e essa é a inversão que
+    mais muda o painel: antes ela nem aparecia. A coleta existe e o manifesto
+    não fechou — isso é uma carga no ar cujo trajeto ninguém apontou ainda, não
+    uma carga que não existe. Some da tela quando o manifesto encerrar, que é
+    o registro que alguém é obrigado a fazer.
+    """
+    if r.get("mdfe_encerrado"):
+        return False
     cod, _, _ = _marco(r)
-    return 0 < cod and ORDEM.index(cod) < ORDEM.index(TERMINAL)
+    if cod == 0:
+        return True
+    return ORDEM.index(cod) < ORDEM.index(TERMINAL)
 
 
 # ============================================================================
@@ -494,8 +605,12 @@ def get_agora(raiz: str, dias: int = 45) -> dict:
     cargas, concluidas = [], 0
     for r in linhas:
         cod, rotulo, quando = _marco(r)
-        if not cod:
-            continue
+        # NÃO se descarta carga sem apontamento. Havia um `continue` aqui, de
+        # quando a consulta partia dos eventos — e ele sobreviveu à inversão
+        # descartando exatamente o que ela passou a trazer: a carga emitida
+        # hoje, ainda sem marco, que é a que mais interessa numa parede.
+        # Mudar a consulta sem mudar quem a consome preserva o defeito antigo
+        # em silêncio.
         if not em_curso(r):
             concluidas += 1
             continue
@@ -510,13 +625,63 @@ def get_agora(raiz: str, dias: int = 45) -> dict:
             "placa": r["placa"],
             "marco": rotulo, "marco_cod": cod, "marco_em": quando,
         })
+    # POSIÇÃO das cargas que ainda estão no ar. Só as placas DESTAS cargas —
+    # `atuais()` devolve a frota inteira (278 placas em 05/09/2026) e o que
+    # sai daqui é o recorte do cliente. Fatiar depois de ler é de propósito:
+    # a fonte é uma leitura só, barata (0,4 s) e já compartilhada com a Torre.
+    pos, resumo_pos = {}, {"com_posicao": 0, "frescas": 0, "fontes": {}}
+    _POS_FRESCA_MIN = 120        # o teto de `api/posicoes`, relido no try
+    placas = {c["placa"] for c in cargas if c["placa"]}
+    if placas:
+        try:
+            from . import posicoes as _pos
+            _POS_FRESCA_MIN = _pos.FRESCA_MIN
+            todas = _pos.atuais()["posicoes"]
+            for pl in placas:
+                r = todas.get(pl)
+                if not r or r.get("lat") is None or r.get("lon") is None:
+                    continue
+                pos[pl] = {
+                    "lat": float(r["lat"]), "lon": float(r["lon"]),
+                    "velocidade": r.get("velocidade"),
+                    # TODA POSIÇÃO DIZ DE ONDE VEIO E QUE IDADE TEM. Mapa que
+                    # mistura fontes sem dizer qual é qual transforma "a Gobrax
+                    # está fora" em "a frota sumiu".
+                    "fonte": r.get("fonte"),
+                    "idade_min": r.get("idade_min"),
+                    "velha": (r.get("idade_min") is None
+                              or r["idade_min"] > _POS_FRESCA_MIN),
+                }
+                resumo_pos["com_posicao"] += 1
+                if not pos[pl]["velha"]:
+                    resumo_pos["frescas"] += 1
+                f = r.get("fonte") or "?"
+                resumo_pos["fontes"][f] = resumo_pos["fontes"].get(f, 0) + 1
+        except Exception:  # noqa: BLE001
+            # Mapa é acréscimo, não o dado: se a posição falhar, a tela e a TV
+            # continuam com as cargas e o mapa DIZ que está sem posição.
+            log.warning("posições do portal falharam: mapa sai vazio")
+
+    for c in cargas:
+        c["pos"] = pos.get(c["placa"]) if c["placa"] else None
+
     return {
         "cargas": cargas,
         "em_curso": len(cargas),
         "concluidas_na_janela": concluidas,
         "janela_dias": int(dias),
-        "fonte": ("ERP AVA · ocorrências SAC (394-401) + coleta · "
-                  f"janela de {int(dias)} dias · leitura"),
+        # A COBERTURA do mapa vai junto: "12 de 66 com posição" é o que impede
+        # alguém de olhar seis pontos na tela e concluir que só há seis cargas.
+        # `veiculos`, e nao "cargas com placa": sao placas DISTINTAS. As 66
+        # cargas em curso de 05/09/2026 viajavam em 33 veiculos (um caminhao
+        # leva varios CT-es), e chamar isso de carga faria a cobertura do mapa
+        # parecer metade do que e.
+        "posicao": {**resumo_pos, "veiculos": len(placas),
+                    "fresca_ate_min": _POS_FRESCA_MIN},
+        "fonte": ("ERP AVA · coleta (a espinha) + ocorrências SAC 394-401 (os "
+                  "marcos) + MDF-e encerrado (o fim da viagem) · "
+                  f"janela de {int(dias)} dias · posição por api/posicoes "
+                  "(ERP + Gobrax, vence a mais recente) · leitura"),
     }
 
 
