@@ -14,15 +14,24 @@ from datetime import date
 from api import agrupador_gerencial as _ag
 
 # Base compartilhada: mesmos filtros de DRE_AG_SQL (ver api/queries.py).
+#
+# A ELEGIBILIDADE ENTRA POR `existe()`, NÃO POR JOIN, e a diferença é de ordem
+# de grandeza. Esta consulta nunca leu nada do agrupador — só perguntava se a
+# conta tem um. Com `left_join()` a janela de 24 meses estourava o
+# `statement_timeout` de 60 s (e a de 9 meses levava 7,5 s); com o EXISTS ela
+# roda em ~20 s, devolvendo exatamente as mesmas linhas. O porquê, com o plano
+# do PostgreSQL, está no docstring de `agrupador_gerencial.existe`.
+#
+# Quem precisar do NOME do agrupador aqui um dia volta ao `left_join()` — e aí
+# paga o preço com conhecimento de causa, em vez de por inércia.
 _BASE = f"""
 FROM lancamento l
 JOIN planoconta p ON p.reduzido = l.reduzido AND p.grupo = l.grupo
   AND p.ativoinativo = 1
-{_ag.left_join('ag', 'l')}
 WHERE l.dtlancamento >= %(de)s::date AND l.dtlancamento < %(ate)s::date
   AND coalesce(l.historico, 0) <> 18
-  AND (ag.descricao IS NOT NULL OR position('3' in p.estrutural) = 1
-       OR position('4' in p.estrutural) = 1)
+  AND (position('3' in p.estrutural) = 1 OR position('4' in p.estrutural) = 1
+       OR {_ag.existe('l', '        ')})
 """
 
 _SELECT = """

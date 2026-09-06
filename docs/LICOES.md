@@ -3399,6 +3399,109 @@ o carimbo: era artefato do dublê (as outras rotas devolvendo `{}`). Comparaçã
 entre dois estados só vale se os dois forem medidos igual — foi exatamente o
 que faltou na acusação à consulta de OC, três horas antes, no mesmo dia.
 
+## O join que só respondia "sim" (2026-09-06, v0.258.2)
+
+A suíte completa, rodada logo depois da entrega anterior, voltou com quatro
+vermelhos em `tests/orcamento/test_plano.py` —
+`QueryCanceled: statement timeout`. A tentação era óbvia e errada: era o mesmo
+erro do ERP que eu acabara de diagnosticar, três horas antes, no mesmo dia.
+
+**Não era.** Medi com zero consultas ativas no ERP, às 11h, fora da janela ruim,
+três vezes seguidas: 60,2 s sempre. Uma consulta que bate no teto do
+`statement_timeout` com o servidor vazio não é vítima de carga alheia.
+
+### O número que apontou o lugar
+
+```
+ 3 meses:  0,9s     820 linhas
+ 9 meses:  7,5s   2.531 linhas
+24 meses:  ESTOURA os 60s
+```
+
+Quatro vezes mais dado, **oitenta vezes mais tempo**. Isso não é volume — é o
+plano mudando. E o `EXPLAIN` das duas janelas entregou tudo:
+
+```
+ 3 meses:  Merge Cond: ((l.grupo = ag.grupo) AND (l.reduzido = ag.reduzido))
+24 meses:  Merge Cond:  (l.grupo = ag.grupo)          <- só o grupo
+           Join Filter: (ag.reduzido = l.reduzido)    <- reduzido virou filtro
+```
+
+O `grupo` tem meia dúzia de valores distintos. Casar só por ele contra as 584
+linhas do agrupador é quase um produto cartesiano sobre 2,5 milhões de
+lançamentos. **O mesmo SQL, sem uma linha mudada, escolhe um plano bom numa
+janela pequena e um catastrófico numa grande** — e é por isso que nenhum teste
+pequeno jamais acusaria isso, nem revisão de código nenhuma.
+
+### O que estava errado não era o plano, era a pergunta
+
+A consulta juntava a tabela do agrupador e depois só olhava
+`ag.descricao IS NOT NULL` no WHERE. **Nada do agrupador entrava no resultado.**
+O join inteiro existia para responder sim ou não.
+
+Um `EXISTS` responde a mesma coisa e não pode multiplicar linha, então o
+planejador o resolve como semi-join com hash das 584 linhas: **24 meses em
+~20 s** (medido cinco vezes: 20,3 a 22,2 s), e a tela do Orçamento caiu de 56 s
+para 9,1 s na janela de doze meses.
+
+A troca só vale porque as duas perguntas são a mesma: o `min(descricao)` da
+fonte é NULL exatamente quando não existe linha com `descricao` preenchida.
+E isso não foi deduzido e sim conferido — hash do conjunto inteiro de
+resultados, idêntico em 3, 6 e 9 meses, as janelas em que as duas versões
+completam e dá para comparar.
+
+### Uma alternativa que parecia melhor e era pior
+
+Tentei também pré-calcular as contas elegíveis numa CTE (1.328 linhas em vez de
+2,5 milhões). Em 9 meses foi a mais rápida das três — 1,5 s contra 7,5 s. Em 24
+meses **estourou o timeout igual à versão original**: sem estatísticas sobre o
+resultado da CTE, o planejador vira de plano outra vez.
+
+A lição não é "CTE é ruim". É que **a defesa contra plano que vira não é achar
+um plano melhor, é escrever a consulta de um jeito que não deixa o planejador
+escolher errado.** `EXISTS` não tem plano ruim disponível: ele não pode
+multiplicar linha. Foi por isso que ele ganhou, e não por ser mais rápido no
+teste pequeno — onde, aliás, ele perdia.
+
+### O helper foi para o módulo dono, e não para onde eu estava mexendo
+
+O `EXISTS` precisa do mesmo cast de tipo que a fonte (`grupo` é varchar desde
+que a Contabilidade recriou a tabela em 02/09). Escrevê-lo dentro de
+`api/orcamento/sql.py` teria funcionado — e teria criado a segunda cópia de uma
+regra que existe justamente porque duas cópias divergem em silêncio. O guard da
+casa proíbe `JOIN` na tabela crua e permite `FROM`, então a cópia teria passado
+pelo teste e violado o motivo dele.
+
+`existe()` mora em `api/agrupador_gerencial.py`, ao lado de `left_join()`, e o
+cast virou `_GRUPO_INT`, usado pelos dois. No dia da próxima recriação da
+tabela, conserta-se um lugar.
+
+### E o guard que eu escrevi passou com o defeito reintroduzido
+
+Escrevi um teste que varre as consultas e acusa quem junta a fonte sem nunca
+ler `descricao`. Ele nasceu com zero violações — a varredura mostrou que todas
+as outras (DRE, Contabilidade, Custos, Previsão) usam o nome de verdade.
+
+Então sabotei: devolvi o `left_join()` ao Orçamento. **O guard continuou
+verde.**
+
+O motivo: a própria `FONTE` contém `min(ag_.descricao) AS descricao`, e minha
+regex de "usa o nome" casava com ela. Toda consulta parecia usar o nome, e o
+teste nunca poderia ficar vermelho. Um teste que eu teria empurrado como
+proteção e que não protegia de nada.
+
+O conserto é uma linha — tirar o texto da `FONTE` antes de procurar — mas o que
+vale registrar é que **a sabotagem foi a única coisa que o encontrou**. É a
+segunda vez neste arquivo que ela pega um guard meu verde-para-sempre (a
+primeira foi o teste da cópia do cache, em 03/09). Trinta segundos de sabotagem
+contra um teste que mentiria por meses.
+
+Detalhe de bancada, porque custou tempo duas vezes: a primeira sabotagem
+**não chegou a ser aplicada** — o `assert` do meu script de edição estourou, o
+arquivo ficou intacto, e o teste passou. Verde de sabotagem que não aconteceu
+parece verde de guard robusto. Sabotagem também se confere: antes de ler o
+resultado, provar que o alvo mudou mesmo.
+
 ## A rede que só duas telas tinham (2026-09-06, v0.258.0)
 
 Três dias depois de a rede existir, ela foi usada em produção — e mostrou que
@@ -3609,4 +3712,98 @@ startup da API chama `auth.init_db()` no schema padrão, então qualquer
 COLUMN` nullable e passou batido. Com DDL destrutivo não passaria. **Rodar a
 suíte completa nesta máquina não é operação neutra.**
 
+---
 
+## A pagina que se recomprimia sozinha, e o 304 que o FastAPI nao da (2026-09-06, v0.258.1)
+
+Auditoria de desempenho para responder uma pergunta de operacao: *o que
+acontece quando trinta pessoas usarem isto ao mesmo tempo?* A resposta nao
+estava na maquina. Ela e um i7-14700 com 20 nucleos, 31,7 GB e NVMe, e o
+CORTEX inteiro usava **48 MB de RAM e um nucleo**. O gargalo era o que se faz
+a cada requisicao.
+
+### O que foi medido
+
+Contra a API em producao, na porta 8010:
+
+| medida | resultado |
+|---|---|
+| `GET /` com gzip | **206,4 ms** · 712 713 bytes |
+| `GET /` sem gzip | 19,5 ms · 2 541 666 bytes |
+| `GET /` com o proprio ETag em `If-None-Match` | **HTTP 200** com 712 713 bytes |
+| o mesmo em `/static/vendor/echarts.min.js` | HTTP 304 · 0 bytes |
+| 20 carregamentos simultaneos | 3 458 ms · **95% de UM nucleo** (a maquina tem 28) |
+| `/api/health` com o servidor ocioso | 60,5 ms |
+| `/api/health` com 10 pessoas abrindo a pagina | **169,9 ms** (2,8x) |
+
+### As duas causas, e a segunda e a que ninguem procura
+
+**A primeira e visivel depois que se olha:** o `GZipMiddleware` comprime a
+resposta a cada requisicao, e a resposta aqui e um arquivo de 2,5 MB. Nivel 9,
+88,9 ms so de compressao medidos fora do servidor — o resto e o custo de
+passar 2,5 MB em pedacos pela pilha ASGI. Num processo unico, isso e CPU
+exclusiva: enquanto comprime, ninguem mais e atendido, e foi por isso que uma
+rota trivial como o `/api/health` triplicou sem que nada tivesse mudado nela.
+
+**A segunda e muda.** O `FileResponse` EMITE o `ETag` e o `Last-Modified` — a
+resposta parece perfeitamente cacheavel. Mas quem implementa requisicao
+condicional no Starlette e o `StaticFiles`, no `is_not_modified()`; o
+`FileResponse` sozinho nao olha `If-None-Match` nunca. O resultado e um
+sistema que **parece** ter cache: o navegador guarda a copia, pergunta se
+ainda vale, e recebe os 712 KB de volta com HTTP 200. Todo F5 de todo mundo.
+
+A prova que separou as duas hipoteses foi comparar `/` com `/static/*` no
+MESMO servidor: a mesma requisicao condicional, um devolvendo 304 e o outro
+200. Nao era o navegador, nao era o Cloudflare, nao era o header — era a
+classe de resposta.
+
+### A correcao, e o que ela nao muda
+
+Comprimir UMA vez, guardar os bytes, e responder 304 quando o navegador ja
+tem a versao. Medido com os dois estados montados igual (mesmo uvicorn, mesmo
+arquivo, mesmo cliente, no mesmo script):
+
+| | antes | depois |
+|---|---|---|
+| `GET /` repetido | 98,4 ms | **13,3 ms** |
+| F5 (`If-None-Match`) | HTTP 200 · 711 746 B · 118,5 ms | **HTTP 304 · 0 B · 0,8 ms** |
+| 20 pessoas juntas | 1 902 ms | **20 ms** |
+
+Tres decisoes que nao sao obvias:
+
+- **A chave dos bytes guardados e `(mtime, tamanho)` DO ARQUIVO, nao o boot do
+  processo.** O AutoDeploy reinicia a API a cada deploy, entao guardar por
+  processo quase sempre bastaria — mas o `index.html` e servido do DISCO de
+  proposito, e ja foi editado sem restart aqui. Com a chave no processo, a
+  pagina velha ficaria no ar ate alguem reiniciar, calada. O `stat()` custa
+  microssegundos.
+- **O ETag e do CONTEUDO, nao do mtime.** `git checkout` mexe no mtime sem
+  mudar um byte: com ETag de mtime, todo deploy que nem tocasse na pagina
+  reenviaria 712 KB para todo mundo — trocando um desperdicio por outro.
+- **A trava do voo unico nao e zelo.** Sem ela, o primeiro pico depois de um
+  deploy comprime 2,5 MB uma vez POR REQUISICAO simultanea — exatamente a
+  tempestade que a correcao existe para acabar. Mesma forma do
+  `queries.cached`: confere, tranca, confere de novo.
+- **`Cache-Control: no-cache` ficou.** O painel muda toda semana e revalidar
+  sempre e a politica certa; o que mudou foi o PRECO de revalidar.
+
+### O que fica como regra
+
+- **`FileResponse` nao responde 304 — `StaticFiles` responde.** Emitir `ETag`
+  nao e implementar cache condicional, e a diferenca so aparece medindo a
+  requisicao condicional de verdade. Toda pagina servida da raiz (fora do
+  `/static`) precisa do 304 escrito a mao.
+- **Middleware de compressao recomprime a CADA requisicao.** Para conteudo
+  estatico e grande, comprimir uma vez e guardar; o `Content-Encoding` posto na
+  propria resposta faz o `GZipMiddleware` deixar passar intacto.
+- **Um processo unico transforma custo de CPU em fila para todo mundo.** O
+  sintoma nao aparece na rota culpada: aparece na rota mais barata do sistema,
+  que e onde ninguem vai procurar.
+- **Numero de desempenho so vale comparado com o par medido IGUAL.** Os dois
+  estados aqui foram montados no mesmo script, com o mesmo uvicorn e o mesmo
+  cliente — comparar contra a producao seria comparar dois processos com
+  cargas diferentes.
+
+Guard: `tests/test_pagina_do_painel.py` (14 testes). Cada um foi visto
+VERMELHO com o alvo sabotado — 304 desligado, cache removido, `Vary` apagado e
+ETag trocado para mtime — antes de valer como verde.

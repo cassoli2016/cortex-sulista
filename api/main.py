@@ -8,11 +8,15 @@ Abrir:  http://127.0.0.1:8000
 """
 from __future__ import annotations
 
+import gzip
+import hashlib
 import json
 import logging
 import re
+import threading
 import tomllib
 from datetime import date, datetime
+from email.utils import formatdate, parsedate_to_datetime
 from pathlib import Path
 
 from api import (manutencao_compras, segredo_arquivo, suprimentos_oc,
@@ -339,11 +343,128 @@ ROOT = Path(__file__).resolve().parent.parent
 STATIC = Path(__file__).resolve().parent / "static"
 
 
+# ===========================================================================
+# PAGINAS DO PAINEL — comprimidas UMA vez, e com 304 de verdade
+#
+# O `index.html` tem 2,5 MB, e ate 06/09/2026 cada carregamento pagava DUAS
+# contas que ninguem enxergava com um usuario so:
+#
+# 1. O `GZipMiddleware` recomprimia o arquivo INTEIRO, no nivel 9, A CADA
+#    REQUISICAO: 206 ms medidos, contra 19,5 ms sem compressao. Como isso
+#    acontece no processo unico do uvicorn, 20 pessoas abrindo o painel juntas
+#    levaram 3,46 s e saturaram 95% de UM nucleo (a maquina tem 28) — e toda
+#    chamada de API no intervalo ficou 2,8x mais lenta (`/api/health` de
+#    60,5 ms para 169,9 ms, medido nesta bancada em 06/09/2026).
+#
+# 2. O navegador NUNCA conseguia revalidar. O `FileResponse` EMITE o `ETag`,
+#    mas quem implementa requisicao condicional no Starlette e o `StaticFiles`
+#    — por isso `/static/vendor/echarts.min.js` devolvia 304 e a pagina, com o
+#    MESMO ETag de volta em `If-None-Match`, devolvia 200 com 712 KB. Todo F5
+#    de todo mundo rebaixava a pagina inteira.
+#
+# A correcao e uma so para as duas: comprimir UMA vez, guardar os bytes e
+# responder 304 quando o navegador ja tem a versao. Custa 89 ms uma unica vez
+# (a primeira requisicao depois de cada deploy) e ~0 ms depois.
+#
+# A CHAVE E (mtime, tamanho) DO ARQUIVO, e nao o boot do processo. O AutoDeploy
+# reinicia a API a cada deploy, entao guardar "por processo" quase sempre
+# bastaria — ate o dia em que alguem editasse o `index.html` na arvore sem
+# reiniciar, que e coisa que ACONTECE aqui (o frontend e servido do disco, de
+# proposito). Com a chave no arquivo, a requisicao seguinte ja ve o novo. O
+# `stat()` custa microssegundos.
+#
+# O `Content-Encoding: gzip` sai daqui, e e ele que faz o `GZipMiddleware`
+# deixar a resposta passar intacta em vez de comprimir tudo de novo.
+# ===========================================================================
+
+_PAGINAS: dict[Path, dict] = {}
+_TRAVA_PAGINAS = threading.Lock()
+_HTML = "text/html; charset=utf-8"
+
+
+def _pagina(caminho: Path) -> dict:
+    """Os bytes prontos desta pagina: crus, comprimidos, com ETag e data.
+
+    A TRAVA NAO E ZELO. Sem ela, o primeiro pico depois de um deploy comprime
+    2,5 MB uma vez POR REQUISICAO simultanea — exatamente a tempestade que esta
+    funcao existe para acabar. Mesma forma do voo unico do `queries.cached`:
+    confere, tranca, CONFERE DE NOVO (quem esperou na fila costuma achar o
+    trabalho ja feito).
+    """
+    st = caminho.stat()
+    chave = (st.st_mtime_ns, st.st_size)
+    pronta = _PAGINAS.get(caminho)
+    if pronta is not None and pronta["chave"] == chave:
+        return pronta
+    with _TRAVA_PAGINAS:
+        pronta = _PAGINAS.get(caminho)
+        if pronta is not None and pronta["chave"] == chave:
+            return pronta
+        cru = caminho.read_bytes()
+        pronta = {
+            "chave": chave,
+            "cru": cru,
+            # NIVEL 9 porque o custo e pago UMA vez, e quem sente o tamanho e
+            # quem abre o painel no 4G: 712 KB contra 723 KB no nivel 5.
+            "gz": gzip.compress(cru, 9),
+            # ETag DO CONTEUDO, nao do mtime: `git checkout` mexe no mtime sem
+            # mudar um byte, e um ETag de mtime reenviaria a pagina inteira
+            # para todo mundo a cada deploy que nem tocou nela.
+            "etag": '"%s"' % hashlib.md5(cru, usedforsecurity=False).hexdigest(),
+            "mtime": int(st.st_mtime),
+            "modificado_em": formatdate(st.st_mtime, usegmt=True),
+        }
+        _PAGINAS[caminho] = pronta
+        return pronta
+
+
+def _ja_tem(req: Request, p: dict) -> bool:
+    """O navegador ja tem esta versao?
+
+    `If-None-Match` tem precedencia sobre `If-Modified-Since` (RFC 9110), e um
+    ETag pode voltar marcado como fraco (`W/"..."`) — o Cloudflare faz isso
+    quando mexe na compressao no caminho. Ignorar o `W/` compararia a marca
+    junto com o ETag e nunca daria 304 em producao, que e onde ele importa.
+    """
+    inm = req.headers.get("if-none-match")
+    if inm:
+        if inm.strip() == "*":
+            return True
+        return any(t.strip().removeprefix("W/") == p["etag"]
+                   for t in inm.split(","))
+    ims = req.headers.get("if-modified-since")
+    if ims:
+        try:
+            return int(parsedate_to_datetime(ims).timestamp()) >= p["mtime"]
+        except (TypeError, ValueError):
+            return False
+    return False
+
+
+def _servir(caminho: Path, req: Request, tipo: str) -> Response:
+    p = _pagina(caminho)
+    cab = {
+        # O painel muda toda semana, entao o navegador REVALIDA sempre. O que
+        # mudou nao foi isso: e que agora revalidar custa um cabecalho em vez
+        # de 712 KB.
+        "Cache-Control": "no-cache, must-revalidate",
+        "ETag": p["etag"],
+        "Last-Modified": p["modificado_em"],
+        "Vary": "Accept-Encoding",
+    }
+    if _ja_tem(req, p):
+        # sem `media_type` de proposito: 304 nao leva corpo, e o Starlette ja
+        # omite o `content-length` para este codigo.
+        return Response(status_code=304, headers=cab)
+    if "gzip" in req.headers.get("accept-encoding", ""):
+        cab["Content-Encoding"] = "gzip"
+        return Response(p["gz"], media_type=tipo, headers=cab)
+    return Response(p["cru"], media_type=tipo, headers=cab)
+
+
 @app.get("/")
-def index() -> FileResponse:
-    # o painel evolui com frequência: o navegador deve sempre revalidar
-    return FileResponse(STATIC / "index.html",
-                        headers={"Cache-Control": "no-cache, must-revalidate"})
+def index(req: Request) -> Response:
+    return _servir(STATIC / "index.html", req, _HTML)
 
 
 # ===========================================================================
@@ -372,7 +493,7 @@ def _ip_do_cliente(req: Request) -> str:
 
 
 @app.get("/r")
-def rastreio_pagina_curta() -> FileResponse:
+def rastreio_pagina_curta(req: Request) -> Response:
     """O mesmo `/rastreio`, com o caminho curto que vai no WhatsApp.
 
     NAO E VAIDADE: o endereco entra numa mensagem que a pessoa le no celular,
@@ -382,13 +503,12 @@ def rastreio_pagina_curta() -> FileResponse:
     `/rastreio` continua valendo: e o endereco que se digita e que ja foi
     divulgado; quem trocasse um pelo outro quebraria os dois.
     """
-    return rastreio_pagina()
+    return rastreio_pagina(req)
 
 
 @app.get("/rastreio")
-def rastreio_pagina() -> FileResponse:
-    return FileResponse(STATIC / "rastreio.html",
-                        headers={"Cache-Control": "no-cache, must-revalidate"})
+def rastreio_pagina(req: Request) -> Response:
+    return _servir(STATIC / "rastreio.html", req, _HTML)
 
 
 def _rastreio_freado(req: Request) -> JSONResponse | None:
@@ -667,11 +787,10 @@ def motorista_viagem(req: Request) -> JSONResponse:
 
 
 @app.get("/sw.js")
-def service_worker() -> FileResponse:
+def service_worker(req: Request) -> Response:
     # servido da RAIZ (não de /static) para o escopo do SW ser "/" — senão
     # navigator.serviceWorker.ready nunca resolve (escopo /static/ não controla /)
-    return FileResponse(STATIC / "sw.js", media_type="application/javascript",
-                        headers={"Cache-Control": "no-cache, must-revalidate"})
+    return _servir(STATIC / "sw.js", req, "application/javascript")
 
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")

@@ -41,6 +41,8 @@ exatamente o defeito que isto existe para corrigir.
 from __future__ import annotations
 
 import logging
+import os
+import sys
 import threading
 import time
 
@@ -106,15 +108,42 @@ def _laco() -> None:
         _dorme(CICLO_S)
 
 
+def sob_teste() -> bool:
+    """Este processo é uma rodada de testes?
+
+    A PERGUNTA VALE UMA MENSAGEM NO CELULAR DE UM CLIENTE, e por pouco não
+    custou. `TestClient` dispara o `@app.on_event("startup")` — é a mesma porta
+    por onde a suíte já aplicava migration no banco de produção — e o startup
+    sobe esta thread. Na BANCADA o WhatsApp está configurado de verdade, então
+    o gate de credencial não segura nada: passados os 120 s de folga, uma suíte
+    de 35 minutos mandaria aviso REAL para o telefone de quem está esperando
+    carga, a cada dez minutos, sem ninguém ter pedido.
+
+    Visto no log de produção em 06/09/2026, no primeiro dia no ar: um
+    `RuntimeError` de ciclo cuja causa era o `monkeypatch` de
+    `test_o_ciclo_NUNCA_levanta` — ou seja, a thread de uma rodada de TESTE
+    escrevendo no log da API.
+
+    `"pytest" in sys.modules` e não uma variável de ambiente: a variável exige
+    que alguém lembre de exportá-la, e quem esquece descobre pelo cliente.
+    """
+    return "pytest" in sys.modules or bool(os.environ.get("PYTEST_CURRENT_TEST"))
+
+
 def iniciar() -> None:
     """Sobe a thread do aviso de carga. Idempotente.
 
     SÓ COM O WHATSAPP CONFIGURADO. Sem credencial não é falha, é instalação
     incompleta — e uma thread acordando de dez em dez minutos para descobrir
     isso de novo não ajuda ninguém.
+
+    E NUNCA SOB PYTEST — ver `sob_teste()`.
     """
     global _iniciado
     if _iniciado:
+        return
+    if sob_teste():
+        log.info("aviso de carga: rodada de teste — agendador nao iniciado")
         return
     try:
         from ..whatsapp import cliente

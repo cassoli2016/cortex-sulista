@@ -4,6 +4,26 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.258.3] — 06/09/2026  ·  CX-06/09/2026-v0.258.3
+
+### Corrigido
+- Uma rodada de testes podia mandar aviso de carga DE VERDADE para o telefone de um cliente. O relógio do aviso passou a viver dentro do sistema ontem, e ele sobe junto com a API — inclusive quando quem sobe a API é a suíte de testes, nesta máquina, onde o WhatsApp está configurado de verdade. Uma rodada longa mandaria mensagem a cada dez minutos, sem ninguém ter pedido. Agora o relógio reconhece que está numa rodada de teste e não sobe.
+- O sinal disso ficou no registro da API no primeiro dia no ar: uma falha de ciclo cuja causa era um teste, ou seja, um processo de teste escrevendo no registro do sistema. Nenhuma mensagem indevida chegou a sair — a folga de dois minutos antes do primeiro ciclo cobriu as rodadas curtas, e as longas caíram fora do horário de envio.
+
+## [0.258.2] — 06/09/2026  ·  CX-06/09/2026-v0.258.2
+
+### Corrigido
+- A importação do Orçamento voltou a funcionar na janela de dois anos. Ela buscava o histórico do razão juntando a tabela de agrupador do ERP só para saber SE a conta tem classificação — sem nunca usar o nome dela. O banco resolvia esse encontro de um jeito que piorava sozinho conforme a janela crescia: três meses saíam em 1 segundo, nove meses em 7, e dois anos passavam do limite de um minuto e a importação era cancelada.
+- A mesma pergunta agora é feita sem juntar tabela nenhuma, e o resultado é exatamente o mesmo — conferido linha a linha nas janelas em que as duas versões conseguiam terminar. A tela do Orçamento carrega o histórico de doze meses em 9 segundos, contra 56 antes.
+
+## [0.258.1] — 06/09/2026  ·  CX-06/09/2026-v0.258.1
+
+### Corrigido
+- O painel abre muito mais rápido, e o efeito é maior justamente quando mais gente entra ao mesmo tempo. A página tem 2,5 MB e o servidor a recomprimia INTEIRA a cada carregamento: vinte pessoas abrindo juntas levavam 1,9 segundo cada uma e ocupavam sozinhas um núcleo do processador. Agora a compressão é feita uma única vez, e as mesmas vinte pessoas são atendidas em 20 milissegundos no total.
+- Apertar F5 deixou de baixar a página de novo. O navegador já guardava uma cópia e perguntava ao servidor se ela ainda valia, mas o servidor respondia mandando os 712 KB outra vez, sempre — mesmo sem nada ter mudado. Agora ele responde "continua valendo" e o painel reaparece na hora, sem consumir dado de quem está no celular.
+- Enquanto o servidor comprimia a página, todo o resto do sistema esperava na fila: com dez pessoas abrindo o painel, uma chamada simples ficava quase três vezes mais lenta. Essa fila deixou de existir.
+- A mesma correção vale para a página pública de rastreio de carga (o link que vai no WhatsApp) e para o service worker do aplicativo no celular.
+
 ## [0.258.0] — 06/09/2026  ·  CX-06/09/2026-v0.258.0
 
 ### Adicionado

@@ -46,18 +46,69 @@ from datetime import date
 # consulta inteira. A agregação é sobre 585 linhas: custo irrelevante, e o
 # plano do razão não muda (o lado pesado do join continua sendo `lancamento`
 # contra `planoconta`, intocado).
-FONTE = """(SELECT CASE WHEN ag_.grupo::text ~ '^[0-9]+$'
-                        THEN ag_.grupo::text::int END AS grupo,
+# O CAST FICA EM UM LUGAR SÓ. Ele aparece na fonte e no `existe()` abaixo, e no
+# dia em que a Contabilidade recriar a tabela de novo — com `grupo` em mais um
+# tipo — é aqui que se conserta. Duas cópias seriam duas regras divergindo em
+# silêncio, que é justamente o que este módulo existe para impedir.
+_GRUPO_INT = "CASE WHEN ag_.grupo::text ~ '^[0-9]+$' THEN ag_.grupo::text::int END"
+
+FONTE = f"""(SELECT {_GRUPO_INT} AS grupo,
                    ag_.reduzido, min(ag_.descricao) AS descricao
             FROM sulista.agrupadorgerencial ag_
             GROUP BY 1, 2)"""
 
 
 def left_join(alias: str, origem: str, ident: str = "  ") -> str:
-    """LEFT JOIN da fonte contra `origem` (o alias que tem grupo e reduzido)."""
+    """LEFT JOIN da fonte contra `origem` (o alias que tem grupo e reduzido).
+
+    Use quando a consulta PRECISA do `descricao` — a DRE monta a linha com ele.
+    Se ela só quer saber SE a conta tem agrupador, use `existe()`: o join
+    obriga o planejador a casar o razão inteiro contra esta tabela, e ele nem
+    sempre escolhe bem (a medição está no docstring de `existe`).
+    """
     return (f"LEFT JOIN {FONTE} {alias}\n"
             f"{ident}ON {alias}.reduzido = {origem}.reduzido\n"
             f"{ident}AND {alias}.grupo = {origem}.grupo")
+
+
+def existe(origem: str, ident: str = "  ") -> str:
+    '''"Esta conta TEM agrupador?" — a mesma pergunta, sem juntar nada.
+
+    POR QUE ISTO EXISTE, com a medição (06/09/2026). A consulta do histórico do
+    Orçamento usava `left_join()` e só olhava `ag.descricao IS NOT NULL` no
+    WHERE: nada do agrupador entrava no resultado. O join estava ali apenas
+    para responder sim ou não, e cobrava caro por isso:
+
+        3 meses: 0,9 s  ·  9 meses: 7,5 s  ·  24 meses: ESTOURA os 60 s
+
+    Quatro vezes mais dado, oitenta vezes mais tempo — e o plano de 24 meses
+    entregava o motivo:
+
+        Merge Left Join   Merge Cond:  (l.grupo = ag.grupo)
+                          Join Filter: (ag.reduzido = l.reduzido)
+
+    Ele casava só pelo GRUPO, que tem meia dúzia de valores distintos, e
+    filtrava o `reduzido` depois. Contra 584 linhas de agrupador isso é quase
+    um produto cartesiano sobre 2,5 milhões de lançamentos. Na janela de 3
+    meses o MESMO SQL casava pelas duas colunas e ia bem: o plano vira sozinho
+    com o tamanho, e é por isso que a lentidão nunca apareceu em teste pequeno.
+
+    Um EXISTS não pode multiplicar linha, então o planejador o resolve como
+    semi-join com hash das 584 linhas. Os 24 meses caem para ~20 s (medido
+    cinco vezes: 20,3 a 22,2 s) com resultado IDÊNTICO — conferido por hash do
+    conjunto inteiro em 3, 6 e 9 meses, as janelas em que as duas versões
+    completam e dá para comparar.
+
+    Semanticamente é o mesmo teste: o `min(descricao)` da fonte só é NULL
+    quando NÃO existe nenhuma linha com `descricao` preenchida.
+
+    NÃO substitui `left_join()`. Quem precisa do NOME do agrupador continua
+    juntando; isto é para quem só precisa da resposta sim/não.
+    '''
+    return (f"EXISTS (SELECT 1 FROM sulista.agrupadorgerencial ag_\n"
+            f"{ident}        WHERE ag_.reduzido = {origem}.reduzido\n"
+            f"{ident}          AND {_GRUPO_INT} = {origem}.grupo\n"
+            f"{ident}          AND ag_.descricao IS NOT NULL)")
 
 
 # Conferências de cadastro — usadas por scripts/conferir_agrupador.py e pela
