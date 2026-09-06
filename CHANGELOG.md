@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.261.1] — 06/09/2026  ·  CX-06/09/2026-v0.261.1
+
+### Alterado
+- Ficou registrada a causa de um problema que a entrega anterior deixou em aberto. Ao acelerar as consultas ao ERP, uma segunda otimização foi testada e recusada porque derrubava a Visão Geral, e na hora não se soube por quê. O motivo apareceu depois: certos ajustes que o sistema manda ao banco antes de uma consulta pesada valem apenas dentro de uma transação, e aquela otimização eliminava a transação — os ajustes evaporavam e a consulta caía num plano ruim. A documentação e o comentário no código foram corrigidos, e o caminho para recuperar o ganho está escrito.
+
+### Corrigido
+- O sistema inteiro ficou mais rápido para quem está logado. A cada clique, a cada gráfico que carrega, a cada atualização automática de tela, o CÓRTEX abria uma conexão NOVA com o banco só para conferir quem é você e o que você pode ver — e abrir essa conexão custava 25 milissegundos, enquanto a consulta em si custa 0,07. Agora as conexões são reaproveitadas: a mesma conferência leva 0,4 milissegundo.
+- O ganho é maior justamente quando mais gente usa ao mesmo tempo, que era o pior caso: com sessenta pedidos simultâneos, essa conferência levava 165 milissegundos cada e agora leva 10. Era o custo que aparecia em TODA requisição de TODA tela, então ele somava sem nunca ser visível em lugar nenhum.
+- A tela de Saúde do Servidor continua abrindo conexão própria, de propósito: ela existe para responder "o banco aceita conexão agora?", e se ela também usasse as conexões reaproveitadas diria "conectado" num dia em que o banco tivesse parado de aceitar gente nova.
+
 ## [0.261.0] — 06/09/2026  ·  CX-06/09/2026-v0.261.0
 
 ### Alterado

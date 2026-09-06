@@ -4024,23 +4024,48 @@ de 60 s — **5 execucoes com autocommit, 5 estouros; 4 sem ele, 4 sadias**,
 alternando na mesma janela do ERP e com o cache limpo dos dois lados. Nao e
 azar de ERP: a alternancia existe justamente para isso.
 
-O que foi descartado como causa, medindo: **nao sao prepared statements**
-(`prepare_threshold=None` estoura igual) e **nao e o `check`** (estoura com o
-antigo e com o novo). A causa NAO FOI ESTABELECIDA.
+### A CAUSA (encontrada horas depois, procurando outra coisa)
 
-A hipotese que sobrou, e que fica marcada COMO HIPOTESE porque nao foi medida:
-o custo do pool estava servindo de **freio acidental**. A Visao Geral dispara
-5 grupos em paralelo contra um ERP que e replica de producao de terceiro e
-divide o mesmo usuario com um Power BI; sem os ~45 ms de atraso por retirada,
-as 5 consultas pesadas chegam mais juntas e uma cruza o teto. Observando o
-`pg_stat_activity` durante as duas rodadas, a versao com autocommit tinha DUAS
-consultas nossas ativas ao mesmo tempo, a 23 e 24 s; a sem autocommit, uma.
+Descartei primeiro, medindo: nao sao prepared statements
+(`prepare_threshold=None` estoura igual) e nao e o `check` (estoura com o
+antigo e com o novo). Fechei a entrega escrevendo "causa nao estabelecida" e
+registrando uma hipotese de **freio acidental** — que o custo do pool estivesse
+espacando as 5 consultas paralelas contra um ERP compartilhado com um Power BI.
 
-**Nao se remove um freio sem saber que ele era um freio.** Os 30 ms ficam na
-mesa ate alguem medir a hipotese — e ha um teste
-(`test_o_pool_do_erp_nao_usa_autocommit`) para a ideia nao voltar daqui a tres
-meses por parecer obvia. Um ganho de 30 ms por consulta nao paga a tela
-principal cair.
+**A hipotese estava errada, e a causa e trivial depois de vista:**
+
+```
+autocommit=False -> SET LOCAL enable_mergejoin = off  =>  fica `off`
+autocommit=True  -> SET LOCAL enable_mergejoin = off  =>  segue `on`
+```
+
+**`SET LOCAL` fora de uma transacao e NO-OP.** O `api/queries.py` abre o grupo
+de OC da Visao Geral com `SET LOCAL enable_mergejoin = off` e
+`SET LOCAL statement_timeout = 12000`, e o comentario ao lado ja dizia por que:
+sem a dica, o 9.3 escolhe um merge join degenerado no join OC x recebimentos.
+Com autocommit os dois evaporam antes da consulta rodar — ela vai sem a dica E
+sem o teto de 12 s, ate o global de 60 s. Bate exatamente com o observado,
+inclusive com o fato de a consulta que aparecia no `pg_stat_activity` ser
+justamente a de OC.
+
+Achei isto procurando **outra coisa**: varrendo o codigo atras de estado de
+sessao que vazaria num pool no banco da casa (achado 02), o `grep` por `SET `
+devolveu os `SET LOCAL` do `queries.py`. A pergunta certa ("o que vaza entre
+conexoes reusadas?") respondeu a pergunta anterior, que eu tinha dado por
+perdida.
+
+**O que isso muda:** os 30 ms SAO recuperaveis, mas nao de graca — antes de
+ligar autocommit e preciso converter cada `SET LOCAL` da casa em `SET` de
+sessao (devolvendo no fim) ou abrir transacao explicita nesses blocos. Ate la o
+rollback fica, e o teste
+(`test_o_pool_do_erp_nao_usa_autocommit`) segura a ideia.
+
+**E o que fica de licao sobre mim:** eu tinha uma hipotese plausivel, coerente
+com tres observacoes (as duas consultas simultaneas no `pg_stat_activity`, o
+ERP compartilhado, o paralelismo de 5), e ela era falsa. Plausivel e coerente
+nao e evidencia. O que faltou foi uma pergunta que eu nao fiz: *o que mais muda
+no comportamento do SQL quando a transacao deixa de existir?* — e a resposta
+estava escrita, em portugues, num comentario do proprio repositorio.
 
 ### O que entrou
 
@@ -4072,3 +4097,93 @@ passaria livre pelo minuto seguinte.
 - **Recusa medida vale tanto quanto correcao, e precisa de teste.** Sem o
   guard, a proxima pessoa (ou eu, em marco) reencontra os 30 ms na tabela e
   liga o autocommit de novo.
+
+---
+
+## O pool que o proprio arquivo tinha encomendado (2026-09-06, v0.261.1)
+
+Terceiro achado da auditoria de desempenho, e o de maior ganho. `auth.sessao_atual()`
+roda no middleware, em TODA requisicao autenticada, e abria uma conexao NOVA no
+PostgreSQL local.
+
+| | antes | depois |
+|---|---|---|
+| `sessao_atual()` | 24,70 ms (p95 143,10) | **0,40 ms** (p95 0,61) |
+| 60 requisicoes simultaneas | 165 ms cada | **10,5 ms** |
+
+Abrir a conexao era **99,7%** do custo: a consulta em si mede 0,07 ms. E
+piorava sob carga, porque no Windows cada conexao nova e um processo novo do
+lado do servidor.
+
+### O arquivo ja sabia
+
+O `api/pglocal.py` nasceu sem pool, e o comentario dizia por que E ate quando:
+
+> CONEXAO CURTA, SEM POOL. (...) evita de uma vez a classe de problema de pool
+> com `search_path` grudado de outra chamada. **O pool entra quando o `auth`
+> migrar — e ele que faz muitas consultas pequenas por request — e ai com
+> medicao, nao por suposicao.**
+
+O `auth` migrou e a medicao chegou. Vale registrar o formato: aquele comentario
+nao proibia o pool, **datava** a decisao e dizia o que precisaria ser verdade
+para revisa-la. Decisao com data de validade escrita e mais barata que decisao
+defendida para sempre.
+
+### A ressalva da mesma frase, conferida em vez de presumida
+
+Duas coisas foram medidas antes de ligar o pool:
+
+1. **Nada de estado de sessao vaza entre conexoes reusadas.** A varredura nao
+   achou `CREATE TEMP`, `pg_advisory_lock`, `LISTEN/NOTIFY` nem cursor nomeado.
+   Os unicos `SET` da casa sao `SET LOCAL`, que morre no fim da transacao — e
+   moram no caminho do ERP, nao neste. (Foi esse mesmo `grep` que resolveu, de
+   quebra, o misterio do autocommit da entrega anterior.)
+2. **Prepared statement nao fura o isolamento por schema.** A duvida era real:
+   a mesma SQL roda em centenas de schemas de teste na mesma conexao, e um
+   plano preso ao schema anterior gravaria no lugar errado em silencio. Montei
+   dois schemas com tabela de mesmo nome, escrevi dez vezes no primeiro e uma
+   no segundo: o PostgreSQL replaneja quando o `search_path` muda, e a linha
+   foi para o schema certo com `prepare_threshold` no padrao e desligado.
+
+O `SET search_path` continua sendo refeito A CADA RETIRADA — 0,045 ms, e e o
+que mantem a promessa daquele comentario.
+
+### O teste que quebrou tinha razao
+
+`test_diagnostico_nunca_carrega_a_senha` ficou vermelho. Ele injeta falha em
+`psycopg.connect` e esperava o diagnostico falhar; com o pool, `diagnostico()`
+passou a responder por uma conexao ja aberta.
+
+Nao era ruido de teste, era desenho errado: a tela de **Saude do Servidor**
+existe para responder *"o banco aceita conexao AGORA?"*. Com o pool no caminho,
+um banco com `max_connections` esgotado — ou o servico recusando conexao nova —
+seguiria sendo atendido pelas conexoes ja abertas, e o cartao diria "conectado"
+enquanto ninguem mais consegue entrar. O `ms` do cartao tambem voltaria a
+significar outra coisa (0,1 ms de pool em vez do custo de chegar ao banco).
+`diagnostico()` passou a abrir conexao DIRETA, de proposito, com o motivo
+escrito ao lado.
+
+### E uma sabotagem que passou verde, o que e pior que teste vermelho
+
+Ao conferir os guards sabotando o alvo, a sabotagem do `diagnostico()` deu
+**21 passed**. Nao era o teste que estava fraco: a sabotagem e que estava
+malfeita — ela trocava o `connect` direto por `get_conn()` mas deixava para
+tras um `conn.close()` sobre uma conexao do POOL, entao o diagnostico falhava
+por outro motivo e o teste passava pela razao errada.
+
+Refeita de forma coerente (ancorada a partir do `def diagnostico`, porque
+`s.index` sem ancora tinha achado o `psycopg.connect` do ramo de fallback do
+`get_conn`), o guard acendeu. **Sabotagem tambem precisa ser conferida**: uma
+que nao produz o cenario pretendido nao prova nada sobre o teste — e passa a
+sensacao de que provou, que e o pior dos dois mundos.
+
+### O que fica como regra
+
+- **Decisao de projeto pode ter data de validade escrita.** "Sem pool ate o
+  auth migrar, e ai com medicao" foi a melhor linha deste arquivo: guiou a
+  revisao anos-luz melhor do que uma proibicao teria guiado.
+- **Cache/pool no caminho de um diagnostico apaga justamente o que ele mede.**
+  Health check abre conexao propria.
+- **Sabotagem que nao acende pode ser sabotagem quebrada, nao teste forte.**
+  Confira que a sabotagem produziu o cenario que voce queria antes de concluir
+  qualquer coisa sobre o teste.

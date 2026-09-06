@@ -14,10 +14,13 @@ de responder uma consulta, que e pagar uma ida e volta para saber o que ja se
 sabe. Medido alternando em 4 voltas: 61,3 ms -> 46,7 ms.
 
 E FICA REGISTRADO O QUE NAO SE FEZ: `autocommit=True` tiraria os outros 30 ms
-(o rollback da devolucao) e sob READ COMMITTED nao custaria consistencia
-nenhuma. Foi MEDIDO E RECUSADO — com ele a Visao Geral saiu de ~1,9 s para o
-`statement_timeout` de 60 s, cinco vezes em cinco. Ha um teste aqui para isso
-nao voltar por parecer uma boa ideia.
+(o rollback da devolucao). Foi MEDIDO E RECUSADO — com ele a Visao Geral saiu
+de ~1,9 s para o `statement_timeout` de 60 s, cinco vezes em cinco — e a causa
+e conhecida: **`SET LOCAL` fora de transacao e no-op**, e o `api/queries.py`
+protege a consulta de OC com `SET LOCAL enable_mergejoin = off` (sem a dica, o
+9.3 escolhe um merge join degenerado). Com autocommit a dica evapora antes da
+consulta. Ha um teste aqui para a ideia nao voltar antes de os `SET LOCAL`
+serem convertidos.
 """
 from __future__ import annotations
 
@@ -119,14 +122,20 @@ def pool_do_erp():
 
 
 def test_o_pool_do_erp_nao_usa_autocommit(pool_do_erp):
-    """MEDIDO E RECUSADO em 06/09/2026, nao esquecido.
+    """MEDIDO E RECUSADO em 06/09/2026, e a causa e CONHECIDA.
 
-    `autocommit=True` tira o rollback da devolucao (~30 ms por consulta) e sob
-    READ COMMITTED nao custa consistencia nenhuma — parece dinheiro no chao.
-    Com ele, a Visao Geral saiu de ~1,9 s para o `statement_timeout` de 60 s,
-    em 5 de 5 execucoes, contra 4 de 4 sadias sem ele, alternando na mesma
-    janela do ERP. A causa nao foi estabelecida; enquanto nao for, o rollback
-    fica. Este teste existe para a ideia nao voltar por parecer boa.
+    `autocommit=True` tira o rollback da devolucao (~30 ms por consulta) e
+    parece dinheiro no chao. Com ele a Visao Geral saiu de ~1,9 s para o
+    `statement_timeout` de 60 s, em 5 de 5 execucoes.
+
+    O motivo nao e o pool: **`SET LOCAL` fora de transacao e no-op**. O
+    `api/queries.py` abre o grupo de OC com `SET LOCAL enable_mergejoin = off`
+    (sem a dica o 9.3 escolhe um merge join degenerado) e
+    `SET LOCAL statement_timeout = 12000`. Com autocommit os dois evaporam
+    antes da consulta.
+
+    Os 30 ms sao recuperaveis, mas so depois de converter cada `SET LOCAL` da
+    casa. Ate la este teste segura a ideia.
     """
     with db.get_conn() as conn:
         assert conn.autocommit is False

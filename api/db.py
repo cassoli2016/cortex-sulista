@@ -82,18 +82,26 @@ _pool: "ConnectionPool | None" = None
 # ninguém escreve por aqui — a sessão nasce `default_transaction_read_only=on`.
 # Parecia dinheiro no chão.
 #
-# **`autocommit=True` FOI MEDIDO E RECUSADO.** Com ele a Visão Geral saiu de
-# ~1,9 s para o `statement_timeout` de 60 s, e não foi azar: 5 execuções do
-# caminho real com autocommit, 5 estouros; 4 sem ele, 4 sadias, alternando na
-# mesma janela do ERP. A causa NÃO foi estabelecida — não são prepared
-# statements (`prepare_threshold=None` estoura igual) e não é o `check` (o
-# estouro acontece com o check antigo e com o novo). A hipótese que sobrou, e
-# que fica registrada COMO HIPÓTESE: o custo do pool estava servindo de freio
-# acidental. A Visão Geral dispara 5 grupos em paralelo contra um ERP que é
-# réplica de produção de terceiro e divide o mesmo usuário com um Power BI;
-# sem os ~45 ms de atraso por retirada, as 5 consultas pesadas chegam mais
-# juntas e uma delas cruza o teto. Enquanto isso não for medido de verdade, o
-# rollback fica — 30 ms por consulta é barato perto da tela principal cair.
+# **`autocommit=True` FOI MEDIDO E RECUSADO, e a causa É CONHECIDA.** Com ele
+# a Visão Geral saiu de ~1,9 s para o `statement_timeout` de 60 s, em 5
+# execuções de 5. O motivo não tem nada a ver com o pool:
+#
+#   **`SET LOCAL` fora de uma transação é NO-OP.** Provado no ERP:
+#     autocommit=False -> SET LOCAL enable_mergejoin=off  =>  fica `off`
+#     autocommit=True  -> SET LOCAL enable_mergejoin=off  =>  segue `on`
+#
+# O `api/queries.py` abre o grupo de OC da Visão Geral com
+# `SET LOCAL enable_mergejoin = off` e `SET LOCAL statement_timeout = 12000`,
+# e o comentário ao lado diz por quê: sem a dica, o 9.3 escolhe um merge join
+# degenerado no join OC × recebimentos. Com autocommit os dois evaporam antes
+# da consulta — ela roda sem a dica E sem o teto de 12 s, e vai até o global de
+# 60 s. Bate exatamente com o que foi observado.
+#
+# Ou seja: os 30 ms do rollback SÃO recuperáveis, mas não de graça. Antes de
+# ligar autocommit é preciso converter cada `SET LOCAL` da casa em `SET` de
+# sessão (e devolvê-lo no fim) ou abrir transação explícita nesses blocos.
+# Enquanto isso não for feito, o rollback fica: 30 ms por consulta é barato
+# perto da tela principal cair.
 #
 # O QUE FICA, ENTÃO: o `check` saiu do caminho quente, e só isso. Ele nasceu
 # para o túnel SSH que podia cair no meio; hoje o `.env` aponta direto para o

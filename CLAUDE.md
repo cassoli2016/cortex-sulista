@@ -97,6 +97,15 @@ existem no banco vivo.
 
 ### Módulo novo que escreve
 
+**`api/pglocal.py` TEM POOL** (desde 06/09/2026): `auth.sessao_atual()` roda em
+toda requisição autenticada e abrir conexão era 99,7% do custo dela
+(24,70 ms → 0,40 ms; 165 ms → 10,5 ms com 60 simultâneas). O `SET search_path`
+é refeito A CADA RETIRADA — é ele que impede schema de teste e de produção de
+se misturarem numa conexão reusada. **`diagnostico()` fica FORA do pool de
+propósito**: a Saúde responde "o banco aceita conexão AGORA?", e pelo pool ela
+diria "conectado" com o `max_connections` esgotado. Guard:
+`tests/test_pglocal_pool.py`.
+
 Use `api/pglocal.py`, nunca abra SQLite (`tests/test_saude_bases_locais.py`
 quebra se `sqlite3.connect` aparecer fora do cache da Gobrax e do conferidor da
 Saúde). Tabela com **prefixo do módulo** (`ext_*`, `orc_*`, `crm_*`…); DDL em
@@ -546,12 +555,16 @@ barra empilhada, não donut.
   30 ms de `rollback` na devolução, e a metade maior era a que ninguém tinha
   olhado; só a tabela de quatro estados separou. E **custo pode ser freio**:
   tirar o rollback (`autocommit=True`) derrubou a Visão Geral de 1,9 s para o
-  `statement_timeout` de 60 s, 5 vezes em 5 — o ERP é compartilhado com um
-  Power BI e o atraso do pool estava segurando as 5 consultas paralelas. Causa
-  não estabelecida, ganho deixado na mesa, guard escrito para a ideia não
-  voltar (`tests/test_pool_do_erp.py`). Antes de remover uma lentidão de um
-  caminho que fala com dependência externa compartilhada, pergunte o que ela
-  estava segurando.
+  `statement_timeout` de 60 s, 5 vezes em 5. **A causa: `SET LOCAL` fora de
+  transação é NO-OP** — o `queries.py` protege a consulta de OC com
+  `SET LOCAL enable_mergejoin = off` (sem a dica o 9.3 faz merge join
+  degenerado) e com `SET LOCAL statement_timeout = 12000`; com autocommit os
+  dois evaporam antes da consulta. Ligar autocommit exige converter TODO
+  `SET LOCAL` da casa antes; até lá o guard segura
+  (`tests/test_pool_do_erp.py`). E a lição de método: minha primeira
+  explicação — o custo do pool como freio acidental — era plausível, coerente
+  com três observações e FALSA. Plausível não é evidência; a pergunta que
+  resolveu foi "o que mais muda no SQL quando a transação deixa de existir?".
 - **Medição contra dependência externa vale UMA vez e só se REPETIDA.** Número
   isolado durante incidente é sintoma do incidente, não da consulta: a de OC da
   Visão Geral foi acusada de lenta com base em 200 s medidos dentro de uma
