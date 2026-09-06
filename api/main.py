@@ -726,9 +726,12 @@ async def motorista_confirmar(req: Request) -> JSONResponse:
     if r.get("escolher"):
         return JSONResponse(r)
 
-    auth.audit("motorista:" + r["motorista_codigo"], "motorista_entrou",
-               alvo=r["motorista_codigo"], detalhe=f"sessao {r['sessao_id']}",
-               ip=_ip_do_cliente(req))
+    # A TRILHA GRAVA O ID OPACO, nunca o codigo do ERP — que para pessoa fisica
+    # e o CPF. `audit_log` e append-only e imutavel: documento que entra ali nao
+    # sai mais.
+    quem = "motorista:%d" % r["motorista_id"]
+    auth.audit(quem, "motorista_entrou", alvo=str(r["motorista_id"]),
+               detalhe=f"sessao {r['sessao_id']}", ip=_ip_do_cliente(req))
     # O TOKEN NAO VAI NO CORPO: ele e o cookie, e cookie HttpOnly e o que
     # impede um script na pagina de ler a sessao. Devolver os dois seria
     # oferecer a copia legivel do que se acabou de proteger.
@@ -759,8 +762,8 @@ def motorista_sair(req: Request) -> JSONResponse:
         sess = None
     if sess:
         msessao.encerrar(sess["sessao_id"])
-        auth.audit("motorista:" + sess["motorista_codigo"], "motorista_saiu",
-                   alvo=sess["motorista_codigo"], ip=_ip_do_cliente(req))
+        auth.audit("motorista:%d" % sess["motorista_id"], "motorista_saiu",
+                   alvo=str(sess["motorista_id"]), ip=_ip_do_cliente(req))
     resp = JSONResponse({"ok": True})
     msessao.apagar_cookie(resp, req)
     return resp

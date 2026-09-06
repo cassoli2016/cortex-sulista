@@ -4,6 +4,19 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.261.0] — 06/09/2026  ·  CX-06/09/2026-v0.261.0
+
+### Alterado
+- A tela de entrada do App do Motorista passou a ser a mesma do CÓRTEX: o anel da marca girando com o nome no meio, a logo da Sulista e o cartão branco sobre o fundo azul-escuro. Quem abre o link no celular reconhece a empresa antes de ler qualquer palavra — antes era uma tela cinza que podia ser de qualquer sistema.
+- Os campos e botões do app são maiores que os do painel, de propósito: o login do computador se acerta com o mouse, e este se acerta com o polegar dentro de um caminhão em movimento.
+
+### Corrigido
+- Em celular de tela baixa, a tela do código ficava com o topo cortado e não dava para rolar até ele. Agora ela rola normalmente.
+
+### Segurança
+- O código de motorista do ERP é o CPF da pessoa, e ele estava viajando em três lugares que não precisavam dele: dentro do cookie do aparelho, na trilha de auditoria e — o caso que de fato preocupava — na lista de "quem está entrando" que o aparelho recebe quando dois motoristas dividem o mesmo celular. Agora o app usa um número interno que não é documento de ninguém; o CPF ficou só na coluna que precisa dele para casar com o ERP.
+- Nenhum CPF chegou a ser exposto: a lista de escolha só aparece quando um telefone serve a mais de um motorista, e isso não acontecia com nenhum dos 80 cadastrados. Foi corrigido por desenho, não por incidente.
+
 ## [0.260.5] — 06/09/2026  ·  CX-06/09/2026-v0.260.5
 
 ### Corrigido

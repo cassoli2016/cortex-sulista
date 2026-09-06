@@ -41,9 +41,11 @@ class ReqFalso:
 
 
 def _sessao_pronta(esq, codigo="MOT-1"):
-    cadastrar(esq, codigo, FONE, nome="João")
+    '''Devolve (sessao_id, token). O token é assinado com o ID OPACO — o
+    código do ERP não entra nele (para pessoa física ele é o CPF).'''
+    mid = cadastrar(esq, codigo, FONE, nome="João")
     sid = msessao.abrir(codigo, aparelho="ap-1", esquema=esq)
-    return sid, msessao.emitir(codigo, sid)
+    return sid, msessao.emitir(mid, sid)
 
 
 def test_token_valido_carrega_o_motorista(esq):
@@ -64,9 +66,11 @@ def test_desligar_o_vinculo_derruba_na_requisicao_seguinte(esq):
 
 def test_encerrar_a_sessao_derruba_aquele_aparelho(esq):
     sid, token = _sessao_pronta(esq)
-    _, token2 = None, None
+    mid = pglocal.um(
+        "SELECT id FROM mot_vinculos WHERE motorista_codigo = 'MOT-1'",
+        None, esq)["id"]
     sid2 = msessao.abrir("MOT-1", aparelho="ap-2", esquema=esq)
-    token2 = msessao.emitir("MOT-1", sid2)
+    token2 = msessao.emitir(mid, sid2)
 
     msessao.encerrar(sid, esq)
     assert msessao.atual(token, esq) is None
@@ -78,9 +82,9 @@ def test_token_com_sub_de_outro_motorista_nao_passa(esq):
     """O `sid` sozinho seria suficiente para carregar a linha. Conferir o
     `sub` contra ela é o que impede um token remontado de virar outra pessoa."""
     sid, _ = _sessao_pronta(esq, "MOT-1")
-    cadastrar(esq, "MOT-2", "5547999990002", nome="Maria")
+    outro = cadastrar(esq, "MOT-2", "5547999990002", nome="Maria")
 
-    forjado = msessao.emitir("MOT-2", sid)   # sid de MOT-1, sub de MOT-2
+    forjado = msessao.emitir(outro, sid)   # sid de MOT-1, sub de MOT-2
     assert msessao.atual(forjado, esq) is None
 
 
@@ -90,8 +94,11 @@ def test_token_sem_tipo_nao_passa(esq):
     import jwt
     from datetime import datetime, timedelta, timezone
     sid, _ = _sessao_pronta(esq)
+    mid = pglocal.um(
+        "SELECT id FROM mot_vinculos WHERE motorista_codigo = 'MOT-1'",
+        None, esq)["id"]
     agora = datetime.now(timezone.utc)
-    sem_tipo = jwt.encode({"sub": "MOT-1", "sid": sid, "iat": agora,
+    sem_tipo = jwt.encode({"sub": str(mid), "sid": sid, "iat": agora,
                            "exp": agora + timedelta(days=1)},
                           msessao._segredo(), algorithm="HS256")
     assert msessao.atual(sem_tipo, esq) is None
@@ -160,3 +167,31 @@ def test_banco_fora_RECUSA_em_vez_de_estourar(esq, monkeypatch):
     assert msessao.atual(token, esq) is None
     with pytest.raises(msessao.SemSessao):
         msessao.exigir(ReqFalso({msessao.COOKIE: token}), esq)
+
+
+# --------------------------------------------- o CPF não sai deste módulo
+
+def test_o_TOKEN_nao_carrega_o_codigo_do_ERP(esq):
+    '''`cadastro.codigo` do ERP é o CPF para pessoa física, e o token vive no
+    cookie do aparelho. Descoberto em 06/09/2026 ao cadastrar o primeiro
+    usuário; o `sub` passou a ser o id opaco do vínculo.'''
+    import jwt as _jwt
+    cpf = "00499591909"
+    mid = cadastrar(esq, cpf, FONE, nome="FULANO DE TAL")
+    sid = msessao.abrir(cpf, esquema=esq)
+    token = msessao.emitir(mid, sid)
+
+    claims = _jwt.decode(token, msessao._segredo(), algorithms=["HS256"])
+    assert claims["sub"] == str(mid)
+    assert cpf not in " ".join(str(v) for v in claims.values())
+    # e o token TEM de continuar valendo — a troca não pode ser só cosmética
+    assert msessao.atual(token, esq)["motorista_codigo"] == cpf
+
+
+def test_a_sessao_carrega_as_DUAS_chaves_com_papeis_diferentes(esq):
+    '''O código serve para consultar o AVA e fica no servidor; o id é o que
+    pode ser dito para fora. Sem os dois, ou a consulta quebra ou o CPF vaza.'''
+    _, token = _sessao_pronta(esq)
+    s = msessao.atual(token, esq)
+    assert s["motorista_codigo"] == "MOT-1"
+    assert isinstance(s["motorista_id"], int)

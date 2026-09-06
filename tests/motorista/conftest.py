@@ -46,11 +46,17 @@ def zap(monkeypatch):
 
 
 def cadastrar(esquema: str, codigo: str, telefone: str, nome: str = "Fulano",
-              ativo: bool = True) -> None:
-    pglocal.executar(
+              ativo: bool = True) -> int:
+    """Devolve o ID OPACO do vínculo — que é o que o app usa para fora.
+
+    O `codigo` continua sendo o do ERP (para pessoa física, o CPF) e serve só
+    para casar com o AVA; nenhum teste deve esperá-lo num payload.
+    """
+    linha = pglocal.um(
         """INSERT INTO mot_vinculos(motorista_codigo, telefone, nome, ativo)
-           VALUES (%(c)s, %(f)s, %(n)s, %(a)s)""",
+           VALUES (%(c)s, %(f)s, %(n)s, %(a)s) RETURNING id""",
         {"c": codigo, "f": telefone, "n": nome, "a": ativo}, esquema)
+    return int(linha["id"])
 
 
 def codigo_enviado(enviadas: list[dict]) -> str:

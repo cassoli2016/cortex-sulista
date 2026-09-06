@@ -5,8 +5,14 @@ POR QUE NÃO É A SESSÃO DA CASA, em uma frase: uma sessão de motorista que o
 `auth.sessao_atual` soubesse ler seria uma sessão capaz de chegar ao painel, e
 o único obstáculo entre ela e o CÓRTEX inteiro seria um perfil vazio. Aqui ela
 é ilegível para o middleware do painel por construção — cookie com outro nome,
-`sub` que é código de cadastro e não id de usuário, e um `tipo` no token que
-esta função exige e a de lá nem olha.
+um `tipo` no token que esta função exige e a de lá nem olha, e um `sub` que é o
+id opaco do vínculo, não o id de usuário do painel.
+
+O `sub` NÃO É O CÓDIGO DO ERP, e isso foi corrigido em 06/09/2026: para pessoa
+física aquele código é o CPF, e ele estava indo dentro do cookie, no
+`audit_log` e — o caso que de fato viola a regra da casa — no payload da lista
+de "quem está entrando". Agora só o id opaco sai daqui; o código fica na coluna
+que precisa dele para casar com o AVA. Ver `sql/cortex/0058_motorista_id_opaco.sql`.
 
 TRÊS COISAS QUE O TOKEN NÃO RESOLVE, e por isso `mot_sessoes` existe:
 
@@ -86,9 +92,15 @@ def _agora() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def emitir(motorista_codigo: str, sessao_id: int) -> str:
+def emitir(motorista_id: int, sessao_id: int) -> str:
+    """O `sub` é o ID OPACO, nunca o `motorista_codigo`.
+
+    Para pessoa física o código do ERP é o CPF, e o token vive no cookie do
+    aparelho — um documento que não precisa estar ali não fica ali. Ver
+    `sql/cortex/0058_motorista_id_opaco.sql`.
+    """
     agora = _agora()
-    return jwt.encode({"sub": str(motorista_codigo), "sid": int(sessao_id),
+    return jwt.encode({"sub": str(int(motorista_id)), "sid": int(sessao_id),
                        "tipo": TIPO, "iat": agora,
                        "exp": agora + timedelta(days=TTL_DIAS)},
                       _segredo(), algorithm="HS256")
@@ -151,7 +163,7 @@ def atual(token: str | None, esquema: str | None = None) -> dict | None:
     try:
         linha = pglocal.um(
             """SELECT s.id AS sessao_id, s.motorista_codigo, s.vista_em,
-                      v.nome, v.telefone, v.ativo
+                      v.id AS motorista_id, v.nome, v.telefone, v.ativo
                  FROM mot_sessoes s
                  JOIN mot_vinculos v ON v.motorista_codigo = s.motorista_codigo
                 WHERE s.id = %(sid)s AND s.encerrada_em IS NULL""",
@@ -169,7 +181,7 @@ def atual(token: str | None, esquema: str | None = None) -> dict | None:
     # O `sub` do token TEM de bater com a linha. Não bater significa token de
     # uma sessão que trocou de dono — não acontece por acidente, e por isso a
     # resposta é recusar em vez de confiar no id.
-    if str(linha["motorista_codigo"]) != str(claims.get("sub")):
+    if str(linha["motorista_id"]) != str(claims.get("sub")):
         log.warning("token de motorista com sub divergente da sessão %s", sid)
         return None
 
@@ -177,7 +189,12 @@ def atual(token: str | None, esquema: str | None = None) -> dict | None:
         pglocal.executar(
             "UPDATE mot_sessoes SET vista_em = now() WHERE id = %(id)s",
             {"id": int(sid)}, esq)
+    # DUAS CHAVES, COM PAPÉIS DIFERENTES, e a distinção é o ponto desta
+    # correção: `motorista_codigo` só serve para consultar o AVA e NÃO SAI do
+    # servidor; `motorista_id` é o que pode ser dito para fora (trilha, token,
+    # payload). Quem escrever rota nova aqui usa o `id`.
     return {"motorista_codigo": str(linha["motorista_codigo"]),
+            "motorista_id": int(linha["motorista_id"]),
             "nome": linha["nome"] or "", "telefone": linha["telefone"] or "",
             "sessao_id": int(sid)}
 

@@ -3,10 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#1E172F">
+<meta name="theme-color" content="#0B1926">
 <title>CÓRTEX · Motorista</title>
 <link rel="icon" href="/static/favicon.png">
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<!--
+  A FONTE DA CASA, SEM BLOQUEAR O PRIMEIRO PIXEL. O painel importa a Saira com
+  `@import` dentro do <style>, que segura a renderizacao ate a folha chegar —
+  aceitavel num desktop de escritorio, caro no 4G de uma rodovia. Aqui ela
+  entra por <link media="print" onload>: o navegador baixa sem bloquear, a
+  pagina pinta na hora com o stack do sistema e a Saira entra quando chega.
+  Sem ela a tela continua CERTA, so com outra letra — e por isso o <noscript>
+  carrega do jeito normal para quem desligou o script.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" media="print" onload="this.media='all'"
+      href="https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700&display=swap">
+<noscript><link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700&display=swap"></noscript>
 <!--
   APP DO MOTORISTA — pagina PROPRIA, e nao uma tela do index.html.
 
@@ -14,13 +29,17 @@
   vezes com a tela no sol. Tres consequencias que mandam em tudo aqui:
 
   1. PESO. O index.html tem 2,5 MB antes do ECharts. Esta pagina nao carrega
-     biblioteca nenhuma, nao usa webfont (o stack do sistema ja esta no
-     aparelho) e cabe num pedido so. Se um dia alguem precisar de grafico
-     aqui, a pergunta certa e se o grafico precisa existir.
-  2. POLEGAR. Uma coluna, alvo de toque grande (44px e o minimo que se acerta
-     em movimento), nada lado a lado. A regua de paineis da casa mede desktop
-     de 900px e nao serve para medir esta pagina.
-  3. SOL. Contraste alto no tema claro; o escuro segue o aparelho.
+     biblioteca nenhuma — so o `anel.js` (7 KB), que E a marca da casa.
+  2. POLEGAR. Uma coluna, alvo de toque grande, nada lado a lado.
+  3. SOL. Contraste alto; o tema da parte logada segue o aparelho.
+
+  A ENTRADA E A MESMA MARCA DO PAINEL, de proposito: quem abre isto tem de
+  reconhecer a empresa de imediato — fundo navy, o anel girando com CORTEX
+  dentro, a logo da Sulista, e o cartao branco por baixo. Sao os mesmos tokens
+  do `index.html` (navy-900/700, radius 10, botao navy), com UMA diferenca
+  deliberada: os alvos de toque sao maiores. O login do painel tem campo de
+  ~38 px, que se acerta com mouse e se erra com o polegar em movimento; aqui o
+  minimo e 48.
 
   O QUE NAO ESTA AQUI, DE PROPOSITO: valor de frete, custo, CKM, resultado, e a
   operacao de qualquer outro motorista. A API tambem nao devolve — nao e a
@@ -28,16 +47,23 @@
 -->
 <style>
 :root{
-  --brand:#942821; --brand-claro:#E0705F; --ink-marca:#1E172F;
-  --accent:#E85D10;
+  /* Os mesmos tokens do painel. Navy do fundo e do botao, tijolo da marca. */
+  --navy-900:#0B1926; --navy-800:#102538; --navy-700:#17344F;
+  --brand:#942821; --accent:#E85D10;
   --ok:#1E7F4F; --aviso:#B97709; --erro:#C03221;
-  --fundo:#F4F5F7; --papel:#FFFFFF; --linha:#DFE3E8;
+  --n0:#fff; --n100:#ECEEF1; --n200:#DCE0E5; --n300:#C2C8D0;
+  --n500:#636C76; --n600:#4F5860; --n900:#14181D;
+  --fundo:#F4F5F7; --papel:#fff; --linha:#DCE0E5;
   --ink:#14181D; --ink2:#636C76;
-  --r:14px;
+  --radius:10px;
   /* Escala da casa: 9/18/25 e nada mais. */
   --e1:9px; --e2:18px; --e3:25px;
+  --font:'Saira',system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
   color-scheme:light dark;
 }
+/* O TEMA ESCURO VALE SO DENTRO DO APP. A tela de entrada e a marca da casa —
+   ela e navy em todo aparelho, como o login do painel, que tambem nao muda com
+   o tema (o `--navy-*` e o token que a casa congela de proposito). */
 @media (prefers-color-scheme: dark){
   :root{
     --fundo:#14181D; --papel:#1E232A; --linha:#2C333C;
@@ -46,131 +72,189 @@
   }
 }
 *{box-sizing:border-box}
-html,body{margin:0;padding:0}
+html,body{margin:0;padding:0;min-height:100%}
 body{
   background:var(--fundo); color:var(--ink);
-  font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
-  -webkit-text-size-adjust:100%;
-  padding:0 var(--e2) calc(var(--e3) + env(safe-area-inset-bottom));
-  max-width:520px; margin:0 auto;
+  font:16px/1.45 var(--font); -webkit-text-size-adjust:100%;
 }
-header{
-  display:flex; align-items:center; gap:var(--e1);
-  padding:var(--e2) 0 var(--e1);
+
+/* ============================ a entrada (marca da casa) ============== */
+/* Enquanto o motorista nao entrou, a pagina INTEIRA e o login: fundo navy em
+   gradiente e o cartao centrado, igual ao `#loginOverlay` do painel. */
+body.entrando{
+  background:linear-gradient(160deg,var(--navy-900) 0%,var(--navy-700) 100%);
+  min-height:100dvh; display:flex;
+  padding:var(--e2) var(--e2) calc(var(--e2) + env(safe-area-inset-bottom));
 }
-.logo{
-  width:32px;height:32px;border-radius:50%;flex:0 0 auto;
-  background:linear-gradient(160deg,var(--brand) 0%,var(--accent) 55%,#2B3A67 100%);
+/* CENTRADO POR `margin:auto`, NAO POR `align-items:center`. A diferenca so
+   aparece no celular baixo: com `align-items:center` um cartao mais alto que a
+   tela transborda para os DOIS lados e o navegador corta o topo — e nao deixa
+   rolar ate la, porque o excedente fica antes do inicio do scroll. Foi o que
+   aconteceu na tela do codigo, que e a mais alta das tres (dois botoes e a
+   mensagem). Margem automatica distribui a folga quando ela existe e nao
+   inventa folga negativa quando nao existe. */
+body.entrando #entrada{margin:auto;width:min(100%,400px)}
+.lg-card{
+  background:var(--n0); color:var(--n900);
+  border-radius:var(--radius); box-shadow:0 10px 30px rgba(0,0,0,.25);
+  /* `100%` e nao os `92vw` do painel: la o overlay nao tem padding, aqui o
+     `body.entrando` tem 18px de cada lado — somar os dois punha o cartao
+     2 px alem da viewport e a pagina rolava PARA O LADO. A regua da casa
+     exige `scrollWidth - clientWidth = 0`, e 2 px contam. */
+  width:min(100%,400px); overflow:hidden;
 }
+.lg-head{
+  background:var(--navy-900); padding:26px 30px 20px;
+  display:flex; flex-direction:column; gap:8px; align-items:center;
+}
+.lg-head img{height:34px}
+/* A MARCA: o anel girando com CORTEX centrado no vazio dele. O texto fica em
+   HTML POR CIMA do canvas, nunca desenhado nele — continua selecionavel,
+   legivel por leitor de tela e nitido em qualquer densidade (canvas rasteriza,
+   texto nao). O `text-indent` compensa o rastreio da ULTIMA letra, que sem ele
+   descentraliza a palavra dentro do anel. */
+.lg-marca{position:relative;display:grid;place-items:center;line-height:0}
+.lg-marca span{position:absolute;inset:0;display:grid;place-items:center;
+  line-height:1;pointer-events:none;text-indent:.10em;
+  color:#fff;font-weight:700;letter-spacing:.12em;font-size:15px}
+.lg-anel{width:150px;height:150px;display:block;margin:-6px 0 -2px}
+.lg-body{padding:24px 25px 28px}
+.lg-body h1{margin:0 0 4px;font-size:18px;font-weight:700}
+.lg-sub{margin:0 0 14px;font-size:13px;color:var(--n500)}
+.lg-body label{display:block;font-size:12px;font-weight:600;color:var(--n500);
+  margin:10px 0 4px}
+/* REGRA DE COMPONENTE NASCE QUALIFICADA. No painel, `.lg-btn` (0,1,0) perdia
+   para `button.btn` (0,2,1) e o padding escrito nunca valia — a regra existia,
+   estava certa e nao valia. Aqui todas ja nascem com o elemento junto. */
+.lg-body input.campo{
+  width:100%; font:inherit; font-size:16px;   /* 16 evita o zoom do iOS ao focar */
+  padding:13px 12px; min-height:48px;          /* 48: polegar, nao mouse */
+  border:1px solid var(--n300); border-radius:6px;
+  background:var(--n0); color:var(--n900);
+}
+.lg-body input.campo:focus{outline:2px solid var(--accent);outline-offset:1px}
+.lg-body button.lg-btn{
+  width:100%; margin-top:16px; padding:13px 16px; min-height:52px;
+  font:inherit; font-size:15px; font-weight:600;
+  color:#fff; background:var(--navy-700); border:0; border-radius:var(--radius);
+  cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+  line-height:1.35;
+}
+.lg-body button.lg-btn[disabled]{opacity:.55}
+.lg-body button.lg-btn.claro{
+  background:transparent; color:var(--n500); border:1px solid var(--n300);
+  font-weight:500; min-height:48px; margin-top:var(--e1);
+}
+.lg-body .msg{border-radius:8px;padding:11px 12px;font-size:13.5px;margin-top:var(--e2)}
+.lg-body .msg.erro{background:#FBEAE8;color:var(--erro)}
+.lg-body .msg.ok{background:#E8F2EC;color:var(--ok)}
+.lg-pe{color:rgba(255,255,255,.62);font-size:12.5px;text-align:center;margin:var(--e2) 0 0}
+.escolha button{width:100%;text-align:left;font:inherit;font-size:15px;
+  padding:14px 12px;min-height:52px;background:var(--n0);color:var(--n900);
+  border:1px solid var(--n300);border-radius:8px;margin-bottom:var(--e1);
+  cursor:pointer}
+
+/* ================================ o app (depois de entrar) =========== */
+.app{max-width:520px;margin:0 auto;
+  padding:0 var(--e2) calc(var(--e3) + env(safe-area-inset-bottom))}
+.app header{display:flex;align-items:center;gap:var(--e1);padding:var(--e2) 0 var(--e1)}
+/* O BRILHO DO ANEL E ADITIVO: ele foi desenhado para o navy do login e da
+   sidebar, e sobre fundo claro as linhas somam ate o branco e a marca some.
+   O disco navy devolve a ele o chao que o desenho pressupoe — e a mesma cor
+   da faixa do cartao de entrada, entao as duas telas seguem sendo a mesma
+   marca. Nao e enfeite: sem ele a marca fica lavada justamente no tema claro,
+   que e o que o motorista usa no sol. */
+.app .anelmini{width:44px;height:44px;display:block;flex:0 0 auto;
+  background:var(--navy-900);border-radius:50%}
 .marca{font-weight:700;letter-spacing:.11em;font-size:15px}
 .marca small{display:block;font-weight:500;letter-spacing:0;font-size:12px;color:var(--ink2)}
-.card{
-  background:var(--papel); border:1px solid var(--linha); border-radius:var(--r);
-  padding:var(--e2); margin-bottom:var(--e2);
-}
-h1{font-size:19px;margin:0 0 var(--e1)}
-h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2);margin:0 0 var(--e1);font-weight:600}
-p{margin:0 0 var(--e1)}
-p:last-child{margin-bottom:0}
-label{display:block;font-size:13px;color:var(--ink2);margin-bottom:6px}
-/* Regra de componente nasce QUALIFICADA: `.campo` sozinha (0,1,0) perde para
-   qualquer `.card input` que apareca depois, e o padding escrito nunca vale.
-   So o navegador diz quem venceu a especificidade — nao o texto do CSS. */
-.card input.campo{
-  width:100%; font:inherit; font-size:18px; padding:12px var(--e1);
-  border:1px solid var(--linha); border-radius:10px;
-  background:var(--fundo); color:var(--ink); min-height:48px;
-}
-.card input.campo:focus{outline:2px solid var(--accent);outline-offset:1px}
-.card button.btn{
-  width:100%; min-height:52px; font:inherit; font-size:17px; font-weight:600;
-  border:0; border-radius:10px; background:var(--brand); color:#fff;
-  margin-top:var(--e2); cursor:pointer;
-  display:inline-flex; align-items:center; justify-content:center; gap:8px;
-}
-.card button.btn[disabled]{opacity:.55}
-.card button.btn.claro{background:transparent;color:var(--ink2);border:1px solid var(--linha);font-weight:500;min-height:46px}
-.msg{border-radius:10px;padding:12px var(--e1);font-size:14px;margin-top:var(--e2)}
-.msg.erro{background:color-mix(in srgb,var(--erro) 14%,transparent);color:var(--erro)}
-.msg.ok{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok)}
+.card{background:var(--papel);border:1px solid var(--linha);
+  border-radius:var(--radius);padding:var(--e2);margin-bottom:var(--e2)}
+.card h1{font-size:19px;margin:0 0 var(--e1)}
+.card h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink2);margin:0 0 var(--e1);font-weight:600}
+.card p{margin:0 0 var(--e1)}
+.card p:last-child{margin-bottom:0}
 .tarja{background:color-mix(in srgb,var(--aviso) 16%,transparent);color:var(--aviso);
-       border-radius:10px;padding:10px var(--e1);font-size:13px;margin-bottom:var(--e2)}
+  border-radius:8px;padding:10px var(--e1);font-size:13px;margin-bottom:var(--e2)}
 .rota{display:flex;align-items:center;gap:var(--e1);margin:var(--e2) 0}
 .rota .pt{flex:1 1 0;min-width:0}
 .rota .cid{font-size:18px;font-weight:600;line-height:1.25}
 .rota .rot{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
-.rota .seta{flex:0 0 auto;color:var(--brand-claro);font-size:22px}
+.rota .seta{flex:0 0 auto;color:var(--accent);font-size:22px}
 .linhas{border-top:1px solid var(--linha);margin-top:var(--e2)}
 .linha{display:flex;justify-content:space-between;gap:var(--e2);
-       padding:11px 0;border-bottom:1px solid var(--linha);font-size:15px}
+  padding:11px 0;border-bottom:1px solid var(--linha);font-size:15px}
 .linha:last-child{border-bottom:0}
 .linha b{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
 .vazio{display:inline-block;background:color-mix(in srgb,var(--aviso) 18%,transparent);
-       color:var(--aviso);border-radius:6px;padding:2px 8px;font-size:12px;font-weight:600}
-.escolha button{width:100%;text-align:left;font:inherit;padding:14px var(--e1);
-       min-height:52px;background:var(--fundo);color:var(--ink);
-       border:1px solid var(--linha);border-radius:10px;margin-bottom:var(--e1);cursor:pointer}
+  color:var(--aviso);border-radius:6px;padding:2px 8px;font-size:12px;font-weight:600}
+.app button.sair{width:100%;min-height:48px;font:inherit;font-size:15px;
+  background:transparent;color:var(--ink2);border:1px solid var(--linha);
+  border-radius:var(--radius);cursor:pointer}
 .rodape{color:var(--ink2);font-size:12px;text-align:center;padding-top:var(--e1)}
 [hidden]{display:none!important}
 </style>
 </head>
-<body>
+<body class="entrando">
 
-<header>
-  <div class="logo" aria-hidden="true"></div>
-  <div class="marca">CÓRTEX<small>Motorista</small></div>
-</header>
+<!-- ===================================================== a entrada ===== -->
+<div id="entrada">
+  <div class="lg-card">
+    <div class="lg-head">
+      <div class="lg-marca">
+        <canvas id="lg-anel" class="lg-anel" aria-hidden="true"></canvas>
+        <span>CÓRTEX</span>
+      </div>
+      <img src="/static/sulista-logo-branco.svg" alt="Sulista">
+    </div>
 
-<!-- ------------------------------------------------------------- entrar -->
-<section id="tela-entrar" hidden>
-  <div class="card">
-    <h1>Entrar</h1>
-    <p style="color:var(--ink2);font-size:14px">
-      Digite o seu celular. Enviamos um código pelo WhatsApp.</p>
-    <label for="fone">Celular com DDD</label>
-    <input class="campo" id="fone" type="tel" inputmode="tel"
-           autocomplete="tel" placeholder="(47) 99999-8888">
-    <button class="btn" id="b-pedir">Receber código</button>
-    <div class="msg" id="m-entrar" hidden></div>
+    <div class="lg-body" id="tela-entrar" hidden>
+      <h1>Entrar</h1>
+      <p class="lg-sub">Digite o seu celular. Enviamos um código pelo WhatsApp.</p>
+      <label for="fone">Celular com DDD</label>
+      <input class="campo" id="fone" type="tel" inputmode="tel"
+             autocomplete="tel" placeholder="(47) 99999-8888">
+      <button class="lg-btn" id="b-pedir">Receber código</button>
+      <div class="msg" id="m-entrar" hidden></div>
+    </div>
+
+    <div class="lg-body" id="tela-codigo" hidden>
+      <h1>Código</h1>
+      <p class="lg-sub">Digite os 6 números que chegaram no seu WhatsApp.</p>
+      <label for="codigo">Código</label>
+      <input class="campo" id="codigo" type="text" inputmode="numeric"
+             autocomplete="one-time-code" maxlength="6"
+             style="letter-spacing:.35em;text-align:center;font-size:26px">
+      <button class="lg-btn" id="b-confirmar">Entrar</button>
+      <button class="lg-btn claro" id="b-voltar">Trocar o número</button>
+      <div class="msg" id="m-codigo" hidden></div>
+    </div>
+
+    <div class="lg-body" id="tela-escolha" hidden>
+      <h1>Quem está entrando?</h1>
+      <p class="lg-sub">Este celular está cadastrado para mais de um motorista.</p>
+      <div class="escolha" id="lista-escolha"></div>
+    </div>
   </div>
-  <p class="rodape">Não recebeu? Fale com a torre.</p>
-</section>
+  <p class="lg-pe">Não recebeu? Fale com a torre.</p>
+</div>
 
-<!-- ------------------------------------------------------------- código -->
-<section id="tela-codigo" hidden>
-  <div class="card">
-    <h1>Código</h1>
-    <p style="color:var(--ink2);font-size:14px">
-      Digite os 6 números que chegaram no seu WhatsApp.</p>
-    <label for="codigo">Código</label>
-    <input class="campo" id="codigo" type="text" inputmode="numeric"
-           autocomplete="one-time-code" maxlength="6"
-           style="letter-spacing:.35em;text-align:center;font-size:26px">
-    <button class="btn" id="b-confirmar">Entrar</button>
-    <button class="btn claro" id="b-voltar">Trocar o número</button>
-    <div class="msg" id="m-codigo" hidden></div>
-  </div>
-</section>
+<!-- ====================================================== o app ======== -->
+<div class="app">
+  <section id="tela-viagem" hidden>
+    <header>
+      <canvas id="anelmini" class="anelmini" aria-hidden="true"></canvas>
+      <div class="marca">CÓRTEX<small>Motorista</small></div>
+    </header>
+    <div class="tarja" id="tarja-velha" hidden></div>
+    <div class="card" id="card-viagem"></div>
+    <button class="sair" id="b-sair">Sair</button>
+    <p class="rodape" id="rodape-nome"></p>
+  </section>
+</div>
 
-<!-- -------------------------------------------------------- quem é você -->
-<section id="tela-escolha" hidden>
-  <div class="card">
-    <h1>Quem está entrando?</h1>
-    <p style="color:var(--ink2);font-size:14px">
-      Este celular está cadastrado para mais de um motorista.</p>
-    <div class="escolha" id="lista-escolha"></div>
-  </div>
-</section>
-
-<!-- ------------------------------------------------------------- viagem -->
-<section id="tela-viagem" hidden>
-  <div class="tarja" id="tarja-velha" hidden></div>
-  <div class="card" id="card-viagem"></div>
-  <button class="btn claro" id="b-sair"
-          style="width:100%;min-height:46px;background:transparent;color:var(--ink2);border:1px solid var(--linha);border-radius:10px;font:inherit;cursor:pointer">Sair</button>
-  <p class="rodape" id="rodape-nome"></p>
-</section>
-
+<script src="/static/anel.js"></script>
 <script>
 "use strict";
 // ---------------------------------------------------------------- utilidades
@@ -227,10 +311,42 @@ function aparelho() {
   return id;
 }
 
+// AS TRES TELAS DE ENTRADA VIVEM DENTRO DO CARTAO da marca, sobre o navy; a
+// viagem e o app propriamente dito, claro e de leitura direta. Trocar de uma
+// familia para a outra troca o FUNDO DA PAGINA, e por isso a classe no <body>:
+// e ela que faz o login parecer o login do CORTEX e o app parecer um app.
+const ENTRADA = ["tela-entrar", "tela-codigo", "tela-escolha"];
+
 function mostrar(qual) {
-  ["tela-entrar", "tela-codigo", "tela-escolha", "tela-viagem"]
+  ENTRADA.concat("tela-viagem")
     .forEach((id) => { $(id).hidden = (id !== qual); });
+  const entrando = ENTRADA.indexOf(qual) >= 0;
+  document.body.classList.toggle("entrando", entrando);
+  $("entrada").hidden = !entrando;
   window.scrollTo(0, 0);
+}
+
+// O ANEL E A MARCA VIVA DA CASA, e ele gira SEMPRE — nao e indicador de
+// estado. Perfis calibrados como no `index.html`: o brilho e ADITIVO, entao
+// alfa alto sobre muitas linhas SATURA e o branco come o tijolo do alto.
+// `prefers-reduced-motion` desenha um quadro so; escondido, o laco dorme.
+// Falha aqui nao pode derrubar a pagina: sem o anel a tela continua inteira.
+function anelLigar() {
+  try {
+    if (typeof cortexAnel === "undefined") return;
+    const lg = $("lg-anel");
+    if (lg && !lg.dataset.anel) {
+      lg.dataset.anel = "1";
+      cortexAnel.ligar(lg, { alfa: .26, largura: 1.25, linhas: 44, pontos: 180,
+                             amplitude: .10, espessura: .14, velocidade: 1.35 });
+    }
+    const mn = $("anelmini");
+    if (mn && !mn.dataset.anel) {
+      mn.dataset.anel = "1";
+      cortexAnel.ligar(mn, { alfa: .5, largura: 1.15, linhas: 26, pontos: 120,
+                             amplitude: .115, espessura: .13, velocidade: 1.5 });
+    }
+  } catch (e) { /* a marca e enfeite; a tela nao depende dela */ }
 }
 
 function aviso(elId, texto, tipo) {
@@ -297,9 +413,12 @@ async function confirmar(motorista) {
     lista.innerHTML = "";
     r.dados.escolher.forEach((m) => {
       const b = document.createElement("button");
-      b.textContent = m.nome || m.codigo;
-      b.dataset.codigo = m.codigo;
-      b.addEventListener("click", () => confirmar(b.dataset.codigo));
+      // O SERVIDOR MANDA UM ID OPACO, nao o codigo do ERP (que e o CPF).
+      // O nome basta para a pessoa se reconhecer; o id so volta na proxima
+      // requisicao.
+      b.textContent = m.nome || ("Motorista " + m.id);
+      b.dataset.id = m.id;
+      b.addEventListener("click", () => confirmar(b.dataset.id));
       lista.appendChild(b);
     });
     return mostrar("tela-escolha");
@@ -401,6 +520,7 @@ $("b-sair").addEventListener("click", async () => {
 
 // -------------------------------------------------------------------- boot
 (async function () {
+  anelLigar();
   const r = await pedir("/api/motorista/eu");
   if (r.ok) { await abrirViagem(r.dados.nome || ""); }
   else { mostrar("tela-entrar"); $("fone").focus(); }

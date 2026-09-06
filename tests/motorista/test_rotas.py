@@ -102,9 +102,9 @@ def test_cookie_de_motorista_nao_abre_o_painel(esq):
     """
     from api.main import app
     from .conftest import cadastrar
-    cadastrar(esq, "MOT-1", "5547999990001")
+    mid = cadastrar(esq, "MOT-1", "5547999990001")
     sid = msessao.abrir("MOT-1", esquema=esq)
-    token = msessao.emitir("MOT-1", sid)
+    token = msessao.emitir(mid, sid)
 
     c = TestClient(app)
     c.cookies.set(msessao.COOKIE, token)
@@ -128,9 +128,11 @@ def test_token_do_painel_nao_vale_no_app(esq):
     """
     from api.main import app
     from .conftest import cadastrar
-    cadastrar(esq, "1", "5547999990001")           # código numérico, como no ERP
+    mid = cadastrar(esq, "1", "5547999990001")     # código numérico, como no ERP
     sid = msessao.abrir("1", esquema=esq)
-    token_painel = auth._emitir_token(1, 1, sid)   # sub="1", sid=sid, sem tipo
+    # o `sub` do painel é o id do USUÁRIO; aqui ele colide de propósito
+    # com o id do VÍNCULO, para só o `tipo` sobrar como defesa
+    token_painel = auth._emitir_token(int(mid), 1, sid)
 
     c = TestClient(app)
     c.cookies.set(msessao.COOKIE, token_painel)

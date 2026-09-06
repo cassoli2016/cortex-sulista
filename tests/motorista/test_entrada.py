@@ -134,7 +134,10 @@ def test_codigo_certo_abre_sessao(esq, zap):
 
     r = ment.confirmar(FONE, codigo_enviado(zap), aparelho="ap-1", esquema=esq)
 
-    assert r["ok"] and r["motorista_codigo"] == COD and r["nome"] == "João da Silva"
+    assert r["ok"] and r["nome"] == "João da Silva"
+    assert isinstance(r["motorista_id"], int)
+    assert "motorista_codigo" not in r, (
+        "o código do ERP é o CPF: ele não sai de `confirmar`")
     assert r["token"]
     viva = pglocal.um("SELECT * FROM mot_sessoes WHERE id = %(i)s",
                       {"i": r["sessao_id"]}, esq)
@@ -199,6 +202,29 @@ def test_usar_o_codigo_invalida_os_outros_em_aberto(esq, zap):
 
 # --------------------------------------------------- telefone compartilhado
 
+def test_o_CPF_nao_aparece_em_NADA_que_confirmar_devolve(esq, zap):
+    '''O guard da correção de 06/09/2026, do lado da entrada.
+
+    `cadastro.codigo` é o CPF para pessoa física. Antes ele saía em três
+    lugares — token, trilha e a lista de escolha —, e a lista é a que de
+    fato ia para o navegador. Aqui se cobra a saída inteira de uma vez.
+    '''
+    cpf, cpf2 = "00499591909", "12345678909"
+    cadastrar(esq, cpf, FONE, nome="FULANO")
+    cadastrar(esq, cpf2, FONE, nome="BELTRANO")   # mesmo telefone: pede escolha
+    ment.pedir(FONE, esquema=esq)
+    certo = codigo_enviado(zap)
+
+    escolha = ment.confirmar(FONE, certo, esquema=esq)
+    texto = repr(escolha)
+    assert cpf not in texto and cpf2 not in texto, texto
+
+    alvo = escolha["escolher"][0]["id"]
+    entrou = ment.confirmar(FONE, certo, motorista=str(alvo), esquema=esq)
+    texto = repr(entrou)
+    assert cpf not in texto and cpf2 not in texto, texto
+
+
 def test_telefone_de_dois_motoristas_pede_escolha_sem_queimar_o_codigo(esq, zap):
     """5 casos em 585 medidos. Queimar o código para perguntar quem é obrigaria
     a pedir outro só por dividir o aparelho com um colega."""
@@ -210,21 +236,26 @@ def test_telefone_de_dois_motoristas_pede_escolha_sem_queimar_o_codigo(esq, zap)
     r = ment.confirmar(FONE, certo, esquema=esq)
     assert "token" not in r
     assert {m["nome"] for m in r["escolher"]} == {"Ana", "Bruno"}
+    # ESTA LISTA VAI PARA O NAVEGADOR: o CPF do colega que divide o
+    # aparelho não pode estar nela. Era o único caso que violava a regra.
+    assert {tuple(sorted(m)) for m in r["escolher"]} == {("id", "nome")}
 
-    # o MESMO código ainda vale, e agora com o escolhido
-    r2 = ment.confirmar(FONE, certo, motorista="MOT-B", esquema=esq)
-    assert r2["ok"] and r2["motorista_codigo"] == "MOT-B" and r2["nome"] == "Bruno"
+    # o MESMO código ainda vale, e agora com o escolhido — pelo ID
+    bruno = next(m["id"] for m in r["escolher"] if m["nome"] == "Bruno")
+    r2 = ment.confirmar(FONE, certo, motorista=str(bruno), esquema=esq)
+    assert r2["ok"] and r2["motorista_id"] == bruno and r2["nome"] == "Bruno"
 
 
 def test_nao_da_para_escolher_motorista_de_outro_telefone(esq, zap):
     """O parâmetro vem do navegador. Aceitá-lo sem conferir contra o telefone
     que acabou de provar o código seria trocar de identidade digitando."""
     cadastrar(esq, "MOT-A", FONE, nome="Ana")
-    cadastrar(esq, "MOT-Z", FONE_OUTRO, nome="Zeca")
+    zeca = cadastrar(esq, "MOT-Z", FONE_OUTRO, nome="Zeca")
     ment.pedir(FONE, esquema=esq)
 
     with pytest.raises(ment.Recusa):
-        ment.confirmar(FONE, codigo_enviado(zap), motorista="MOT-Z", esquema=esq)
+        ment.confirmar(FONE, codigo_enviado(zap), motorista=str(zeca),
+                       esquema=esq)
 
 
 # ------------------------------------------------------------ desligamento

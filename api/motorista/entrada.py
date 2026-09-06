@@ -183,8 +183,11 @@ def _normalizar(bruto: str) -> str:
 
 
 def _vinculos(telefone: str, esquema: str | None = None) -> list[dict]:
+    """O `id` vem junto porque é ELE que pode ser dito para fora. O
+    `motorista_codigo` (o CPF, para pessoa física) só serve para consultar o
+    AVA e nunca entra em payload nenhum."""
     return pglocal.query(
-        """SELECT motorista_codigo, nome FROM mot_vinculos
+        """SELECT id, motorista_codigo, nome FROM mot_vinculos
             WHERE telefone = %(f)s AND ativo
             ORDER BY nome, motorista_codigo""",
         {"f": telefone}, _esq(esquema))
@@ -309,13 +312,18 @@ def confirmar(telefone_bruto: str, codigo: str, *, aparelho: str = "",
             {"id": linha["id"]}, esq)
         raise Recusa("Este número não tem acesso ao app. Fale com a torre.")
 
+    # A ESCOLHA VIAJA PELO ID OPACO, NUNCA PELO CÓDIGO. Esta lista vai para o
+    # navegador, e o código do ERP é o CPF: mandá-lo aqui seria expor o
+    # documento de um terceiro (o colega que divide o aparelho) para quem
+    # acabou de digitar um código de seis dígitos.
     escolhido = str(motorista or "").strip()
     if len(vinculos) > 1 and not escolhido:
-        return {"escolher": [{"codigo": v["motorista_codigo"],
-                              "nome": v["nome"] or ""} for v in vinculos]}
-    if escolhido and escolhido not in {v["motorista_codigo"] for v in vinculos}:
+        return {"escolher": [{"id": int(v["id"]), "nome": v["nome"] or ""}
+                             for v in vinculos]}
+    validos = {str(v["id"]): v for v in vinculos}
+    if escolhido and escolhido not in validos:
         raise Recusa(RECUSA_CODIGO)
-    alvo = escolhido or vinculos[0]["motorista_codigo"]
+    alvo = validos[escolhido] if escolhido else vinculos[0]
 
     # Consumir o código invalida TODOS os outros em aberto do mesmo telefone:
     # se alguém pediu três seguidos, os dois não usados não podem continuar
@@ -325,9 +333,11 @@ def confirmar(telefone_bruto: str, codigo: str, *, aparelho: str = "",
             WHERE telefone = %(f)s AND usado_em IS NULL""",
         {"f": fone}, esq)
 
-    sessao_id = ses.abrir(alvo, aparelho=aparelho, ip=ip, agente=agente,
-                          esquema=esq)
-    return {"ok": True, "motorista_codigo": alvo,
-            "nome": next(v["nome"] for v in vinculos
-                         if v["motorista_codigo"] == alvo),
-            "token": ses.emitir(alvo, sessao_id), "sessao_id": sessao_id}
+    # `abrir` grava a FK, que é o código (junção interna, não sai); `emitir`
+    # assina o ID, que é o que vive no cookie do aparelho.
+    sessao_id = ses.abrir(alvo["motorista_codigo"], aparelho=aparelho, ip=ip,
+                          agente=agente, esquema=esq)
+    return {"ok": True, "motorista_id": int(alvo["id"]),
+            "nome": alvo["nome"] or "",
+            "token": ses.emitir(int(alvo["id"]), sessao_id),
+            "sessao_id": sessao_id}
