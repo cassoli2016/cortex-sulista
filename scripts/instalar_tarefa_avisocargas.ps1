@@ -2,7 +2,7 @@
 #
 # ESTA TAREFA DEIXOU DE SER NECESSARIA em 05/09/2026. O relogio do aviso passou
 # a viver DENTRO da API (`api/rastreio/agendador.py`), que ja sobe pela tarefa
-# "Cortex Sulista - API", e acorda a cada 10 minutos em vez de na hora cheia —
+# "Cortex Sulista - API", e acorda a cada 10 minutos em vez de na hora cheia -
 # porque a cadencia agora conta do momento em que a PESSOA pediu, nao do
 # relogio do servidor.
 #
@@ -13,10 +13,10 @@
 # esta tarefa, ela vira uma rede de seguranca; nao registrar e o normal.
 #
 # Quem se inscreveu na pagina publica de rastreio recebe, de hora em hora, como
-# esta a carga dele — enquanto ela estiver em viagem. A entrega encerra a
+# esta a carga dele - enquanto ela estiver em viagem. A entrega encerra a
 # inscricao, e mensagem IGUAL a anterior nao e reenviada: caminhao parado
 # geraria a mesma frase 24 vezes por dia, a pessoa bloquearia o numero, e o
-# estrago nao seria essa mensagem — seria a reputacao do numero que atende
+# estrago nao seria essa mensagem - seria a reputacao do numero que atende
 # todos os outros clientes.
 #
 # ANTES DE REGISTRAR, rode o ensaio e LEIA os textos:

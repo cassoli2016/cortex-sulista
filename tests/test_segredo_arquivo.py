@@ -33,6 +33,7 @@ DUAS DECISÕES QUE ESTES TESTES GUARDAM
 from __future__ import annotations
 
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -191,13 +192,24 @@ def test_ACL_ilegivel_NAO_MEXE_em_nada(arquivo, monkeypatch):
 
 
 def test_panorama_lista_os_segredos_do_projeto():
-    p = sa.panorama()
-    if p["total"] == 0:
-        # num clone limpo (o CI) não existe credenciais.json nem .pfx — zero
-        # aqui é o estado correto de quem não tem segredo, não um defeito.
-        # Na bancada de produção os arquivos existem e o assert roda inteiro.
-        pytest.skip("clone limpo: nenhum arquivo de segredo no disco")
-    rotulos = {i["rotulo"] for i in p["itens"]}
+    """O painel da Saúde enxerga o cofre quando ele existe.
+
+    O SKIP OLHA PARA O ARQUIVO, e não para o total. Ele já foi `total == 0`, e
+    a premissa por trás disso — "ou o ambiente tem todos os segredos, ou não
+    tem nenhum" — deixou de valer em 05/09/2026: o rastreio CRIA
+    `data/rastreio_segredo.txt` sozinho, na primeira vez que assina um link.
+    Bastou isso para um ambiente sem cofre virar `total == 1`, o skip não
+    disparar, e o teste falhar acusando a ausência do cofre — que é o estado
+    normal de um clone, não um defeito.
+
+    Isso alcança o CI: no dia em que uma rodada exercitar a assinatura do
+    rastreio antes deste teste, ele acende sozinho, com uma mensagem que aponta
+    para o lugar errado.
+    """
+    cofre = Path(sa.__file__).resolve().parent.parent / "data" / "credenciais.json"
+    if not cofre.exists():
+        pytest.skip("sem cofre de credenciais no disco (clone ou worktree)")
+    rotulos = {i["rotulo"] for i in sa.panorama()["itens"]}
     assert "Cofre de credenciais" in rotulos
 
 

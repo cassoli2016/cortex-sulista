@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.257.1] — 05/09/2026  ·  CX-05/09/2026-v0.257.1
+
+### Corrigido
+- Dois testes estavam vermelhos há tempos sem ninguém ver, e os dois eram de verdade. O primeiro cobra que os instaladores de tarefa do Windows não tenham caractere acentuado: o PowerShell lê esses arquivos como se fossem de outra codificação, e um travessão numa linha de comentário quebra o script muitas linhas adiante, com uma mensagem que aponta para o lugar errado. O instalador do aviso de cargas tinha três.
+- O segundo dizia que o painel de segredos da Saúde não enxergava o cofre de credenciais — quando o que havia era uma máquina sem cofre, que é o estado normal de quem acabou de clonar o projeto. O teste presumia que ou existem todos os arquivos de segredo, ou nenhum; desde que o rastreio passou a criar a chave dos links sozinho, existe o meio-termo. Agora ele pergunta pelo cofre em vez de contar arquivos.
+
 ## [0.257.0] — 05/09/2026  ·  CX-05/09/2026-v0.257.0
 
 ### Adicionado

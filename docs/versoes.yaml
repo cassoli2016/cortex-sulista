@@ -1,3 +1,20 @@
+- versao: "0.257.1"
+  data: "2026-09-05"
+  corrigido:
+    - >-
+      Dois testes estavam vermelhos há tempos sem ninguém ver, e os dois eram
+      de verdade. O primeiro cobra que os instaladores de tarefa do Windows não
+      tenham caractere acentuado: o PowerShell lê esses arquivos como se fossem
+      de outra codificação, e um travessão numa linha de comentário quebra o
+      script muitas linhas adiante, com uma mensagem que aponta para o lugar
+      errado. O instalador do aviso de cargas tinha três.
+    - >-
+      O segundo dizia que o painel de segredos da Saúde não enxergava o cofre
+      de credenciais — quando o que havia era uma máquina sem cofre, que é o
+      estado normal de quem acabou de clonar o projeto. O teste presumia que ou
+      existem todos os arquivos de segredo, ou nenhum; desde que o rastreio
+      passou a criar a chave dos links sozinho, existe o meio-termo. Agora ele
+      pergunta pelo cofre em vez de contar arquivos.
 - versao: "0.257.0"
   data: "2026-09-05"
   adicionado:
