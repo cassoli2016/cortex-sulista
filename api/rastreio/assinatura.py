@@ -71,6 +71,89 @@ MAX_POR_CARGA = 8
 #: — desfazendo exatamente o que o agrupamento existe para evitar.
 INTERVALO_MIN = 60
 
+#: AS JANELAS QUE A PAGINA OFERECE, por NOME e nunca por hora crua digitada.
+#:
+#: A diferença importa. Se a tela mandasse "07:00" escolhido num seletor, ela
+#: estaria prometendo um horário que a casa talvez não permita — a janela geral
+#: é configurável (`data/whatsapp_config.json`) e já foi de 08:00 a 06:00 num
+#: mesmo dia. Mandando um NOME, quem resolve é o servidor, e "qualquer horário"
+#: quer dizer exatamente "o que a casa permitir", hoje e depois.
+#:
+#: `None` é gravado como NULO e significa SEGUE A CASA — nunca "sem restrição".
+#: É a regra da casa para campo de regra opcional, e aqui ela paga: quando a
+#: janela geral mudar, quem não escolheu nada acompanha sozinho.
+JANELAS: dict[str, tuple[str, str] | None] = {
+    "qualquer":  None,
+    "comercial": ("08:00", "18:00"),
+    "manha":     ("06:00", "12:00"),
+    "tarde":     ("12:00", "18:00"),
+}
+JANELA_PADRAO = "qualquer"
+
+#: QUANTA COISA É NOTÍCIA para este telefone.
+#:
+#: NENHUMA DELAS AFROUXA FREIO. A cadência só torna a régua de "o que mudou"
+#: mais exigente ou espaça mais as mensagens — nunca o contrário. Não há opção
+#: "me mande sempre": ela recriaria, a pedido do próprio cliente, o defeito que
+#: custou catorze mensagens iguais em 06/09/2026, e o estrago não seria dele —
+#: seria a reputação do número que fala com todos os outros clientes.
+#: OS INTERVALOS SAO MULTIPLOS DO PISO, escritos assim de propósito: o piso
+#: continua sendo uma constante só (`INTERVALO_MIN`), e nenhuma cadência pode
+#: descer abaixo dele por distração de quem editar a tabela — um `30` digitado
+#: aqui seria um freio afrouxado sem ninguém perceber. Guard próprio cobra.
+CADENCIAS: dict[str, dict] = {
+    "tudo":   {"intervalo_min": INTERVALO_MIN,     "so_marcos": False},
+    "menos":  {"intervalo_min": INTERVALO_MIN * 3, "so_marcos": False},
+    "marcos": {"intervalo_min": INTERVALO_MIN,     "so_marcos": True},
+}
+CADENCIA_PADRAO = "tudo"
+
+
+def preferencia(ins: dict) -> dict:
+    """A preferência EFETIVA de uma inscrição, com os padrões aplicados.
+
+    UM SÓ LUGAR RESOLVE O NULO. Espalhar `or CADENCIA_PADRAO` pelos chamadores
+    é como o padrão vira dois padrões diferentes no dia em que um deles muda.
+    """
+    cad = (ins.get("cadencia") or CADENCIA_PADRAO)
+    if cad not in CADENCIAS:
+        cad = CADENCIA_PADRAO
+    return {"cadencia": cad,
+            "inicio": ins.get("janela_inicio") or None,
+            "fim": ins.get("janela_fim") or None,
+            **CADENCIAS[cad]}
+
+
+def janela_efetiva(inicio: str | None, fim: str | None) -> tuple[str, str]:
+    """A INTERSEÇÃO entre a janela da casa e a que o cliente pediu.
+
+    É AQUI QUE A ESCOLHA DO CLIENTE SÓ RESTRINGE, e a conta é feita no ENVIO e
+    não no cadastro de propósito: a janela geral pode mudar depois, e quem
+    escolheu "de manhã" ontem não pode passar a receber às 5h porque alguém
+    ampliou a configuração da casa hoje.
+    """
+    from ..whatsapp import config as wcfg
+    c = wcfg.ler()
+    casa_i, casa_f = c["janela_inicio"], c["janela_fim"]
+    if not inicio or not fim:
+        return casa_i, casa_f
+    return max(casa_i, inicio), min(casa_f, fim)
+
+
+def dentro_da_janela(ins: dict, agora=None) -> bool:
+    """Este telefone aceita mensagem AGORA?
+
+    Janela vazia (o cliente pediu uma faixa que não encosta na da casa) responde
+    NÃO — e é o certo: a alternativa seria ignorar a escolha dele e mandar assim
+    mesmo, que é como um recurso de preferência vira motivo de denúncia.
+    """
+    from ..whatsapp import config as wcfg
+    p = preferencia(ins)
+    ini, fim = janela_efetiva(p["inicio"], p["fim"])
+    if ini > fim:
+        return False
+    return wcfg.dentro_da_janela(agora, inicio=ini, fim=fim)
+
 
 def _agora():
     return datetime.now(timezone.utc)
@@ -93,8 +176,15 @@ def _chaves(termo: str, cnpj4: str, carga_id: str):
 
 
 def inscrever(termo: str, cnpj4: str, carga_id: str, telefone: str,
-              ip: str = "") -> dict:
-    """Passa a avisar este telefone sobre esta carga. Nunca levanta."""
+              ip: str = "", janela: str = "", cadencia: str = "") -> dict:
+    """Passa a avisar este telefone sobre esta carga. Nunca levanta.
+
+    `janela` e `cadencia` são NOMES do catálogo (`JANELAS`, `CADENCIAS`), nunca
+    horas ou minutos vindos da tela: quem resolve o que "de manhã" significa é
+    o servidor, contra a configuração da casa. Nome desconhecido cai no padrão
+    em silêncio — é formulário público, e recusar o cadastro inteiro por causa
+    de um seletor que veio errado puniria a pessoa por um defeito nosso.
+    """
     if len(consulta._so_digitos(termo)) < 3 or \
             len(consulta._so_digitos(cnpj4)) != 4:
         return {"ok": False, "motivo": "informe o documento e o CNPJ"}
@@ -175,6 +265,20 @@ def inscrever(termo: str, cnpj4: str, carga_id: str, telefone: str,
                  alvo["numero"], alvo["serie"], fone, (ip or "")[:60],
                  DIAS_VALIDADE, DIAS_VALIDADE))
             ident = cur.fetchone()["id"]
+
+            # A PREFERENCIA E DO TELEFONE, e por isso a escrita alcança TODAS
+            # as inscrições ativas dele — não só a que acabou de nascer. As
+            # cargas de um mesmo número saem numa mensagem só; guardar uma
+            # janela por carga criaria o caso sem resposta (duas cargas, duas
+            # janelas, uma mensagem). Quem escolhe, escolhe para o número.
+            faixa = JANELAS.get(janela or JANELA_PADRAO, None)
+            cad = cadencia if cadencia in CADENCIAS else CADENCIA_PADRAO
+            cur.execute("""
+                UPDATE rst_inscricao
+                   SET janela_inicio = %s, janela_fim = %s, cadencia = %s
+                 WHERE telefone = ANY(%s) AND ativo AND expira_em > now()""",
+                (faixa[0] if faixa else None, faixa[1] if faixa else None,
+                 cad, numeros.variantes(fone)))
     except Exception as exc:  # noqa: BLE001
         log.warning("rastreio: inscrição falhou: %s", type(exc).__name__)
         return {"ok": False, "motivo": "Não foi possível cadastrar agora."}
@@ -189,7 +293,7 @@ def inscrever(termo: str, cnpj4: str, carga_id: str, telefone: str,
     #
     # A falha do envio NAO desfaz a inscricao: o cadastro esta gravado, a
     # tarefa horaria pega o proximo ciclo, e a tela diz o que aconteceu.
-    texto_inicial, assin_inicial = _primeira_mensagem(alvo, fone)
+    texto_inicial, assin_inicial = _primeira_mensagem(alvo, fone, cad)
     primeira = bool(texto_inicial)
     if primeira:
         # ISTO É O QUE ANCORA O RELÓGIO NO PEDIDO. Sem gravar, a inscrição
@@ -198,19 +302,32 @@ def inscrever(termo: str, cnpj4: str, carga_id: str, telefone: str,
         # na primeira hora a mensagem que a pessoa acabou de ler.
         marcar_envio(ident, texto_inicial, assin=assin_inicial)
 
+    # A CONFIRMACAO DIZ O QUE FOI COMBINADO, e nao uma frase fixa. Ela
+    # prometia "uma atualização por hora" para todo mundo — inclusive para quem
+    # acabou de escolher receber só os marcos, ou só de manhã. Promessa que a
+    # tela faz e o envio não cumpre é o jeito mais barato de a pessoa achar que
+    # o recurso quebrou.
+    ini, fim = janela_efetiva(faixa[0] if faixa else None,
+                              faixa[1] if faixa else None)
+    quando_txt = "entre %s e %s" % (ini, fim)
+    ritmo = {"tudo": "a cada hora, quando houver novidade",
+             "menos": "a cada três horas, quando houver novidade",
+             "marcos": "quando a carga mudar de etapa"}[cad]
     return {"ok": True, "id": ident,
             "telefone": numeros.formatar(fone),
             "dias": DIAS_VALIDADE,
             "primeira_enviada": primeira,
+            "janela": [ini, fim],
+            "cadencia": cad,
             "aviso": ("Pronto! Acabamos de enviar a primeira mensagem. "
-                      "Você recebe uma atualização por hora enquanto a carga "
-                      "estiver em viagem."
+                      "Avisamos %s, %s." % (ritmo, quando_txt)
                       if primeira else
-                      "Cadastro feito. A primeira mensagem sai no próximo "
-                      "ciclo de envio.")}
+                      "Cadastro feito. Avisamos %s, %s — a primeira mensagem "
+                      "sai no próximo ciclo." % (ritmo, quando_txt))}
 
 
-def _primeira_mensagem(alvo: dict, fone: str) -> tuple[str | None, str]:
+def _primeira_mensagem(alvo: dict, fone: str,
+                       cadencia: str = CADENCIA_PADRAO) -> tuple[str | None, str]:
     """Manda o estado da carga agora. Devolve `(texto, assinatura)`.
 
     DEVOLVE O QUE FOI DITO, E NÃO UM BOOLEANO, porque quem chama precisa
@@ -235,7 +352,13 @@ def _primeira_mensagem(alvo: dict, fone: str) -> tuple[str | None, str]:
             # SEM O QUE DIZER nao vira mensagem vazia nem "cadastro efetuado":
             # a primeira coisa que a pessoa recebe tem de ser a carga dela.
             return None, ""
-        assin = mensagem.assinatura([carga])
+        # A ANCORA NASCE NA CADENCIA ESCOLHIDA. Ancorar com a régua "tudo" e
+        # comparar depois com a régua "marcos" faria a primeira comparação
+        # falhar sempre — e a pessoa que pediu menos mensagens receberia uma a
+        # mais logo de saída, que é o contrário do que ela escolheu.
+        assin = mensagem.assinatura(
+            [carga], so_marcos=CADENCIAS.get(cadencia, {}).get("so_marcos",
+                                                              False))
         from ..whatsapp import envio as wa
         # JANELA PROPRIA, e so para ESTA mensagem.
         #
@@ -347,7 +470,7 @@ def ativas() -> list[dict]:
         return [dict(r) for r in pglocal.query("""
             SELECT id, grupo, empresa, filial, numero, serie, telefone,
                    ultimo_texto, ultima_assinatura, ultimo_envio, envios,
-                   criado_em,
+                   criado_em, janela_inicio, janela_fim, cadencia,
                    -- A ÂNCORA DO TELEFONE, calculada no banco para não
                    -- depender do relógio de quem lê. `max(ultimo_envio)` é a
                    -- última vez que FALAMOS com ele; quando nunca falamos,

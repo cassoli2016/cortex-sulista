@@ -111,13 +111,26 @@ def rodar(*, ensaio: bool = False, limite: int | None = None) -> dict:
     #
     # `desde_min` nulo é inscrição sem âncora legível — trata-se como VENCIDA:
     # errar para o lado de avisar quem espera a carga é melhor que calar.
-    vencidas, cedo = [], 0
+    #
+    # O INTERVALO E O DE QUEM RECEBE, e nao uma constante da casa: quem
+    # escolheu "menos mensagens" tem 180 minutos no lugar de 60. A escolha so
+    # ESPACA — nao existe opcao que aperte abaixo do piso de uma por hora.
+    vencidas, cedo, fora_janela = [], 0, 0
     for ins in inscricoes:
         desde = ins.get("desde_min")
-        if desde is None or desde >= assinatura.INTERVALO_MIN:
-            vencidas.append(ins)
-        else:
+        piso = assinatura.preferencia(ins)["intervalo_min"]
+        if not (desde is None or desde >= piso):
             cedo += 1
+            continue
+        # A JANELA DE QUEM RECEBE, conferida AQUI e nao so no envio. O
+        # `whatsapp.envio` continua barrando a janela GERAL — ele e o freio da
+        # casa e nao se mexe —, mas ele nao sabe que este telefone pediu para
+        # ser avisado so de manha. Sem esta linha, a escolha da pessoa nao
+        # existiria: a mensagem sairia as 19h com a recusa dela em lugar nenhum.
+        if not assinatura.dentro_da_janela(ins):
+            fora_janela += 1
+            continue
+        vencidas.append(ins)
     inscricoes = vencidas
 
     # AGRUPA POR TELEFONE. `ativas()` já vem ordenada pelo último envio, e o
@@ -132,6 +145,10 @@ def rodar(*, ensaio: bool = False, limite: int | None = None) -> dict:
             # resposta do aviso — "calei porque não era hora" — e ela precisa
             # sair no relatório, senão a tarefa parece ter feito nada.
             "cedo": cedo,
+            # FORA DA JANELA DE QUEM RECEBE também é resposta, não silêncio: é
+            # a pessoa sendo atendida na escolha dela, e precisa aparecer no
+            # relatório para não virar "a tarefa não fez nada".
+            "fora_janela": fora_janela,
             "falhas": 0, "ensaio": ensaio, "amostra": []}
 
     for fone, grupo in por_fone.items():
@@ -167,7 +184,11 @@ def rodar(*, ensaio: bool = False, limite: int | None = None) -> dict:
         #
         # Comparar pelo primeiro do grupo continua bastando: todos recebem a
         # MESMA mensagem, logo a mesma assinatura.
-        assin = mensagem.assinatura(cargas)
+        # A CADENCIA E DO TELEFONE, e todas as inscricoes dele a compartilham
+        # por construcao (a escrita em `inscrever` alcanca todas): ler a do
+        # primeiro do grupo e ler a do grupo.
+        so_marcos = assinatura.preferencia(pares[0][0])["so_marcos"]
+        assin = mensagem.assinatura(cargas, so_marcos=so_marcos)
         if assin and assin == (pares[0][0].get("ultima_assinatura") or ""):
             fora["iguais"] += len(pares)
             continue

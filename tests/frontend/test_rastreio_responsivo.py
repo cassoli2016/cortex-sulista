@@ -315,6 +315,73 @@ def test_quem_chega_pelo_LINK_nao_ve_o_formulario(pagina):
     assert "#c=" not in pg.url
 
 
+# --------------------------------------------------------------------------
+# horário e frequência
+# --------------------------------------------------------------------------
+def test_as_preferencias_nascem_FECHADAS(pagina):
+    """O caminho comum é digitar o número e tocar em "Avisar-me". Dois
+    seletores sempre visíveis fariam todo mundo parar para tomar uma decisão
+    que a maioria não quer tomar — e o padrão já é o que a maioria quer."""
+    pg, base = pagina
+    _abrir_detalhe(pg, base, 390, 844)
+    assert pg.evaluate(
+        "() => document.querySelector('.zap details').open") is False
+    # E o campo do telefone continua sendo a primeira coisa acionável do cartão.
+    ordem = pg.evaluate("""() => {
+      const t = s => document.querySelector(s).getBoundingClientRect().top;
+      return {fone: t('#fone'), pref: t('.zap details')};
+    }""")
+    assert ordem["fone"] < ordem["pref"], ordem
+
+
+def test_a_escolha_de_horario_e_frequencia_CHEGA_ao_servidor(pagina):
+    """O FastAPI descarta query param que a rota não declara, calado — então a
+    escolha da pessoa sumiria no caminho sem erro nenhum, e o cadastro daria
+    "pronto". Este guard olha a URL que sai do navegador."""
+    pg, base = pagina
+    _abrir_detalhe(pg, base, 1024)
+
+    pedidos = []
+    pg.route("**/api/rastreio/assinar*", lambda r: (
+        pedidos.append(r.request.url),
+        r.fulfill(status=200, content_type="application/json",
+                  body=json.dumps({"ok": True, "aviso": "Pronto."}))))
+
+    # A PESSOA ABRE AS PREFERENCIAS — elas nascem fechadas de propósito, e a
+    # primeira versão deste guard não abria: o Playwright ficou esperando um
+    # seletor invisível, que é exatamente o que uma pessoa veria.
+    pg.click(".zap summary")
+    pg.wait_for_selector("#zapJanela", state="visible")
+    pg.select_option("#zapJanela", "manha")
+    pg.select_option("#zapCadencia", "marcos")
+    pg.fill("#fone", "41999998888")
+    pg.click("#btnZap")
+    pg.wait_for_selector(".ok")
+
+    assert pedidos, "a chamada de cadastro não saiu"
+    assert "janela=manha" in pedidos[0], pedidos
+    assert "cadencia=marcos" in pedidos[0], pedidos
+
+
+def test_o_CANCELAMENTO_nao_manda_preferencia(pagina):
+    """No cancelamento elas não significam nada, e mandar campo que a rota
+    ignora é como um contrato passa a ter letra morta."""
+    pg, base = pagina
+    _abrir_detalhe(pg, base, 1024)
+
+    pedidos = []
+    pg.route("**/api/rastreio/cancelar*", lambda r: (
+        pedidos.append(r.request.url),
+        r.fulfill(status=200, content_type="application/json",
+                  body=json.dumps({"ok": True, "aviso": "Cancelado."}))))
+
+    pg.fill("#fone", "41999998888")
+    pg.click(".zap .sair")
+    pg.wait_for_selector(".ok")
+    assert pedidos, "a chamada de cancelamento não saiu"
+    assert "janela=" not in pedidos[0] and "cadencia=" not in pedidos[0]
+
+
 def test_o_botao_VOLTAR_DO_APARELHO_nao_sai_da_pagina(pagina):
     """No celular a pessoa aperta voltar por reflexo. Sem entrada de histórico
     ela perdia a consulta inteira e caía fora da página."""

@@ -84,6 +84,16 @@ def test_o_rodape_ENSINA_a_sair_de_uma_quando_ha_varias():
 # --------------------------------------------------------------------------
 # um envio por telefone, não por carga
 # --------------------------------------------------------------------------
+@pytest.fixture(autouse=True)
+def _janela_fora_de_cena(monkeypatch):
+    """A janela de horário não participa — ver o mesmo guard em
+    `test_aviso.py`: sem isto a suíte depende da HORA em que roda, e às 20h01
+    de 06/09/2026 ela ficou vermelha inteira por causa disso."""
+    from api.rastreio import assinatura
+    monkeypatch.setattr(assinatura, "dentro_da_janela",
+                        lambda ins, agora=None: True)
+
+
 @pytest.fixture
 def ciclo(monkeypatch):
     estado = {"enviados": [], "marcados": [], "encerradas": []}

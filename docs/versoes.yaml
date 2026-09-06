@@ -1,3 +1,30 @@
+- versao: "0.264.0"
+  data: "2026-09-06"
+  adicionado:
+    - >-
+      Quem pede aviso de carga por WhatsApp agora escolhe QUANDO e COM QUE
+      FREQUÊNCIA quer receber. Na página de rastreio, abaixo do campo do
+      telefone, há "Ajustar horário e frequência": dá para pedir só horário
+      comercial, só de manhã ou só à tarde, e escolher entre receber a cada
+      hora quando houver novidade, a cada três horas, ou apenas quando a carga
+      mudar de etapa — saiu, chegou, entrou em descarga, foi entregue.
+    - >-
+      A escolha vale para o número de telefone, não para uma carga só: quem
+      acompanha três cargas recebe uma mensagem com as três, então o horário e
+      a frequência são do telefone. Ajustar em qualquer uma das cargas ajusta
+      todas.
+    - >-
+      A confirmação do cadastro passou a dizer o que foi combinado — "avisamos
+      quando a carga mudar de etapa, entre 08:00 e 18:00" — em vez de uma frase
+      fixa prometendo uma mensagem por hora para todo mundo.
+  seguranca:
+    - >-
+      O horário escolhido pelo cliente só RESTRINGE a janela de envio da
+      empresa, nunca a amplia. A página é aberta na internet e não pede login:
+      se ela permitisse pedir mensagem às 3 da manhã, a proteção que existe
+      para o número da empresa não ser denunciado passaria a depender do que um
+      desconhecido digitou num formulário. Nenhuma das frequências oferecidas
+      aproxima as mensagens além do limite de uma por hora que já existia.
 - versao: "0.263.1"
   data: "2026-09-06"
   adicionado:

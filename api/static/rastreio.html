@@ -197,6 +197,24 @@ button.principal:active{background:#7d211b}
 .zap .sair{background:none;color:var(--n500);font-weight:600;font-size:13.5px;
   padding:10px 0;min-height:44px;text-decoration:underline;cursor:pointer;
   border:0;display:block}
+/* AS PREFERENCIAS NASCEM FECHADAS. O caminho comum é digitar o número e tocar
+   em "Avisar-me"; quem quiser ajustar horário e frequência abre. Dois seletores
+   sempre visíveis fariam todo mundo parar para ler uma decisão que a maioria
+   não quer tomar — e o padrão já é o que a maioria quer. */
+.zap details{margin-top:10px}
+.zap summary{font-size:13px;font-weight:600;color:var(--orange-500);
+  cursor:pointer;padding:8px 0;min-height:40px;display:flex;
+  align-items:center;list-style:none}
+.zap summary::-webkit-details-marker{display:none}
+.zap summary::before{content:"⚙ ";margin-right:6px}
+.zap .campo{margin-top:9px}
+.zap .campo u{display:block;font-size:11.5px;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--n500);text-decoration:none;font-weight:600;
+  margin-bottom:4px}
+.zap select{width:100%;min-height:44px;padding:9px 11px;font:inherit;
+  font-size:15px;border:1px solid var(--n300);border-radius:9px;
+  background:var(--n0);color:var(--n900)}
+.zap select:focus{outline:2px solid var(--orange-500);outline-offset:1px}
 .ok{margin-top:10px;padding:11px 12px;border-radius:9px;font-size:13.5px;
   background:rgba(30,127,79,.12);color:var(--green);
   border:1px solid rgba(30,127,79,.28)}
@@ -469,14 +487,36 @@ function pintarDetalhe(c){
           ${e.em ? `<br><span class="q">${quando(e.em, true)}</span>` : ''}</span>
         </li>`).join('')}</ul>
       ${ULTIMO ? `<div class="zap">
-        <p><b>Receber por WhatsApp</b><br>Avisamos a cada hora enquanto a carga
-          estiver em viagem, e quando ela for entregue.</p>
+        <!-- O TEXTO NAO PROMETE MAIS UMA CADENCIA FIXA. Ele dizia "a cada
+             hora" para todo mundo — inclusive para quem, dois campos abaixo,
+             acabou de escolher receber só os marcos. Promessa que a tela faz e
+             o envio não cumpre é o jeito mais barato de a pessoa achar que o
+             recurso quebrou. -->
+        <p><b>Receber por WhatsApp</b><br>Avisamos enquanto a carga estiver em
+          viagem, e quando ela for entregue. Só mandamos mensagem quando há
+          novidade — você escolhe o horário e a frequência.</p>
         <div class="linha">
           <input id="fone" type="tel" inputmode="numeric"
                  placeholder="DDD + número" autocomplete="tel"
                  aria-label="Telefone para receber avisos">
           <button id="btnZap" onclick="assinar()">Avisar-me</button>
         </div>
+        <details>
+          <summary>Ajustar horário e frequência</summary>
+          <div class="campo"><u>Quando avisar</u>
+            <select id="zapJanela" aria-label="Horário para receber os avisos">
+              <option value="qualquer">Qualquer horário permitido</option>
+              <option value="comercial">Horário comercial (8h às 18h)</option>
+              <option value="manha">Só de manhã</option>
+              <option value="tarde">Só à tarde</option>
+            </select></div>
+          <div class="campo"><u>Com que frequência</u>
+            <select id="zapCadencia" aria-label="Frequência dos avisos">
+              <option value="tudo">A cada hora, se houver novidade</option>
+              <option value="menos">A cada três horas, se houver novidade</option>
+              <option value="marcos">Só quando a carga mudar de etapa</option>
+            </select></div>
+        </details>
         <div id="zapMsg"></div>
         <button class="sair" onclick="cancelarZap()">Já cadastrei e quero parar de receber</button>
       </div>` : `<div class="zap">
@@ -690,10 +730,18 @@ async function zapChamar(rota){
   $('btnZap').disabled = true;
   msg.innerHTML = '';
   try{
+    /* AS PREFERENCIAS SO VAO NO CADASTRO. No cancelamento elas nao significam
+       nada, e mandar campo que a rota ignora e como um contrato passa a ter
+       letra morta — o proximo a ler nao sabe qual metade vale. */
+    const jan = $('zapJanela'), cad = $('zapCadencia');
     const q = 'doc=' + encodeURIComponent(ULTIMO.doc)
             + '&cnpj=' + encodeURIComponent(ULTIMO.cnpj)
             + '&id=' + encodeURIComponent(CARGA_ABERTA)
-            + '&fone=' + encodeURIComponent(fone);
+            + '&fone=' + encodeURIComponent(fone)
+            + (rota === 'assinar' && jan && cad
+               ? '&janela=' + encodeURIComponent(jan.value)
+                 + '&cadencia=' + encodeURIComponent(cad.value)
+               : '');
     const r = await fetch('/api/rastreio/' + rota + '?' + q, {method:'POST'});
     const d = await r.json();
     msg.innerHTML = d.ok

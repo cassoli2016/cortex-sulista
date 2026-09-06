@@ -95,6 +95,26 @@ def test_a_mensagem_NAO_leva_valor_nem_placa():
         assert proibido not in t
 
 
+@pytest.fixture(autouse=True)
+def _janela_fora_de_cena(monkeypatch):
+    """A JANELA DE HORÁRIO NÃO PARTICIPA, salvo quando o teste a chama.
+
+    Sem isto a suíte inteira passa a depender da HORA em que roda. Aconteceu às
+    20h01 de 06/09/2026: dezoito testes que não falam de horário nenhum ficaram
+    vermelhos de uma vez, porque a janela da casa fecha às 20:00 e a worktree
+    não tem `data/whatsapp_config.json` para dizer o contrário. Teste que
+    depende do relógio acusa a pessoa errada — quem lê o relatório vai procurar
+    o defeito na mudança que acabou de fazer.
+
+    `autouse` e não parte do `cenario` porque o corpo do teste roda DEPOIS das
+    fixtures: assim quem quer falar de janela simplesmente a repõe, e a
+    reposição vence.
+    """
+    from api.rastreio import assinatura
+    monkeypatch.setattr(assinatura, "dentro_da_janela",
+                        lambda ins, agora=None: True)
+
+
 # --------------------------------------------------------------------------
 # o que protege o número da empresa
 # --------------------------------------------------------------------------
@@ -521,10 +541,140 @@ def test_a_ancora_e_do_TELEFONE_e_nao_da_carga(monkeypatch):
 
 
 def test_o_intervalo_e_UMA_CONSTANTE_e_nao_esta_escrita_no_aviso():
-    """A cadência muda mexendo em `assinatura.INTERVALO_MIN`, num lugar só. Um
-    `60` digitado dentro de `aviso.py` seria a próxima pessoa mudando o
-    intervalo e descobrindo que ele continua igual."""
+    """A cadência muda mexendo em `assinatura`, num lugar só. Um `60` digitado
+    dentro de `aviso.py` seria a próxima pessoa mudando o intervalo e
+    descobrindo que ele continua igual.
+
+    O DONO DO NÚMERO MUDOU quando a cadência virou escolha de quem recebe: o
+    `aviso.py` não lê mais a constante direto, lê a preferência. O que o guard
+    protege é o mesmo — nenhum intervalo escrito à mão aqui.
+    """
     from api.rastreio import assinatura
     assert assinatura.INTERVALO_MIN == 60
     fonte = (Path(aviso.__file__)).read_text(encoding="utf-8")
-    assert "assinatura.INTERVALO_MIN" in fonte
+    assert "assinatura.preferencia" in fonte
+    for literal in ("60", "180", "3600"):
+        assert ("intervalo_min = %s" % literal) not in fonte
+        assert ("desde >= %s" % literal) not in fonte
+
+
+def test_NENHUMA_cadencia_aperta_abaixo_do_piso():
+    """A escolha de quem recebe só ESPAÇA as mensagens — nunca as aproxima.
+
+    Se uma cadência pudesse descer abaixo de `INTERVALO_MIN`, a página aberta à
+    internet passaria a oferecer um jeito de afrouxar o freio da casa a pedido
+    do próprio destinatário. O estrago não seria dele: é a reputação do número
+    que fala com todos os outros clientes.
+    """
+    from api.rastreio import assinatura
+    for nome, regra in assinatura.CADENCIAS.items():
+        assert regra["intervalo_min"] >= assinatura.INTERVALO_MIN, nome
+
+
+def test_a_cadencia_PADRAO_existe_no_catalogo():
+    """Padrão que não está no catálogo vira `KeyError` no primeiro cadastro —
+    e o cadastro é feito por quem não é usuário do sistema."""
+    from api.rastreio import assinatura
+    assert assinatura.CADENCIA_PADRAO in assinatura.CADENCIAS
+    assert assinatura.JANELA_PADRAO in assinatura.JANELAS
+
+
+# --------------------------------------------------------------------------
+# a janela e a cadência de quem RECEBE
+# --------------------------------------------------------------------------
+def test_a_janela_do_cliente_so_RESTRINGE_a_da_casa():
+    """Uma página aberta à internet não pode AMPLIAR a proteção que existe para
+    o número da empresa não ser denunciado. Quem pedir 03:00 recebe às 06:00."""
+    from api.rastreio import assinatura
+    from api.whatsapp import config as wcfg
+
+    ini, fim = assinatura.janela_efetiva("03:00", "23:00")
+    casa = wcfg.ler()
+    assert ini >= casa["janela_inicio"], "o cliente ampliou o começo da janela"
+    assert fim <= casa["janela_fim"], "o cliente ampliou o fim da janela"
+
+
+def test_janela_NULA_segue_a_casa_e_nao_significa_sem_restricao():
+    """`None` em campo de regra opcional significa HERDA, nunca zero — e aqui
+    "zero restrição" seria mensagem de madrugada."""
+    from api.rastreio import assinatura
+    from api.whatsapp import config as wcfg
+    casa = wcfg.ler()
+    assert assinatura.janela_efetiva(None, None) == (casa["janela_inicio"],
+                                                     casa["janela_fim"])
+
+
+def test_quem_pediu_SO_DE_MANHA_nao_recebe_a_tarde(cenario, monkeypatch):
+    """A escolha da pessoa tem de valer no AVISO, e não só no envio: o
+    `whatsapp.envio` barra a janela GERAL — ele é o freio da casa — mas não
+    sabe que este telefone pediu para ser avisado só de manhã."""
+    from api.rastreio import assinatura
+    monkeypatch.setattr(assinatura, "dentro_da_janela", lambda ins, agora=None:
+                        assinatura.preferencia(ins)["inicio"] != "06:00")
+
+    enviados = cenario([_ins(janela_inicio="06:00", janela_fim="12:00")],
+                       _carga())
+    r = aviso.rodar()
+    assert enviados == [], "mandou fora da janela que a pessoa escolheu"
+    assert r["fora_janela"] == 1 and r["enviados"] == 0
+
+
+def test_fora_da_janela_NAO_conta_como_falha_nem_some_do_relatorio(cenario,
+                                                                   monkeypatch):
+    """É a pessoa sendo atendida na escolha dela — a terceira resposta do aviso
+    ("calei porque não era hora"). Somada às falhas viraria alarme falso; fora
+    do relatório, a tarefa pareceria não ter feito nada."""
+    from api.rastreio import assinatura
+    monkeypatch.setattr(assinatura, "dentro_da_janela", lambda i, agora=None: False)
+    cenario([_ins()], _carga())
+    r = aviso.rodar()
+    assert r["fora_janela"] == 1
+    assert r["falhas"] == 0 and r["cedo"] == 0 and r["sem_texto"] == 0
+
+
+def test_quem_pediu_MENOS_mensagens_espera_TRES_horas(cenario):
+    """A cadência espaça de verdade: com 90 minutos desde a última mensagem,
+    quem está em "tudo" recebe e quem está em "menos" ainda não."""
+    tudo = cenario([_ins(desde_min=90, cadencia="tudo")], _carga())
+    assert aviso.rodar()["enviados"] == 1
+    tudo.clear()
+
+    cenario([_ins(desde_min=90, cadencia="menos")], _carga())
+    r = aviso.rodar()
+    assert r["enviados"] == 0 and r["cedo"] == 1
+
+
+def test_quem_pediu_SO_MARCOS_ignora_progresso_mas_NAO_a_entrega(cenario):
+    """A viagem inteira vira uma linha só; a chegada continua chegando."""
+    from api.rastreio import mensagem
+
+    antes = _carga(andamento={"tem_posicao": True, "progresso_pct": 10,
+                              "falta_km": 600, "por_rota": True})
+    andou = _carga(andamento={"tem_posicao": True, "progresso_pct": 70,
+                              "falta_km": 200, "por_rota": True})
+    assin = mensagem.assinatura([antes], so_marcos=True)
+
+    # ANDOU MEIA VIAGEM e continua calado: foi o que a pessoa pediu.
+    cenario([_ins(cadencia="marcos", ultima_assinatura=assin)], andou)
+    assert aviso.rodar()["enviados"] == 0
+
+    # A ENTREGA PASSA POR CIMA DE QUALQUER CADENCIA.
+    entregue = _carga(estado="entregue", entregue_em="2026-09-06T18:20:00")
+    enviados = cenario([_ins(cadencia="marcos", ultima_assinatura=assin)],
+                       entregue)
+    assert aviso.rodar()["enviados"] == 1
+    assert "Entregue" in enviados[-1][1]
+
+
+def test_a_cadencia_MARCOS_ainda_avisa_quando_PERDEMOS_o_veiculo(cenario):
+    """"Não sei onde ele está" é notícia para todo mundo, em qualquer cadência:
+    calar aqui seria indistinguível de "está tudo calmo"."""
+    from api.rastreio import mensagem
+
+    normal = _carga()
+    assin = mensagem.assinatura([normal], so_marcos=True)
+    perdido = _carga()
+    perdido["andamento"] = {"tem_posicao": False, "fora_da_rota": True}
+
+    cenario([_ins(cadencia="marcos", ultima_assinatura=assin)], perdido)
+    assert aviso.rodar()["enviados"] == 1

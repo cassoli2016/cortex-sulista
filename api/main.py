@@ -593,20 +593,28 @@ def rastreio_link(req: Request, t: str = "") -> JSONResponse:
 
 @app.post("/api/rastreio/assinar")
 def rastreio_assinar(req: Request, doc: str = "", cnpj: str = "",
-                     id: str = "", fone: str = "") -> JSONResponse:
-    """Passa a avisar um telefone sobre uma carga, de hora em hora.
+                     id: str = "", fone: str = "", janela: str = "",
+                     cadencia: str = "") -> JSONResponse:
+    """Passa a avisar um telefone sobre uma carga.
 
     ESCRITA VINDA DA INTERNET, sem conta e sem login — o modulo
     `api/rastreio/assinatura.py` explica as quatro contencoes. O freio da busca
     vale aqui tambem: sem ele, o mesmo IP tentaria pares de quatro digitos ate
     achar uma carga para a qual inscrever um numero.
+
+    `janela` e `cadencia` sao NOMES do catalogo do modulo, nunca horas: quem
+    resolve o que "de manha" significa e o servidor, contra a configuracao da
+    casa — a escolha do cliente so RESTRINGE a janela geral, nunca a amplia.
+    E os dois vao DECLARADOS na assinatura porque o FastAPI descarta query
+    param que a rota nao declara, calado.
     """
     from api.rastreio import assinatura
     freado = _rastreio_freado(req)
     if freado:
         return freado
     return JSONResponse(assinatura.inscrever(doc, cnpj, id, fone,
-                                             _ip_do_cliente(req)))
+                                             _ip_do_cliente(req),
+                                             janela=janela, cadencia=cadencia))
 
 
 @app.post("/api/rastreio/cancelar")

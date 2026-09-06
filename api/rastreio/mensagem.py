@@ -316,12 +316,19 @@ def _faixa(valor: float, cortes) -> int:
     return len(cortes)
 
 
-def _assinatura_de_uma(carga: dict) -> str:
+def _assinatura_de_uma(carga: dict, so_marcos: bool = False) -> str:
     """O estado de UMA carga, reduzido ao que importa para quem espera.
 
     A ORDEM DAS PERGUNTAS É A MESMA DE `montar()`, e isso não é elegância: se
     as duas divergirem, existe um caminho em que o texto muda e a assinatura
     não — e a pessoa deixa de receber a mensagem que a avisaria da entrega.
+
+    `so_marcos` é a cadência mais seca que a página oferece: só mudança de
+    ESTADO conta. O progresso, os quilômetros e o semáforo do trânsito somem da
+    assinatura — a viagem inteira, do embarque à doca, vira UMA linha que só se
+    mexe quando a carga chega, entra em descarga, é entregue, ou quando paramos
+    de enxergar o veículo. As ressalvas continuam valendo em qualquer cadência:
+    "não sei onde ele está" é notícia para todo mundo, sempre.
     """
     a = carga.get("andamento") or {}
     doc = carga.get("documento") or "?"
@@ -343,6 +350,13 @@ def _assinatura_de_uma(carga: dict) -> str:
         # assinatura. Quem chama trata o vazio.
         return ""
 
+    if so_marcos:
+        # EM VIAGEM É UM ESTADO SÓ. Foi para isto que a pessoa escolheu esta
+        # cadência: ela não quer saber de 42% nem de 380 km, quer saber quando
+        # chegar. A mensagem que sair continua trazendo tudo — o que muda é
+        # QUANDO ela sai, nunca o que ela diz.
+        return "%s|viagem" % doc
+
     # O TRÂNSITO ENTRA PELO ESTADO, NUNCA PELO ATRASO EM MINUTOS. "Fluxo livre"
     # virando "Fluxo livre (~1 min de atraso)" é ruído do provedor: o semáforo
     # é o mesmo, a decisão de quem espera é a mesma. Foi por essa diferença de
@@ -352,8 +366,12 @@ def _assinatura_de_uma(carga: dict) -> str:
                               int(round(float(falta))) // PASSO_KM, t)
 
 
-def assinatura(cargas: list[dict]) -> str:
+def assinatura(cargas: list[dict], *, so_marcos: bool = False) -> str:
     """A assinatura da MENSAGEM inteira — todas as cargas do telefone.
+
+    `so_marcos` é NOMEADO porque é uma escolha de quem recebe, não um detalhe
+    de quem chama: um posicional aqui seria preenchido com a lista errada no
+    primeiro chamador distraído, e o sintoma — mensagem a menos — é mudo.
 
     ORDENADA de propósito: as cargas chegam na ordem do último envio, que muda
     sozinha entre ciclos. Sem ordenar, a mesma situação assinaria diferente e a
@@ -363,5 +381,6 @@ def assinatura(cargas: list[dict]) -> str:
     acompanhava uma carga e cadastrou a segunda precisa receber a mensagem nova
     mesmo que a primeira não tenha se mexido um metro.
     """
-    partes = sorted(p for p in (_assinatura_de_uma(c) for c in cargas) if p)
+    partes = sorted(p for p in (_assinatura_de_uma(c, so_marcos)
+                                for c in cargas) if p)
     return "\n".join(partes)
