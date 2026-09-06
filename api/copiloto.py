@@ -272,14 +272,26 @@ def _app_motorista() -> dict:
     A pergunta que isto responde no chat é de gestão — "quantos motoristas já
     usam o app?" —, e ela não tem resposta em tela nenhuma do painel: o app
     vive do lado de fora.
+
+    TABELA AUSENTE NÃO É FALHA, É INSTALAÇÃO INCOMPLETA — a mesma regra da
+    integração sem credencial. O AutoDeploy NÃO roda migration, então existe uma
+    janela real entre o código chegar e alguém rodar o `migrar_schema.py`.
+    Deixar a exceção subir nessa janela poria "App do Motorista" na lista de
+    fontes INDISPONÍVEIS do Copiloto — que quer dizer "isto quebrou" e faria
+    quem lê procurar defeito onde há só uma etapa de instalação pendente.
     """
     from api import pglocal
-    r = pglocal.um(
-        """SELECT (SELECT count(*) FROM mot_vinculos WHERE ativo) AS vinculados,
-                  (SELECT count(*) FROM mot_sessoes
-                    WHERE encerrada_em IS NULL
-                      AND vista_em > now() - interval '30 days') AS ativos_30d""")
-    return dict(r or {"vinculados": 0, "ativos_30d": 0})
+    try:
+        r = pglocal.um(
+            """SELECT (SELECT count(*) FROM mot_vinculos WHERE ativo) AS vinculados,
+                      (SELECT count(*) FROM mot_sessoes
+                        WHERE encerrada_em IS NULL
+                          AND vista_em > now() - interval '30 days') AS ativos_30d""")
+    except Exception as exc:  # noqa: BLE001
+        if pglocal.sem_tabela(exc):
+            return {"instalado": False}
+        raise
+    return {"instalado": True, **dict(r or {"vinculados": 0, "ativos_30d": 0})}
 
 
 def _fontes_do_snapshot() -> dict:

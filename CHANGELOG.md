@@ -4,6 +4,20 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.259.0] — 06/09/2026  ·  CX-06/09/2026-v0.259.0
+
+### Adicionado
+- O App do Motorista entrou no ar, em endereço próprio: cortex.sulista.com.br/motorista. É uma página feita para o celular do motorista — uma coluna, letra grande, sem gráfico e sem mapa — e pesa 16 KB contra os 2,5 MB do painel, porque quem vai abri-la está num 4G de beira de rodovia.
+- O motorista entra digitando o próprio celular e recebendo um código de 6 números no WhatsApp. Não há senha para decorar nem para esquecer, e a sessão dura 30 dias no aparelho dele. O código chega pelo número que já fala com ele todo dia, e vale por 10 minutos.
+- "Minha viagem": a viagem em curso dele — cliente, de onde para onde, placa do cavalo e da carreta, hora da saída e previsão de chegada. É a informação que hoje ele consegue ligando para a torre.
+- Quem divide o celular com outro motorista escolhe quem está entrando depois de digitar o código. São poucos casos, e sem isso eles ficariam de fora sem ninguém entender por quê.
+- O acesso é dado por CADASTRO, não por ter dirigido: alguém da casa liga o telefone ao motorista, e quem sai da empresa perde o acesso na hora em que for desligado. Enquanto ninguém for cadastrado, o app recusa todo mundo — e a Saúde do Servidor diz exatamente isso, com o comando que falta rodar.
+- A Saúde do Servidor ganhou o cartão "App do motorista" (quantos vinculados, quantas sessões na semana, quantos códigos em 24 h e quando foi a última entrada), e o Copiloto passou a saber responder quantos motoristas já usam o app.
+
+### Segurança
+- O motorista vê a operação DELE e nada mais: nem valor de frete, nem custo, nem a viagem de outro motorista. Ele também não é usuário do painel — é um acesso separado, que não abre tela nenhuma do CÓRTEX.
+- A tela de entrada responde exatamente a mesma coisa para um celular cadastrado e para um que não é. Sem isso, qualquer pessoa poderia descobrir quem dirige para a Sulista digitando números.
+
 ## [0.258.3] — 06/09/2026  ·  CX-06/09/2026-v0.258.3
 
 ### Corrigido
