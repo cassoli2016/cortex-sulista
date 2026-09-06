@@ -30,6 +30,7 @@ from __future__ import annotations
 import os
 import sys
 import threading
+from pathlib import Path
 
 import pytest
 
@@ -48,6 +49,65 @@ AGENDADORES = ("push-digest", "rastreio-aviso")
 
 def _threads_vivas() -> set[str]:
     return {t.name for t in threading.enumerate()}
+
+
+def _threads_criadas_em_api() -> dict:
+    """`{nome: arquivo}` de toda `threading.Thread(...)` sob `api/`.
+
+    Le o FONTE porque a alternativa — importar tudo e observar — so acharia a
+    thread que alguem lembrou de subir no teste, que e exatamente o esquecimento
+    que este guard existe para pegar.
+    """
+    import re
+    raiz = Path(__file__).resolve().parent.parent / "api"
+    achadas, sem_nome = {}, []
+    for f in raiz.rglob("*.py"):
+        texto = f.read_text(encoding="utf-8")
+        for m in re.finditer(r"threading\.Thread\((?P<args>[^)]*)\)", texto, re.S):
+            args = m.group("args")
+            nome = re.search(r'name\s*=\s*"([^"]+)"', args)
+            rel = f.relative_to(raiz.parent).as_posix()
+            if nome:
+                achadas[nome.group(1)] = rel
+            else:
+                sem_nome.append(rel)
+    return {"nomes": achadas, "sem_nome": sem_nome}
+
+
+def test_TODA_thread_de_api_tem_nome():
+    """Thread sem `name=` nao aparece em varredura nenhuma — nem nesta, nem na
+    de threads vivas. Ela e invisivel por construcao, e invisivel e o estado em
+    que o defeito de ontem viveu."""
+    sem_nome = _threads_criadas_em_api()["sem_nome"]
+    assert not sem_nome, (
+        "thread sem `name=` em %s — sem nome ela nao entra na varredura, e "
+        "uma thread que fala com cliente fora do radar e o defeito da "
+        "v0.258.3" % sem_nome)
+
+
+def test_AGENDADOR_NOVO_e_DESCOBERTO_e_nao_esperado():
+    """O GUARD QUE FECHA A CLASSE, e a razao dele e do dia em que foi escrito.
+
+    Com os gates postos nos dois agendadores, o alarme que denunciou o defeito
+    original — linha de teste aparecendo no log da API de producao — deixou de
+    existir. Se um agendador novo nascer sem gate, nada mais grita sozinho.
+
+    A varredura por nome de thread virou a unica cobertura, e ela lia uma LISTA
+    ESCRITA A MAO: um agendador que ninguem acrescentasse ficaria invisivel de
+    novo, que e a forma antiga do mesmo defeito.
+
+    Aqui a direcao se inverte: o CODIGO e quem descobre, e a lista tem de
+    acompanhar. Com o guard vizinho (`os nomes da lista existem no codigo`) os
+    dois lados ficam amarrados — nenhum pode andar sozinho.
+    """
+    achadas = _threads_criadas_em_api()["nomes"]
+    faltando = {n: f for n, f in achadas.items() if n not in AGENDADORES}
+    assert not faltando, (
+        "thread nova em api/ que a varredura nao cobre: %s.\n"
+        "Acrescente o nome a AGENDADORES — e antes disso confira se ela tem "
+        "gate de `sob_teste()`: sem ele, uma rodada de testes a sobe dentro do "
+        "processo, com as credenciais de producao desta bancada."
+        % faltando)
 
 
 def test_os_nomes_da_lista_EXISTEM_no_codigo():
@@ -99,20 +159,43 @@ def test_a_variavel_sozinha_TAMBEM_serve(monkeypatch):
 # --------------------------------------------------------------------------
 # o gate, exercitado com a funcao REAL
 # --------------------------------------------------------------------------
-def test_o_scheduler_de_push_NAO_sobe_numa_rodada_de_teste():
-    """Sem dublê nenhum: estamos sob pytest de verdade, e é essa a condição.
+def test_o_scheduler_de_push_NAO_sobe_numa_rodada_de_teste(monkeypatch):
+    """Sem dublê no GATE: estamos sob pytest de verdade, e é essa a condição.
 
     A exposição do push é menor que a do aviso de carga — um digest por DIA, em
     hora fixa, com marcador no banco — mas a porta é idêntica: basta a rodada
     cruzar a hora marcada.
+
+    A CREDENCIAL VAI DUBLADA PARA CIMA, e é o que separa este guard de um verde
+    ambiental — ver `test_o_agendador_do_aviso_de_carga_TAMBEM_nao_sobe`.
     """
+    monkeypatch.setattr(push, "habilitado", lambda: True)
+    monkeypatch.setattr(push, "_started", False)
     antes = _threads_vivas()
     push.iniciar_scheduler()
     assert "push-digest" not in (_threads_vivas() - antes)
 
 
-def test_o_agendador_do_aviso_de_carga_TAMBEM_nao_sobe():
+def test_o_agendador_do_aviso_de_carga_TAMBEM_nao_sobe(monkeypatch):
+    """A CREDENCIAL VAI DUBLADA PARA CIMA, e sem isso este guard é ambiental.
+
+    Descoberto em 06/09/2026 sabotando o gate: numa WORKTREE, onde
+    `data/whatsapp_config.json` não existe, `iniciar()` para no gate de
+    CREDENCIAL antes de chegar ao de pytest. A thread não sobe, o teste passa —
+    e passa **pelo motivo errado**, aprovando um agendador sem gate nenhum.
+
+    Na bancada de produção, onde o WhatsApp está configurado, o mesmo teste
+    ficava vermelho. Ou seja: o guard mudava de opinião conforme a máquina, e
+    era VERDE exatamente onde precisaria ser vermelho — no CI e em toda
+    worktree, que é onde a maioria das rodadas acontece.
+
+    Com a credencial dublada, sobra uma coisa só para segurar a thread: o gate
+    de `sob_teste()`. É esse que este teste mede.
+    """
     from api.rastreio import agendador
+    from api.whatsapp import cliente
+    monkeypatch.setattr(cliente, "configurado", lambda qual=None: True)
+    monkeypatch.setattr(agendador, "_iniciado", False)
     antes = _threads_vivas()
     agendador.iniciar()
     assert "rastreio-aviso" not in (_threads_vivas() - antes)

@@ -1,3 +1,22 @@
+- versao: "0.260.4"
+  data: "2026-09-06"
+  corrigido:
+    - >-
+      A verificação que impede um agendador de subir durante os testes mudava
+      de opinião conforme a máquina: onde as credenciais não estão instaladas
+      — o servidor de testes automáticos e as cópias de trabalho, que é onde
+      quase toda verificação acontece — ela passava sem verificar nada, porque
+      o agendador parava antes por falta de credencial. Ficava verde
+      exatamente onde precisava ficar vermelha. Agora a credencial é simulada,
+      e sobra uma coisa só para segurar o agendador: a proteção que está sendo
+      medida.
+  adicionado:
+    - >-
+      Uma verificação nova DESCOBRE agendador novo em vez de esperar que
+      alguém o cadastre: qualquer tarefa de fundo criada no sistema e ainda não
+      coberta faz a verificação falhar, com a instrução do que conferir. Antes
+      dependia de uma lista escrita à mão — e o que ninguém acrescentasse
+      ficava invisível, que é a forma antiga do mesmo defeito.
 - versao: "0.260.3"
   data: "2026-09-06"
   alterado:

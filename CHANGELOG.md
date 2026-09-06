@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.260.4] — 06/09/2026  ·  CX-06/09/2026-v0.260.4
+
+### Adicionado
+- Uma verificação nova DESCOBRE agendador novo em vez de esperar que alguém o cadastre: qualquer tarefa de fundo criada no sistema e ainda não coberta faz a verificação falhar, com a instrução do que conferir. Antes dependia de uma lista escrita à mão — e o que ninguém acrescentasse ficava invisível, que é a forma antiga do mesmo defeito.
+
+### Corrigido
+- A verificação que impede um agendador de subir durante os testes mudava de opinião conforme a máquina: onde as credenciais não estão instaladas — o servidor de testes automáticos e as cópias de trabalho, que é onde quase toda verificação acontece — ela passava sem verificar nada, porque o agendador parava antes por falta de credencial. Ficava verde exatamente onde precisava ficar vermelha. Agora a credencial é simulada, e sobra uma coisa só para segurar o agendador: a proteção que está sendo medida.
+
 ## [0.260.3] — 06/09/2026  ·  CX-06/09/2026-v0.260.3
 
 ### Alterado
