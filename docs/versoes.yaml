@@ -1,3 +1,38 @@
+- versao: "0.261.2"
+  data: "2026-09-06"
+  corrigido:
+    - >-
+      Se a API cair sozinha, o sistema agora se levanta em até dois minutos.
+      Antes, a rotina que mantém o portal atualizado só reiniciava a aplicação
+      quando havia versão nova para instalar: se o processo morresse por conta
+      própria — falta de memória, uma atualização do Windows, uma falha no meio
+      da noite — o painel ficava fora do ar até alguém reclamar, porque a
+      rotina olhava e concluía "não há nada novo" a cada ciclo.
+    - >-
+      A verificação é a porta do servidor, e não uma consulta ao ERP, de
+      propósito: o ERP é sistema de terceiro e tem dias ruins, e reiniciar o
+      portal porque o ERP não respondeu seria transformar um problema de fora
+      numa queda nossa, justamente no pior momento.
+  alterado:
+    - >-
+      Quatro melhorias previstas na auditoria de desempenho foram MEDIDAS e
+      DESCARTADAS, porque a medição não confirmou o ganho que o diagnóstico
+      inicial supunha. Rodar a aplicação em vários processos deixou de fazer
+      sentido depois das três correções já entregues — a fila que ela resolveria
+      não existe mais (sessenta acessos simultâneos são atendidos em 93
+      milésimos, e uma chamada de sistema sob carga pesada não fica mais lenta).
+    - >-
+      Índices novos em três tabelas não se justificam: uma varredura completa
+      da maior delas custa 6,7 milésimos de segundo, porque o banco inteiro cabe
+      na memória. Ajustar a configuração do banco também não: as consultas de
+      fato usam disco temporário, mas em disco NVMe isso não custa tempo
+      mensurável (431 para 415 milésimos, e um dos casos ficou mais lento).
+    - >-
+      E o plano de energia da máquina foi trocado, medido e devolvido ao
+      original: 171 contra 165 milésimos, sem diferença real. A recomendação
+      vinha de um conselho antigo sobre processadores que já não se aplica.
+      Fica registrado o que NÃO precisa ser feito, para ninguém refazer o
+      diagnóstico daqui a seis meses.
 - versao: "0.261.1"
   data: "2026-09-06"
   corrigido:

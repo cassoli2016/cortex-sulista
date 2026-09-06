@@ -4187,3 +4187,90 @@ sensacao de que provou, que e o pior dos dois mundos.
 - **Sabotagem que nao acende pode ser sabotagem quebrada, nao teste forte.**
   Confira que a sabotagem produziu o cenario que voce queria antes de concluir
   qualquer coisa sobre o teste.
+
+---
+
+## A auditoria que se refutou em quatro dos seis pontos (2026-09-06, v0.261.2)
+
+Fecho da auditoria de desempenho. Dos nove achados, tres viraram correcao
+(01 pagina/304, 02 pool do banco da casa, 03 check do pool do ERP), um virou
+correcao de disponibilidade (08, aqui) e **quatro foram medidos e descartados**.
+Isso e resultado, nao fracasso — e vale mais escrito do que a lista original.
+
+### 08, o que entrou: o AutoDeploy so reiniciava se houvesse commit novo
+
+`scripts/autodeploy.ps1` comparava o HEAD com o `deployed.txt` e saia:
+
+```powershell
+if ($rodando -eq $head) { exit 0 }   # nada novo
+```
+
+Ou seja: a API que morresse SOZINHA — sem deploy nenhum — ficava fora do ar ate
+alguem reclamar, porque todo ciclo seguinte via "nada novo" e ia embora. O mesmo
+arquivo ja tinha a licao escrita quatro blocos abaixo ("gravar sem conferir
+marcaria o commit como implantado mesmo com a API fora do ar, e o ciclo seguinte
+veria 'nada novo' e nunca mais tentaria"), mas so para o caso do deploy.
+
+Agora a porta 8010 e conferida ANTES da saida antecipada, com segunda olhada
+depois de 5 s (durante um deploy a porta fica fechada por alguns segundos, e sem
+a pausa dois ciclos se atropelariam).
+
+**A conferencia e a PORTA, nao o `/api/health`**, e a diferenca e o ponto: o
+health consulta o ERP, que e replica de producao de terceiro e tem dias ruins.
+Reiniciar a API porque o ERP nao respondeu trocaria um problema de fora por uma
+queda nossa, em cima do pior momento possivel. Porta escutando e o que este
+script sabe consertar; processo vivo mas travado e outro problema, e nao se
+conserta com restart cego.
+
+Os tres caminhos foram exercitados com o bloco REAL extraido do script, so com
+a porta parametrizada: porta morta + HEAD igual -> reinicia; porta viva + HEAD
+igual -> sai calado; porta viva + HEAD diferente -> deploy normal.
+
+### As quatro recusas, com o numero de cada uma
+
+**04 — varios processos do uvicorn.** Fazia sentido quando 20 pessoas abrindo o
+painel saturavam 95% de um nucleo. Depois de 01+02+03, medido de novo: 60
+acessos simultaneos em 93 ms de relogio, 30 downloads completos da pagina em
+48,7 ms, e o `/api/health` sob 10 pessoas baixando a pagina em **0,9x** (era
+2,8x). A fila acabou. E `--workers` fragmentaria o `_RESP_CACHE`, que e por
+processo: a Visao Geral fria passaria a rodar ate 4 vezes em vez de 1. Seria
+piorar para resolver um problema que nao existe mais.
+
+**06 — indices nas tabelas mais varridas.** O relatorio marcou "802 milhoes de
+linhas lidas" em `jor_jornadas`, o que soa alarmante. Medido, uma varredura
+completa custa **6,7 ms** (`pne_pneu` 0,7 ms; `ped_travessias` 31,6 ms com 363
+varreduras no total). Os 802 milhoes sao ~80 segundos de CPU espalhados por
+semanas. Indice novo custaria escrita e nao compraria nada. **Eu tinha
+classificado pelo CONTADOR, nao pelo relogio.**
+
+**05 — `postgresql.conf`.** Aqui havia evidencia de verdade: 12.044 arquivos
+temporarios, 25 GB. E as consultas derramam mesmo — `external merge Disk:
+6664kB / 11416kB / 3776kB` com `work_mem=4MB`. Mas o tempo nao muda: 431 -> 415
+ms, 237 -> 230 ms, e `jor_jornadas` ficou MAIS LENTA (332 -> 381). O "disco" e
+NVMe com o cache do sistema por cima; o derrame nunca toca midia. O banco tem
+434 MB e 99,94% de acerto de cache — `shared_buffers` de 128 MB nao e o gargalo
+porque nao ha gargalo de leitura.
+
+**07 — plano de energia.** Trocado para Alto Desempenho, medido e **devolvido ao
+original**: 171 ms contra 165 ms do Equilibrado, com o Equilibrado marginalmente
+a frente. O conselho vem da epoca do core parking agressivo e nao se aplica a
+um i7-14700, que sobe para turbo quase instantaneamente. Nao deixo mudanca
+injustificada numa maquina. No mesmo achado, duas correcoes ao relatorio: o
+PostgreSQL 18 **nao esta ocioso** (o `pgagent` do pgAdmin conecta nele) e ocupa
+33 MB, nao os "966 MB" que eu associei ao vizinho errado; e as exclusoes do
+Defender exigem administrador, que esta sessao nao tem.
+
+### O que fica como regra
+
+- **Contador nao e medicao.** "802 milhoes de linhas" e "25 GB de temporario"
+  sao numeros verdadeiros que nao dizem quanto custa. Os dois viraram nada
+  quando cronometrados. Antes de otimizar por uma estatistica acumulada,
+  cronometre uma vez.
+- **Recomendacao herdada envelhece.** Plano de energia, `shared_buffers`,
+  indice em tabela varrida: sao conselhos certos em outro hardware. Nesta
+  maquina, com o banco inteiro na RAM e NVMe, nenhum dos tres se sustentou.
+- **Corrigir os tres primeiros mudou o diagnostico dos outros.** O achado 04
+  era real quando foi escrito e deixou de ser por causa do 01. Auditoria e
+  fotografia: refaca a medicao antes de executar um item antigo da lista.
+- **Desfazer a mudanca que nao se justificou faz parte.** O plano de energia
+  voltou ao que era.

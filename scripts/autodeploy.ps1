@@ -141,7 +141,35 @@ try {
     $conteudo = Get-Content $estadoArq -Raw
     if ($conteudo) { $rodando = $conteudo.Trim() }
   }
-  if ($rodando -eq $head) { exit 0 }   # nada novo — silêncio (não polui o log)
+  # A API PODE TER MORRIDO SEM QUE NADA MUDE NO REPOSITÓRIO, e até 06/09/2026
+  # este script não olhava para isso: ele comparava o HEAD com o `deployed.txt`
+  # e saía. Ou seja, só reiniciava quando havia commit novo. Um processo que
+  # caísse sozinho — falha de memória, um `uv sync` que derrubou o venv no meio,
+  # o Windows matando o processo numa atualização — ficava fora do ar até
+  # alguém RECLAMAR, porque o ciclo seguinte via "nada novo" e ia embora.
+  #
+  # É o mesmo raciocínio que o bloco lá de baixo já aplicava depois do restart
+  # ("gravar sem conferir marcaria o commit como implantado mesmo com a API
+  # fora do ar"), só que aplicado ao caso em que NÃO houve deploy nenhum.
+  #
+  # A CONFERÊNCIA É A PORTA, não uma requisição HTTP, e a diferença importa: o
+  # `/api/health` consulta o ERP, que é réplica de produção de terceiro e tem
+  # dias ruins. Reiniciar a API porque o ERP não respondeu seria trocar um
+  # problema de fora por uma queda nossa — e em cima do pior momento possível.
+  # Porta escutando é o que este script sabe consertar; processo vivo mas
+  # travado é outro problema, e não se conserta com restart cego.
+  #
+  # SEGUNDA OLHADA ANTES DE AGIR: durante um deploy a porta fica fechada por
+  # alguns segundos. Sem a pausa, dois ciclos concorrentes se atropelariam.
+  $viva = [bool](Get-NetTCPConnection -LocalPort 8010 -State Listen -ErrorAction SilentlyContinue)
+  if (-not $viva) {
+    Start-Sleep -Seconds 5
+    $viva = [bool](Get-NetTCPConnection -LocalPort 8010 -State Listen -ErrorAction SilentlyContinue)
+  }
+  if ($rodando -eq $head -and $viva) { exit 0 }   # nada novo e no ar — silêncio
+  if (-not $viva) {
+    Registrar "API nao esta escutando na 8010 (HEAD $($head.Substring(0,7))); levantando"
+  }
 
   # detecta se dependências mudaram desde o commit em execução (uv sync só
   # quando necessário; commit desconhecido/podado = assume que não mudaram)

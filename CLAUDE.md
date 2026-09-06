@@ -565,6 +565,14 @@ barra empilhada, não donut.
   explicação — o custo do pool como freio acidental — era plausível, coerente
   com três observações e FALSA. Plausível não é evidência; a pergunta que
   resolveu foi "o que mais muda no SQL quando a transação deixa de existir?".
+- **Contador acumulado NÃO é medição.** "802 milhões de linhas lidas em
+  `jor_jornadas`" e "25 GB de arquivo temporário" são verdadeiros e não dizem
+  o custo: cronometrados, a varredura completa custa 6,7 ms e o derrame de
+  ordenação não muda o relógio (NVMe + banco de 434 MB inteiro na RAM). Índice
+  novo, `work_mem` e `shared_buffers` foram MEDIDOS E RECUSADOS em 06/09/2026,
+  junto com `--workers` (a fila que ele resolveria sumiu com o 304 da página) e
+  com o plano de energia Alto Desempenho (171 ms × 165 ms do Equilibrado —
+  trocado, medido e DEVOLVIDO ao original). Crônica em `docs/LICOES.md`.
 - **Medição contra dependência externa vale UMA vez e só se REPETIDA.** Número
   isolado durante incidente é sintoma do incidente, não da consulta: a de OC da
   Visão Geral foi acusada de lenta com base em 200 s medidos dentro de uma
