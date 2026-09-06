@@ -21,16 +21,17 @@ indicador falso na capa. O que impediu foi medir antes de desenhar.
 ### A previsão de entrega do ERP não é um prazo
 
 `conhecimento.dtprevisaoentrega` parece o campo óbvio para pontualidade. Sobre
-os 7.285 CT-es de 12 meses da Maxion:
+12 meses de CT-es de um cliente de linha (proporções, que é o que importa —
+os volumes da conta não entram aqui, o repositório é público):
 
 | medida | resultado |
 |---|---|
-| previsão **igual** à data de emissão | **80,3%** (4.828 de 6.016) |
+| previsão **igual** à data de emissão | **80,3%** |
 | entregas exatamente na data prevista | 90,5% |
 | "no prazo" pela previsão crua | **91,2%** |
-| CT-es com prazo de verdade (previsão > emissão) | 1.188 (16,3%) |
-| CT-es com prazo de verdade **e** entrega registrada | **634 (8,7%)** |
-| "no prazo" só sobre esses 634 | 95,1% |
+| CT-es com prazo de verdade (previsão > emissão) | 16,3% |
+| CT-es com prazo de verdade **e** entrega registrada | **8,7%** |
+| "no prazo" só sobre esses | 95,1% |
 
 É a MESMA armadilha das ordens de compra (previsão de entrega = dia da emissão
 em 80% das OCs), num campo diferente e numa tela diferente. A regra generaliza:
@@ -71,27 +72,29 @@ Campos que pareciam servir e não serviam, todos medidos e todos zero:
 ### O freetime que o `DISTINCT ON` desempatava no escuro
 
 O contrato de freetime (`sulista.sac_freetimecliente`) parecia uma linha por
-cliente. A Iochpe-Maxion tem QUATRO ativas, todas no agrupamento 8, todas na
-filial 20, **todas com o mesmo `dtinicio` (01/08/2024)**:
+cliente. Um cliente pode ter VÁRIAS ativas ao mesmo tempo — no caso que
+motivou isto, quatro, no mesmo agrupamento e na mesma filial, **todas com o
+mesmo `dtinicio`**: uma linha genérica e outras com tolerância maior, cada uma
+para um tipo de mercadoria (a coluna `observacao` é quem diz qual, e
+`distingueoperacao` separa a genérica das específicas).
 
-| linha | descarga | observação |
-|---|---|---|
-| 33 | 3,0h | (genérica, `distingueoperacao` 2) |
-| 34 | 6,5h | ESCADAS |
-| 35 | 6,5h | RODAS |
-| 38 | 6,5h | CONJUNTOS |
+*As horas contratadas e os tipos de mercadoria ficam fora desta crônica de
+propósito: são cláusula de um cliente e este repositório é público. O que
+importa aqui é a forma da tabela, não os valores dela.*
 
 Não é histórico de vigência: é **uma régua por mercadoria**. E a ocorrência SAC
 não diz qual mercadoria era. Um `DISTINCT ON (agrupamentocliente) ORDER BY
 dtinicio DESC NULLS LAST` — que é o padrão certo para tabela de vigência, e é o
 que o `SAC_FT_REP` de `api/queries.py` faz hoje — desempata **ao acaso** entre
-quatro linhas empatadas. Medido: a aderência da descarga de agosto sai 38,6%
-com a régua de 3h e cerca de 70% com a de 6,5h, sem uma linha de código mudar.
+linhas empatadas. E o estrago é grande: medido num mês real, a aderência da
+descarga sai perto de 39% com a régua menor e perto de 70% com a maior, sem
+uma linha de código mudar. O mesmo relatório, duas verdades, conforme o
+desempate caísse.
 
-A saída não foi escolher. O portal mostra TRÊS FAIXAS (agosto/2026, 451
-descargas medidas): 38,6% dentro de 3h, 31,3% entre 3h e 6,5h, 30,2% acima de
-6,5h. A faixa do meio é o que o sistema não sabe responder, dita como tal.
-**Régua ambígua se declara; ela não se resolve por sorteio.**
+A saída não foi escolher. O portal mostra TRÊS FAIXAS — dentro da tolerância
+MENOR (aderente sob qualquer contrato), acima da MAIOR (excedente sob qualquer
+contrato), e no meio a faixa que depende de um dado que não temos, dita como
+tal. **Régua ambígua se declara; ela não se resolve por sorteio.**
 
 O defeito no `SAC_FT_REP` **continua de pé** (05/09/2026) — é a tela `sac`, de
 outra frente, e merece a própria entrega. Fica registrado aqui porque achado
@@ -99,7 +102,7 @@ medido que não vira crônica se perde.
 
 ### Quem fecha a viagem é o manifesto, e eu tinha escolhido o registro errado
 
-O painel dizia **66 cargas a caminho**. Todas as 66 já tinham chegado.
+O painel dizia dezenas de cargas a caminho. Todas já tinham chegado.
 
 Eu havia escolhido o evento SAC 397 (fim de descarga) como marco terminal,
 depois de medir que o 401 ("viagem finalizada") aparecia UMA vez em 738 cargas.
@@ -107,15 +110,15 @@ A escolha estava certa entre os dois candidatos que eu tinha olhado — e errada
 porque eu não tinha olhado o candidato certo. Quem opera perguntou se o
 manifesto não seria mais preciso. Era.
 
-| 45 dias da Maxion, 774 coletas | cobertura |
+| 45 dias de uma operação de linha | cobertura |
 |---|---|
 | fim de descarga (SAC 397) | 86,7% |
 | viagem finalizada (SAC 401) | 0,1% |
 | **MDF-e encerrado** | **98,7%** |
 
-E as discordâncias são de **mão única**: 93 cargas sem 397 já tinham manifesto
-encerrado; NENHUMA com 397 tinha manifesto aberto. O MDF-e encerrado é
-superconjunto estrito do apontamento.
+E as discordâncias são de **mão única**: 12% das cargas sem 397 já tinham
+manifesto encerrado; NENHUMA com 397 tinha manifesto aberto. O MDF-e encerrado
+é superconjunto estrito do apontamento.
 
 **O porquê é estrutural, e é o que faz a regra durar:** encerrar o MDF-e é
 obrigação FISCAL com prazo, que a SEFAZ cobra; apontar fim de descarga é rotina
@@ -123,18 +126,17 @@ operacional que ninguém multa. **Entre um registro que alguém é OBRIGADO a
 fazer e outro que seria bom fazer, o estado vem do primeiro.** Vale para
 qualquer tela desta casa que precise saber se algo terminou.
 
-O caso concreto que fecha o argumento: a coleta 20114 tinha como último
-apontamento "Em viagem" às 20:00 de 04/09, e o manifesto dela foi encerrado às
-22:13 do mesmo dia. Duas horas depois. A viagem acabou; a operação só não
-apontou.
+O caso concreto que fecha o argumento: uma coleta tinha como último
+apontamento "Em viagem" às 20:00, e o manifesto dela foi encerrado às 22:13 do
+mesmo dia. Duas horas depois. A viagem acabou; a operação só não apontou.
 
 ### E a operação do DIA estava invisível
 
 Consertar o terminal expôs um defeito maior embaixo. A consulta partia de
 `coleta_ocorrencia` e dava `JOIN` na coleta: **carga sem apontamento não
-existia para o painel**. Medido no mesmo dia — a Maxion tinha 5 coletas
-emitidas em 05/09 e ZERO eventos SAC, uma delas com manifesto ABERTO, isto é,
-viajando naquele instante. A operação do dia inteira estava fora da tela, e
+existia para o painel**. Medido no mesmo dia — o cliente tinha coletas
+emitidas naquela data e ZERO eventos SAC, uma delas com manifesto ABERTO, isto
+é, viajando naquele instante. A operação do dia inteira estava fora da tela, e
 nada acusava, porque para o painel aquelas cargas não existiam.
 
 O apontamento chega com ~1 dia de atraso; a coleta existe no instante em que é
@@ -233,7 +235,7 @@ criaria a única sessão do sistema capaz de abrir a carteira inteira.
 
 **O vínculo é a RAIZ do CNPJ (8 dígitos), não o `agrupamentocliente` do ERP.**
 O agrupamento existe, seria o caminho óbvio, e em 05/09/2026 tinha TRÊS dos
-QUATRO CNPJs da empresa — faltava o 61156113000680 (Contagem/MG). Escopar por
+QUATRO CNPJs da empresa — faltava justamente uma das plantas. Escopar por
 ele entregaria um portal que esconde uma planta inteira do cliente, sem erro,
 e o sintoma seria "faltam cargas" meses depois. Agrupamento é cadastro mantido
 à mão; a raiz é o próprio documento. Para decidir QUEM VÊ O QUÊ vale o

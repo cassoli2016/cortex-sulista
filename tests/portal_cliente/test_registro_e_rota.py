@@ -23,7 +23,7 @@ from api import auth
 from api import main
 from api import portal_cliente as pc
 
-RAIZ = "61156113"
+RAIZ = "11222333"
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 
@@ -144,13 +144,13 @@ def test_gente_da_casa_sem_escolha_recebe_a_LISTA_e_nao_um_403(monkeypatch):
     import json
 
     monkeypatch.setattr(pc, "get_clientes", lambda dias=365: {
-        "clientes": [{"raiz": "61156113", "nome": "IOCHPE-MAXION S.A.", "cargas": 6826}],
+        "clientes": [{"raiz": "11222333", "nome": "CLIENTE DUBLÊ S.A.", "cargas": 6826}],
         "janela_dias": dias, "fonte": "dublê"})
     resp = main.portal_cliente_dados(_req({"admin": True}), aba="agora")
     assert resp.status_code == 200
     corpo = json.loads(bytes(resp.body))
     assert corpo["escolher"] is True and corpo["travado"] is False
-    assert corpo["clientes"][0]["raiz"] == "61156113"
+    assert corpo["clientes"][0]["raiz"] == "11222333"
 
 
 def test_o_parametro_raiz_NAO_vence_o_vinculo_na_rota(monkeypatch):
@@ -172,7 +172,7 @@ def test_o_parametro_raiz_NAO_vence_o_vinculo_na_rota(monkeypatch):
     monkeypatch.setattr(pc, "nome_do_cliente", lambda r: "DUBLÊ")
     # cliente pedindo a operação de OUTRO cliente
     main.portal_cliente_dados(_req({"cliente_cnpj_raiz": RAIZ}),
-                              aba="agora", raiz="02162259")
+                              aba="agora", raiz="44555666")
     # ... e pedindo sem nada
     main.portal_cliente_dados(_req({"cliente_cnpj_raiz": RAIZ}), aba="agora")
     assert vistos == [RAIZ, RAIZ], vistos
@@ -186,11 +186,11 @@ def test_a_resposta_diz_de_QUEM_e_o_numero(monkeypatch):
     monkeypatch.setattr(pc, "get_agora", lambda raiz, dias=45: {
         "cargas": [], "em_curso": 0, "concluidas_na_janela": 0,
         "janela_dias": dias, "fonte": "dublê"})
-    monkeypatch.setattr(pc, "nome_do_cliente", lambda r: "IOCHPE-MAXION S.A.")
+    monkeypatch.setattr(pc, "nome_do_cliente", lambda r: "CLIENTE DUBLÊ S.A.")
     resp = main.portal_cliente_dados(_req({"cliente_cnpj_raiz": RAIZ}), aba="agora")
     corpo = json.loads(bytes(resp.body))
     assert corpo["cliente_raiz"] == RAIZ
-    assert corpo["cliente_nome"] == "IOCHPE-MAXION S.A."
+    assert corpo["cliente_nome"] == "CLIENTE DUBLÊ S.A."
     assert corpo["travado"] is True
 
 
@@ -219,9 +219,9 @@ def test_aba_desconhecida_cai_no_padrao_e_nao_estoura(monkeypatch):
 # ------------------------------------------------------------ o vínculo no cadastro
 
 @pytest.mark.parametrize("valor,esperado", [
-    ("61156113", "61156113"),
-    ("61.156.113/0001-75", "61156113"),   # colado do cadastro do ERP
-    ("61156113000175", "61156113"),
+    ("11222333", "11222333"),
+    ("11.222.333/0001-99", "11222333"),   # colado do cadastro do ERP
+    ("11222333000199", "11222333"),
 ])
 def test_o_vinculo_aceita_raiz_e_cnpj_inteiro(valor, esperado):
     dados, erro = auth._cadastro_do_payload({"cliente_cnpj_raiz": valor})
@@ -229,7 +229,7 @@ def test_o_vinculo_aceita_raiz_e_cnpj_inteiro(valor, esperado):
     assert dados["cliente_cnpj_raiz"] == esperado
 
 
-@pytest.mark.parametrize("valor", ["611", "abc", "1234567890", "IOCHPE"])
+@pytest.mark.parametrize("valor", ["611", "abc", "1234567890", "FULANO"])
 def test_o_vinculo_RECUSA_o_que_nao_vira_raiz(valor):
     """Raiz errada é portal vazio — e ninguém reporta isso como erro de
     cadastro, reporta como 'o portal não funciona'."""
@@ -247,7 +247,7 @@ def test_chave_ausente_NAO_mexe_e_chave_vazia_LIMPA():
 def test_texto_sem_digito_nao_apaga_o_vinculo_em_silencio():
     """"abc" no campo é engano, não intenção de desvincular — e desvincular
     calado tira o portal de alguém sem ninguém ver erro."""
-    dados, erro = auth._cadastro_do_payload({"cliente_cnpj_raiz": "IOCHPE MAXION"})
+    dados, erro = auth._cadastro_do_payload({"cliente_cnpj_raiz": "NOME DO CLIENTE"})
     assert erro is not None
     assert dados == {}
 
@@ -282,7 +282,7 @@ def test_sem_a_coluna_o_cadastro_de_usuario_CONTINUA_salvando(monkeypatch):
     """
     monkeypatch.setattr(auth, "tem_coluna_vinculo", lambda: False)
     dados, erro = auth._cadastro_do_payload(
-        {"cargo": "Analista", "cliente_cnpj_raiz": "61156113"})
+        {"cargo": "Analista", "cliente_cnpj_raiz": "11222333"})
     assert erro is None
     assert dados == {"cargo": "Analista"}
     assert "cliente_cnpj_raiz" not in dados
@@ -290,8 +290,8 @@ def test_sem_a_coluna_o_cadastro_de_usuario_CONTINUA_salvando(monkeypatch):
 
 def test_com_a_coluna_o_vinculo_volta_a_gravar(monkeypatch):
     monkeypatch.setattr(auth, "tem_coluna_vinculo", lambda: True)
-    dados, erro = auth._cadastro_do_payload({"cliente_cnpj_raiz": "61156113"})
-    assert erro is None and dados["cliente_cnpj_raiz"] == "61156113"
+    dados, erro = auth._cadastro_do_payload({"cliente_cnpj_raiz": "11222333"})
+    assert erro is None and dados["cliente_cnpj_raiz"] == "11222333"
 
 
 def test_a_saude_acusa_a_migration_pendente_com_o_COMANDO(monkeypatch):
@@ -478,8 +478,8 @@ def test_a_rosca_declara_por_que_e_rosca_e_nao_barra():
 
 
 def test_numero_em_portugues_leva_VIRGULA():
-    """"6.5h" saiu no mural do render real: concatenar float na string entrega
-    o separador do JavaScript, não o do país."""
+    """O separador saía do JavaScript, não do país: o float concatenado na
+    string entregava ponto no mural."""
     assert "function tvH(v)" in INDEX
     corpo = INDEX.split("async function loadTvCli")[1].split("\nasync function")[0]
     assert "tvH(" in corpo

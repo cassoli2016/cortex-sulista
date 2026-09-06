@@ -26,7 +26,7 @@ import pytest
 from api import portal_cliente as pc
 from api import queries
 
-RAIZ = "61156113"
+RAIZ = "11222333"
 
 
 @pytest.fixture(autouse=True)
@@ -51,7 +51,7 @@ def cache_limpo():
     {"cliente_cnpj_raiz": ""},
     {"cliente_cnpj_raiz": "   "},
     {"cliente_cnpj_raiz": "611561"},          # curta demais
-    {"cliente_cnpj_raiz": "61156113000175"},  # CNPJ inteiro não é raiz
+    {"cliente_cnpj_raiz": "11222333000199"},  # CNPJ inteiro não é raiz
     {"cliente_cnpj_raiz": "abcdefgh"},
     {"cliente_cnpj_raiz": "6115611a"},
 ])
@@ -245,32 +245,37 @@ def test_os_rotulos_dos_marcos_vem_da_tabela_de_dominio():
 # --------------------------------------------------- freetime: faixa, não chute
 
 def test_freetime_ambiguo_vira_FAIXA_e_nao_um_numero(monkeypatch):
-    """Quatro contratos, mesma vigência, freetimes diferentes por mercadoria.
+    """Vários contratos, mesma vigência, freetimes diferentes por mercadoria.
 
-    É o caso real da Maxion (05/09/2026): a linha genérica dá 3h de descarga e
-    as de ESCADAS/RODAS/CONJUNTOS dão 6,5h, todas com `dtinicio` 01/08/2024.
-    Um `DISTINCT ON ... ORDER BY dtinicio` desempata AO ACASO — a mesma tela
-    diria 38,6% ou 70% de aderência sem nada mudar no código.
+    É o caso real de um cliente com quatro linhas ativas e o MESMO `dtinicio`:
+    uma genérica e outras com tolerância maior, por tipo de carga. Um
+    `DISTINCT ON ... ORDER BY dtinicio` desempata AO ACASO — a mesma tela
+    diria perto de 39% ou perto de 70% de aderência sem nada mudar no código.
+
+    Os valores abaixo são de DUBLÊ, não os contratados: o que o teste afirma é
+    a forma (várias linhas ativas empatadas) e o comportamento (vira faixa, não
+    número), e nenhum dos dois depende do número real. Este repositório é
+    público e cláusula de cliente não entra nele.
     """
     monkeypatch.setattr(pc.db, "query", lambda *a, **k: [
-        {"ft_carga_h": 3.0, "ft_descarga_h": 3.0, "mercadoria": "(genérico)"},
-        {"ft_carga_h": 3.0, "ft_descarga_h": 6.5, "mercadoria": "ESCADAS"},
-        {"ft_carga_h": 3.0, "ft_descarga_h": 6.5, "mercadoria": "RODAS"},
-        {"ft_carga_h": 3.0, "ft_descarga_h": 6.5, "mercadoria": "CONJUNTOS"},
+        {"ft_carga_h": 2.0, "ft_descarga_h": 2.0, "mercadoria": "(genérico)"},
+        {"ft_carga_h": 2.0, "ft_descarga_h": 5.0, "mercadoria": "MERCADORIA A"},
+        {"ft_carga_h": 2.0, "ft_descarga_h": 5.0, "mercadoria": "MERCADORIA B"},
+        {"ft_carga_h": 2.0, "ft_descarga_h": 5.0, "mercadoria": "MERCADORIA C"},
     ])
     ft = pc._freetime(RAIZ)
     assert ft["contratos"] == 4
-    assert ft["descarga_piso"] == 3.0 and ft["descarga_teto"] == 6.5
+    assert ft["descarga_piso"] == 2.0 and ft["descarga_teto"] == 5.0
     assert ft["ambiguo"] is True
 
 
 def test_freetime_unico_NAO_finge_faixa(monkeypatch):
     """Com um contrato só não há zona cinzenta — inventar dúvida também mente."""
     monkeypatch.setattr(pc.db, "query", lambda *a, **k: [
-        {"ft_carga_h": 3.0, "ft_descarga_h": 3.0, "mercadoria": "(genérico)"}])
+        {"ft_carga_h": 2.0, "ft_descarga_h": 2.0, "mercadoria": "(genérico)"}])
     ft = pc._freetime(RAIZ)
     assert ft["ambiguo"] is False
-    assert ft["descarga_piso"] == ft["descarga_teto"] == 3.0
+    assert ft["descarga_piso"] == ft["descarga_teto"] == 2.0
 
 
 def test_sem_contrato_o_freetime_e_nd_e_NAO_zero(monkeypatch):
@@ -288,7 +293,7 @@ def test_sem_regua_a_tela_nao_classifica_nada():
 
 
 def test_as_tres_faixas_somam_o_universo():
-    f = pc._faixas([1.0, 2.9, 3.1, 5.0, 6.4, 7.0, 20.0], 3.0, 6.5)
+    f = pc._faixas([0.5, 1.9, 2.1, 3.0, 4.9, 7.0, 20.0], 2.0, 5.0)
     assert f["dentro"] + f["zona"] + f["fora"] == f["n"] == 7
     assert f["dentro"] == 2      # 1.0 e 2.9
     assert f["fora"] == 2        # 7.0 e 20.0
@@ -296,8 +301,11 @@ def test_as_tres_faixas_somam_o_universo():
 
 
 def test_o_limite_e_inclusivo_no_piso_e_no_teto():
-    """Exatamente 3h está DENTRO; exatamente 6,5h ainda não é excedente."""
-    f = pc._faixas([3.0, 6.5], 3.0, 6.5)
+    """O piso está DENTRO e o teto ainda não é excedente: os dois inclusivos.
+
+    Valores de dublê — o que se afirma é a fronteira, não a hora contratada.
+    """
+    f = pc._faixas([2.0, 5.0], 2.0, 5.0)
     assert f["dentro"] == 1 and f["fora"] == 0 and f["zona"] == 1
 
 
@@ -314,8 +322,8 @@ def test_permanencia_acima_de_24h_vira_nd_CONTADO(monkeypatch):
               {"h_carga": None, "h_descarga": 5.0}]
     monkeypatch.setattr(pc.db, "query", lambda sql, *a, **k: linhas)
     monkeypatch.setattr(pc, "_freetime", lambda raiz: {
-        "contratos": 1, "carga_piso": 3.0, "carga_teto": 3.0,
-        "descarga_piso": 3.0, "descarga_teto": 6.5, "ambiguo": False})
+        "contratos": 1, "carga_piso": 2.0, "carga_teto": 2.0,
+        "descarga_piso": 2.0, "descarga_teto": 5.0, "ambiguo": False})
     d = pc.get_permanencia(RAIZ, "2026-08-01", "2026-08-31")
     assert d["carga"]["fora_da_regua"] == 1
     assert d["descarga"]["fora_da_regua"] == 1
@@ -342,7 +350,7 @@ def test_o_payload_da_carga_e_lista_EXPLICITA(monkeypatch):
         "t_fim_desc": None, "t_finalizada": None,
         # colunas que o ERP pode ganhar a qualquer momento:
         "valorfrete": 8123.45, "motorista": "FULANO DE TAL",
-        "cnpjcpfcodigotomadorservico": "61156113000175",
+        "cnpjcpfcodigotomadorservico": "11222333000199",
     }])
     d = pc.get_agora(RAIZ, 45)
     assert d["em_curso"] == 1
@@ -356,7 +364,7 @@ def test_o_payload_da_carga_e_lista_EXPLICITA(monkeypatch):
                           "pos"}
     texto = repr(carga)
     assert "8123" not in texto and "FULANO" not in texto
-    assert "61156113000175" not in texto
+    assert "11222333000199" not in texto
 
 
 def test_a_posicao_diz_de_onde_veio_e_que_idade_tem(monkeypatch):
@@ -453,13 +461,13 @@ def test_quem_tem_VINCULO_nao_escolhe_nem_pedindo():
     normal: a tela é a mesma e ele tem acesso a ela.
     """
     cli = {"cliente_cnpj_raiz": RAIZ}
-    for pedida in (None, "", "02162259", "84683374", "abcdefgh", "   "):
+    for pedida in (None, "", "44555666", "77888999", "abcdefgh", "   "):
         assert pc.alvo(cli, pedida) == (RAIZ, True), pedida
 
 
 def test_gente_da_casa_escolhe_e_nao_nasce_travada():
     casa = {"admin": True, "telas": ["cliop"]}
-    assert pc.alvo(casa, "02162259") == ("02162259", False)
+    assert pc.alvo(casa, "44555666") == ("44555666", False)
 
 
 def test_gente_da_casa_sem_escolha_PEDE_escolha_em_vez_de_recusar():
@@ -496,7 +504,7 @@ def test_a_lista_de_clientes_NAO_recebe_raiz():
 def test_a_lista_agrega_por_RAIZ_e_rotula_pela_razao_social(monkeypatch):
     """Quatro filiais viram UMA linha, com o nome da EMPRESA.
 
-    O fantasia do ERP traz a filial no nome ("IOCHPE MAXION - RESENDE/RJ"):
+    O fantasia do ERP traz a filial no nome ("CLIENTE DUBLÊ - FILIAL"):
     agregado por raiz, rotular por ele faria quem escolhe ler "Resende" e
     achar que Cruzeiro ficou de fora.
     """
@@ -507,9 +515,9 @@ def test_a_lista_agrega_por_RAIZ_e_rotula_pela_razao_social(monkeypatch):
     assert i_razao < i_fantasia, "razão social tem de vir antes do fantasia"
 
     monkeypatch.setattr(pc.db, "query", lambda *a, **k: [
-        {"raiz": "61156113", "nome": "IOCHPE-MAXION S.A.", "cargas": 6826}])
+        {"raiz": "11222333", "nome": "CLIENTE DUBLÊ S.A.", "cargas": 6826}])
     d = pc.get_clientes(365)
-    assert d["clientes"][0]["raiz"] == "61156113"
+    assert d["clientes"][0]["raiz"] == "11222333"
 
 
 def test_o_nome_do_cliente_e_ROTULO_e_nunca_derruba_a_tela(monkeypatch):

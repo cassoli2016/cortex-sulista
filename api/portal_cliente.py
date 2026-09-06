@@ -15,9 +15,9 @@ uma frase: **nenhuma consulta deste módulo se monta sem uma raiz de CNPJ**.
 mais adiante trataria como "sem filtro" num `if`.
 
 POR QUE A RAIZ E NÃO O `agrupamentocliente` DO ERP, que existe e seria o
-caminho óbvio: em 05/09/2026 o agrupamento 8 ("IOCHPE MAXION") tinha TRÊS dos
-QUATRO CNPJs da empresa — faltava o 61156113000680 (Contagem/MG). Escopar por
-ele entregaria um portal que esconde uma planta inteira do cliente sem erro
+caminho óbvio: em 05/09/2026 o agrupamento de um cliente de quatro plantas
+tinha TRÊS dos QUATRO CNPJs — faltava justamente uma delas. Escopar por ele
+entregaria um portal que esconde uma planta inteira do cliente sem erro
 nenhum, e o sintoma seria "faltam cargas" meses depois. O agrupamento é
 cadastro mantido à mão; a raiz do CNPJ é o próprio documento. Para DECIDIR
 QUEM VÊ O QUÊ vale o documento. (O agrupamento continua valendo para o
@@ -70,12 +70,12 @@ login, o vínculo é com a empresa dona da carga e a ação fica no `audit_log`.
 
 O QUE ESTA TELA NÃO MEDE, DE PROPÓSITO
 ======================================
-**Entrega no prazo.** Medido em 05/09/2026 sobre os 7.285 CT-es de 12 meses da
-Maxion: `dtprevisaoentrega` é IGUAL à data de emissão em 80,3% deles — é
+**Entrega no prazo.** Medido em 05/09/2026 sobre 12 meses de CT-es de um
+cliente de linha: `dtprevisaoentrega` é IGUAL à data de emissão em 80,3% deles — é
 default do ERP, não prazo, exatamente como as OCs de suprimentos. Sobre a
 previsão crua sai "91,2% no prazo", número que parece ótimo e não significa
 nada. Restringindo aos CT-es com prazo de verdade (previsão > emissão) E com
-entrega registrada, a régua cobre 634 de 7.285 — **8,7% da operação**.
+entrega registrada, a régua cobre **8,7% da operação**.
 Um KPI de pontualidade medindo 8,7% e chamando de nível de serviço é pior que
 não ter KPI, e num painel que o CLIENTE lê é pior ainda: ele cobraria por ele.
 Fica como nota de cobertura, não como número.
@@ -222,7 +222,7 @@ SELECT substr(cast(c.cnpjcpfcodigopagadorfrete AS text), 1, 8) AS raiz,
        -- RAZAO SOCIAL antes do fantasia: a raiz e a EMPRESA, e o fantasia do
        -- ERP traz a filial no nome ("IOCHPE MAXION - RESENDE/RJ"). Agregado
        -- por raiz, o `max()` escolheria uma planta ao acaso para rotular as
-       -- quatro, e quem escolhe leria "Resende" achando que perdeu Cruzeiro.
+       -- e quem escolhe leria o nome de UMA planta achando que perdeu as outras.
        max(coalesce(nullif(trim(cd.razaosocial),''),
                     nullif(trim(cd.nomefantasia),''), '(sem nome)')) AS nome,
        count(*) AS cargas
@@ -406,7 +406,7 @@ def _marco(r: dict) -> tuple[int, str, str]:
 #: A primeira versão fechava pelo evento SAC 397 (fim de descarga), depois de
 #: descartar o 401 (viagem finalizada), que aparecia UMA vez em 738 cargas.
 #: Quem opera apontou que o manifesto seria mais preciso, e a medição deu razão
-#: a ele — 45 dias da Maxion, 774 coletas:
+#: a ele — 45 dias de uma operação de linha:
 #:
 #:     com fim de descarga (397) ....  671   86,7%
 #:     com viagem finalizada (401) ..    1    0,1%
@@ -460,10 +460,10 @@ def em_curso(r: dict) -> bool:
 # O FREETIME VEM DO CONTRATO (`sulista.sac_freetimecliente`), por
 # `agrupamentocliente`, e é a ÚNICA coisa aqui que não passa pela raiz do
 # CNPJ — porque freetime é cláusula comercial e mora no agrupamento mesmo.
-# `DISTINCT ON` porque a tabela tem histórico: a Maxion tinha QUATRO linhas
-# ativas para a mesma filial em 05/09/2026 (3h de carga, e descarga entre 3h e
-# 6,5h). Join direto multiplicaria cada coleta por quatro e o total ficaria
-# 4× maior — plausível, e errado. É a regra de vigência da casa.
+# `DISTINCT ON` porque a tabela tem histórico: um cliente pode ter VÁRIAS
+# linhas ativas para a mesma filial ao mesmo tempo (uma por tipo de
+# mercadoria). Join direto multiplicaria cada coleta por todas elas e o total
+# sairia N× maior — plausível, e errado. É a regra de vigência da casa.
 PERM_SQL = """
 WITH ev AS (
   SELECT grupo,empresa,filial,unidade,diferenciadornumero,serie,numero,
@@ -514,11 +514,11 @@ def _freetime(raiz: str) -> dict:
     """O freetime contratado, como FAIXA — nunca como um número só.
 
     O CONTRATO DISTINGUE POR MERCADORIA e a ocorrência SAC não diz qual
-    mercadoria era. Medido em 05/09/2026: a Maxion tem QUATRO linhas ativas,
-    todas com o mesmo `dtinicio` (01/08/2024) — 3h de descarga na linha
-    genérica e 6,5h nas de ESCADAS, RODAS e CONJUNTOS. `DISTINCT ON` ordenado
-    por `dtinicio` desempata ao ACASO entre elas: rodada a rodada, o mesmo mês
-    daria 38,6% ou 70% de aderência, sem nada no código mudar.
+    mercadoria era. Um cliente pode ter várias linhas ativas ao mesmo tempo,
+    TODAS com o mesmo `dtinicio` — uma genérica e outras com tolerância maior,
+    por tipo de carga. `DISTINCT ON` ordenado por `dtinicio` desempata ao ACASO
+    entre elas: rodada a rodada, o mesmo mês daria perto de 39% ou perto de
+    70% de aderência, sem nada no código mudar.
 
     Então não se escolhe. Devolve-se o PISO (menor freetime) e o TETO (maior),
     e a tela mostra três faixas: dentro do piso é aderente sob qualquer

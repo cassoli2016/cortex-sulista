@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.257.2] — 06/09/2026  ·  CX-06/09/2026-v0.257.2
+
+### Alterado
+- As cláusulas de contrato de cliente saíram da documentação do projeto. O repositório do código é PÚBLICO, e as anotações técnicas de uma entrega anterior tinham registrado horas de freetime contratadas e os tipos de mercadoria de um cliente — dado dele, não nosso, e que não precisava estar lá para a anotação fazer sentido.
+- O raciocínio ficou inteiro: o que aquelas anotações precisavam explicar é que um contrato pode ter várias faixas ativas ao mesmo tempo, uma por tipo de carga, e que escolher uma delas no escuro faria o mesmo mês relatar aderências muito diferentes. Isso se explica pela FORMA da tabela; os valores eram ilustração, e ilustração não vale o custo de publicar cláusula de terceiro.
+- Pelo mesmo motivo saíram o CNPJ completo, o volume anual da conta e os nomes das plantas do cliente, e os documentos usados nos testes viraram números de dublê. Os testes afirmam o mesmo que antes — o que eles medem é a forma e o comportamento, e nenhum dos dois dependia do número ser real.
+
 ## [0.257.1] — 05/09/2026  ·  CX-05/09/2026-v0.257.1
 
 ### Corrigido
@@ -19,9 +26,9 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 - Rosca das cargas em curso por etapa do trajeto, com o total no meio do anel e o número ao lado de cada cor. Sem tooltip, porque ninguém passa o mouse numa TV: a legenda é a leitura.
 
 ### Corrigido
-- QUEM FECHA A VIAGEM PASSOU A SER O MANIFESTO, e isso mudou o painel de cabeça para baixo. A tela dizia que 66 cargas estavam a caminho quando TODAS as 66 já tinham o MDF-e encerrado — a carga tinha chegado e o portal seguia dizendo "em viagem", porque a regra antiga esperava um apontamento operacional que ninguém é obrigado a fazer. Medido em 45 dias: fim de descarga cobre 86,7% das cargas, manifesto encerrado cobre 98,7%, e as discordâncias são de mão única.
+- QUEM FECHA A VIAGEM PASSOU A SER O MANIFESTO, e isso mudou o painel de cabeça para baixo. A tela dizia que dezenas de cargas estavam a caminho quando TODAS já tinham o MDF-e encerrado — a carga tinha chegado e o portal seguia dizendo "em viagem", porque a regra antiga esperava um apontamento operacional que ninguém é obrigado a fazer. Medido em 45 dias: fim de descarga cobre 86,7% das cargas, manifesto encerrado cobre 98,7%, e as discordâncias são de mão única.
 - A operação do DIA estava invisível. A tela partia dos apontamentos, que chegam com cerca de um dia de atraso, então carga emitida hoje não existia para ela — inclusive uma que estava viajando naquele instante. Agora a tela parte da coleta, e a carga sem apontamento aparece dizendo "sem apontamento", que é o estado honesto dela.
-- As horas do painel de TV saíam com ponto no lugar da vírgula ("6.5h" onde devia ser "6,5h"). Aparecia no mural, e número com separador errado numa parede faz quem lê duvidar do resto.
+- As horas do painel de TV saíam com ponto no lugar da vírgula (o separador do JavaScript, não o do país). Aparecia no mural, e número com separador errado numa parede faz quem lê duvidar do resto.
 - O card do mapa herdava um posicionamento do painel da Torre e nascia na linha errada da grade. A regra de CSS existia, estava certa e não valia — só o desenho na tela mostrou.
 
 ## [0.256.0] — 05/09/2026  ·  CX-05/09/2026-v0.256.0

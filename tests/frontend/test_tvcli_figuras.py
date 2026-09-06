@@ -118,11 +118,11 @@ def test_rosca_sem_carga_nenhuma_diz_isso(pagina):
 # -------------------------------------------------------------- número em pt-BR
 
 def test_horas_saem_com_VIRGULA(pagina):
-    """"6.5h" saiu no mural do render real: concatenar float na string entrega
-    o separador do JavaScript, não o do país."""
+    """O separador saía do JavaScript, não do país: o float concatenado na
+    string entregava ponto no mural."""
     pg, base = pagina
     pg.goto(f"{base}/static/index.html")
     pg.wait_for_function("() => typeof tvH === 'function'", timeout=15000)
-    assert pg.evaluate("() => tvH(6.5)") == "6,5h"
+    assert pg.evaluate("() => tvH(4.5)") == "4,5h"
     assert pg.evaluate("() => tvH(3)") == "3h"
     assert pg.evaluate("() => tvH(null)") == "n/d"

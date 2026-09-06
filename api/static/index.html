@@ -12962,9 +12962,8 @@ async function tvCliMapa(cargas, resumo){
   });
 
   /* AGRUPA O QUE ESTA NO MESMO PATIO. Numa operacao de planta a planta os
-     veiculos ficam parados no MESMO ponto -- em Cruzeiro e Resende eles se
-     empilham, e o render mostrou seis etiquetas ilegiveis uma por cima da
-     outra. ~1,1 km de grade (0,01 grau) e o suficiente para separar patios
+     veiculos ficam parados no MESMO ponto e se empilham -- o render mostrou
+     seis etiquetas ilegiveis uma por cima da outra. ~1,1 km de grade (0,01 grau) e o suficiente para separar patios
      vizinhos e juntar o que esta no mesmo. Grupo de um continua mostrando a
      PLACA; grupo maior mostra a contagem, porque seis placas num ponto so nao
      se leem de longe de jeito nenhum. */
@@ -13040,8 +13039,8 @@ async function tvCliMapa(cargas, resumo){
    As duas figuras seguem as regras que valem para qualquer grafico da casa:
    semaforo DISCRETO (nao degrade), rotulo direto ao lado, e nada de numero
    sem unidade. */
-/* Horas em portugues: `3` vira "3h" e `6.5` vira "6,5h". Concatenar o float
-   direto na string entregava "6.5h" no mural -- e numero com separador errado
+/* Horas em portugues: `3` vira "3h" e `4.5` vira "4,5h". Concatenar o float
+   direto na string entregava o ponto no mural -- e numero com separador errado
    numa parede e o tipo de detalhe que faz quem le duvidar do resto. */
 function tvH(v){
   return v == null ? 'n/d'
@@ -13059,7 +13058,7 @@ function tvCliGauge(pct, cls, zona){
   const arco = Math.max(0, Math.min(100, pct)) * 1.319;
   /* DOIS ARCOS, e nao um. O verde e o que esta dentro sob QUALQUER contrato; o
      ambar por cima e ate onde o numero poderia ir se toda a faixa do meio
-     fosse mercadoria de 6,5h. Um arco so mostrava 39% em vermelho e escondia
+     fosse do tipo de maior tolerancia. Um arco so mostrava 39% em vermelho e escondia
      que o teto e ~70% -- justamente a ambiguidade que este painel existe para
      nao esconder, e que numa parede ninguem vai ler no rodape.
      O NUMERO continua sendo o conservador: e o unico que nao depende de um
