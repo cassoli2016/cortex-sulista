@@ -3980,3 +3980,95 @@ Tres decisoes que nao sao obvias:
 Guard: `tests/test_pagina_do_painel.py` (14 testes). Cada um foi visto
 VERMELHO com o alvo sabotado — 304 desligado, cache removido, `Vary` apagado e
 ETag trocado para mtime — antes de valer como verde.
+
+---
+
+## O pedagio do pool, e os 30 ms que eu nao consegui pegar (2026-09-06, v0.260.5)
+
+Continuacao da auditoria de desempenho. `SELECT 1` numa conexao presa ao ERP
+custa ~15 ms — e o ida-e-volta, e e o piso. O mesmo `SELECT 1` pelo pool
+custava ~60 ms. Os ~45 ms de diferenca nao eram a consulta: eram duas idas e
+voltas extras, uma na retirada e outra na devolucao.
+
+| configuracao | mediana |
+|---|---|
+| `autocommit=nao` `check=sim` (como estava) | 59,5 ms |
+| `autocommit=nao` `check=nao` | 50,1 ms |
+| `autocommit=SIM` `check=sim` | 33,0 ms |
+| `autocommit=SIM` `check=nao` | **15,9 ms** (o piso) |
+
+### O que eu escrevi errado antes de medir direito
+
+Na auditoria eu tinha atribuido **os 44 ms inteiros ao `check`**, porque foi
+assim que a primeira medicao saiu: "pool com check" menos "conexao presa". A
+subtracao estava certa e a ATRIBUICAO estava errada — aquela diferenca continha
+o check da retirada E o reset da devolucao, e eu chamei tudo de check. So a
+tabela de quatro estados separou os dois, e a metade maior era a que eu nem
+tinha olhado. **Diferenca entre dois numeros nao nomeia a causa; nomear exige
+variar um fator de cada vez.**
+
+### Por que a devolucao custava
+
+O psycopg3 nasce com `autocommit=False`: um `SELECT` deixa a conexao DENTRO de
+uma transacao, e devolve-la ao pool exige um `rollback` — outra ida ao ERP.
+Sob READ COMMITTED essa transacao nunca comprou nada, porque **cada comando ja
+tira o proprio snapshot**; varios `SELECT` no mesmo `get_conn()` nunca tiveram
+consistencia entre si. Ninguem escreve por aqui (a sessao nasce
+`default_transaction_read_only=on`) e nenhum dos 159 pontos de uso chama
+`commit`/`rollback`. Parecia dinheiro no chao.
+
+### E foi por isso que quase entrou
+
+`autocommit=True` derruba a Visao Geral. De ~1,9 s para o `statement_timeout`
+de 60 s — **5 execucoes com autocommit, 5 estouros; 4 sem ele, 4 sadias**,
+alternando na mesma janela do ERP e com o cache limpo dos dois lados. Nao e
+azar de ERP: a alternancia existe justamente para isso.
+
+O que foi descartado como causa, medindo: **nao sao prepared statements**
+(`prepare_threshold=None` estoura igual) e **nao e o `check`** (estoura com o
+antigo e com o novo). A causa NAO FOI ESTABELECIDA.
+
+A hipotese que sobrou, e que fica marcada COMO HIPOTESE porque nao foi medida:
+o custo do pool estava servindo de **freio acidental**. A Visao Geral dispara
+5 grupos em paralelo contra um ERP que e replica de producao de terceiro e
+divide o mesmo usuario com um Power BI; sem os ~45 ms de atraso por retirada,
+as 5 consultas pesadas chegam mais juntas e uma cruza o teto. Observando o
+`pg_stat_activity` durante as duas rodadas, a versao com autocommit tinha DUAS
+consultas nossas ativas ao mesmo tempo, a 23 e 24 s; a sem autocommit, uma.
+
+**Nao se remove um freio sem saber que ele era um freio.** Os 30 ms ficam na
+mesa ate alguem medir a hipotese — e ha um teste
+(`test_o_pool_do_erp_nao_usa_autocommit`) para a ideia nao voltar daqui a tres
+meses por parecer obvia. Um ganho de 30 ms por consulta nao paga a tela
+principal cair.
+
+### O que entrou
+
+So o `check`, e so tirando-o do caminho quente. Ele nasceu para o tunel SSH que
+podia cair no meio; o tunel nao existe mais (o `.env` aponta direto), mas a
+rede publica tem os proprios motivos para derrubar conexao parada — NAT,
+firewall, o ERP reiniciando —, entao a garantia continua valendo. O que nao
+vale e conferir uma conexao que acabou de responder uma consulta: e pagar uma
+ida e volta para saber o que ja se sabe. Agora a conferencia acontece **no
+maximo uma vez por minuto POR CONEXAO** (o carimbo mora na conexao; um contador
+global isentaria a conexao errada, porque o pool entrega qualquer uma das 16).
+
+Medido alternando em 4 voltas, porque o ERP oscila e uma volta so nao decide:
+**61,3 ms -> 46,7 ms, 14,6 ms a menos em cada consulta ao ERP.** Com telas
+fazendo de 5 a 15 consultas, sao 70 a 220 ms por tela. Modesto e de graca.
+
+Detalhe que a sabotagem pegou: o carimbo vai DEPOIS da conferencia. Se fosse
+antes, uma conexao que falhou na conferencia ficaria marcada como conferida e
+passaria livre pelo minuto seguinte.
+
+### O que fica como regra
+
+- **Diferenca entre dois estados nao nomeia a causa.** Para atribuir, varie um
+  fator de cada vez — a tabela de quatro estados custou dois minutos e mudou
+  qual era o alvo.
+- **Custo pode ser freio.** Antes de remover uma lentidao de um caminho que
+  fala com dependencia externa compartilhada, pergunte o que ela estava
+  segurando. Aqui a resposta ainda nao e conhecida, e por isso o ganho ficou.
+- **Recusa medida vale tanto quanto correcao, e precisa de teste.** Sem o
+  guard, a proxima pessoa (ou eu, em marco) reencontra os 30 ms na tabela e
+  liga o autocommit de novo.

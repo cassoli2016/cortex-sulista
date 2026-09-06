@@ -6,6 +6,7 @@ Conecta em 127.0.0.1:15432 (porta local do túnel SSH). As credenciais vêm do
 from __future__ import annotations
 
 import os
+import time
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -57,10 +58,65 @@ def _conninfo() -> str:
     )
 
 
-# Pool de conexões: o banco fica atrás de um túnel SSH e o handshake de uma
-# conexão nova custa vários round-trips — reusar conexões corta esse custo em
-# todas as rotas. `check` descarta conexões mortas (ex.: túnel reiniciado).
+# Pool de conexões: o handshake de uma conexão nova custa vários round-trips —
+# reusar conexões corta esse custo em todas as rotas.
 _pool: "ConnectionPool | None" = None
+
+# ---------------------------------------------------------------------------
+# O QUE O POOL COBRA POR CONSULTA, E O QUE DELE DÁ PARA TIRAR (06/09/2026)
+#
+# `SELECT 1` numa conexão presa custa ~15 ms — é o ida-e-volta até o ERP, e é
+# o piso. O mesmo `SELECT 1` pelo pool custava ~60 ms. Os ~45 ms de diferença
+# NÃO eram a consulta: eram duas idas e voltas extras, uma na retirada e outra
+# na devolução.
+#
+#   autocommit=não  check=sim  (como estava)   59,5 ms
+#   autocommit=não  check=não                  50,1 ms
+#   autocommit=SIM  check=sim                  33,0 ms
+#   autocommit=SIM  check=não                  15,9 ms   <- o piso
+#
+# A tabela diz que a metade MAIOR está na devolução: o psycopg3 nasce com
+# `autocommit=False`, um `SELECT` deixa a conexão dentro de uma transação, e
+# devolvê-la ao pool exige um `rollback`. Sob READ COMMITTED essa transação não
+# comprava consistência nenhuma (cada comando já tira o próprio snapshot), e
+# ninguém escreve por aqui — a sessão nasce `default_transaction_read_only=on`.
+# Parecia dinheiro no chão.
+#
+# **`autocommit=True` FOI MEDIDO E RECUSADO.** Com ele a Visão Geral saiu de
+# ~1,9 s para o `statement_timeout` de 60 s, e não foi azar: 5 execuções do
+# caminho real com autocommit, 5 estouros; 4 sem ele, 4 sadias, alternando na
+# mesma janela do ERP. A causa NÃO foi estabelecida — não são prepared
+# statements (`prepare_threshold=None` estoura igual) e não é o `check` (o
+# estouro acontece com o check antigo e com o novo). A hipótese que sobrou, e
+# que fica registrada COMO HIPÓTESE: o custo do pool estava servindo de freio
+# acidental. A Visão Geral dispara 5 grupos em paralelo contra um ERP que é
+# réplica de produção de terceiro e divide o mesmo usuário com um Power BI;
+# sem os ~45 ms de atraso por retirada, as 5 consultas pesadas chegam mais
+# juntas e uma delas cruza o teto. Enquanto isso não for medido de verdade, o
+# rollback fica — 30 ms por consulta é barato perto da tela principal cair.
+#
+# O QUE FICA, ENTÃO: o `check` saiu do caminho quente, e só isso. Ele nasceu
+# para o túnel SSH que podia cair no meio; hoje o `.env` aponta direto para o
+# ERP, mas a rede pública tem os próprios motivos para derrubar conexão parada
+# (NAT, firewall, o ERP reiniciando), então a garantia continua valendo a pena.
+# O que não vale é conferir uma conexão que acabou de responder: é pagar uma
+# ida e volta para saber o que já se sabe. Agora a conferência acontece no
+# máximo UMA VEZ POR MINUTO por conexão — a que está trabalhando não paga nada,
+# a que ficou parada é conferida antes de ser entregue. Medido alternando em 4
+# voltas: 61,3 ms -> 46,7 ms, **14,6 ms a menos em cada consulta ao ERP**.
+# ---------------------------------------------------------------------------
+
+INTERVALO_CONFERIR = 60.0   # segundos
+
+
+def _conferir_se_parada(conn) -> None:
+    agora = time.monotonic()
+    # o atributo mora na CONEXÃO porque é dela que a resposta depende; o pool
+    # troca conexão por baixo e um contador global conferiria a errada.
+    if agora - getattr(conn, "_cortex_conferida_em", 0.0) < INTERVALO_CONFERIR:
+        return
+    ConnectionPool.check_connection(conn)   # levanta se estiver morta
+    conn._cortex_conferida_em = agora
 
 
 def _get_pool() -> "ConnectionPool":
@@ -88,7 +144,12 @@ def _get_pool() -> "ConnectionPool":
         _pool = ConnectionPool(
             _conninfo(), kwargs={"row_factory": dict_row},
             min_size=2, max_size=16, max_idle=300, timeout=15,
-            check=ConnectionPool.check_connection, name="ava", open=True)
+            # `max_lifetime`: conexão parada morre calada (NAT, firewall, ERP
+            # reiniciando). Reciclar de hora em hora custa um handshake
+            # amortizado e limita há quanto tempo uma conexão pode estar
+            # apodrecendo sem ninguém ter olhado.
+            max_lifetime=3600,
+            check=_conferir_se_parada, name="ava", open=True)
     return _pool
 
 

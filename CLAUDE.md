@@ -541,6 +541,17 @@ barra empilhada, não donut.
   o **HEAD do git** e exigir `sumiram: nenhuma`. O `git diff --stat` denuncia
   antes de qualquer teste. Editar o `index.html` por fatia: memória
   `editar-index-html-por-fatia`.
+- **Diferença entre dois estados não NOMEIA a causa** — para atribuir, varie um
+  fator de cada vez. Os "44 ms do `check` do pool" eram 15 ms de check mais
+  30 ms de `rollback` na devolução, e a metade maior era a que ninguém tinha
+  olhado; só a tabela de quatro estados separou. E **custo pode ser freio**:
+  tirar o rollback (`autocommit=True`) derrubou a Visão Geral de 1,9 s para o
+  `statement_timeout` de 60 s, 5 vezes em 5 — o ERP é compartilhado com um
+  Power BI e o atraso do pool estava segurando as 5 consultas paralelas. Causa
+  não estabelecida, ganho deixado na mesa, guard escrito para a ideia não
+  voltar (`tests/test_pool_do_erp.py`). Antes de remover uma lentidão de um
+  caminho que fala com dependência externa compartilhada, pergunte o que ela
+  estava segurando.
 - **Medição contra dependência externa vale UMA vez e só se REPETIDA.** Número
   isolado durante incidente é sintoma do incidente, não da consulta: a de OC da
   Visão Geral foi acusada de lenta com base em 200 s medidos dentro de uma

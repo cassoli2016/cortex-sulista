@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.260.5] — 06/09/2026  ·  CX-06/09/2026-v0.260.5
+
+### Corrigido
+- Toda consulta ao ERP ficou 14,6 milissegundos mais leve. Antes de cada consulta o sistema perguntava ao ERP "você ainda está aí?" — uma ida e volta inteira só para confirmar o óbvio, inclusive quando a conexão tinha acabado de responder outra consulta um segundo antes. Agora essa pergunta é feita no máximo uma vez por minuto por conexão: a que está trabalhando não paga nada, e a que ficou parada continua sendo conferida antes de ser usada. Uma tela que faz dez consultas ao ERP abre cerca de 0,15 segundo mais cedo.
+- Fica registrado o que foi tentado e RECUSADO, porque parecia a melhor parte da correção: havia mais 30 milissegundos por consulta a ganhar, desligando um controle de transação que — pela regra do banco — não comprava garantia nenhuma para quem só lê. Ao medir, a Visão Geral saiu de 1,9 segundo para o teto de 60 segundos, cinco vezes em cinco. A causa não foi identificada, e sem entender não se mexe: o ganho ficou na mesa e há um teste impedindo que a ideia volte por parecer boa.
+
 ## [0.260.4] — 06/09/2026  ·  CX-06/09/2026-v0.260.4
 
 ### Adicionado
