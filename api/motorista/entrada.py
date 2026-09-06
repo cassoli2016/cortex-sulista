@@ -39,7 +39,7 @@ autenticação com o segredo dentro é o vazamento que ninguém procura porque
 "é só o log".
 
 ═══════════════════════════════════════════════════════════════════════════
-O FREIO DO WHATSApp DA CASA, E O QUE FOI MEXIDO NELE
+O FREIO DO WHATSAPP DA CASA, E O QUE FOI MEXIDO NELE
 ═══════════════════════════════════════════════════════════════════════════
 `whatsapp.envio.enviar()` tem três freios: interruptor geral, JANELA de
 horário (08:00–20:00 por padrão) e TETO de destinatários distintos por dia (60).
@@ -52,12 +52,37 @@ empresa: é resposta a alguém que está com o celular na mão esperando por ela
 abre à noite — que é exatamente quando o motorista está na estrada. A abertura
 é explícita, é só deste caminho (`regras=`), e não muda a configuração da casa.
 
-**O teto do dia NÃO é mexido**, e isso é uma restrição de OPERAÇÃO que precisa
-ficar escrita: com 60 destinatários distintos por dia no número principal,
-compartilhados com todo o resto do que a casa manda, cadastrar 300 motoristas
-de uma vez não cabe. Ou se faz em ondas, ou o app usa a instância reserva
-(`MOTORISTA_ZAP_INSTANCIA=backup`) — que também separa o risco: se o número do
-app for banido, a conversa com os clientes não cai junto.
+**O teto do dia NÃO é mexido**, e o que fazer com ele deixou de ser adivinhação
+em 06/09/2026: medido em `zap_envios`, a casa gasta MEDIANA DE 2 destinatários
+distintos por dia (pior dia dos últimos 28: 3) contra um teto de 60. Sobram ~58
+vagas por dia. A frase que estava aqui antes — "cadastrar 300 motoristas de uma
+vez não cabe" — foi escrita olhando o teto e não o consumo, e estava errada na
+prática: o gargalo real é de dias de calendário (~300 ÷ 58 ≈ 6 dias de ondas),
+e mesmo isso é teórico, porque ninguém instala um app todo no mesmo dia.
+
+═══════════════════════════════════════════════════════════════════════════
+POR QUE O NÚMERO PRINCIPAL, E NÃO A RESERVA (decidido em 06/09/2026)
+═══════════════════════════════════════════════════════════════════════════
+As duas instâncias existem e estão configuradas. A escolha é a principal, por
+três razões — e a primeira é a única que não é opinião:
+
+1. **A capacidade não é o problema** (a medição acima). A reserva resolveria um
+   aperto de cota que não existe.
+2. **A reserva existe para NÃO ser gasta.** `whatsapp/cliente.py` diz isso
+   explicitamente ao recusar troca automática: disparar pela reserva quando a
+   principal cai "queimaria o segundo número também, que é justamente o que não
+   se pode perder". Um fluxo automático, recorrente e crescente — todo login de
+   todo motorista, para sempre — é exatamente o que gasta reputação. Pôr o app
+   ali transformaria o pneu step em pneu de rodagem.
+3. **O código precisa CHEGAR e ser ACREDITADO.** O motorista já recebe recado
+   da torre pelo número principal: o código chega numa conversa que ele
+   reconhece. Vindo de um número desconhecido, "seu código é 123456" tem a
+   forma exata de um golpe — e um código ignorado é um login que não acontece,
+   que é o único jeito de este app falhar por inteiro.
+
+`MOTORISTA_ZAP_INSTANCIA` continua existindo como escape: se um dia o app
+sozinho passar a responder por parcela grande do envio diário, mudar de número
+é uma linha de `.env`. A decisão de hoje é qual é o PADRÃO, não uma amarra.
 """
 from __future__ import annotations
 

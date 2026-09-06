@@ -191,7 +191,21 @@ async function pedir(url, opcoes) {
   }
   let dados = null;
   try { dados = await r.json(); } catch (e) { dados = null; }
-  if (r.ok) return { ok: true, status: r.status, dados: dados || {} };
+  // A TARJA DE LEITURA VELHA VEM DO CABECALHO, nao do corpo -- e uma regra da
+  // casa, nao uma preferencia desta pagina. Enquanto cada tela desenhava a
+  // propria tarja lendo o payload, uma delas lia um campo que nunca existiu e
+  // dizia "0 min atras" em toda ocorrencia: defeito que so aparece no dia
+  // ruim, que e justamente o dia em que ninguem confere o texto da tarja.
+  // O `JSONResponse` da casa carimba estes tres em QUALQUER rota, existente ou
+  // futura, sempre que serve a ultima leitura boa.
+  if (r.ok) {
+    return {
+      ok: true, status: r.status, dados: dados || {},
+      velha: r.headers.get("X-Leitura-Velha") === "1",
+      velhaEm: r.headers.get("X-Leitura-Em") || "",
+      velhaIdade: parseInt(r.headers.get("X-Leitura-Idade") || "0", 10)
+    };
+  }
   return {
     ok: false, status: r.status,
     mensagem: (dados && dados.mensagem) ||
@@ -300,11 +314,14 @@ $("codigo").addEventListener("keydown", (e) => { if (e.key === "Enter") confirma
 $("fone").addEventListener("keydown", (e) => { if (e.key === "Enter") $("b-pedir").click(); });
 
 // ------------------------------------------------------------------- viagem
-function idade(iso) {
-  const d = new Date(iso);
-  if (isNaN(d)) return "";
-  const min = Math.round((Date.now() - d.getTime()) / 60000);
-  if (min < 60) return min + " min";
+// A idade vem PRONTA do servidor (`X-Leitura-Idade`, em segundos). Calcular a
+// diferenca contra o relogio do aparelho seria medir o relogio do motorista,
+// que e dele e pode estar errado -- e um celular meia hora adiantado diria
+// "30 min atras" sobre um dado que acabou de chegar.
+function duracao(seg) {
+  seg = Math.max(0, Number(seg) || 0);
+  const min = Math.round(seg / 60);
+  if (min < 60) return (min || 1) + " min";
   const h = Math.floor(min / 60);
   return h < 24 ? h + "h" : Math.floor(h / 24) + " dias";
 }
@@ -358,12 +375,15 @@ async function abrirViagem(nome) {
     return;
   }
   // NUMERO VELHO SERVIDO CALADO E PIOR QUE TELA VAZIA, porque ninguem
-  // desconfia dele. Quando o cache devolve a ultima leitura boa, a tarja e
+  // desconfia dele. Quando o servidor serve a ultima leitura boa, a tarja e
   // OBRIGATORIA — e diz a idade, que e o que decide se da para usar.
+  //
+  // E ela tem de SUMIR quando o numero volta a ser bom: tarja grudada e pior
+  // que tarja nenhuma, porque some a confianca na tela inteira.
   const t = $("tarja-velha");
-  if (r.dados.leitura_velha) {
+  if (r.velha) {
     t.textContent = "Sem conexão com o sistema agora. Estes dados são de " +
-      (idade(r.dados.leitura_em) || "algum tempo") + " atrás.";
+      (duracao(r.velhaIdade) || "algum tempo") + " atrás.";
     t.hidden = false;
   } else {
     t.hidden = true;

@@ -158,3 +158,34 @@ def test_cidade_sem_uf_nao_vira_barra_solta():
     assert mviagem._cidade("JOINVILLE", "") == "JOINVILLE"
     assert mviagem._cidade("", "SC") == "SC"
     assert mviagem._cidade("", "") == ""
+
+
+# ------------------------------------------------- a rede da leitura velha
+
+def test_a_janela_e_a_DA_CASA_e_nao_uma_escolhida_aqui():
+    """A janela era 6 h neste arquivo, escolhida sozinha antes de a casa ter
+    uma. Uma viagem pode começar e terminar dentro de seis horas — e duas
+    janelas diferentes para a mesma rede é como uma delas envelhece sem que
+    ninguém perceba que envelheceu."""
+    import inspect
+    fonte = inspect.getsource(mviagem)
+    assert "@cached(ttl=60, velha_ate=VELHA_ATE)" in fonte
+    assert queries.VELHA_ATE == 2 * 3600
+
+
+def test_minha_viagem_NAO_e_tela_de_tempo_real_e_isso_esta_escrito():
+    """O critério de quem pode receber a rede é a RESOLUÇÃO da tela, não o
+    grupo do menu (`tests/test_leitura_velha.py::TEMPO_REAL`).
+
+    Esta tela publica a IDENTIDADE de uma viagem — cliente, origem, destino,
+    placa, saída, previsão —, que muda quando uma viagem começa ou termina, não
+    de minuto em minuto. No dia em que ela passar a publicar POSIÇÃO ("onde
+    estou agora"), a rede tem de sair junto, e este teste é o lembrete de que a
+    decisão foi tomada e por quê.
+    """
+    import inspect
+    fonte = inspect.getsource(mviagem)
+    for proibida in ("latitude", "longitude", "posicao", "ultima_posicao"):
+        assert proibida not in fonte.lower(), (
+            f"`{proibida}` entrou: se a tela passou a publicar posição, ela "
+            "virou tela de tempo real e não pode servir leitura velha")

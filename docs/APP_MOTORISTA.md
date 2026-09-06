@@ -21,7 +21,7 @@ ainda está em ajuste e migration aplicada trava o conteúdo do arquivo.
 | `api/motorista/__init__.py` | o CONTRATO do módulo — o que sai, o que não sai, e por que a identidade é separada |
 | `api/motorista/sessao.py` | cookie `cortex_mot`, JWT com `tipo`, 30 dias deslizantes, `exigir()` que levanta |
 | `api/motorista/entrada.py` | código de 6 dígitos no WhatsApp, resposta uniforme, quatro contenções |
-| `api/motorista/viagem.py` | a viagem em curso, com cache de última leitura boa (6 h) |
+| `api/motorista/viagem.py` | a viagem em curso, com a rede de última leitura boa na janela da casa (2 h) |
 | `api/static/motorista.html` | **16 KB**, uma coluna, sem vendor, sem webfont, claro e escuro |
 | `scripts/vincular_motoristas.py` | cadastra e desliga vínculos, em ondas (`--limite`), sem escrever nada sem `--aplicar` |
 | Saúde do Servidor + snapshot do Copiloto | no mesmo commit, como manda a casa |
@@ -32,6 +32,43 @@ cookie → a viagem em curso de um motorista real (Cruzeiro/SP → Sete Lagoas/M
 placa + carreta, saída e previsão), com o WhatsApp dublado — nada saiu da
 máquina.
 
+### 0-bis. O código de entrada sai pelo número PRINCIPAL (decidido em 06/09/2026)
+
+A pergunta estava em aberto: principal (o que fala com clientes) ou reserva?
+Três razões fecharam nele, e a primeira é a única que não é opinião.
+
+**1. A capacidade não é o problema — e a premissa contrária estava errada.**
+Este documento dizia que "cadastrar 300 motoristas de uma vez não cabe" no teto
+de 60 destinatários distintos por dia. Isso foi escrito olhando o TETO e nunca o
+CONSUMO. Medido em `zap_envios` (28 dias):
+
+| | destinatários distintos/dia |
+|---|---|
+| mediana | **2** |
+| pior dia | 3 |
+| teto | 60 |
+
+Sobram ~58 vagas por dia. O gargalo de onboarding é de dias de calendário
+(~300 ÷ 58 ≈ 6 dias), e mesmo isso é teórico — ninguém instala um app inteiro no
+mesmo dia. A reserva resolveria um aperto que não existe.
+
+**2. A reserva existe para NÃO ser gasta.** `api/whatsapp/cliente.py` diz isso
+ao recusar troca automática: disparar pela reserva quando a principal cai
+"queimaria o segundo número também, que é justamente o que não se pode perder".
+Um fluxo automático, recorrente e crescente — todo login de todo motorista, para
+sempre — é o que gasta reputação. Pôr o app ali transforma o pneu step em pneu
+de rodagem.
+
+**3. O código precisa CHEGAR e ser ACREDITADO.** O motorista já recebe recado da
+torre pelo número principal: o código chega numa conversa que ele reconhece.
+Vindo de um número desconhecido, "seu código é 123456" tem a forma exata de um
+golpe — e código ignorado é login que não acontece, que é o único jeito de este
+app falhar por inteiro.
+
+`MOTORISTA_ZAP_INSTANCIA` continua existindo como escape: se um dia o app
+sozinho responder por parcela grande do envio diário, trocar é uma linha de
+`.env`. O que se decidiu é o PADRÃO, não uma amarra.
+
 ### O que falta para alguém usar de verdade
 
 1. **Aplicar a migration 0057** em produção (`scripts/migrar_schema.py`). Até
@@ -41,8 +78,8 @@ máquina.
    do WhatsApp — ver §6.
 3. **A tela de administração no painel** (vincular, desligar, ver quem entrou).
    Hoje isso é script; script é suficiente para a piloto, não para a operação.
-4. **Decidir a instância do WhatsApp** (`MOTORISTA_ZAP_INSTANCIA`): o número
-   principal fala com clientes e o teto do dia é compartilhado.
+4. ~~Decidir a instância do WhatsApp~~ — **decidido em 06/09/2026: o número
+   PRINCIPAL** (§0-bis).
 5. Versão e bloco em `docs/versoes.yaml` — ficam para a entrega ao `main`, com
    o número combinado com as outras worktrees (são nove).
 

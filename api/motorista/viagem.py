@@ -24,18 +24,39 @@ uma coluna trocando de `integer` para `varchar` e cinco telas morreram no
 cast custa o índice desta coluna e paga por não voltar a acontecer aqui; a
 janela de data é o que segura o custo (medido no fim deste arquivo).
 
-CACHE COM ÚLTIMA LEITURA BOA (6 h). O ERP é réplica de produção de terceiro e
-já teve manhã ruim; um motorista na doca que abre o app e vê tela vazia liga
-para a torre — que é o telefonema que este app existe para tirar. Número de
-20 minutos atrás, DITO na tela, serve para trabalhar. O que não se faz é
-servir o velho calado: `leitura_velha` vai no payload e a tela mostra a tarja.
+CACHE COM ÚLTIMA LEITURA BOA, na janela da casa (`queries.VELHA_ATE`, 2 h). O
+ERP é réplica de produção de terceiro e já teve manhã ruim; um motorista na
+doca que abre o app e vê tela vazia liga para a torre — que é o telefonema que
+este app existe para tirar.
+
+**POR QUE ESTA TELA PODE RECEBER A REDE**, pelo critério que
+`tests/test_leitura_velha.py` guarda: o que decide não é o grupo do menu, é a
+RESOLUÇÃO do que a tela publica. Torre, segurança, portaria e programação
+publicam MINUTOS ("onde está agora") e por isso não podem — a tarja avisa, mas
+a decisão tomada sobre uma posição de duas horas atrás já foi tomada.
+
+Esta tela publica a IDENTIDADE de uma viagem: cliente, origem, destino, placa,
+hora de saída e previsão. Isso muda quando uma viagem começa ou termina, não de
+minuto em minuto. E há uma segunda proteção que só existe aqui: **o leitor é a
+própria pessoa que está dirigindo a viagem**. Se o cartão mostrar a viagem de
+ontem, ele é o único leitor do CÓRTEX capaz de saber na hora que está errado —
+ao contrário de quem lê uma torre sobre um caminhão que nunca viu.
+
+A janela era 6 h neste arquivo antes da v0.258.0, escolhida sozinha. Passou a
+ser a da casa: uma viagem pode começar e terminar dentro de seis horas, e a
+janela de duas é a que a casa inteira usa e explica.
+
+Servir o velho CALADO é que não se faz: o `JSONResponse` da casa carimba
+`X-Leitura-Velha` sempre que o payload traz `leitura_velha`, e é o CABEÇALHO
+que a página lê — não o corpo. Enquanto cada tela desenhava a própria tarja,
+uma delas lia um campo que nunca existiu e dizia "0 min atrás" para sempre.
 """
 from __future__ import annotations
 
 import logging
 
 from .. import db
-from ..queries import cached
+from ..queries import VELHA_ATE, cached
 
 log = logging.getLogger("cortex.motorista.viagem")
 
@@ -90,7 +111,7 @@ def _cidade(cidade: str, uf: str) -> str:
     return cidade or uf or ""
 
 
-@cached(ttl=60, velha_ate=6 * 3600)
+@cached(ttl=60, velha_ate=VELHA_ATE)
 def _consultar(motorista_codigo: str) -> dict:
     with db.get_conn() as conn, conn.cursor() as cur:
         cur.execute(VIAGEM_SQL, {"mot": str(motorista_codigo),
