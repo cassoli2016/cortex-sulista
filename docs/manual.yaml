@@ -29,6 +29,30 @@ glossario:
     escolhido na tela Minha Operação, e sem escolha ela diz isso em vez de
     mostrar a conta de alguém que ninguém pediu.
 
+    É desenhado para ser lido DA PORTA DA SALA: o número de cargas em curso é
+    o elemento principal, com a repartição por etapa ao lado — somar quatro
+    cartões para chegar no total desfaz a leitura de três segundos que uma
+    parede existe para dar. O cartão do freetime acende inteiro na cor do
+    estado, e no rodapé passa uma faixa com o que merece atenção (veículo sem
+    posição, carga sem apontamento, descarga acima do freetime). A faixa só
+    aparece quando há o que dizer: parede que alarma sempre é parede que
+    ninguém olha.
+
+    A lista traz a PREVISÃO DE CHEGADA de quem já saiu, calculada pelo tempo
+    que aquela rota costuma levar no nosso histórico de seis meses — porta a
+    porta, já com fila e parada dentro. Rota com poucas viagens não ganha
+    previsão: fica em branco, que é mais honesto que um número sem lastro.
+    Previsão que já passou aparece em âmbar, e não em vermelho: é mediana, e
+    por definição uma em cada duas viagens passa dela.
+
+    Nem o painel nem a tela nomeiam o fornecedor de rastreamento — quem nos
+    vende o sinal é assunto nosso. O que aparece é quantos veículos têm
+    posição e que idade ela tem, que é o que interessa a quem lê.
+
+    Carga que ainda não teve nenhum apontamento da operação NÃO aparece: o
+    que o portal teria a dizer sobre ela é "não sabemos por onde anda", e isso
+    é processo nosso. Ela entra na tela no instante do primeiro apontamento.
+
     Traz um MAPA com os veículos que estão levando as cargas em curso — só os
     do cliente, nunca a frota — agrupados por pátio, porque numa operação de
     planta a planta eles param no mesmo ponto e as etiquetas se empilhariam.

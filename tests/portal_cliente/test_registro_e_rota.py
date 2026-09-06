@@ -429,13 +429,19 @@ def test_posicao_velha_NAO_some_do_mapa():
     assert "#6E7883" in corpo, "a cor de posição velha sumiu"
 
 
-def test_a_cobertura_do_mapa_vai_na_tela():
-    """"33 de 33 veículos" impede olhar os pontos e concluir que aquilo é a
-    operação inteira; a idade impede tomar posição de ontem por posição de
-    agora."""
+def test_a_cobertura_do_mapa_vai_na_tela_SEM_nomear_fornecedor():
+    """A cobertura e a idade ficam; o nome de quem nos vende rastreamento sai.
+
+    "33 de 33 veículos" impede olhar os pontos e concluir que aquilo é a
+    operação inteira, e a idade impede tomar posição de ontem por posição de
+    agora — as duas coisas interessam a quem lê a parede. Já "erp" e "gobrax"
+    são fornecedor NOSSO: num painel que o cliente lê, não dizem nada a ele e
+    expõem a nossa cadeia. A procedência por fornecedor continua no payload,
+    para a Saúde e o diagnóstico interno.
+    """
     corpo = INDEX.split("async function tvCliMapa")[1].split("\n}")[0]
     assert "veículos" in corpo and "fresca_ate_min" in corpo
-    assert "fontes" in corpo
+    assert "r.fontes" not in corpo
 
 
 # O medidor e a rosca sao cobrados por COMPORTAMENTO em
@@ -484,3 +490,104 @@ def test_numero_em_portugues_leva_VIRGULA():
     corpo = INDEX.split("async function loadTvCli")[1].split("\nasync function")[0]
     assert "tvH(" in corpo
     assert "descarga_piso + 'h'" not in corpo
+
+
+# ============================== o painel de TV: presença sem inventar cor
+
+def test_a_TV_nao_estica_os_cards_ate_a_altura_do_mais_alto():
+    """`align-items:start` na segunda linha.
+
+    Com o `stretch` padrão o cartão do medidor acompanhava a altura da tabela e
+    sobrava meia tela de vazio embaixo do arco. Numa parede, vazio não é
+    respiro — é espaço que podia estar dizendo alguma coisa.
+    """
+    assert ".tvc-linha2{align-items:start}" in INDEX
+    assert 'class="tv-grid tvc-linha2"' in INDEX
+
+
+def test_a_grade_da_TV_e_minmax_0_1fr():
+    """A armadilha que a régua NÃO pega em painel de TV.
+
+    `1fr` é `minmax(auto,1fr)`: a trilha não encolhe abaixo do min-content, e
+    a tabela `nowrap` de quatro colunas empurrou o card para FORA da tela sem
+    erro nenhum. A régua de largura pula os `E_TV`, então aqui o guard é este.
+    """
+    assert "#view-tvcli .tv-grid{grid-template-columns:repeat(4,minmax(0,1fr))}" in INDEX
+    assert "#view-tvcli .tv-tab{table-layout:fixed}" in INDEX
+
+
+def test_a_tabela_da_TV_nao_quebra_linha():
+    """Rota e situação em duas linhas dobram a altura de cada registro.
+
+    Numa parede, texto cortado com reticências se lê melhor que texto
+    empilhado — e as quatro colunas têm largura declarada, senão `fixed`
+    divide igual e o número da coleta sai com reticências.
+    """
+    assert "#tvcli-cargas td,#view-tvcli .tv-tab th{white-space:nowrap;overflow:hidden;" in INDEX
+    for n in (1, 2, 3, 4):
+        assert "#view-tvcli .tv-tab th:nth-child(%d){width:" % n in INDEX
+
+
+def test_o_heroi_traz_o_TOTAL_e_a_reparticao_junto():
+    """Obrigar o olho a somar quatro cartões para chegar no total desfaz a
+    leitura de três segundos que a TV existe para dar."""
+    bloco = _bloco_tv()
+    assert 'id="tvcli-hero"' in bloco and 'id="tvcli-etapas"' in bloco
+    assert ".tvc-hero .n{font-size:clamp(" in INDEX
+
+
+def test_o_chip_de_etapa_leva_o_NUMERO_junto_da_cor():
+    """Sem tooltip numa TV, cor sozinha não diz nada."""
+    corpo = INDEX.split("async function loadTvCli")[1].split("\n}")[0]
+    assert "tvc-chip" in corpo
+    for etapa in ("'Em viagem'", "'No destino'", "'Na origem'"):
+        assert etapa + "," in corpo, etapa
+
+
+def test_carga_sem_apontamento_NAO_aparece_no_painel_do_cliente():
+    """Decisão de quem opera (06/09/2026).
+
+    A carga existe — a coleta foi emitida e o manifesto não fechou — mas o que
+    o portal teria a dizer sobre ela é "não sabemos por onde anda", e isso é
+    processo nosso, não informação do cliente. Ela volta no instante em que a
+    operação apontar o primeiro marco.
+
+    O CUSTO fica dito no código e aqui: a carga emitida hoje some do painel até
+    o primeiro apontamento, que chega com cerca de um dia de atraso.
+    """
+    corpo = INDEX.split("async function loadTvCli")[1].split("\n}")[0]
+    assert "Sem apontamento'," not in corpo
+    assert "semApont" not in corpo
+
+
+def test_o_brilho_segue_a_cor_do_ESTADO_e_nao_inventa_uma():
+    """`currentColor`: o card acende na cor que o semáforo já decidiu.
+
+    Se o brilho tivesse cor própria, seria um quarto estado — e o semáforo
+    desta casa tem três.
+    """
+    assert ".tvc-glow{box-shadow:inset 0 0 0 2px currentColor" in INDEX
+    corpo = INDEX.split("async function loadTvCli")[1].split("\n}")[0]
+    assert "card.style.color = cor" in corpo
+
+
+def test_o_ticker_so_aparece_quando_ha_o_que_dizer():
+    """Parede que alarma sempre é parede que ninguém olha."""
+    corpo = INDEX.split("function tvCliTicker")[1].split("\n}")[0]
+    assert "if(!itens.length){ cx.hidden = true;" in corpo
+    # cada linha é um fato com número, nunca um aviso genérico
+    assert "sem posição no rastreamento" in corpo
+    assert "acima do freetime" in corpo
+
+
+def test_o_ticker_repete_a_lista_para_nao_ficar_vazio():
+    """A animação anda 100% da largura e volta ao início: com uma cópia só, a
+    faixa fica vazia metade do tempo."""
+    corpo = INDEX.split("function tvCliTicker")[1].split("\n}")[0]
+    assert "linha + linha" in corpo
+
+
+def test_o_movimento_respeita_quem_pediu_menos_movimento():
+    assert "@media (prefers-reduced-motion: reduce){" in INDEX
+    i = INDEX.index(".tvc-tick-in{animation:none")
+    assert i > INDEX.index("@keyframes tvcTick")

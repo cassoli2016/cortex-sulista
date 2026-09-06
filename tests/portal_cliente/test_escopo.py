@@ -361,7 +361,7 @@ def test_o_payload_da_carga_e_lista_EXPLICITA(monkeypatch):
     # como todo o resto.
     assert set(carga) == {"coleta", "emissao", "origem", "uf_origem", "destino",
                           "uf_destino", "placa", "marco", "marco_cod", "marco_em",
-                          "pos"}
+                          "pos", "eta", "eta_amostras"}
     texto = repr(carga)
     assert "8123" not in texto and "FULANO" not in texto
     assert "11222333000199" not in texto
@@ -526,3 +526,106 @@ def test_o_nome_do_cliente_e_ROTULO_e_nunca_derruba_a_tela(monkeypatch):
         raise RuntimeError("ERP fora")
     monkeypatch.setattr(pc.db, "query", _explode)
     assert pc.nome_do_cliente(RAIZ) == ""
+
+
+
+# ================================================ previsão de chegada (ETA)
+
+def _rotas_dubles():
+    return {"CRUZEIRO/SP|RESENDE/RJ": (1.75, 1609),
+            "CRUZEIRO/SP|SETE LAGOAS/MG": (14.75, 245)}
+
+
+def _r(**kw):
+    base = {"origem": "CRUZEIRO", "uf_origem": "SP", "destino": "RESENDE",
+            "uf_destino": "RJ", "t_saiu_carga": "2026-09-06 08:00",
+            "t_viagem": "2026-09-06 08:30"}
+    base.update(kw)
+    return base
+
+
+def test_a_previsao_conta_da_SAIDA_e_nao_do_em_viagem():
+    """O histórico mede de `dtsaida` a `dtchegada`.
+
+    Contar do "em viagem" daria previsão mais curta para a mesma estrada, e
+    duas cargas lado a lado chegariam em horas diferentes conforme qual evento
+    a operação apontou primeiro.
+    """
+    d = pc._eta(_r(), 400, _rotas_dubles())
+    assert d["eta"] == "2026-09-06 09:45"        # 08:00 + 1,75 h
+    # sem a saída, cai no "em viagem" — melhor uma previsão do que nenhuma
+    d2 = pc._eta(_r(t_saiu_carga=None), 400, _rotas_dubles())
+    assert d2["eta"] == "2026-09-06 10:15"       # 08:30 + 1,75 h
+
+
+def test_so_tem_previsao_quem_JA_SAIU():
+    """Antes de sair não há de onde contar."""
+    rotas = _rotas_dubles()
+    for cod in (394, 398, 396, 399, 397, 401, 0):
+        assert pc._eta(_r(), cod, rotas)["eta"] is None, cod
+    for cod in (395, 400):
+        assert pc._eta(_r(), cod, rotas)["eta"] is not None, cod
+
+
+def test_rota_sem_amostra_NAO_ganha_previsao():
+    """A régua é a do próprio módulo de ciclos (`N_MIN`), e não uma segunda
+    inventada aqui: duas réguas para a mesma pergunta discordam um dia."""
+    d = pc._eta(_r(destino="CIDADE QUE NAO RODA"), 400, _rotas_dubles())
+    assert d == {"eta": None, "eta_amostras": None}
+
+
+def test_a_previsao_diz_de_quantas_viagens_ela_saiu():
+    """Número sem lastro numa parede vira promessa."""
+    d = pc._eta(_r(), 400, _rotas_dubles())
+    assert d["eta_amostras"] == 1609
+
+
+def test_a_previsao_e_ACRESCIMO_e_nao_derruba_o_painel(monkeypatch):
+    """Sem ciclos, a carga continua na tela dizendo onde está."""
+    from api import programacao_ciclos
+
+    def _explode():
+        raise RuntimeError("ciclos fora")
+    monkeypatch.setattr(programacao_ciclos, "get_ciclos", _explode)
+    assert pc._eta_por_rota() == {}
+
+
+def test_a_fonte_NAO_nomeia_fornecedor(monkeypatch):
+    """O payload chega ao navegador do cliente: fornecedor é assunto nosso."""
+    monkeypatch.setattr(pc.db, "query", lambda *a, **k: [])
+    monkeypatch.setattr(pc, "_eta_por_rota", lambda: {})
+    for fn, args in ((pc.get_agora, (RAIZ, 45)),
+                     (pc.get_historico, (RAIZ, 12))):
+        queries._RESP_CACHE.clear()
+        fonte = fn(*args)["fonte"].lower()
+        for nome in ("gobrax", "erp", "ava", "smartec", "tomtom"):
+            assert nome not in fonte, (fn.__name__, nome, fonte)
+
+
+def test_sem_apontamento_sai_da_TELA_mas_nao_da_CONTA(monkeypatch):
+    """Some da lista e do "em curso", e continua contada à parte.
+
+    Quem precisa medir esse buraco por dentro tem o número; quem lê a parede
+    não vê uma carga sobre a qual não temos o que dizer.
+    """
+    linhas = [
+        {"coleta": 1, "emissao": "2026-09-06", "origem": "C", "uf_origem": "SP",
+         "destino": "D", "uf_destino": "RJ", "placa": "", "t_cheg_carga": None,
+         "t_saiu_carga": None, "t_viagem": None, "t_cheg_desc": None,
+         "t_fim_desc": None, "t_finalizada": None, "mdfe_encerrado": 0,
+         "mdfe_em": None},
+        {"coleta": 2, "emissao": "2026-09-06", "origem": "C", "uf_origem": "SP",
+         "destino": "D", "uf_destino": "RJ", "placa": "AAA1A11",
+         "t_cheg_carga": None, "t_saiu_carga": None,
+         "t_viagem": "2026-09-06 08:30", "t_cheg_desc": None,
+         "t_fim_desc": None, "t_finalizada": None, "mdfe_encerrado": 0,
+         "mdfe_em": None},
+    ]
+    monkeypatch.setattr(pc.db, "query", lambda *a, **k: linhas)
+    monkeypatch.setattr(pc, "_eta_por_rota", lambda: {})
+    from api import posicoes
+    monkeypatch.setattr(posicoes, "atuais", lambda *a, **k: {"posicoes": {}})
+    d = pc.get_agora(RAIZ, 45)
+    assert d["em_curso"] == 1
+    assert d["sem_apontamento"] == 1
+    assert [c["coleta"] for c in d["cargas"]] == [2]

@@ -150,6 +150,73 @@ dos eventos, que continuou descartando exatamente as linhas que a inversão
 passou a trazer — o painel seguiu mostrando zero. **Mudar a consulta sem mudar
 quem a consome preserva o defeito antigo em silêncio.**
 
+### O que um painel de CLIENTE não conta
+
+Três cortes pedidos por quem opera, em 06/09/2026, e os três com a mesma
+lógica por trás: **o painel do cliente conta a operação DELE, não a nossa.**
+
+- **Fornecedor de rastreamento sai.** O rodapé do mapa dizia de qual sistema
+  veio cada posição. Isso é diagnóstico interno — para quem lê a parede o que
+  importa é quantos veículos têm posição e que idade ela tem, e as duas coisas
+  ficaram. A procedência por fornecedor continua no payload, para a Saúde.
+- **Carga sem apontamento sai.** Ela existe (coleta emitida, manifesto
+  aberto), mas o que o portal teria a dizer sobre ela é "não sabemos por onde
+  anda". Isso é processo nosso. **E o corte tem um custo que fica dito**: a
+  carga emitida hoje some do painel até o primeiro apontamento, que chega com
+  cerca de um dia de atraso — exatamente o buraco que a inversão da espinha
+  tinha acabado de fechar. O número continua saindo na resposta
+  (`sem_apontamento`), então some da TELA, não da CONTA.
+- **Previsão de chegada entra.** Vem do histórico próprio: a mediana de
+  deslocamento daquela rota em seis meses, porta a porta, já com fila e
+  pernoite dentro. Rota com menos viagens que o piso do módulo de ciclos não
+  ganha previsão — reimplementar o piso aqui criaria duas réguas para a mesma
+  pergunta.
+
+Duas coisas que o desenho na tela mostrou e nenhum teste mostraria:
+
+1. **A previsão vencida é o único estado dessa coluna que pede alguma coisa.**
+   Mostrada igual às outras, ela some no meio da lista — o veículo devia ter
+   chegado e ninguém percebe. Acende em ÂMBAR, não em vermelho: é mediana, e
+   por definição uma em cada duas viagens passa dela; vermelho chamaria de
+   problema a metade de cima da distribuição.
+2. **Numa parede, "09:45" sozinho é lido como hoje.** A rota de catorze horas
+   chega amanhã, e o dia tem de vir junto da hora.
+
+E um detalhe de engenharia que vale a regra: a primeira versão calculou a
+previsão no laço que monta o payload, lendo `t_saiu_carga` de lá — e recebeu
+`None` em tudo, porque a **lista de campos da carga é explícita** e aquele
+horário não está nela. Devolveu previsão nenhuma, sem erro. Foi o próprio
+guard da lista explícita que obrigou a notar: o cálculo mudou para onde a
+linha crua existe.
+
+### Um painel de parede se corrige olhando, não medindo
+
+O pedido foi "pode ser bonito, com gráficos mais vibrantes, algo que chame a
+atenção". A tentação é achar que isso pede cor nova. Não pede — pede
+HIERARQUIA e INTENSIDADE, e as duas se conferem OLHANDO, não medindo:
+
+- **hierarquia**: o total virou o elemento principal, com a repartição por
+  etapa colada nele. Antes eram quatro cartões iguais e o olho tinha de somar
+  para chegar no número que importa — o que desfaz a leitura de três segundos
+  que uma parede existe para dar;
+- **intensidade**: o cartão do estado acende INTEIRO, com `currentColor`, na
+  cor que o semáforo já decidiu. Se o brilho tivesse cor própria seria um
+  quarto estado, e o semáforo desta casa tem três;
+- **movimento**: uma faixa só, devagar, no rodapé, e SÓ quando há achado.
+  Parede que alarma sempre é parede que ninguém olha.
+
+Nenhum guard pegaria o que quatro renders seguidos pegaram: cartões esticando
+até a altura do vizinho e deixando meia tela vazia; rota e situação quebrando
+em duas linhas e dobrando a altura da lista; a coluna da coleta cortando o
+próprio número quando as larguras ficaram iguais. **A régua diz se cabe; só o
+olho diz se comunica.**
+
+E uma armadilha conhecida voltou por um caminho novo: a lista `nowrap`
+empurrou o card para FORA da tela — `1fr` é `minmax(auto,1fr)` e a trilha não
+encolhe abaixo do min-content. Já está no CLAUDE.md para as grades de cards, e
+o que a fez passar aqui foi a régua de largura PULAR os painéis de TV (`E_TV`).
+Guard próprio, então, para a grade da TV.
+
 ### Três detalhes do mesmo dia que só o desenho na tela mostrou
 
 Nada disso apareceu em teste; apareceu em renderizar o painel com dado real e
