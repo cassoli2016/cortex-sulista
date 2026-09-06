@@ -1,4 +1,4 @@
-# CÓRTEX — o que falta saber para virar as 3 tarefas em servico.
+# CORTEX - o que falta saber para virar as 3 tarefas em servico.
 #
 # Somente leitura. NENHUMA SENHA e lida, pedida ou impressa.
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\win\diagnostico-servicos.ps1

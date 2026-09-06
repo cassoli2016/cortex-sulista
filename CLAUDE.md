@@ -462,6 +462,17 @@ barra empilhada, não donut.
   falha NOSSA (o Cloudflare TROCA o corpo de 5xx pela página dele — a mensagem
   nunca chega). Na tela, **sempre `respostaJSON(r)`** — distingue sessão
   expirada, proxy respondendo no lugar da API e erro interno.
+- **Reiniciar a API mata a ÁRVORE, não o dono do socket.** Com `--workers` o
+  dono do socket é o SUPERVISOR; matá-lo deixa os filhos órfãos segurando a
+  porta, e como o Windows aceita `SO_REUSEADDR` a instância nova sobe POR CIMA
+  — medido em 06/09/2026: dois conjuntos completos servindo a 8010 e 23
+  conexões no banco onde deviam ser 8, um a mais por deploy. O
+  `scripts/autodeploy.ps1` para a árvore e CONFERE a porta livre antes de subir
+  (dormir 800 ms não é conferir); se não liberar, desiste e tenta no ciclo
+  seguinte. **Os lançadores `.vbs` derivam a raiz do próprio caminho** —
+  `scripts/win/` e `data/win/` têm a mesma profundidade, então o mesmo arquivo
+  serve nos dois. Guards: `tests/test_lancadores_windows.py` e o
+  `test_script_da_tarefa_e_ascii_puro`, agora recursivo e cobrindo `.vbs`.
 - **O `startup` roda em CADA worker do uvicorn** (medido: 4 a **6** vezes com
   `--workers 4`, porque o Windows respawna worker), e os pools são POR
   PROCESSO. Quem sobe relógio no `on_event("startup")` passa por

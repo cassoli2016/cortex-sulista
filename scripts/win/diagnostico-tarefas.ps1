@@ -1,9 +1,9 @@
-# CÓRTEX — diagnóstico das tarefas agendadas, para planejar a virada a serviço.
+# CORTEX - diagnostico das tarefas agendadas, para planejar a virada a servico.
 #
-# NÃO altera nada: só lê e imprime. Rode como Administrador:
+# NAO altera nada: so le e imprime. Rode como Administrador:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\win\diagnostico-tarefas.ps1
 #
-# NENHUMA SENHA é lida, pedida ou impressa por este script.
+# NENHUMA SENHA e lida, pedida ou impressa por este script.
 
 $ErrorActionPreference = 'Continue'
 

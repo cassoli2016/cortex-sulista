@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.262.1] — 06/09/2026  ·  CX-06/09/2026-v0.262.1
+
+### Corrigido
+- Ligar os quatro processos expôs um defeito que estava escondido desde sempre: a rotina que reinicia o sistema matava apenas o processo principal e deixava os filhos vivos segurando a porta — e a instalação nova subia por cima, ficando DUAS cópias do sistema atendendo ao mesmo tempo. Cada atualização acrescentaria mais uma, até esgotar as conexões do banco. Agora a rotina encerra o conjunto inteiro e só sobe a versão nova depois de confirmar que a porta está livre; se não estiver, ela desiste e tenta de novo, em vez de duplicar.
+- Os quatro atalhos de inicialização guardados no repositório apontavam para pastas de OUTRO computador. Quem os usasse subiria o sistema do lugar errado — ou não subiria, e sem mensagem nenhuma, porque eles rodam sem janela. Agora eles descobrem sozinhos onde estão instalados, e o que procura o túnel avisa quando não encontra o programa em vez de falhar calado.
+- Dois testes automáticos passaram a competir com o próprio sistema em produção pelo mesmo recurso, e por isso ficaram vermelhos sozinhos, sem ninguém tocar neles. Passaram a usar um espaço próprio.
+- Uma verificação automática que existia para impedir um problema de codificação nesses arquivos só olhava para uma pasta e para um tipo de arquivo. Ampliada, ela encontrou na hora dois scripts de diagnóstico com o mesmo defeito, que estavam ali havia meses.
+
 ## [0.262.0] — 06/09/2026  ·  CX-06/09/2026-v0.262.0
 
 ### Adicionado

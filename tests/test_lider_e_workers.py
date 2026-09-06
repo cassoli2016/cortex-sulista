@@ -22,10 +22,26 @@ from __future__ import annotations
 
 import multiprocessing
 import os
+import uuid
 
 import pytest
 
 from api import lider, processos
+
+
+def _chave_de_teste() -> int:
+    """Uma chave de trava que nao colide com PRODUCAO nem com outra rodada.
+
+    Estes testes ficaram vermelhos no minuto seguinte a eleicao entrar em
+    producao (06/09/2026): a API no ar segura `CHAVE_AGENDADOR` no MESMO banco,
+    e o `pg_advisory_lock` e um espaco GLOBAL por banco -- usar a mesma chave e
+    literalmente disputar a trava com o sistema em producao, e o teste so
+    passaria com a API fora do ar.
+
+    Negativa e aleatoria: negativa porque producao usa positiva, e aleatoria
+    porque duas rodadas simultaneas com chave fixa disputariam entre si.
+    """
+    return -abs(uuid.uuid4().int % 2_000_000_000) - 1
 
 
 # ------------------------------------------------------- dimensionamento
@@ -67,9 +83,12 @@ def test_valor_invalido_nao_derruba_a_aplicacao(monkeypatch):
 
 # ------------------------------------------------------------- a eleicao
 
-def _candidato(fila, esquema_env):
+def _candidato(fila, esquema_env, chave):
     """Roda em processo SEPARADO: e a unica forma de provar a exclusao, porque
-    a trava do PostgreSQL e por SESSAO e uma thread compartilharia a conexao."""
+    a trava do PostgreSQL e por SESSAO e uma thread compartilharia a conexao.
+
+    `chave` vem de fora e e propria do teste -- ver `_chave_de_teste`.
+    """
     import os as _os
     _os.environ.pop("PYTEST_CURRENT_TEST", None)
     import sys as _sys
@@ -77,6 +96,7 @@ def _candidato(fila, esquema_env):
     for k, v in esquema_env.items():
         _os.environ[k] = v
     from api import lider as _l
+    _l.CHAVE_AGENDADOR = chave                # nao disputar com producao
     fila.put((_os.getpid(), _l.sou_o_agendador()))
     if _l._CONEXAO is not None:
         import time as _t
@@ -91,8 +111,9 @@ def test_so_um_processo_vira_o_agendador(pg_disponivel, quantos):
     if not ok:
         pytest.skip(motivo)
     env = {k: v for k, v in os.environ.items() if k.startswith("CORTEX_PG_")}
+    chave = _chave_de_teste()
     fila = multiprocessing.Queue()
-    procs = [multiprocessing.Process(target=_candidato, args=(fila, env))
+    procs = [multiprocessing.Process(target=_candidato, args=(fila, env, chave))
              for _ in range(quantos)]
     for p in procs:
         p.start()
@@ -112,14 +133,15 @@ def test_a_lideranca_e_liberada_quando_o_processo_morre(pg_disponivel):
     if not ok:
         pytest.skip(motivo)
     env = {k: v for k, v in os.environ.items() if k.startswith("CORTEX_PG_")}
+    chave = _chave_de_teste()
     fila = multiprocessing.Queue()
-    primeiro = multiprocessing.Process(target=_candidato, args=(fila, env))
+    primeiro = multiprocessing.Process(target=_candidato, args=(fila, env, chave))
     primeiro.start()
     pid1, venceu1 = fila.get(timeout=40)
     assert venceu1, "o primeiro tinha de vencer sozinho"
     primeiro.join(timeout=40)                 # morre e solta a trava
 
-    segundo = multiprocessing.Process(target=_candidato, args=(fila, env))
+    segundo = multiprocessing.Process(target=_candidato, args=(fila, env, chave))
     segundo.start()
     pid2, venceu2 = fila.get(timeout=40)
     segundo.join(timeout=40)

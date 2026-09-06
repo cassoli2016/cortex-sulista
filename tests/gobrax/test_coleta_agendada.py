@@ -65,12 +65,20 @@ def test_script_da_tarefa_e_ascii_puro():
     gravado depois, por qualquer editor.
     """
     raiz = Path(__file__).resolve().parent.parent.parent
-    for ps1 in (raiz / "scripts").glob("*.ps1"):
-        texto = ps1.read_text(encoding="utf-8")
-        if texto.startswith("\ufeff"):
+    # RECURSIVO E COM .vbs desde 06/09/2026. O glob era `scripts/*.ps1`, que
+    # deixava de fora os sete `.ps1` de `scripts/win/` — e os `.vbs`, que o
+    # `wscript` lê com a MESMA regra: sem BOM, codepage ANSI do sistema. Os
+    # quatro lançadores versionados tinham acento e nenhum BOM, e ninguém viu
+    # porque o guard não olhava para eles.
+    alvos = sorted(list((raiz / "scripts").rglob("*.ps1"))
+                   + list((raiz / "scripts").rglob("*.vbs")))
+    assert alvos, "não achei script nenhum — o glob quebrou"
+    for arq in alvos:
+        texto = arq.read_text(encoding="utf-8")
+        if texto.startswith("﻿"):
             continue                      # com BOM o acento é lido certo
         fora = [(n, l) for n, l in enumerate(texto.splitlines(), 1)
                 if not l.isascii()]
         assert not fora, (
-            f"{ps1.name} não tem BOM e tem caractere fora do ASCII: "
-            f"{fora[:3]}")
+            f"{arq.relative_to(raiz)} não tem BOM e tem caractere fora do "
+            f"ASCII: {fora[:3]}")

@@ -4384,3 +4384,135 @@ o que a regra quer dizer.
   metade; a outra metade e provar que alguem a chama.
 - **Capacidade e ativacao sao entregas diferentes.** Ligar junto teria
   misturado uma coisa provada com uma nao provada.
+
+---
+
+## Ligar os workers acendeu um defeito que estava la desde sempre (2026-09-06, v0.262.1)
+
+Com a v0.262.0 no ar, `WEB_CONCURRENCY=4` foi ligado em producao. Os primeiros
+sinais foram todos bons: 4 workers, **1 agendador eleito** (a eleicao segurou o
+que importava), 60 F5 simultaneos em 22,9 ms contra 93 ms de um processo so,
+zero respawn em quatro minutos de observacao.
+
+O defeito apareceu no SEGUNDO restart.
+
+### Dois sistemas inteiros na mesma porta
+
+```
+supervisor 36288 -> workers 23832, 11504, 17980, 26416   (instancia das 19:05)
+supervisor 28112 -> workers 22308, 28844, 27908, 26388   (instancia das 19:41)
+```
+
+Os dois ligados na 8010, com a porta respondendo ora por um ora por outro (tres
+leituras seguidas de `Get-NetTCPConnection` devolveram 36288, 36288, 28112). E
+23 conexoes no banco local onde deviam ser 8.
+
+### A causa, e por que ela era invisivel antes
+
+O `scripts/autodeploy.ps1` reiniciava assim:
+
+```powershell
+$conns = Get-NetTCPConnection -LocalPort 8010 -State Listen
+foreach ($c in $conns) { Stop-Process -Id $c.OwningProcess -Force }
+Start-Sleep -Milliseconds 800
+Start-ScheduledTask -TaskName 'Cortex Sulista - API'
+```
+
+Ele mata **quem detem o socket**. Com UM processo, esse alguem era a aplicacao
+inteira e o codigo estava certo. Com `--workers`, o dono do socket e o
+SUPERVISOR — e matar o supervisor deixa os N filhos **orfaos**, vivos e ainda
+segurando a porta. Como o Windows aceita `SO_REUSEADDR`, a instancia nova sobe e
+liga na MESMA porta em vez de falhar. Nada reclama.
+
+Cada deploy acrescentaria um conjunto. Em cinco deploys seriam 25 conexoes so
+de pool minimo, e o `max_connections=100` do banco local acabaria — a falha
+apareceria para quem usa como "nao consigo entrar", longe daqui.
+
+E o `Start-Sleep 800`: dormir e torcer nao e conferir. A instancia nova subia
+com a antiga ainda de pe, que e exatamente como o defeito se reproduz.
+
+### O conserto
+
+`Parar-Arvore` recursiva (filhos primeiro, depois o pai), e depois **conferir a
+porta ate ficar livre** — com desistencia explicita se nao ficar:
+
+> se a porta nao liberou em 8 s, NAO reinicia. `deployed.txt` fica intocado
+> dizendo que falta deploy, e o ciclo seguinte tenta de novo. Subir por cima e
+> pior que atrasar dois minutos.
+
+Testado com uma arvore de mentira (`cmd` -> `ping`): pai e dois filhos, todos
+mortos.
+
+### O que a estreia mostrou de bom, para nao perder de vista
+
+A **eleicao de lider funcionou o tempo todo**, inclusive com as duas instancias
+duplicadas rodando: 1 trava de advisory lock, 8 workers no ar. Foi ela que
+impediu o unico estrago que teria chegado ao cliente — o aviso de carga saindo
+duas, quatro, oito vezes. O resto do defeito era desperdicio; esse teria sido
+mensagem indevida.
+
+### De quebra: os lancadores versionados nao serviam
+
+Ao versionar o lancador com `WEB_CONCURRENCY`, os quatro `.vbs` de
+`scripts/win/` estavam apontando para `E:\Cortex-Sulista\cortex-sulista` e para
+o perfil de outra pessoa — caminhos de OUTRA maquina. O que a producao executa
+e uma copia em `data\win\`, que o `.gitignore` tira: o repositorio guardava a
+versao errada e a certa nao estava em lugar nenhum.
+
+Agora eles derivam a raiz do proprio caminho (`scripts\win\` e `data\win\`
+tem a mesma profundidade, entao o MESMO arquivo serve nos dois lugares — e a
+copia local passou a ser identica a versionada, para nao poderem divergir). O do
+tunel, cujo binario vem do winget e mora no perfil de quem instalou, procura em
+quatro lugares e **reclama numa caixa de dialogo** quando nao acha: lancador que
+falha em silencio custa mais que um que avisa.
+
+### O guard que so olhava metade da casa
+
+`test_script_da_tarefa_e_ascii_puro` existia desde a licao do travessao que
+quebrava `.ps1` lido como ANSI. Ele fazia `(raiz / "scripts").glob("*.ps1")` --
+glob NAO recursivo, e so `.ps1`. Ficavam de fora os sete `.ps1` de
+`scripts/win/` e todos os `.vbs`, que o `wscript` le pela mesma regra.
+
+Ampliado para `rglob` e para `.vbs`, ele acusou **na primeira execucao** dois
+arquivos reais com o defeito: `diagnostico-servicos.ps1` e
+`diagnostico-tarefas.ps1`, com acento e sem BOM, ali havia meses.
+
+### E os meus proprios testes passaram a disputar com a producao
+
+Terceiro efeito da estreia, e o mais sutil. `test_so_um_processo_vira_o_agendador`
+e `test_a_lideranca_e_liberada_quando_o_processo_morre` estavam verdes de manha
+e ficaram vermelhos a tarde, sem ninguem tocar neles.
+
+O motivo: eles usavam `CHAVE_AGENDADOR`, a chave de PRODUCAO. Enquanto a
+eleicao nao existia no ar, ninguem mais segurava aquela trava e o teste vencia.
+No minuto em que a v0.262.0 subiu, a API em producao passou a segura-la no
+MESMO banco -- e `pg_advisory_lock` e um espaco GLOBAL por banco. O teste so
+passaria com a API fora do ar.
+
+Consertado com chave propria por rodada: negativa (producao usa positiva) e
+aleatoria (duas rodadas simultaneas com chave fixa disputariam entre si),
+passada ao processo filho por argumento, porque `spawn` reimporta o modulo e um
+`monkeypatch` do pai nao alcanca o filho.
+
+E a regra mais larga: **teste nao disputa recurso com o sistema em producao**. A
+casa ja sabia disso para BANCO (schema proprio por teste) e para AGENDADOR (o
+gate `sob_teste`); a trava de eleicao era um recurso global novo, e ninguem
+tinha estendido a regra para ela.
+
+### O que fica como regra
+
+- **Recurso GLOBAL novo precisa de espaco proprio no teste, no mesmo dia em que
+  nasce.** Schema de teste ja era regra; chave de advisory lock e a mesma
+  categoria, e so foi lembrada depois de acender.
+- **Teste que fica vermelho sem ninguem toca-lo esta disputando alguma coisa.**
+  A pergunta util nao e "o que mudou no teste", e "o que mudou no MUNDO em
+  volta dele".
+- **Ligar uma capacidade nova testa o que estava em volta dela.** O restart
+  estava certo para um processo e errado para N; ninguem tinha como saber antes
+  de existir um N.
+- **`Stop-Process` no dono do socket nao encerra a aplicacao** quando ela tem
+  supervisor e filhos. Matar arvore, e conferir que a porta ficou livre.
+- **Dormir nao e conferir.** `Start-Sleep 800` era a aposta que escondia o
+  problema.
+- **Guard com glob nao recursivo protege menos do que parece.** O deste caso
+  cobria uma pasta de duas, e a metade descoberta tinha defeito.

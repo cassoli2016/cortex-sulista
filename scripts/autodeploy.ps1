@@ -275,9 +275,49 @@ try {
 
   # reinicia a API para carregar o código novo (o frontend é servido do disco,
   # mas o backend Python precisa reiniciar)
+  #
+  # MATA A ÁRVORE, NÃO SÓ QUEM DETÉM O SOCKET (06/09/2026, na estreia dos
+  # workers). Este bloco fazia `Stop-Process` no `OwningProcess` do listener e
+  # ponto — o que bastava enquanto a API era UM processo. Com `--workers`, o
+  # uvicorn tem um supervisor e N filhos, e o supervisor é quem aparece como
+  # dono do socket: matá-lo deixa os filhos ÓRFÃOS segurando a porta. E como o
+  # Windows aceita `SO_REUSEADDR`, a instância nova sobe e liga na MESMA porta.
+  #
+  # O resultado, medido: DOIS conjuntos completos servindo a 8010 ao mesmo
+  # tempo (supervisor 36288 com 4 filhos e supervisor 28112 com outros 4), a
+  # porta respondendo ora por um ora por outro, e 23 conexões no banco onde
+  # deviam ser 8. Cada deploy acrescentaria mais um conjunto, até esgotar o
+  # `max_connections`. A eleição de líder do `api/lider.py` segurou o que
+  # importava — um agendador, não dois —, mas o resto ficou duplicado.
+  #
+  # NÃO BASTA ESPERAR 800 ms E TORCER: a porta é conferida até ficar livre.
+  # Subir a instância nova com a antiga ainda ligada é como este defeito se
+  # reproduz.
+  function Parar-Arvore([int]$processo) {
+    foreach ($f in @(Get-CimInstance Win32_Process -Filter "ParentProcessId = $processo" -ErrorAction SilentlyContinue)) {
+      Parar-Arvore $f.ProcessId
+    }
+    Stop-Process -Id $processo -Force -ErrorAction SilentlyContinue
+  }
+
   $conns = Get-NetTCPConnection -LocalPort 8010 -State Listen -ErrorAction SilentlyContinue
-  foreach ($c in $conns) { Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue }
-  Start-Sleep -Milliseconds 800
+  foreach ($processo in @($conns | Select-Object -ExpandProperty OwningProcess -Unique)) {
+    Parar-Arvore $processo
+  }
+
+  $livre = $false
+  foreach ($tentativa in 1..20) {
+    Start-Sleep -Milliseconds 400
+    if (-not (Get-NetTCPConnection -LocalPort 8010 -State Listen -ErrorAction SilentlyContinue)) {
+      $livre = $true; break
+    }
+  }
+  if (-not $livre) {
+    # Subir por cima duplicaria a instância — é melhor não reiniciar e tentar
+    # no próximo ciclo, com o `deployed.txt` intocado dizendo que falta deploy.
+    Registrar 'ERRO: a porta 8010 nao ficou livre em 8s; restart abortado para nao duplicar a instancia'
+    exit 1
+  }
   Start-ScheduledTask -TaskName 'Cortex Sulista - API'
 
   # Confere que a API voltou ANTES de gravar deployed.txt. Gravar sem conferir
