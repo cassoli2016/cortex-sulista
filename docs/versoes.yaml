@@ -1,3 +1,139 @@
+- versao: "0.257.2"
+  data: "2026-09-06"
+  alterado:
+    - >-
+      As cláusulas de contrato de cliente saíram da documentação do projeto. O
+      repositório do código é PÚBLICO, e as anotações técnicas de uma entrega
+      anterior tinham registrado horas de freetime contratadas e os tipos de
+      mercadoria de um cliente — dado dele, não nosso, e que não precisava
+      estar lá para a anotação fazer sentido.
+    - >-
+      O raciocínio ficou inteiro: o que aquelas anotações precisavam explicar
+      é que um contrato pode ter várias faixas ativas ao mesmo tempo, uma por
+      tipo de carga, e que escolher uma delas no escuro faria o mesmo mês
+      relatar aderências muito diferentes. Isso se explica pela FORMA da
+      tabela; os valores eram ilustração, e ilustração não vale o custo de
+      publicar cláusula de terceiro.
+    - >-
+      Pelo mesmo motivo saíram o CNPJ completo, o volume anual da conta e os
+      nomes das plantas do cliente, e os documentos usados nos testes viraram
+      números de dublê. Os testes afirmam o mesmo que antes — o que eles
+      medem é a forma e o comportamento, e nenhum dos dois dependia do número
+      ser real.
+- versao: "0.257.1"
+  data: "2026-09-05"
+  corrigido:
+    - >-
+      Dois testes estavam vermelhos há tempos sem ninguém ver, e os dois eram
+      de verdade. O primeiro cobra que os instaladores de tarefa do Windows não
+      tenham caractere acentuado: o PowerShell lê esses arquivos como se fossem
+      de outra codificação, e um travessão numa linha de comentário quebra o
+      script muitas linhas adiante, com uma mensagem que aponta para o lugar
+      errado. O instalador do aviso de cargas tinha três.
+    - >-
+      O segundo dizia que o painel de segredos da Saúde não enxergava o cofre
+      de credenciais — quando o que havia era uma máquina sem cofre, que é o
+      estado normal de quem acabou de clonar o projeto. O teste presumia que ou
+      existem todos os arquivos de segredo, ou nenhum; desde que o rastreio
+      passou a criar a chave dos links sozinho, existe o meio-termo. Agora ele
+      pergunta pelo cofre em vez de contar arquivos.
+- versao: "0.257.0"
+  data: "2026-09-05"
+  adicionado:
+    - >-
+      O painel de TV do cliente ganhou MAPA: onde estão os veículos que levam
+      as cargas em curso, só os do cliente. Veículos parados no mesmo pátio
+      aparecem agrupados com a contagem — numa operação de planta a planta eles
+      ficam no mesmo ponto, e sem agrupar as etiquetas se empilham ilegíveis.
+    - >-
+      Veículo com posição velha não some do mapa: fica em cinza. Sumir com ele
+      faria o veículo desaparecer da parede, que é pior que mostrá-lo com a
+      idade à mostra. O rodapé diz quantos têm posição, quantos são recentes e
+      de qual fonte — o CÓRTEX junta o rastreamento do ERP e o da Gobrax e
+      vence a leitura mais nova.
+    - >-
+      Medidor (gauge) da aderência ao freetime, com DOIS arcos: o cheio é o que
+      está dentro sob qualquer contrato, e o âmbar por cima é até onde o número
+      poderia ir se toda a faixa do meio fosse mercadoria de maior tolerância.
+      Um arco só mostraria 39 por cento em vermelho escondendo que o teto é 70
+      por cento — e numa parede ninguém lê a ressalva no rodapé.
+    - >-
+      Rosca das cargas em curso por etapa do trajeto, com o total no meio do
+      anel e o número ao lado de cada cor. Sem tooltip, porque ninguém passa o
+      mouse numa TV: a legenda é a leitura.
+  corrigido:
+    - >-
+      QUEM FECHA A VIAGEM PASSOU A SER O MANIFESTO, e isso mudou o painel de
+      cabeça para baixo. A tela dizia que dezenas de cargas estavam a caminho
+      quando TODAS já tinham o MDF-e encerrado — a carga tinha chegado e o
+      portal seguia dizendo "em viagem", porque a regra antiga esperava um
+      apontamento operacional que ninguém é obrigado a fazer. Medido em 45
+      dias: fim de descarga cobre 86,7% das cargas, manifesto encerrado cobre
+      98,7%, e as discordâncias são de mão única.
+    - >-
+      A operação do DIA estava invisível. A tela partia dos apontamentos, que
+      chegam com cerca de um dia de atraso, então carga emitida hoje não
+      existia para ela — inclusive uma que estava viajando naquele instante.
+      Agora a tela parte da coleta, e a carga sem apontamento aparece dizendo
+      "sem apontamento", que é o estado honesto dela.
+    - >-
+      As horas do painel de TV saíam com ponto no lugar da vírgula (o
+      separador do JavaScript, não o do país). Aparecia no mural, e número com
+      separador errado numa parede faz quem lê duvidar do resto.
+    - >-
+      O card do mapa herdava um posicionamento do painel da Torre e nascia na
+      linha errada da grade. A regra de CSS existia, estava certa e não valia —
+      só o desenho na tela mostrou.
+- versao: "0.256.0"
+  data: "2026-09-05"
+  adicionado:
+    - >-
+      Tela nova, em Administração: "Monitoramentos de Carga". Ela mostra quem
+      está acompanhando carga pela página pública neste momento — a carga, o
+      trecho, o telefone, quantos avisos já saíram e quando foi o último — o
+      que já foi monitorado, e como cada acompanhamento terminou. Até agora
+      nada disso aparecia dentro de casa: quem se inscreve não tem conta, a
+      inscrição nascia, avisava e morria sem ninguém ver.
+    - >-
+      "Expirou sozinha" e "cancelou" são linhas separadas na conta. A inscrição
+      morre sozinha em 15 dias porque ninguém volta para cancelar; misturar as
+      duas faria a taxa de cancelamento parecer maior do que é — e é ela que
+      diz se o aviso está incomodando alguém.
+    - >-
+      A tela também mostra os limites que a página aplica e quem está perto
+      deles. Bater o teto é alguém que TENTOU acompanhar mais uma carga e não
+      conseguiu, e isso não aparecia em lugar nenhum.
+    - >-
+      O Copiloto e a Saúde do Servidor passaram a saber dos monitoramentos. Na
+      Saúde o alarme é específico: só acende com inscrição ativa e nenhum aviso
+      em 24 horas — abaixo disso o silêncio é normal, porque mensagem igual à
+      anterior não é reenviada.
+  alterado:
+    - >-
+      O aviso de carga por WhatsApp passou a contar de hora em hora A PARTIR DO
+      MOMENTO EM QUE A PESSOA PEDIU, e não mais da hora cheia do servidor. Quem
+      se inscreve às 12h38 é avisado às 13h38, não às 13h00. O relógio saiu da
+      tarefa agendada e passou a viver dentro do próprio sistema, que é o que
+      permite essa precisão.
+    - >-
+      A tela de Auditoria e a de Monitoramentos deixaram de mostrar a barra de
+      filtros. Os campos Filial, Data de referência e Vencimento apareciam
+      preenchíveis e as duas telas não os usam — cada uma tem o próprio
+      seletor de período. Campo que aceita valor e não muda nada é pior que
+      campo nenhum, porque quem filtra acredita no resultado.
+    - >-
+      Ferramenta nova para quem administra o servidor: um script que lista e
+      apaga os schemas de teste esquecidos no banco, com aprovação por schema
+      e em lote para os antigos. Eram 25, somando 104 MB. Ele nunca toca no
+      banco de verdade e pula o que estiver em uso por uma rodada de testes.
+  corrigido:
+    - >-
+      Quem se inscrevia para acompanhar uma carga recebia DUAS mensagens quase
+      iguais em poucos minutos: a de confirmação e, logo em seguida, a do ciclo
+      seguinte. O sistema não registrava a primeira, então tratava a pessoa
+      como se ela nunca tivesse sido avisada. Duas mensagens iguais em vinte
+      minutos é o que faz alguém bloquear o número — e o bloqueio atinge o
+      número que fala com todos os outros clientes.
 - versao: "0.255.0"
   data: "2026-09-05"
   adicionado:

@@ -457,6 +457,52 @@ def _portal_cliente() -> dict:
     partes = ["%d login(s) em %d cliente(s)" % (r["logins"], r["clientes"])]
     if (r["ativos"] or 0) < r["logins"]:
         partes.append("%d inativo(s)" % (r["logins"] - (r["ativos"] or 0)))
+def _servico_monitoramentos(d: dict) -> dict:
+    """Os monitoramentos de carga da pagina publica estao sendo avisados?
+
+    VALE A LINHA PORQUE A FALHA AQUI E MUDA, e de um jeito pior que a maioria:
+    quem espera a carga NAO TEM CONTA e nao tem a quem reclamar dentro de casa.
+    Se o aviso horario parar, ninguem aqui dentro descobre — a pessoa
+    simplesmente para de receber mensagem e conclui que o sistema e ruim.
+
+    O QUE ESTE CARTAO NAO CONSEGUE PROVAR, e diz em vez de fingir: nao existe
+    registro de EXECUCAO do aviso, so registro de ENVIO. E o aviso nao reenvia
+    mensagem identica a anterior, entao "nenhum envio na ultima hora" e o
+    comportamento CORRETO de um caminhao parado. Por isso o alarme so acende
+    com inscricao ativa E nenhum envio em 24 horas: nesse prazo o texto de uma
+    carga em viagem muda por qualquer motivo — progresso, etapa, entrega —, e
+    silencio de um dia inteiro nao tem explicacao inocente.
+
+    Funcao PURA sobre o resumo.
+    """
+    nome = "Monitoramentos de carga (aviso ao cliente)"
+    if not d:
+        return {"nome": nome, "status": "info",
+                "detalhe": "nao foi possivel ler os monitoramentos — a tela "
+                           "Monitoramentos fica sem dado"}
+    ativas, envios = d.get("ativas") or 0, d.get("envios") or 0
+    idade = d.get("ultimo_envio_min")
+    partes = ["%d acompanhando agora" % ativas,
+              "%d carga(s) e %d telefone(s)" % (d.get("cargas_ativas") or 0,
+                                                d.get("fones_ativos") or 0),
+              "%d aviso(s) ja enviado(s)" % envios]
+    if idade is not None:
+        partes.append("ultimo aviso " + _ha_quanto(idade))
+    # SEM INSCRICAO NAO HA O QUE MANDAR. `info`, nunca alarme: a pagina publica
+    # pode passar dias sem ninguem pedir acompanhamento, e isso nao e defeito.
+    if not ativas:
+        return {"nome": nome, "status": "info",
+                "detalhe": "ninguem acompanhando carga agora — nada a enviar"
+                           + (" · %d aviso(s) no historico" % envios if envios else "")}
+    if idade is None:
+        return {"nome": nome, "status": "alerta",
+                "detalhe": "%d inscricao(oes) ativa(s) e NENHUM aviso enviado "
+                           "ate agora — conferir a tarefa horaria" % ativas}
+    if idade > 24 * 60:
+        return {"nome": nome, "status": "alerta",
+                "detalhe": " · ".join(partes)
+                           + " — mais de 24 h sem enviar com inscricao ativa; "
+                             "conferir a tarefa horaria do aviso"}
     return {"nome": nome, "status": "ok", "detalhe": " · ".join(partes)}
 
 
@@ -1381,6 +1427,15 @@ def _servicos() -> list[dict]:
         servicos.append({"nome": "Portal do cliente (Minha Operação)",
                          "status": "info", "detalhe": "conferência indisponível"})
         log.warning("saude: portal do cliente: %s", exc)
+    # MONITORAMENTOS DE CARGA. Fica junto da auditoria porque grava no mesmo
+    # banco da casa — e porque a falha das duas é do mesmo tipo: muda.
+    try:
+        from .rastreio import painel as _mon
+        servicos.append(_servico_monitoramentos(_mon.painel().get("resumo")))
+    except Exception as exc:  # noqa: BLE001
+        servicos.append({"nome": "Monitoramentos de carga (aviso ao cliente)",
+                         "status": "info", "detalhe": "camada indisponível"})
+        log.warning("saude: monitoramentos: %s", exc)
 
     # APP DO MOTORISTA. Junto do portal do cliente porque a pergunta e a mesma
     # familia — quem entra de FORA da casa —, e porque nos dois o silencio e o

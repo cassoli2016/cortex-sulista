@@ -57,6 +57,20 @@ JANELA_FONE_H = 24
 #: destinatário e quem espera na doca — não trinta pessoas.
 MAX_POR_CARGA = 8
 
+#: Quanto tempo entre uma mensagem e a seguinte, PARA O MESMO TELEFONE.
+#:
+#: O relógio é o DELE, não o do servidor: quem pediu às 12h38 recebe 13h38,
+#: 14h38… e não 13h00, 14h00. A diferença aparece no primeiro ciclo — antes
+#: disto, quem se inscrevia às 12h58 recebia a mensagem de cadastro e OUTRA
+#: dois minutos depois, porque o ciclo da hora cheia não sabia que a pessoa
+#: acabara de ser avisada.
+#:
+#: A ÂNCORA É O TELEFONE, NÃO A CARGA, e isso é consequência do agrupamento:
+#: as cargas de um mesmo número saem numa mensagem só. Ancorar por carga faria
+#: quem acompanha duas receber duas mensagens por hora, em minutos diferentes
+#: — desfazendo exatamente o que o agrupamento existe para evitar.
+INTERVALO_MIN = 60
+
 
 def _agora():
     return datetime.now(timezone.utc)
@@ -175,7 +189,12 @@ def inscrever(termo: str, cnpj4: str, carga_id: str, telefone: str,
     #
     # A falha do envio NAO desfaz a inscricao: o cadastro esta gravado, a
     # tarefa horaria pega o proximo ciclo, e a tela diz o que aconteceu.
-    primeira = _primeira_mensagem(alvo, fone)
+    texto_inicial = _primeira_mensagem(alvo, fone)
+    primeira = bool(texto_inicial)
+    if primeira:
+        # ISTO É O QUE ANCORA O RELÓGIO NO PEDIDO. Sem gravar, a inscrição
+        # nasce "nunca avisada" e o próximo ciclo a trata como atrasada.
+        marcar_envio(ident, texto_inicial)
 
     return {"ok": True, "id": ident,
             "telefone": numeros.formatar(fone),
@@ -189,8 +208,15 @@ def inscrever(termo: str, cnpj4: str, carga_id: str, telefone: str,
                       "ciclo de envio.")}
 
 
-def _primeira_mensagem(alvo: dict, fone: str) -> bool:
-    """Manda o estado da carga agora. Devolve se saiu. Nunca levanta."""
+def _primeira_mensagem(alvo: dict, fone: str) -> str | None:
+    """Manda o estado da carga agora. Devolve O TEXTO enviado, ou None.
+
+    DEVOLVE O TEXTO, E NÃO UM BOOLEANO, porque quem chama precisa GRAVÁ-LO. Sem
+    isso a inscrição nascia com `ultimo_envio` nulo e `ultimo_texto` nulo — e o
+    ciclo seguinte, sem ter com o que comparar, mandava tudo de novo. Medido em
+    05/09/2026: a inscrição das 12h38 recebeu a mensagem de cadastro e outra às
+    13h00, vinte e dois minutos depois, com o mesmo conteúdo.
+    """
     try:
         from . import aviso
         carga = aviso._carga_da_inscricao({
@@ -201,7 +227,7 @@ def _primeira_mensagem(alvo: dict, fone: str) -> bool:
         if not texto:
             # SEM O QUE DIZER nao vira mensagem vazia nem "cadastro efetuado":
             # a primeira coisa que a pessoa recebe tem de ser a carga dela.
-            return False
+            return None
         from ..whatsapp import envio as wa
         # JANELA PROPRIA, e so para ESTA mensagem.
         #
@@ -222,11 +248,15 @@ def _primeira_mensagem(alvo: dict, fone: str) -> bool:
         from ..whatsapp import resposta
         r = wa.enviar(fone, texto + aviso.RODAPE, usuario="rastreio",
                       origem="rastreio_cadastro", regras=resposta.regras())
-        return bool(r.get("ok"))
+        # O TEXTO CRU, sem o rodapé: é ele que o ciclo seguinte compara com o
+        # que vai mandar, e o rodapé muda de uma mensagem para outra (leva o
+        # número do documento). Gravar o texto com rodapé faria a comparação
+        # nunca casar, e a mensagem repetida voltaria por outra porta.
+        return texto if r.get("ok") else None
     except Exception as exc:  # noqa: BLE001
         log.warning("rastreio: primeira mensagem falhou: %s",
                     type(exc).__name__)
-        return False
+        return None
 
 
 def cancelar(termo: str, cnpj4: str, carga_id: str, telefone: str) -> dict:
@@ -309,8 +339,20 @@ def ativas() -> list[dict]:
     try:
         return [dict(r) for r in pglocal.query("""
             SELECT id, grupo, empresa, filial, numero, serie, telefone,
-                   ultimo_texto, ultimo_envio, envios
-            FROM rst_inscricao
+                   ultimo_texto, ultimo_envio, envios, criado_em,
+                   -- A ÂNCORA DO TELEFONE, calculada no banco para não
+                   -- depender do relógio de quem lê. `max(ultimo_envio)` é a
+                   -- última vez que FALAMOS com ele; quando nunca falamos,
+                   -- vale o pedido mais ANTIGO — quem está esperando desde as
+                   -- 12h38 não pode ir para o fim da fila porque pediu uma
+                   -- segunda carga às 14h.
+                   (SELECT extract(epoch FROM now() - coalesce(
+                             max(i2.ultimo_envio), min(i2.criado_em)))/60
+                      FROM rst_inscricao i2
+                     WHERE i2.telefone = i.telefone
+                       AND i2.ativo AND i2.expira_em > now())::int
+                     AS desde_min
+            FROM rst_inscricao i
             WHERE ativo AND expira_em > now()
             ORDER BY coalesce(ultimo_envio, criado_em)""")]
     except Exception as exc:  # noqa: BLE001

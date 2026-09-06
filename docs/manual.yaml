@@ -28,6 +28,35 @@ glossario:
     vínculo vê a operação dele; para gente da casa a TV usa o cliente
     escolhido na tela Minha Operação, e sem escolha ela diz isso em vez de
     mostrar a conta de alguém que ninguém pediu.
+
+    Traz um MAPA com os veículos que estão levando as cargas em curso — só os
+    do cliente, nunca a frota — agrupados por pátio, porque numa operação de
+    planta a planta eles param no mesmo ponto e as etiquetas se empilhariam.
+    Veículo com posição velha não some do mapa: aparece em cinza, porque
+    sumir com ele é pior que mostrá-lo com a idade à mostra. O rodapé do mapa
+    diz quantos veículos têm posição, quantos são recentes e de qual fonte
+    (o CÓRTEX junta o rastreamento do ERP e a Gobrax, e vence a leitura mais
+    nova).
+
+    Traz também um MEDIDOR da aderência ao freetime e uma ROSCA das cargas por
+    etapa. O medidor mostra DOIS arcos: o cheio é o que está dentro sob
+    qualquer contrato, e o âmbar por cima é até onde o número poderia ir se
+    toda a faixa do meio fosse mercadoria de maior tolerância. Um arco só
+    mostraria 39% em vermelho escondendo que o teto é 70% — e numa parede
+    ninguém lê a ressalva no rodapé.
+- termo: Cargas em curso (o que fecha uma viagem)
+  definicao: >-
+    Uma carga sai da lista de "em curso" quando o MANIFESTO ELETRÔNICO dela é
+    encerrado, não quando a operação aponta o fim da descarga. Os dois foram
+    medidos em 05/09/2026 sobre 45 dias: o apontamento cobre 86,7% das cargas
+    e o manifesto 98,7% — e as discordâncias são de mão única, 93 cargas já
+    encerradas que o apontamento ainda dava como a caminho, e nenhuma no
+    sentido contrário. Faz sentido: encerrar o MDF-e é obrigação fiscal com
+    prazo, que a SEFAZ cobra; apontar fim de descarga é rotina que ninguém
+    multa. O apontamento fica como reserva para o 1,2% sem manifesto.
+    Carga recém-emitida, ainda sem nenhum apontamento, aparece como "sem
+    apontamento" em vez de sumir — antes ela não existia para a tela, e era
+    justamente a operação do dia.
 - termo: Permanência (carregamento e descarga)
   definicao: >-
     Tempo entre a chegada e a saída do veículo, medido pelos apontamentos da
@@ -51,6 +80,24 @@ glossario:
     indicador de pontualidade que mede 8,7% e se apresenta como nível de
     serviço é pior que não ter indicador — mais ainda num painel que o cliente
     lê, porque ele cobra em cima. O que o portal mede é permanência.
+- termo: Monitoramento de carga
+  definicao: >-
+    O pedido de UMA pessoa para acompanhar UMA carga pelo WhatsApp, feito na
+    página pública "Onde está minha carga?". Não é rastreamento de veículo:
+    quem se inscreve não vê onde o caminhão está, vê quanto falta e em que
+    etapa a carga dela está. A inscrição exige o documento em mãos (CT-e ou
+    nota) mais os quatro primeiros dígitos do CNPJ, morre sozinha em 15 dias
+    porque ninguém volta para cancelar, e é encerrada pelo próprio sistema
+    quando a carga é entregue. Um telefone pode monitorar até cinco cargas ao
+    mesmo tempo, e cada carga aceita até oito telefones.
+- termo: Aviso que não se repete
+  definicao: >-
+    O aviso do monitoramento sai de hora em hora, mas mensagem IDÊNTICA à
+    anterior não é reenviada. Por isso "último aviso" antigo não é defeito: um
+    caminhão parado a noite inteira produz, corretamente, zero envio. A regra
+    existe para proteger a reputação do número de WhatsApp da empresa — 24
+    mensagens iguais por dia fazem a pessoa bloquear o número que atende todos
+    os outros clientes.
 - termo: Em jogo (aba "Onde atacar")
   definicao: >-
     O tamanho da conta que uma decisão MEXE por mês — não a economia que ela
@@ -762,10 +809,11 @@ grupos:
 - nome: Administração
   resumo: >-
     Usuários, perfis e permissões por tela, saúde da máquina onde a API roda, a auditoria de uso
-    (quem entra, por quanto tempo e em que telas, além da trilha de ações que já existia) e esta
-    documentação.
+    (quem entra, por quanto tempo e em que telas, além da trilha de ações que já existia), o
+    acompanhamento dos monitoramentos de carga pedidos na página pública, e esta documentação.
   telas:
   - gestao
   - srv
   - aud
+  - mon
   - doc

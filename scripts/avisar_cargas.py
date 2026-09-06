@@ -36,6 +36,11 @@ print("OK%s" % marca)
 print("  %s inscricao(oes) ativa(s)" % r["inscricoes"])
 print("  enviadas: %s | iguais a anterior (nao reenviadas): %s"
       % (r["enviados"], r["iguais"]))
+# AINDA NO PRAZO e a terceira resposta do aviso — "calei porque nao era hora".
+# Sem esta linha a tarefa que nao mandou nada parece a tarefa que quebrou, que
+# e exatamente a confusao que este modulo existe para nao criar.
+print("  ainda no prazo (relogio proprio de cada telefone): %s"
+      % r.get("cedo", 0))
 print("  sem novidade para contar: %s | encerradas por entrega: %s"
       % (r["sem_texto"], r["encerradas"]))
 if r["falhas"]:

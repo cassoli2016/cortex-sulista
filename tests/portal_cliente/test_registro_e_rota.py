@@ -23,7 +23,7 @@ from api import auth
 from api import main
 from api import portal_cliente as pc
 
-RAIZ = "61156113"
+RAIZ = "11222333"
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
 
@@ -144,13 +144,13 @@ def test_gente_da_casa_sem_escolha_recebe_a_LISTA_e_nao_um_403(monkeypatch):
     import json
 
     monkeypatch.setattr(pc, "get_clientes", lambda dias=365: {
-        "clientes": [{"raiz": "61156113", "nome": "IOCHPE-MAXION S.A.", "cargas": 6826}],
+        "clientes": [{"raiz": "11222333", "nome": "CLIENTE DUBLÊ S.A.", "cargas": 6826}],
         "janela_dias": dias, "fonte": "dublê"})
     resp = main.portal_cliente_dados(_req({"admin": True}), aba="agora")
     assert resp.status_code == 200
     corpo = json.loads(bytes(resp.body))
     assert corpo["escolher"] is True and corpo["travado"] is False
-    assert corpo["clientes"][0]["raiz"] == "61156113"
+    assert corpo["clientes"][0]["raiz"] == "11222333"
 
 
 def test_o_parametro_raiz_NAO_vence_o_vinculo_na_rota(monkeypatch):
@@ -172,7 +172,7 @@ def test_o_parametro_raiz_NAO_vence_o_vinculo_na_rota(monkeypatch):
     monkeypatch.setattr(pc, "nome_do_cliente", lambda r: "DUBLÊ")
     # cliente pedindo a operação de OUTRO cliente
     main.portal_cliente_dados(_req({"cliente_cnpj_raiz": RAIZ}),
-                              aba="agora", raiz="02162259")
+                              aba="agora", raiz="44555666")
     # ... e pedindo sem nada
     main.portal_cliente_dados(_req({"cliente_cnpj_raiz": RAIZ}), aba="agora")
     assert vistos == [RAIZ, RAIZ], vistos
@@ -186,11 +186,11 @@ def test_a_resposta_diz_de_QUEM_e_o_numero(monkeypatch):
     monkeypatch.setattr(pc, "get_agora", lambda raiz, dias=45: {
         "cargas": [], "em_curso": 0, "concluidas_na_janela": 0,
         "janela_dias": dias, "fonte": "dublê"})
-    monkeypatch.setattr(pc, "nome_do_cliente", lambda r: "IOCHPE-MAXION S.A.")
+    monkeypatch.setattr(pc, "nome_do_cliente", lambda r: "CLIENTE DUBLÊ S.A.")
     resp = main.portal_cliente_dados(_req({"cliente_cnpj_raiz": RAIZ}), aba="agora")
     corpo = json.loads(bytes(resp.body))
     assert corpo["cliente_raiz"] == RAIZ
-    assert corpo["cliente_nome"] == "IOCHPE-MAXION S.A."
+    assert corpo["cliente_nome"] == "CLIENTE DUBLÊ S.A."
     assert corpo["travado"] is True
 
 
@@ -219,9 +219,9 @@ def test_aba_desconhecida_cai_no_padrao_e_nao_estoura(monkeypatch):
 # ------------------------------------------------------------ o vínculo no cadastro
 
 @pytest.mark.parametrize("valor,esperado", [
-    ("61156113", "61156113"),
-    ("61.156.113/0001-75", "61156113"),   # colado do cadastro do ERP
-    ("61156113000175", "61156113"),
+    ("11222333", "11222333"),
+    ("11.222.333/0001-99", "11222333"),   # colado do cadastro do ERP
+    ("11222333000199", "11222333"),
 ])
 def test_o_vinculo_aceita_raiz_e_cnpj_inteiro(valor, esperado):
     dados, erro = auth._cadastro_do_payload({"cliente_cnpj_raiz": valor})
@@ -229,7 +229,7 @@ def test_o_vinculo_aceita_raiz_e_cnpj_inteiro(valor, esperado):
     assert dados["cliente_cnpj_raiz"] == esperado
 
 
-@pytest.mark.parametrize("valor", ["611", "abc", "1234567890", "IOCHPE"])
+@pytest.mark.parametrize("valor", ["611", "abc", "1234567890", "FULANO"])
 def test_o_vinculo_RECUSA_o_que_nao_vira_raiz(valor):
     """Raiz errada é portal vazio — e ninguém reporta isso como erro de
     cadastro, reporta como 'o portal não funciona'."""
@@ -247,7 +247,7 @@ def test_chave_ausente_NAO_mexe_e_chave_vazia_LIMPA():
 def test_texto_sem_digito_nao_apaga_o_vinculo_em_silencio():
     """"abc" no campo é engano, não intenção de desvincular — e desvincular
     calado tira o portal de alguém sem ninguém ver erro."""
-    dados, erro = auth._cadastro_do_payload({"cliente_cnpj_raiz": "IOCHPE MAXION"})
+    dados, erro = auth._cadastro_do_payload({"cliente_cnpj_raiz": "NOME DO CLIENTE"})
     assert erro is not None
     assert dados == {}
 
@@ -282,7 +282,7 @@ def test_sem_a_coluna_o_cadastro_de_usuario_CONTINUA_salvando(monkeypatch):
     """
     monkeypatch.setattr(auth, "tem_coluna_vinculo", lambda: False)
     dados, erro = auth._cadastro_do_payload(
-        {"cargo": "Analista", "cliente_cnpj_raiz": "61156113"})
+        {"cargo": "Analista", "cliente_cnpj_raiz": "11222333"})
     assert erro is None
     assert dados == {"cargo": "Analista"}
     assert "cliente_cnpj_raiz" not in dados
@@ -290,8 +290,8 @@ def test_sem_a_coluna_o_cadastro_de_usuario_CONTINUA_salvando(monkeypatch):
 
 def test_com_a_coluna_o_vinculo_volta_a_gravar(monkeypatch):
     monkeypatch.setattr(auth, "tem_coluna_vinculo", lambda: True)
-    dados, erro = auth._cadastro_do_payload({"cliente_cnpj_raiz": "61156113"})
-    assert erro is None and dados["cliente_cnpj_raiz"] == "61156113"
+    dados, erro = auth._cadastro_do_payload({"cliente_cnpj_raiz": "11222333"})
+    assert erro is None and dados["cliente_cnpj_raiz"] == "11222333"
 
 
 def test_a_saude_acusa_a_migration_pendente_com_o_COMANDO(monkeypatch):
@@ -385,3 +385,102 @@ def test_tv_esta_no_manual():
     manual = yaml.safe_load((ROOT / "docs" / "manual.yaml").read_text(encoding="utf-8"))
     telas = [t for g in manual["grupos"] for t in g.get("telas", [])]
     assert "tvcli" in telas
+
+
+# ==================================== mapa, medidor e rosca no painel de TV
+
+def _bloco_tv():
+    return INDEX.split('id="view-tvcli"')[1].split("</section>")[0]
+
+
+def test_o_mapa_da_TV_tem_classe_PROPRIA_e_nao_a_da_Torre():
+    """`.tvw-mapa` traz `grid-row:1/3;grid-column:2` cravado do layout da Torre.
+
+    Reusar a classe trouxe junto um POSICIONAMENTO que não era meu: o inline
+    vencia o `grid-column`, mas o `grid-row` continuava valendo e jogava o card
+    para a primeira linha da grade. Só o render mostrou — é a regra da casa,
+    a regra de CSS pode existir, estar certa e não valer.
+    """
+    bloco = _bloco_tv()
+    assert 'class="tv-card tvc-mapa"' in bloco
+    assert "tvw-mapa" not in bloco
+    assert ".tvc-mapa{" in INDEX
+
+
+def test_o_mapa_usa_leaflet_da_casa_e_nao_CDN():
+    """Leaflet é vendorizado; `ensureLeaflet` é quem carrega."""
+    assert "await ensureLeaflet()" in INDEX.split("async function tvCliMapa")[1][:400]
+
+
+def test_o_mapa_agrupa_o_que_esta_no_mesmo_patio():
+    """Numa operação planta a planta os veículos param no MESMO ponto.
+
+    Sem agrupar, o render mostrou seis etiquetas ilegíveis empilhadas em
+    Cruzeiro. Grupo de um mostra a PLACA; grupo maior mostra a contagem.
+    """
+    corpo = INDEX.split("async function tvCliMapa")[1].split("\n}")[0]
+    assert "toFixed(2)" in corpo, "a grade de agrupamento sumiu"
+    assert "veíc." in corpo
+
+
+def test_posicao_velha_NAO_some_do_mapa():
+    corpo = INDEX.split("async function tvCliMapa")[1].split("\n}")[0]
+    assert "todasVelhas" in corpo
+    assert "#6E7883" in corpo, "a cor de posição velha sumiu"
+
+
+def test_a_cobertura_do_mapa_vai_na_tela():
+    """"33 de 33 veículos" impede olhar os pontos e concluir que aquilo é a
+    operação inteira; a idade impede tomar posição de ontem por posição de
+    agora."""
+    corpo = INDEX.split("async function tvCliMapa")[1].split("\n}")[0]
+    assert "veículos" in corpo and "fresca_ate_min" in corpo
+    assert "fontes" in corpo
+
+
+# O medidor e a rosca sao cobrados por COMPORTAMENTO em
+# `tests/frontend/test_tvcli_figuras.py`, onde as funcoes sao EXECUTADAS no
+# navegador. A primeira versao deste guard lia o texto-fonte do arquivo --
+# "o `path` esta la", "a palavra `zona` aparece" -- e ficou VERDE com a
+# funcao sabotada, porque codigo morto continua escrito. Guard de texto
+# sobrevive aqui so onde o que se afirma E o texto: uma classe de CSS, um
+# registro de tela, uma chamada que precisa existir.
+
+
+def test_o_medidor_usa_o_MESMO_fator_de_arco_da_Torre():
+    """Dois arcos com medidas diferentes na mesma casa seriam duas verdades
+    sobre o que é "cheio"."""
+    assert INDEX.count("* 1.319") >= 1
+    corpo = INDEX.split("function tvCliGauge")[1].split("\n}")[0]
+    assert "1.319" in corpo
+
+
+def test_sem_regua_o_medidor_NAO_inventa_verde():
+    corpo = INDEX.split("function tvCliGauge")[1].split("\n}")[0]
+    assert "sem régua de freetime" in corpo
+
+
+def test_a_rosca_leva_rotulo_DIRETO_porque_TV_nao_tem_tooltip():
+    corpo = INDEX.split("function tvCliRosca")[1].split("\n}")[0]
+    assert "tvc-leg" in corpo
+    assert "title=" not in corpo
+
+
+def test_a_rosca_declara_por_que_e_rosca_e_nao_barra():
+    """A casa prefere barra empilhada quando UMA categoria domina.
+
+    Aqui as etapas ficam equilibradas, que é o caso em que o anel funciona — e
+    isso está escrito, para quem mudar saber que a escolha foi medida e não
+    estética.
+    """
+    ctx = INDEX.split("function tvCliRosca")[0][-1200:]
+    assert "barra empilhada" in ctx and "domina" in ctx
+
+
+def test_numero_em_portugues_leva_VIRGULA():
+    """O separador saía do JavaScript, não do país: o float concatenado na
+    string entregava ponto no mural."""
+    assert "function tvH(v)" in INDEX
+    corpo = INDEX.split("async function loadTvCli")[1].split("\nasync function")[0]
+    assert "tvH(" in corpo
+    assert "descarga_piso + 'h'" not in corpo

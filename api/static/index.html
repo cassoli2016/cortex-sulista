@@ -1379,6 +1379,13 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
 .tvw .tv-sub{font-size:clamp(9px,0.66vw,13px);margin-top:0.1vw}
 .tvw-mapa{grid-row:1/3;grid-column:2;position:relative}
 #tvMapa{position:absolute;inset:0;border-radius:0.42vw;z-index:1}
+#tvCliMapa{position:absolute;inset:0;border-radius:0.42vw;z-index:1}
+.tvc-mapa{position:relative;min-height:9.5vw}
+.tvc-gauge,.tvc-rosca{display:flex;align-items:center;justify-content:center;gap:1.1vw;min-height:9.5vw}
+.tvc-leg{display:flex;flex-direction:column;gap:0.32vw}
+.tvc-leg span{display:flex;align-items:center;gap:0.4vw;font-size:clamp(10px,0.78vw,15px);color:#C6D4E2;white-space:nowrap}
+.tvc-leg i{width:0.62vw;height:0.62vw;border-radius:2px;flex:none}
+.tvc-leg b{color:#fff;font-weight:800}
 .tv-regiao{position:absolute;top:0.7vw;left:0.7vw;z-index:500;background:rgba(11,25,38,.85);color:#E5EDF4;
   padding:0.35vw 0.9vw;border-radius:999px;font-size:clamp(10px,0.8vw,15px);font-weight:700;letter-spacing:.05em}
 .tv-vmk{color:#fff;font-weight:800;font-family:var(--mono);font-size:clamp(9px,0.6vw,12px);line-height:1;
@@ -2632,6 +2639,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <div class="subs closed" id="subsAdm">
         <a href="#aud" class="sub" data-view="aud" title="Auditoria e Uso — acessos, tempo de sessão, telas usadas e trilha de ações"><span class="ic" data-ic="audic"></span><span>Auditoria e Uso</span></a>
         <a href="#gestao" class="sub" data-view="gestao" title="Gestão — usuários, perfis e segurança"><span class="ic" data-ic="ges"></span><span>Gestão</span></a>
+        <a href="#mon" class="sub" data-view="mon" title="Monitoramentos de Carga — quem acompanha carga pela página pública, avisos enviados e histórico"><span class="ic" data-ic="monic"></span><span>Monitoramentos de Carga</span></a>
         <a href="#srv" class="sub" data-view="srv" title="Saúde do Servidor — CPU, memória, disco e serviços"><span class="ic" data-ic="srv"></span><span>Saúde do Servidor</span></a>
       </div>
     </nav>
@@ -3819,16 +3827,27 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <section class="view" id="view-tvcli">
         <div class="tv-head"><div class="tv-left"><img class="tv-logo" src="/static/sulista-logo-branco.svg" alt="Sulista"><span class="tv-upd tv-next"></span></div><div class="tv-title"><h2 id="tvcli-titulo">OPERAÇÃO DO CLIENTE</h2><span class="tv-farol" id="tvcli-farol" style="display:none"></span></div><div class="tv-right"><span class="tv-clock"></span><a href="javascript:tvFull()" title="tela cheia" aria-label="Tela cheia">⛶</a><a href="#home" title="sair do modo TV" aria-label="Sair do modo TV">✕</a></div></div>
         <div class="tv-grid" id="tvcli-k1"></div>
-        <div class="tv-grid" id="tvcli-k2" style="margin-top:22px"></div>
         <div class="tv-grid" style="margin-top:22px">
-          <div class="tv-card tv-wide" style="grid-column:span 2">
+          <div class="tv-card">
+            <div class="tv-label">Dentro do freetime</div>
+            <div id="tvcli-gauge" class="tvc-gauge"></div>
+            <div class="tv-sub" id="tvcli-gauge-sub"></div>
+          </div>
+          <div class="tv-card">
+            <div class="tv-label">Cargas em curso por etapa</div>
+            <div id="tvcli-rosca" class="tvc-rosca"></div>
+            <div class="tv-sub" id="tvcli-rosca-sub"></div>
+          </div>
+          <div class="tv-card tvc-mapa" style="grid-column:span 2">
+            <div id="tvCliMapa"></div>
+            <div class="tv-regiao" id="tvcli-mapa-sub">Cargas em curso</div>
+          </div>
+        </div>
+        <div class="tv-grid" style="margin-top:22px">
+          <div class="tv-card tv-wide" style="grid-column:span 4">
             <div class="tv-label">Cargas em curso — onde estão agora</div>
             <table class="tv-tab"><thead><tr><th>Coleta</th><th>Rota</th><th>Veículo</th><th>Situação</th></tr></thead>
             <tbody id="tvcli-cargas"></tbody></table>
-          </div>
-          <div class="tv-card tv-wide" style="grid-column:span 2">
-            <div class="tv-label">Cargas em curso por rota <span id="tvcli-rotas-sub" style="text-transform:none;letter-spacing:0;color:#8FA6BC"></span></div>
-            <div class="tvd-serie" id="tvcli-rotas"></div>
           </div>
         </div>
       </section>
@@ -7721,6 +7740,67 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
       </section>
+      <section class="view" id="view-mon">
+        <div class="subtabs" role="tablist" data-abas="mon" aria-label="Seções desta tela">
+          <button role="tab" id="tabmon-ativ" data-aba="ativ" aria-controls="aba-mon-ativ"
+                  aria-selected="true" onclick="abaTrocar('mon','ativ')">Acompanhando agora <span class="aban" id="mon-n-ativ"></span></button>
+          <button role="tab" id="tabmon-hist" data-aba="hist" aria-controls="aba-mon-hist"
+                  aria-selected="false" onclick="abaTrocar('mon','hist')">Já monitoradas <span class="aban" id="mon-n-hist"></span></button>
+          <button role="tab" id="tabmon-freio" data-aba="freio" aria-controls="aba-mon-freio"
+                  aria-selected="false" onclick="abaTrocar('mon','freio')">Freios e tetos <span class="aban" id="mon-n-freio"></span></button>
+        </div>
+
+        <div class="aba" data-abas="mon" data-aba="ativ" id="aba-mon-ativ" role="tabpanel" aria-labelledby="tabmon-ativ">
+          <div class="kband">
+            <div class="kband-rot">Monitoramentos da página pública
+              <select id="mon-dias" onchange="loadMon()" aria-label="Janela da série"
+                      style="margin-left:9px;font:inherit;font-size:12px">
+                <option value="14" selected>Últimos 14 dias</option>
+                <option value="30">Últimos 30 dias</option>
+                <option value="90">Últimos 90 dias</option>
+              </select></div>
+            <div class="kpis k4" id="mon-kpis"></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Novos monitoramentos por dia <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="rst_inscricao (banco local do CÓRTEX): uma linha por telefone que pediu para acompanhar uma carga na página pública /rastreio. O intervalo de dias é GERADO, não colhido — dia sem inscrição vira zero em vez de a linha emendar por cima do buraco. E a série COMEÇA na primeira inscrição de todas: desenhar dias anteriores ao nascimento do recurso mostraria zeros que não são queda, são um recurso que ainda não existia.">i</span></h2><span class="hint" id="mon-hint">—</span></div>
+            <div id="chartMonDias" style="width:100%;height:200px"></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Quem está acompanhando <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Inscrições ativas e dentro do prazo. O estado da carga vem do MESMO lugar que a página pública lê (o CT-e no ERP), então o que aparece aqui é exatamente o que o cliente está vendo. &quot;Último aviso&quot; velho NÃO é falha: o aviso não reenvia mensagem idêntica à anterior — caminhão parado a noite toda produz, corretamente, zero envio. A inscrição expira sozinha em 15 dias porque ninguém volta para cancelar.">i</span></h2><span class="hint" id="mon-ativ-hint">—</span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Carga</th><th>Trecho</th><th>Estado</th><th>Telefone</th>
+              <th class="num">Avisos</th><th>Último aviso</th><th>Expira</th><th></th>
+            </tr></thead><tbody id="mon-ativas"></tbody></table></div>
+          </div>
+        </div>
+
+        <div class="aba" data-abas="mon" data-aba="hist" id="aba-mon-hist" role="tabpanel" aria-labelledby="tabmon-hist" hidden>
+          <div class="card">
+            <div class="head"><h2>Como os monitoramentos terminam <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="EXPIRAR NÃO É CANCELAR, e por isso são linhas separadas: a inscrição morre sozinha aos 15 dias porque ninguém volta para cancelar, e contar isso como desistência faria a taxa de cancelamento mentir para cima. &quot;Carga entregue&quot; é o encerramento que o próprio aviso faz, com uma última mensagem. Encerramento pela tela de administração aparece com o e-mail de quem encerrou.">i</span></h2></div>
+            <div class="tablewrap tabroll"><table><thead><tr><th>Como terminou</th><th class="num">Monitoramentos</th><th class="num">%</th></tr></thead><tbody id="mon-fins"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>O que já foi monitorado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Toda inscrição encerrada ou expirada, da mais recente para a mais antiga. &quot;Durou&quot; é do pedido até o encerramento; para as que expiraram sozinhas, é o prazo inteiro. O telefone fica porque é o que permite atender quem liga perguntando pela carga — ele nunca entra em endereço de página nem em registro de acesso.">i</span></h2><span class="hint" id="mon-hist-hint">—</span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Carga</th><th>Trecho</th><th>Telefone</th><th class="num">Avisos</th>
+              <th class="num">Durou</th><th>Como terminou</th><th>Quando</th>
+            </tr></thead><tbody id="mon-hist"></tbody></table></div>
+          </div>
+        </div>
+
+        <div class="aba" data-abas="mon" data-aba="freio" id="aba-mon-freio" role="tabpanel" aria-labelledby="tabmon-freio" hidden>
+          <div class="card">
+            <div class="head"><h2>Os tetos que a página aplica <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Constantes de api/rastreio/assinatura.py, lidas do código e não digitadas aqui — se alguém mudar o limite lá, esta tela muda junto. Eles existem porque a página é uma caixa de entrada aberta à internet: sem teto, quem tiver um número de CT-e e o telefone de um desafeto teria um jeito confortável de importuná-lo de hora em hora.">i</span></h2></div>
+            <div class="tablewrap tabroll"><table><thead><tr><th>Freio</th><th class="num">Limite</th><th>Por que existe</th></tr></thead><tbody id="mon-tetos"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Telefones perto do limite <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quem já acompanha quase o máximo de cargas ao mesmo tempo. Bater o teto significa alguém que TENTOU acompanhar mais uma carga e não conseguiu — e isso não aparece em lugar nenhum além daqui. Cancelar uma libera a vaga na hora.">i</span></h2><span class="hint" id="mon-freio-hint">—</span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Telefone</th><th class="num">Cargas ao mesmo tempo</th><th>Situação</th>
+            </tr></thead><tbody id="mon-freios"></tbody></table></div>
+          </div>
+        </div>
+      </section>
       <section class="view" id="view-doc">
         <div class="doc-top">
           <div>
@@ -8128,6 +8208,7 @@ const ICONS = {
   chave:IC('<circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.8 12.2 21 2M15 8l3 3M18.5 4.5l2 2"/>'),
   conta:IC('<circle cx="12" cy="8" r="4"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/>'),
   sair: IC('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/>'),
+  monic: IC('<path d="M12 20v-6"/><path d="M8.5 12.5a5 5 0 0 1 7 0"/><path d="M5.5 9.5a9 9 0 0 1 13 0"/><circle cx="12" cy="20" r="1.6"/>'),
   audic: IC('<path d="M4 19V5m0 14h16M8 15V9m4 6V6m4 9v-4"/><circle cx="18" cy="7" r="2.5"/>'),
   srv:  IC('<rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01M7 16.5h.01M11 7.5h5M11 16.5h5"/>'),
   supic: IC('<path d="M4 13a8 8 0 0 1 16 0"/><rect x="3" y="12" width="4" height="6" rx="1.5"/><rect x="17" y="12" width="4" height="6" rx="1.5"/><path d="M19 18v1a2 2 0 0 1-2 2h-4"/>'),
@@ -8182,7 +8263,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { tvcom:'Painel TV — Comunicação', home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', aud:'Auditoria e Uso',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { tvcom:'Painel TV — Comunicação', home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', aud:'Auditoria e Uso', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -8458,7 +8539,7 @@ const VIEW_GROUP = {home:'',cop:'',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',pecas:'Sup',
   prodveic:'Bi',fat:'Ctr',gr:'Ope',tvcli:'Bi',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',tvcom:'Bi',
-  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',people:'Rh',des:'Rh',gestao:'Adm',srv:'Adm',sup:'Spt',supfila:'Spt',doc:'Adm',aud:'Adm',gesacao:'Ges',gesata:'Ges',
+  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',people:'Rh',des:'Rh',gestao:'Adm',srv:'Adm',sup:'Spt',supfila:'Spt',doc:'Adm',aud:'Adm',mon:'Adm',gesacao:'Ges',gesata:'Ges',
   // Telemetria e ANTT tinham grupo na barra lateral mas ficaram de fora deste
   // mapa: o acordeao nao abria sozinho ao navegar para elas (agora a busca
   // global navega, entao isso passou a incomodar de verdade).
@@ -8668,7 +8749,14 @@ function semFilterbar(v){
   // prog entrou aqui na auditoria de filtros: TODOS os grupos ficam ocultos
   // nela, então a barra aparecia sem um único campo — só o botão "Aplicar
   // filtros", que não tinha o que aplicar.
-  return v==='cop'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
+  //
+  // `mon` e `aud` entraram em 05/09/2026 pelo motivo OPOSTO, e é o mais
+  // enganoso dos dois: os campos base (Filial, Data de referência, Vencimento)
+  // apareciam preenchíveis e a consulta das duas telas NÃO OS RECEBE — as duas
+  // têm seletor próprio de período dentro da tela. Filtro que a query ignora
+  // sai: um campo que aceita valor e não muda nada é pior que campo nenhum,
+  // porque quem filtra acredita no resultado.
+  return v==='cop'||v==='mon'||v==='aud'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
          v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='antport'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila';
 }
@@ -8788,7 +8876,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,pecas:DATAPECAS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,aud:loadAud,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -8857,6 +8945,7 @@ const NAV_KW={
   supfila:'fila suporte atendimento chamados sla avisos whatsapp email github',
   des:'avaliacao desempenho nine box potencial talento sucessao matriz 9box gestor equipe ciclo',
   aud:'auditoria uso acessos sessao tempo login trilha log seguranca telas',
+  mon:'monitoramento monitoramentos rastreio carga acompanhar aviso whatsapp inscricao inscricoes cliente telefone publica onde esta minha carga',
   doc:'documentacao manual ajuda versao changelog historico novidades glossario mudancas',
 };
 function _kwDe(a){
@@ -10632,7 +10721,7 @@ function reloadCurrent(){
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,prodveic:loadProdveic,
     torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
-    cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,aud:loadAud,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+    cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   (M[currentView()]||load)();
 }
 
@@ -12840,6 +12929,89 @@ async function loadTvFat(){
    e desastroso ao mesmo tempo, e a marca vai onde a pessoa está olhando). */
 let tvDirSeq=0, tvDirOk=false;
 let tvCliSeq = 0, tvCliOk = false;
+let tvCliMap = null, tvCliLayer = null;
+
+/* O MAPA DA TV DO CLIENTE. So as cargas EM CURSO dele -- nunca a frota, nunca
+   outro cliente. O recorte vem do servidor; aqui so se desenha o que chegou.
+
+   O Leaflet mede o container UMA vez: sob `hidden` a medida vale zero para
+   sempre, e o sintoma e mudo (mapa cinza, sem erro). Por isso o
+   `invalidateSize()` a cada passada e o `setTimeout` na criacao -- o mesmo
+   remedio que a Torre usa. */
+async function tvCliMapa(cargas, resumo){
+  try{ await ensureLeaflet(); }catch(e){ return; }
+  const el = document.getElementById('tvCliMapa');
+  if(!el) return;
+  if(!tvCliMap){
+    tvCliMap = L.map('tvCliMapa', {scrollWheelZoom:false, zoomControl:false,
+                                   attributionControl:false}).setView([-24.8,-47.5], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(tvCliMap);
+    tvCliLayer = L.layerGroup().addTo(tvCliMap);
+    setTimeout(function(){ tvCliMap.invalidateSize(); }, 500);
+  } else { tvCliMap.invalidateSize(); }
+  tvCliLayer.clearLayers();
+
+  /* UMA MARCA POR VEICULO, nao por carga: um caminhao leva varios CT-es (66
+     cargas em 33 veiculos, medido), e uma marca por carga empilharia pontos
+     identicos no mesmo pixel dando impressao de frota maior. */
+  const porPlaca = {};
+  (cargas || []).forEach(function(c){
+    if(!c.pos || !c.placa) return;
+    if(!porPlaca[c.placa]) porPlaca[c.placa] = {pos:c.pos, placa:c.placa, cargas:0};
+    porPlaca[c.placa].cargas += 1;
+  });
+
+  /* AGRUPA O QUE ESTA NO MESMO PATIO. Numa operacao de planta a planta os
+     veiculos ficam parados no MESMO ponto e se empilham -- o render mostrou
+     seis etiquetas ilegiveis uma por cima da outra. ~1,1 km de grade (0,01 grau) e o suficiente para separar patios
+     vizinhos e juntar o que esta no mesmo. Grupo de um continua mostrando a
+     PLACA; grupo maior mostra a contagem, porque seis placas num ponto so nao
+     se leem de longe de jeito nenhum. */
+  const grupos = {};
+  Object.keys(porPlaca).forEach(function(pl){
+    const v = porPlaca[pl], p = v.pos;
+    const k = p.lat.toFixed(2) + ',' + p.lon.toFixed(2);
+    if(!grupos[k]) grupos[k] = {lat:p.lat, lon:p.lon, veics:[], paradas:0, velhas:0, cargas:0};
+    const g = grupos[k];
+    g.veics.push(pl);
+    g.cargas += v.cargas;
+    if(p.velha) g.velhas += 1;
+    if(!(p.velocidade > 0)) g.paradas += 1;
+  });
+
+  const pts = [];
+  Object.keys(grupos).forEach(function(k){
+    const g = grupos[k], n = g.veics.length;
+    /* POSICAO VELHA NAO SOME DO MAPA, aparece marcada: sumir com ela faria o
+       veiculo desaparecer, que e pior que mostra-lo com a idade a mostra. */
+    const todasVelhas = g.velhas === n;
+    const andando = g.paradas < n;
+    const cor = todasVelhas ? '#6E7883' : (andando ? '#4ADE80' : '#FBBF24');
+    const rot = n === 1 ? esc(g.veics[0]) : (n + ' veíc.');
+    L.marker([g.lat, g.lon], {
+      icon: L.divIcon({className:'', iconSize:null, iconAnchor:[18,9],
+        html:'<div class="tv-vmk' + (!todasVelhas && andando ? ' mov' : '')
+             + '" style="background:' + cor + '">' + rot + '</div>'}),
+      zIndexOffset: n > 1 ? 500 : 0,
+    }).addTo(tvCliLayer);
+    pts.push([g.lat, g.lon]);
+  });
+  if(pts.length){
+    try{ tvCliMap.fitBounds(L.latLngBounds(pts), {padding:[40,40], maxZoom:9}); }catch(e){}
+  }
+  /* A COBERTURA vai no rodape do mapa. "33 de 33 veiculos" impede alguem de
+     olhar os pontos e concluir que aquilo e a operacao inteira; e a idade da
+     leitura impede tomar posicao de ontem por posicao de agora. */
+  const r = resumo || {};
+  const sub = document.getElementById('tvcli-mapa-sub');
+  if(sub){
+    const fontes = Object.keys(r.fontes || {}).join(' + ') || '—';
+    sub.textContent = pts.length
+      ? (r.com_posicao + ' de ' + r.veiculos + ' veículos · ' + r.frescas
+         + ' com posição de até ' + (r.fresca_ate_min || 120) + ' min · ' + fontes)
+      : 'sem posição para as cargas em curso';
+  }
+}
 
 /* PAINEL DE TV DA OPERACAO DO CLIENTE.
 
@@ -12850,6 +13022,98 @@ let tvCliSeq = 0, tvCliOk = false;
    DE QUEM E A OPERACAO: o servidor decide (`portal_cliente.alvo`). Quem tem
    vinculo ve o dele; gente da casa ve o que escolheu na `cliop`, lembrado no
    navegador. Uma TV nao tem quem escolha, entao sem escolha ela DIZ isso. */
+/* MEDIDOR E ROSCA DESENHADOS A MAO, e nao em ECharts.
+
+   A casa manda "grafico e ECharts, e so ECharts", com UMA excecao ja escrita:
+   o gauge de meta dos paineis de TV. Aqui a excecao se estende a rosca, e vale
+   dizer por que em vez de deixar a proxima pessoa achar que foi descuido:
+
+   - nenhum painel de TV carrega ECharts hoje (as series sao `div`, o gauge sao
+     dois `path`), e puxar 990 KB para uma parede que fica ligada o dia inteiro
+     seria pagar caro por duas figuras simples;
+   - a paleta dos paineis de TV e FIXA e nao segue o tema; o ECharts COPIA as
+     cores do `CC`, que e a paleta clara, e sairia claro sobre fundo escuro;
+   - TV nao tem tooltip. O que o ECharts da de melhor -- interacao -- e
+     exatamente o que uma parede nao usa.
+
+   As duas figuras seguem as regras que valem para qualquer grafico da casa:
+   semaforo DISCRETO (nao degrade), rotulo direto ao lado, e nada de numero
+   sem unidade. */
+/* Horas em portugues: `3` vira "3h" e `4.5` vira "4,5h". Concatenar o float
+   direto na string entregava o ponto no mural -- e numero com separador errado
+   numa parede e o tipo de detalhe que faz quem le duvidar do resto. */
+function tvH(v){
+  return v == null ? 'n/d'
+    : v.toLocaleString('pt-BR', {maximumFractionDigits:1}) + 'h';
+}
+
+function tvCliGauge(pct, cls, zona){
+  if(pct == null){
+    return '<div class="tv-sub" style="text-align:center">sem régua de freetime<br>cadastrada para este cliente</div>';
+  }
+  /* 1.319 e o fator do arco: 100% preenche 131,9 de um dasharray de 300.
+     E o mesmo numero do gauge de meta da Torre -- dois arcos com medidas
+     diferentes na mesma casa seriam duas verdades sobre "cheio". */
+  const cor = cls === 'ok' ? '#4ADE80' : (cls === 'warn' ? '#FBBF24' : '#F87171');
+  const arco = Math.max(0, Math.min(100, pct)) * 1.319;
+  /* DOIS ARCOS, e nao um. O verde e o que esta dentro sob QUALQUER contrato; o
+     ambar por cima e ate onde o numero poderia ir se toda a faixa do meio
+     fosse do tipo de maior tolerancia. Um arco so mostrava 39% em vermelho e escondia
+     que o teto e ~70% -- justamente a ambiguidade que este painel existe para
+     nao esconder, e que numa parede ninguem vai ler no rodape.
+     O NUMERO continua sendo o conservador: e o unico que nao depende de um
+     dado que nao temos. */
+  const ate = Math.max(0, Math.min(100, (zona == null ? pct : pct + zona)));
+  const arcoAte = ate * 1.319;
+  return '<svg viewBox="0 0 100 58" style="width:9.5vw">'
+    + '<path d="M8 50 A42 42 0 0 1 92 50" fill="none" stroke="#1E3A54" stroke-width="9" stroke-linecap="round"/>'
+    + (ate > pct
+        ? '<path d="M8 50 A42 42 0 0 1 92 50" fill="none" stroke="#FBBF24" stroke-width="9"'
+          + ' stroke-linecap="round" opacity="0.55"'
+          + ' stroke-dasharray="' + arcoAte.toFixed(1) + ' 300"/>'
+        : '')
+    + '<path d="M8 50 A42 42 0 0 1 92 50" fill="none" stroke="' + cor + '" stroke-width="9" stroke-linecap="round"'
+    + ' stroke-dasharray="' + arco.toFixed(1) + ' 300"/>'
+    + '<text x="50" y="47" text-anchor="middle" font-size="19" font-weight="800" fill="' + cor + '">'
+    + pct.toFixed(0) + '%</text>'
+    + (ate > pct
+        ? '<text x="50" y="57" text-anchor="middle" font-size="8" fill="#FBBF24">até '
+          + ate.toFixed(0) + '%</text>'
+        : '')
+    + '</svg>';
+}
+
+/* ROSCA. A casa prefere barra empilhada quando UMA categoria domina, porque
+   fatia de 3% num anel nao se le. Aqui as etapas ficam equilibradas (medido em
+   05/09/2026: 30 em viagem, 33 no destino, 3 na origem), que e o caso em que o
+   anel funciona -- e o total no meio responde "quantas ao todo" sem uma
+   segunda leitura. Se um dia uma etapa passar a dominar, o certo e trocar por
+   barra, nao encolher a fatia. */
+function tvCliRosca(fatias){
+  const total = fatias.reduce(function(a, f){ return a + f.n; }, 0);
+  if(!total) return '<div class="tv-sub" style="text-align:center">nenhuma carga em curso</div>';
+  const R = 34, C = 2 * Math.PI * R;
+  let ini = 0;
+  const aneis = fatias.filter(function(f){ return f.n > 0; }).map(function(f){
+    const frac = f.n / total, dash = frac * C;
+    const el = '<circle cx="50" cy="50" r="' + R + '" fill="none" stroke="' + f.cor + '"'
+      + ' stroke-width="15" stroke-dasharray="' + dash.toFixed(2) + ' ' + (C - dash).toFixed(2) + '"'
+      + ' stroke-dashoffset="' + (-ini).toFixed(2) + '" transform="rotate(-90 50 50)"/>';
+    ini += dash;
+    return el;
+  }).join('');
+  const svg = '<svg viewBox="0 0 100 100" style="width:8.6vw">' + aneis
+    + '<text x="50" y="47" text-anchor="middle" font-size="21" font-weight="800" fill="#fff">'
+    + total + '</text>'
+    + '<text x="50" y="61" text-anchor="middle" font-size="9" fill="#8FA6BC">CARGAS</text></svg>';
+  /* ROTULO DIRETO: sem tooltip, a legenda leva o numero junto da cor. */
+  const leg = '<div class="tvc-leg">' + fatias.map(function(f){
+    return '<span><i style="background:' + f.cor + '"></i>' + esc(f.rot)
+         + ' <b>' + f.n + '</b></span>';
+  }).join('') + '</div>';
+  return svg + leg;
+}
+
 async function loadTvCli(){
   const seq = ++tvCliSeq;
   try{
@@ -12869,9 +13133,14 @@ async function loadTvCli(){
         + '<div class="tv-label">Nenhum cliente escolhido</div>'
         + '<div class="tv-sub">Abra <b>Minha Operação</b> neste navegador, '
         + 'escolha o cliente, e volte a esta tela — a escolha fica lembrada.</div></div>';
-      document.getElementById('tvcli-k2').innerHTML = '';
+      document.getElementById('tvcli-gauge').innerHTML = '';
+      document.getElementById('tvcli-gauge-sub').textContent = '';
+      document.getElementById('tvcli-rosca').innerHTML = '';
+      document.getElementById('tvcli-rosca-sub').textContent = '';
       document.getElementById('tvcli-cargas').innerHTML = '';
-      document.getElementById('tvcli-rotas').innerHTML = '';
+      if(tvCliLayer) tvCliLayer.clearLayers();
+      const sub = document.getElementById('tvcli-mapa-sub');
+      if(sub) sub.textContent = 'nenhum cliente escolhido';
       return;
     }
 
@@ -12898,7 +13167,7 @@ async function loadTvCli(){
 
     document.getElementById('tvcli-k1').innerHTML = [
       tvCard('Cargas em curso', String(dA.em_curso || 0), '',
-             'sem fim de descarga apontado · últimos ' + (dA.janela_dias || 45) + ' dias'),
+             'manifesto ainda não encerrado · últimos ' + (dA.janela_dias || 45) + ' dias'),
       tvCard('Em viagem', String(emViagem), '', 'a caminho do destino'),
       tvCard('No destino', String(naDescarga), '', 'chegou · aguardando ou descarregando'),
       tvCard('Na origem', String(naOrigem), '', 'carregando ou pronto para sair'),
@@ -12908,28 +13177,44 @@ async function loadTvCli(){
        o unico dos tres que nao depende da mercadoria. Mostrar o "dentro"
        sozinho numa TV daria a impressao de aderencia que a faixa do meio nao
        sustenta, e numa parede ninguem tem onde ler a ressalva. */
-    const de = dP.descarga || {}, ft = dP.freetime || {};
-    const mediana = de.mediana_h;
-    const foraPct = de.fora_pct;
-    /* Semaforo DISCRETO e so quando ha regua: sem freetime cadastrado nao ha
-       o que classificar, e verde sem regua e verde inventado. */
-    const cls = (foraPct == null) ? '' : (foraPct <= 10 ? 'ok' : (foraPct <= 25 ? 'warn' : 'ruim'));
-    const faixa = ft.contratos
-      ? (ft.ambiguo ? ft.descarga_piso + 'h a ' + ft.descarga_teto + 'h conforme a mercadoria'
-                    : 'freetime de ' + ft.descarga_piso + 'h')
-      : 'sem freetime cadastrado';
-    document.getElementById('tvcli-k2').innerHTML = [
-      tvCard('Permanência na descarga', mediana != null
-               ? mediana.toLocaleString('pt-BR',{maximumFractionDigits:1}) + ' h' : 'n/d',
-             '', 'mediana do mês · ' + faixa),
-      tvCard('Acima do freetime', foraPct != null ? foraPct + '%' : 'n/d', cls,
-             'excedente em qualquer contrato · ' + (de.n || 0) + ' descargas medidas'),
-      tvCard('Permanência na carga', (dP.carga || {}).mediana_h != null
-               ? dP.carga.mediana_h.toLocaleString('pt-BR',{maximumFractionDigits:1}) + ' h' : 'n/d',
-             '', 'mediana do mês · freetime de ' + (ft.carga_piso != null ? ft.carga_piso + 'h' : 'n/d')),
-      tvCard('Cargas no mês', String(dP.cargas_no_periodo || 0), '',
-             'com apontamento de carga ou descarga'),
-    ].join('');
+    const de = dP.descarga || {}, ca = dP.carga || {}, ft = dP.freetime || {};
+
+    /* MEDIDOR: aderencia ao freetime na descarga. O numero e o DENTRO (a
+       leitura positiva que uma parede pede), com semaforo DISCRETO -- e so
+       quando ha regua: sem freetime cadastrado nao ha o que classificar, e
+       verde sem regua e verde inventado.
+
+       Usa a faixa "dentro do piso", a mais conservadora das tres: e a unica
+       que vale sob QUALQUER contrato. Num mural ninguem le a ressalva de que
+       a faixa do meio depende da mercadoria. */
+    const dentroPct = de.dentro_pct;
+    const cls = (dentroPct == null) ? '' : (dentroPct >= 80 ? 'ok' : (dentroPct >= 60 ? 'warn' : 'ruim'));
+    document.getElementById('tvcli-gauge').innerHTML = tvCliGauge(
+      dentroPct == null ? null : dentroPct, cls, de.zona_pct);
+    document.getElementById('tvcli-gauge-sub').textContent = ft.contratos
+      ? ((de.dentro || 0) + ' de ' + (de.n || 0) + ' descargas dentro de '
+         + tvH(ft.descarga_piso)
+         + (ft.ambiguo ? ' · ' + (de.zona || 0) + ' entre ' + tvH(ft.descarga_piso)
+                         + ' e ' + tvH(ft.descarga_teto) + ' conforme a mercadoria' : '')
+         + ' · mediana ' + tvH(de.mediana_h))
+      : 'sem freetime cadastrado para este cliente';
+
+    /* ROSCA: as cargas em curso por etapa do trajeto. Mesmas contagens da
+       banda de cima, em forma -- de longe a proporcao se le antes do numero. */
+    /* A fatia SEM APONTAMENTO nao e enfeite: desde que o manifesto passou a
+       fechar a viagem, a carga emitida e ainda nao apontada aparece no painel
+       -- e ela nao esta em nenhuma das tres etapas. Sem esta fatia o anel
+       dizia "nenhuma carga em curso" ao lado de um KPI dizendo 10. */
+    const semApont = (dA.em_curso || 0) - naOrigem - emViagem - naDescarga;
+    document.getElementById('tvcli-rosca').innerHTML = tvCliRosca([
+      {rot:'Sem apontamento', n: Math.max(0, semApont), cor:'#6E7883'},
+      {rot:'Na origem',  n: naOrigem,   cor:'#8FA6BC'},
+      {rot:'Em viagem',  n: emViagem,   cor:'#4ADE80'},
+      {rot:'No destino', n: naDescarga, cor:'#FBBF24'},
+    ]);
+    document.getElementById('tvcli-rosca-sub').textContent =
+      'carregamento: mediana ' + tvH(ca.mediana_h)
+      + ' · ' + (dP.cargas_no_periodo || 0) + ' cargas apontadas no mês';
 
     /* TABELA DA TV: quem limita e o RENDERIZADOR, nao o CSS -- rolagem dentro
        do card e inutil numa parede que ninguem toca. 10 linhas e o que cabe. */
@@ -12942,21 +13227,7 @@ async function loadTvCli(){
         }).join('')
       : '<tr><td colspan="4">nenhuma carga em curso</td></tr>';
 
-    const porRota = {};
-    cargas.forEach(function(c){
-      const k = c.destino + '/' + c.uf_destino;
-      porRota[k] = (porRota[k] || 0) + 1;
-    });
-    const pares = Object.keys(porRota).map(function(k){ return [k, porRota[k]]; })
-                        .sort(function(a, b){ return b[1] - a[1]; }).slice(0, 8);
-    const maxR = Math.max.apply(null, [1].concat(pares.map(function(x){ return x[1]; })));
-    document.getElementById('tvcli-rotas-sub').textContent =
-      pares.length ? ' · por destino · ' + cargas.length + ' cargas' : '';
-    document.getElementById('tvcli-rotas').innerHTML = pares.map(function(x){
-      return '<div class="tvd-col"><span class="v">' + x[1] + '</span>'
-        + '<i style="height:' + Math.max(2, 100 * x[1] / maxR).toFixed(1) + '%"></i>'
-        + '<b>' + esc(x[0]) + '</b></div>';
-    }).join('') || '';
+    tvCliMapa(cargas, dA.posicao);
   }catch(e){
     if(seq === tvCliSeq) tvErro('tvcli-k1', tvCliOk);
   }
@@ -21680,7 +21951,7 @@ async function loadCliop(){
                    + (por['Sa\u00edda do carregamento'] || 0);
     document.getElementById('kpis-cliop').innerHTML = [
       kpi('Cargas em curso', (d.em_curso || 0).toLocaleString('pt-BR'),
-          'ainda sem fim de descarga apontado', ''),
+          'manifesto ainda não encerrado', ''),
       kpi('Em viagem', emViagem.toLocaleString('pt-BR'), 'a caminho do destino', ''),
       kpi('No destino', naDescarga.toLocaleString('pt-BR'),
           'chegou e aguarda ou esta em descarga', ''),
@@ -31123,6 +31394,7 @@ const BUSCA_SINONIMOS = {
   supfila:['suporte','atendimento','fila','chamados','sla'],
   des:['avaliacao','desempenho','nine box','9box','potencial','talento','sucessao'],
   aud:['auditoria','uso','acessos','log','trilha','sessao'],
+  mon:['monitoramento','monitoramentos','rastreio','acompanhamento','aviso','whatsapp','inscricao','onde esta minha carga'],
   gr:['risco','gerenciamento de risco','rastreamento','panico','evento','macro','monitoramento','sm','escolta'],
   fat:['faturamento','meta','emissao','emissoes','cte','nfse','atingimento','modalidade','cancelado','bi'],
   prodveic:['produtividade','veiculo','veiculos','km por veiculo','ocioso','ociosidade','parado','frota parada','bi'],
@@ -32027,6 +32299,199 @@ function audDur(seg){
   const h = Math.floor(seg/3600), m = Math.round((seg%3600)/60);
   return h ? (h + 'h' + (m ? ' ' + m + 'min' : '')) : (m + 'min');
 }
+/* ===================== MONITORAMENTOS DE CARGA (#mon) =====================
+   O painel de administracao do rastreio publico. Quem se inscreve la fora nao
+   tem conta, entao nada do que acontece naquela pagina aparecia aqui dentro.
+
+   A DECISAO QUE MAIS PESA NESTA TELA: "ultimo aviso" velho NAO E FALHA e nao
+   pode ficar vermelho. O aviso nao reenvia mensagem identica a anterior — e o
+   que separa "aviso de hora em hora" de "24 mensagens iguais por dia", que faz
+   a pessoa bloquear o numero da empresa. Caminhao parado a noite toda produz,
+   corretamente, zero envio. Pintar isso de alarme ensina a ignorar alarmes. */
+function monQuando(ts){
+  if(!ts) return '—';
+  const d = new Date(String(ts).replace(' ', 'T'));
+  return isNaN(d) ? esc(ts) : d.toLocaleString('pt-BR',
+    {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+}
+function monDia(ts){
+  if(!ts) return '—';
+  const d = new Date(String(ts).replace(' ', 'T'));
+  return isNaN(d) ? esc(ts) : d.toLocaleDateString('pt-BR',
+    {day:'2-digit', month:'2-digit'});
+}
+/* Idade em texto curto. Ausencia vira 'n/d' e NUNCA zero: nao ter envio nao e
+   "ha 0 minutos". */
+function monIdade(min){
+  if(min === null || min === undefined) return 'n/d';
+  if(min < 1) return 'agora';
+  if(min < 60) return 'há ' + min + ' min';
+  if(min < 2880) return 'há ' + Math.floor(min/60) + 'h';
+  return 'há ' + Math.floor(min/1440) + ' dias';
+}
+function monEstado(l){
+  const cls = l.estado === 'entregue' ? 'ok'
+            : l.estado === 'desconhecido' ? 'flat' : 'warn';
+  return statChip(cls, l.estado_rotulo || '—',
+    l.estado === 'desconhecido'
+      ? 'O CT-e nao foi encontrado no ERP agora. A inscricao existe; o que faltou foi a leitura da carga.'
+      : 'Estado lido do mesmo CT-e que a pagina publica le.');
+}
+function monDurou(h){
+  if(h === null || h === undefined) return 'n/d';
+  return h < 24 ? h.toLocaleString('pt-BR') + ' h' : Math.round(h/24) + ' dias';
+}
+
+async function loadMon(){
+  const dias = +(document.getElementById('mon-dias')||{}).value || 14;
+  /* `respostaJSON` e nao `r.json()`: e ele que separa sessao expirada, proxy
+     respondendo no lugar da API e erro interno — regra da casa. */
+  const r = await fetch('/api/monitoramentos?dias=' + dias, {cache:'no-store'});
+  const d = await respostaJSON(r);
+  if(!d.ok){
+    document.getElementById('mon-hint').textContent =
+      (d.dados && d.dados.mensagem) || 'não foi possível ler os monitoramentos';
+    return;
+  }
+  const v = d.dados || {}, k = v.resumo;
+  /* Payload sem `resumo` derrubaria a tela no primeiro `k.ativas`, e tela que
+     morre no boot nao mostra erro nenhum — so fica vazia. Falha DITA. */
+  if(!k){
+    document.getElementById('mon-hint').textContent =
+      'a consulta respondeu sem os indicadores — nada a mostrar';
+    return;
+  }
+  const nAtivas = (v.ativas||[]).length, nHist = (v.historico||[]).length;
+
+  document.getElementById('mon-kpis').innerHTML = [
+    kpi('Acompanhando agora', k.ativas.toLocaleString('pt-BR'),
+        k.cargas_ativas + ' carga(s) · ' + k.fones_ativos + ' telefone(s)', '',
+        'Inscrições ativas e dentro do prazo. Um telefone pode acompanhar mais de uma carga, e uma carga pode ter mais de um interessado — por isso os três números são diferentes.'),
+    kpi('Novos em 24h', k.novas_24h.toLocaleString('pt-BR'),
+        'de ' + k.total.toLocaleString('pt-BR') + ' desde ' + monDia(k.primeira), '',
+        'Quantas pessoas pediram para acompanhar uma carga nas últimas 24 horas.'),
+    kpi('Avisos enviados', k.envios.toLocaleString('pt-BR'),
+        'para ' + k.fones + ' telefone(s), em ' + k.cargas + ' carga(s)', '',
+        'Mensagens de WhatsApp entregues ao caminho de envio. Mensagem idêntica à anterior não é reenviada, então este número é menor que "uma por hora por inscrição" — de propósito.'),
+    /* SEM SEMAFORO AQUI, e isso e deliberado: ver a explicacao no topo. */
+    kpi('Último aviso', monIdade(k.ultimo_envio_min),
+        k.ativas ? 'com ' + k.ativas + ' inscrição(ões) ativa(s)'
+                 : 'nenhuma inscrição ativa', '',
+        'Quando saiu o último aviso. Um valor antigo NÃO é falha: o aviso não repete mensagem igual à anterior, então um caminhão parado a noite toda produz zero envio, corretamente.'),
+  ].join('');
+
+  document.getElementById('mon-hint').textContent =
+    (v.serie||[]).length + ' dia(s) com histórico · primeira inscrição em '
+    + monDia(k.primeira)
+    + (v.cargas_faltando ? ' · o ERP não respondeu: trecho e estado das cargas ficaram de fora' : '');
+
+  /* UMA SERIE SO, uma escala so: barra simples. O intervalo de dias vem
+     GERADO do servidor — dia sem inscricao e zero, nao buraco. */
+  const S = v.serie || [];
+  ecDesenhar('chartMonDias', S.length && (() => {
+    const rot = S.map(x => x.dia.slice(8,10) + '/' + x.dia.slice(5,7));
+    const o = ecOpcoes(rot, Math.max(1, ...S.map(x => x.novas)), {sombra:true});
+    o.series = [ecBarras('Novos monitoramentos', S.map(x => x.novas), CC.navy700,
+                         {rotulo: n => n || ''})];
+    return o;
+  }), 'ninguém pediu para acompanhar carga ainda');
+
+  document.getElementById('mon-ativas').innerHTML = (v.ativas||[]).map(l =>
+    '<tr><td>' + esc(l.documento) + '</td><td>'
+    + esc((l.origem || '—') + ' → ' + (l.destino || '—')) + '</td><td>'
+    + monEstado(l) + '</td><td class="mono">' + esc(l.telefone) + '</td><td class="num">'
+    + l.envios + '</td><td>' + monIdade(l.ultimo_envio_min) + '</td><td>'
+    + monDia(l.expira_em) + '</td><td><button class="btn" data-id="'
+    + esc(String(l.id)) + '" data-doc="' + esc(l.documento)
+    + '" onclick="monEncerrar(this)">Encerrar</button></td></tr>').join('')
+    || '<tr><td colspan="8">ninguém está acompanhando carga agora</td></tr>';
+  document.getElementById('mon-ativ-hint').textContent =
+    nAtivas + ' monitoramento(s) ativo(s)'
+    + (nAtivas >= 300 ? ' (mostrando os 300 mais recentes)' : '');
+  abaContador('mon-n-ativ', nAtivas);
+
+  /* COMO TERMINAM. Expirar sozinha e cancelar sao linhas SEPARADAS: juntar
+     faria a taxa de cancelamento mentir para cima. */
+  const fins = {};
+  (v.historico||[]).forEach(l => { fins[l.fim_rotulo] = (fins[l.fim_rotulo] || 0) + 1; });
+  const totF = nHist || 1;
+  document.getElementById('mon-fins').innerHTML =
+    Object.entries(fins).sort((a,b) => b[1]-a[1]).map(par =>
+      '<tr><td>' + esc(par[0]) + '</td><td class="num">' + par[1]
+      + '</td><td class="num">' + (100*par[1]/totF).toFixed(0) + '%</td></tr>').join('')
+    || '<tr><td colspan="3">nenhum monitoramento terminou ainda</td></tr>';
+
+  document.getElementById('mon-hist').innerHTML = (v.historico||[]).map(l =>
+    '<tr><td>' + esc(l.documento) + '</td><td>'
+    + esc((l.origem || '—') + ' → ' + (l.destino || '—')) + '</td><td class="mono">'
+    + esc(l.telefone) + '</td><td class="num">' + l.envios + '</td><td class="num">'
+    + monDurou(l.horas) + '</td><td>' + esc(l.fim_rotulo)
+    + (l.fim_detalhe ? ' <span class="hint">(' + esc(l.fim_detalhe) + ')</span>' : '')
+    + '</td><td>'
+    + monQuando(l.encerrado_em || l.expira_em) + '</td></tr>').join('')
+    || '<tr><td colspan="7">nenhum monitoramento encerrado ainda</td></tr>';
+  document.getElementById('mon-hist-hint').textContent =
+    nHist + ' monitoramento(s) encerrado(s) ou expirado(s)'
+    + (nHist >= 300 ? ' (mostrando os 300 mais recentes)' : '');
+  abaContador('mon-n-hist', nHist);
+
+  /* OS TETOS VEM DO SERVIDOR, que os le das constantes de `assinatura.py`.
+     Digitar os numeros aqui faria a tela mentir no dia em que o limite mudasse
+     no codigo — e ninguem conferiria. */
+  const f = v.freios || {};
+  document.getElementById('mon-tetos').innerHTML = [
+    ['Cargas por telefone, ao mesmo tempo', f.teto_por_fone,
+     'Teto de produto, não de segurança: cancelar libera a vaga na hora. A mensagem horária é UMA só, com todas as cargas dentro.'],
+    ['Inscrições criadas por telefone em 24h', f.teto_criadas_24h,
+     'Este é o teto antiabuso. Cada inscrição manda uma mensagem na hora, então cadastrar-e-cancelar em laço encheria o WhatsApp de um número que não é seu.'],
+    ['Telefones acompanhando a MESMA carga', f.teto_por_carga,
+     'Uma carga tem remetente, destinatário e quem espera na doca — não trinta pessoas.'],
+    ['Dias até a inscrição expirar sozinha', f.dias_validade,
+     'Ninguém volta para cancelar: a carga chega, a pessoa esquece, e o aviso seguiria para sempre.'],
+  ].map(t => '<tr><td>' + esc(t[0]) + '</td><td class="num">'
+    + (t[1] === undefined ? 'n/d' : t[1]) + '</td><td>' + esc(t[2]) + '</td></tr>').join('');
+
+  const pf = (f.telefones || []);
+  document.getElementById('mon-freios').innerHTML = pf.map(x =>
+    '<tr><td class="mono">' + esc(x.telefone) + '</td><td class="num">'
+    + x.ativas + ' de ' + f.teto_por_fone + '</td><td>'
+    + statChip(x.no_teto ? 'warn' : 'flat',
+               x.no_teto ? 'No teto' : 'Perto do teto',
+               x.no_teto ? 'Já não consegue acompanhar mais nenhuma carga sem cancelar uma.'
+                         : 'Uma carga a mais e bate o teto.') + '</td></tr>').join('')
+    || '<tr><td colspan="3">nenhum telefone perto do limite</td></tr>';
+  document.getElementById('mon-freio-hint').textContent =
+    pf.length + ' telefone(s) a uma carga ou menos do teto de ' + f.teto_por_fone;
+  abaContador('mon-n-freio', pf.length);
+}
+
+/* `data-*` + `this.dataset`, nunca JSON dentro do atributo: aspas dentro de
+   atributo HTML quebram a PAGINA inteira, nao so o botao. */
+async function monEncerrar(btn){
+  const id = btn.dataset.id, doc = btn.dataset.doc || 'esta carga';
+  if(!confirm('Encerrar o monitoramento de ' + doc + '?\n\nA pessoa para de '
+    + 'receber os avisos desta carga. Ela pode se inscrever de novo pela '
+    + 'página pública, com o documento em mãos.')) return;
+  btn.disabled = true;
+  let ok = false;
+  try{
+    const r = await fetch('/api/monitoramentos/encerrar', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({id: +id})});
+    const rr = await respostaJSON(r);
+    if(!rr.ok){
+      showBanner((rr.dados && rr.dados.mensagem) || 'Não foi possível encerrar.');
+      btn.disabled = false; return;
+    }
+    ok = true;
+  }catch(e){
+    showBanner('Falha de rede ao encerrar.'); btn.disabled = false; return;
+  }
+  /* A RECARGA FICA FORA DO `try` DA ACAO: falha ao redesenhar nao pode ser
+     lida como "o encerramento falhou" — ele ja aconteceu. */
+  if(ok){ showBanner('Monitoramento encerrado.'); loadMon(); }
+}
+
 function audQuando(ts){
   if(!ts) return '—';
   const d = new Date(String(ts).replace(' ', 'T'));
@@ -37266,6 +37731,7 @@ boot();
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Administração</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
         <a href="#aud" onclick="fecharDrawer()"><span class="ic" data-ic="audic"></span>Auditoria e Uso</a>
+        <a href="#mon" onclick="fecharDrawer()"><span class="ic" data-ic="monic"></span>Monitoramentos de Carga</a>
         <a href="#srv" onclick="fecharDrawer()"><span class="ic" data-ic="srv"></span>Saúde do Servidor</a>
         <a href="#gestao" onclick="fecharDrawer()"><span class="ic" data-ic="ges"></span>Usuários e acesso</a>
       </div>

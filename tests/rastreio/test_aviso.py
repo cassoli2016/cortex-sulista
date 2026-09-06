@@ -13,6 +13,8 @@ não pode existir, porque é indistinguível de "está tudo calmo".
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from api.rastreio import aviso
@@ -225,6 +227,58 @@ def test_o_cadastro_manda_a_PRIMEIRA_mensagem_na_hora(monkeypatch):
     assert "SAIR" in enviados[0][1], "a primeira mensagem tem de dizer como sair"
 
 
+def test_a_inscricao_GRAVA_o_envio_inicial(monkeypatch):
+    """É ESTA GRAVAÇÃO QUE ANCORA O RELÓGIO NO PEDIDO.
+
+    Sem ela a inscrição nascia com `ultimo_envio` e `ultimo_texto` nulos: o
+    ciclo seguinte a lia como "nunca avisada", não tinha com o que comparar o
+    texto, e mandava tudo de novo. Medido em 05/09/2026 — a inscrição das 12h38
+    recebeu a mensagem de cadastro e outra às 13h00.
+    """
+    from api.rastreio import assinatura
+
+    marcados = []
+    alvo = {"grupo": 1, "empresa": 1, "filial": 1, "numero": 51283, "serie": 1}
+    monkeypatch.setattr(assinatura.consulta, "buscar_cru",
+                        lambda t, c: ([alvo], None))
+    monkeypatch.setattr(assinatura.consulta, "token", lambda *a: "ID")
+    monkeypatch.setattr(assinatura.pglocal, "get_conn", _conn_falsa)
+    monkeypatch.setattr(aviso, "_carga_da_inscricao", lambda i: _carga())
+    monkeypatch.setattr(aviso.wa, "enviar", lambda f, t, **k: {"ok": True})
+    monkeypatch.setattr(assinatura, "marcar_envio",
+                        lambda i, t: marcados.append((i, t)))
+
+    assinatura.inscrever("51283", "0051", "ID", "11987654321", "1.2.3.4")
+    assert len(marcados) == 1, "o envio inicial tem de ser gravado"
+    # O TEXTO GRAVADO É O CRU, SEM RODAPÉ. O rodapé carrega o número do
+    # documento e muda de mensagem para mensagem: gravá-lo junto faria a
+    # comparação do ciclo seguinte nunca casar, e a mensagem repetida voltaria
+    # por outra porta — a mesma que este guard fecha.
+    assert "SAIR" not in marcados[0][1]
+
+
+def test_envio_inicial_RECUSADO_nao_ancora_o_relogio(monkeypatch):
+    """Se a mensagem não saiu, a pessoa não foi avisada — e gravar o envio a
+    faria esperar uma hora por algo que nunca chegou. Sem gravação, o próximo
+    ciclo a trata como vencida e ela recebe na primeira oportunidade."""
+    from api.rastreio import assinatura
+
+    marcados = []
+    alvo = {"grupo": 1, "empresa": 1, "filial": 1, "numero": 51283, "serie": 1}
+    monkeypatch.setattr(assinatura.consulta, "buscar_cru",
+                        lambda t, c: ([alvo], None))
+    monkeypatch.setattr(assinatura.consulta, "token", lambda *a: "ID")
+    monkeypatch.setattr(assinatura.pglocal, "get_conn", _conn_falsa)
+    monkeypatch.setattr(aviso, "_carga_da_inscricao", lambda i: _carga())
+    monkeypatch.setattr(aviso.wa, "enviar",
+                        lambda f, t, **k: {"ok": False, "erro": "fora da janela"})
+    monkeypatch.setattr(assinatura, "marcar_envio",
+                        lambda i, t: marcados.append((i, t)))
+
+    assinatura.inscrever("51283", "0051", "ID", "11987654321", "1.2.3.4")
+    assert marcados == []
+
+
 def test_falha_no_envio_NAO_desfaz_o_cadastro(monkeypatch):
     """O cadastro está gravado; a tarefa horária pega o próximo ciclo. Desfazer
     a inscrição porque o WhatsApp piscou faria a pessoa cadastrar de novo — e
@@ -310,3 +364,79 @@ def test_o_aviso_HORARIO_continua_respeitando_a_janela(cenario):
     aviso.rodar()
     # o aviso horario nao passa `regras`: vale a janela geral
     assert enviados, "nada foi enviado no cenario"
+
+
+# --------------------------------------------------------------------------
+# O RELÓGIO É O DA PESSOA, não a hora cheia do servidor
+# --------------------------------------------------------------------------
+def _ins(**kw) -> dict:
+    base = {"id": 1, "grupo": 1, "empresa": 1, "filial": 2, "numero": 94540,
+            "serie": 2, "telefone": "5541999999999", "ultimo_texto": None,
+            "ultimo_envio": None, "envios": 0, "desde_min": 999}
+    base.update(kw)
+    return base
+
+
+def _sem_rede(monkeypatch, inscricoes):
+    """Deixa o `rodar()` andar sem tocar em banco, ERP nem WhatsApp."""
+    from api.rastreio import assinatura
+    monkeypatch.setattr(assinatura, "ativas", lambda: inscricoes)
+    monkeypatch.setattr(aviso, "_carga_da_inscricao", lambda i: _carga())
+
+
+def test_quem_acabou_de_receber_NAO_recebe_de_novo(monkeypatch):
+    """O DEFEITO QUE ISTO FECHA, medido em 05/09/2026: quem se inscrevia às
+    12h38 recebia a mensagem de cadastro e OUTRA às 13h00 — vinte e dois
+    minutos depois, com o mesmo conteúdo. O ciclo da hora cheia não sabia que a
+    pessoa acabara de ser avisada.
+
+    Duas mensagens iguais em vinte minutos é exatamente o que faz alguém
+    bloquear o número — e o bloqueio atinge o número que fala com todos os
+    outros clientes."""
+    _sem_rede(monkeypatch, [_ins(desde_min=22)])
+    r = aviso.rodar(ensaio=True)
+    assert r["enviados"] == 0
+    assert r["cedo"] == 1, "ficar calado no prazo é a terceira resposta, e ela se declara"
+
+
+def test_vencido_pelo_relogio_DELE_recebe(monkeypatch):
+    """Passados os 60 minutos contados do pedido, sai — mesmo que não seja
+    hora cheia. É isto que faz quem pediu 12h38 receber 13h38."""
+    _sem_rede(monkeypatch, [_ins(desde_min=61)])
+    r = aviso.rodar(ensaio=True)
+    assert r["cedo"] == 0
+    assert r["inscricoes"] == 1
+
+
+def test_ancora_ilegivel_erra_para_o_lado_de_AVISAR(monkeypatch):
+    """`desde_min` nulo é inscrição sem âncora legível. Entre calar e avisar
+    quem está esperando a carga, o lado seguro é avisar: o texto igual ao
+    anterior ainda seria barrado depois, e o silêncio não teria remédio."""
+    _sem_rede(monkeypatch, [_ins(desde_min=None)])
+    r = aviso.rodar(ensaio=True)
+    assert r["cedo"] == 0 and r["inscricoes"] == 1
+
+
+def test_a_ancora_e_do_TELEFONE_e_nao_da_carga(monkeypatch):
+    """As cargas de um mesmo número saem numa mensagem SÓ. Se a âncora fosse
+    por carga, quem acompanha duas receberia duas mensagens por hora, em
+    minutos diferentes — desfazendo o agrupamento que existe justamente para
+    não fazer a pessoa bloquear o número.
+
+    Por isso `desde_min` vem calculado POR TELEFONE no banco: as duas linhas do
+    mesmo número carregam o mesmo valor, e as duas esperam juntas."""
+    duas = [_ins(id=1, numero=94540, desde_min=20),
+            _ins(id=2, numero=94541, desde_min=20)]
+    _sem_rede(monkeypatch, duas)
+    r = aviso.rodar(ensaio=True)
+    assert r["enviados"] == 0 and r["cedo"] == 2
+
+
+def test_o_intervalo_e_UMA_CONSTANTE_e_nao_esta_escrita_no_aviso():
+    """A cadência muda mexendo em `assinatura.INTERVALO_MIN`, num lugar só. Um
+    `60` digitado dentro de `aviso.py` seria a próxima pessoa mudando o
+    intervalo e descobrindo que ele continua igual."""
+    from api.rastreio import assinatura
+    assert assinatura.INTERVALO_MIN == 60
+    fonte = (Path(aviso.__file__)).read_text(encoding="utf-8")
+    assert "assinatura.INTERVALO_MIN" in fonte
