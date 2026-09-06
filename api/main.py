@@ -3585,7 +3585,9 @@ async def frota_pneus_movimento(req: Request) -> JSONResponse:
         pneu = int(corpo.get("pneu") or 0)
     except (TypeError, ValueError):
         pneu = 0
-    if not pneu:
+    # CRIAR NAO TEM PNEU AINDA — e a unica acao que nasce sem um. Exigir o
+    # identificador aqui recusaria justamente o cadastro do pneu novo.
+    if not pneu and acao != "criar":
         return JSONResponse(status_code=HTTP_RECUSA, content={
             "erro": "sem_pneu", "mensagem": "Informe o pneu."})
 
@@ -3601,6 +3603,15 @@ async def frota_pneus_movimento(req: Request) -> JSONResponse:
         elif acao == "sucatear":
             r = await sem_travar(movimento.sucatear, pneu,
                                  int(corpo.get("motivo_id") or 0), quem, ip)
+        elif acao == "criar":
+            r = await sem_travar(movimento.criar,
+                                 corpo.get("numero_fogo") or "",
+                                 corpo.get("marca") or "",
+                                 corpo.get("modelo") or "",
+                                 corpo.get("medida") or "",
+                                 corpo.get("dot") or "",
+                                 corpo.get("custo"),
+                                 corpo.get("filial") or "", quem, ip)
         elif acao == "inspecionar":
             r = await sem_travar(movimento.inspecionar, pneu,
                                  corpo.get("sulcos") or [],
@@ -3609,8 +3620,8 @@ async def frota_pneus_movimento(req: Request) -> JSONResponse:
         else:
             return JSONResponse(status_code=HTTP_RECUSA, content={
                 "erro": "acao_desconhecida",
-                "mensagem": "Acao invalida. Use instalar, remover, sucatear "
-                            "ou inspecionar."})
+                "mensagem": "Acao invalida. Use criar, instalar, remover, "
+                            "sucatear ou inspecionar."})
     except MovimentoInvalido as exc:
         return JSONResponse(status_code=HTTP_RECUSA, content={
             "erro": "movimento_invalido", "mensagem": str(exc)})

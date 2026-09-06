@@ -201,7 +201,14 @@ def semear(limite: int | None = None) -> dict:
                 # pneus, que e a assinatura do erro: numero de fogo nao se
                 # repete, numero de frota do veiculo sim. O instantaneo nao
                 # traz o fogo, entao ele fica NULO ate a operacao informar.
-                (None, p.get("serie") or None,
+                # O NUMERO DE FOGO VAI NAS DUAS COLUNAS, e nao e descuido.
+                # O `serialNumber` da Prolog E o numero de fogo (o spec deles o
+                # descreve como "visual identifier"), e a coleta o gravava so em
+                # `serie`, deixando vazia justamente a coluna que a operacao usa
+                # para achar o pneu no patio. Cinco modulos leem `serie`; trocar
+                # todos de uma vez seria mexer em muita coisa por um rename.
+                # `numero_fogo` e a chave daqui para a frente.
+                (p.get("serie") or None, p.get("serie") or None,
                  p.get("dot") or None, modelo_id, p.get("filial") or None,
                  status, int(p.get("vida") or 0), placa,
                  (p.get("posicao") or "").strip() or None,

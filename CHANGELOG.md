@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.255.0] — 05/09/2026  ·  CX-05/09/2026-v0.255.0
+
+### Adicionado
+- Dá para cadastrar um pneu novo no CÓRTEX. Ele entra pelo NÚMERO DE FOGO, que é o que a borracharia lê na carcaça — e é a última peça que faltava: até aqui o sistema sabia movimentar os 8.572 pneus que vieram importados, mas não tinha como registrar o 8.573º.
+- O DOT entra junto, validado: quatro dígitos de semana e ano de fabricação. Ele diz a idade da carcaça, que é motivo de baixa sozinha — mas não identifica pneu nenhum, porque muitos saem da fábrica na mesma semana. Em branco é aceito: nem todo pneu chega com a marcação legível, e exigir faria alguém inventar um número.
+
+### Corrigido
+- O número de fogo estava gravado na coluna errada. A cópia da Prolog o punha no campo de série do fabricante e deixava vazio justamente o campo que a operação usa para achar o pneu no pátio — nos 8.572. Agora ele está no lugar certo e não pode se repetir: são 8.572 números, todos distintos, o que confirma que ele serve como identificador.
+
 ## [0.253.0] — 05/09/2026  ·  CX-05/09/2026-v0.253.0
 
 ### Adicionado

@@ -89,7 +89,7 @@ def banco(esquema_pg, monkeypatch):
             "abrir": original}
 
 
-def _query(abrir, esquema, sql, params):
+def _query(abrir, esquema, sql, params=None):
     with abrir(esquema=esquema) as c, c.cursor() as cur:
         cur.execute(sql, params)
         return [dict(r) for r in cur.fetchall()]
@@ -245,3 +245,90 @@ def test_a_inspecao_propria_tambem_e_CORTEX(banco):
     assert linhas[0]["origem"] == "cortex"
     assert linhas[0]["placa"] == "AAA1A11"
     assert linhas[0]["km_veiculo"] == 350000
+
+
+# --------------------------------------------------------------------------
+# cadastrar um pneu NOVO — a chave é o número de fogo
+# --------------------------------------------------------------------------
+def test_cadastrar_pneu_novo_pelo_NUMERO_DE_FOGO(banco):
+    """A chave foi decisão de quem opera: é o que a borracharia lê na carcaça.
+    Medido nos 8.572 importados antes de adotá-la — 8.572 valores, todos
+    distintos, nenhum vazio."""
+    r = mv.criar("F12345", "Durable", "DR766", "295/80 R22.5", dot="0125",
+                 custo=1500, usuario="ana")
+    assert r["ok"] and r["numero_fogo"] == "F12345" and r["dot"] == "0125"
+    linhas = _query(banco["abrir"], banco["esquema"],
+                    "SELECT numero_fogo, dot, status, vida_atual, origem, "
+                    "custo_aquisicao FROM pne_pneu WHERE id = %s", (r["pneu"],))
+    p = linhas[0]
+    assert p["numero_fogo"] == "F12345" and p["status"] == "estoque"
+    assert p["vida_atual"] == 1 and p["origem"] == "cortex"
+    assert float(p["custo_aquisicao"]) == 1500.0
+
+
+def test_numero_de_fogo_REPETIDO_e_recusado(banco):
+    """Dois pneus com o mesmo número de fogo tornam a identificação no pátio
+    ambígua — e é ela que liga o pneu físico ao registro."""
+    mv.criar("F12345", "Durable", "DR766")
+    with pytest.raises(mv.MovimentoInvalido) as e:
+        mv.criar("f12345", "Outra", "Coisa")     # e o caixa não salva
+    assert "já existe" in str(e.value).lower()
+
+
+def test_o_BANCO_e_quem_garante_a_unicidade(banco):
+    """A checagem em Python dá a mensagem legível; quem impede de verdade é o
+    índice. Duas telas abertas ao mesmo tempo não se enxergam, e a segunda
+    inserção só falharia no commit."""
+    linhas = _query(banco["abrir"], banco["esquema"], """
+        SELECT indexdef FROM pg_indexes
+        WHERE tablename = 'pne_pneu' AND indexname = 'pne_pneu_fogo_unico'""")
+    assert linhas, "não há índice único sobre o número de fogo"
+    assert "UNIQUE" in linhas[0]["indexdef"]
+
+
+def test_o_cadastro_TAMBEM_e_um_evento(banco):
+    """Sem ele, o primeiro registro da vida do pneu seria a instalação, e
+    "quando este pneu entrou na frota" não teria resposta no histórico."""
+    r = mv.criar("F99999", "Durable", "DR766", usuario="ana")
+    linhas = _query(banco["abrir"], banco["esquema"],
+                    "SELECT tipo, origem, motivo FROM pne_evento "
+                    "WHERE pneu_id = %s", (r["pneu"],))
+    assert linhas and linhas[0]["origem"] == "cortex"
+    assert linhas[0]["motivo"] == "cadastro"
+
+
+def test_o_modelo_entra_pela_MESMA_chave_da_coleta(banco):
+    """Senão o catálogo ganha um duplicado a cada cadastro feito aqui — foi
+    assim que ele já dobrou uma vez, de 8.572 para 17.144."""
+    a = mv.criar("F00001", "Durable", "DR766", "295/80 R22.5")
+    b = mv.criar("F00002", "Durable", "DR766", "295/80 R22.5")
+    linhas = _query(banco["abrir"], banco["esquema"],
+                    "SELECT count(*) AS n FROM pne_modelo "
+                    "WHERE marca = 'Durable' AND modelo = 'DR766'")
+    assert linhas[0]["n"] == 1, "o mesmo modelo entrou duas vezes"
+
+
+@pytest.mark.parametrize("dot", ["012", "01255", "abcd", "0025", "5425"])
+def test_DOT_com_forma_impossivel_e_recusado(banco, dot):
+    """Semana 00 e semana 54 não existem; 53 existe (o calendário ISO tem anos
+    de 53 semanas) e recusá-la rejeitaria pneu legítimo."""
+    with pytest.raises(mv.MovimentoInvalido):
+        mv.criar("F55555", "M", "X", dot=dot)
+
+
+def test_DOT_de_53_semanas_e_ACEITO(banco):
+    assert mv.criar("F55556", "M", "X", dot="5325")["dot"] == "5325"
+
+
+def test_DOT_em_branco_e_ACEITO(banco):
+    """Nem todo pneu chega com a marcação legível, e exigir faria a pessoa
+    inventar — um DOT inventado vira idade de carcaça errada."""
+    assert mv.criar("F55557", "M", "X", dot="")["dot"] is None
+
+
+def test_sem_numero_de_fogo_ou_sem_modelo_o_cadastro_RECUSA(banco):
+    for kw in ({"numero_fogo": ""}, {"marca": ""}, {"modelo": ""}):
+        args = {"numero_fogo": "F1", "marca": "M", "modelo": "X"}
+        args.update(kw)
+        with pytest.raises(mv.MovimentoInvalido):
+            mv.criar(**args)

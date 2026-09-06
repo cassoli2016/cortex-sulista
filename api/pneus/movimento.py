@@ -36,6 +36,7 @@ que a coleta da Prolog nunca sobrescreva o que foi digitado aqui.
 from __future__ import annotations
 
 import logging
+import re
 
 from .. import pglocal
 
@@ -303,3 +304,104 @@ def inspecionar(pneu_id: int, sulcos: list, pressao=None, km=None,
              p["posicao_atual"], km, usuario))
         ident = cur.fetchone()["id"]
     return {"ok": True, "inspecao": ident, "pneu": pneu_id}
+
+
+# --------------------------------------------------------------------------
+# cadastrar um pneu NOVO — o que faltava para o 8.573º entrar
+# --------------------------------------------------------------------------
+#: Semana e ano de fabricação, quatro dígitos: `0125` = semana 1 de 2025. NÃO É
+#: identificador — 495 valores distintos em 8.036 pneus, porque muitos saem da
+#: fábrica na mesma semana. Ele responde a IDADE da carcaça, que é motivo de
+#: sucata sozinha.
+RE_DOT = re.compile(r"^(\d{2})(\d{2})$")
+
+
+def _dot(v):
+    """Valida o DOT, ou recusa dizendo. Vazio é aceito — nem todo pneu chega
+    com a marcação legível, e exigir faria a pessoa inventar."""
+    v = (v or "").strip()
+    if not v:
+        return None
+    m = RE_DOT.match(v)
+    if not m:
+        raise MovimentoInvalido(
+            "DOT deve ter 4 dígitos: semana e ano (ex.: 0125 = semana 1 de "
+            "2025).")
+    semana = int(m.group(1))
+    # 53 SEMANAS, não 52: o calendário ISO tem anos de 53, e recusar a 53
+    # rejeitaria pneu legítimo uma vez a cada cinco ou seis anos.
+    if not (1 <= semana <= 53):
+        raise MovimentoInvalido(
+            "DOT com semana %s — as semanas vão de 01 a 53." % m.group(1))
+    return v
+
+
+def criar(numero_fogo: str, marca: str, modelo: str, medida: str = "",
+          dot: str = "", custo=None, filial: str = "", usuario: str = "",
+          ip: str = "") -> dict:
+    """Cadastra um pneu NOVO no CÓRTEX.
+
+    A CHAVE É O NÚMERO DE FOGO, e essa foi decisão de quem opera: é o que a
+    borracharia lê na carcaça para saber de qual pneu está falando. Medido nos
+    8.572 importados antes de adotá-lo: 8.572 valores, todos distintos, nenhum
+    vazio — chave natural de verdade, não esperança.
+
+    A UNICIDADE É DO BANCO, não daqui. A checagem abaixo existe para dar uma
+    mensagem legível; quem impede de fato são o índice único e a corrida que ele
+    resolve — duas telas abertas ao mesmo tempo não se enxergam, e a segunda
+    inserção só falha no commit.
+
+    O DOT ENTRA COMO ATRIBUTO, nunca como chave: ele é semana e ano de
+    fabricação e muitos pneus compartilham o mesmo. Serve para a idade da
+    carcaça, que é motivo de sucata sozinha.
+    """
+    fogo = (numero_fogo or "").strip().upper()
+    marca = (marca or "").strip()
+    modelo = (modelo or "").strip()
+    if not fogo:
+        raise MovimentoInvalido("Informe o número de fogo.")
+    if not marca or not modelo:
+        raise MovimentoInvalido("Informe a marca e o modelo.")
+    dot = _dot(dot)
+    if custo not in (None, ""):
+        try:
+            custo = float(str(custo).replace(".", "").replace(",", "."))
+        except (TypeError, ValueError):
+            raise MovimentoInvalido("Custo inválido.") from None
+
+    _auditar(usuario, "pneu_criar", "fogo:%s" % fogo,
+             "%s %s %s" % (marca, modelo, medida), ip)
+    with pglocal.get_conn() as conn, conn.cursor() as cur:
+        cur.execute("SELECT id FROM pne_pneu WHERE numero_fogo = %s", (fogo,))
+        if cur.fetchone():
+            raise MovimentoInvalido(
+                "Já existe um pneu com o número de fogo %s." % fogo)
+
+        # O MODELO ENTRA PELA MESMA CHAVE DA COLETA (marca, modelo, medida,
+        # desenho, com o vazio normalizado) — senão o catálogo ganharia um
+        # duplicado a cada cadastro feito aqui.
+        cur.execute("""
+            INSERT INTO pne_modelo (marca, modelo, medida, origem)
+            VALUES (%s,%s,%s,'cortex')
+            ON CONFLICT (marca, modelo, coalesce(medida,''),
+                         coalesce(desenho,''))
+            DO UPDATE SET marca = EXCLUDED.marca
+            RETURNING id""", (marca, modelo, (medida or "").strip() or None))
+        modelo_id = cur.fetchone()["id"]
+
+        cur.execute("""
+            INSERT INTO pne_pneu
+                (numero_fogo, serie, dot, modelo_id, filial, status,
+                 vida_atual, custo_aquisicao, origem, atualizado_em)
+            VALUES (%s,%s,%s,%s,%s,'estoque',1,%s,'cortex', now())
+            RETURNING id""",
+            (fogo, fogo, dot, modelo_id, (filial or "").strip() or None,
+             custo or None))
+        pneu_id = cur.fetchone()["id"]
+
+        # O CADASTRO TAMBÉM É UM EVENTO. Sem ele, o primeiro registro da vida do
+        # pneu seria a instalação, e a pergunta "quando este pneu entrou na
+        # frota" não teria resposta no histórico.
+        _gravar(cur, pneu_id, "inventario", None, None, None, "cadastro",
+                "cadastrado no CÓRTEX", usuario)
+    return {"ok": True, "pneu": pneu_id, "numero_fogo": fogo, "dot": dot}
