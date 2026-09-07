@@ -2702,6 +2702,41 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 .appcard .qr svg{width:100%;height:100%;display:block}
 .appcard .abrir{margin-left:auto}
 @media(max-width:560px){ .apps-grid{grid-template-columns:minmax(0,1fr)} }
+
+/* --- tela Ritual Semanal de Gestao -------------------------------------- */
+/* A FAIXA DO ROTEIRO. Ela nao e decoracao: e o cartaz da parede dentro da
+   tela, e existe porque a regra que so vive num slide some na terceira
+   semana. Ocupa uma linha so -- o roteiro orienta a reuniao, nao e o
+   conteudo dela. */
+.rit-roteiro{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));
+  gap:9px}
+.rit-etapa{border:1px solid var(--n200);border-radius:8px;padding:9px;
+  background:var(--n0)}
+.rit-etapa .min{font-size:10.5px;font-weight:600;color:var(--n500);
+  letter-spacing:.05em}
+.rit-etapa .tit{font-size:12px;font-weight:600;color:var(--n900);margin-top:2px;
+  text-transform:uppercase;letter-spacing:.03em}
+.rit-etapa .sub{font-size:11.5px;color:var(--n500);margin-top:2px}
+/* O semaforo da linha do painel. `.rit-sem` e um PONTO, e o texto ao lado diz
+   a mesma coisa: cor sozinha nao informa. */
+.rit-sem{width:9px;height:9px;border-radius:50%;display:inline-block;
+  flex:0 0 auto;background:var(--n300)}
+.rit-sem.verde{background:var(--green)}
+.rit-sem.amarelo{background:var(--yellow)}
+.rit-sem.vermelho{background:var(--red)}
+.rit-ger{font-weight:600;color:var(--n900);background:var(--n50)}
+.rit-ger td{padding-top:9px}
+.rit-auto{font-size:10.5px;color:var(--n500);text-transform:uppercase;
+  letter-spacing:.05em}
+.rit-falta{color:var(--red);font-weight:600}
+.rit-ok{color:var(--green)}
+.rit-prio{display:inline-flex;align-items:center;justify-content:center;
+  width:18px;height:18px;border-radius:50%;background:var(--brand);
+  color:#fff;font-size:11px;font-weight:700}
+.rit-regras{display:grid;gap:9px;font-size:12.5px;color:var(--n700)}
+.rit-regras li{list-style:none;display:flex;gap:9px;align-items:baseline}
+.rit-regras{margin:0;padding:0}
+
 /* --- tela Integracoes ------------------------------------------------- */
 /* minmax(0,..) e nao 1fr cru: `1fr` e minmax(auto,1fr) e a trilha nao encolhe
    abaixo do min-content do detalhe da coleta, que e uma linha longa -- o
@@ -2965,6 +3000,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <div class="subs closed" id="subsGes">
         <a href="#gesata" class="sub" data-view="gesata" title="Atas de Reunião — pauta, decisões e o plano de ação que saiu delas"><span class="ic" data-ic="doc"></span><span>Atas de Reunião</span></a>
         <a href="#gesacao" class="sub" data-view="gesacao" title="Planos de Ação — 5W2H com responsável, prazo e acompanhamento"><span class="ic" data-ic="fechic"></span><span>Planos de Ação</span></a>
+        <a href="#gesrit" class="sub" data-view="gesrit" title="Ritual Semanal — o painel único da semana: meta, realizado, desvio, ação e prazo"><span class="ic" data-ic="gauge"></span><span>Ritual Semanal</span></a>
       </div>
       <button class="group" id="grpOpe" aria-expanded="false" aria-controls="subsOpe" onclick="toggleGroup('grpOpe','subsOpe','cs.opeGroup')" title="Operação">
         <span class="ic" data-ic="ope"></span><span>Operação</span><span class="ic chev" data-ic="chev"></span>
@@ -8291,6 +8327,65 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
       </section>
+      <section class="view" id="view-gesrit">
+        <div class="subtabs" role="tablist" data-abas="gesrit" aria-label="Seções desta tela">
+          <button role="tab" id="tabgesrit-painel" data-aba="painel" aria-controls="aba-gesrit-painel"
+                  aria-selected="true" onclick="abaTrocar('gesrit','painel')">Painel da semana <span class="aban" id="gesrit-n-painel"></span></button>
+          <button role="tab" id="tabgesrit-cobr" data-aba="cobr" aria-controls="aba-gesrit-cobr"
+                  aria-selected="false" onclick="abaTrocar('gesrit','cobr')">O que ficou combinado <span class="aban" id="gesrit-n-cobr"></span></button>
+          <button role="tab" id="tabgesrit-cad" data-aba="cad" aria-controls="aba-gesrit-cad"
+                  aria-selected="false" onclick="abaTrocar('gesrit','cad')">Indicadores <span class="aban" id="gesrit-n-cad"></span></button>
+        </div>
+
+        <div class="aba" data-abas="gesrit" data-aba="painel" id="aba-gesrit-painel" role="tabpanel" aria-labelledby="tabgesrit-painel">
+          <div class="rit-roteiro" id="rit-roteiro"></div>
+          <div class="kband">
+            <div class="kband-rot">Semana
+              <select id="rit-ciclo" onchange="loadGesrit()" aria-label="Semana do ritual"
+                      style="margin-left:9px;font:inherit;font-size:12px"></select>
+              <button class="ghost sm" onclick="ritAbrirSemana()" style="margin-left:9px">Abrir semana</button>
+            </div>
+            <div class="kpis k4" id="rit-kpis"></div>
+          </div>
+          <div class="banner-inline" id="rit-bloqueios" style="display:none"></div>
+          <div class="card">
+            <div class="head"><h2>Painel único da semana <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: uma linha por indicador, agrupada por gerência (ges_indicadores × ges_apontamentos, no banco do CÓRTEX). O REALIZADO marcado como automático vem da MESMA função que a tela do assunto usa — receita da Visão Geral, retorno vazio da Análise de KM, CNH da tela de CNH — e por isso não se digita: se o número está errado, o conserto é na origem, e não aqui. Indicador manual é digitado pelo gerente e a coluna diz isso, porque número automático e número digitado não têm a mesma qualidade e mostrá-los iguais faz um herdar a confiança do outro. O DESVIO é orientado pelo que é bom: positivo é sempre melhor que a meta, mesmo em indicador onde menos é melhor. AÇÃO é uma ação do Plano de Ação (ges_acoes), a mesma tabela — o compromisso não vive num lugar paralelo.">ⓘ</span></h2>
+              <span class="hint" id="rit-hint">—</span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Indicador</th><th class="num">Meta</th><th class="num">Realizado</th>
+              <th>Status</th><th class="num">Desvio</th><th>Ação</th>
+              <th>Responsável</th><th>Prazo</th><th></th>
+            </tr></thead><tbody id="rit-painel"></tbody></table></div>
+          </div>
+        </div>
+
+        <div class="aba" data-abas="gesrit" data-aba="cobr" id="aba-gesrit-cobr" role="tabpanel" aria-labelledby="tabgesrit-cobr" hidden>
+          <div class="kband"><div class="kpis k4" id="rit-cobr-kpis"></div></div>
+          <div class="card">
+            <div class="head"><h2>O que foi prometido na semana passada <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="As ações ligadas ao painel do ciclo ANTERIOR, com prazo até a reunião de hoje. É DERIVADO das próprias ações, nunca gravado: um campo &quot;cumpriu&quot; passa a discordar da ação no primeiro edit, e a reunião perde a única coisa que a torna diferente de uma conversa — a memória do que foi combinado. Promessa com prazo lá na frente NÃO entra: cobrar hoje o que vence daqui a um mês é como a régua perde a credibilidade na terceira semana.">ⓘ</span></h2>
+              <span class="hint" id="rit-cobr-hint">—</span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Gerência</th><th>Indicador</th><th>O que foi combinado</th>
+              <th>Responsável</th><th>Prazo</th><th>Saiu?</th>
+            </tr></thead><tbody id="rit-cobr"></tbody></table></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>As regras do jogo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Não é texto decorativo: as duas primeiras são aplicadas pelo servidor. &quot;Desvio sem ação não fecha pauta&quot; é condição de fechamento do ciclo (api/gestao/ritual.fechar), e o teto de três prioridades é um índice único no banco, não uma checagem que a próxima rota esquece. Fechar mesmo assim é possível e fica REGISTRADO em quem e quando — regra sem escape vira regra contornada por fora, e aí alguém aponta verde no vermelho só para conseguir fechar.">ⓘ</span></h2></div>
+            <ul class="rit-regras" id="rit-regras"></ul>
+          </div>
+        </div>
+
+        <div class="aba" data-abas="gesrit" data-aba="cad" id="aba-gesrit-cad" role="tabpanel" aria-labelledby="tabgesrit-cad" hidden data-ao-abrir="ritCadastro">
+          <div class="card">
+            <div class="head"><h2>Indicadores de cada gerência <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="CADASTRO, não código: a lista de indicadores muda com o negócio e cada mudança dela não pode custar uma entrega. FONTE diz de onde vem o realizado — &quot;automático&quot; aponta para um número que o CÓRTEX já calcula (e o indicador passa a não aceitar digitação), &quot;manual&quot; é digitado pelo gerente. A fonte é conferida contra o registro do servidor na gravação: chave inválida entraria como automática e ficaria vazia para sempre, sem erro nenhum. DIREÇÃO existe porque sem ela o semáforo erra metade dos indicadores: receita abaixo da meta é ruim, multa abaixo da meta é boa. Indicador que sai de uso é INATIVADO, nunca apagado — os painéis das semanas passadas citam ele.">ⓘ</span></h2>
+              <button class="btn" onclick="ritIndicadorModal(null)">+ Novo indicador</button></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Gerência</th><th>Indicador</th><th>Unidade</th><th>Direção</th>
+              <th>Fonte do realizado</th><th class="num">Meta padrão</th><th></th>
+            </tr></thead><tbody id="rit-inds"></tbody></table></div>
+          </div>
+        </div>
+      </section>
       <section class="view" id="view-integ">
         <div class="kband"><div class="kpis k4" id="integ-kpis"></div></div>
         <div class="card"><div class="head"><h2>Integrações da casa</h2><span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: duas, casadas por fornecedor em api/integracoes.py. A CONFIGURAÇÃO vem do cofre de credenciais (api/credenciais.py) — o mesmo que a tela de Gestão edita; a CHEGADA DE DADO vem dos cartões da Saúde do Servidor (api/servidor.py), que leem a última coleta gravada. Esta tela não dispara coleta nenhuma e não mostra valor de credencial: ela diz que falta um token, nunca qual é. Fornecedor consultado sob demanda (TomTom, QualP) não tem &quot;última coleta&quot; para envelhecer, e o cartão diz isso em vez de acender alarme todo dia.">ⓘ</span></div>
@@ -8828,7 +8923,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { tvcom:'Painel TV — Comunicação', home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Notas de Entrada', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { tvcom:'Painel TV — Comunicação', home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Notas de Entrada', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -9105,7 +9200,7 @@ const VIEW_GROUP = {home:'',cop:'',apps:'',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',pecas:'Sup',
   prodveic:'Bi',fat:'Ctr',gr:'Ope',tvcli:'Bi',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',tvcom:'Bi',
-  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',rhmot:'Rh',people:'Rh',des:'Rh',gestao:'Adm',srv:'Adm',sup:'Spt',supfila:'Spt',doc:'Adm',aud:'Adm',integ:'Adm',mon:'Adm',gesacao:'Ges',gesata:'Ges',
+  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',rhmot:'Rh',people:'Rh',des:'Rh',gestao:'Adm',srv:'Adm',sup:'Spt',supfila:'Spt',doc:'Adm',aud:'Adm',integ:'Adm',mon:'Adm',gesacao:'Ges',gesata:'Ges',gesrit:'Ges',
   // Telemetria e ANTT tinham grupo na barra lateral mas ficaram de fora deste
   // mapa: o acordeao nao abria sozinho ao navegar para elas (agora a busca
   // global navega, entao isso passou a incomodar de verdade).
@@ -9331,7 +9426,7 @@ function semFilterbar(v){
   // guard que existe (tests/antt/test_rntrc_tela_e2e.py) confere UMA tela e
   // não varre; até haver varredura, esta lista se confere à mão a cada tela
   // nova.
-  return v==='cop'||v==='mon'||v==='aud'||v==='integ'||v==='apps'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
+  return v==='cop'||v==='mon'||v==='aud'||v==='integ'||v==='apps'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
          v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='antport'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='rhmot'||v==='pneus'||v==='people'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila';
 }
@@ -9428,7 +9523,7 @@ function router(){
   document.getElementById('grpFluxcon').style.display = fluxcon ? 'flex' : 'none';
   const ges = (v==='gestao');
   const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = semFilterbar(v) ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='gesacao'||v==='gesata'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='prem'||v==='doc'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='apps') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='prem'||v==='doc'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='apps') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', semFilterbar(v)); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -9452,7 +9547,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,pecas:DATAPECAS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={apps:loadApps,integ:loadInteg,dfe:loadDfe,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+  const LOADMAP={apps:loadApps,integ:loadInteg,dfe:loadDfe,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -9523,6 +9618,7 @@ const NAV_KW={
   supfila:'fila suporte atendimento chamados sla avisos whatsapp email github',
   des:'avaliacao desempenho nine box potencial talento sucessao matriz 9box gestor equipe ciclo',
   aud:'auditoria uso acessos sessao tempo login trilha log seguranca telas',
+  gesrit:'ritual semanal reuniao execucao resultados painel unico semana meta realizado desvio acao compromisso prioridade gerencia gerente indicador semaforo verde amarelo vermelho cobranca combinado 30 minutos',
   integ:'integracoes integracao fornecedor fornecedores conector conectores api token credencial gobrax smartec tomtom qualp rasterjor rasterintegra prolog monkey zapi whatsapp 3s tress smtp coleta parada sem dado status',
   mon:'monitoramento monitoramentos rastreio carga acompanhar aviso whatsapp inscricao inscricoes cliente telefone publica onde esta minha carga',
   doc:'documentacao manual ajuda versao changelog historico novidades glossario mudancas',
@@ -11300,7 +11396,7 @@ function reloadCurrent(){
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,prodveic:loadProdveic,
     torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
-    cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+    cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   (M[currentView()]||load)();
 }
 
@@ -38467,6 +38563,518 @@ async function loadDfe(){
     tbC.innerHTML = '<tr><td colspan="7" class="vazio">'+esc(err.message||'Não foi possível falar com a API.')+'</td></tr>';
   }
 }
+
+/* ===================== Ritual Semanal de Gestão =====================
+   O painel único da semana. O cartaz da parede vive DENTRO da tela (a faixa do
+   roteiro e o card de regras) porque regra que só existe num slide some na
+   terceira semana -- e as duas primeiras regras não são texto: o servidor as
+   aplica no fechamento do ciclo. */
+
+let RIT = null;          // o payload do painel
+let RIT_CAD = null;      // gerências, indicadores, fontes e ações (sob demanda)
+
+/* AS CINCO ETAPAS. Constante e não vinda do servidor: é o método da casa, não
+   dado -- e um roteiro configurável seria a primeira coisa a ser afrouxada na
+   semana em que a reunião atrasasse. */
+const RIT_ETAPAS = [
+  ['0–5 min',   'Resultado',    'Meta × realizado'],
+  ['5–15 min',  'Execução',     'Combinado × entregue'],
+  ['15–22 min', 'Desvios',      'Risco e causa'],
+  ['22–27 min', 'Prioridades',  '3 entregas críticas'],
+  ['27–30 min', 'Compromissos', 'Dono + prazo'],
+];
+
+/* O TERCEIRO CAMPO SEPARA O QUE O CÓDIGO CUMPRE DO QUE DEPENDE DAS PESSOAS.
+   Pintar as cinco com a mesma marca faria o sistema prometer o que ele não
+   entrega: ninguém pode obrigar a direção a destravar, e uma tela que sugere
+   que sim é uma tela em que a próxima regra também não vale nada. */
+const RIT_REGRAS = [
+  ['Problema sem ação não fecha pauta', 'o servidor recusa o fechamento e diz qual indicador falta.', 1],
+  ['Desvio crítico precisa de responsável e data', 'ação sem os dois não é aceita.', 1],
+  ['Três prioridades, não quatro', 'o teto é do banco; a quarta não entra em silêncio.', 1],
+  ['Sem PowerPoint individual', 'o painel desta tela é o único material da reunião.', 0],
+  ['A direção atua para priorizar, decidir e destravar', 'não para assistir à apresentação.', 0],
+];
+
+function ritNum(v, unidade, casas){
+  if(v === null || v === undefined) return '—';
+  const n = Number(v);
+  if(!isFinite(n)) return '—';
+  const txt = n.toLocaleString('pt-BR', {minimumFractionDigits: casas||0,
+                                         maximumFractionDigits: casas||0});
+  if(unidade === 'R$') return 'R$ ' + txt;
+  if(unidade === '%')  return txt + '%';
+  return unidade ? txt + ' ' + unidade : txt;
+}
+
+/* O DESVIO É ORIENTADO PELO QUE É BOM: positivo é sempre melhor que a meta,
+   inclusive em indicador onde menos é melhor. Sem isso a coluna põe lado a
+   lado um −8% ótimo e um −8% péssimo, e deixa de poder ser lida de relance --
+   que é a única coisa que ela precisa fazer. */
+function ritDesvio(p){
+  if(p === null || p === undefined) return '<span class="muted">—</span>';
+  const s = (p >= 0 ? '+' : '') + p.toLocaleString('pt-BR', {maximumFractionDigits:1}) + '%';
+  return '<span class="' + (p >= 0 ? 'rit-ok' : 'rit-falta') + '">' + s + '</span>';
+}
+
+async function loadGesrit(){
+  const sel = document.getElementById('rit-ciclo');
+  const q = sel && sel.value ? ('?ciclo_id=' + encodeURIComponent(sel.value)) : '';
+  try{
+    const r = await fetch('/api/ritual/painel' + q, {cache:'no-store'});
+    const d = await respostaJSON(r);
+    if(!d.ok){ showBanner((d.dados||{}).mensagem || 'Não foi possível carregar o painel.'); return; }
+    RIT = d.dados;
+    ritRoteiro();
+    ritRegras();
+    ritCiclos();
+    ritKpis();
+    ritPainelRender();
+    ritCobrancaRender();
+  }catch(err){ showBanner(err.message || 'Não foi possível falar com a API.'); }
+}
+
+function ritRoteiro(){
+  document.getElementById('rit-roteiro').innerHTML = RIT_ETAPAS.map(e =>
+    '<div class="rit-etapa"><div class="min">' + esc(e[0]) + '</div>'
+    + '<div class="tit">' + esc(e[1]) + '</div>'
+    + '<div class="sub">' + esc(e[2]) + '</div></div>').join('');
+}
+
+function ritRegras(){
+  document.getElementById('rit-regras').innerHTML = RIT_REGRAS.map(r =>
+    '<li><span class="rit-sem' + (r[2] ? ' verde' : '') + '"></span>'
+    + '<span><b>' + esc(r[0]) + '</b> — ' + esc(r[1])
+    + (r[2] ? ' <span class="rit-auto">aplicada pelo sistema</span>'
+            : ' <span class="rit-auto">combinado entre nós</span>')
+    + '</span></li>').join('');
+}
+
+function ritCiclos(){
+  const sel = document.getElementById('rit-ciclo');
+  const lista = RIT.ciclos || [];
+  const atual = RIT.ciclo ? String(RIT.ciclo.id) : '';
+  sel.innerHTML = lista.length
+    ? lista.map(c => '<option value="' + c.id + '"' + (String(c.id) === atual ? ' selected' : '') + '>'
+        + 'Semana ' + c.semana + '/' + c.ano + ' · ' + fmtD(c.data_reuniao)
+        + (c.status === 'fechado' ? ' (fechada)' : '') + '</option>').join('')
+    : '<option value="">nenhuma semana aberta</option>';
+}
+
+function ritKpis(){
+  const k = RIT.resumo || {}, c = RIT.ciclo;
+  const preenchidos = (k.indicadores || 0) - (k.sem_status || 0);
+  document.getElementById('rit-kpis').innerHTML =
+    kpi('Indicadores', String(k.indicadores ?? '—'),
+        (k.automaticos || 0) + ' vêm automáticos do sistema')
+    + kpi('Semáforo',
+        (k.verde||0) + ' / ' + (k.amarelo||0) + ' / ' + (k.vermelho||0),
+        'verde · amarelo · vermelho')
+    /* SEM STATUS não entra em "verde": linha em branco não é linha boa, e
+       somá-las como "sem problema" deixaria o painel mais bonito exatamente
+       quando ninguém preencheu. */
+    + kpi('Preenchido', preenchidos + ' de ' + (k.indicadores || 0),
+        (k.sem_status || 0) ? (k.sem_status + ' ainda em branco') : 'todos preenchidos')
+    + kpi('Desvio sem ação', String(k.sem_acao ?? '—'),
+        (k.sem_acao || 0) ? 'impede fechar a pauta' : 'nada travando o fechamento');
+
+  const bl = document.getElementById('rit-bloqueios');
+  if((RIT.bloqueios || []).length){
+    bl.style.display = 'block';
+    bl.innerHTML = '<div><b>Desvio sem ação não fecha pauta.</b> '
+      + RIT.bloqueios.map(b => esc(b.mensagem)).join(' · ') + '</div>';
+  } else bl.style.display = 'none';
+
+  const h = document.getElementById('rit-hint');
+  h.innerHTML = c
+    ? ('reunião de ' + esc(fmtD(c.data_reuniao)) + ' · ' + esc(c.status)
+       + (c.status === 'aberto'
+          ? ' · <button type="button" class="integ-lnk" onclick="ritFechar()">fechar a semana</button>'
+          : ' · <button type="button" class="integ-lnk" onclick="ritReabrir()">reabrir</button>'))
+    : 'nenhuma semana aberta — use “Abrir semana” para começar';
+  abaContador('gesrit-n-painel', k.indicadores || 0);
+}
+
+function ritPainelRender(){
+  const alvo = document.getElementById('rit-painel');
+  const gs = RIT.gerencias || [];
+  if(!gs.length){
+    alvo.innerHTML = '<tr><td colspan="9" class="vazio">Nenhum indicador cadastrado — comece pela aba Indicadores.</td></tr>';
+    return;
+  }
+  const linhas = [];
+  gs.forEach(g => {
+    linhas.push('<tr class="rit-ger"><td colspan="9">' + esc(g.nome)
+      + (g.gestor ? ' <span class="hint">· ' + esc(g.gestor) + '</span>' : '')
+      + '</td></tr>');
+    g.linhas.forEach(l => {
+      const resp = l.acao_resp_usuario || l.acao_resp_nome || '';
+      linhas.push('<tr>'
+        + '<td><span class="rit-sem ' + esc(l.status || '') + '"></span> ' + esc(l.nome)
+          + (l.prioridade ? ' <span class="rit-prio" title="prioridade da semana">' + l.prioridade + '</span>' : '')
+          + (l.automatico ? '<div class="rit-auto" title="' + esc(l.fonte_onde) + '">automático</div>'
+                          : '<div class="rit-auto">manual</div>')
+          + (l.fonte_orfa ? '<div class="rit-falta">fonte desconhecida — o número nunca vai chegar</div>' : '')
+        + '</td>'
+        + '<td class="num">' + esc(ritNum(l.meta_valor, l.unidade, l.casas)) + '</td>'
+        + '<td class="num">' + esc(ritNum(l.valor, l.unidade, l.casas)) + '</td>'
+        + '<td>' + (l.status ? esc(l.status) : '<span class="muted">em branco</span>') + '</td>'
+        + '<td class="num">' + ritDesvio(l.desvio_pct) + '</td>'
+        + '<td>' + (l.acao_o_que ? esc(l.acao_o_que)
+                   : (l.exige_acao ? '<span class="rit-falta">falta ação</span>' : '<span class="muted">—</span>')) + '</td>'
+        + '<td>' + esc(resp || '—') + '</td>'
+        + '<td>' + (l.acao_prazo ? (l.acao_atrasada
+              ? '<span class="rit-falta">' + esc(fmtD(l.acao_prazo)) + '</span>'
+              : esc(fmtD(l.acao_prazo))) : '—') + '</td>'
+        + '<td><button class="ghost sm" data-ind="' + l.indicador_id
+          + '" onclick="ritLinhaModal(this.dataset.ind)">Apontar</button></td>'
+        + '</tr>');
+    });
+  });
+  alvo.innerHTML = linhas.join('');
+}
+
+function ritLinha(indId){
+  for(const g of (RIT.gerencias || []))
+    for(const l of g.linhas) if(String(l.indicador_id) === String(indId)) return l;
+  return null;
+}
+
+/* O BLOCO DE 2 MINUTOS DO GERENTE, na ordem do quadro: resultado, entrega,
+   desvio, ação, compromisso. É modal e não edição na tabela porque a pergunta
+   é sobre UM indicador de cada vez -- é assim que a reunião anda. */
+async function ritLinhaModal(indId){
+  const l = ritLinha(indId); if(!l) return;
+  if(!RIT_CAD) await ritCarregarCadastro();
+  const fechado = RIT.ciclo && RIT.ciclo.status === 'fechado';
+  const acoes = (RIT_CAD && RIT_CAD.acoes) || [];
+  const hoje = new Date();
+  const prox = new Date(hoje.getTime() + 7*86400000);
+  const proxIso = _iso(prox);
+
+  const realizado = l.automatico
+    ? '<div class="integ-dica">Vem de: ' + esc(l.fonte_onde || 'fonte automática')
+      + '. Valor agora: <b>' + esc(ritNum(l.valor, l.unidade, l.casas))
+      + '</b>. Não se digita — se o número está errado, o conserto é na origem.</div>'
+    : '<input type="text" inputmode="decimal" id="rit-realizado" value="'
+      + (l.valor !== null && l.valor !== undefined ? esc(String(l.valor).replace('.', ',')) : '')
+      + '" placeholder="ex.: 1.234,56">';
+
+  abrirModal(
+    '<h3>' + esc(l.nome) + ' <span class="hint">· ' + esc(l.gerencia_nome) + '</span></h3>'
+    + '<div class="ges-form">'
+    + '<div><label>1 · Resultado — verde, amarelo ou vermelho?</label>'
+      + '<select id="rit-status">'
+      + ['', 'verde', 'amarelo', 'vermelho'].map(s =>
+          '<option value="' + s + '"' + (s === (l.status||'') ? ' selected' : '') + '>'
+          + (s ? s : '— ainda não avaliei —') + '</option>').join('')
+      + '</select></div>'
+    + '<div><label>2 · Entrega — o realizado da semana</label>' + realizado + '</div>'
+    + '<div><label>Meta desta semana <span style="font-weight:400;color:var(--n500)">(vazio usa a meta padrão do indicador)</span></label>'
+      + '<input type="text" inputmode="decimal" id="rit-meta" value="'
+      + (l.meta !== null && l.meta !== undefined ? esc(String(l.meta).replace('.', ',')) : '')
+      + '" placeholder="' + esc(l.meta_padrao !== null && l.meta_padrao !== undefined ? String(l.meta_padrao) : '') + '"></div>'
+    + '<div><label>3 · Desvio — qual o principal risco ou problema?</label>'
+      + '<textarea id="rit-desvio" rows="2">' + esc(l.desvio || '') + '</textarea></div>'
+    + '<div><label>4 · Ação — o que será feito agora?</label>'
+      + '<select id="rit-acao" onchange="ritAcaoTrocou()">'
+      + '<option value="">— sem ação —</option>'
+      + '<option value="nova"' + (!l.acao_id ? '' : '') + '>+ criar uma ação nova</option>'
+      + acoes.map(a => '<option value="' + a.id + '"' + (String(a.id) === String(l.acao_id||'') ? ' selected' : '') + '>'
+          + esc(a.o_que) + ' · ' + esc(a.responsavel || 's/ responsável') + ' · ' + esc(fmtD(a.prazo))
+          + '</option>').join('')
+      + '</select>'
+      + '<div class="integ-dica">Ligar numa ação que já existe é o caso comum: o desvio desta '
+      + 'semana costuma ser o mesmo da semana passada, e uma ação nova a cada reunião vira seis '
+      + 'ações para um problema só.</div></div>'
+    + '<div id="rit-acao-nova" hidden>'
+      + '<div><label>O que será feito</label><input type="text" id="rit-acao-oque" maxlength="200"></div>'
+      + '<div><label>Responsável</label><input type="text" id="rit-acao-resp" placeholder="nome de quem entrega"></div>'
+      + '</div>'
+    /* O PASSO 5 EXISTE SEMPRE, e não só quando se cria ação nova: quando o
+       desvio é ligado a uma ação que já existe, o compromisso desta semana é
+       o prazo DAQUELA ação -- e escondê-lo faria a reunião terminar sem a
+       pergunta que ela existe para responder ("o que estará entregue até a
+       próxima?"). O campo muda de forma conforme o caminho; a pergunta, não. */
+    + '<div><label>5 · Compromisso — o que estará entregue até a próxima reunião?</label>'
+      + '<div id="rit-comp" data-prox="' + esc(proxIso) + '"></div></div>'
+    + '<div><label>Prioridade da semana <span style="font-weight:400;color:var(--n500)">(no máximo três, em toda a reunião)</span></label>'
+      + '<select id="rit-prio">'
+      + ['', '1', '2', '3'].map(p => '<option value="' + p + '"' + (String(l.prioridade||'') === p ? ' selected' : '') + '>'
+          + (p ? ('prioridade ' + p) : '— não é prioridade —') + '</option>').join('')
+      + '</select></div>'
+    + '</div>'
+    + '<div class="m-foot"><span class="m-err" id="rit-err"></span>'
+      + '<button class="ghost" onclick="fecharModal()">Fechar</button>'
+      + (fechado ? '<span class="rep-aviso">Semana fechada — reabra para alterar.</span>'
+                 : '<button class="btn" data-ind="' + l.indicador_id + '" onclick="ritSalvar(this.dataset.ind)">Salvar</button>')
+    + '</div>');
+}
+
+function ritAcaoTrocou(){
+  const v = document.getElementById('rit-acao').value;
+  document.getElementById('rit-acao-nova').hidden = v !== 'nova';
+  const comp = document.getElementById('rit-comp');
+  if(v === 'nova'){
+    comp.innerHTML = '<input type="date" id="rit-acao-prazo" value="'
+      + esc(comp.dataset.prox) + '">';
+    return;
+  }
+  if(v === ''){
+    comp.innerHTML = '<div class="integ-dica">Sem ação, não há compromisso '
+      + 'desta semana para este indicador.</div>';
+    return;
+  }
+  /* O PRAZO VEM DA AÇÃO, e é read-only aqui de propósito: ele é o mesmo campo
+     que o Plano de Ação mostra, e deixá-lo editável em dois lugares faria a
+     data mudar num sem a outra tela saber. */
+  const a = ((RIT_CAD && RIT_CAD.acoes) || []).find(x => String(x.id) === String(v));
+  comp.innerHTML = a
+    ? '<div class="integ-dica"><b>' + esc(fmtD(a.prazo)) + '</b> — prazo da ação '
+      + 'escolhida, com ' + esc(a.responsavel || 'responsável não definido')
+      + '. Para mudar a data, edite a ação em Planos de Ação.</div>'
+    : '<div class="integ-dica">—</div>';
+}
+
+function ritDec(id){
+  const el = document.getElementById(id); if(!el) return undefined;
+  const v = (el.value || '').trim();
+  return v === '' ? '' : v;
+}
+
+async function ritSalvar(indId){
+  const err = document.getElementById('rit-err');
+  const corpo = {ciclo_id: RIT.ciclo.id, indicador_id: Number(indId)};
+  corpo.status = document.getElementById('rit-status').value;
+  corpo.desvio = document.getElementById('rit-desvio').value;
+  const meta = ritDec('rit-meta'); if(meta !== undefined) corpo.meta = meta;
+  const real = ritDec('rit-realizado'); if(real !== undefined) corpo.realizado = real;
+
+  const acao = document.getElementById('rit-acao').value;
+  if(acao === 'nova'){
+    corpo.acao_nova = {
+      o_que: document.getElementById('rit-acao-oque').value,
+      responsavel_nome: document.getElementById('rit-acao-resp').value,
+      prazo: (document.getElementById('rit-acao-prazo') || {}).value || ''};
+  } else if(acao !== '') corpo.acao_id = Number(acao);
+  else corpo.acao_id = null;
+
+  let d;
+  try{
+    const r = await fetch('/api/ritual/apontar', {method:'POST',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify(corpo)});
+    d = await respostaJSON(r);
+  }catch(e){ d = {ok:false, dados:{mensagem:'Sem conexão com a API.'}}; }
+  if(!d.ok){ err.textContent = (d.dados||{}).mensagem || 'Não foi possível salvar.'; return; }
+
+  /* A PRIORIDADE VAI EM CHAMADA PRÓPRIA porque ela é do CICLO, não da linha:
+     pôr alguém em 2 tira quem estava lá, e isso é uma escrita em duas linhas
+     que não cabe dentro do apontamento de uma. */
+  const prio = document.getElementById('rit-prio').value;
+  if(String(prio||'') !== String(ritLinha(indId).prioridade||'')){
+    try{
+      const r2 = await fetch('/api/ritual/priorizar', {method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ciclo_id: RIT.ciclo.id, indicador_id: Number(indId),
+                              posicao: prio || null})});
+      const d2 = await respostaJSON(r2);
+      if(!d2.ok){ err.textContent = (d2.dados||{}).mensagem || 'Apontamento salvo, mas a prioridade não.'; return; }
+    }catch(e){ err.textContent = 'Apontamento salvo, mas a prioridade não.'; return; }
+  }
+  RIT_CAD = null;            // a ação nova precisa aparecer na próxima lista
+  fecharModal();
+  await loadGesrit();
+}
+
+async function ritAbrirSemana(){
+  const hoje = _iso(new Date());
+  const quando = prompt('Data da reunião desta semana (aaaa-mm-dd):', hoje);
+  if(!quando) return;
+  try{
+    const r = await fetch('/api/ritual/ciclo', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({data_reuniao: quando})});
+    const d = await respostaJSON(r);
+    if(!d.ok){ showBanner((d.dados||{}).mensagem || 'Não foi possível abrir a semana.'); return; }
+    const sel = document.getElementById('rit-ciclo');
+    sel.innerHTML = '<option value="' + d.dados.id + '" selected></option>';
+    await loadGesrit();
+  }catch(e){ showBanner('Não foi possível falar com a API.'); }
+}
+
+async function ritFechar(forcar){
+  if(!RIT || !RIT.ciclo) return;
+  const r = await fetch('/api/ritual/fechar', {method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ciclo_id: RIT.ciclo.id, forcar: !!forcar})});
+  const d = await respostaJSON(r);
+  if(!d.ok){
+    const msg = (d.dados||{}).mensagem || 'Não foi possível fechar.';
+    /* A RECUSA DIZ O QUE FALTA e oferece a saída, em vez de só barrar: regra
+       sem escape vira regra contornada por fora -- alguém apontaria verde no
+       vermelho só para conseguir fechar, e aí o painel passa a mentir.
+       Forçar fica registrado em quem e quando. */
+    if(confirm(msg + '\n\nFechar mesmo assim? Fica registrado que a semana '
+               + 'foi fechada com desvio sem ação, com seu nome e a data.'))
+      return ritFechar(true);
+    return;
+  }
+  await loadGesrit();
+}
+
+async function ritReabrir(){
+  if(!RIT || !RIT.ciclo) return;
+  if(!confirm('Reabrir esta semana para alterar o painel?')) return;
+  await fetch('/api/ritual/reabrir', {method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ciclo_id: RIT.ciclo.id})});
+  await loadGesrit();
+}
+
+function ritCobrancaRender(){
+  const cob = (RIT && RIT.cobranca) || {};
+  const itens = cob.itens || [], r = cob.resumo || {};
+  document.getElementById('rit-cobr-kpis').innerHTML =
+    kpi('Prometidas', String(r.prometidas ?? 0), cob.anterior
+        ? ('na semana ' + cob.anterior.semana + '/' + cob.anterior.ano) : 'não há semana anterior')
+    + kpi('Cumpridas', String(r.cumpridas ?? 0), 'concluídas até esta reunião')
+    + kpi('Em aberto', String(r.abertas ?? 0), r.abertas ? 'voltam para a pauta' : 'nada pendente')
+    /* `null` e não 0: sem promessa não há taxa, e 0% diria "ninguém cumpriu
+       nada" numa semana em que nada foi pedido. */
+    + kpi('Taxa', r.taxa === null || r.taxa === undefined ? 'n/d'
+          : Math.round(r.taxa * 100) + '%',
+          r.taxa === null || r.taxa === undefined ? 'nada foi prometido' : 'do que venceu');
+  document.getElementById('rit-cobr-hint').textContent = cob.anterior
+    ? ('reunião de ' + fmtD(cob.anterior.data_reuniao)) : 'esta é a primeira semana';
+  document.getElementById('rit-cobr').innerHTML = itens.length
+    ? itens.map(i => '<tr><td>' + esc(i.gerencia) + '</td><td>' + esc(i.indicador) + '</td>'
+        + '<td>' + esc(i.o_que) + '</td><td>' + esc(i.responsavel || '—') + '</td>'
+        + '<td>' + esc(fmtD(i.prazo)) + '</td>'
+        + '<td>' + (i.cumpriu ? '<span class="rit-ok">saiu</span>'
+                              : '<span class="rit-falta">não saiu · ' + (i.percentual||0) + '%</span>') + '</td></tr>').join('')
+    : '<tr><td colspan="6" class="vazio">Nada foi prometido para esta semana.</td></tr>';
+  abaContador('gesrit-n-cobr', itens.length);
+}
+
+/* ---------------------------- cadastro de indicadores --------------------- */
+
+async function ritCarregarCadastro(){
+  const r = await fetch('/api/ritual/cadastro', {cache:'no-store'});
+  const d = await respostaJSON(r);
+  if(d.ok) RIT_CAD = d.dados;
+  return RIT_CAD;
+}
+
+async function ritCadastro(){
+  await ritCarregarCadastro();
+  const inds = (RIT_CAD && RIT_CAD.indicadores) || [];
+  document.getElementById('rit-inds').innerHTML = inds.length
+    ? inds.map(i => '<tr' + (i.ativo ? '' : ' class="muted"') + '>'
+        + '<td>' + esc(i.gerencia_nome) + '</td>'
+        + '<td>' + esc(i.nome) + (i.ativo ? '' : ' <span class="badge b-info">inativo</span>') + '</td>'
+        + '<td>' + esc(i.unidade || '—') + '</td>'
+        + '<td>' + (i.direcao === 'menor_melhor' ? 'menos é melhor' : 'mais é melhor') + '</td>'
+        + '<td>' + (i.automatico
+            ? ('<b>automático</b><div class="rit-auto" title="' + esc(i.fonte_onde) + '">' + esc(i.fonte) + '</div>'
+               + (i.fonte_orfa ? '<div class="rit-falta">fonte desconhecida</div>' : ''))
+            : 'manual') + '</td>'
+        + '<td class="num">' + esc(ritNum(i.meta_padrao, i.unidade, i.casas)) + '</td>'
+        + '<td><button class="ghost sm" data-id="' + i.id + '" onclick="ritIndicadorModal(this.dataset.id)">Editar</button></td>'
+        + '</tr>').join('')
+    : '<tr><td colspan="7" class="vazio">Nenhum indicador cadastrado ainda.</td></tr>';
+  abaContador('gesrit-n-cad', inds.filter(i => i.ativo).length);
+}
+
+async function ritIndicadorModal(id){
+  if(!RIT_CAD) await ritCarregarCadastro();
+  const i = id ? (RIT_CAD.indicadores || []).find(x => String(x.id) === String(id)) : null;
+  const gs = RIT_CAD.gerencias || [], fs = RIT_CAD.fontes || [];
+  abrirModal(
+    '<h3>' + (i ? 'Editar indicador' : 'Novo indicador') + '</h3>'
+    + '<div class="ges-form">'
+    + '<div><label>Gerência</label><select id="rit-i-ger">'
+      + gs.map(g => '<option value="' + g.id + '"' + (i && i.gerencia_id === g.id ? ' selected' : '') + '>'
+          + esc(g.nome) + '</option>').join('') + '</select></div>'
+    + '<div><label>Nome do indicador</label><input type="text" id="rit-i-nome" maxlength="200" value="'
+      + esc(i ? i.nome : '') + '"></div>'
+    + '<div><label>De onde vem o realizado</label><select id="rit-i-fonte" onchange="ritFonteTrocou()">'
+      + '<option value="manual"' + (!i || i.fonte === 'manual' ? ' selected' : '') + '>Manual — o gerente digita</option>'
+      + fs.map(f => '<option value="' + esc(f.chave) + '"' + (i && i.fonte === f.chave ? ' selected' : '') + '>'
+          + esc(f.rotulo) + ' (automático)</option>').join('')
+      + '</select><div class="integ-dica" id="rit-i-onde"></div></div>'
+    + '<div><label>Unidade</label><input type="text" id="rit-i-unidade" maxlength="20" value="'
+      + esc(i ? i.unidade : '') + '" placeholder="R$, %, km/l…"></div>'
+    + '<div><label>Direção</label><select id="rit-i-direcao">'
+      + '<option value="maior_melhor"' + (!i || i.direcao === 'maior_melhor' ? ' selected' : '') + '>Mais é melhor</option>'
+      + '<option value="menor_melhor"' + (i && i.direcao === 'menor_melhor' ? ' selected' : '') + '>Menos é melhor</option>'
+      + '</select><div class="integ-dica">Sem isto o semáforo erra metade dos indicadores: '
+      + 'receita abaixo da meta é ruim, multa abaixo da meta é boa.</div></div>'
+    + '<div><label>Meta padrão</label><input type="text" inputmode="decimal" id="rit-i-meta" value="'
+      + esc(i && i.meta_padrao !== null && i.meta_padrao !== undefined ? String(i.meta_padrao).replace('.', ',') : '') + '"></div>'
+    + '<div><label>Casas decimais</label><input type="number" id="rit-i-casas" min="0" max="4" value="'
+      + (i ? i.casas : 0) + '"></div>'
+    + '</div>'
+    + '<div class="m-foot"><span class="m-err" id="rit-i-err"></span>'
+      + (i ? '<button class="ghost" data-id="' + i.id + '" onclick="ritIndicadorInativar(this.dataset.id)">Inativar</button>' : '')
+      + '<button class="ghost" onclick="fecharModal()">Fechar</button>'
+      + '<button class="btn" data-id="' + (i ? i.id : '') + '" onclick="ritIndicadorSalvar(this.dataset.id)">Salvar</button></div>');
+  ritFonteTrocou();
+}
+
+/* A FONTE MANDA NOS DEFAULTS, e a dica diz DE ONDE o número sai. Sem essa
+   frase o cadastro vira uma lista de chaves técnicas, e quem escolhe não tem
+   como saber se "receita_cte_mes" é o que ele chama de faturamento. */
+function ritFonteTrocou(){
+  const ch = document.getElementById('rit-i-fonte').value;
+  const f = ((RIT_CAD && RIT_CAD.fontes) || []).find(x => x.chave === ch);
+  const dica = document.getElementById('rit-i-onde');
+  dica.textContent = f ? ('Vem de: ' + f.onde + '. O gerente não digita este número.')
+                       : 'O gerente digita o realizado toda semana.';
+  if(f){
+    const u = document.getElementById('rit-i-unidade');
+    if(!u.value) u.value = f.unidade;
+    document.getElementById('rit-i-direcao').value = f.direcao;
+    const c = document.getElementById('rit-i-casas');
+    if(!Number(c.value)) c.value = f.casas;
+  }
+}
+
+async function ritIndicadorSalvar(id){
+  const err = document.getElementById('rit-i-err');
+  const corpo = {
+    id: id || 0,
+    gerencia_id: Number(document.getElementById('rit-i-ger').value),
+    nome: document.getElementById('rit-i-nome').value,
+    fonte: document.getElementById('rit-i-fonte').value,
+    unidade: document.getElementById('rit-i-unidade').value,
+    direcao: document.getElementById('rit-i-direcao').value,
+    meta_padrao: document.getElementById('rit-i-meta').value,
+    casas: document.getElementById('rit-i-casas').value};
+  let d;
+  try{
+    const r = await fetch('/api/ritual/indicador', {method:'POST',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify(corpo)});
+    d = await respostaJSON(r);
+  }catch(e){ d = {ok:false, dados:{mensagem:'Sem conexão com a API.'}}; }
+  if(!d.ok){ err.textContent = (d.dados||{}).mensagem || 'Não foi possível salvar.'; return; }
+  RIT_CAD = null;
+  fecharModal();
+  await ritCadastro();
+  await loadGesrit();
+}
+
+async function ritIndicadorInativar(id){
+  if(!confirm('Inativar este indicador? Ele sai dos próximos painéis. '
+    + 'Os apontamentos das semanas passadas continuam onde estão.')) return;
+  await fetch('/api/ritual/indicador', {method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({id: Number(id), excluir: true})});
+  RIT_CAD = null;
+  fecharModal();
+  await ritCadastro();
+  await loadGesrit();
+}
+
 async function loadInteg(){
   const el = document.getElementById('integ-lista');
   const kb = document.getElementById('integ-kpis');
@@ -39205,6 +39813,7 @@ boot();
       <div class="dgrp-b">
         <a href="#gesata" onclick="fecharDrawer()"><span class="ic" data-ic="doc"></span>Atas de Reunião</a>
         <a href="#gesacao" onclick="fecharDrawer()"><span class="ic" data-ic="fechic"></span>Planos de Ação</a>
+        <a href="#gesrit" onclick="fecharDrawer()"><span class="ic" data-ic="gauge"></span>Ritual Semanal</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Ope">

@@ -128,9 +128,10 @@ a ACL em vez de afirmar a proteção.
 ## 3. Telas e módulos
 
 **O registro canônico das telas é `api/auth.py`** (`TELAS`, `ROTA_TELAS`,
-`VIEW_GROUP` no `index.html`). Hoje: 72 telas em RBAC + 4 fora
-(`srv`, `gestao`, `jornf`, e `sup`, que é de TODO usuário logado —
-`TELAS_TODO_LOGADO`), organizadas assim:
+`VIEW_GROUP` no `index.html`). Hoje: **83 telas em `auth.TELAS`** + 3 fora
+(`srv`, `gestao`, `jornf`, que não estão em `TELAS`). Duas das 83 — `sup` e
+`apps` — são de TODO usuário logado (`TELAS_TODO_LOGADO`): entram por sessão
+além do perfil. Organizadas assim:
 
 | Grupo | Telas | Fonte principal |
 |---|---|---|
@@ -145,7 +146,7 @@ a ACL em vez de afirmar a proteção.
 | Recursos Humanos | rh, hc, folha, folhaind, cnh, ferias, people, he | AVA (folha/Globus) |
 | ANTT | anpiso, anrntrc | `config/antt_coeficientes.yaml`, `config/antt_cargas.yaml`, `rntrc_*` |
 | Business Intelligence | prodveic, tvfat, tvope, tvdir | AVA (tvdir lê a mesma /api/visao-geral da home) |
-| Gestão | gesacao, gesata | `ges_*` (banco local) |
+| Gestão | gesacao, gesata, gesrit | `ges_*` (banco local) |
 | TMS | ctecp, dfe | a frente FISCAL: documento eletrônico direto com a SEFAZ. Emite (`api/contrapartida/`) e recolhe (`api/sefaz/`, `dfe_*`) com o mesmo certificado A1 — quando ele vence, as duas param no mesmo dia |
 | Suporte | sup, supfila | `sup_*` no banco local + espelho opcional no GitHub |
 | Administração | doc, aud, integ | `index.html` (doc); `aud_*` + `audit_log` (auditoria de uso, `api/auditoria.py`); `integ` junta o cofre de credenciais com os cartões da Saúde (`api/integracoes.py`) |
@@ -226,6 +227,38 @@ moram em arquivos que não falam do assunto.
   E-mail e WhatsApp da Gestão junto com o resto do envio, e o modal leva até
   lá. Repetir o campo em dois lugares é o que fazia salvar num e conferir no
   outro.
+- **O RITUAL SEMANAL (`gesrit`) É A TERCEIRA PERNA DA GESTÃO**, e o que o
+  separa de mais uma tela de formulário são três decisões:
+  1. **O realizado vem da FONTE, não do gerente, onde a casa já mede.**
+     `api/gestao/ritual.FONTES` é o registro (16 hoje) de escalares que o
+     CÓRTEX já calcula; indicador que aponta para uma fonte RECUSA digitação,
+     dizendo o motivo. É isso que faz a reunião discutir o desvio em vez de
+     conferir de onde veio o número. **Chave de fonte errada NÃO levanta erro**
+     — `ler_fonte` captura e devolve `None`, e o indicador fica vazio para
+     sempre. Aconteceu ao escrever o módulo (três fontes da Operação nasceram
+     mudas: `get_analise_km` pede janela de data e foi chamada sem argumento),
+     e por isso o guard EXECUTA todas as fontes em vez de conferir a grafia.
+  2. **A janela da fonte é decisão, não detalhe.** As de Operação usam MÊS
+     CORRENTE e não ano: retorno vazio acumulado de doze meses não se move de
+     uma semana para a outra, e indicador que não pode mudar dentro do ciclo
+     não é indicador de ritual semanal — é papel de parede.
+  3. **Compromisso é uma `ges_acoes`**, com prazo na próxima reunião, criável
+     pelo gerente dentro do ritual (`acao_nova`). Tabela paralela de
+     compromissos faria o plano da reunião de resultados e o da semanal
+     viverem em dois lugares — o PPT paralelo, só que dentro do banco.
+- **As rotas do ritual NÃO ficam sob `/api/gestao`, e é deliberado**: aquele
+  prefixo é checado como ADMIN no middleware ANTES do mapeamento de telas, e
+  quem preenche o ritual é GERENTE. Sob `/api/gestao` a tela nasceria inútil
+  para o público dela. Vale para toda tela nova de Gestão que não seja de
+  administrador. (De passagem: é por isso que as entradas de
+  `/api/gestao/acoes` em `ROTA_TELAS` são letra morta para não-admin.)
+- **As regras do jogo do ritual são do SERVIDOR, não do cartaz**: desvio em
+  amarelo/vermelho sem ação impede `fechar()` (409 com a lista do que falta), e
+  o teto de três prioridades é ÍNDICE ÚNICO PARCIAL no banco — regra de negócio
+  que só existe no Python é regra que a próxima rota esquece. `forcar=True`
+  existe porque regra sem escape vira regra contornada por fora (alguém aponta
+  verde no vermelho para poder fechar, e aí o painel mente); forçar fica
+  gravado em `observacoes` com autor e data.
 - Integração é **módulo por fornecedor** em `api/<fornecedor>/` (gobrax,
   smartec, tomtom, whatsapp, monkey, jornada/RasterJOR, pedagio/QualP) — não
   existe hub genérico de conectores.

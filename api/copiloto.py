@@ -130,6 +130,7 @@ _FONTES_ROTULO = {
     "ferias_custo": "Férias — Custo e passivo",
     "cnh_motoristas": "CNH dos Motoristas",
     "gestao_acoes": "Planos de Ação",
+    "ritual_semanal": "Ritual Semanal — Execução & Resultados",
     "jornada_raster": "Jornada do Motorista",
     "crm_funil": "CRM — Funil Comercial",
     "pedagio_tag": "Validação de Pedágio — fatura do tag",
@@ -552,6 +553,42 @@ def _fontes_do_snapshot() -> dict:
         from api.gestao import painel as _p
         return _p.resumo()
 
+    def _ritual():
+        """Só o PLACAR da semana — nunca o texto do desvio nem o da ação.
+
+        O desvio que o gerente escreve é a frase mais franca do sistema ("o
+        cliente X ameaçou sair", "o motorista Y está afastado"), e o snapshot
+        vai para modelo externo quando o Ollama local não responde. O que sobe
+        é escalar: quantos verdes, quantos sem ação, quanto se cumpriu da
+        semana passada — que é o que responde "como foi a reunião?" no chat sem
+        que nada identificável saia da empresa.
+
+        E é leitura BARATA: só o banco local, sem reler as fontes automáticas.
+        `painel()` releria as dezesseis a cada snapshot do chat.
+        """
+        from api import pglocal as _pg
+        from api.gestao import ritual as _r
+        try:
+            c = _r.ciclo_corrente()
+        except Exception as exc:  # noqa: BLE001
+            # ENTRE O DEPLOY DO CODIGO E A MIGRATION rodar ha uma janela em que
+            # as tabelas nao existem. Isso nao e falha de fonte -- e instalacao
+            # incompleta, e dizer isso evita o Copiloto anunciar uma tela quebrada
+            # no minuto seguinte a subir.
+            if _pg.sem_tabela(exc):
+                return {"instalado": False}
+            raise
+        if not c:
+            return {"ciclo_aberto": False}
+        p = _r.painel(c["id"])
+        cob = _r.cobranca(c["id"])
+        return {"semana": c["semana"], "ano": c["ano"],
+                "data_reuniao": p["ciclo"]["data_reuniao"],
+                "status": c["status"], **p["resumo"],
+                "gerencias_com_pendencia": len(p["pendencias"]),
+                "desvios_sem_acao": len(p["bloqueios"]),
+                "semana_passada": cob.get("resumo") or {}}
+
     def _crm():
         """Só os KPIs do funil — NUNCA a lista de contas nem os alertas.
 
@@ -797,6 +834,7 @@ def _fontes_do_snapshot() -> dict:
         "ferias_custo": _ferias_custo,
         "cnh_motoristas": _cnh,
         "gestao_acoes": _gestao,
+        "ritual_semanal": _ritual,
         "jornada_raster": _jornada_raster,
         "crm_funil": _crm,
         "pedagio_tag": _pedagio_tag,

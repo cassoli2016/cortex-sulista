@@ -6094,6 +6094,141 @@ def gestao_painel(req: Request) -> JSONResponse:
                          "Erro ao montar o painel de acompanhamento.")
 
 
+
+# ===================== Ritual Semanal de Gestao (tela `gesrit`) =============
+#
+# NAO FICAM SOB /api/gestao, e isso e deliberado: aquele prefixo e checado como
+# ADMIN no middleware, ANTES do mapeamento de telas. O ritual e preenchido por
+# GERENTE, que nao e administrador -- sob aquele prefixo a tela nasceria inutil
+# para exatamente o publico dela. Aqui vale o RBAC normal, pela tela `gesrit`
+# em ROTA_TELAS.
+
+@app.get("/api/ritual/painel")
+def ritual_painel(ciclo_id: int = 0) -> JSONResponse:
+    """O painel unico da semana. Sem `ciclo_id`, o ciclo corrente."""
+    try:
+        from api.gestao import ritual
+        c = (ritual._um("SELECT * FROM ges_ciclos WHERE id=%s", (ciclo_id,))
+             if ciclo_id else ritual.ciclo_corrente())
+        if not c:
+            # NAO CRIA CICLO SOZINHO. Um ciclo que nasce por alguem ter aberto a
+            # tela encheria o historico de semanas que ninguem reuniu -- e a
+            # taxa de cumprimento passaria a ser dividida por elas.
+            return JSONResponse({"ciclo": None, "gerencias": [], "resumo": {},
+                                 "pendencias": [], "bloqueios": [],
+                                 "prioridades": [],
+                                 "ciclos": ritual.ciclos_recentes(),
+                                 "fonte": "banco do CORTEX (ges_*)"})
+        p = ritual.painel(c["id"])
+        p["cobranca"] = ritual.cobranca(c["id"])
+        p["ciclos"] = ritual.ciclos_recentes()
+        return JSONResponse(p)
+    except Exception as exc:  # noqa: BLE001
+        return _ges_erro("ritual_painel", exc, "Erro ao montar o painel da semana.")
+
+
+@app.get("/api/ritual/cadastro")
+def ritual_cadastro() -> JSONResponse:
+    """Gerencias, indicadores e o CATALOGO de fontes automaticas."""
+    try:
+        from api.gestao import ritual
+        from api.gestao.comum import usuarios_ativos
+        return JSONResponse({"gerencias": ritual.gerencias(),
+                             "indicadores": ritual.indicadores(),
+                             "fontes": ritual.fontes_publicas(),
+                             "acoes": ritual.acoes_abertas(),
+                             "usuarios": usuarios_ativos()})
+    except Exception as exc:  # noqa: BLE001
+        return _ges_erro("ritual_cadastro", exc, "Erro ao ler o cadastro.")
+
+
+@app.post("/api/ritual/ciclo")
+async def ritual_abrir_ciclo(req: Request) -> JSONResponse:
+    try:
+        body = await req.json()
+        from api.gestao import ritual
+        quem, _ = _ges_usuario(req)
+        return JSONResponse(ritual.abrir_ciclo(
+            body.get("data_reuniao"), body.get("prazo") or "", quem))
+    except Exception as exc:  # noqa: BLE001
+        return _ges_erro("ritual_abrir_ciclo", exc, "Erro ao abrir a semana.")
+
+
+@app.post("/api/ritual/apontar")
+async def ritual_apontar(req: Request) -> JSONResponse:
+    try:
+        body = await req.json()
+        from api.gestao import ritual
+        quem, _ = _ges_usuario(req)
+        r = ritual.apontar(int(body.get("ciclo_id") or 0),
+                           int(body.get("indicador_id") or 0),
+                           body, quem)
+        return JSONResponse({"ok": True, "id": r["id"]})
+    except Exception as exc:  # noqa: BLE001
+        return _ges_erro("ritual_apontar", exc, "Erro ao gravar o apontamento.")
+
+
+@app.post("/api/ritual/priorizar")
+async def ritual_priorizar(req: Request) -> JSONResponse:
+    try:
+        body = await req.json()
+        from api.gestao import ritual
+        quem, _ = _ges_usuario(req)
+        ritual.priorizar(int(body.get("ciclo_id") or 0),
+                         int(body.get("indicador_id") or 0),
+                         body.get("posicao"), quem)
+        return JSONResponse({"ok": True})
+    except Exception as exc:  # noqa: BLE001
+        return _ges_erro("ritual_priorizar", exc, "Erro ao marcar a prioridade.")
+
+
+@app.post("/api/ritual/fechar")
+async def ritual_fechar(req: Request) -> JSONResponse:
+    """Aplica as regras do jogo. Recusa com a LISTA do que falta -- recusa sem
+    motivo e a forma mais rapida de ensinar alguem a contornar a regra."""
+    try:
+        body = await req.json()
+        from api.gestao import ritual
+        quem, _ = _ges_usuario(req)
+        return JSONResponse(ritual.fechar(int(body.get("ciclo_id") or 0), quem,
+                                          forcar=bool(body.get("forcar"))))
+    except Exception as exc:  # noqa: BLE001
+        return _ges_erro("ritual_fechar", exc, "Erro ao fechar a semana.")
+
+
+@app.post("/api/ritual/reabrir")
+async def ritual_reabrir(req: Request) -> JSONResponse:
+    try:
+        body = await req.json()
+        from api.gestao import ritual
+        quem, _ = _ges_usuario(req)
+        return JSONResponse(ritual.reabrir(int(body.get("ciclo_id") or 0), quem))
+    except Exception as exc:  # noqa: BLE001
+        return _ges_erro("ritual_reabrir", exc, "Erro ao reabrir a semana.")
+
+
+@app.post("/api/ritual/indicador")
+async def ritual_indicador(req: Request) -> JSONResponse:
+    try:
+        body = await req.json()
+        from api.gestao import ritual
+        if body.get("excluir"):
+            return JSONResponse(ritual.excluir_indicador(int(body.get("id") or 0)))
+        return JSONResponse(ritual.salvar_indicador(body))
+    except Exception as exc:  # noqa: BLE001
+        return _ges_erro("ritual_indicador", exc, "Erro ao salvar o indicador.")
+
+
+@app.post("/api/ritual/gerencia")
+async def ritual_gerencia(req: Request) -> JSONResponse:
+    try:
+        body = await req.json()
+        from api.gestao import ritual
+        return JSONResponse(ritual.salvar_gerencia(body))
+    except Exception as exc:  # noqa: BLE001
+        return _ges_erro("ritual_gerencia", exc, "Erro ao salvar a gerência.")
+
+
 @app.get("/api/gestao/acoes")
 def gestao_acoes(status: str = "", responsavel_id: int = 0, area: str = "",
                  reuniao_id: int = 0, atrasadas: int = 0, busca: str = "",

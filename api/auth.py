@@ -146,6 +146,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "tvdir":   ("Painel TV — Diretoria", "Business Intelligence"),
     "gesacao": ("Planos de Ação", "Gestão"),
     "gesata":  ("Atas de Reunião", "Gestão"),
+    "gesrit":  ("Ritual Semanal", "Gestão"),
     "doc":     ("Documentação", "Administração"),
     # Auditoria e tela PROPRIA, com RBAC proprio: quem audita nao precisa da
     # Gestao inteira (usuarios, perfis, senhas) para ler a trilha.
@@ -208,6 +209,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/fiscal/contrapartida",     frozenset({"ctecp"})),
     # Gestão: o painel de acompanhamento serve as DUAS telas (é o mesmo
     # dado), e /atas vem antes de /acoes só pela convenção do arquivo.
+    ("/api/ritual",                   frozenset({"gesrit"})),
     ("/api/gestao/painel",            frozenset({"gesacao", "gesata"})),
     ("/api/gestao/atas",              frozenset({"gesata", "gesacao"})),
     ("/api/gestao/acoes",             frozenset({"gesacao", "gesata"})),

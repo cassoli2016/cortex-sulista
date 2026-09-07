@@ -584,6 +584,22 @@ glossario:
   definicao: 'Quanto do quilômetro rodado no período o rastreador efetivamente reportou, medido contra
     o km dos abastecimentos. Abaixo de 70% a comparação de consumo não vale: a diferença mede silêncio
     de rastreador, não desempenho do motorista.'
+- termo: Ritual Semanal (Execução & Resultados)
+  definicao: 'A reunião de 30 minutos que acompanha, toda semana, o que cada gerência prometeu.
+    O painel único da semana tem uma linha por indicador — meta, realizado, semáforo, desvio, ação,
+    responsável e prazo — agrupada pelas quatro gerências. O REALIZADO marcado como automático vem
+    da mesma função que a tela do assunto usa (receita da Visão Geral, retorno vazio da Análise de
+    KM, CNH da tela de CNH) e NÃO se digita: se o número está errado, o conserto é na origem. Isso
+    existe para a reunião discutir o desvio em vez de conferir digitação. Cada gerência preenche
+    ANTES da reunião; a tela mostra quem faltou, que é informação de gestão por si só.'
+- termo: Desvio sem ação não fecha pauta
+  definicao: 'Regra do ritual, aplicada pelo servidor e não só escrita no quadro: indicador em
+    amarelo ou vermelho sem ação vinculada impede fechar a semana, e a recusa DIZ qual indicador
+    falta. Verde não exige ação — cobrar ação de quem está na meta é como se ensina a inventar ação
+    para poder fechar a reunião. Fechar mesmo assim é possível e fica registrado com autor e data:
+    regra sem escape vira regra contornada por fora, e aí alguém aponta verde no vermelho e o
+    painel passa a mentir. A ação é uma ação do Plano de Ação, na mesma tabela — compromisso não
+    vive num lugar paralelo.'
 - termo: Credenciais de integração
   definicao: 'Tokens, usuários e senhas dos fornecedores. Ficam guardados na máquina do painel, com
     permissão restrita e fora do controle de versão. O valor nunca volta para a tela: depois de salvo,
@@ -894,8 +910,8 @@ grupos:
   - tvcom
 - nome: Gestão
   resumo: >-
-    O ciclo de gestão: o que foi decidido em reunião e o que se comprometeu a
-    fazer depois. A ata registra pauta, discussão e decisões em campos
+    O ciclo de gestão: o que foi decidido em reunião, o que se comprometeu a
+    fazer depois, e o ritual semanal que cobra isso. A ata registra pauta, discussão e decisões em campos
     separados — é a diferença entre ata e transcrição. O plano de ação sai
     dela em 5W2H, com responsável e prazo, e o acompanhamento cobra. Atraso
     NUNCA é um campo gravado: é calculado a cada leitura, porque status de
@@ -904,6 +920,7 @@ grupos:
   telas:
   - gesacao
   - gesata
+  - gesrit
 - nome: Suporte
   resumo: >-
     Os chamados abertos pelo botão Reportar — a conversa com quem atende e os avisos por e-mail e
