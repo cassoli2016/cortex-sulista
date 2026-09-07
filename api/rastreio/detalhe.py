@@ -29,7 +29,7 @@ import time
 from datetime import datetime, timezone
 
 from .. import db
-from . import consulta, rota
+from . import consulta, macros, rota
 
 log = logging.getLogger("cortex.rastreio.detalhe")
 
@@ -495,6 +495,22 @@ def obter(termo: str, cnpj4: str, carga_id: str) -> dict:
         "n": alvo["numero"], "s": alvo["serie"]})}
 
 
+def _movimentacao(linha: dict) -> list[dict]:
+    """A movimentação REAL da viagem desta carga, pelas macros do rastreador.
+
+    A JANELA SAI DAQUI e não do módulo de macros, porque quem sabe de QUAL
+    viagem se fala é esta tela: começa na saída da viagem aberta — a mesma
+    definição que o `KM_SQL` usa — e, quando não há viagem aberta (a carga já
+    chegou), na emissão do documento. Termina na entrega, para a carga
+    entregue não continuar "andando" com a viagem seguinte do mesmo cavalo.
+    """
+    placa = (linha.get("placa") or "").strip().upper()
+    if not placa:
+        return []
+    desde = macros.saida_da_viagem(placa) or linha.get("dtemissao")
+    return macros.recentes(placa, desde=desde, ate=linha.get("dtentrega"))
+
+
 def _montar(linha: dict, chaves: dict) -> dict:
     """A carga pública, a partir de UMA linha do detalhe.
 
@@ -523,6 +539,17 @@ def _montar(linha: dict, chaves: dict) -> dict:
         "andamento": andamento,
         "transporte": _transporte(linha),
         "etapas": _linha_do_tempo(linha, andamento),
+        # A MOVIMENTACAO REAL, contada pelas macros do rastreador. As etapas
+        # acima vem das DATAS do CT-e e dizem o que estava previsto; isto diz o
+        # que aconteceu, com cidade e hora. Recortado pela saida da viagem: sem
+        # o recorte, a carga de hoje mostraria a narrativa da viagem anterior
+        # do mesmo cavalo — que e de outro cliente.
+        #
+        # LISTA VAZIA E O CASO COMUM e nao e defeito: so metade das viagens tem
+        # macro (100% da frota propria, 37% dos agregados). A tela some com o
+        # bloco; o que ela nao faz e dizer "sem movimentacao", que seria ler
+        # ausencia de leitura como imobilidade do caminhao.
+        "movimentacao": _movimentacao(linha),
         "notas": _notas(chaves),
         "mapa": pontos,
         "consultado_em": datetime.now(timezone.utc).isoformat(),

@@ -666,6 +666,60 @@ def test_quem_pediu_SO_MARCOS_ignora_progresso_mas_NAO_a_entrega(cenario):
     assert "Entregue" in enviados[-1][1]
 
 
+def _mov(rotulo="Chegou no cliente", marco=True, em="2026-09-06T19:05:00"):
+    return [{"rotulo": rotulo, "marco": marco, "onde": "Resende/RJ", "em": em}]
+
+
+def test_a_MACRO_nova_e_noticia_mesmo_com_o_caminhao_parado(cenario):
+    """É o que o rastreador acrescenta às datas do CT-e: a operação preenche a
+    entrega com atraso, e sem a macro a pessoa saberia da chegada horas depois
+    de o caminhão encostar."""
+    from api.rastreio import mensagem
+    parado = {"tem_posicao": True, "progresso_pct": 98, "falta_km": 6,
+              "por_rota": True}
+    antes = _carga(andamento=parado)
+    agora = _carga(andamento=parado, movimentacao=_mov())
+
+    cenario([_ins(ultima_assinatura=mensagem.assinatura([antes]))], agora)
+    assert aviso.rodar()["enviados"] == 1
+
+
+def test_a_MACRO_aparece_na_mensagem_com_o_lugar(cenario):
+    enviados = cenario([_ins()], _carga(movimentacao=_mov()))
+    aviso.rodar()
+    assert "Chegou no cliente" in enviados[-1][1]
+    assert "Resende/RJ" in enviados[-1][1]
+
+
+def test_a_cadencia_MARCOS_dispara_na_CHEGADA_e_nao_na_parada(cenario):
+    """Quem pediu só os marcos não quer saber de parada para abastecer — quer
+    saber quando chegar."""
+    from api.rastreio import mensagem
+    base = {"tem_posicao": True, "progresso_pct": 60, "falta_km": 200,
+            "por_rota": True}
+    antes = _carga(andamento=base)
+    assin = mensagem.assinatura([antes], so_marcos=True)
+
+    parada = _carga(andamento=base,
+                    movimentacao=_mov("Parada para abastecer", marco=False))
+    cenario([_ins(cadencia="marcos", ultima_assinatura=assin)], parada)
+    assert aviso.rodar()["enviados"] == 0, "parada de estrada não é marco"
+
+    chegada = _carga(andamento=base, movimentacao=_mov())
+    cenario([_ins(cadencia="marcos", ultima_assinatura=assin)], chegada)
+    assert aviso.rodar()["enviados"] == 1
+
+
+def test_sem_MACRO_a_mensagem_nao_inventa_linha(cenario):
+    """Metade das viagens não tem leitura (100% da frota própria, 37% dos
+    agregados). Ausência de macro não é "veículo parado"."""
+    enviados = cenario([_ins()], _carga(movimentacao=[]))
+    aviso.rodar()
+    texto = enviados[-1][1]
+    assert "movimenta" not in texto.lower()
+    assert "\U0001f4cc" not in texto, "o marcador de movimentação saiu sem dado"
+
+
 def test_a_cadencia_MARCOS_ainda_avisa_quando_PERDEMOS_o_veiculo(cenario):
     """"Não sei onde ele está" é notícia para todo mundo, em qualquer cadência:
     calar aqui seria indistinguível de "está tudo calmo"."""

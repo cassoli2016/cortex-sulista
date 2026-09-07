@@ -336,6 +336,31 @@ def test_sem_o_que_dizer_a_assinatura_e_VAZIA():
     assert mensagem.assinatura([_carga(andamento={"tem_posicao": False})]) == ""
 
 
+def test_a_mensagem_NAO_leva_o_texto_CRU_da_macro():
+    """Se o payload chegar com o texto do hub em vez do rótulo da casa, a
+    mensagem sairia com o código de liberação dentro. O guard olha o TEXTO
+    QUE SAI — é a última fronteira antes do WhatsApp do cliente."""
+    c = _carga(movimentacao=[{"rotulo": "Chegou no cliente", "marco": True,
+                              "onde": "Resende/RJ",
+                              "em": "2026-09-06T19:05:00"}])
+    t = mensagem.montar(c) or ""
+    assert "Chegou no cliente" in t and "Resende/RJ" in t
+    for proibido in ("DESBLOQUEAR", "SIRENE", "||", "3389"):
+        assert proibido not in t
+
+
+def test_a_MACRO_entra_na_assinatura_e_a_repetida_nao():
+    """Macro nova é notícia; a MESMA macro relida a cada ciclo não é."""
+    m = [{"rotulo": "Chegou no cliente", "marco": True, "onde": "Resende/RJ",
+          "em": "2026-09-06T19:05:00"}]
+    igual = mensagem.assinatura([_carga(movimentacao=m)])
+    assert igual == mensagem.assinatura([_carga(movimentacao=m)])
+
+    nova = [{"rotulo": "Carga/descarga concluída", "marco": True,
+             "onde": "Resende/RJ", "em": "2026-09-06T19:40:00"}]
+    assert igual != mensagem.assinatura([_carga(movimentacao=nova)])
+
+
 def test_a_assinatura_NAO_leva_o_LINK_nem_o_token():
     """O token é assinado com prazo: ele muda a cada montagem. Deixá-lo entrar
     faria a assinatura mudar sempre — o defeito de novo, por outra porta."""

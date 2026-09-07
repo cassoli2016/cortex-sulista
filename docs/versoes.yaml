@@ -1,3 +1,35 @@
+- versao: "0.265.0"
+  data: "2026-09-06"
+  adicionado:
+    - >-
+      A página de rastreio passou a mostrar a MOVIMENTAÇÃO do veículo, contada
+      pelas macros que o motorista envia pelo rastreador: "chegou no cliente",
+      "início da carga/descarga", "carga/descarga concluída", "viagem
+      encerrada", além das paradas de estrada — cada uma com a cidade e a hora.
+      As etapas que já existiam vêm das datas do CT-e e dizem o que estava
+      previsto; esta lista diz o que aconteceu.
+    - >-
+      O aviso por WhatsApp passou a trazer a última movimentação e, mais
+      importante, a considerá-la novidade: quem escolheu receber "só quando a
+      carga mudar de etapa" agora é avisado no minuto em que o motorista manda
+      a macro de chegada, e não horas depois, quando a operação preenche a data
+      de entrega no sistema.
+    - >-
+      Metade das viagens não tem essa leitura, e isso tem nome: o rastreador da
+      frota própria e dos veículos locados reporta em 100% das viagens; os
+      agregados, em 37% (medido em 06/09/2026). Quando não há leitura o bloco
+      simplesmente não aparece — a tela não escreve "sem movimentação", que
+      faria ler caminhão parado onde há rastreador que não fala com o sistema.
+  seguranca:
+    - >-
+      As macros passam por uma lista do que PODE ser mostrado, e o texto que
+      sai é sempre escrito por nós, nunca o que vem do rastreador. O motivo é
+      concreto: no mesmo campo em que chega "chegada no cliente" chegam
+      comandos da central de risco com códigos de liberação do veículo dentro
+      do próprio texto. Numa página aberta na internet isso não é um rótulo
+      feio — é a chave do cadeado. Ficaram de fora também as macros de jornada
+      do motorista: a página fala da mercadoria, e a rotina de trabalho de uma
+      pessoa não é assunto de quem contratou o frete.
 - versao: "0.264.0"
   data: "2026-09-06"
   adicionado:

@@ -4,6 +4,43 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.265.0] — 06/09/2026  ·  CX-06/09/2026-v0.265.0
+
+### Adicionado
+- A página de rastreio passou a mostrar a MOVIMENTAÇÃO do veículo, contada pelas macros que o motorista envia pelo rastreador: "chegou no cliente", "início da carga/descarga", "carga/descarga concluída", "viagem encerrada", além das paradas de estrada — cada uma com a cidade e a hora. As etapas que já existiam vêm das datas do CT-e e dizem o que estava previsto; esta lista diz o que aconteceu.
+- O aviso por WhatsApp passou a trazer a última movimentação e, mais importante, a considerá-la novidade: quem escolheu receber "só quando a carga mudar de etapa" agora é avisado no minuto em que o motorista manda a macro de chegada, e não horas depois, quando a operação preenche a data de entrega no sistema.
+- Metade das viagens não tem essa leitura, e isso tem nome: o rastreador da frota própria e dos veículos locados reporta em 100% das viagens; os agregados, em 37% (medido em 06/09/2026). Quando não há leitura o bloco simplesmente não aparece — a tela não escreve "sem movimentação", que faria ler caminhão parado onde há rastreador que não fala com o sistema.
+
+### Segurança
+- As macros passam por uma lista do que PODE ser mostrado, e o texto que sai é sempre escrito por nós, nunca o que vem do rastreador. O motivo é concreto: no mesmo campo em que chega "chegada no cliente" chegam comandos da central de risco com códigos de liberação do veículo dentro do próprio texto. Numa página aberta na internet isso não é um rótulo feio — é a chave do cadeado. Ficaram de fora também as macros de jornada do motorista: a página fala da mercadoria, e a rotina de trabalho de uma pessoa não é assunto de quem contratou o frete.
+
+## [0.264.0] — 06/09/2026  ·  CX-06/09/2026-v0.264.0
+
+### Adicionado
+- Quem pede aviso de carga por WhatsApp agora escolhe QUANDO e COM QUE FREQUÊNCIA quer receber. Na página de rastreio, abaixo do campo do telefone, há "Ajustar horário e frequência": dá para pedir só horário comercial, só de manhã ou só à tarde, e escolher entre receber a cada hora quando houver novidade, a cada três horas, ou apenas quando a carga mudar de etapa — saiu, chegou, entrou em descarga, foi entregue.
+- A escolha vale para o número de telefone, não para uma carga só: quem acompanha três cargas recebe uma mensagem com as três, então o horário e a frequência são do telefone. Ajustar em qualquer uma das cargas ajusta todas.
+- A confirmação do cadastro passou a dizer o que foi combinado — "avisamos quando a carga mudar de etapa, entre 08:00 e 18:00" — em vez de uma frase fixa prometendo uma mensagem por hora para todo mundo.
+
+### Segurança
+- O horário escolhido pelo cliente só RESTRINGE a janela de envio da empresa, nunca a amplia. A página é aberta na internet e não pede login: se ela permitisse pedir mensagem às 3 da manhã, a proteção que existe para o número da empresa não ser denunciado passaria a depender do que um desconhecido digitou num formulário. Nenhuma das frequências oferecidas aproxima as mensagens além do limite de uma por hora que já existia.
+
+## [0.263.1] — 06/09/2026  ·  CX-06/09/2026-v0.263.1
+
+### Adicionado
+- A página pública de rastreio ganhou um layout próprio para computador. Até agora ela era desenhada para o celular — que é de onde quase todo mundo chega, pelo link do WhatsApp — e no monitor virava uma tira estreita no meio da tela, com um mapa pequeno espremido no meio de uma lista longa. Em telas largas o conteúdo passa a ocupar duas colunas: à esquerda a carga, o andamento e o cadastro de avisos; à direita o mapa, agora grande e acompanhando a rolagem, com o trânsito e as notas fiscais. No celular nada mudou.
+- No computador o mapa passou a ter botões de mais e menos zoom. Antes não havia nenhuma forma de aproximar ou afastar: no celular dá para usar dois dedos, no computador não sobrava gesto nenhum.
+
+### Corrigido
+- O botão de voltar agora volta. Quem procurava uma carga, recebia uma lista com várias e abria a errada não tinha caminho de volta: o botão levava ao formulário vazio e era preciso digitar tudo de novo. Agora ele devolve a lista encontrada, e o botão de voltar do próprio celular passou a funcionar — antes ele saía da página e a consulta se perdia.
+- O formulário de busca não fica mais em cima da carga aberta. Quem clicava no link do WhatsApp via primeiro dois campos vazios e só depois a carga que veio ver; quem tinha buscado via os campos que acabara de preencher.
+
+## [0.263.0] — 06/09/2026  ·  CX-06/09/2026-v0.263.0
+
+### Corrigido
+- Quem acompanha uma carga pelo WhatsApp para de receber mensagem repetida. O aviso continua saindo no máximo de hora em hora, mas agora só quando há de fato o que contar: o veículo andou um trecho que se nota, o trânsito mudou de cor, a carga chegou ou a entrega foi feita. Com o caminhão parado, o sistema fica calado — e volta a falar assim que algo muda.
+- O que estava acontecendo: quem esperava uma carga recebia a mesma mensagem de hora em hora, com o mesmo percentual e os mesmos quilômetros restantes, mudando só a linha do relógio ("atualizado há 3 minutos" para "há 4 minutos"). Um telefone chegou a receber catorze mensagens sobre a mesma carga, seis delas idênticas em quatro horas. A proteção contra repetição existia, mas comparava o texto inteiro da mensagem — e o texto mudava sozinho a cada envio, por causa justamente do relógio. Agora a comparação é sobre o que mudou na viagem, não sobre como a frase ficou escrita.
+- A primeira mensagem, a que sai no momento do cadastro, também passou a valer como referência. Antes, quem se cadastrava podia receber outra quase igual dentro da primeira hora.
+
 ## [0.262.2] — 06/09/2026  ·  CX-06/09/2026-v0.262.2
 
 ### Corrigido

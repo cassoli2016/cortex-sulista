@@ -172,6 +172,20 @@ button.principal:active{background:#7d211b}
 #mapa{height:250px;margin-top:14px;border-radius:10px;overflow:hidden;
   border:1px solid var(--n200);background:var(--n100)}
 .leaflet-container{font-family:var(--font)}
+/* A MOVIMENTACAO. Lista seca, do mais recente para o mais antigo: o que a
+   pessoa quer e a linha de cima. O MARCO (chegou, iniciou/encerrou descarga,
+   fim de viagem) ganha o ponto da marca; parada de estrada fica em cinza —
+   e a diferenca e de PESO, nao de semaforo: nada aqui e bom ou ruim. */
+.mov{list-style:none;margin:8px 0 0;padding:0}
+.mov li{display:grid;grid-template-columns:9px 1fr;gap:9px;align-items:baseline;
+  padding:6px 0;border-top:1px solid var(--n100)}
+.mov li:first-child{border-top:0;padding-top:0}
+.mov li::before{content:"";width:7px;height:7px;border-radius:50%;
+  background:var(--n300);margin-top:6px}
+.mov li.marco::before{background:var(--brand)}
+.mov b{font-size:14px;font-weight:600;line-height:1.3;display:block}
+.mov span{font-size:12.5px;color:var(--n500);font-family:var(--mono)}
+.mov li>div{min-width:0}
 .notas{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .notas b{font-family:var(--mono);font-size:12.5px;font-weight:600;
   background:var(--n100);color:var(--n600);border-radius:6px;padding:4px 8px}
@@ -427,6 +441,20 @@ function pintarDetalhe(c){
     `<b class="${meia ? 'pl' : ''}">${esc(v)}</b></div>`).join('')
     + '</div>' : '';
 
+  /* A MOVIMENTACAO REAL, contada pelas macros do rastreador. As etapas vem
+     das DATAS do CT-e e dizem o que estava previsto; isto diz o que aconteceu,
+     com cidade e hora.
+     O BLOCO SOME QUANDO NAO HA LEITURA, e nao vira "sem movimentacao": so
+     metade das viagens tem macro (100% da frota propria, 37% dos agregados), e
+     escrever "sem movimentacao" faria metade dos clientes ler caminhao parado
+     onde ha rastreador que nao fala com a gente. */
+  const mov = (c.movimentacao || []).length
+    ? `<p class="tit">Movimentação do veículo</p><ul class="mov">`
+      + c.movimentacao.map(m => `<li${m.marco ? ' class="marco"' : ''}><div>
+          <b>${esc(m.rotulo)}</b>
+          <span>${esc(m.onde || '')}${m.em ? ' · ' + quando(m.em, true) : ''}</span>
+        </div></li>`).join('') + `</ul>` : '';
+
   const t = a.transito;
   const transito = t ? `<p class="tit">Trânsito onde o veículo está</p>
       <div class="trans t-${esc(t.estado || 'nd')}"><span class="pt"></span>
@@ -478,6 +506,7 @@ function pintarDetalhe(c){
           + 'veículo (área aproximada)</span></p>'
         : ''}
       ${transito}
+      ${mov}
       ${notas}
       </div>
       <div class="det-a2">

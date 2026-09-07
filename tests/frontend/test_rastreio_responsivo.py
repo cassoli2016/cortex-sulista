@@ -43,6 +43,14 @@ CARGA = {
                       "area": {"lat": -26.3, "lng": -48.8, "raio_km": 11}},
         "mapa": {"origem": {"lat": -26.30, "lng": -48.84},
                  "destino": {"lat": -29.76, "lng": -51.15}},
+        "movimentacao": [
+            {"rotulo": "Chegou no cliente", "marco": True,
+             "onde": "Resende/RJ", "em": "2026-09-06T19:05:39"},
+            {"rotulo": "Parada para abastecer", "marco": False,
+             "onde": "Registro/SP", "em": "2026-09-06T15:19:27"},
+            {"rotulo": "Viagem iniciada", "marco": True,
+             "onde": "Joinville/SC", "em": "2026-09-05T13:50:11"},
+        ],
         "etapas": [
             {"chave": "emitido", "rotulo": "Documento emitido",
              "em": "2026-09-05T08:00:00", "feito": True},
@@ -313,6 +321,60 @@ def test_quem_chega_pelo_LINK_nao_ve_o_formulario(pagina):
     ) == "none"
     # E o token sai da barra de endereços — a regra que já existia.
     assert "#c=" not in pg.url
+
+
+# --------------------------------------------------------------------------
+# a movimentação do veículo
+# --------------------------------------------------------------------------
+def test_a_movimentacao_aparece_com_lugar_e_hora(pagina):
+    """As etapas vêm das DATAS do CT-e e dizem o que estava previsto; isto diz
+    o que aconteceu."""
+    pg, base = pagina
+    _abrir_detalhe(pg, base, 1440, 900)
+    itens = pg.eval_on_selector_all(
+        ".mov li", "els => els.map(e => e.innerText.replace(/\\n/g, ' | '))")
+    assert len(itens) == 3, itens
+    assert "Chegou no cliente" in itens[0] and "Resende/RJ" in itens[0]
+    # O MARCO se distingue da parada de estrada — por PESO, não por semáforo:
+    # nada aqui é bom ou ruim.
+    classes = pg.eval_on_selector_all(".mov li", "els => els.map(e => e.className)")
+    assert classes[0] == "marco" and classes[1] == ""
+
+
+def test_sem_movimentacao_o_bloco_SOME_e_nao_diz_parado(pagina):
+    """Só metade das viagens tem macro (100% da frota própria, 37% dos
+    agregados). Escrever "sem movimentação" faria metade dos clientes ler
+    caminhão parado onde há rastreador que não fala com a gente."""
+    pg, base = pagina
+    pg.set_viewport_size({"width": 1440, "height": 900})
+    _rotas(pg)
+    sem = {"ok": True, "carga": {**CARGA["carga"], "movimentacao": []}}
+    pg.route("**/api/rastreio/carga*", lambda r: r.fulfill(
+        status=200, content_type="application/json", body=json.dumps(sem)))
+    pg.goto(f"{base}/static/rastreio.html")
+    pg.fill("#doc", "1234"); pg.fill("#cnpj", "0051"); pg.click("#btn")
+    pg.wait_for_selector(".carga"); pg.click(".carga")
+    pg.wait_for_selector(".det-a1")
+
+    assert pg.query_selector(".mov") is None
+    corpo = pg.inner_text(".det-b")
+    for proibido in ("sem movimenta", "Sem movimenta", "não informado"):
+        assert proibido not in corpo
+
+
+def test_a_pagina_NUNCA_mostra_o_texto_cru_da_macro(pagina):
+    """A última fronteira. Se o payload chegar com o texto do hub, a página
+    pintaria o código de liberação — e ela é aberta na internet."""
+    pg, base = pagina
+    pg.set_viewport_size({"width": 1440, "height": 900})
+    _rotas(pg)
+    pg.goto(f"{base}/static/rastreio.html")
+    pg.fill("#doc", "1234"); pg.fill("#cnpj", "0051"); pg.click("#btn")
+    pg.wait_for_selector(".carga"); pg.click(".carga")
+    pg.wait_for_selector(".det-a1")
+    corpo = pg.inner_text("body")
+    for proibido in ("DESBLOQUEAR", "SIRENE", "ENTREGA DO VEICULO", "||"):
+        assert proibido not in corpo
 
 
 # --------------------------------------------------------------------------

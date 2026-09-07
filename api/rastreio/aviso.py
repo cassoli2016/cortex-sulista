@@ -78,6 +78,12 @@ def _carga_da_inscricao(ins: dict) -> dict | None:
             "link_token": consulta.link_token(
                 ins["grupo"], ins["empresa"], ins["filial"],
                 ins["numero"], ins["serie"]),
+            # A ULTIMA MOVIMENTACAO REAL. Vem pelo MESMO caminho do detalhe
+            # (`detalhe._movimentacao`) de proposito: assim o WhatsApp nao pode
+            # dizer uma coisa e a pagina outra sobre o mesmo instante — e o
+            # recorte da viagem, que e o que impede a narrativa de outro
+            # cliente de vazar, e escrito num lugar so.
+            "movimentacao": detalhe._movimentacao(linha),
             "andamento": detalhe._andamento(linha)}
 
 

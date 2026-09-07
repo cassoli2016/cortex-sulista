@@ -94,6 +94,18 @@ PONTO_TRANSITO = {"livre": "\U0001f7e2", "lento": "\U0001f7e1",
                   "parado": "\U0001f534", "bloqueado": "\U0001f534"}
 
 
+def ultima_macro(carga: dict) -> dict | None:
+    """A movimentação mais recente da viagem, ou None.
+
+    A LISTA JA VEM FILTRADA pela lista branca de `macros.py` — este módulo não
+    decide o que pode sair, só escolhe a primeira. Concentrar a decisão de
+    segurança num lugar é o que a torna conferível: aqui ela seria repetida, e
+    a segunda cópia é a que fica desatualizada.
+    """
+    mov = carga.get("movimentacao") or []
+    return mov[0] if mov else None
+
+
 def link(carga: dict) -> str:
     """O endereço que abre a carga JÁ ABERTA, sem a pessoa digitar nada."""
     t = carga.get("link_token")
@@ -181,6 +193,15 @@ def montar(carga: dict) -> str | None:
         if t.get("atraso_min"):
             txt += " (~%d min de atraso)" % t["atraso_min"]
         linhas.append(txt)
+
+    ult = ultima_macro(carga)
+    if ult:
+        # A ULTIMA MOVIMENTACAO, quando o rastreador conta. Ela responde o que
+        # o percentual nao responde: "chegou no cliente" e outra coisa que
+        # "98%", e e ela que faz quem espera na doca chamar a equipe. So sai o
+        # NOSSO rotulo — o texto cru do hub carrega codigo de liberacao.
+        linhas.append("\U0001f4cc %s%s" % (
+            ult["rotulo"], " · %s" % ult["onde"] if ult.get("onde") else ""))
 
     idade = a.get("atualizado_ha_min")
     if idade is not None:
@@ -350,11 +371,27 @@ def _assinatura_de_uma(carga: dict, so_marcos: bool = False) -> str:
         # assinatura. Quem chama trata o vazio.
         return ""
 
+    # A MOVIMENTAÇÃO ENTRA NA ASSINATURA, e é o que dá conteúdo à cadência
+    # seca. Sem ela, "só quando mudar de etapa" dependeria das DATAS do CT-e —
+    # que a operação preenche com atraso — e a pessoa saberia da chegada horas
+    # depois de o caminhão encostar. Com ela, a macro "CHEGADA NO CLIENTE"
+    # dispara o aviso no minuto em que o motorista a envia.
+    #
+    # ENTRA O RÓTULO E O INSTANTE, nunca o texto cru do hub: o que chega aqui
+    # já passou pela lista branca de `macros.py`.
+    ult = ultima_macro(carga)
+
     if so_marcos:
         # EM VIAGEM É UM ESTADO SÓ. Foi para isto que a pessoa escolheu esta
         # cadência: ela não quer saber de 42% nem de 380 km, quer saber quando
         # chegar. A mensagem que sair continua trazendo tudo — o que muda é
         # QUANDO ela sai, nunca o que ela diz.
+        #
+        # SÓ MACRO DE MARCO CONTA AQUI. "Parada para abastecer" é movimentação
+        # legítima e não é o que essa pessoa pediu para saber; "chegou no
+        # cliente" é.
+        if ult and ult.get("marco"):
+            return "%s|viagem|%s@%s" % (doc, ult["rotulo"], ult.get("em") or "")
         return "%s|viagem" % doc
 
     # O TRÂNSITO ENTRA PELO ESTADO, NUNCA PELO ATRASO EM MINUTOS. "Fluxo livre"
@@ -362,8 +399,9 @@ def _assinatura_de_uma(carga: dict, so_marcos: bool = False) -> str:
     # é o mesmo, a decisão de quem espera é a mesma. Foi por essa diferença de
     # um minuto que uma das mensagens repetidas saiu.
     t = (a.get("transito") or {}).get("estado") or "nd"
-    return "%s|v:%d:%d:%s" % (doc, int(pct) // PASSO_PCT,
-                              int(round(float(falta))) // PASSO_KM, t)
+    mov = "|%s@%s" % (ult["rotulo"], ult.get("em") or "") if ult else ""
+    return "%s|v:%d:%d:%s%s" % (doc, int(pct) // PASSO_PCT,
+                                int(round(float(falta))) // PASSO_KM, t, mov)
 
 
 def assinatura(cargas: list[dict], *, so_marcos: bool = False) -> str:
