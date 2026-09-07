@@ -38,6 +38,15 @@ dependencies = [
   "erpbrasil.edoc",        # monta, assina e transmite CT-e/MDF-e as SEFAZ
   "erpbrasil.assinatura",  # assinatura XMLDSig com certificado A1
   "nfelib",                # classes geradas dos XSD dos layouts
+  # DEPENDENCIA DA `erpbrasil.edoc` QUE ELA NAO DECLARA, e sem a qual a
+  # recolha de NF nao existe. Os bindings legados dela (`nfelib_legacy.v4_00`)
+  # fazem `from six.moves import zip_longest`, e o modulo os importa dentro de
+  # `with suppress(ImportError)` -- entao a ausencia do `six` nao da erro de
+  # import: ela apaga em SILENCIO os nomes `distDFeInt`, `retDistDFeInt` e
+  # outros, e a falha aparece muito depois como
+  # `NameError: name 'distDFeInt' is not defined` no meio da consulta.
+  # Medido em 07/09/2026, contra o servico real.
+  "six",
   "truststore>=0.10.4",    # raizes ICP-Brasil pelo cofre do sistema
   "reportlab>=5.0.1",
   # QR dos aplicativos (tela `apps`). Python PURO e sem dependencia
@@ -67,6 +76,7 @@ fiscal = [
   "erpbrasil.edoc",
   "erpbrasil.assinatura",
   "nfelib",
+  "six",                   # ver o comentario em [project.dependencies]
   "truststore>=0.10.4",
 ]
 

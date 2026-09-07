@@ -1,0 +1,227 @@
+# -*- coding: utf-8 -*-
+"""A caixa e os documentos no banco da casa — e as regras que os protegem.
+
+Este módulo é PURO sobre o banco: nada aqui fala com a SEFAZ. Quem fala é
+`distribuicao.py`, e a separação é o que permite testar as duas regras difíceis
+(o resumo que vira documento, e o NSU que só avança) sem rede nenhuma.
+"""
+from __future__ import annotations
+
+import logging
+import re
+from datetime import datetime, timezone
+
+from .. import pglocal
+
+log = logging.getLogger("cortex.sefaz")
+
+# Redirecionado pelos testes para o schema descartável (fixture `esquema_pg`).
+# Um ponto só para esquecer — e esquecer aqui escreve em PRODUÇÃO.
+ESQUEMA: str | None = None
+
+#: NSU tem 15 dígitos, zero à esquerda. Comparar como TEXTO só funciona porque
+#: o zero à esquerda é obrigatório — e é por isso que ele nunca é guardado como
+#: inteiro: `'000000000000012' < '000000000000100'` é verdade, `12 < 100`
+#: também, mas `'12' < '100'` é FALSO. Um `int()` no meio do caminho e a
+#: varredura passa a achar que já leu o que não leu.
+NSU_ZERO = "0" * 15
+
+
+def _esq() -> str | None:
+    return ESQUEMA
+
+
+def nsu(valor) -> str:
+    """Normaliza para os 15 dígitos com zero à esquerda."""
+    d = re.sub(r"[^0-9]", "", str(valor or ""))
+    return d.rjust(15, "0")[-15:] if d else NSU_ZERO
+
+
+# ------------------------------------------------------------------ a caixa
+
+def caixa(cnpj: str) -> dict | None:
+    with pglocal.get_conn(_esq()) as conn, conn.cursor() as cur:
+        cur.execute("SELECT * FROM dfe_caixa WHERE cnpj = %s", (cnpj,))
+        r = cur.fetchone()
+        return dict(r) if r else None
+
+
+def caixas(so_ativas: bool = True) -> list[dict]:
+    sql = "SELECT * FROM dfe_caixa"
+    if so_ativas:
+        sql += " WHERE ativo"
+    sql += " ORDER BY cnpj"
+    with pglocal.get_conn(_esq()) as conn, conn.cursor() as cur:
+        cur.execute(sql)
+        return [dict(r) for r in cur.fetchall()]
+
+
+def abrir_caixa(cnpj: str, apelido: str = "", uf: str = "") -> dict:
+    """Registra um CNPJ na recolha. Idempotente: reabrir NÃO zera o NSU.
+
+    Zerar seria reler meses de documento e queimar a cota do serviço por um
+    clique repetido — e o `DO NOTHING` é o que impede isso.
+    """
+    with pglocal.get_conn(_esq()) as conn, conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO dfe_caixa (cnpj, apelido, uf) VALUES (%s, %s, %s) "
+            "ON CONFLICT (cnpj) DO UPDATE SET apelido = EXCLUDED.apelido, "
+            "uf = coalesce(EXCLUDED.uf, dfe_caixa.uf), ativo = true",
+            (cnpj, apelido or None, (uf or "").upper()[:2] or None))
+        conn.commit()
+    return caixa(cnpj)
+
+
+def marcar_consulta(cnpj: str, *, ultimo_nsu: str | None = None,
+                    max_nsu: str | None = None, cstat: str = "",
+                    motivo: str = "") -> None:
+    """Grava o resultado de UM lote. Chamado a cada lote, não no fim.
+
+    O NSU SÓ AVANÇA. Um lote que volte com NSU menor (a SEFAZ repetindo, uma
+    resposta fora de ordem, um retry) não pode fazer a varredura andar para
+    trás — seria reler o que já está guardado e, pior, ficar em laço. A guarda
+    é aqui, no `greatest`, e não em quem chama: quem chama esquece.
+    """
+    campos = ["ultima_consulta = now()", "ultimo_cstat = %s", "ultimo_motivo = %s"]
+    args: list = [cstat or None, (motivo or None)]
+    if ultimo_nsu is not None:
+        campos.append("ultimo_nsu = greatest(ultimo_nsu, %s)")
+        args.append(nsu(ultimo_nsu))
+    if max_nsu is not None:
+        campos.append("max_nsu = %s")
+        args.append(nsu(max_nsu))
+    args.append(cnpj)
+    with pglocal.get_conn(_esq()) as conn, conn.cursor() as cur:
+        cur.execute("UPDATE dfe_caixa SET " + ", ".join(campos)
+                    + " WHERE cnpj = %s", tuple(args))
+        conn.commit()
+
+
+# ------------------------------------------------------------- documentos
+
+def gravar(cnpj: str, doc: dict) -> str:
+    """Grava um documento do lote. Devolve 'novo', 'completado' ou 'repetido'.
+
+    DUAS REGRAS, E AS DUAS JÁ CUSTARIAM CARO SEM TESTE:
+
+    1. **Idempotente por (cnpj, nsu).** Reler um trecho da sequência é normal —
+       recomeço depois de perder o controle, varredura manual de um NSU
+       específico. Sem a chave, a segunda leitura duplicaria a nota inteira e o
+       total de compras do mês dobraria de um jeito PLAUSÍVEL.
+
+    2. **Resumo NUNCA sobrescreve documento completo.** O mesmo NSU chega como
+       `resNFe` (chave, emitente, valor) antes da manifestação e como `procNFe`
+       (a nota inteira) depois dela. Se uma releitura anterior à manifestação
+       chegasse por cima da posterior, a casa perderia o XML — que é
+       exatamente o que ela tem obrigação de guardar por cinco anos. O
+       `WHERE NOT dfe_documento.completo OR EXCLUDED.completo` é essa regra.
+    """
+    d = dict(doc)
+    d["nsu"] = nsu(d.get("nsu"))
+    with pglocal.get_conn(_esq()) as conn, conn.cursor() as cur:
+        cur.execute("SELECT completo FROM dfe_documento WHERE cnpj=%s AND nsu=%s",
+                    (cnpj, d["nsu"]))
+        antes = cur.fetchone()
+        cur.execute(
+            """INSERT INTO dfe_documento
+                 (cnpj, nsu, esquema, tipo, chave, emitente, emitente_nome,
+                  destinatario, valor, emitido_em, situacao, completo, xml)
+               VALUES (%(cnpj)s, %(nsu)s, %(esquema)s, %(tipo)s, %(chave)s,
+                       %(emitente)s, %(emitente_nome)s, %(destinatario)s,
+                       %(valor)s, %(emitido_em)s, %(situacao)s, %(completo)s,
+                       %(xml)s)
+               ON CONFLICT (cnpj, nsu) DO UPDATE SET
+                 esquema = EXCLUDED.esquema, tipo = EXCLUDED.tipo,
+                 chave = coalesce(EXCLUDED.chave, dfe_documento.chave),
+                 emitente = coalesce(EXCLUDED.emitente, dfe_documento.emitente),
+                 emitente_nome = coalesce(EXCLUDED.emitente_nome,
+                                          dfe_documento.emitente_nome),
+                 destinatario = coalesce(EXCLUDED.destinatario,
+                                         dfe_documento.destinatario),
+                 valor = coalesce(EXCLUDED.valor, dfe_documento.valor),
+                 emitido_em = coalesce(EXCLUDED.emitido_em,
+                                       dfe_documento.emitido_em),
+                 situacao = coalesce(EXCLUDED.situacao, dfe_documento.situacao),
+                 completo = dfe_documento.completo OR EXCLUDED.completo,
+                 xml = EXCLUDED.xml,
+                 recebido_em = now()
+               WHERE NOT dfe_documento.completo OR EXCLUDED.completo""",
+            {"cnpj": cnpj, "nsu": d["nsu"], "esquema": d.get("esquema"),
+             "tipo": d.get("tipo") or "desconhecido", "chave": d.get("chave"),
+             "emitente": d.get("emitente"),
+             "emitente_nome": d.get("emitente_nome"),
+             "destinatario": d.get("destinatario"), "valor": d.get("valor"),
+             "emitido_em": d.get("emitido_em"), "situacao": d.get("situacao"),
+             "completo": bool(d.get("completo")), "xml": d.get("xml") or ""})
+        conn.commit()
+    if antes is None:
+        return "novo"
+    return "completado" if (not antes["completo"] and d.get("completo")) else "repetido"
+
+
+def documentos(cnpj: str | None = None, *, limite: int = 200,
+               so_incompletos: bool = False) -> list[dict]:
+    """Os documentos, SEM o XML. O XML sai por `xml_de()`, um a um.
+
+    Não é economia de bytes: é que uma lista de 200 notas com o XML dentro são
+    ~2 MB numa resposta que a tela usa só para desenhar linhas — e a serialização
+    disso é o tipo de custo que vira lentidão sem ninguém saber de onde veio.
+    """
+    onde, args = [], []
+    if cnpj:
+        onde.append("cnpj = %s")
+        args.append(cnpj)
+    if so_incompletos:
+        onde.append("NOT completo")
+    sql = ("SELECT cnpj, nsu, esquema, tipo, chave, emitente, emitente_nome, "
+           "destinatario, valor::float8 AS valor, emitido_em, situacao, "
+           "completo, recebido_em FROM dfe_documento")
+    if onde:
+        sql += " WHERE " + " AND ".join(onde)
+    sql += " ORDER BY emitido_em DESC NULLS LAST, nsu DESC LIMIT %s"
+    args.append(max(1, min(int(limite), 2000)))
+    with pglocal.get_conn(_esq()) as conn, conn.cursor() as cur:
+        cur.execute(sql, tuple(args))
+        saida = []
+        for r in cur.fetchall():
+            x = dict(r)
+            # Serialização converte no LIMITE do módulo: `datetime` estoura no
+            # `render()` do JSONResponse, DEPOIS do try/except da rota.
+            for c in ("emitido_em", "recebido_em"):
+                if isinstance(x.get(c), datetime):
+                    x[c] = x[c].isoformat()
+            saida.append(x)
+        return saida
+
+
+def xml_de(cnpj: str, nsu_: str) -> str | None:
+    with pglocal.get_conn(_esq()) as conn, conn.cursor() as cur:
+        cur.execute("SELECT xml FROM dfe_documento WHERE cnpj=%s AND nsu=%s",
+                    (cnpj, nsu(nsu_)))
+        r = cur.fetchone()
+        return r["xml"] if r else None
+
+
+def resumo(cnpj: str | None = None) -> dict:
+    """Os escalares da tela e do Copiloto — sem chave, sem CNPJ de fornecedor.
+
+    `pendentes` é o número que decide alguma coisa: documento que ainda está só
+    no resumo é XML que a casa NÃO tem e tem obrigação de guardar.
+    """
+    # `FILTER (WHERE ...)` aqui É PERMITIDO: este é o banco da CASA
+    # (PostgreSQL 16). A proibição do `FILTER` vale para o AVA, que é 9.3 —
+    # confundir os dois bancos custa caro nos dois sentidos.
+    onde, args = ("WHERE cnpj = %s", (cnpj,)) if cnpj else ("", ())
+    with pglocal.get_conn(_esq()) as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT count(*)::int AS total, "
+            "  count(*) FILTER (WHERE NOT completo)::int AS pendentes, "
+            "  count(*) FILTER (WHERE tipo = 'nfe')::int AS nfe, "
+            "  count(*) FILTER (WHERE tipo = 'cte')::int AS cte, "
+            "  count(*) FILTER (WHERE tipo = 'evento')::int AS eventos, "
+            "  max(recebido_em) AS ultimo_recebido "
+            "FROM dfe_documento " + onde, args)
+        d = dict(cur.fetchone() or {})
+    if isinstance(d.get("ultimo_recebido"), datetime):
+        d["ultimo_recebido"] = d["ultimo_recebido"].isoformat()
+    return d
