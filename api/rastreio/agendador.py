@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""O relógio do aviso de carga, dentro da própria API.
+r"""O relógio do aviso de carga, dentro da própria API.
 
 POR QUE ELE MUDOU DE CASA
 =========================

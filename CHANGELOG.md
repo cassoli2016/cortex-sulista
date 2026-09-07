@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.4.2] — 07/09/2026  ·  CX-07/09/2026-v1.4.2
+
+### Corrigido
+- A Saúde do Servidor demorava a abrir — na primeira vez depois de cada atualização do sistema ela levava mais de um minuto, e nesse tempo a tela ficava em branco. Agora abre em cerca de três segundos e meio na primeira vez, um segundo nas seguintes.
+- Eram duas coisas independentes. A primeira: a conferência do mapa contábil levava 47 segundos sozinha, porque juntava a tabela do agrupador só para perguntar "esta conta tem classificação?" — e esse tipo de junção fica desproporcionalmente mais cara conforme a janela cresce. Perguntando do jeito certo, o mesmo resultado sai em 4,5 segundos (conferido: as duas formas devolvem exatamente os mesmos números).
+- A segunda é mais de fundo. As medições caras — o mapa contábil, o agendador de tarefas do Windows, a leitura das permissões dos arquivos de segredo — eram feitas DENTRO do seu pedido. Guardá-las por alguns minutos poupava a segunda pessoa e nunca a primeira, e como o sistema se reinicia a cada atualização, "a primeira" acontecia várias vezes por dia. Agora elas correm por fora: a tela abre na hora, e cada cartão diz em que estado está — o número, ou "medindo", ou o número anterior com a idade dele à mostra.
+- Nenhum cartão some enquanto mede. Cartão que desaparece por um minuto ensina que aquela conferência não existe.
+- E quando o ERP cancela a conferência do mapa por excesso de carga (o portal é compartilhado com outro sistema), o cartão passa a dizer isso. Antes ele avisava que "o mapa não pode ser lido" e que cinco telas estavam sem dado — o que mandava alguém procurar defeito onde não havia.
+
 ## [1.4.1] — 07/09/2026  ·  CX-07/09/2026-v1.4.1
 
 ### Alterado

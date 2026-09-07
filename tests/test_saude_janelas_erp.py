@@ -243,11 +243,11 @@ def test_log_ilegivel_e_INFO_e_nao_alarme():
 def test_o_cartao_entra_na_lista_de_servicos_da_SAUDE(monkeypatch):
     """Cartão que ninguém monta é código morto com docstring bonito."""
     monkeypatch.setattr(servidor, "_janelas_erp",
-                        lambda *a, **k: {"legivel": True, "janelas": [UMA],
-                                         "janelas_24h": 1, "ultima": UMA,
-                                         "desde": "2026-08-31 15:39",
-                                         "timeouts": 12, "resgates": 1,
-                                         "pct_manha": 96.0})
+                        lambda *a, **k: ({"legivel": True, "janelas": [UMA],
+                                          "janelas_24h": 1, "ultima": UMA,
+                                          "desde": "2026-08-31 15:39",
+                                          "timeouts": 12, "resgates": 1,
+                                          "pct_manha": 96.0}, "fresco", 0))
     nomes = [s.get("nome") for s in servidor._servicos()]
     assert "Janelas ruins do ERP" in nomes
 
@@ -256,9 +256,11 @@ def test_a_medicao_tem_TTL(monkeypatch):
     """A Saúde repinta de 5 em 5 s; varrer o log 60 vezes por minuto para um
     número que muda algumas vezes por dia é trabalho que não vira informação."""
     chamadas = []
-    monkeypatch.setattr(servidor, "_janelas_cache", None)
     monkeypatch.setattr(erp_janelas, "medir",
                         lambda *a, **k: chamadas.append(1) or {"legivel": True})
+    monkeypatch.setattr(servidor, "_JANELAS",
+                        servidor._EmFundo("j", servidor._JANELAS_TTL,
+                                          servidor._janelas_medir))
     servidor._janelas_erp(forcar=True)
     servidor._janelas_erp()
     servidor._janelas_erp()

@@ -568,7 +568,18 @@ barra empilhada, não donut.
   anterior terminar), nunca `setInterval` — com guard de sequência, resposta
   lenta vira tela vazia para sempre.
 - Diagnóstico cujo custo é externo leva **cache com TTL** (estado da Z-API,
-  agendador do Windows).
+  agendador do Windows) — e **o TTL NÃO tira a medição do caminho do pedido,
+  só a repete menos.** Ele poupa a SEGUNDA leitura; a primeira alguém sempre
+  paga, e o AutoDeploy reinicia a API a cada push. A Saúde levava **78 s** para
+  abrir (47,7 s do mapa contábil + 6,9 s do agendador) e ficava EM BRANCO,
+  porque o guard de sequência do front descarta a resposta que chega depois de
+  a próxima ter começado. Medição cara serve o que TEM e mede numa thread
+  (`_EmFundo`, `api/servidor.py`), com TRÊS estados que o cartão DIZ:
+  fresco / **velho** (última leitura boa, com a idade à mostra) / **medindo**.
+  UMA medição por chave — sem a trava, 12 pinturas viram 12 PowerShell —, falha
+  NÃO apaga a leitura velha, e o cartão **não some** enquanto mede (ausência não
+  tem sintoma). Medido: 78 s → 3,6 s frio, 1,0 s quente.
+  Guards: `tests/test_saude_em_fundo.py`.
 
 ### Cortes, testes e conferências
 
@@ -625,6 +636,16 @@ barra empilhada, não donut.
   `KeyError` enquanto o guard dele conferia que a linha continuava escrita — e
   com ele não rodavam a DRE nem as três receitas. O guard que executa é
   `tests/reconciliacao/test_conferidor_executa.py`.
+- **Guard com lista escrita à mão precisa da LISTA conferida contra o disco.**
+  O guard do EXISTS varria quatro módulos e não `api.agrupador_gerencial` — o
+  que DEFINE `left_join()` e `existe()` — e por isso aprovou o
+  `DOIS_CAMINHOS_SQL`, a única violação viva da casa, que custava 47 s onde o
+  `EXISTS` custa 4,5 s. O docstring dele dizia "nasceu com ZERO violações":
+  verdade sobre o que ele olhou. Lista errada não tem sintoma — a varredura sai
+  do DISCO (por `ast`, sobre constantes de módulo) e leva um `assert` que
+  reprova o resultado VAZIO, porque varredura que não acha nada passa por
+  vacuidade. E **guard não varre o próprio módulo por inércia**, justamente o
+  mais provável de conter a violação.
 - **Verde que nunca ficaria vermelho não conferiu nada** — sabotar o alvo e ver
   o teste falhar leva trinta segundos; campo ausente em conferidor vira ACHADO,
   não silêncio.

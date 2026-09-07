@@ -35672,8 +35672,15 @@ function renderSrv(){
   const sg = d.segredos;
   const tbSeg = document.getElementById('srv-segredos');
   const hSeg = document.getElementById('hintSrvSeg');
+  /* `medindo` vem do servidor e nomeia o que ainda está na PRIMEIRA leitura
+     desta instância da API. Sem ele a tela dizia "não foi possível verificar"
+     para uma medição que está correndo agora — e isso é acusação, não
+     informação. A leitura da ACL abre um PowerShell; ela leva alguns segundos
+     depois de todo deploy, e o cartão só precisa dizer isso. */
+  const medindo = d.medindo||[];
   if(!sg){
-    if(hSeg) hSeg.textContent = 'não foi possível verificar';
+    if(hSeg) hSeg.textContent = medindo.includes('segredos')
+      ? 'lendo a ACL dos arquivos…' : 'não foi possível verificar';
     if(tbSeg) tbSeg.innerHTML = '<tr><td colspan="4" style="color:var(--n500)">—</td></tr>';
   }else{
     if(hSeg) hSeg.textContent = sg.expostos
@@ -35712,7 +35719,9 @@ function renderSrv(){
     else if(e.includes('indispon')){ cls='b-info'; rot='Indisponível'; }
     return `<tr><td>${esc(t.nome)}</td><td><span class="badge ${cls}">${esc(rot)}</span></td>
       <td class="num">${fmtDT(t.ultima)}</td><td class="num">${fmtDT(t.proxima)}</td></tr>`;
-  }).join('')||'<tr><td colspan="4">—</td></tr>';
+  }).join('')||(medindo.includes('tarefas')
+    ? '<tr><td colspan="4" style="color:var(--n500)">lendo o agendador do Windows…</td></tr>'
+    : '<tr><td colspan="4">—</td></tr>');
   document.getElementById('srv-mem-hint').textContent = mem.total ? fmtBytes(mem.total)+' total' : '';
   document.getElementById('srv-mem').innerHTML =
     `<div style="font-size:13px;color:var(--n600)">RAM — ${fmtBytes(mem.usado)} de ${fmtBytes(mem.total)} (${mem.percent||0}%) · livre ${fmtBytes(mem.disponivel)}</div>${srvBarra(mem.percent)}`+

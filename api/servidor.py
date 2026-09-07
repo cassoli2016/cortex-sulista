@@ -23,11 +23,13 @@ import platform
 import socket
 import subprocess
 import sys
+import threading
 import time
 from datetime import date, datetime, timezone
 from pathlib import Path
 
 from . import db, pglocal
+from .sob_teste import sob_teste
 
 log = logging.getLogger("cortex.servidor")
 
@@ -54,6 +56,122 @@ _TAREFAS = ["Cortex Sulista - API", "Cortex Sulista - AutoDeploy",
 # nesta máquina): 'CTe Contrapartida' (aguarda a decisão fiscal) e
 # 'Relatorios por e-mail'. Entrar aqui sem estar registrada viraria um
 # vermelho permanente — e alarme que grita à toa ensina a ignorar alarme.
+
+
+# ── MEDIÇÃO CARA NÃO ESPERA O PEDIDO ─────────────────────────────────────────
+#
+# POR QUE ISTO EXISTE, com a medição (07/09/2026). A Saúde do Servidor levava
+# 78 s para carregar a PRIMEIRA vez e a tela ficava em branco. A causa foi
+# medida bloco a bloco, num processo novo, sem aquecer nada:
+#
+#     agrupador (mapa contábil)   47,7 s     ← uma consulta ao ERP
+#     tarefas agendadas            6,9 s     ← sete perguntas ao Windows
+#     serviços (os 31 cartões)     0,8 s
+#     todo o resto                 < 1 s
+#
+# A consulta do mapa foi corrigida no `agrupador_gerencial` (47 s → 4,5 s) e
+# isso levou a coleta fria de 78 s para 13,7 s. **Não bastou**, e a casa já
+# sabia por quê: o comentário do `_TAREFAS_TTL` conta que a Saúde parou de
+# carregar quando a resposta passou de 4,8 s contra uma recarga encadeada de
+# 5 s — quase toda resposta chegava depois de a próxima ter começado, e o guard
+# de sequência do front a descartava. Em branco para sempre, sem erro nenhum.
+#
+# TTL SOZINHO NÃO RESOLVE ISSO, e é a lição desta rodada. O cache poupa a
+# SEGUNDA leitura; quem paga a primeira é sempre alguém — e o AutoDeploy
+# reinicia a API a cada push, então "a primeira" acontece várias vezes por dia,
+# sempre na cara de quem abriu a tela.
+#
+# Então a medição cara sai do caminho do pedido: a coleta devolve na hora o que
+# tem, e a medição corre numa thread. Três estados, e o cartão DIZ qual é —
+# "medindo" não é o mesmo que "não sei", e nenhum dos dois é "está ruim":
+#
+#   fresco  — dentro do TTL, é o número
+#   velho   — passou do TTL: serve a ÚLTIMA LEITURA BOA com a idade à mostra
+#             (a mesma regra do `cached(velha_ate=)` das telas: número velho
+#             servido calado é pior que tela vazia, porque ninguém desconfia)
+#   medindo — nunca mediu nesta instância: o cartão diz isso, e não some
+#
+# O cartão não SOME enquanto mede, de propósito: ausência não tem sintoma, e um
+# cartão que desaparece por um minuto ensina que a conferência não existe.
+#
+# UMA medição por vez, por chave. A tela repinta de 5 em 5 s; sem a trava, uma
+# medição de 5 s viraria doze PowerShell simultâneos ou doze varreduras do
+# razão — pior que esperar. `daemon=True` porque monitoramento nunca segura o
+# desligamento do processo.
+class _EmFundo:
+    """Cache com TTL que nunca faz o pedido esperar pela medição.
+
+    NÃO SOBE THREAD SOB PYTEST (`em_fundo=None` decide por `sob_teste()`).
+    O que ela mede lê o ERP de PRODUÇÃO e abre PowerShell, e nesta bancada as
+    credenciais são as de verdade: uma rodada de testes que encostasse em
+    `coletar()` deixaria threads vivas medindo a casa depois de o teste ter
+    acabado — a forma exata do defeito de 06/09/2026 (a thread de um processo
+    de teste escrevendo no log da API de produção).
+
+    Sob teste, `ler()` devolve "medindo" e não mede; quem quer medir de fato
+    pede `esperar=True`, e quem quer exercitar a THREAD constrói com
+    `em_fundo=True`, explicitamente e à vista.
+    """
+
+    def __init__(self, nome: str, ttl: float, fn, em_fundo: bool | None = None):
+        self.nome, self.ttl, self.fn = nome, ttl, fn
+        self.em_fundo = (not sob_teste()) if em_fundo is None else em_fundo
+        self._valor = None
+        self._em = 0.0          # monotonic da última leitura BOA
+        self._medindo = False
+        self._trava = threading.Lock()
+
+    def _medir(self) -> None:
+        try:
+            v = self.fn()
+        except Exception as exc:  # noqa: BLE001
+            # Falhar não apaga o que já se sabia: a leitura velha continua
+            # servindo, com a idade à mostra. O TIPO da exceção, nunca o texto
+            # cru — a conninfo do AVA passa por aqui.
+            log.warning("saude: medição '%s' falhou: %s", self.nome,
+                        type(exc).__name__)
+        else:
+            with self._trava:
+                self._valor, self._em = v, time.monotonic()
+        finally:
+            with self._trava:
+                self._medindo = False
+
+    def ler(self, esperar: bool = False) -> tuple[object | None, str, int | None]:
+        """(valor, estado, idade em segundos). `esperar=True` mede na hora —
+        é para o conferidor de linha de comando, não para a tela."""
+        if esperar:
+            self._medir_agora()
+        with self._trava:
+            valor, em, medindo = self._valor, self._em, self._medindo
+            precisa = valor is None or (time.monotonic() - em) >= self.ttl
+            if precisa and not medindo and self.em_fundo:
+                self._medindo = True
+                # O NOME VAI LITERAL AQUI, e nao por constante: a varredura
+                # de `tests/test_agendadores_sob_teste.py` le o FONTE
+                # procurando `name="..."` -- por constante ela registra a
+                # thread como SEM NOME, e thread sem nome nao entra em
+                # varredura nenhuma. (Um `name=` montado com `%` era pior
+                # ainda: registrava `saude-%s`, nome que nao existe em thread
+                # viva nenhuma. Guard que nomeia errado o alvo nunca fica
+                # vermelho -- este arquivo ja custou isso com "aviso-carga"
+                # contra "rastreio-aviso".)
+                threading.Thread(target=self._medir, daemon=True,
+                                 name="saude-em-fundo").start()
+        if valor is None:
+            return None, "medindo", None
+        # A DECISAO SAI DO FLOAT, o rotulo do inteiro. Comparar `int(idade)`
+        # com o TTL fazia 0,9 s contar como fresco num cache de 0,5 s -- e com
+        # TTL de 60 s todo o primeiro minuto de atraso ficava invisivel. Razao
+        # e percentual saem da unidade de ORIGEM; arredondar antes de comparar
+        # move o numero de lado da fronteira. Pego pelo teste, nao pela leitura.
+        decorrido = time.monotonic() - em
+        return valor, ("fresco" if decorrido < self.ttl else "velho"), int(decorrido)
+
+    def _medir_agora(self) -> None:
+        with self._trava:
+            self._medindo = True
+        self._medir()
 
 
 def _iso(ts: float) -> str:
@@ -649,6 +767,17 @@ def _app_motorista() -> dict:
     return {"nome": nome, "status": "ok", "detalhe": " · ".join(partes)}
 
 
+def _tarja(estado: str, idade: int | None) -> str:
+    """O sufixo que diz a IDADE quando a leitura passou do prazo.
+
+    Leitura velha servida calada é pior que tela vazia, porque ninguém
+    desconfia dela — a mesma regra da tarja das telas."""
+    if estado != "velho" or idade is None:
+        return ""
+    return " · leitura de %s atrás" % (
+        "%d min" % (idade // 60) if idade >= 60 else "%d s" % idade)
+
+
 def _brl_mi(v: float) -> str:
     """R$ curto, para caber num cartao: milhoes acima de 1 mi, milhares acima
     de mil. Cartao de monitoramento nao e demonstrativo — o centavo exato sai
@@ -672,29 +801,29 @@ def _brl_mi(v: float) -> str:
 # algumas vezes por mes — cinco minutos de atraso num cartao de monitoramento
 # nao muda decisao nenhuma, e refazer a varredura a cada pintura muda.
 _AGRUPADOR_TTL = 300.0
-_agrupador_cache: tuple[float, dict] | None = None
 
 # 300 s pela mesma razão: a Saúde repinta de 5 em 5 s e a leitura varre o log
 # inteiro. Custa 0,03 s, então não é o custo que manda aqui — é que refazer a
 # varredura 60 vezes por minuto para um número que muda algumas vezes por dia
 # é trabalho que não vira informação.
 _JANELAS_TTL = 300.0
-_janelas_cache: tuple[float, dict] | None = None
 
 
-def _janelas_erp(forcar: bool = False) -> dict:
-    global _janelas_cache
-    agora = time.monotonic()
-    if (not forcar and _janelas_cache
-            and (agora - _janelas_cache[0]) < _JANELAS_TTL):
-        return _janelas_cache[1]
+def _janelas_medir() -> dict:
     from . import erp_janelas
-    d = erp_janelas.medir()
-    _janelas_cache = (agora, d)
-    return d
+    return erp_janelas.medir()
 
 
-def _servico_janelas_erp(d: dict) -> dict:
+_JANELAS = _EmFundo("janelas-erp", _JANELAS_TTL, _janelas_medir)
+
+
+def _janelas_erp(forcar: bool = False):
+    """(medição, estado, idade)."""
+    return _JANELAS.ler(esperar=forcar)
+
+
+def _servico_janelas_erp(d: dict | None, estado: str = "fresco",
+                         idade: int | None = None) -> dict:
     """Quantas vezes o ERP teve dia ruim, e a que horas.
 
     POR QUE ESTE CARTÃO EXISTE. O ERP é réplica de produção de TERCEIRO,
@@ -712,6 +841,9 @@ def _servico_janelas_erp(d: dict) -> dict:
     Função PURA sobre a medição — o I/O é do `_janelas_erp()`.
     """
     nome = "Janelas ruins do ERP"
+    if d is None:
+        return {"nome": nome, "status": "info",
+                "detalhe": "medindo (primeira leitura desta instância)"}
     if not d.get("legivel"):
         return {"nome": nome, "status": "info",
                 "detalhe": d.get("motivo") or "sem log para medir"}
@@ -752,19 +884,21 @@ def _servico_janelas_erp(d: dict) -> dict:
             "detalhe": " · ".join(partes)}
 
 
-def _agrupador(forcar: bool = False) -> dict:
-    global _agrupador_cache
-    agora = time.monotonic()
-    if (not forcar and _agrupador_cache
-            and (agora - _agrupador_cache[0]) < _AGRUPADOR_TTL):
-        return _agrupador_cache[1]
+def _agrupador_medir() -> dict:
     from . import agrupador_gerencial as ag
-    d = ag.diagnostico()
-    _agrupador_cache = (agora, d)
-    return d
+    return ag.diagnostico()
 
 
-def _servico_agrupador(d: dict) -> dict:
+_AGRUPADOR = _EmFundo("agrupador", _AGRUPADOR_TTL, _agrupador_medir)
+
+
+def _agrupador(forcar: bool = False):
+    """(diagnóstico, estado, idade). `forcar` mede na hora — é do conferidor."""
+    return _AGRUPADOR.ler(esperar=forcar)
+
+
+def _servico_agrupador(d: dict | None, estado: str = "fresco",
+                       idade: int | None = None) -> dict:
     """O mapa conta -> linha da DRE (`sulista.agrupadorgerencial`) esta sao?
 
     E uma tabela do ERP, sem chave primaria e sem contrato de tipo, editada a
@@ -777,7 +911,20 @@ def _servico_agrupador(d: dict) -> dict:
     Funcao PURA sobre o diagnostico — o I/O e do `_agrupador()`.
     """
     nome = "Mapa contábil (agrupador gerencial)"
+    # PRIMEIRA leitura ainda correndo. NÃO é "não sei" e não é "está ruim":
+    # o cartão fica, dizendo o que está fazendo. Cartão que some por um minuto
+    # ensina que a conferência não existe.
+    if d is None:
+        return {"nome": nome, "status": "info",
+                "detalhe": "medindo (primeira leitura desta instância)"}
     if not d.get("legivel"):
+        # O ERP CANCELOU a consulta é carga ALHEIA, não mapa quebrado: o portal
+        # é compartilhado com um Power BI sem `statement_timeout`. Acusar o
+        # cadastro aqui manda alguém procurar defeito onde não há.
+        if d.get("erro") == "QueryCanceled":
+            return {"nome": nome, "status": "alerta",
+                    "detalhe": "o ERP cancelou a conferência (carga externa no "
+                               "portal) — o mapa não foi medido agora"}
         # Nao e "numero torto": e cinco telas sem dado. Vermelho.
         return {"nome": nome, "status": "erro",
                 "detalhe": "o mapa não pode ser lido (%s) — DRE Gerencial, "
@@ -823,10 +970,12 @@ def _servico_agrupador(d: dict) -> dict:
 
     if not achados:
         partes.append(f"os dois caminhos do resultado fecham em {d['meses']} meses")
-        return {"nome": nome, "status": "ok", "detalhe": " · ".join(partes)}
+        return {"nome": nome, "status": "ok",
+                "detalhe": " · ".join(partes) + _tarja(estado, idade)}
     partes.extend(achados)
     partes.append("detalhe em scripts/conferir_agrupador.py")
-    return {"nome": nome, "status": "alerta", "detalhe": " · ".join(partes)}
+    return {"nome": nome, "status": "alerta",
+            "detalhe": " · ".join(partes) + _tarja(estado, idade)}
 
 
 def _servico_pedagio_tag() -> dict:
@@ -1611,7 +1760,7 @@ def _servicos() -> list[dict]:
     # serve? A tabela é de terceiro, sem chave nem contrato de tipo, e derrubou
     # cinco telas em 02/09/2026 sem que nada acusasse.
     try:
-        servicos.append(_servico_agrupador(_agrupador()))
+        servicos.append(_servico_agrupador(*_agrupador()))
     except Exception as exc:  # noqa: BLE001
         servicos.append({"nome": "Mapa contábil (agrupador gerencial)",
                          "status": "info", "detalhe": "conferência indisponível"})
@@ -1622,7 +1771,7 @@ def _servicos() -> list[dict]:
     # Duas manhãs derrubadas em quatro dias viraram "o sistema estava lento", e
     # impressão não sustenta conversa com quem administra o ERP.
     try:
-        servicos.append(_servico_janelas_erp(_janelas_erp()))
+        servicos.append(_servico_janelas_erp(*_janelas_erp()))
     except Exception as exc:  # noqa: BLE001
         servicos.append({"nome": "Janelas ruins do ERP",
                          "status": "info", "detalhe": "medição indisponível"})
@@ -1923,7 +2072,6 @@ def _servicos() -> list[dict]:
 # máximo para uma tarefa recém-instalada aparecer é um minuto, o que é
 # aceitável num cartão de monitoramento — e o payload diz a idade da leitura.
 _TAREFAS_TTL = 60.0
-_tarefas_cache: tuple[float, list[dict]] | None = None
 
 
 def _tarefas(forcar: bool = False) -> list[dict]:
@@ -1932,13 +2080,7 @@ def _tarefas(forcar: bool = False) -> list[dict]:
     Usa Get-ScheduledTaskInfo (dados estruturados, independentes de idioma) em
     vez de parsear o texto localizado do schtasks. Best-effort: sem PowerShell
     (ex.: dev no Mac) devolve só os nomes."""
-    global _tarefas_cache
-    agora = time.monotonic()
-    if not forcar and _tarefas_cache and (agora - _tarefas_cache[0]) < _TAREFAS_TTL:
-        return _tarefas_cache[1]
-    r = _tarefas_consultar()
-    _tarefas_cache = (agora, r)
-    return r
+    return _TAREFAS_EM_FUNDO.ler(esperar=forcar)
 
 
 def _tarefas_consultar() -> list[dict]:
@@ -2004,6 +2146,9 @@ MIGRADAS = {"antt.db", "push.db", "email.db", "previsao.db", "antecipacoes.db",
 # passaria despercebido — o dado iria para o arquivo errado e o PostgreSQL
 # ficaria para trás sem ninguém acusar.
 LIMITE_MIGRACAO = datetime(2026, 8, 28)
+
+
+_TAREFAS_EM_FUNDO = _EmFundo("tarefas", _TAREFAS_TTL, lambda: _tarefas_consultar())
 
 
 def _dir_dados() -> Path:
@@ -2127,7 +2272,6 @@ def _migradas() -> dict | None:
 
 
 _SEGREDOS_TTL = 300.0
-_segredos_cache: tuple[float, dict] | None = None
 
 
 def _segredos(forcar: bool = False) -> dict:
@@ -2150,15 +2294,15 @@ def _segredos(forcar: bool = False) -> dict:
     desenhar um cartão que muda quando alguém salva uma credencial. Mesmo
     motivo do cache do agendador e do estado da Z-API.
     """
-    global _segredos_cache
-    agora = time.monotonic()
-    if (not forcar and _segredos_cache
-            and (agora - _segredos_cache[0]) < _SEGREDOS_TTL):
-        return _segredos_cache[1]
+    return _SEGREDOS.ler(esperar=forcar)
+
+
+def _segredos_medir() -> dict:
     from api import segredo_arquivo
-    r = segredo_arquivo.panorama()
-    _segredos_cache = (agora, r)
-    return r
+    return segredo_arquivo.panorama()
+
+
+_SEGREDOS = _EmFundo("segredos", _SEGREDOS_TTL, _segredos_medir)
 
 
 def _deploy_saude(tarefas: list[dict]) -> dict:
@@ -2218,8 +2362,14 @@ def coletar() -> dict:
     except Exception as exc:  # noqa: BLE001
         log.warning("saude: bases locais falhou: %s", exc)
         dados["bases"] = []
+    # `medindo` nomeia o que ainda está na PRIMEIRA leitura desta instância.
+    # Sem ele a tela diria "não foi possível verificar" para uma medição que
+    # está correndo agora — e isso é acusação, não informação.
+    medindo: list[str] = []
     try:
-        dados["segredos"] = _segredos()
+        dados["segredos"], est, _i = _segredos()
+        if est == "medindo":
+            medindo.append("segredos")
     except Exception as exc:  # noqa: BLE001
         log.warning("saude: segredos falhou: %s", exc)
         dados["segredos"] = None
@@ -2229,12 +2379,18 @@ def coletar() -> dict:
         log.warning("saude: resumo das migradas falhou: %s", exc)
         dados["migradas"] = None
     try:
-        dados["tarefas"] = _tarefas()
+        tarefas, est, _i = _tarefas()
+        dados["tarefas"] = tarefas or []
+        if est == "medindo":
+            medindo.append("tarefas")
     except Exception as exc:  # noqa: BLE001
         dados["tarefas"] = []
     try:
-        dados["deploy"] = _deploy_saude(dados.get("tarefas", []))
+        dados["deploy"] = ({"status": "info", "detalhe": "medindo o agendador"}
+                           if "tarefas" in medindo
+                           else _deploy_saude(dados.get("tarefas", [])))
     except Exception as exc:  # noqa: BLE001
         log.warning("saude: deploy falhou: %s", exc)
         dados["deploy"] = {}
+    dados["medindo"] = medindo
     return dados

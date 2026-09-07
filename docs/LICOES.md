@@ -4834,3 +4834,160 @@ habito, mas guard vermelho no `main` para todo mundo e pior que a fronteira.
   em log e ninguem reclama -- por isso o alarme tem de ser proprio, e tem de
   dizer o NOME do que faltou.
 - **Recurso que depende de biblioteca opcional degrada, nao desaparece.**
+
+---
+
+## A Saude do Servidor levava 78 s, e o TTL nao era a resposta (2026-09-07, v1.4.2)
+
+Relato de quem opera, em duas mensagens: *"me ajude com a saude do servidor nao
+esta carregando"*, e logo depois *"carregou mas demorou"*.
+
+### O que a medicao disse
+
+Bloco a bloco, num processo NOVO, sem aquecer nada -- que e a unica forma de
+ver o que a primeira pessoa do dia ve:
+
+| bloco | frio |
+|---|---|
+| `_agrupador` (mapa contabil) | **47,7 s** |
+| `_tarefas` (agendador do Windows) | 6,9 s |
+| `_servicos` (os 31 cartoes) | 0,8 s |
+| `_cpu` | 0,3 s (e um `interval=` de proposito) |
+| todo o resto | < 1 s |
+| **`coletar()` inteiro** | **78 s** · **1,3 s quente** |
+
+Repetido cinco vezes com o servidor do ERP vazio: 48,7 s de mediana (46,8 a
+52,8). Nao era janela ruim do ERP -- era o custo mesmo. O comentario no codigo
+dizia "~3 s, medido em 02/09/2026". Cinco dias depois eram dezesseis vezes
+mais. **Premissa de custo escrita envelhece**, e essa ja e regra da casa.
+
+### Defeito 1: o join que so pergunta sim ou nao
+
+Das cinco consultas do diagnostico, quatro somam 0,7 s. A quinta, o
+`DOIS_CAMINHOS_SQL`, sozinha:
+
+    por_estrutural      991 ms
+    por_agrupador    46.422 ms
+
+As duas CTEs leem as MESMAS tabelas na MESMA janela. A unica diferenca e que a
+primeira faz `LEFT JOIN` na fonte do agrupador -- e nao usa nada dela, so
+pergunta `ag.descricao IS NOT NULL`.
+
+**A casa ja sabia disso.** Em 06/09/2026 a mesma patologia foi diagnosticada na
+consulta do Orcamento, `agrupador_gerencial.existe()` foi escrito para ela, e a
+regra entrou no `CLAUDE.md`: *"JOIN que so responde 'sim ou nao' vira EXISTS"*.
+O `DOIS_CAMINHOS_SQL` simplesmente nao foi convertido junto.
+
+Trocado, conferido nas janelas em que as duas versoes completam:
+
+| janela | `left_join()` | `existe()` | identico? |
+|---|---|---|---|
+| 3 meses | 3.027 ms | 659 ms | sim |
+| 6 meses | 2.204 ms | 1.169 ms | sim |
+| 9 meses | 34.030 ms | 1.680 ms | sim |
+| 12 meses | ~47.000 ms | ~4.500 ms | (a versao velha estourou o timeout) |
+
+O `coletar()` frio caiu de 78 s para 13,7 s.
+
+### O guard existia, e era CEGO
+
+A parte que interessa: havia um teste para exatamente isso --
+`test_ninguem_JUNTA_a_fonte_so_para_saber_SE_a_conta_tem_agrupador` -- com um
+docstring dizendo *"este guard nasceu com ZERO violacoes"*.
+
+Ele varre `MODULOS_SQL`, uma lista de quatro modulos escrita a mao:
+
+    MODULOS_SQL = ("api.queries", "api.orcamento.sql", "api.previsao.sql",
+                   "api.custos_sql")
+
+Falta `api.agrupador_gerencial` -- o modulo que DEFINE `left_join()`,
+`existe()` e o `DOIS_CAMINHOS_SQL`. O guard varria a casa toda menos o comodo
+em que morava. "ZERO violacoes" era verdade sobre o que ele olhou; a LISTA
+estava errada, e lista errada nao tem sintoma nenhum.
+
+A lista agora se confere pelo DISCO (por `ast`, sobre constantes de modulo que
+citam `sulista.agrupadorgerencial`), com um `assert` que reprova a varredura
+vazia -- guard que nao acha nada passa por vacuidade, e este arquivo ja errou
+assim antes. A conferencia achou de imediato dois falsos positivos que ensinam
+a afinar: um comentario em `api/motorista/viagem.py` (fora de constante) e um
+`--` de SQL DENTRO da constante de `api/smartec/viagem.py` -- para o `ast`,
+comentario de SQL e texto como qualquer outro.
+
+### Defeito 2: TTL poupa a segunda pessoa, nunca a primeira
+
+13,7 s ainda deixava a tela em branco, e a casa ja tinha a explicacao escrita
+no proprio arquivo: o comentario do `_TAREFAS_TTL` conta que a Saude parou de
+carregar quando a resposta passou de 4,8 s contra recarga encadeada de 5 s --
+quase toda resposta chegava depois de a proxima ter comecado, e o guard de
+sequencia do front a descartava. Em branco para sempre, sem erro nenhum.
+
+Os quatro caches caros ja tinham TTL. **E TTL nao resolve isso**: ele poupa a
+SEGUNDA leitura, e a primeira alguem sempre paga. Pior: o AutoDeploy reinicia a
+API a cada push, entao "a primeira" acontece varias vezes por dia -- sempre na
+cara de quem abriu a tela.
+
+Entao a medicao saiu da THREAD do pedido (`_EmFundo`, em `api/servidor.py`).
+Tres estados, e o cartao DIZ qual e:
+
+- **fresco** -- dentro do TTL, e o numero;
+- **velho** -- passou do TTL: serve a ULTIMA LEITURA BOA com a idade a mostra,
+  e remede por fora. Numero velho servido CALADO e pior que tela vazia, porque
+  ninguem desconfia dele -- a mesma regra da tarja das telas;
+- **medindo** -- nunca mediu nesta instancia: o cartao diz isso, e nao some.
+
+`coletar()` frio: **13,7 s -> ~1,3 s**. Quente segue em 1,2 s.
+
+Quatro decisoes que valem escrever:
+
+1. **O cartao nao SOME enquanto mede.** Ausencia nao tem sintoma; cartao que
+   desaparece por um minuto ensina que a conferencia nao existe.
+2. **UMA medicao por chave, por vez.** A tela repinta de 5 em 5 s: sem a trava,
+   uma medicao de 5 s viraria doze PowerShell simultaneos ou doze varreduras do
+   razao -- pior que esperar.
+3. **Falhar nao apaga o que ja se sabia.** O ERP e replica de producao de
+   terceiro; um tropeco na remedicao nao pode zerar o cartao.
+4. **`daemon=True`.** Monitoramento nunca segura o desligamento do processo.
+
+### O ERP cancelando nao e o mapa quebrado
+
+Durante a medicao, com o portal carregado, a versao antiga passou a estourar o
+`statement_timeout`. O `diagnostico()` engole a excecao e devolve
+`erro="QueryCanceled"`, e o cartao dizia: *"o mapa nao pode ser lido -- DRE
+Gerencial, Contabilidade, Orcamento, Previsao e Custos ficam sem dado"*.
+
+E carga ALHEIA (o portal e compartilhado com um Power BI sem
+`statement_timeout` -- memoria `erp-compartilhado-com-powerbi`), nao cadastro
+furado. Vermelho ali manda alguem procurar defeito onde nao ha. O cartao agora
+separa os dois casos, e o mapa realmente ilegivel continua vermelho com as
+cinco telas nomeadas.
+
+### O teste que estava afirmando o TEXTO
+
+`test_o_conferidor_CONTINUA_permissivo_de_proposito` procurava a string
+`ag.descricao IS NOT NULL OR` no SQL. Trocar o join por `EXISTS` -- MESMA
+elegibilidade, dez vezes mais rapido -- o deixava vermelho sem que nada tivesse
+apertado. Reescrito para afirmar o COMPORTAMENTO: a CTE do MAPA aceita a conta
+por duas portas (ter agrupador ou ser conta de resultado) e a do ESTRUTURAL so
+pela segunda -- e essa assimetria e que faz os dois caminhos divergirem quando
+o cadastro esta furado.
+
+### E um defeito que so o teste acharia
+
+A primeira versao do `_EmFundo` decidia o frescor com a idade ja arredondada
+(`int(idade) < ttl`). Com TTL de 60 s, todo o primeiro minuto de atraso ficava
+invisivel; com o TTL de 0,5 s do teste, 0,9 s contava como fresco. A regra da
+casa ja cobre isso -- *razoes e percentuais saem da unidade de ORIGEM* -- e
+mesmo assim escapou na leitura. Foi o teste que pegou.
+
+### O que fica como regra
+
+- **TTL nao tira a medicao do caminho do pedido, so a repete menos.** Diagnostico
+  caro serve o que TEM e mede por fora; quem so poe TTL entrega a conta a
+  primeira pessoa depois de cada deploy.
+- **Guard com lista escrita a mao precisa da lista CONFERIDA contra o disco** --
+  e de um `assert` que reprove a varredura vazia. "ZERO violacoes" pode ser o
+  relatorio de quem nao olhou.
+- **Guard nao varre o proprio modulo por inercia.** O mais provavel de conter a
+  violacao e justamente o que define a regra.
+- **Cancelamento por carga externa nao e falha nossa** -- e o cartao que
+  confunde os dois manda procurar defeito onde nao ha.

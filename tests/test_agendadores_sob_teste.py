@@ -44,7 +44,15 @@ from api import push, sob_teste as st
 # (`api/rastreio/agendador.py`). A varredura passava por VACUIDADE — procurava
 # um nome que nao existe, entao passaria igual com a thread viva. Guard que
 # nomeia errado o alvo e guard que nunca ficaria vermelho.
-AGENDADORES = ("push-digest", "rastreio-aviso")
+#
+# `saude-em-fundo` (07/09/2026) NAO e agendador -- nao tem relogio e nao fala
+# com fornecedor nenhum: e a thread que tira a medicao cara da Saude do
+# caminho do pedido. Entra aqui pela MESMA razao mesmo assim: ela le o ERP de
+# producao e abre PowerShell, e sem gate uma rodada de testes deixaria threads
+# vivas medindo a casa depois de o teste acabar. O gate esta em
+# `_EmFundo.em_fundo`, e `tests/test_saude_em_fundo.py` prova que as quatro
+# instancias de PRODUCAO nascem gateadas.
+AGENDADORES = ("push-digest", "rastreio-aviso", "saude-em-fundo")
 
 
 def _threads_vivas() -> set[str]:
@@ -113,14 +121,19 @@ def test_AGENDADOR_NOVO_e_DESCOBERTO_e_nao_esperado():
 def test_os_nomes_da_lista_EXISTEM_no_codigo():
     """A lista acima ja nomeou uma thread que nao existe, e a varredura passou
     por vacuidade durante uma entrega inteira. Este guard le o nome no FONTE de
-    quem sobe a thread: renomea-la la e esquecer a lista aqui volta a acender."""
-    from pathlib import Path
-    from api.rastreio import agendador
-    fontes = "\n".join(
-        Path(m.__file__).read_text(encoding="utf-8")
-        for m in (push, agendador))
+    quem sobe a thread: renomea-la la e esquecer a lista aqui volta a acender.
+
+    LE `api/` INTEIRO, e nao uma lista de modulos escrita a mao. Ate 07/09/2026
+    ele juntava o fonte de `(push, agendador)` -- os dois agendadores que
+    existiam no dia em que foi escrito. A terceira thread nomeada da casa
+    (`saude-em-fundo`, em `api/servidor.py`) o deixou vermelho SEM que nada
+    estivesse errado, e a saida obvia seria acrescentar mais um modulo a mao --
+    reproduzindo, num guard contra vacuidade, o defeito da lista desatualizada
+    que ele existe para impedir. A varredura do disco ja estava aqui do lado.
+    """
+    fontes = _threads_criadas_em_api()["nomes"]
     for nome in AGENDADORES:
-        assert 'name="%s"' % nome in fontes, (
+        assert nome in fontes, (
             "a lista fala de uma thread chamada %r que nenhum agendador cria — "
             "varredura que nomeia errado o alvo nunca fica vermelha" % nome)
 

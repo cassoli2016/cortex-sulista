@@ -160,10 +160,10 @@ WITH por_agrupador AS (
   FROM lancamento l
   JOIN planoconta p ON p.reduzido = l.reduzido AND p.grupo = l.grupo
     AND p.ativoinativo = 1
-  %s
   WHERE l.dtlancamento >= %%(de)s::date AND l.dtlancamento < %%(ate)s::date
     AND coalesce(l.historico, 0) <> 18
-    AND (ag.descricao IS NOT NULL OR p.estrutural ~ '^[34]')
+    AND (%s
+         OR p.estrutural ~ '^[34]')
   GROUP BY 1
 ), por_estrutural AS (
   SELECT to_char(l.dtlancamento,'YYYY-MM') AS mes,
@@ -181,15 +181,15 @@ SELECT coalesce(a.mes, e.mes) AS mes,
        (coalesce(a.v, 0) - coalesce(e.v, 0))::float8 AS diferenca
 FROM por_agrupador a FULL OUTER JOIN por_estrutural e ON e.mes = a.mes
 ORDER BY 1
-""" % left_join("ag", "l")
+""" % existe("l", "         ")
 
 
 # ============================================================================
 # Diagnóstico — o que a Saúde do Servidor mostra e o conferidor detalha.
 # ----------------------------------------------------------------------------
-# Custa ~3 s contra o AVA (medido em 02/09/2026: cadastro 0,06 s, contas de
-# balanço com valor 0,7 s, os dois caminhos 2,4 s). Quem chama põe TTL — na
-# Saúde é `_AGRUPADOR_TTL`, que repinta de 5 em 5 s.
+# Custo — medido em 07/09/2026 contra o AVA vazio, cinco vezes: 4,7 s no total
+# (cadastro 0,06 s, contas de balanço com valor 0,68 s, os dois caminhos 4,0 s).
+# Quem chama põe TTL — na Saúde é `_AGRUPADOR_TTL`, que repinta de 5 em 5 s.
 # ============================================================================
 def janela_12m(hoje: date | None = None, meses: int = 12) -> tuple[str, str]:
     """[de, ate) dos ultimos `meses` FECHADOS — o mes corrente fica fora.

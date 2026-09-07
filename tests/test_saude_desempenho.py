@@ -19,6 +19,7 @@ São dois defeitos independentes, e os dois precisam de conserto:
 from __future__ import annotations
 
 import re
+import time as _time
 from pathlib import Path
 
 import pytest
@@ -29,10 +30,28 @@ RAIZ = Path(__file__).resolve().parents[1]
 HTML = (RAIZ / "api" / "static" / "index.html").read_text(encoding="utf-8")
 
 
+def _esperar(cond, limite: float = 5.0) -> None:
+    """A medicao corre em outra thread: o teste espera o EFEITO, com prazo.
+
+    Prazo e nao `join()`: o contrato e "o pedido nao espera", entao o teste nao
+    pode ter acesso a thread. E sem `sleep` fixo, que ou e lento demais ou
+    instavel na maquina carregada."""
+    fim = _time.time() + limite
+    while _time.time() < fim:
+        if cond():
+            return
+        _time.sleep(0.01)
+
+
 def test_as_tarefas_agendadas_saem_do_caminho_quente(monkeypatch):
     """Sem cache, o servidor passava 72% do tempo perguntando ao Windows.
     O TTL é o mesmo do estado da Z-API, e pela mesma razão: diagnóstico cujo
-    custo é externo não pode ser refeito a cada pintura de cartão."""
+    custo é externo não pode ser refeito a cada pintura de cartão.
+
+    Desde 07/09/2026 a medição também sai da THREAD do pedido — o TTL poupava a
+    segunda leitura e alguém sempre pagava a primeira (6,9 s, a cada reinício
+    do AutoDeploy). Aqui se cobra as duas coisas: uma consulta só, e ela não
+    acontece dentro da chamada."""
     chamadas = []
 
     def _falso():
@@ -40,12 +59,25 @@ def test_as_tarefas_agendadas_saem_do_caminho_quente(monkeypatch):
         return [{"nome": "X", "estado": "Ready"}]
 
     monkeypatch.setattr(sv, "_tarefas_consultar", _falso)
-    monkeypatch.setattr(sv, "_tarefas_cache", None)
+    # `em_fundo=True` EXPLICITO: sob pytest a instancia de producao nao sobe
+    # thread (ela le o ERP de verdade), e e a thread que este teste afirma.
+    monkeypatch.setattr(sv, "_TAREFAS_EM_FUNDO",
+                        sv._EmFundo("t", sv._TAREFAS_TTL,
+                                    lambda: sv._tarefas_consultar(),
+                                    em_fundo=True))
 
+    v, estado, _ = sv._tarefas()
+    assert (v, estado) == (None, "medindo"), "mediu DENTRO da chamada"
     sv._tarefas()
     sv._tarefas()
-    sv._tarefas()
+    # espera o EFEITO (o estado virar), nao a entrada na funcao: `chamadas`
+    # ganha a linha ANTES de o valor ser guardado, e esperar por ela e uma
+    # corrida que passa nesta maquina e falha na carregada.
+    _esperar(lambda: sv._tarefas()[1] == "fresco")
     assert len(chamadas) == 1, "a consulta ao Windows repetiu apesar do cache"
+
+    v, estado, _ = sv._tarefas()
+    assert estado == "fresco" and v == [{"nome": "X", "estado": "Ready"}]
 
     # e `forcar` existe para quem acabou de instalar uma tarefa e quer ver já
     sv._tarefas(forcar=True)
@@ -57,18 +89,25 @@ def test_o_cache_expira(monkeypatch):
     verde para sempre."""
     chamadas = []
     monkeypatch.setattr(sv, "_tarefas_consultar",
-                        lambda: (chamadas.append(1), [])[1])
-    monkeypatch.setattr(sv, "_tarefas_cache", None)
+                        lambda: (chamadas.append(1), [{"nome": "X"}])[1])
+    monkeypatch.setattr(sv, "_TAREFAS_EM_FUNDO",
+                        sv._EmFundo("t", sv._TAREFAS_TTL,
+                                    lambda: sv._tarefas_consultar(),
+                                    em_fundo=True))
     relogio = {"t": 1000.0}
     monkeypatch.setattr(sv.time, "monotonic", lambda: relogio["t"])
 
-    sv._tarefas()
+    sv._tarefas(forcar=True)                 # a primeira, para haver o que expirar
     relogio["t"] += sv._TAREFAS_TTL - 1
     sv._tarefas()
     assert len(chamadas) == 1
     relogio["t"] += 2
-    sv._tarefas()
+    v, estado, _ = sv._tarefas()
+    _esperar(lambda: len(chamadas) == 2)
     assert len(chamadas) == 2
+    # ENQUANTO remede, serve a leitura VELHA com a idade a mostra -- nunca
+    # apaga o cartao nem devolve vazio.
+    assert v == [{"nome": "X"}] and estado == "velho"
 
 
 def test_a_saude_NAO_recarrega_por_intervalo_fixo():

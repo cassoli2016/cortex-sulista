@@ -214,11 +214,25 @@ def test_a_dre_exige_conta_de_RESULTADO(nome):
 def test_o_conferidor_CONTINUA_permissivo_de_proposito():
     """O conferidor mede o que o mapa DEIXARIA entrar — é o alarme de cadastro
     furado. Apertá-lo junto com a DRE cegaria a medição: os dois caminhos
-    passariam a fechar sempre, e o erro de classificação viraria invisível."""
+    passariam a fechar sempre, e o erro de classificação viraria invisível.
+
+    AFIRMA O COMPORTAMENTO, não o texto. Até 07/09/2026 este teste procurava a
+    string `ag.descricao IS NOT NULL OR`; trocar o LEFT JOIN por EXISTS (mesma
+    elegibilidade, 47 s → 4,5 s) o deixaria vermelho sem que nada tivesse
+    apertado. O que precisa continuar verdade é que a CTE do MAPA aceita a
+    conta por DUAS portas — ter agrupador, ou ser conta de resultado — e que a
+    do ESTRUTURAL aceita só pela segunda. É essa assimetria que faz os dois
+    caminhos divergirem quando o cadastro está furado."""
     from api import agrupador_gerencial
 
     sql = " ".join(agrupador_gerencial.DOIS_CAMINHOS_SQL.split())
-    assert "ag.descricao IS NOT NULL OR" in sql
+    mapa, estrutural = sql.split("por_estrutural AS (")
+    assert "agrupadorgerencial" in mapa and "p.estrutural ~ '^[34]'" in mapa, (
+        "a CTE do mapa deixou de aceitar a conta por classificação — os dois "
+        "caminhos passariam a fechar sempre e o cadastro furado ficaria mudo")
+    assert "agrupadorgerencial" not in estrutural, (
+        "a CTE do estrutural olhou o mapa: ela é o SEGUNDO caminho, e um "
+        "segundo caminho que depende do primeiro não confere nada")
 
 
 def test_a_contabilidade_ainda_MOSTRA_a_conta_mal_classificada():
@@ -234,8 +248,13 @@ def test_a_contabilidade_ainda_MOSTRA_a_conta_mal_classificada():
 # JOIN QUE SO RESPONDE SIM OU NAO, e o que ele custou (06/09/2026)
 # ==========================================================================
 
-MODULOS_SQL = ("api.queries", "api.orcamento.sql", "api.previsao.sql",
-               "api.custos_sql")
+# A LISTA NAO E ESCRITA A MAO -- ela e CONFERIDA contra o disco logo abaixo.
+# Ate 07/09/2026 ela era so estas quatro linhas, e faltava justamente
+# `api.agrupador_gerencial`: o guard do EXISTS varria os OUTROS modulos e nao o
+# proprio, onde vivia a unica violacao da casa (o `DOIS_CAMINHOS_SQL`, 47 s).
+# Ele nasceu dizendo "ZERO violacoes" porque nunca olhou para dentro de casa.
+MODULOS_SQL = ("api.agrupador_gerencial", "api.queries", "api.orcamento.sql",
+               "api.previsao.sql", "api.custos_sql")
 
 
 def _constantes_sql(modulo):
@@ -320,3 +339,58 @@ def test_o_existe_e_o_left_join_respondem_a_MESMA_pergunta():
         assert "ag_.reduzido" in lado or "ag.reduzido" in lado
     # os dois casam pelas DUAS colunas: foi casar so por uma que custou caro
     assert "reduzido" in e and "grupo" in e
+
+
+def test_a_lista_de_modulos_do_guard_e_conferida_CONTRA_O_DISCO():
+    """Guard cego nao acusa: ele passa.
+
+    O teste acima varre `MODULOS_SQL`, uma lista escrita a mao. Enquanto
+    `api.agrupador_gerencial` nao estava nela, o `DOIS_CAMINHOS_SQL` -- que
+    juntava a fonte so para perguntar sim/nao, e custava 47 s contra 4,5 s --
+    passou aprovado pelo guard que existe exatamente para pega-lo. O relatorio
+    "ZERO violacoes" era verdadeiro sobre o que ele olhou; a LISTA e que estava
+    errada, e lista errada nao tem sintoma.
+
+    Entao a lista se confere pelo DISCO: todo modulo de `api/` que carrega SQL
+    da `agrupadorgerencial` numa CONSTANTE DE MODULO tem de estar em
+    `MODULOS_SQL`. Le por `ast` e nao por regex sobre o arquivo inteiro --
+    senao um comentario que menciona a tabela acusaria um modulo que nao tem
+    SQL nenhum, e guard que grita a toa acaba desligado.
+
+    E procura o nome QUALIFICADO (`sulista.agrupadorgerencial`), que e como
+    toda consulta de verdade a escreve. So "agrupadorgerencial" pegava dois
+    falsos positivos, os dois COMENTARIOS -- um em `api/motorista/viagem.py`
+    (fora de constante) e outro DENTRO da constante de `api/smartec/viagem.py`,
+    um `--` de SQL contando a historia da troca de tipo. O segundo passa pelo
+    `ast` sem esforco: para o parser, comentario de SQL e texto.
+
+    O `achados` no fim e o guard do guard: varredura que nao acha NADA passa
+    por vacuidade, e e assim que este arquivo ja errou antes.
+    """
+    import ast
+
+    raiz = Path(__file__).resolve().parents[1] / "api"
+    fora, achados = [], []
+    for arq in sorted(raiz.rglob("*.py")):
+        try:
+            arvore = ast.parse(arq.read_text(encoding="utf-8", errors="replace"))
+        except SyntaxError:  # pragma: no cover
+            continue
+        tem_sql = any(
+            isinstance(no, (ast.Assign, ast.AnnAssign))
+            and isinstance(getattr(no, "value", None), ast.Constant)
+            and isinstance(no.value.value, str)
+            and "sulista.agrupadorgerencial" in no.value.value
+            for no in arvore.body)
+        if not tem_sql:
+            continue
+        modulo = ".".join(arq.relative_to(raiz.parent).with_suffix("").parts)
+        achados.append(modulo)
+        if modulo not in MODULOS_SQL:
+            fora.append(modulo)
+    assert "api.agrupador_gerencial" in achados, (
+        "a varredura nao achou nem o modulo que DEFINE a fonte — ela parou de "
+        "enxergar, e um guard que nao enxerga passa sempre")
+    assert not fora, (
+        "estes modulos tem SQL da agrupadorgerencial em constante e o guard do "
+        "EXISTS NAO os varre -- acrescente em MODULOS_SQL: %s" % fora)
