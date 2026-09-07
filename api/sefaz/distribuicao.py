@@ -269,9 +269,23 @@ def recolher(cnpj: str, uf: str, *, ambiente: str = HOMOLOGACAO,
                    "completados" if estado == "completado" else "repetidos"] += 1
 
         # A CADA LOTE, e não no fim: ver o docstring do módulo.
-        arm.marcar_consulta(cnpj, ultimo_nsu=r["ultimo_nsu"],
-                            max_nsu=r["max_nsu"], cstat=r["cstat"],
-                            motivo=r["motivo"])
+        #
+        # MAS O PONTEIRO SÓ ANDA COM DOCUMENTO NA MÃO. Numa REJEIÇÃO a SEFAZ
+        # também devolve um `ultNSU` — e ele não é o que consumimos, é onde a
+        # sequência dela está. Gravá-lo faz o ponteiro PULAR tudo que veio
+        # antes, em silêncio: aconteceu aqui em 07/09/2026, num 656, e o
+        # ponteiro saltou de 0 para 1.144.010 sem ninguém decidir. Pular
+        # histórico é decisão de quem opera (é obrigação fiscal de guarda), não
+        # efeito colateral de uma rejeição.
+        #
+        # O valor não se perde: vai para `max_nsu`, que é o que ele de fato é —
+        # o fim da sequência. É dele que a tela tira "quanto falta".
+        avancou = r["cstat"] == TEM_DOCUMENTO
+        arm.marcar_consulta(cnpj,
+                            ultimo_nsu=r["ultimo_nsu"] if avancou else None,
+                            max_nsu=(r["max_nsu"] if avancou
+                                     else max(r["max_nsu"], r["ultimo_nsu"])),
+                            cstat=r["cstat"], motivo=r["motivo"])
 
         if r["cstat"] == CONSUMO_INDEVIDO:
             # ESTE `break` E REDUNDANTE com o `!= TEM_DOCUMENTO` logo abaixo, e

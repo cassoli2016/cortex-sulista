@@ -1839,6 +1839,40 @@ def comunicacao_tv() -> JSONResponse:
             "mensagem": "Nao foi possivel ler a comunicacao da frota."})
 
 
+@app.get("/api/dfe")
+def dfe_panorama(limite: int = 200) -> JSONResponse:
+    """As notas recolhidas da SEFAZ: as caixas, o que chegou e o que falta.
+
+    Rota `def` (nao `async`): le o banco e abre os .pfx para conferir validade,
+    e trabalho bloqueante em rota `async` trava o servidor inteiro.
+
+    NAO DISPARA COLETA. A pergunta e sobre o que JA chegou -- e bater na SEFAZ
+    a cada pintura de tela cairia no freio de consumo indevido, que custa uma
+    hora de recolha parada.
+    """
+    from api.sefaz import armazenamento, painel
+    try:
+        d = painel.panorama()
+        d["documentos"] = armazenamento.documentos(limite=limite)
+        return JSONResponse(d)
+    except Exception as exc:  # noqa: BLE001
+        log.exception("dfe: panorama falhou")
+        return JSONResponse({"erro": "nao foi possivel ler a recolha",
+                             "tipo": type(exc).__name__}, status_code=500)
+
+
+@app.get("/api/dfe/xml")
+def dfe_xml(cnpj: str, nsu: str) -> Response:
+    """O XML de UM documento. Fora da listagem de proposito: 200 notas com o
+    XML dentro sao ~2 MB numa resposta que a tela usa so para desenhar linhas.
+    """
+    from api.sefaz import armazenamento
+    xml = armazenamento.xml_de(cnpj, nsu)
+    if not xml:
+        return JSONResponse({"erro": "documento nao encontrado"}, status_code=404)
+    return Response(content=xml, media_type="application/xml")
+
+
 @app.get("/api/integracoes")
 def integracoes_panorama() -> JSONResponse:
     """As integracoes da casa, com CONFIGURACAO e CHEGADA DE DADO juntas.

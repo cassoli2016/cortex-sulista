@@ -101,6 +101,10 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "oc":      ("Ordens de Compra", "Suprimentos"),
     "custos":  ("Painel de Custos", "Suprimentos"),
     "pecas":   ("Preço de Peças", "Suprimentos"),
+    # Notas de entrada recolhidas da SEFAZ. Fica em SUPRIMENTOS e nao em
+    # Controladoria porque quem usa e quem compra: a nota do fornecedor casa
+    # com a ordem de compra, e e la que a divergencia aparece.
+    "dfe":     ("Notas de Entrada", "Suprimentos"),
     "comb":    ("Combustível", "Frota"),
     "man":     ("Manutenção", "Frota"),
     "veic":    ("Veículos", "Frota"),
@@ -163,6 +167,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     # documentação e versão: qualquer usuário logado, com qualquer tela
     ("/api/auditoria",                frozenset({"aud"})),
     ("/api/integracoes",              frozenset({"integ"})),
+    ("/api/dfe",                      frozenset({"dfe"})),
     ("/api/monitoramentos",           frozenset({"mon"})),
     ("/api/documentacao",             frozenset(TELAS)),
     ("/api/versao",                   frozenset(TELAS)),

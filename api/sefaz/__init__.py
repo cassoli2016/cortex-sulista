@@ -30,15 +30,42 @@ TRÊS FATOS DO PROTOCOLO QUE DECIDEM O DESENHO
    segunda é um upgrade — nunca uma duplicata, e nunca um retrocesso
    (`gravar()` não deixa resumo sobrescrever documento completo).
 
+NÃO SOMOS O ÚNICO CONSUMIDOR DESTA CAIXA
+----------------------------------------
+
+**A contabilidade já baixa a distribuição de DFe da Sulista** (confirmado por
+quem opera em 07/09/2026). Foi o que a SEFAZ disse antes de alguém contar: a
+primeira consulta a partir do NSU zero voltou
+
+    656 · Consumo Indevido (Deve ser utilizado o ultNSU nas solicitacoes
+          subsequentes) — ultNSU 1.144.010
+
+O NSU é do CNPJ, não do consumidor: uma sequência em 1,1 milhão é o rastro de
+alguém que vem lendo há tempo. Duas consequências, e a segunda é a que morde:
+
+1. **Ler em paralelo é seguro** — cada consumidor guarda o próprio ponteiro, e
+   a SEFAZ serve o mesmo NSU a quem pedir. O que ela pune é o PADRÃO de
+   consulta (do zero, ou repetida sem resultado), não a companhia.
+
+2. **MANIFESTAR EM PARALELO NÃO É.** O evento é do documento, não do
+   consumidor: se a contabilidade já manifesta ciência, a nossa vira evento
+   duplicado e a SEFAZ rejeita o segundo — e, pior, quem manifesta ASSUME a
+   ciência com prazo legal correndo. Enquanto não estiver combinado quem
+   manifesta, a ciência automática fica DESLIGADA aqui.
+
 E UM FATO QUE DECIDE A POLÍTICA
 -------------------------------
 
 **Manifestar é ESCREVER na SEFAZ**, com efeito legal e prazo. A ciência
 (210210) é "eu vi" e não afirma nada sobre a operação — é o que destrava o XML
-e pode ser automática. Confirmação (210200), desconhecimento (210220) e
+e PODERIA ser automática. Confirmação (210200), desconhecimento (210220) e
 operação não realizada (210240) AFIRMAM, têm consequência fiscal e não se
 automatizam: exigem alguém pedindo, e a trilha guarda quem foi
 (`dfe_manifestacao`).
+
+Com a contabilidade na mesma caixa (acima), nem a ciência é automática por
+enquanto: sem o XML completo a casa fica com o resumo, o que é uma perda REAL —
+mas menor que dois sistemas assumindo ciência da mesma nota.
 
 O AMBIENTE
 ----------

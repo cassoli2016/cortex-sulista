@@ -489,3 +489,38 @@ def test_a_versao_da_distribuicao_NAO_e_a_da_NFe():
     -- mensagem que fala de "cabecalho" e manda procurar no SOAP, onde nao
     esta. O schema da distribuicao e 1.01."""
     assert dist.VERSAO_DISTRIBUICAO == "1.01"
+
+
+def test_uma_REJEICAO_nao_faz_o_ponteiro_pular(caixa):
+    """ACHADO EM PRODUCAO, na segunda chamada real (07/09/2026).
+
+    Numa rejeicao 656 a SEFAZ devolve `ultNSU` -- e ele NAO e o que consumimos,
+    e onde a sequencia dela esta. O `greatest()` do banco o gravou como se
+    fosse progresso, e o ponteiro da matriz saltou de 0 para 1.144.010 sozinho:
+    tres meses de historico pulados em silencio, numa integracao cuja razao de
+    existir e a guarda de cinco anos.
+
+    Pular historico e decisao de quem opera. O numero nao se perde -- vai para
+    `max_nsu`, que e o que ele de fato e.
+    """
+    cliente = ClienteFalso([_Resposta("656", "Consumo Indevido (Deve ser "
+                                      "utilizado o ultNSU nas solicitacoes "
+                                      "subsequentes)",
+                                      "000000001144010", "000000000000000", [])])
+    dist.recolher(CNPJ, "PR", cliente=cliente)
+    c = arm.caixa(CNPJ)
+    assert c["ultimo_nsu"] == "000000000000000", (
+        "o ponteiro PULOU numa rejeicao: %s" % c["ultimo_nsu"])
+    assert c["max_nsu"] == "000000001144010", (
+        "o fim da sequencia se perdeu -- e dele que sai o 'quanto falta'")
+
+
+def test_o_137_tambem_nao_faz_o_ponteiro_pular(caixa):
+    """Mesma regra, outro codigo: no 137 a SEFAZ ecoa o NSU que pedimos. Hoje
+    isso e inofensivo (ecoa o mesmo), mas a regra e "so anda com documento" --
+    e uma regra que vale por acidente em um dos casos nao e regra."""
+    arm.marcar_consulta(CNPJ, ultimo_nsu="000000000000500", cstat="138")
+    cliente = ClienteFalso([_Resposta("137", "Nenhum documento localizado",
+                                      "000000000000900", "000000000000900", [])])
+    dist.recolher(CNPJ, "PR", cliente=cliente, forcar=True)
+    assert arm.caixa(CNPJ)["ultimo_nsu"] == "000000000000500"
