@@ -158,11 +158,25 @@ pedágio (`ped_*`), suporte (`sup_*`).
 **A unidade de RBAC é a TELA** (perfil × tela via `perfis`/`perfil_telas`,
 `sql/cortex/0011_auth.sql`). Não há RLS.
 
-**TELA NOVA TEM SEIS REGISTROS, NÃO UM**: `view-x` no HTML + `VIEWS` +
+**TELA NOVA TEM ONZE REGISTROS, NÃO UM**: `view-x` no HTML + `VIEWS` +
 `auth.TELAS` + `ROTA_TELAS` + `VIEW_GROUP` + drawer do celular + `ICONS` +
-índice de busca + `docs/manual.yaml`. Essa classe de defeito não tem sintoma,
-só ausência (ícone que some, tela fora do celular) — **rodar a suíte COMPLETA
-para tela nova**; os guards moram em arquivos que não falam do assunto.
+índice de busca + `docs/manual.yaml` + **`semFilterbar()`** + **a lista do
+`#meta`**. Essa classe de defeito não tem sintoma, só ausência (ícone que some,
+tela fora do celular) — **rodar a suíte COMPLETA para tela nova**; os guards
+moram em arquivos que não falam do assunto.
+- **As duas últimas entraram em 07/09/2026, e a lição é sobre a própria
+  lista.** `integ` e `apps` nasceram depois dela e ficaram de fora das duas:
+  a barra de filtros aparecia inteira em telas cujas rotas não recebem
+  parâmetro NENHUM (dava para preencher filial e data, clicar em "Aplicar
+  filtros" e nada mudar — campo que aceita valor e não muda nada é pior que
+  campo nenhum, porque quem filtra acredita no resultado), e o carimbo
+  "Atualizado HH:MM" do cabeçalho ficava em **"carregando…" para sempre**, que
+  se lê como tela travada. Nenhum dos dois tem alarme: o guard que existe
+  (`tests/frontend/test_registro_de_tela.py`) confere DUAS telas nomeadas à
+  mão, `poli` e `ctecp`, e não varre — lista escrita à mão de novo. **Quem
+  esconde a filterbar decide o `#meta` também**, e por lados opostos: tela que
+  responde "e agora?" CARIMBA a hora da leitura (`integ`); tela de registro
+  estático ESCONDE, porque carimbar sugere um frescor que não existe (`apps`).
 - **Tela de todo usuário logado** (`sup`) entra em `TELAS_TODO_LOGADO`
   (`auth.py`): fora do perfil, dentro dos favoritos, da busca e do menu;
   `podeVer` a libera pela sessão. A rota dela vai em `_ROTAS_SEM_TELA`.
@@ -188,11 +202,29 @@ para tela nova**; os guards moram em arquivos que não falam do assunto.
   duas por fornecedor e o semáforo vale o **PIOR** dos dois lados. Duas coisas
   que NÃO são alarme: "não configurada" (recurso que a empresa não contratou) e
   fornecedor consultado sob demanda (TomTom, QualP — não há última coleta para
-  envelhecer). A tela é de RBAC normal porque **não mostra nem edita
-  credencial** — diz que falta o token, nunca qual é; editar segredo continua
-  em Gestão. Integração nova é obrigada a declarar como o dado dela chega
+  envelhecer). Integração nova é obrigada a declarar como o dado dela chega
   (`tests/test_integracoes.py`), e renomear um cartão da Saúde derruba a suíte
   com o nome antigo no erro.
+- **A tela é um cartão por fornecedor, e o ajuste é no modal do cartão** (desde
+  07/09/2026; a aba Gestão › Integrações foi aposentada e ficou só com os
+  interruptores fiscais do CT-e). **São DUAS rotas, e a separação é o que
+  segura a tela aberta**: `/api/integracoes` é de RBAC normal e publica de cada
+  campo só `_campo_publico()` — existe, é obrigatório, está preenchido, é
+  segredo —, nunca `valor` nem `mascarado`, nem para campo NÃO-segredo (a URL
+  base volta com valor em `credenciais.status()`, que é da rota de admin). O
+  formulário vem de `/api/gestao/credenciais`, que sempre foi admin. Fundir as
+  duas obrigaria a tela inteira a virar de administrador, e a razão de ela
+  existir separada da Gestão — quem opera descobrir que a coleta parou sem
+  depender de alguém — iria junto. O resumo se monta por **lista de
+  permissão**, escolhendo chave por chave: copiar-e-apagar faz o campo novo do
+  catálogo nascer VISÍVEL, e essa falha não tem sintoma. Guards:
+  `test_o_detalhe_do_modal_NAO_tem_chave_de_valor_em_lugar_nenhum` (estrutural,
+  roda mesmo com o cofre vazio, ao contrário do que compara com valor real) e
+  `tests/frontend/test_integracoes_tela_e2e.py`.
+- **SMTP e Z-API não se editam ali** (`aba` no panorama): eles moram nas abas
+  E-mail e WhatsApp da Gestão junto com o resto do envio, e o modal leva até
+  lá. Repetir o campo em dois lugares é o que fazia salvar num e conferir no
+  outro.
 - Integração é **módulo por fornecedor** em `api/<fornecedor>/` (gobrax,
   smartec, tomtom, whatsapp, monkey, jornada/RasterJOR, pedagio/QualP) — não
   existe hub genérico de conectores.

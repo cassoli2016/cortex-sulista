@@ -26,9 +26,22 @@ fontes que já existem e as casa por fornecedor.
 O QUE ELE NÃO FAZ, DE PROPÓSITO
 -------------------------------
 
-**Não mostra e não edita segredo.** Trocar token continua sendo em Gestão, que
-é admin. Esta tela diz "falta o token", nunca qual é — é o que permite ela ser
-tela de RBAC normal, aberta para quem opera.
+**Não mostra segredo, e ESTA ROTA não edita nada.** Desde 07/09/2026 o ajuste
+acontece no modal do cartão, e é um administrador que o faz — mas por OUTRA
+rota, `/api/gestao/credenciais`, que sempre foi admin e continua sendo. As duas
+não se fundiram, e a separação não é herança: é ela que mantém esta tela de
+RBAC normal, aberta a quem opera.
+
+O que este módulo publica sobre um campo de credencial é `_campo_publico()`:
+que ele existe, se é obrigatório, se está preenchido, se é segredo. Nunca o
+valor, nunca o mascarado — nem para o campo NÃO-segredo (ambiente, URL base,
+filiais), que `credenciais.status()` devolve com valor porque lá é tela de
+admin. Quem não é administrador abre o mesmo modal, lê o estado inteiro e vê a
+lista de campos com a marca de preenchido, sem formulário e sem conteúdo.
+
+Sem isso a tela teria de virar de administrador, e a razão dela existir
+separada da Gestão — quem opera descobrir que a coleta parou sem depender de
+alguém — ia junto.
 
 **Não dispara coleta.** A pergunta é sobre o que JÁ aconteceu. Uma tela de
 monitoramento que bate no fornecedor a cada pintura vira carga, e a casa já tem
@@ -95,6 +108,48 @@ def _cartoes_por_nome(cartoes: list[dict]) -> dict[str, dict]:
     return {c.get("nome", ""): c for c in cartoes}
 
 
+# ------------------------------------------------ o detalhe que o modal abre
+#
+# O cartao responde "esta bem?"; o modal responde "o que exatamente falta?".
+# Para isso ele precisa saber QUAIS campos a integracao tem e quais estao
+# preenchidos -- e nao pode saber o que esta escrito neles.
+#
+# `credenciais.status()` devolve o VALOR de campo nao-segredo (ambiente, URL
+# base, filiais). La isso e correto: e tela de admin, atras de /api/gestao, e
+# conferir o que esta valendo sem abrir o arquivo no servidor era o ponto.
+# Aqui seria vazamento, porque esta rota e de RBAC normal.
+#
+# Por isso o resumo se monta por LISTA DE PERMISSAO, escolhendo chave por
+# chave, e nunca copiando o dicionario para apagar as ruins: campo novo no
+# catalogo de credenciais entra invisivel por padrao. Copiar-e-apagar tem o
+# defeito oposto -- a chave nova entra VISIVEL, e a falha nao tem sintoma.
+
+def _campo_publico(campo: dict) -> dict:
+    """O que uma tela sem privilegio pode saber de um campo de credencial:
+    que ele existe, se e obrigatorio, se esta preenchido e se e segredo."""
+    return {
+        "rotulo": campo.get("rotulo") or campo.get("nome", ""),
+        "obrigatorio": bool(campo.get("obrigatorio", True)),
+        "configurado": bool(campo.get("configurado")),
+        "segredo": bool(campo.get("segredo")),
+    }
+
+
+def _modos_publicos(svc: dict) -> list[dict]:
+    """As formas de autenticacao do fornecedor, sem o conteudo dos campos.
+
+    Um fornecedor pode aceitar mais de uma (a Prolog aceita tres) e o cliente
+    usa a PRIMEIRA completa -- por isso `completo` viaja: sem ele o modal
+    diria "tres formas disponiveis" sem dizer qual esta valendo.
+    """
+    return [{
+        "chave": m.get("chave"),
+        "rotulo": m.get("rotulo", ""),
+        "completo": bool(m.get("completo")),
+        "campos": [_campo_publico(c) for c in m.get("campos", [])],
+    } for m in svc.get("modos", [])]
+
+
 def panorama(cartoes: list[dict] | None = None) -> dict:
     """Uma linha por fornecedor, com as duas metades casadas.
 
@@ -145,6 +200,11 @@ def panorama(cartoes: list[dict] | None = None) -> dict:
         conf = {"ativa": "ok", "incompleta": "alerta",
                 "desligada": "info"}.get(svc["estado"], "info")
 
+        # O ROTULO do modo ativo, e nao so a chave. A chave (`oauth`, `basic`)
+        # e nome de codigo; quem opera reconhece "OAuth2 (password + refresh)".
+        modos = _modos_publicos(svc)
+        ativo = next((m for m in modos if m["chave"] == svc["modo_ativo"]), None)
+
         linhas.append({
             "chave": chave,
             "nome": svc["nome"],
@@ -153,8 +213,19 @@ def panorama(cartoes: list[dict] | None = None) -> dict:
             "estado": _pior(conf, chegada["status"]),
             "configuracao": {"estado": svc["estado"], "status": conf,
                              "falta": svc["falta"], "modo": svc["modo_ativo"],
-                             "regime": svc.get("regime")},
+                             "modo_rotulo": (ativo or {}).get("rotulo"),
+                             "regime": svc.get("regime"),
+                             "modos": modos,
+                             "ajustes": [_campo_publico(c)
+                                         for c in svc.get("ajustes", [])]},
             "chegada": chegada,
+            # ONDE SE MEDE E ONDE SE EDITA -- as duas pontas que o modal
+            # precisa nomear para nao ser mais uma tela que diz "confie".
+            # `aba` so existe para quem se configura em OUTRO lugar (o SMTP na
+            # aba de E-mail, a Z-API na de WhatsApp): editar a mesma senha em
+            # dois lugares e o que fazia salvar num e conferir no outro.
+            "cartao_saude": nome_cartao,
+            "aba": svc.get("aba"),
         })
 
     linhas.sort(key=lambda l: (_PESO.get(l["estado"], 9), l["nome"].lower()))

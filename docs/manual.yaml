@@ -585,10 +585,16 @@ glossario:
     o km dos abastecimentos. Abaixo de 70% a comparação de consumo não vale: a diferença mede silêncio
     de rastreador, não desempenho do motorista.'
 - termo: Credenciais de integração
-  definicao: 'Tokens de API dos fornecedores (hoje, a Gobrax), configuráveis em Administração › Gestão
-    › Integrações. Ficam guardados na máquina do painel, com permissão restrita e fora do controle de
-    versão. O valor nunca volta para a tela: depois de salvo, só é possível ver os primeiros e os últimos
-    caracteres. Um valor salvo ali tem precedência sobre a variável de ambiente de mesmo nome.'
+  definicao: 'Tokens, usuários e senhas dos fornecedores. Ficam guardados na máquina do painel, com
+    permissão restrita e fora do controle de versão. O valor nunca volta para a tela: depois de salvo,
+    só é possível ver os primeiros e os últimos caracteres. Um valor salvo ali tem precedência sobre a
+    variável de ambiente de mesmo nome. Editam-se em Administração › Integrações, no modal do cartão do
+    fornecedor, e SÓ por administrador — quem não é administrador abre o mesmo modal e vê quais campos
+    a integração pede e quais já estão preenchidos, nunca o conteúdo deles. É essa separação que permite
+    a tela ficar aberta a quem opera: descobrir que a coleta parou não pode depender de um administrador.
+    O SMTP e a Z-API são a exceção e o modal diz isso: eles se ajustam nas abas E-mail e WhatsApp da
+    Gestão, junto com o resto do envio, porque repetir o campo em dois lugares fazia salvar num e
+    conferir no outro.'
 - termo: Envio de e-mail
   definicao: 'O CÓRTEX envia e-mail por um servidor SMTP configurado em Administração › Gestão › E-mail.
     Host, porta e remetente ficam em data/email_config.json; a SENHA vai para o mesmo cofre do token da

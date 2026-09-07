@@ -4,6 +4,22 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.6.0] — 07/09/2026  ·  CX-07/09/2026-v1.6.0
+
+### Adicionado
+- A tela de Integrações virou um cartão por fornecedor, com semáforo, e o ajuste passou a acontecer no próprio cartão: clicar abre a integração inteira num painel — o que ela alimenta, se a credencial está lá, se o dado está chegando, de onde essa medição saiu, e os campos para mexer.
+- Antes era preciso saber que a resposta estava dividida em duas telas e abrir as duas: o estado em Administração › Integrações, o ajuste em Gestão › Integrações, numa lista de onze fornecedores abertos ao mesmo tempo. Agora é um lugar só, e ele diz de onde tirou cada metade.
+
+### Alterado
+- A aba Integrações da Gestão deixou de existir. As credenciais de fornecedor moraram lá até aqui e agora ficam no modal de cada cartão; a aba ficou só com os interruptores fiscais do CT-e de contrapartida, que não são credencial de ninguém, e mudou de nome para dizer isso.
+- Quem não é administrador continua abrindo o mesmo modal e vendo o estado inteiro — inclusive quais campos a integração pede e quais já estão preenchidos —, mas sem formulário e sem valor nenhum. É essa separação que permite a tela seguir aberta a quem opera: descobrir que a coleta parou não pode depender de um administrador estar por perto.
+- O SMTP e a Z-API continuam se ajustando nas abas E-mail e WhatsApp da Gestão, junto com o resto do envio, e o modal leva até lá em vez de repetir o campo. Repetir era o que fazia salvar num lugar e conferir no outro.
+
+### Corrigido
+- Integração que a empresa não contratou aparecia com "falta a credencial" em vermelho, do lado de um semáforo cinza que dizia o contrário. Agora só a integração que alguém começou e não terminou fica em vermelho — a que nunca foi ligada diz apenas que não está configurada nesta instalação.
+- As telas Integrações e Aplicativos mostravam a barra de filtros do topo (filial, data de referência, vencimento) e as consultas das duas não recebem parâmetro nenhum: dava para preencher os campos, clicar em "Aplicar filtros" e nada mudar. Campo que aceita valor e não muda nada é pior que campo nenhum, porque quem filtra acredita no resultado. A barra saiu das duas.
+- Em tela larga os cartões paravam de crescer aos 420px e sobrava uma coluna vazia à direita, do tamanho de uma terceira. Agora ocupam a largura disponível.
+
 ## [1.5.0] — 07/09/2026  ·  CX-07/09/2026-v1.5.0
 
 ### Adicionado

@@ -157,6 +157,87 @@ def test_o_panorama_NAO_carrega_valor_de_credencial():
     assert not vazou, "o panorama carregou o VALOR de: %s" % vazou
 
 
+# ================================================ o detalhe que o modal abre
+
+def _dicts(no):
+    """Todo dicionario da arvore, em qualquer profundidade."""
+    if isinstance(no, dict):
+        yield no
+        for v in no.values():
+            yield from _dicts(v)
+    elif isinstance(no, list):
+        for v in no:
+            yield from _dicts(v)
+
+
+def test_o_detalhe_do_modal_NAO_tem_chave_de_valor_em_lugar_nenhum():
+    """O irmao ESTRUTURAL do teste acima, e a razao de existir separado.
+
+    `test_o_panorama_NAO_carrega_valor_de_credencial` compara com os valores
+    REAIS do cofre -- o que e mais forte onde ha o que comparar, e um `skip`
+    onde nao ha. Numa worktree limpa, num CI, ou numa instalacao que ainda nao
+    configurou nada, ele nao afirma coisa alguma: seria um guard verde por
+    vacuidade justamente onde ninguem esta olhando.
+
+    Este afirma sobre a FORMA e roda sempre: nenhum dicionario do panorama, em
+    profundidade nenhuma, pode carregar `valor` ou `mascarado`. Sao as duas
+    chaves que `credenciais.status()` produz e que fariam a tela mostrar (ou
+    deixar mostravel no HTML) o conteudo de uma credencial.
+    """
+    proibidas = {"valor", "mascarado"}
+    achadas = [(d.get("rotulo") or d.get("chave") or d.get("nome"), k)
+               for d in _dicts(it.panorama([]))
+               for k in proibidas & set(d)]
+    assert not achadas, "o detalhe do modal carregou %s" % (achadas,)
+
+
+def test_o_resumo_do_campo_e_LISTA_DE_PERMISSAO_e_nao_copia_e_apaga():
+    """Campo novo no catalogo de credenciais tem de entrar INVISIVEL.
+
+    Copiar o dicionario e apagar as chaves ruins tem o defeito oposto -- a
+    chave nova entra visivel, e a falha nao tem sintoma nenhum: a tela
+    continua pintando, so que com uma coisa a mais dentro do HTML.
+    """
+    campo = {"rotulo": "Token", "obrigatorio": True, "configurado": True,
+             "segredo": True, "valor": "abc", "mascarado": "ab…c",
+             "chave_que_ninguem_previu": "conteudo"}
+    assert set(it._campo_publico(campo)) == {
+        "rotulo", "obrigatorio", "configurado", "segredo"}
+
+
+def test_o_modal_sabe_ONDE_se_edita_e_ONDE_se_mede():
+    """As duas pontas que o modal nomeia. `aba` existe para quem se configura
+    em OUTRO lugar (o SMTP na aba de E-mail, a Z-API na de WhatsApp) -- sem
+    ela o modal ofereceria um formulario que nao e o que vale, e editar a mesma
+    senha em dois lugares e o que fazia salvar num e conferir no outro."""
+    por_chave = {l["chave"]: l for l in it.panorama([])["integracoes"]}
+
+    assert por_chave["smtp"]["aba"] == "email"
+    assert por_chave["zapi"]["aba"] == "whatsapp"
+    assert por_chave["gobrax"]["aba"] is None, (
+        "a Gobrax se configura no proprio modal; apontar para uma aba mandaria "
+        "quem opera para uma tela que nao tem o campo dela")
+
+    assert por_chave["gobrax"]["cartao_saude"] == it.CARTAO_DA_SAUDE["gobrax"]
+    assert por_chave["qualp"]["cartao_saude"] is None, (
+        "fornecedor sob demanda nao tem cartao de chegada para nomear")
+
+
+def test_todo_modo_de_autenticacao_chega_com_os_campos_dele():
+    """A Prolog aceita tres formas e o cliente usa a PRIMEIRA completa. Sem os
+    campos de cada uma, o modal diria "tres formas" sem dizer o que preencher
+    em qualquer uma delas."""
+    prolog = next(l for l in it.panorama([])["integracoes"]
+                  if l["chave"] == "prolog")
+    modos = prolog["configuracao"]["modos"]
+    assert [m["chave"] for m in modos] == ["token", "basic", "oauth"]
+    assert all(m["campos"] for m in modos), (
+        "modo sem campo nenhum e um formulario vazio no modal")
+    # E o catalogo real e a referencia: nao inventar rotulo aqui.
+    catalogo = next(s for s in credenciais.SERVICOS if s["chave"] == "prolog")
+    assert [m["rotulo"] for m in modos] == [m["rotulo"] for m in catalogo["modos"]]
+
+
 # ============================================================ a rota e a tela
 
 def test_a_rota_exige_sessao():

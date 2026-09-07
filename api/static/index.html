@@ -2706,16 +2706,84 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 /* minmax(0,..) e nao 1fr cru: `1fr` e minmax(auto,1fr) e a trilha nao encolhe
    abaixo do min-content do detalhe da coleta, que e uma linha longa -- o
    cartao da direita nasceria FORA da tela, sem erro nenhum. */
-.int-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,420px));
+/* O MAXIMO E 1fr, e nao 420px fixo: com o teto fixo as trilhas nao crescem e
+   sobra uma coluna vazia a direita em tela larga -- 11 cartoes de 420px numa
+   area de 1160px davam duas colunas e um vao morto do tamanho de uma terceira.
+   O MINIMO e explicito (300px) e nao `auto`: e `minmax(auto,1fr)` que nao
+   encolhe abaixo do min-content e empurra o cartao da direita para fora da
+   tela, sem erro nenhum -- a regua mede a largura por isso. */
+.int-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
   gap:18px;align-items:start}
+/* O CARTAO INTEIRO ABRE O MODAL, mas quem abre e um <button> DE VERDADE em
+   volta do nome, esticado por cima do cartao com um ::after absoluto.
+   O caminho obvio -- fazer do cartao um <button> -- custa duas coisas: <h3> e
+   <p> dentro de <button> e HTML invalido (so cabe conteudo de frase), e o nome
+   acessivel do botao vira TODO o texto de dentro, entao o leitor de tela leria
+   o cartao inteiro, semaforo e detalhe da coleta juntos, a cada tabulada. */
 .intcard{border:1px solid var(--n200);border-radius:8px;background:var(--n0);
-  display:grid;gap:9px;padding:18px;border-left:3px solid var(--n300)}
+  display:grid;gap:9px;padding:18px;border-left:3px solid var(--n300);
+  position:relative;cursor:pointer}
+.intcard:hover{border-color:var(--n300);box-shadow:0 2px 10px rgba(0,0,0,.06)}
+/* O anel de foco vai no CARTAO porque e ele que se ve; o foco real esta no
+   botao de dentro, que ocupa so o nome. */
+.intcard:focus-within{outline:2px solid var(--orange-500);outline-offset:2px}
+.intcard-alvo{background:none;border:0;padding:0;margin:0;font:inherit;
+  color:inherit;text-align:left;cursor:pointer}
+.intcard-alvo::after{content:'';position:absolute;inset:0;border-radius:8px}
+.intcard-alvo:focus-visible{outline:none}
 /* A COR VIVE NA BORDA ESQUERDA, e nao no fundo do cartao: fundo colorido em
    onze cartoes lado a lado vira vitral e para de significar urgencia. */
 .intcard.st-ok{border-left-color:var(--green)}
 .intcard.st-alerta{border-left-color:var(--yellow)}
 .intcard.st-erro{border-left-color:var(--red)}
 .intcard.st-info{border-left-color:var(--n300)}
+/* O PONTO DO SEMAFORO. Ele repete a borda de proposito: a borda so se le
+   comparando cartoes lado a lado, e o ponto se le num cartao sozinho -- que e
+   como o cartao aparece no celular e dentro do modal. Nao e a cor sozinha que
+   informa: o badge ao lado diz a mesma coisa por escrito. */
+.int-farol{width:9px;height:9px;border-radius:50%;flex:0 0 auto;
+  background:var(--n300);display:inline-block}
+.int-farol.st-ok{background:var(--green)}
+.int-farol.st-alerta{background:var(--yellow)}
+.int-farol.st-erro{background:var(--red)}
+.intcard .int-abrir{font-size:12px;color:var(--n500);margin-top:2px}
+.intcard:hover .int-abrir,.intcard:focus-visible .int-abrir{color:var(--orange-500)}
+/* ---- o modal de uma integracao ---- */
+.intm-cab{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 0 9px}
+.intm-cab h3{margin:0;font-size:17px}
+.intm-resumo{margin:0 0 18px;font-size:13px;color:var(--n600);line-height:1.5}
+/* AS DUAS METADES, LADO A LADO -- e a forma que carrega o sentido da tela:
+   configurada e chegando dado sao perguntas diferentes, e a que esta ruim tem
+   de ser identificavel sem ler as duas. minmax(0,1fr) e nao 1fr: o detalhe da
+   coleta e uma linha longa, e com `1fr` cru a coluna da direita empurraria o
+   modal para fora da tela do celular. */
+.intm-metades{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,220px));
+  gap:9px;margin-bottom:18px}
+.intm-meta{border:1px solid var(--n200);border-radius:8px;padding:9px;
+  border-left:3px solid var(--n300)}
+.intm-meta.st-ok{border-left-color:var(--green)}
+.intm-meta.st-alerta{border-left-color:var(--yellow)}
+.intm-meta.st-erro{border-left-color:var(--red)}
+.intm-meta .rot{display:flex;align-items:center;gap:6px;color:var(--n500);
+  text-transform:uppercase;font-size:10.5px;letter-spacing:.05em;font-weight:600}
+.intm-meta .txt{font-size:12.5px;color:var(--n700);margin-top:4px;line-height:1.45;
+  overflow-wrap:anywhere}
+.intm-meta .fonte{font-size:11px;color:var(--n500);margin-top:4px}
+.intm-sec{margin-top:18px}
+.intm-sec>.intm-rot{color:var(--n500);text-transform:uppercase;font-size:10.5px;
+  letter-spacing:.05em;font-weight:600;margin-bottom:9px}
+/* O QUE FALTA vem em vermelho porque e a unica linha acionavel do modal. */
+.intm-falta{color:var(--red)}
+/* A LISTA DE CAMPOS PARA QUEM NAO EDITA. Ela nao e um formulario desabilitado:
+   campo desabilitado com o valor mascarado convida a tentar, e sugere que o
+   valor esta ali dentro do HTML. Aqui so ha o nome do campo e se ele esta
+   preenchido -- que e tudo o que o servidor manda para esta tela. */
+.intm-campos{display:grid;gap:4px;font-size:12.5px}
+.intm-campos li{display:flex;gap:6px;align-items:baseline;list-style:none}
+.intm-campos{margin:0;padding:0}
+.intm-campos .ok{color:var(--green)}
+.intm-campos .nao{color:var(--yellow-700)}
+.intm-campos .opc{color:var(--n500);font-size:11.5px}
 .intcard h3{margin:0;font-size:15px;font-weight:600;color:var(--n900);
   display:flex;align-items:center;gap:9px;flex-wrap:wrap}
 .intcard p.resumo{margin:0;font-size:12.5px;color:var(--n600);line-height:1.5}
@@ -7586,7 +7654,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <button class="ghost" id="gtab-perfis" aria-pressed="false" onclick="gesTab('perfis')">Perfis de acesso</button>
             <button class="ghost" id="gtab-auditoria" aria-pressed="false" onclick="gesTab('auditoria')">Auditoria</button>
             <button class="ghost" id="gtab-config" aria-pressed="false" onclick="gesTab('config')">Segurança</button>
-            <button class="ghost" id="gtab-integracoes" aria-pressed="false" onclick="gesTab('integracoes')">Integrações</button>
+            <button class="ghost" id="gtab-contrapartida" aria-pressed="false" onclick="gesTab('contrapartida')">CT-e de contrapartida</button>
             <button class="ghost" id="gtab-email" aria-pressed="false" onclick="gesTab('email')">E-mail</button>
             <button class="ghost" id="gtab-whatsapp" aria-pressed="false" onclick="gesTab('whatsapp')">WhatsApp</button>
           </div>
@@ -7619,12 +7687,18 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </tr></thead><tbody id="ges-aud"></tbody></table></div>
           </div>
         </div>
-        <div id="gpane-integracoes" style="display:none">
-          <div class="card">
-            <div class="head"><h2>Integrações <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Um cartão por fornecedor. As credenciais ficam em data/credenciais.json na própria máquina, com permissão restrita e fora do controle de versão. SEGREDO (token, senha, client_secret) nunca volta para a tela: depois de salvo, só é possível ver as pontas. Campo de CONFIGURAÇÃO (ambiente, URL, filiais) volta com o valor, para dar para conferir o que está valendo. Um valor salvo aqui tem precedência sobre a variável de ambiente de mesmo nome.">i</span></h2><span class="hint" id="integResumo">só administradores</span></div>
-            <div class="banner-inline" id="integAviso" style="display:none"></div>
+        <div id="gpane-contrapartida" style="display:none">
+          <!-- AS CREDENCIAIS SAÍRAM DAQUI (v1.6.0) e viraram a tela
+               Administração > Integrações, onde cada fornecedor é um cartão com
+               semáforo e o ajuste acontece no modal dele. O motivo não foi
+               estética: aqui a lista dizia se estava CONFIGURADA e nunca se
+               estava CHEGANDO DADO, e as duas metades da pergunta viviam em
+               telas diferentes. Ficou nesta aba só o que não é credencial de
+               fornecedor: os dois interruptores fiscais do CT-e. -->
+          <div class="hint" style="margin:0 0 18px">
+            As credenciais de fornecedor agora ficam em
+            <a href="#integ">Administração › Integrações</a>, com o estado da coleta ao lado.
           </div>
-          <div id="ges-creds"></div>
 
           <div class="card" id="cpcfg-card">
             <div class="head"><h2>Emissão do CT-e de contrapartida <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Estes dois interruptores decidem se o CÓRTEX emite documento fiscal REAL, em nome de outra empresa, e se faz isso sem ninguém olhando. Ambos nascem desligados e cada mudança fica na trilha de auditoria com autor e data. Homologação é o ambiente de teste da SEFAZ: o documento autorizado lá não tem valor fiscal, não é escriturado e não gera obrigação.">i</span></h2>
@@ -9206,7 +9280,16 @@ function semFilterbar(v){
   // têm seletor próprio de período dentro da tela. Filtro que a query ignora
   // sai: um campo que aceita valor e não muda nada é pior que campo nenhum,
   // porque quem filtra acredita no resultado.
-  return v==='cop'||v==='mon'||v==='aud'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
+  //
+  // `integ` e `apps` entraram em 07/09/2026 pelo mesmo motivo, e mostram como
+  // a falha se repete: as duas telas nasceram depois desta lista, e tela nova
+  // entra "no fim" por inércia. `/api/integracoes` e `/api/aplicativos` não
+  // recebem parâmetro NENHUM — nem filial, nem data —, e mesmo assim a barra
+  // aparecia inteira, com um botão "Aplicar filtros" que não aplicava nada. O
+  // guard que existe (tests/antt/test_rntrc_tela_e2e.py) confere UMA tela e
+  // não varre; até haver varredura, esta lista se confere à mão a cada tela
+  // nova.
+  return v==='cop'||v==='mon'||v==='aud'||v==='integ'||v==='apps'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
          v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='antport'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='rhmot'||v==='pneus'||v==='people'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila';
 }
@@ -9303,7 +9386,7 @@ function router(){
   document.getElementById('grpFluxcon').style.display = fluxcon ? 'flex' : 'none';
   const ges = (v==='gestao');
   const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = semFilterbar(v) ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='gesacao'||v==='gesata'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='prem'||v==='doc'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='gesacao'||v==='gesata'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='prem'||v==='doc'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='apps') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', semFilterbar(v)); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -35823,12 +35906,12 @@ async function loadGestao(){
 }
 function gesTab(t){
   GES_TAB=t;
-  ['usuarios','perfis','auditoria','config','integracoes','email','whatsapp'].forEach(x=>{
+  ['usuarios','perfis','auditoria','config','contrapartida','email','whatsapp'].forEach(x=>{
     document.getElementById('gpane-'+x).style.display = (x===t)?'':'none';
     document.getElementById('gtab-'+x).setAttribute('aria-pressed', String(x===t));
   });
   if(t==='auditoria' && !document.getElementById('ges-aud').children.length) audCarregar();
-  if(t==='integracoes') integCarregar();
+  if(t==='contrapartida') cpcfgCarregar();
   if(t==='email') emailCarregar();
   if(t==='whatsapp') whatsCarregar();
 }
@@ -36962,7 +37045,10 @@ async function whatsAgendaTestar(id){
    Caixa já usavam credCarregar/credSalvar; como o arquivo é UM script só, a
    segunda declaração vencia a primeira e o card "Limites de crédito
    contratados" ficava vazio, com "Salvar limites" caindo no cofre de tokens. */
-let INTEG = null;
+let INTEG = null;        // detalhe de admin (/api/gestao/credenciais), só para admin
+let INTEGP = {};         // panorama por chave (/api/integracoes) — o que pinta os cartões
+let INTEG_ABERTA = null; // qual integração está no modal agora
+let INTEG_ADMIN_ERRO = '';
 const INTEG_MODO = {};   // modo de autenticação escolhido na tela, por fornecedor
 const INTEG_ERRO = {};   // erro do último salvamento, por fornecedor
 /* ====== ABA "TRANSMITIDOS" da tela de CT-e de contrapartida ================
@@ -37493,47 +37579,28 @@ async function cpxmlReenfileirar(){
   finally{ bt.disabled=false; bt.textContent='Reenfileirar parados'; }
 }
 
-const INTEG_EST = {ativa:['b-ok','ativa'], incompleta:['b-warn','incompleta'],
-                   desligada:['b-info','desligada']};
-
+/* O DETALHE DE ADMIN. A tela de Integrações se pinta com /api/integracoes,
+   que é de RBAC normal e não carrega valor de credencial nenhum. Para MOSTRAR
+   O FORMULÁRIO falta o resto — o valor dos campos de configuração, o
+   mascarado, a origem, a data — e isso continua atrás de /api/gestao, que é
+   admin. São duas rotas porque são dois níveis de acesso, e não por acaso:
+   juntar as duas obrigaria a tela inteira a virar de administrador. */
 async function integCarregar(){
-  const alvo=document.getElementById('ges-creds');
-  const aviso=(cor,txt)=>'<div class="card"><div class="integ-corpo" style="color:var('+cor+')">'+txt+'</div></div>';
-  alvo.innerHTML=aviso('--n500','carregando…');
+  if(!USER || !USER.admin) return false;
+  INTEG_ADMIN_ERRO='';
   try{
     const r=await fetch('/api/gestao/credenciais',{cache:'no-store'});
     const d=await r.json();
-    if(!r.ok){ alvo.innerHTML=aviso('--red', esc(d.mensagem||'Erro ao ler as integrações.')); return; }
+    if(!r.ok){ INTEG_ADMIN_ERRO=d.mensagem||'Erro ao ler as configurações.'; return false; }
     INTEG=d.servicos||[];
-    integRender();
-    cpcfgCarregar();
-  }catch(e){ alvo.innerHTML=aviso('--red','Não foi possível falar com a API.'); }
+    return true;
+  }catch(e){ INTEG_ADMIN_ERRO='Não foi possível falar com a API.'; return false; }
 }
 
 function integModoAtual(s){
   return INTEG_MODO[s.chave] || s.modo_ativo || ((s.modos||[])[0]||{}).chave;
 }
-function integModo(chave, modo){ INTEG_MODO[chave]=modo; integRender(); }
-
-function integRender(){
-  const svcs=INTEG||[];
-  const ativas=svcs.filter(x=>x.estado==='ativa').length;
-  document.getElementById('integResumo').textContent =
-    ativas+' de '+svcs.length+(svcs.length===1?' integração ativa':' integrações ativas')
-    +' · só administradores';
-  /* Pendência vai para o topo em texto, não só como badge no meio da lista:
-     integração incompleta é a que alguém começou e abandonou — some da vista e
-     a tela que ela alimenta fica sem dado sem ninguém saber por quê. */
-  const pend=svcs.filter(x=>x.estado==='incompleta');
-  const av=document.getElementById('integAviso');
-  if(pend.length){
-    av.style.display='block';
-    av.innerHTML='<div><b>'+pend.length+(pend.length===1?' integração começou e não fechou.':' integrações começaram e não fecharam.')+'</b> '
-      + pend.map(x=>esc(x.nome)+' — falta '+esc(x.falta.join(', '))).join(' · ')
-      + '. Enquanto isso, a tela que ela alimenta fica sem dado.</div>';
-  } else av.style.display='none';
-  document.getElementById('ges-creds').innerHTML=svcs.map(integCard).join('');
-}
+function integModo(chave, modo){ INTEG_MODO[chave]=modo; integModalRepintar(); }
 
 function integOrigem(c){
   return c.origem==='cofre' ? 'salvo aqui na tela'
@@ -37621,13 +37688,11 @@ function integCorpo(s){
   const modo=integModoAtual(s);
   const m=(s.modos||[]).find(x=>x.chave===modo)||(s.modos||[])[0]||{campos:[]};
   const ativo=(s.modos||[]).find(x=>x.chave===s.modo_ativo);
-  let html='<div class="integ-corpo"><p class="integ-resumo">'+esc(s.resumo)+'</p>';
-
-  html+='<div class="integ-linha">'+(s.modo_ativo
-      ? 'Autenticando por <b>'+esc((ativo||{}).rotulo||s.modo_ativo)+'</b>'
-        +(s.falta.length?' · <span style="color:var(--yellow-700)">falta '+esc(s.falta.join(', '))+'</span>':'')
-      : '<span style="color:var(--yellow-700)">Falta '+esc(s.falta.join(', '))+'</span>')
-    +'</div>';
+  /* SEM CABECALHO PROPRIO. O resumo e o estado ja estao no topo do modal, e
+     nas duas metades lado a lado; repeti-los aqui empurrava o formulario --
+     a unica parte acionavel -- para baixo da dobra. `ativo` continua servindo
+     ao aviso de precedencia, mais abaixo. */
+  let html='<div class="integ-corpo">';
 
   if((s.modos||[]).length>1){
     html+='<div><div class="integ-rot">Forma de autenticação</div>'
@@ -37655,34 +37720,8 @@ function integCorpo(s){
   return html
     +'<div class="m-foot"><span class="m-err" id="integ-err-'+esc(s.chave)+'">'
     +esc(INTEG_ERRO[s.chave]||'')+'</span>'
+    +'<button class="ghost" onclick="fecharModal()">Fechar</button>'
     +'<button class="btn" id="integ-btn-'+esc(s.chave)+'" onclick="integSalvar(&quot;'+esc(s.chave)+'&quot;)">Salvar</button></div>';
-}
-
-function integCorpoOutraAba(s){
-  /* Editar a mesma senha em dois lugares é o que fazia salvar num e conferir
-     no outro. Aqui fica só o panorama, com o caminho para onde se edita. */
-  const c=(((s.modos||[])[0]||{}).campos||[])[0]||{};
-  return '<div class="integ-corpo"><p class="integ-resumo">'+esc(s.resumo)+'</p>'
-    +'<div class="integ-linha">'+(c.configurado
-        ? 'Senha guardada no cofre · '+integOrigem(c)
-        : '<span style="color:var(--yellow-700)">Sem senha guardada — o CÓRTEX não envia e-mail</span>')
-    +'</div></div>'
-    +'<div class="m-foot"><span class="m-err"></span>'
-    +'<button class="ghost" onclick="gesTab(&quot;email&quot;)">Configurar na aba E-mail</button></div>';
-}
-
-function integCard(s){
-  const est=INTEG_EST[s.estado]||['b-info',s.estado];
-  return '<div class="card" id="integ-'+esc(s.chave)+'" style="margin-bottom:14px">'
-    +'<div class="head"><h2>'+esc(s.nome)+' <span class="badge '+est[0]+'">'+est[1]+'</span></h2>'
-    +'<span class="hint">alimenta '+esc(s.alimenta)
-      /* O REGIME, quando o fornecedor funciona SEM credencial. O QualP
-         responde sem conta, com teto de três consultas por dia — "ativa"
-         seria verdade nos dois casos e esconderia a única diferença que
-         importa, e "desligada" seria falso, porque ele não está desligado:
-         está limitado. */
-      +(s.regime?' · '+esc(s.regime):'')+'</span></div>'
-    +(s.aba?integCorpoOutraAba(s):integCorpo(s))+'</div>';
 }
 
 async function integSalvar(chave){
@@ -37713,7 +37752,17 @@ async function integSalvar(chave){
     }
     hideBanner();
   }catch(e){ INTEG_ERRO[chave]='Não foi possível falar com a API.'; }
-  await integCarregar();   // o estado do cartão é recalculado no servidor
+  await integAtualizar();
+}
+
+/* AS DUAS METADES SE RECALCULAM NO SERVIDOR, e as duas têm de ser relidas: o
+   formulário sai de /api/gestao/credenciais e o semáforo do cartão sai de
+   /api/integracoes, que casa a configuração com a chegada de dado. Reler só
+   uma deixava o modal dizendo "configurada" com o cartão atrás ainda cinza. */
+async function integAtualizar(){
+  await integCarregar();
+  await loadInteg();
+  integModalRepintar();
 }
 
 async function integApagar(nome){
@@ -37725,7 +37774,7 @@ async function integApagar(nome){
     if(!r.ok){ const d=await r.json(); showBanner(d.mensagem||'Não foi possível apagar.'); return; }
     hideBanner();
   }catch(e){ showBanner('Não foi possível falar com a API.', e.message); return; }
-  integCarregar();
+  integAtualizar();
 }
 function agoraLocal(){
   const n=new Date(), p=x=>String(x).padStart(2,'0');
@@ -38316,27 +38365,189 @@ async function loadInteg(){
       kpi('Precisam de atenção', res.atencao ?? '—', 'falta credencial ou a coleta parou')+
       kpi('Sem medição', res.sem_medicao ?? '—', 'ainda não têm cartão de chegada na Saúde');
     if(!lista.length){ el.innerHTML = '<div class="vazio">Nenhuma integração registrada.</div>'; return; }
-    el.innerHTML = lista.map(i => {
-      /* O QUE FALTA vem em vermelho porque e acionavel: e a unica linha do
-         cartao que diz o que ALGUEM precisa fazer hoje. */
-      const falta = (i.configuracao.falta||[]);
-      const cfg = falta.length
-        ? '<span class="int-falta">falta '+esc(falta.join('; '))+'</span>'
-        : esc({ativa:'configurada', incompleta:'incompleta', desligada:'não configurada nesta instalação'}[i.configuracao.estado]||i.configuracao.estado);
-      const regime = i.configuracao.regime ? '<div class="int-linha"><span class="rot">Regime</span><span class="val">'+esc(i.configuracao.regime)+'</span></div>' : '';
-      return `
-      <div class="intcard st-${esc(i.estado)}">
-        <h3>${esc(i.nome)} <span class="badge ${esc((INTEG_ROT[i.estado]||['',''])[1])}">${esc((INTEG_ROT[i.estado]||[i.estado])[0])}</span></h3>
-        <p class="resumo">${esc(i.resumo)}</p>
-        <div class="int-linha"><span class="rot">Alimenta</span><span class="val">${esc(i.alimenta)}</span></div>
-        <div class="int-linha"><span class="rot">Configuração</span><span class="val">${cfg}</span></div>
-        ${regime}
-        <div class="int-linha"><span class="rot">Chegada</span><span class="val">${esc(i.chegada.detalhe)}</span></div>
-      </div>`;
-    }).join('');
+    INTEGP = {}; lista.forEach(i => { INTEGP[i.chave] = i; });
+    el.innerHTML = lista.map(integCartao).join('');
+    /* O CARIMBO E A HORA DA LEITURA, e nao a de uma coleta: esta tela nao
+       coleta nada, ela junta duas fontes que ja tinham acontecido. A idade de
+       cada coleta esta no cartao do fornecedor, que e onde ela significa
+       alguma coisa. Sem esta linha o cabecalho fica em "carregando..." para
+       sempre, e quem le isso conclui que a tela travou. */
+    const ts = new Date();
+    const mt = document.getElementById('meta');
+    if(mt) mt.innerHTML = '<b>Atualizado '
+      + ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
+      + '</b><br>' + ts.toLocaleDateString('pt-BR');
+    /* O DETALHE DE ADMIN ENTRA NA FRENTE, sem segurar os cartoes: quem e
+       administrador quase sempre vem aqui para mexer em alguma coisa, e sem
+       isto o primeiro modal do dia abre dizendo "carregando" no lugar do
+       formulario. Nao usa await de proposito -- os cartoes ja estao pintados,
+       e falhar aqui nao pode derrubar a tela de quem so veio olhar. */
+    if(USER && USER.admin && !INTEG) integCarregar();
   }catch(err){
     el.innerHTML = '<div class="vazio">'+esc(err.message||'Não foi possível falar com a API.')+'</div>';
   }
+}
+
+function integCfgFrase(c){
+  /* "desligada" e "incompleta" chegam com a MESMA lista de faltas e querem
+     dizer coisas opostas: uma e recurso que a empresa nao contratou, a outra e
+     alguem que comecou a configurar e abandonou. So a segunda e acionavel, e
+     so ela vai em vermelho -- pintar de vermelho o que esta certo e como se
+     ensina a ignorar vermelho. O que a desligada PEDIRIA continua no modal, na
+     lista de campos, para quem for liga-la um dia. */
+  if(c.estado==='desligada') return 'não configurada nesta instalação';
+  const falta = c.falta||[];
+  if(falta.length) return '<span class="int-falta">falta '+esc(falta.join('; '))+'</span>';
+  return esc({ativa:'configurada', incompleta:'incompleta'}[c.estado]||c.estado);
+}
+
+function integCartao(i){
+  const rot = INTEG_ROT[i.estado]||[i.estado,'b-info'];
+  const regime = i.configuracao.regime
+    ? '<div class="int-linha"><span class="rot">Regime</span><span class="val">'+esc(i.configuracao.regime)+'</span></div>' : '';
+  /* O botao envolve so o NOME: e ele o nome acessivel do cartao. O resto do
+     cartao fica clicavel pelo ::after esticado, no CSS. */
+  return `
+  <div class="intcard st-${esc(i.estado)}" data-chave="${esc(i.chave)}">
+    <h3><span class="int-farol st-${esc(i.estado)}"></span>
+        <button type="button" class="intcard-alvo" aria-haspopup="dialog"
+                data-chave="${esc(i.chave)}"
+                onclick="integModalAbrir(this.dataset.chave)">${esc(i.nome)}</button>
+        <span class="badge ${esc(rot[1])}">${esc(rot[0])}</span></h3>
+    <p class="resumo">${esc(i.resumo)}</p>
+    <div class="int-linha"><span class="rot">Alimenta</span><span class="val">${esc(i.alimenta)}</span></div>
+    <div class="int-linha"><span class="rot">Configuração</span><span class="val">${integCfgFrase(i.configuracao)}</span></div>
+    ${regime}
+    <div class="int-linha"><span class="rot">Chegada</span><span class="val">${esc(i.chegada.detalhe)}</span></div>
+    <div class="int-abrir">Ver e ajustar →</div>
+  </div>`;
+}
+
+/* ======================= o modal de uma integracao =======================
+   O cartao responde "esta bem?". O modal responde "o que exatamente falta, e
+   onde eu mexo nisso" -- a pergunta que sobrava e mandava a pessoa procurar o
+   fornecedor numa lista de onze cartoes na tela de Gestao. */
+
+function integModalAbrir(chave){
+  const i = INTEGP[chave]; if(!i) return;
+  INTEG_ABERTA = chave;
+  abrirModal(integModalHTML(i));
+  /* O DETALHE DE ADMIN CHEGA DEPOIS, com o modal ja aberto. Ele vem de outra
+     rota (/api/gestao/credenciais, que e admin) porque e a unica que pode
+     devolver o valor dos campos de configuracao; segurar o modal ate ela
+     responder faria o clique parecer perdido em quem tem a rede lenta. */
+  if(integEditaAqui(i) && !INTEG){
+    integCarregar().then(() => { if(INTEG_ABERTA===chave) integModalRepintar(); });
+  }
+}
+
+function integEditaAqui(i){ return !!(USER && USER.admin) && !i.aba; }
+
+function integModalRepintar(){
+  const i = INTEGP[INTEG_ABERTA]; if(!i) return;
+  const alvo = document.getElementById('intm-ajuste');
+  if(alvo) alvo.innerHTML = integAjusteHTML(i);
+}
+
+function integMetade(rot, status, val, fonte){
+  return '<div class="intm-meta st-'+esc(status||'info')+'">'
+    +'<div class="rot"><span class="int-farol st-'+esc(status||'info')+'"></span>'+esc(rot)+'</div>'
+    +'<div class="txt">'+val+'</div>'
+    +(fonte?'<div class="fonte">'+esc(fonte)+'</div>':'')+'</div>';
+}
+
+/* DE ONDE VEM A METADE DA CHEGADA. Nomear a origem e o que separa esta tela de
+   mais uma que pede confianca -- e "sob demanda" e "sem medicao" sao coisas
+   diferentes que ficariam no mesmo cinza sem esta frase. */
+function integFonteChegada(i){
+  if(i.chegada.regime==='sob_demanda') return 'consultado na hora — não há coleta';
+  if(i.chegada.regime==='sem_medicao') return 'sem cartão na Saúde do Servidor';
+  return i.cartao_saude ? 'Saúde do Servidor · '+i.cartao_saude : '';
+}
+
+function integModalHTML(i){
+  const rot = INTEG_ROT[i.estado]||[i.estado,'b-info'];
+  const c = i.configuracao||{};
+  const modo = c.modo_rotulo
+    ? '<div class="fonte">autenticando por '+esc(c.modo_rotulo)+'</div>' : '';
+  return '<div class="intm-cab"><span class="int-farol st-'+esc(i.estado)+'"></span>'
+      +'<h3>'+esc(i.nome)+'</h3>'
+      +'<span class="badge '+esc(rot[1])+'">'+esc(rot[0])+'</span></div>'
+    +'<p class="intm-resumo">'+esc(i.resumo)+'</p>'
+    +'<div class="intm-metades">'
+      + integMetade('Configuração', c.status, integCfgFrase(c)+modo, c.regime||'')
+      + integMetade('Chegada de dado', i.chegada.status, esc(i.chegada.detalhe), integFonteChegada(i))
+    +'</div>'
+    +'<div class="intm-sec"><div class="intm-rot">Alimenta</div>'
+      +'<div style="font-size:12.5px;color:var(--n700)">'+esc(i.alimenta)+'</div></div>'
+    +'<div id="intm-ajuste">'+integAjusteHTML(i)+'</div>';
+}
+
+/* TRES CAMINHOS, e o modal diz em qual esta:
+   1. fornecedor que se configura em OUTRA aba da Gestao (SMTP, Z-API);
+   2. administrador: o formulario, aqui mesmo;
+   3. quem nao e administrador: o que existe e o que falta, sem formulario. */
+function integAjusteHTML(i){
+  if(i.aba) return integAjusteOutraAba(i);
+  if(!(USER && USER.admin)) return integAjusteLeitura(i);
+  const s = (INTEG||[]).find(x => x.chave===i.chave);
+  if(!s) return '<div class="intm-sec"><div class="intm-rot">Configuração e ajustes</div>'
+    +'<div style="font-size:12.5px;color:var(--n500)">'
+    +esc(INTEG_ADMIN_ERRO||'carregando as configurações…')+'</div></div>'
+    +integModalFoot();
+  return '<div class="intm-sec"><div class="intm-rot">Configuração e ajustes</div></div>'
+    +integCorpo(s);
+}
+
+function integModalFoot(extra){
+  return '<div class="m-foot"><span class="m-err"></span>'
+    +'<button class="ghost" onclick="fecharModal()">Fechar</button>'+(extra||'')+'</div>';
+}
+
+/* A LISTA PARA QUEM NAO EDITA nao e um formulario desabilitado. Campo
+   desabilitado com o valor mascarado dentro convida a tentar e sugere que o
+   valor esta no HTML -- e nao esta: o servidor nao manda valor nenhum para
+   esta tela. Aqui ha o nome do campo e se ele esta preenchido, que e tudo o
+   que ela recebe e tudo o que quem opera precisa para pedir o que falta. */
+function integAjusteLeitura(i){
+  const c = i.configuracao||{};
+  const modos = c.modos||[];
+  const m = modos.find(x => x.chave===c.modo) || modos[0] || {campos:[]};
+  const linha = x => '<li><span class="'+(x.configurado?'ok':'nao')+'">'
+    +(x.configurado?'✓':'—')+'</span><span>'+esc(x.rotulo)
+    +(x.obrigatorio?'':' <span class="opc">(opcional)</span>')+'</span></li>';
+  const bloco = (rot, campos) => campos.length
+    ? '<div class="intm-sec"><div class="intm-rot">'+esc(rot)+'</div>'
+      +'<ul class="intm-campos">'+campos.map(linha).join('')+'</ul></div>' : '';
+  return bloco(modos.length>1 ? 'O que '+(m.rotulo||'esta forma')+' pede'
+                              : 'O que esta integração pede', m.campos||[])
+    + bloco('Ajustes desta integração', c.ajustes||[])
+    + '<div class="intm-sec"><div style="font-size:12.5px;color:var(--n500)">'
+    + 'Só administrador altera credencial. O valor não sai do servidor para esta tela — '
+    + 'e segredo salvo não volta nem para quem é administrador.</div></div>'
+    + integModalFoot();
+}
+
+const INTEG_ABA_NOME = {email:'E-mail', whatsapp:'WhatsApp'};
+
+function integAjusteOutraAba(i){
+  const nome = INTEG_ABA_NOME[i.aba]||i.aba;
+  const admin = !!(USER && USER.admin);
+  return '<div class="intm-sec"><div class="intm-rot">Onde se configura</div>'
+    +'<div style="font-size:12.5px;color:var(--n600);line-height:1.5">'
+    +'Esta integração se ajusta na aba <b>'+esc(nome)+'</b> da Gestão, junto com o resto '
+    +'do envio. Repetir o campo aqui era o que fazia salvar num lugar e conferir no outro.</div></div>'
+    +integModalFoot(admin
+      ? '<button class="btn" data-aba="'+esc(i.aba)+'" onclick="integIrParaAba(this.dataset.aba)">Abrir a aba '+esc(nome)+'</button>'
+      : '');
+}
+
+function integIrParaAba(aba){
+  /* GES_TAB ANTES do hash: a tela de Gestao escolhe a aba no proprio load
+     (`renderGestao` chama `gesTab(GES_TAB)`). Chamar `gesTab` depois de mudar
+     o hash competiria com esse load, e quem chegasse por ultimo venceria. */
+  GES_TAB = aba; fecharModal();
+  if(location.hash === '#gestao') gesTab(aba); else location.hash = '#gestao';
 }
 async function loadApps(){
   const el = document.getElementById('apps-lista');
