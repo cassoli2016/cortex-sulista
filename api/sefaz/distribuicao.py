@@ -57,7 +57,14 @@ INTERVALO_MINIMO = timedelta(minutes=60)
 #: parava o laço no 656 mas NÃO travava a próxima varredura (o freio só olhava
 #: o 137), então a execução seguinte batia de novo, dentro do castigo. O `break`
 #: do 656 era, sozinho, decorativo: o `!= 138` logo abaixo já parava o laço.
-INTERVALO_APOS_FREIO = timedelta(minutes=90)
+#:
+#: 65 MINUTOS, E NÃO UM NÚMERO "SEGURO" MAIOR. A própria SEFAZ escreve o prazo
+#: na rejeição — "Tente apos 1 hora" — e cinco minutos cobrem a diferença de
+#: relógio. Nasceu 90 por precaução, e a precaução cobrou na primeira
+#: execução real: com 62 minutos decorridos e o bloqueio DELES já vencido, era
+#: o nosso freio que estava segurando a recolha. Margem inventada em cima de um
+#: prazo declarado não é cautela, é meia hora de atraso todo dia.
+INTERVALO_APOS_FREIO = timedelta(minutes=65)
 
 #: `2` = homologação. Produção NÃO tem atalho aqui, pela mesma razão do módulo
 #: da contrapartida: trocar de ambiente é decisão de quem chama.
