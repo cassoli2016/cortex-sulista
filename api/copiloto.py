@@ -92,6 +92,7 @@ _FONTES_ROTULO = {
     "portal_cliente": "Minha Operação (portal do cliente)",
     "app_motorista": "App do Motorista — adesão",
     "monitoramentos_carga": "Monitoramentos de Carga",
+    "aplicativos": "Aplicativos da casa (rastreio e motorista)",
     "auditoria_uso": "Auditoria — acessos e uso do painel",
     "financeiro_caixa": "Fluxo de Caixa e Bancos",
     "analise_km_ano": "Análise de KM",
@@ -657,6 +658,16 @@ def _fontes_do_snapshot() -> dict:
         "portal_cliente": _portal_cliente,
         # Suporte: só escalares do banco local (nada de título, nome, e-mail)
         "suporte": lambda: __import__("api.suporte.chamados", fromlist=["resumo"]).resumo(),
+        # Aplicativos: NAO custa consulta nenhuma -- e o registro estatico de
+        # `api/aplicativos.py`, sem QR (o modelo nao le SVG) e sem endereco
+        # absoluto (a origem depende de quem pediu, e o snapshot e do
+        # servidor). Entra porque "onde o cliente acompanha a carga?" e
+        # pergunta de quem usa, e responder isso sem fonte seria o modelo
+        # inventando um endereco.
+        "aplicativos": lambda: {"aplicativos": [
+            {"nome": a["nome"], "caminho": a["rota"], "publico": a["publico"],
+             "entrada": a["entrada"]}
+            for a in __import__("api.aplicativos", fromlist=["APLICATIVOS"]).APLICATIVOS]},
         # Auditoria de uso: contagens e medianas, sem e-mail e sem IP —
         # o snapshot do Copiloto leva KPI escalar, nunca quem fez o quê.
         "auditoria_uso": lambda: __import__(

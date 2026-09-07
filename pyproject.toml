@@ -1,6 +1,6 @@
 [project]
 name = "cortex"
-version = "1.3.0"
+version = "1.4.0"
 description = "CÓRTEX — cérebro de gestão da transportadora (backend + migrations)"
 requires-python = ">=3.12"
 dependencies = [
@@ -40,6 +40,10 @@ dependencies = [
   "nfelib",                # classes geradas dos XSD dos layouts
   "truststore>=0.10.4",    # raizes ICP-Brasil pelo cofre do sistema
   "reportlab>=5.0.1",
+  # QR dos aplicativos (tela `apps`). Python PURO e sem dependencia
+  # transitiva: e a unica forma de desenhar QR sem CDN, e a casa nao
+  # busca script de host externo em runtime.
+  "segno>=1.6",
 ]
 
 # Ferramentas de teste. Grupo "test" e NAO "dev" de proposito: o uv instala o

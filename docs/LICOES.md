@@ -4739,3 +4739,98 @@ vermelhos (`assert 60 == 59`).
   arredonda; freio que arredonda para baixo e freio que afrouxa sozinho.
 - **Nao ha zero mensagem repetida sem UM relogio.** Dois gatilhos idempotentes
   nao duplicam, mas tambem nao tem horario.
+
+---
+
+## A tela de Aplicativos, e o que faz "ir direto para o menu" ser verdade (2026-09-07, v1.4.0)
+
+Pedido de quem opera: *"um menu com todos os acessos aos aplicativos que
+criamos -- hoje o de rastreio e o de motorista -- e no futuro todo aplicativo
+novo deve ir direto para esse menu"*.
+
+A primeira metade e uma tela. A segunda e a interessante.
+
+### O que e "aplicativo" aqui
+
+Pagina PROPRIA, servida fora do painel, com endereco proprio e publico proprio:
+`/r` (rastreio, para quem espera a carga) e `/motorista`. Cada um com a sua
+porta de entrada -- o rastreio nao pede login porque o token vem no link; o do
+motorista manda codigo no WhatsApp.
+
+Tela do painel NAO e aplicativo: mora dentro do `index.html`, e alcancada por
+hash e o acesso vem do RBAC. Sem essa fronteira escrita, o registro viraria uma
+segunda lista de telas.
+
+### "Direto" nao se consegue com disciplina
+
+A casa ja sabe disso: a regra de que TELA NOVA TEM SEIS REGISTROS existe porque
+alguem sempre esquece um -- e a tela esquecida **nao da erro**, so nao aparece.
+Ausencia nao tem sintoma.
+
+Entao a promessa e mecanica, em duas pecas:
+
+1. **`api/aplicativos.py` e a fonte unica.** A tela desenha o que estiver la;
+   ninguem escreve cartao a mao no HTML.
+2. **`tests/test_aplicativos.py` cobra o registro pelo DISCO.** Todo
+   `api/static/*.html` que nao seja o painel tem de estar no registro. Sabotado
+   com um `frota.html` solto, o teste diz:
+
+       aplicativo(s) sem registro: ['frota.html']. Toda pagina propria entra em
+       api/aplicativos.APLICATIVOS -- e so assim ela aparece na tela `apps`.
+
+O caminho e o DISCO e nao as rotas do `main.py` de proposito: aplicativo e
+pagina, e pagina e arquivo. Um teste que lesse as rotas acharia o mesmo hoje e
+deixaria passar o dia em que alguem servir a pagina de outro jeito.
+
+### Tres decisoes que nao sao obvias
+
+**O endereco vem de QUEM PEDIU.** O CORTEX responde por mais de um caminho ao
+mesmo tempo -- o tunel Cloudflare, o ngrok ao lado dele e o `127.0.0.1` da
+bancada. Endereco fixo no servidor faria a pessoa copiar um link que nao e o
+dela, e o link do rastreio existe PARA ser copiado. Vem do
+`X-Forwarded-Proto`/`Host`, e o proto vem primeiro porque atras do tunel o
+socket sempre diz `http` -- um QR com `http://` nao abre no celular de ninguem.
+
+**O QR e SVG EMBUTIDO, gerado no servidor.** A casa nao busca imagem nem script
+de host nenhum em runtime (e por isso que o ECharts e o Leaflet sao
+vendorizados); o QR segue a mesma regra. `segno` foi a escolha por ser Python
+PURO e sem dependencia transitiva -- 1,9 KB de SVG por aplicativo.
+
+**Sem a biblioteca, o aplicativo continua no menu.** `qr_svg()` devolve `None`
+em vez de levantar: numa instalacao sem a dependencia sincronizada, a tela
+mostra o endereco e o botao de copiar. Aplicativo que sumisse do menu por falta
+de uma biblioteca de DESENHO seria pior que aplicativo sem QR. Ha teste para
+isso.
+
+### De todo usuario logado, e por que
+
+`apps` entra em `TELAS_TODO_LOGADO` como o Suporte. E um diretorio de links,
+sem dado de negocio: esconde-lo por perfil so faria alguem nao achar o endereco
+que precisa mandar para um cliente. Os aplicativos que ele lista tem
+autenticacao propria -- que e onde a protecao mora de verdade.
+
+### De passagem: tres variaveis de CSS que nunca existiram
+
+A suite acusou `test_nao_ha_var_ink_fantasma_no_css` -- e nao era desta
+entrega: `var(--ink)`, `var(--ink2)` e `var(--papel)` vieram com o chat
+RH-motorista (v1.2.0) e o `main` ja estava vermelho. As tres NUNCA foram
+definidas: `color: var(--ink)` e `background: var(--papel)` nao resolviam e
+caiam para o herdado, o que no tema escuro e campo de resposta ilegivel.
+
+E a familia do "regra de CSS que perde a briga": a regra existe, esta escrita,
+e nao vale. Aqui nem chega a perder -- ela aponta para um nome que nao existe.
+
+Trocadas pelos tokens que o proprio `CLAUDE.md` nomeia (`--n900` para tinta,
+`--n500` para secundario, `--n0` para o fundo), que sao os mesmos da regra irma
+`.gx-form textarea` no mesmo arquivo. Corrigir codigo de outra frente nao e
+habito, mas guard vermelho no `main` para todo mundo e pior que a fronteira.
+
+### O que fica como regra
+
+- **Promessa de processo ("todo X novo vai para Y") pede MECANICA, nao
+  disciplina.** Uma fonte unica mais um guard que cobra pelo disco; sem o
+  guard, a promessa dura ate o primeiro dia corrido.
+- **Ausencia nao tem sintoma.** Aplicativo fora do menu nao da erro, nao aparece
+  em log e ninguem reclama -- por isso o alarme tem de ser proprio, e tem de
+  dizer o NOME do que faltou.
+- **Recurso que depende de biblioteca opcional degrada, nao desaparece.**

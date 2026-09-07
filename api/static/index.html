@@ -2553,6 +2553,26 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 .gx-form textarea{resize:vertical;line-height:1.45}
 .gx-sub{margin:-6px 0 12px}
 @media(max-width:560px){ .gx-form{grid-template-columns:1fr} }
+/* --- tela Aplicativos ------------------------------------------------ */
+/* minmax(0,1fr) e nao 1fr: `1fr` e minmax(auto,1fr) e a trilha nao encolhe
+   abaixo do min-content do endereco, que e longo -- o cartao da direita
+   nasceria FORA da tela, sem erro nenhum (a licao da grade que empurra). */
+.apps-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,340px));
+  gap:18px;align-items:start}
+.appcard{border:1px solid var(--n200);border-radius:8px;padding:18px;
+  background:var(--n0);display:grid;gap:9px}
+.appcard h3{margin:0;font-size:16px;font-weight:600;color:var(--n900)}
+.appcard .quem{font-size:12.5px;color:var(--n500)}
+.appcard .quem b{color:var(--n900);font-weight:600}
+.appcard p{margin:0;font-size:13px;color:var(--n700);line-height:1.5}
+.appcard .linha{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.appcard .url{font-family:var(--mono);font-size:12px;color:var(--n700);
+  background:var(--n50);border:1px solid var(--n200);border-radius:6px;
+  padding:6px 9px;overflow-x:auto;white-space:nowrap;flex:1 1 180px;min-width:0}
+.appcard .qr{width:132px;height:132px;flex:0 0 auto}
+.appcard .qr svg{width:100%;height:100%;display:block}
+.appcard .abrir{margin-left:auto}
+@media(max-width:560px){ .apps-grid{grid-template-columns:minmax(0,1fr)} }
 </style>
 <script>
 /* TEMA — carimbado ANTES do primeiro pixel.
@@ -2621,6 +2641,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       </div>
       <a href="#home" class="sub topo" data-view="home" title="Visão Geral"><span class="ic" data-ic="home"></span><span>Visão Geral</span></a>
       <a href="#cop" class="sub topo" data-view="cop" title="Copiloto Cortex"><span class="ic" data-ic="cop"></span><span>Copiloto Cortex</span></a>
+      <a href="#apps" class="sub topo" data-view="apps" title="Aplicativos — os endereços do rastreio e do app do motorista"><span class="ic" data-ic="appsic"></span><span>Aplicativos</span></a>
       <div class="navsep" role="separator"></div>
       <button class="group" id="grpAntt" aria-expanded="false" aria-controls="subsAntt" onclick="toggleGroup('grpAntt','subsAntt','cs.anttGroup')" title="ANTT">
         <span class="ic" data-ic="qualic"></span><span>ANTT</span><span class="ic chev" data-ic="chev"></span>
@@ -8059,6 +8080,10 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
       </section>
       <!-- ===================== SUPORTE — MEUS CHAMADOS ===================== -->
+      <section class="view" id="view-apps">
+        <div class="card"><div class="head"><h2>Aplicativos da Sulista</h2><span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: o registro em api/aplicativos.py, a fonte única desta tela. Todo aplicativo novo (página própria servida fora do painel) entra lá e aparece aqui sozinho — tests/test_aplicativos.py reprova a suíte se um api/static/*.html não estiver registrado. O endereço e o QR são montados com a origem de QUEM PEDIU (o túnel, o ngrok ou o 127.0.0.1), para o link copiado ser o que funciona para você.">ⓘ</span></div>
+          <div class="apps-grid" id="apps-lista"></div></div>
+      </section>
       <section class="view" id="view-sup">
         <div class="kband">
           <div class="kpis k4" id="kpis-sup"></div>
@@ -8433,6 +8458,7 @@ const ICONS = {
   monic: IC('<path d="M12 20v-6"/><path d="M8.5 12.5a5 5 0 0 1 7 0"/><path d="M5.5 9.5a9 9 0 0 1 13 0"/><circle cx="12" cy="20" r="1.6"/>'),
   audic: IC('<path d="M4 19V5m0 14h16M8 15V9m4 6V6m4 9v-4"/><circle cx="18" cy="7" r="2.5"/>'),
   srv:  IC('<rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01M7 16.5h.01M11 7.5h5M11 16.5h5"/>'),
+  appsic: IC('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'),
   supic: IC('<path d="M4 13a8 8 0 0 1 16 0"/><rect x="3" y="12" width="4" height="6" rx="1.5"/><rect x="17" y="12" width="4" height="6" rx="1.5"/><path d="M19 18v1a2 2 0 0 1-2 2h-4"/>'),
   supfila: IC('<path d="M4 6h16M4 12h9M4 18h6"/><circle cx="18" cy="17" r="3.5"/><path d="M18 15v2l1.5 1"/>'),
   doc:  IC('<path d="M6 3h8l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5"/><path d="M8.5 12.5h7M8.5 16h5"/>'),
@@ -8486,7 +8512,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { tvcom:'Painel TV — Comunicação', home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', aud:'Auditoria e Uso', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { tvcom:'Painel TV — Comunicação', home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', aud:'Auditoria e Uso', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -8754,7 +8780,7 @@ function toggleGroup(gid,sid,key){
   // grupos iniciam fechados no HTML; syncGroups(currentView) abre o do view ativo.
 })();
 
-const VIEW_GROUP = {home:'',cop:'',
+const VIEW_GROUP = {home:'',cop:'',apps:'',
   com:'Com',clif:'Com',crm:'Com',rent:'Com',drecli:'Com',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',banc:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',antport:'Fin',fluxcon:'Fin',rec:'Fin',
   dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',ctecp:'Ctr',
@@ -9100,7 +9126,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,pecas:DATAPECAS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+  const LOADMAP={apps:loadApps,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -9165,6 +9191,7 @@ const NAV_KW={
   rh:'vaga recrutamento contratacao selecao', home:'inicio visao geral resumo dashboard',
   cop:'copiloto ia chat pergunta assistente', gestao:'usuario perfil acesso permissao auditoria seguranca',
   srv:'servidor saude infra api banco tunel',
+  apps:'aplicativos apps app rastreio motorista link endereco qr codigo celular acesso',
   sup:'suporte chamado ticket reportar bug melhoria duvida ajuda problema resposta',
   supfila:'fila suporte atendimento chamados sla avisos whatsapp email github',
   des:'avaliacao desempenho nine box potencial talento sucessao matriz 9box gestor equipe ciclo',
@@ -37888,6 +37915,44 @@ function supLinhaAttrs(id, modo){
 }
 
 /* ---------- tela `sup`: meus chamados ---------- */
+async function loadApps(){
+  const el = document.getElementById('apps-lista');
+  if(!el) return;
+  try{
+    const r = await fetch('/api/aplicativos',{cache:'no-store'});
+    const d = await respostaJSON(r);
+    if(!d.ok){ el.innerHTML = '<div class="vazio">'+esc((d.dados||{}).mensagem||'Não foi possível carregar os aplicativos.')+'</div>'; return; }
+    const apps = (d.dados||{}).aplicativos||[];
+    if(!apps.length){ el.innerHTML = '<div class="vazio">Nenhum aplicativo registrado.</div>'; return; }
+    /* O QR vem do servidor como SVG EMBUTIDO: a casa não busca imagem de host
+       nenhum em runtime, e SVG escala sem borrar. O `esc()` NÃO se aplica a
+       ele — é marcação que nós mesmos geramos, não texto de usuário. */
+    el.innerHTML = apps.map(a => `
+      <div class="appcard">
+        <h3>${esc(a.nome)}</h3>
+        <div class="quem"><b>Para:</b> ${esc(a.publico)}</div>
+        <div class="quem"><b>Entra:</b> ${esc(a.entrada)}</div>
+        <p>${esc(a.descricao)}</p>
+        <div class="linha">
+          <span class="url" title="${esc(a.url)}">${esc(a.url)}</span>
+          ${a.qr ? '<span class="qr" role="img" aria-label="QR do endereço de '+esc(a.nome)+'">'+a.qr+'</span>' : ''}
+        </div>
+        <div class="linha">
+          <button class="btn sm" data-url="${esc(a.url)}" onclick="appsCopiar(this)">Copiar link</button>
+          <a class="btn sm abrir" href="${esc(a.rota)}" target="_blank" rel="noopener">Abrir</a>
+        </div>
+      </div>`).join('');
+  }catch(err){
+    el.innerHTML = '<div class="vazio">'+esc(err.message||'Não foi possível falar com a API.')+'</div>';
+  }
+}
+async function appsCopiar(bt){
+  const url = bt.dataset.url||'';
+  const antes = bt.textContent;
+  try{ await navigator.clipboard.writeText(url); bt.textContent='Copiado'; }
+  catch(e){ bt.textContent='Copie à mão'; }
+  setTimeout(()=>{ bt.textContent = antes; }, 1800);
+}
 async function loadSup(){
   const alvo = supAlvoDaUrl('sup');
   const ok = await supMeusCarregar(false);
@@ -38310,6 +38375,7 @@ boot();
     <div class="dgrp" data-grp="Ger">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Geral</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
+        <a href="#apps" onclick="fecharDrawer()"><span class="ic" data-ic="appsic"></span>Aplicativos</a>
         <a href="#cop" onclick="fecharDrawer()"><span class="ic" data-ic="cop"></span>Copiloto Cortex</a>
         <a href="#home" onclick="fecharDrawer()"><span class="ic" data-ic="home"></span>Visão Geral</a>
       </div>

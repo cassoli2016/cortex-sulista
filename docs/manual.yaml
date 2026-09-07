@@ -720,6 +720,7 @@ grupos:
   telas:
   - home
   - cop
+  - apps
 - nome: Financeiro
   resumo: Caixa e sua projeção, títulos a receber e a pagar, régua de cobrança, conciliação do extrato,
     lançamentos bancários (razão do banco lançamento a lançamento), fluxo consolidado por período, antecipação

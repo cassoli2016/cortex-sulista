@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.4.0] — 07/09/2026  ·  CX-07/09/2026-v1.4.0
+
+### Adicionado
+- Uma tela nova, Aplicativos, no topo do menu: ali estão todos os aplicativos que a casa publica hoje — o rastreio de carga e o app do motorista — com o endereço de cada um, para quem serve, como se entra, botão de copiar o link e um QR code para apontar o celular. É o lugar para achar o endereço que você precisa mandar para um cliente ou para um motorista, sem procurar em conversa antiga.
+- O QR resolve o caso real: os dois são aplicativos de celular. O motorista não vai digitar um endereço na cabine, e quem manda o link de rastreio muitas vezes está mostrando a tela para alguém do outro lado do balcão.
+- O endereço mostrado é o MESMO por onde você entrou. O CÓRTEX responde por mais de um caminho ao mesmo tempo, e um endereço fixo faria você copiar um link que não é o seu.
+- A tela aparece para todo mundo que entra no sistema, como o Suporte: é um diretório de links, e cada aplicativo tem a própria porta de entrada — o rastreio não pede login porque o token vem no link, e o do motorista manda código por WhatsApp.
+- De passagem, três cores do chat RH-motorista voltaram a existir: elas apontavam para nomes que nunca foram definidos, então o campo de resposta ficava sem cor e sem fundo próprios — no tema escuro, texto ilegível.
+- E o pedido de que "todo aplicativo novo vá direto para esse menu" virou mecânica, não disciplina: existe um registro único, e uma verificação automática reprova a entrega se alguém publicar um aplicativo sem registrá-lo — dizendo o nome do arquivo esquecido. Aplicativo que não aparece no menu não dá erro nenhum; por isso a ausência precisava de alarme próprio.
+
 ## [1.3.0] — 07/09/2026  ·  CX-07/09/2026-v1.3.0
 
 ### Adicionado

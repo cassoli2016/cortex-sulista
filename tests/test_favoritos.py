@@ -197,8 +197,12 @@ def test_o_nao_admin_so_ve_as_dele():
     from api import auth
     perm = auth.telas_favoritaveis(
         {"id": 1, "admin": False, "telas": ["prem", "veic"]})
-    # 'sup' (Suporte) é de todo usuário logado: entra sem estar no perfil
-    assert perm == {"prem", "veic", "sup"}
+    # 'sup' (Suporte) e 'apps' (Aplicativos) são de todo usuário logado:
+    # entram sem estar no perfil. A lista é escrita à mão DE PROPÓSITO —
+    # acrescentar tela ao `TELAS_TODO_LOGADO` passa a exigir mudar este teste,
+    # que é o que impede o conjunto de crescer sozinho (mesmo desenho do
+    # `test_a_lista_de_PERMISSOES_SEM_TELA_nao_cresce_sozinha`, abaixo).
+    assert perm == {"prem", "veic", "sup", "apps"}
     assert "srv" not in perm and "supfila" not in perm
 
 

@@ -171,6 +171,15 @@ para tela nova**; os guards moram em arquivos que não falam do assunto.
 - **Ao aposentar uma tela, a substituta HERDA o id** (`jorn`, `crm`, `mul`) —
   é RBAC: id novo faria a tela sumir do menu de quem já tinha acesso. Só herda
   quem substitui MESMO.
+- **APLICATIVO NÃO É TELA, e tem registro próprio.** Aplicativo é página
+  PRÓPRIA servida fora do painel, com endereço e público próprios (`/r`,
+  `/motorista`); tela mora no `index.html` e vem por hash. Todo aplicativo entra
+  em `api/aplicativos.APLICATIVOS`, que é a fonte única da tela `apps` — e
+  `tests/test_aplicativos.py` cobra pelo DISCO: `api/static/*.html` que não seja
+  o painel e não esteja no registro reprova a suíte nomeando o arquivo.
+  Aplicativo fora do menu não dá erro nenhum, por isso a ausência tem alarme
+  próprio. O endereço e o QR saem da origem de QUEM PEDIU (o CÓRTEX responde
+  pelo túnel, pelo ngrok e por `127.0.0.1`).
 - Integração é **módulo por fornecedor** em `api/<fornecedor>/` (gobrax,
   smartec, tomtom, whatsapp, monkey, jornada/RasterJOR, pedagio/QualP) — não
   existe hub genérico de conectores.

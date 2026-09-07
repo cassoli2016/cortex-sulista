@@ -692,6 +692,25 @@ def _eu(req: Request) -> dict:
     return msessao.exigir(req)
 
 
+@app.get("/api/aplicativos")
+def aplicativos_lista(req: Request) -> JSONResponse:
+    """Os aplicativos da casa, para a tela `apps`.
+
+    A BASE VEM DE QUEM PEDIU, e nao de configuracao: o CORTEX responde por mais
+    de um caminho ao mesmo tempo (o tunel Cloudflare, o ngrok ao lado dele e o
+    `127.0.0.1` da bancada). Um endereco fixo aqui faria a pessoa copiar um
+    link que nao e o dela -- e o link do rastreio existe para ser copiado.
+
+    `X-Forwarded-Proto` primeiro porque atras do tunel o socket sempre diz
+    `http`, e um QR com `http://` nao abre no celular de ninguem.
+    """
+    from api import aplicativos
+    h = req.headers
+    esquema = h.get("x-forwarded-proto") or req.url.scheme
+    host = h.get("x-forwarded-host") or h.get("host") or req.url.netloc
+    return JSONResponse({"aplicativos": aplicativos.listar(f"{esquema}://{host}")})
+
+
 @app.get("/motorista")
 def motorista_pagina() -> FileResponse:
     return FileResponse(STATIC / "motorista.html",

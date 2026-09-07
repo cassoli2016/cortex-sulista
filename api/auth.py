@@ -384,7 +384,10 @@ _ROTAS_AUTOSERVICO = ("/api/auth/me", "/api/auth/logout", "/api/auth/trocar-senh
 # PRÓPRIA foto: a lista de usuários e a auditoria mostram a foto de outras
 # pessoas, então o caminho carrega um id e precisa casar por prefixo.
 _ROTAS_SEM_TELA = ("/api/push/", "/api/report", "/api/auth/foto/",
-                   "/api/favoritos", "/api/notificacoes", "/api/suporte/meus")
+                   "/api/favoritos", "/api/notificacoes", "/api/suporte/meus",
+                   # a tela `apps` e de todo usuario logado (TELAS_TODO_LOGADO),
+                   # entao a rota dela nao tem entrada em ROTA_TELAS
+                   "/api/aplicativos")
 
 # Telas que EXISTEM no menu mas nao tem entrada em `TELAS`, porque o acesso a
 # elas e decidido de outro jeito:
@@ -408,9 +411,15 @@ _ROTAS_SEM_TELA = ("/api/push/", "/api/report", "/api/auth/foto/",
 #: acrescentar uma aqui esta dizendo "isto e permissao, de proposito".
 TELAS_SEM_MENU = frozenset({"dreexc", "desrh"})
 
-TELAS_TODO_LOGADO = frozenset({"sup"})
+#: `apps` entra aqui pelo mesmo motivo do `sup`: e um DIRETORIO DE LINKS, sem
+#: dado de negocio nenhum. Os aplicativos que ele lista tem autenticacao
+#: propria -- o rastreio nao pede login (o token vem no link) e o do motorista
+#: manda codigo no WhatsApp --, entao esconder a LISTA por perfil so faria
+#: alguem nao achar o endereco que precisa mandar para um cliente.
+TELAS_TODO_LOGADO = frozenset({"sup", "apps"})
 
 TELAS_FORA_DO_RBAC = {
+    "apps":   ("Aplicativos", "Início"),
     "sup":    ("Suporte", "Suporte"),
     "srv":    ("Saúde do Servidor", "Sistema"),
     "gestao": ("Gestão", "Sistema"),
