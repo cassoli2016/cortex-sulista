@@ -4560,3 +4560,87 @@ e orfaos, e a deteccao achou exatamente os dois.
   diferentes, e a segunda so aparece se alguem for contar o que ficou.
 - **Processo orfao tem assinatura propria** (`parent_pid` apontando para um
   morto), e ela e mais precisa que qualquer heuristica por nome.
+
+---
+
+## Os dois verificadores do 1.0.0 estavam quebrados, e a sabotagem que apagou 219 registros (2026-09-06, v0.265.1)
+
+Pergunta de quem opera: *ja e hora do 1.0.0?* O `CLAUDE.md` respondia que os
+tres criterios estavam **cumpridos desde 30/08/2026**. Fui reconferir em vez de
+citar, e os dois verificadores estavam mortos.
+
+### Criterio 2: quebrado havia quatro dias, calado
+
+`scripts/conferir_numeros.py` morria com `KeyError: 'kpis'` desde 02/09, quando
+o payload das Ordens de Compra desceu um nivel (`oc["kpis"]` para
+`oc["sem_nota"]["kpis"]`, v0.210.0). E o pior nao e o bloco de OC: **tudo o que
+vem depois nunca rodava** -- a cascata da DRE, a mensagem do WhatsApp e os TRES
+RECORTES DE RECEITA, que sao o criterio 3 do mesmo 1.0.0.
+
+Por que ninguem viu: o guard (`test_a_conferencia_continua_no_script`) le o
+TEXTO-FONTE e confere que a linha da checagem continua escrita. Continuava --
+so nao executava. Protege contra APAGAR a checagem, nao contra ela QUEBRAR.
+
+### A divergencia que nao era
+
+Consertado, ele acusou duas: WhatsApp 94,2% contra Visao Geral 94,6%, e
+R$ 2.127.689,67 contra R$ 2.136.281,32. Nao era defeito. A mensagem mede **dias
+FECHADOS** de proposito (a regra do veneno do dia em curso) e a tela usa a
+regua MTD. Provado a virgula: R$ 2.127.689,67 e exatamente a soma dos dias
+fechados, e os R$ 8.591,65 de diferenca sao o dia 6 em curso.
+
+O verificador e que comparava coisas diferentes -- e a NOTA dele dizia que "o
+provedor le o atingimento PRONTO", o que deixou de ser verdade quando o
+provedor passou a fechar por dia. **Conferidor que acusa todo dia a mesma coisa
+certa e pior que nenhum: ensina a ignorar o vermelho.** Agora compara igual com
+igual e imprime o dia em curso como INFO.
+
+### Criterio 1: morria de encoding
+
+`scripts/testar_restauracao.py` morria de `UnicodeEncodeError` no passo 4: ele
+imprime a saida dos subprocessos (lida com `errors="replace"`, portanto com
+U+FFFD) num console cp1252. Uma linha de `sys.stdout.reconfigure` resolveu, e o
+script chegou ao veredito pela primeira vez.
+
+### E entao ele denunciou o que EU tinha feito
+
+No passo 3 e no 5, o relatorio trazia coisas que nao deviam estar la:
+
+    ! ausentes: caixa, mot_codigos, mot_sessoes, mot_vinculos, t
+    . atencao: rntrc_transportador (backup 219 > producao 1)
+
+`caixa` e `t` sao tabelas dos MEUS testes de isolamento -- uma coluna `v text`,
+zero linhas, nenhuma migration as cria. E `rntrc_transportador` tinha UMA linha
+em producao: `rntrc='111', nome='X', municipio='SBC'`, um duble. Os 219
+registros reais tinham sido apagados.
+
+**A causa fui eu.** Ao SABOTAR o `SET search_path` do `pglocal` -- de proposito,
+para provar que o guard de isolamento acende --, as escritas dos testes
+deixaram de ir para o schema de teste e cairam em `cortex`. E o
+`gravar_lote` da ANTT faz `DELETE` + `INSERT`: substituicao total.
+
+O teste estava CERTO (passa `esquema_pg` como deve). Quem furou o isolamento
+foi a sabotagem.
+
+Restaurado do backup das 03:20 com
+`pg_restore --data-only --schema=cortex --table=rntrc_transportador`: 219
+registros de volta, duble removido, `caixa` e `t` apagadas. O teste de
+restauracao rodado de novo confirma que so restam as migrations do app do
+motorista, posteriores ao backup.
+
+### O que fica como regra
+
+- **Sabotar o mecanismo de ISOLAMENTO abre a porta de producao pelo tempo da
+  sabotagem.** Sabotagem que mexe em `search_path`, pool, DSN ou conexao roda
+  contra banco DESCARTAVEL. As outras (logica, cabecalho, formatacao) nao tem
+  esse risco.
+- **Guard de isolamento tem de ACUSAR o vazamento**, nao so falhar por outro
+  motivo. O de `test_pglocal_pool.py` agora limpa e diz "a tabela do teste foi
+  parar no schema de PRODUCAO".
+- **Guard que le texto-fonte protege contra apagar, nao contra quebrar.**
+- **Verificador que nao roda nao prova nada -- e a afirmacao no `CLAUDE.md`
+  sobrevive a ele.** "Cumprido desde 30/08" continuava escrito enquanto os dois
+  scripts morriam no meio.
+- **O que salvou foi backup diario mais comparacao de volume POR TABELA.** Sem
+  o passo 5, 219 registros teriam sumido em silencio: ninguem olha
+  `rntrc_transportador` todo dia.

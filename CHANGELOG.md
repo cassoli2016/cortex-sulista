@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.265.1] — 06/09/2026  ·  CX-06/09/2026-v0.265.1
+
+### Corrigido
+- As duas verificações que provam que o sistema é confiável voltaram a funcionar — as duas estavam quebradas e ninguém sabia. A que compara os números entre telas morria no meio desde 02/09, quando um relatório mudou de formato; com ela morriam junto a conferência da DRE e a das três leituras de receita, que nunca chegavam a rodar. A que prova que o backup restaura morria por um problema de acentuação no console do Windows.
+- Com as duas consertadas: a comparação entre telas fecha SEM NENHUMA divergência, e a restauração do backup foi provada de ponta a ponta — o sistema sobe apontado para a cópia restaurada e todos os módulos leem dados reais dela.
+- Uma diferença que era acusada todo dia deixou de ser: a mensagem de faturamento do WhatsApp mede só dias FECHADOS, de propósito, e a tela usa a régua do mês até agora. Não era erro — a verificação é que comparava coisas diferentes. Agora compara igual com igual, e a diferença do dia em curso aparece explicada.
+- E ficou guardado em teste um risco que se materializou durante esta própria verificação: desligar o mecanismo que isola os testes do banco de produção faz a suíte escrever no banco real. O teste que guarda esse isolamento agora limpa e ACUSA quando isso acontece, em vez de deixar passar em silêncio.
+
 ## [0.265.0] — 06/09/2026  ·  CX-06/09/2026-v0.265.0
 
 ### Adicionado

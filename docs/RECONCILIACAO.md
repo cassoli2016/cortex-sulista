@@ -86,14 +86,34 @@ numerador de uma régua com o denominador de outra** deu **96% de atingimento
 onde o real era 91,3%** — faltava um milhão, e a mensagem dizia que a meta
 estava quase batida.
 
-O par que fecha é `realizado_acumulado ÷ meta_acumulada`. O provedor do
-WhatsApp lê o `atingimento_mes` **pronto** em vez de recalcular, e a
-conferência 20 existe para garantir que ninguém volte a recalculá-lo com o
-numerador errado.
+O par que fecha é `realizado_acumulado ÷ meta_acumulada`, e a conferência 20
+existe para garantir que ninguém volte a recalculá-lo com o numerador errado.
 
-## Estado em 30/08/2026
+### A mensagem do WhatsApp mede DIAS FECHADOS (06/09/2026)
 
-**NENHUMA DIVERGÊNCIA.** As 24 conferências passam.
+Até 06/09 a conferência 23 confrontava a mensagem com a **régua MTD** da tela e
+acusava divergência todo dia: 94,2% × 94,6%, R$ 2.127.689,67 × R$ 2.136.281,32.
+**Não era defeito.** A mensagem fecha por DIA de propósito — a régua MTD põe a
+meta CHEIA de hoje contra o realizado de alguns minutos e derruba o atingimento
+às 07:00 (a regra do veneno do dia em curso). Medido: R$ 2.127.689,67 é
+exatamente a soma dos dias fechados, e os R$ 8.591,65 de diferença são o dia em
+curso.
+
+A conferência passou a comparar **dias fechados com dias fechados**, e a régua
+MTD aparece como INFO ao lado. Conferidor que acusa todo dia a mesma coisa certa
+é pior que nenhum: ensina a ignorar o vermelho.
+
+## Estado em 06/09/2026
+
+**NENHUMA DIVERGÊNCIA** — e desta vez o script chega ao fim.
+
+Vale registrar por que a data mudou: entre 02/09 e 06/09 o conferidor estava
+**morrendo com `KeyError: 'kpis'`**, porque o payload das Ordens de Compra
+desceu um nível (v0.210.0). Com ele morriam a cascata da DRE, a mensagem do
+WhatsApp e os três recortes de receita — que são o critério 3 do `1.0.0`. O
+guard que existia lia o TEXTO-FONTE e conferia que a linha continuava escrita;
+continuava, só não executava. O guard que EXECUTA é
+`tests/reconciliacao/test_conferidor_executa.py`.
 
 Não há, hoje, divergência a adjudicar — logo não há linha esperando veredito
 nem dono. **Este documento não é uma lista de pendências; é o registro de que

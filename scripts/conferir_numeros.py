@@ -195,17 +195,36 @@ def main() -> int:
 
     # ------------------------------------------------------------------
     bloco("ORDENS DE COMPRA: faixas x KPI")
+    # O PAYLOAD DESCEU UM NIVEL em 02/09/2026 (v0.210.0): o que era
+    # `oc["kpis"]` e `oc["faixas"]` virou `oc["sem_nota"][...]`, com a fila de
+    # aprovacao num bloco separado. Este script nao acompanhou e passou a
+    # morrer com `KeyError: 'kpis'` -- calado, porque o guard dele confere que o
+    # TEXTO da checagem existe e nunca executou o script. Ficou quebrado de
+    # 02/09 a 06/09, e com ele nao rodavam a cascata da DRE nem as TRES
+    # RECEITAS, que sao o criterio 3 do 1.0.0.
     oc = q.get_oc_pendentes(180)
-    ock = oc["kpis"]
+    sn = oc["sem_nota"]
+    ock = sn["kpis"]
     conferir_soma("OC em aberto: faixas x KPI", ock.get("ocs"),
-                  [f.get("ocs") for f in (oc.get("faixas") or [])],
+                  [f.get("ocs") for f in (sn.get("faixas") or [])],
                   rotulo_partes="soma das faixas")
     conferir_soma("OC em aberto (valor): faixas x KPI", ock.get("valor"),
-                  [f.get("valor") for f in (oc.get("faixas") or [])],
+                  [f.get("valor") for f in (sn.get("faixas") or [])],
                   rotulo_partes="soma das faixas", tol=0.05)
-    conferir("Previsao: futura + vencida + sem data = total",
-             "soma", (ock.get("prev_futura") or 0) + (ock.get("prev_vencida") or 0)
-             + (ock.get("prev_ausente") or 0), "OCs em aberto", ock.get("ocs"))
+    # `prev_futura`/`prev_vencida`/`prev_ausente` sairam na v0.211.1, quando
+    # "prazo informado so conta como vencido depois de 7 dias". A invariante
+    # equivalente hoje e a CADEIA: quem tem prazo vencido tem prazo informado,
+    # e quem tem prazo informado esta entre as OCs em aberto.
+    conferir("Prazo vencido nao passa do prazo informado",
+             "vencido", ock.get("prazo_vencido"),
+             "informado (teto)", min(ock.get("prazo_informado") or 0,
+                                     ock.get("prazo_vencido") or 0))
+    conferir("Prazo informado nao passa do total em aberto",
+             "informado", ock.get("prazo_informado"),
+             "em aberto (teto)", min(ock.get("ocs") or 0,
+                                     ock.get("prazo_informado") or 0))
+    conferir("Lista de OCs x KPI", "lista_total", sn.get("lista_total"),
+             "OCs em aberto", ock.get("ocs"))
 
     # ------------------------------------------------------------------
     bloco("DRE: cascata fecha")
@@ -358,14 +377,34 @@ def main() -> int:
     try:
         from api.whatsapp.valores import faturamento_diario
         w = faturamento_diario(vg)
-        conferir("Atingimento do mes na mensagem", "WhatsApp",
-                 w.get("atingimento_mes"), "Visao Geral",
-                 _pct_br(ating), tol=None,
-                 nota="o provedor le o atingimento PRONTO; recalcular abriria a "
-                      "chance de usar o numerador de outra regua")
-        conferir("Acumulado do mes na mensagem", "WhatsApp",
-                 w.get("acumulado_mes"), "Visao Geral", _brl_br(real_acum),
-                 tol=None)
+        # COMPARAR IGUAL COM IGUAL. Ate 06/09/2026 este bloco confrontava a
+        # mensagem com a REGUA MTD da Visao Geral e acusava divergencia todo
+        # dia -- R$ 8.591,65 e 0,4 pp na ultima medicao. Nao era defeito: a
+        # mensagem mede DIAS FECHADOS de proposito (regra do veneno do dia em
+        # curso, ver `api/whatsapp/valores.py`), porque a regua MTD poe a meta
+        # CHEIA de hoje contra o realizado de alguns minutos e derruba o
+        # atingimento as 07:00. A nota antiga daqui dizia que "o provedor le o
+        # atingimento PRONTO", o que deixou de ser verdade quando ele passou a
+        # fechar por dia.
+        #
+        # Um conferidor que acusa todo dia a mesma coisa CERTA e pior que
+        # nenhum: ensina a ignorar o vermelho.
+        dias_vg = vg.get("diario") or []
+        fechados = [d for d in dias_vg if int(d.get("dia") or 0) < hoje.day]
+        real_fechado = sum(float(d.get("realizado") or 0) for d in fechados)
+        meta_fechada = sum(float(d.get("meta") or 0) for d in fechados)
+        ating_fechado = (real_fechado / meta_fechada) if meta_fechada else 0
+        conferir("Acumulado da mensagem x dias fechados", "WhatsApp",
+                 w.get("acumulado_mes"), "dias fechados", _brl_br(real_fechado),
+                 tol=None,
+                 nota="a mensagem fecha por DIA; a regua MTD da tela inclui o "
+                      "dia em curso e por isso e maior, de proposito")
+        conferir("Atingimento da mensagem x dias fechados", "WhatsApp",
+                 w.get("atingimento_mes"), "dias fechados",
+                 _pct_br(ating_fechado), tol=None)
+        print(f"  INFO  Regua MTD x dias fechados     : "
+              f"{_brl_br(real_acum)} x {_brl_br(real_fechado)} "
+              f"= {_brl_br((real_acum or 0) - real_fechado)} do dia em curso")
     except Exception as exc:  # noqa: BLE001
         ACHADOS.append(("VAZIO", "Mensagem de faturamento",
                         f"nao deu para conferir ({type(exc).__name__}: {exc})"))

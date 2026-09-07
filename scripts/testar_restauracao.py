@@ -45,6 +45,17 @@ import sys
 import time
 from pathlib import Path
 
+# O CONSOLE DO WINDOWS NASCE EM cp1252, e este script IMPRIME o que os
+# subprocessos devolveram -- lidos com `errors="replace"`, o que pode trazer
+# U+FFFD. Sem esta linha o verificador morre de `UnicodeEncodeError` no meio do
+# passo 4 e nao chega ao veredito: o script que existe para PROVAR o criterio 1
+# do 1.0.0 nao provava nada, e a falha nem parecia dele (visto em 06/09/2026).
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:  # pragma: no cover - console que nao aceita reconfigurar
+    pass
+
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 

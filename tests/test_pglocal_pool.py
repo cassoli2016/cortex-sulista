@@ -61,6 +61,27 @@ def test_o_search_path_nao_gruda_de_uma_chamada_para_a_outra(pg_disponivel):
                 pglocal.apagar_esquema(nome)
             except Exception:  # noqa: BLE001
                 pass
+        # SE O MECANISMO ESTIVER QUEBRADO, A ESCRITA CAI EM PRODUCAO -- e foi o
+        # que aconteceu em 06/09/2026 ao SABOTAR este guard para conferir que
+        # ele acende: sem o `SET search_path`, o `CREATE TABLE caixa` foi para o
+        # schema `cortex`, e so apareceu horas depois, no teste de restauracao
+        # de backup, como "tabela ausente no restaurado".
+        #
+        # O teste nao pode qualificar o schema no DDL (e justamente o
+        # `search_path` que ele existe para provar), entao ele LIMPA e ACUSA:
+        # contaminacao silenciosa vira falha que se nomeia.
+        vazou = pglocal.query(
+            "SELECT tablename FROM pg_tables "
+            "WHERE schemaname = %s AND tablename = 'caixa'",
+            (pglocal.ESQUEMA_PADRAO,))
+        if vazou:
+            pglocal.executar(
+                'DROP TABLE IF EXISTS "%s".caixa' % pglocal.ESQUEMA_PADRAO)
+            pytest.fail(
+                "a tabela do teste foi parar no schema de PRODUCAO "
+                f"({pglocal.ESQUEMA_PADRAO}) -- o `SET search_path` do "
+                "`get_conn` nao esta valendo. Foi apagada, mas o isolamento "
+                "esta furado.")
 
 
 def test_erro_no_bloco_continua_desfazendo_a_transacao(esquema_pg):

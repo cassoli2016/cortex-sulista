@@ -603,6 +603,19 @@ barra empilhada, não donut.
   estava em `tests/correio/`, e o outro da MESMA regra em
   `tests/test_boas_vindas.py`, na raiz. `grep -rl "<a regra>" tests/` custa dois
   segundos; guard não mora necessariamente ao lado do código que ele guarda.
+- **SABOTAR O ISOLAMENTO ESCREVE EM PRODUÇÃO.** Desligar o `SET search_path`
+  do `pglocal` para conferir o guard mandou a escrita da suíte para `cortex`:
+  criou `caixa`/`t` e APAGOU 219 registros de `rntrc_transportador` (o
+  `gravar_lote` da ANTT é `DELETE` + `INSERT`). Sabotagem que mexe em
+  `search_path`, pool, DSN ou conexão roda contra banco DESCARTÁVEL; o guard de
+  `tests/test_pglocal_pool.py` agora limpa e ACUSA o vazamento. Restaurado do
+  backup — o que salvou foi o passo 5 do `testar_restauracao.py`, que compara
+  volume POR TABELA.
+- **Guard que lê TEXTO-FONTE protege contra apagar, não contra quebrar.** O
+  `conferir_numeros.py` (prova do critério 2 do `1.0.0`) ficou 4 dias morto com
+  `KeyError` enquanto o guard dele conferia que a linha continuava escrita — e
+  com ele não rodavam a DRE nem as três receitas. O guard que executa é
+  `tests/reconciliacao/test_conferidor_executa.py`.
 - **Verde que nunca ficaria vermelho não conferiu nada** — sabotar o alvo e ver
   o teste falhar leva trinta segundos; campo ausente em conferidor vira ACHADO,
   não silêncio.

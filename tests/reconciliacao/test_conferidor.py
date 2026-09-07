@@ -97,7 +97,13 @@ EXIGIDAS = [
     ("Atingimento = realizado / meta", "o par que fecha — 96% x 91,3%"),
     ("Realizado = soma da serie diaria", "o cartão x o gráfico da mesma tela"),
     ("Meta acumulada = soma das metas ate hoje", "idem"),
-    ("Atingimento do mes na mensagem", "o WhatsApp x a Visão Geral"),
+    # Renomeada em 06/09/2026: era "Atingimento do mes na mensagem" e
+    # comparava com a régua MTD da tela, acusando divergência TODO DIA por uma
+    # diferença que é de propósito (a mensagem fecha por dia). Agora confronta
+    # dias fechados com dias fechados — e o guard cobrou a troca, que é o que
+    # ele existe para fazer.
+    ("Atingimento da mensagem x dias fechados", "o WhatsApp x a Visão Geral"),
+    ("Acumulado da mensagem x dias fechados", "o valor que sai da empresa"),
     ("A pagar vencido", "duas definições de vencido"),
 ]
 
