@@ -186,3 +186,122 @@ def test_a_meta_da_conversa_alinha_a_ESQUERDA(pagina):
     fonte = (pathlib.Path(__file__).resolve().parents[2]
              / "api" / "static" / "index.html").read_text(encoding="utf-8")
     assert ".meta{font-size:12px;color:var(--n500);text-align:right" in fonte
+
+
+# =============================================== o mural, na tela do RH ====
+
+MURAL = {"comunicados": [
+    {"id": 5, "titulo": "Convenção coletiva 2026",
+     "texto": "A convenção foi assinada. O reajuste entra na folha de outubro.",
+     "autor": "fernanda@sulista.com.br", "criado_em": "2026-09-05T09:00:00",
+     "encerrado": False, "encerrado_em": None,
+     "destinatarios": 80, "confirmaram": 45, "viram_sem_confirmar": 12,
+     "faltam": 35, "pct": 56.3},
+    {"id": 4, "titulo": "Campanha de exames", "texto": "Procure o RH.",
+     "autor": "RH", "criado_em": "2026-08-01T09:00:00",
+     "encerrado": True, "encerrado_em": "2026-08-30T09:00:00",
+     "destinatarios": 70, "confirmaram": 70, "viram_sem_confirmar": 0,
+     "faltam": 0, "pct": 100.0}],
+    "mostrados": 2, "limite": 50, "total": 2,
+    "fonte": "CÓRTEX · mural do RH (mot_comunicados)"}
+
+FALTAM = {"faltam": [{"motorista_id": 12, "nome": "ANA MOTORISTA", "abriu": True},
+                     {"motorista_id": 13, "nome": "BRUNO MOTORISTA", "abriu": False}],
+          "n": 2}
+
+
+def _rota_mural(route):
+    u = route.request.url.split("?")[0]
+    if u.endswith("/faltam"):
+        corpo = FALTAM
+    elif u.endswith("/api/rh/motorista/mural"):
+        corpo = MURAL
+    else:
+        corpo = {"ok": True}
+    route.fulfill(status=200, content_type="application/json",
+                  body=json.dumps(corpo))
+
+
+def _abrir_mural(pg, base_url):
+    pg.route("**/api/**", _rota)
+    pg.route("**/api/rh/motorista/mural**", _rota_mural)   # a última vence
+    erros = []
+    pg.on("pageerror", lambda e: erros.append(str(e)))
+    pg.goto("%s/static/index.html#rhmot" % base_url)
+    pg.wait_for_selector("#view-rhmot.on", timeout=15000)
+    pg.click("#tabrhmot-mural")
+    pg.wait_for_selector("#rhmot-mural .rhmot-item", timeout=15000)
+    return erros
+
+
+def test_o_mural_e_UM_cartao_com_a_fracao(pagina):
+    """O que faz ele caber ao lado da caixa sem afogá-la: 300 destinatários
+    viram UMA linha com "45 / 80", e não 300 linhas na fila."""
+    pg, base_url = pagina
+    erros = _abrir_mural(pg, base_url)
+    itens = pg.eval_on_selector_all("#rhmot-mural .rhmot-item", "e => e.length")
+    assert itens == 2, "um cartão por comunicado, e não por destinatário"
+    texto = pg.text_content("#rhmot-mural")
+    assert "45 / 80" in texto and "56,3%" in texto
+    assert "35 sem confirmar" in texto
+    assert "12 abriram e não confirmaram" in texto
+    assert not erros, erros
+
+
+def test_o_encerrado_nao_pede_mais_nada(pagina):
+    pg, base_url = pagina
+    _abrir_mural(pg, base_url)
+    texto = pg.text_content("#rhmot-mural")
+    assert "encerrado" in texto and "todos confirmaram" in texto
+
+
+def test_ver_quem_falta_marca_quem_ABRIU(pagina):
+    """"45 de 80" sem os nomes não vira ação. E quem abriu e não confirmou é a
+    conversa mais útil das duas."""
+    pg, base_url = pagina
+    _abrir_mural(pg, base_url)
+    pg.click("#rhmot-mural .integ-lnk")
+    # `.badge` e a classe DA CASA (`.b-warn`/`.b-info`). A primeira versao
+    # usava `.pill`, que nao existe — e classe inexistente nao da erro: o nome
+    # sairia como texto cru no meio da frase. Mesma familia do token fantasma.
+    pg.wait_for_selector("#rhmot-faltam-5 .badge", timeout=15000)
+    texto = pg.text_content("#rhmot-faltam-5")
+    assert "ANA MOTORISTA · abriu" in texto
+    assert "BRUNO MOTORISTA" in texto and "BRUNO MOTORISTA · abriu" not in texto
+
+
+def test_a_aba_do_mural_carrega_SO_quando_e_aberta(pagina):
+    """`data-ao-abrir`: a caixa é o que o RH usa todo dia, o mural é ocasional.
+    Buscar os dois na abertura da tela paga por um que ninguém pediu."""
+    pg, base_url = pagina
+    pedidas = []
+    pg.route("**/api/**", lambda r: (pedidas.append(r.request.url), _rota(r))[-1])
+    pg.route("**/api/rh/motorista/mural**",
+             lambda r: (pedidas.append(r.request.url), _rota_mural(r))[-1])
+    pg.goto("%s/static/index.html#rhmot" % base_url)
+    pg.wait_for_selector("#kpis-rhmot .kpi", timeout=15000)
+    assert not any("/mural" in u for u in pedidas), (
+        "o mural foi buscado sem ninguém abrir a aba")
+    pg.click("#tabrhmot-mural")
+    pg.wait_for_selector("#rhmot-mural .rhmot-item", timeout=15000)
+    assert any("/mural" in u for u in pedidas)
+
+
+def test_os_selos_usam_o_BADGE_da_casa_e_nao_um_nome_inventado(pagina):
+    """`.pill` não existe no `index.html` — e classe inexistente NÃO dá erro:
+    o texto sai cru, sem cor e sem contorno, no meio da frase. Foi o que
+    aconteceu na primeira versão desta tela.
+
+    É a mesma família do token de cor fantasma (`test_tema.py`): um nome que
+    parece componente e não é. A diferença é que este só aparece OLHANDO — por
+    isso o guard mede o `borderRadius` computado, e não o texto do CSS.
+    """
+    pg, base_url = pagina
+    _abrir_mural(pg, base_url)
+    selo = pg.query_selector("#rhmot-mural .badge")
+    assert selo, "nenhum selo desenhado — a classe do badge está errada"
+    raio = pg.eval_on_selector("#rhmot-mural .badge",
+                               "e => getComputedStyle(e).borderRadius")
+    assert raio not in ("0px", ""), (
+        "o selo não recebeu estilo: a classe existe no HTML mas não no CSS")
+    assert "class=\"pill" not in pg.content()

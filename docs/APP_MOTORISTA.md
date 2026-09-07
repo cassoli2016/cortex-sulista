@@ -205,10 +205,23 @@ de ela ser diferente da que o §10 tomou no escuro.
    horário.** `entrada.py` abre a janela de propósito (código de entrada é
    resposta a quem está esperando às 03:40); aqui é o contrário — resposta do
    RH é mensagem de empresa, que é o que a janela existe para conter.
-4. **Comunicado em massa não existe.** 300 conversas de uma vez entopem a fila
-   que o resto do desenho existe para manter atendível, e o aviso sairia contra
-   o teto de 60 destinatários/dia do número que fala com clientes. Mural é
-   outro objeto — sem fila e sem resposta —, e não este.
+4. ~~**Comunicado em massa não existe.**~~ **Existe desde a v1.3.0, e como o
+   OUTRO OBJETO que esta linha já nomeava — um MURAL, sem fila e sem
+   resposta** (`api/motorista/mural.py`, migration 0064). O que continua
+   valendo é a razão: publicar não abre conversa nenhuma, e há guard
+   (`test_publicar_NAO_cria_conversa_nenhuma`) provando isso — 300 linhas na
+   caixa destruiriam a ordem por mais parado e o "paradas há 3+ dias", que
+   são os dois números que fazem dela uma fila.
+
+   O público é FOTOGRAFADO na publicação (uma linha por destinatário, no ato):
+   quem entra depois não deve ciência do que é anterior, e a fração não muda
+   de denominador sozinha a cada admissão. "Abriu" e "confirmou" são campos
+   diferentes — são duas conversas diferentes com a pessoa.
+
+   **O aviso em massa por WhatsApp continua fora**, e é a mesma conta: 60
+   destinatários distintos por dia contra ~300 motoristas são cinco dias de
+   ondas gastando o número que fala com clientes, e no quinto dia o comunicado
+   já não é notícia. Quem avisa é a marca no app.
 5. **A caixa do RH não devolve o `motorista_codigo`** (é o CPF para pessoa
    física). Só id opaco e nome, como no acesso mestre e na escolha da entrada.
 6. **Anexo e foto ficam para depois, de propósito.** Foto de documento é metade

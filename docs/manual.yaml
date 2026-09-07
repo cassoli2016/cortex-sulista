@@ -3,6 +3,25 @@ sistema: 'O CÓRTEX é o painel de gestão da Transportadora Sulista S/A. Ele l�
   — financeiro, comercial, operação, frota, pessoas e controladoria. Nenhum número é digitado aqui: tudo
   vem do ERP, e cada card diz no ⓘ de qual tabela e de qual regra ele saiu.'
 glossario:
+- termo: Comunicado (mural do RH)
+  definicao: >-
+    Um aviso da empresa para TODOS os motoristas de uma vez, na aba
+    Comunicados do Canal do Motorista. NÃO é conversa: não tem dono, não tem
+    estado e não se responde — o que se cobra é CIÊNCIA, e a tela mostra a
+    fração ("45 de 80 confirmaram"), quem abriu e não confirmou, e quem nunca
+    abriu. É de propósito que ele seja um objeto separado da fila: publicar
+    300 conversas de uma vez destruiria os dois números que fazem a caixa ser
+    uma fila (a ordem pelo mais parado e o "paradas há 3+ dias").
+    O PÚBLICO É FOTOGRAFADO NA PUBLICAÇÃO — quem for contratado depois não
+    passa a dever ciência de um comunicado antigo, e a fração não muda de
+    denominador sozinha a cada admissão.
+    Encerrar tira o comunicado do app e para de pedir confirmação, sem apagar:
+    um aviso de março que segue pedindo "li e entendi" ensina a pessoa a
+    ignorar o pedido, inclusive no de hoje.
+    NÃO sai aviso em massa por WhatsApp: o teto da casa é de 60 destinatários
+    distintos por dia e ele protege o número que fala com clientes — quem
+    avisa é a marca no app. Quem quiser FALAR sobre um comunicado abre um
+    pedido normal, que aí entra na fila com dono.
 - termo: Canal do Motorista (RH)
   definicao: >-
     A caixa de entrada do RH para as conversas com o motorista, e a única tela

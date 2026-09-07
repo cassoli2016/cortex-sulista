@@ -817,12 +817,22 @@ def _mot_avisos(sess: dict) -> dict:
     """Quantos recados esperam por ele. Uma consulta local, e ela NAO derruba
     o login: sem o numero a bolinha nao aparece, que e a degradacao certa."""
     from api.motorista import conversas as mconv
+    from api.motorista import mural as mmural
     try:
         d = mconv.minhas(sess)
-        return {"conversas": int(d["nao_lidas"]) + int(d["pendencias"])}
+        n = int(d["nao_lidas"]) + int(d["pendencias"])
     except Exception as exc:  # noqa: BLE001
         log.info("avisos do motorista indisponiveis (%s)", type(exc).__name__)
         return {}
+    try:
+        # O COMUNICADO CONTA NA MESMA BOLINHA: para quem le, "tem coisa do RH
+        # esperando" e uma so — dois avisos separados na mesma aba obrigariam
+        # o motorista a aprender a diferenca entre mural e fila antes de
+        # entender o que fazer.
+        n += int(mmural.meus(sess)["pendentes"])
+    except Exception as exc:  # noqa: BLE001
+        log.info("mural indisponivel para o aviso (%s)", type(exc).__name__)
+    return {"conversas": n}
 
 
 @app.post("/api/motorista/sair")
@@ -939,6 +949,7 @@ def _mot_escrever(req: Request, acao, assunto: str, corpo: dict) -> JSONResponse
     gravacao — o que se registra e o que aconteceu, nao o que se pretendia.
     """
     from api.motorista import conversas as mconv
+    from api.motorista import mural as mmural
     from api.motorista import sessao as msessao
     try:
         sess = _eu(req)
@@ -946,7 +957,9 @@ def _mot_escrever(req: Request, acao, assunto: str, corpo: dict) -> JSONResponse
         return _mot_recusa("Faca login para continuar.", status=401)
     try:
         r = acao(sess, corpo)
-    except mconv.Recusa as exc:
+    # AS DUAS: `mural.Recusa` e outra classe, e com so a do canal aqui uma
+    # recusa LEGIVEL viraria "nao consegui salvar" generico.
+    except (mconv.Recusa, mmural.Recusa) as exc:
         return _mot_recusa(str(exc))
     except Exception as exc:  # noqa: BLE001
         log.warning("%s do motorista falhou: %s", assunto, type(exc).__name__)
@@ -997,6 +1010,30 @@ async def motorista_conversa_mensagem(cid: int, req: Request) -> JSONResponse:
     return _mot_escrever(
         req, lambda s, c: mconv.responder(s, cid, str(c.get("texto") or "")),
         "conversa_respondeu", corpo)
+
+
+@app.get("/api/motorista/mural")
+def motorista_mural(req: Request) -> JSONResponse:
+    """Os comunicados DELE. Separado das conversas de proposito: o mural nao
+    tem fila, nao tem dono e nao se responde — ver `api/motorista/mural.py`."""
+    from api.motorista import mural as mmural
+    return _mot_ler(req, mmural.meus, "mural")
+
+
+@app.post("/api/motorista/mural/{cid}/visto")
+async def motorista_mural_visto(cid: int, req: Request) -> JSONResponse:
+    """Ele ABRIU. Nao e ciencia — e por isso que sao dois campos: "viu e nao
+    confirmou" e "nunca abriu" sao duas conversas diferentes com a pessoa."""
+    from api.motorista import mural as mmural
+    return _mot_escrever(req, lambda s, c: mmural.marcar_visto(s, cid),
+                         "mural_viu", await _corpo_json(req))
+
+
+@app.post("/api/motorista/mural/{cid}/ciencia")
+async def motorista_mural_ciencia(cid: int, req: Request) -> JSONResponse:
+    from api.motorista import mural as mmural
+    return _mot_escrever(req, lambda s, c: mmural.dar_ciencia(s, cid),
+                         "mural_ciencia", await _corpo_json(req))
 
 
 @app.post("/api/motorista/conversas/{cid}/ciencia")
@@ -1154,11 +1191,17 @@ async def _rh_conversa_escrever(req: Request, acao, evento: str,
     nao existe.
     """
     from api.motorista import conversas as mconv
+    from api.motorista import mural as mmural
     sess = req.scope.get("state", {}).get("sessao") or {}
     autor = sess.get("nome") or sess.get("email") or ""
     try:
         r = await sem_travar(acao, sess.get("id"), autor)
-    except mconv.Recusa as exc:
+    # AS DUAS RECUSAS, e nao so a do canal. `mural.Recusa` e outra classe: com
+    # so a de `conversas` aqui, "Escreva um titulo." cairia no `except
+    # Exception` de baixo e chegaria ao RH como "Nao consegui salvar agora" —
+    # uma recusa LEGIVEL virando erro generico, que e o oposto do que o
+    # HTTP_RECUSA da casa existe para fazer.
+    except (mconv.Recusa, mmural.Recusa) as exc:
         return _rh_recusa(str(exc))
     except Exception as exc:  # noqa: BLE001
         log.warning("%s do RH falhou: %s", evento, type(exc).__name__)
@@ -1230,6 +1273,68 @@ async def rh_motorista_responder(cid: int, req: Request) -> JSONResponse:
     if resp.status_code == 200:
         await _avisar_motorista(cid)
     return resp
+
+
+# --------------------------------------------------------------- o mural
+#
+# UM COMUNICADO PARA TODOS, e nao 300 conversas: `mot_conversas` recusa
+# comunicado em massa por escrito porque trezentas linhas de uma vez destroem
+# os dois numeros que fazem a caixa ser uma FILA (a ordem por mais parado e o
+# "paradas ha 3+ dias"). O mural e o outro objeto — sem fila, sem dono e sem
+# resposta —, e na tela ele e UM cartao com uma fracao.
+
+@app.get("/api/rh/motorista/mural")
+def rh_mural(req: Request) -> JSONResponse:
+    from api.motorista import mural as mmural
+    try:
+        return JSONResponse(mmural.listar())
+    except Exception as exc:  # noqa: BLE001
+        log.warning("mural do RH falhou: %s", type(exc).__name__)
+        return _rh_recusa("Nao consegui carregar os comunicados agora.")
+
+
+@app.get("/api/rh/motorista/mural/{cid}/faltam")
+def rh_mural_faltam(cid: int, req: Request) -> JSONResponse:
+    """Quem ainda nao confirmou. "45 de 80" sem os nomes nao vira acao."""
+    from api.motorista import mural as mmural
+    try:
+        return JSONResponse(mmural.faltam(cid))
+    except mmural.Recusa as exc:
+        return _rh_recusa(str(exc), status=404)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("faltam do mural falhou: %s", type(exc).__name__)
+        return _rh_recusa("Nao consegui carregar a lista agora.")
+
+
+@app.post("/api/rh/motorista/mural")
+async def rh_mural_publicar(req: Request) -> JSONResponse:
+    """Publica para TODOS os motoristas ativos, num so ato.
+
+    NAO HA AVISO EM MASSA POR WHATSAPP, e e decisao de quem opera com o numero
+    na mesa: o teto da casa e 60 destinatarios DISTINTOS por dia, e ele protege
+    o numero que fala com clientes. Trezentos motoristas seriam cinco dias de
+    ondas — e no quinto dia o comunicado ja nao e noticia. Quem avisa e a marca
+    no app.
+    """
+    from api.motorista import mural as mmural
+    corpo = await _corpo_json(req)
+    return await _rh_conversa_escrever(
+        req,
+        lambda uid, autor: mmural.publicar(
+            str(corpo.get("titulo") or ""), str(corpo.get("texto") or ""),
+            autor_id=uid, autor_nome=autor),
+        "rh_mural_publicou")
+
+
+@app.post("/api/rh/motorista/mural/{cid}/encerrar")
+async def rh_mural_encerrar(cid: int, req: Request) -> JSONResponse:
+    """Para de cobrar ciencia, sem apagar. Um comunicado de marco que segue
+    pedindo "li e entendi" ensina a pessoa a ignorar o pedido — inclusive no
+    de hoje."""
+    from api.motorista import mural as mmural
+    return await _rh_conversa_escrever(
+        req, lambda uid, autor: mmural.encerrar(cid, autor_nome=autor),
+        "rh_mural_encerrou", alvo=cid)
 
 
 @app.post("/api/rh/motorista/conversas/{cid}/status")

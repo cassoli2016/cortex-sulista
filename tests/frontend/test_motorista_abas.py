@@ -532,3 +532,92 @@ def test_a_aba_do_RH_some_se_o_servidor_disser_que_nao_ha(pagina):
     abas = pg.eval_on_selector_all("#navbar button",
                                    "els => els.map(e => e.dataset.aba)")
     assert "rh" not in abas
+
+
+# =========================================================== o mural =======
+
+MURAL = {"comunicados": [
+    {"id": 5, "titulo": "Convenção coletiva 2026",
+     "texto": "A convenção foi assinada.\nO reajuste entra na folha de outubro.",
+     "autor": "fernanda@sulista.com.br", "quando": "2026-09-05T09:00:00",
+     "confirmado": False, "confirmado_em": None},
+    {"id": 4, "titulo": "Campanha de exames",
+     "texto": "Procure o RH até 30/09.", "autor": "RH",
+     "quando": "2026-09-01T09:00:00", "confirmado": True,
+     "confirmado_em": "2026-09-02T10:00:00"}],
+    "pendentes": 1}
+
+
+def _com_mural(pg, eu):
+    """As rotas do canal E do mural. A registrada por ÚLTIMO vence."""
+    pedidas = _com_rh(pg, eu)
+
+    def rota(route):
+        u = route.request.url.split("?")[0]
+        pedidas.append(u[u.index("/api"):])
+        route.fulfill(status=200, content_type="application/json",
+                      body=json.dumps(MURAL if u.endswith("/mural")
+                                      else {"ok": True}))
+
+    pg.route("**/api/motorista/mural**", rota)
+    return pedidas
+
+
+def _abrir_mural(pg, base_url):
+    eu = {**EU, "secoes": {**EU["secoes"], "conversas": True},
+          "avisos": {"conversas": 3}}
+    pedidas = _com_mural(pg, eu)
+    erros = []
+    pg.on("pageerror", lambda e: erros.append(str(e)))
+    pg.set_viewport_size({"width": 390, "height": 780})
+    pg.goto("%s/static/motorista.html" % base_url)
+    pg.wait_for_selector("#tela-viagem:not([hidden])", timeout=15000)
+    return pedidas, erros
+
+
+def test_o_comunicado_vem_ANTES_do_pedido_dele(pagina):
+    """O comunicado é o único item desta aba que a empresa PRECISA que ele
+    leia. Um pedido de férias dele pode esperar a rolagem; a convenção
+    coletiva, não."""
+    pg, base_url = pagina
+    _, erros = _abrir_mural(pg, base_url)
+    _ir(pg, "rh")
+    texto = pg.text_content("#tela-rh")
+    assert "Convenção coletiva 2026" in texto
+    assert "comunicado espera a sua confirmação" in texto
+    # a ordem na tela: comunicados antes de "Seus pedidos"
+    assert texto.index("Comunicados da empresa") < texto.index("Seus pedidos")
+    assert not erros, erros
+
+
+def test_o_texto_do_comunicado_PRESERVA_a_quebra_de_linha(pagina):
+    """O RH separa parágrafo, e colapsar isso vira um bloco que ninguém lê."""
+    pg, base_url = pagina
+    _abrir_mural(pg, base_url)
+    _ir(pg, "rh")
+    assert pg.eval_on_selector(".rh-comunicado",
+                               "e => getComputedStyle(e).whiteSpace") == "pre-wrap"
+
+
+def test_ABRIR_A_ABA_ja_conta_como_visto(pagina):
+    """"Viu e não confirmou" e "nunca abriu" são duas conversas diferentes com
+    a pessoa, e o RH precisa das duas. O carimbo sai sozinho ao abrir."""
+    pg, base_url = pagina
+    pedidas, _ = _abrir_mural(pg, base_url)
+    _ir(pg, "rh")
+    pg.wait_for_timeout(400)
+    assert "/api/motorista/mural/5/visto" in pedidas
+    # e SÓ para o que falta confirmar — o já confirmado não se remarca
+    assert "/api/motorista/mural/4/visto" not in pedidas
+
+
+def test_o_ja_confirmado_mostra_a_data_e_nao_o_botao(pagina):
+    """Pedir de novo o que ele já fez é o jeito de ele parar de acreditar no
+    pedido — inclusive no comunicado seguinte."""
+    pg, base_url = pagina
+    _abrir_mural(pg, base_url)
+    _ir(pg, "rh")
+    texto = pg.text_content("#tela-rh")
+    assert "VOCÊ CONFIRMOU EM" in texto
+    botoes = pg.eval_on_selector_all("[data-mural]", "e => e.map(x => x.dataset.mural)")
+    assert botoes == ["5"], "o comunicado já confirmado ganhou botão: %r" % botoes

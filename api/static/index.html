@@ -5362,15 +5362,45 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <button class="btn" type="button" onclick="rhmotNova()">Abrir conversa</button>
           </div>
         </div>
-        <div class="rhmot-grade">
+        <!-- SUB-ABA NAO E TELA: herda RBAC, icone e menu de `rhmot`. A
+             pergunta que separa e "o roteador abre por hash?" — e nao abre. O
+             mural entra aqui, e nao numa tela propria, porque quem cuida das
+             duas coisas e a mesma pessoa, na mesma sessao de trabalho. -->
+        <div class="subtabs" role="tablist" data-abas="rhmot" aria-label="Seções desta tela">
+          <button role="tab" id="tabrhmot-fila" data-aba="fila" aria-controls="aba-rhmot-fila"
+                  aria-selected="true" onclick="abaTrocar('rhmot','fila')">Conversas <span class="aban" id="abanRhmotFila"></span></button>
+          <button role="tab" id="tabrhmot-mural" data-aba="mural" aria-controls="aba-rhmot-mural"
+                  aria-selected="false" onclick="abaTrocar('rhmot','mural')">Comunicados <span class="aban" id="abanRhmotMural"></span></button>
+        </div>
+
+        <div class="aba" data-abas="rhmot" data-aba="fila" id="aba-rhmot-fila" role="tabpanel" aria-labelledby="tabrhmot-fila">
+          <div class="rhmot-grade">
+            <div class="card">
+              <div class="head"><h2>Conversas</h2><span class="hint" id="hintRhmotLista"></span></div>
+              <div class="tablewrap tabroll" id="rhmot-lista"></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2 id="rhmot-titulo">Conversa</h2>
+                <span class="hint" id="hintRhmotConv"></span></div>
+              <div id="rhmot-conversa"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="aba" data-abas="rhmot" data-aba="mural" id="aba-rhmot-mural" role="tabpanel" aria-labelledby="tabrhmot-mural" data-ao-abrir="loadRhmotMural" hidden>
           <div class="card">
-            <div class="head"><h2>Conversas</h2><span class="hint" id="hintRhmotLista"></span></div>
-            <div class="tablewrap tabroll" id="rhmot-lista"></div>
+            <div class="head"><h2>Novo comunicado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Publica UM aviso para TODOS os motoristas ativos de uma vez, e o publico e fotografado no ato: quem for contratado depois nao passa a dever ciencia de um comunicado antigo, e a fracao '45 de 80' nao muda de denominador sozinha. NAO e conversa — nao tem dono, nao tem estado e nao se responde; o que se cobra e CIENCIA. Quem quiser falar sobre ele abre um pedido normal, que ai entra na fila. NAO sai aviso em massa por WhatsApp: o teto da casa e 60 destinatarios distintos por dia e ele protege o numero que fala com clientes — quem avisa e a marca no app.">i</span></h2></div>
+            <div style="padding:0 18px 16px">
+              <label style="display:block;font:600 10.5px/1 var(--font);letter-spacing:.8px;text-transform:uppercase;color:var(--n500);margin-bottom:5px" for="rhmotTitulo">Título</label>
+              <input id="rhmotTitulo" type="text" maxlength="120" placeholder="Convenção coletiva 2026" style="width:100%;margin-bottom:10px" aria-label="Título do comunicado">
+              <label style="display:block;font:600 10.5px/1 var(--font);letter-spacing:.8px;text-transform:uppercase;color:var(--n500);margin-bottom:5px" for="rhmotTexto">Comunicado</label>
+              <textarea id="rhmotTexto" class="rhmot-resp" rows="5" maxlength="4000" placeholder="O que a empresa precisa que todo motorista leia. Ele confirma com um botão, e a tela mostra quantos já confirmaram." aria-label="Texto do comunicado"></textarea>
+              <button class="btn" type="button" style="margin-top:10px" onclick="rhmotPublicar()">Publicar para todos</button>
+            </div>
           </div>
           <div class="card">
-            <div class="head"><h2 id="rhmot-titulo">Conversa</h2>
-              <span class="hint" id="hintRhmotConv"></span></div>
-            <div id="rhmot-conversa"></div>
+            <div class="head"><h2>Publicados</h2><span class="hint" id="hintRhmotMural"></span></div>
+            <div class="tablewrap tabroll" id="rhmot-mural"></div>
           </div>
         </div>
       </section>
@@ -19572,6 +19602,9 @@ function renderRhmot(d){
         naoLidas===1?'mensagem do motorista':'mensagens do motorista')
   ].join('');
   document.getElementById('hintRhmot').textContent = d.fonte||'';
+  // CONTADOR RECEBE O ID DO `<span class="aban">`, nunca o do botao — o do
+  // botao apagaria o rotulo da aba junto.
+  abaContador('abanRhmotFila', r.vivas||0);
   // TOP-N LEVA CONTADOR: sem ele, as linhas mostradas leem-se como o total.
   document.getElementById('hintRhmotLista').textContent =
     d.mostradas>=d.limite ? (d.mostradas+' de '+(r.total||0)+' — refine a busca')
@@ -19585,11 +19618,11 @@ function renderRhmot(d){
   }
   lista.innerHTML=RHMOT.conversas.map(function(c){
     const selos=[];
-    if(c.nao_lidas) selos.push('<span class="pill neg">'+c.nao_lidas+' nova(s)</span>');
+    if(c.nao_lidas) selos.push('<span class="badge b-dang">'+c.nao_lidas+' nova(s)</span>');
     if(c.parada_dias>=3 && c.status!=='resolvida')
-      selos.push('<span class="pill warn">parada há '+Math.round(c.parada_dias)+'d</span>');
-    if(c.origem==='rh') selos.push('<span class="pill">do RH</span>');
-    if(c.status==='resolvida') selos.push('<span class="pill pos">resolvida</span>');
+      selos.push('<span class="badge b-warn">parada há '+Math.round(c.parada_dias)+'d</span>');
+    if(c.origem==='rh') selos.push('<span class="badge b-info">do RH</span>');
+    if(c.status==='resolvida') selos.push('<span class="badge b-ok">resolvida</span>');
     return '<button type="button" class="rhmot-item" data-id="'+c.id+'" onclick="rhmotAbrir(this.dataset.id)">'
       + '<div class="l1"><span class="nome">'+esc(c.motorista)+'</span>'
       + '<span class="muted" style="font-size:12px">'+esc(c.assunto_rotulo)+'</span></div>'
@@ -19597,6 +19630,124 @@ function renderRhmot(d){
       + '<div class="meta">'+selos.join(' ')+(c.atendente?' <span class="muted">com '+esc(c.atendente)+'</span>':'')+'</div>'
       + '</button>';
   }).join('');
+}
+
+// ---------------------------- o mural (comunicado para todos) -------------
+//
+// UM COMUNICADO, N CIENCIAS — e na tela UM CARTAO com uma fracao, nao
+// trezentas linhas. E o que faz ele caber ao lado da caixa sem afogar os dois
+// numeros que fazem dela uma FILA (a ordem por mais parado e o "paradas ha 3+
+// dias"). Ver `api/motorista/mural.py`.
+let RHMOTMURAL = [];
+
+async function loadRhmotMural(){
+  const alvo=document.getElementById('rhmot-mural');
+  alvo.innerHTML='<p class="muted" style="padding:10px">Carregando…</p>';
+  let d;
+  try{
+    const r=await fetch('/api/rh/motorista/mural',{cache:'no-store'});
+    d=await respostaJSON(r);
+  }catch(e){ d={ok:false, mensagem:'Sem conexão com a API.'}; }
+  if(!d.ok){ alvo.innerHTML='<p class="muted" style="padding:10px">'
+    +esc(d.mensagem||'Não consegui carregar.')+'</p>'; return; }
+  RHMOTMURAL=d.dados.comunicados||[];
+  document.getElementById('hintRhmotMural').textContent =
+    d.dados.mostrados>=d.dados.limite
+      ? (d.dados.mostrados+' de '+d.dados.total)
+      : (d.dados.mostrados+' comunicado(s)');
+  abaContador('abanRhmotMural', RHMOTMURAL.filter(function(x){return !x.encerrado;}).length);
+
+  if(!RHMOTMURAL.length){
+    alvo.innerHTML='<p class="muted" style="padding:10px">Nenhum comunicado publicado ainda.</p>';
+    return;
+  }
+  alvo.innerHTML=RHMOTMURAL.map(function(c){
+    // A FRACAO E O NUMERO DA TELA. "45 de 80 confirmaram" e o que diz se o
+    // comunicado chegou; sem ela, publicar e falar sozinho.
+    const pct = c.pct===null ? '—' : (c.pct.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%');
+    // ESTADO E RESULTADO NAO SE EXCLUEM: "encerrado" diz que parou de cobrar,
+    // "todos confirmaram" diz como terminou. Um `else if` entre os dois
+    // esconderia o desfecho justamente no comunicado que ja fechou — que e o
+    // unico sobre o qual alguem vai perguntar depois.
+    const selos=[];
+    if(c.encerrado) selos.push('<span class="badge b-info">encerrado</span>');
+    if(c.faltam) selos.push('<span class="badge b-warn">'+c.faltam+' sem confirmar</span>');
+    else if(c.destinatarios) selos.push('<span class="badge b-ok">todos confirmaram</span>');
+    if(c.viram_sem_confirmar)
+      selos.push('<span class="badge b-info">'+c.viram_sem_confirmar+' abriram e não confirmaram</span>');
+    return '<div class="rhmot-item" style="cursor:default">'
+      + '<div class="l1"><span class="nome">'+esc(c.titulo)+'</span>'
+      + '<span class="mono" style="font-weight:700">'+c.confirmaram+' / '+c.destinatarios
+      + ' <span class="muted" style="font-weight:400">('+pct+')</span></span></div>'
+      + '<div class="meta">'+esc((c.texto||'').slice(0,140))
+      + ((c.texto||'').length>140?'…':'')+'</div>'
+      + '<div class="meta">'+selos.join(' ')+' <span class="muted">'
+      + esc(c.autor||'RH')+' · '+esc(fmtDT(c.criado_em))+'</span></div>'
+      + '<div class="meta" style="margin-top:6px">'
+      + (c.faltam ? '<button type="button" class="integ-lnk" onclick="rhmotFaltam('+c.id+')">ver quem falta</button> ' : '')
+      + (c.encerrado ? '' : '<button type="button" class="integ-lnk" onclick="rhmotEncerrar('+c.id+')">encerrar</button>')
+      + '</div><div id="rhmot-faltam-'+c.id+'"></div></div>';
+  }).join('');
+}
+
+async function rhmotPublicar(){
+  const t=(document.getElementById('rhmotTitulo').value||'').trim();
+  const x=(document.getElementById('rhmotTexto').value||'').trim();
+  if(!t||!x){ showBanner('Escreva o título e o comunicado.'); return; }
+  // A CONFIRMACAO DIZ QUANTOS, e nao "tem certeza?": o numero e o que faz a
+  // pessoa parar e reler antes de publicar para trezentos celulares.
+  if(!confirm('Publicar "'+t+'" para TODOS os motoristas ativos? '
+    + 'Cada um vai ver no app e confirmar a leitura.')) return;
+  let d;
+  try{
+    const r=await fetch('/api/rh/motorista/mural',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({titulo:t, texto:x})});
+    d=await respostaJSON(r);
+  }catch(e){ d={ok:false, mensagem:'Sem conexão. Tente de novo.'}; }
+  if(!d.ok){ showBanner(d.mensagem||'Não consegui publicar.'); return; }
+  document.getElementById('rhmotTitulo').value='';
+  document.getElementById('rhmotTexto').value='';
+  // PUBLICADO PARA NINGUEM E UM ESTADO POSSIVEL (nenhum vinculo ativo), e ele
+  // tem de ser DITO — senao alguem escreve, ve "publicado" e acha que
+  // trezentas pessoas leram.
+  showBanner(d.dados.destinatarios
+    ? 'Publicado para '+d.dados.destinatarios+' motorista(s).'
+    : 'Publicado, mas NENHUM motorista está vinculado ao app — ninguém vai ver.');
+  loadRhmotMural();
+}
+
+async function rhmotFaltam(id){
+  const alvo=document.getElementById('rhmot-faltam-'+id);
+  if(alvo.innerHTML){ alvo.innerHTML=''; return; }   // clicar de novo fecha
+  alvo.innerHTML='<p class="muted">Carregando…</p>';
+  let d;
+  try{
+    const r=await fetch('/api/rh/motorista/mural/'+id+'/faltam',{cache:'no-store'});
+    d=await respostaJSON(r);
+  }catch(e){ d={ok:false, mensagem:'Sem conexão.'}; }
+  if(!d.ok){ alvo.innerHTML='<p class="muted">'+esc(d.mensagem||'')+'</p>'; return; }
+  // ABRIU E NAO CONFIRMOU vem primeiro e marcado: e a conversa mais util das
+  // duas — essa pessoa viu e escolheu nao confirmar, ou nao achou o botao.
+  alvo.innerHTML='<div style="margin-top:6px;font-size:12px;line-height:1.7">'
+    + d.dados.faltam.map(function(m){
+        return '<span class="badge '+(m.abriu?'b-warn':'b-info')+'" style="margin:0 4px 4px 0;display:inline-block">'
+          + esc(m.nome)+(m.abriu?' · abriu':'')+'</span>';
+      }).join('')
+    + '</div>';
+}
+
+async function rhmotEncerrar(id){
+  if(!confirm('Encerrar este comunicado? Ele sai do app dos motoristas e para '
+    + 'de pedir confirmação. O que já foi confirmado continua registrado.')) return;
+  let d;
+  try{
+    const r=await fetch('/api/rh/motorista/mural/'+id+'/encerrar',{method:'POST',
+      headers:{'Content-Type':'application/json'}, body:'{}'});
+    d=await respostaJSON(r);
+  }catch(e){ d={ok:false, mensagem:'Sem conexão.'}; }
+  if(!d.ok){ showBanner(d.mensagem||'Não consegui encerrar.'); return; }
+  loadRhmotMural();
 }
 
 async function rhmotAbrir(id){

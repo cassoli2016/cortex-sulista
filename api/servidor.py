@@ -635,6 +635,14 @@ def _app_motorista() -> dict:
                 partes.append("%d sem dono" % c["sem_dono"])
             if c["paradas_3d"]:
                 partes.append("⚠ %d parada(s) ha 3+ dias" % c["paradas_3d"])
+        # O MURAL: comunicado vivo com ciencia pendente. Nao e alarme — e a
+        # unica forma de "publicamos e ninguem confirmou" aparecer sem alguem
+        # abrir a tela para procurar.
+        from api.motorista import mural as _mu
+        m = _mu.contagem()
+        if m["vivos"]:
+            partes.append("mural: %d comunicado(s) no ar, %d ciencia(s) "
+                          "pendente(s)" % (m["vivos"], m["ciencias_pendentes"]))
     except Exception as exc:  # noqa: BLE001
         log.info("saude: canal do RH indisponivel (%s)", type(exc).__name__)
 

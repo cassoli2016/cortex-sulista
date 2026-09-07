@@ -324,6 +324,10 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
 .rh-item .tit{font-weight:600;font-size:15px}
 .rh-item .quando{font-size:12px;color:var(--ink2);white-space:nowrap}
 .rh-item .meta{font-size:12.5px;color:var(--ink2);margin-top:3px}
+/* O texto do comunicado preserva a quebra de linha de quem escreveu: o
+   RH separa paragrafo, e colapsar isso vira um bloco que ninguem le. */
+.rh-comunicado{white-space:pre-wrap;font-size:14.5px;line-height:1.5;
+  margin:var(--e1) 0 6px}
 .rh-fio{margin:var(--e1) 0 var(--e2)}
 .rh-bolha{border-radius:10px;padding:10px 12px;margin-bottom:var(--e1);
   max-width:90%;font-size:14.5px;line-height:1.45;white-space:pre-wrap;
@@ -853,7 +857,13 @@ const ABAS = [
     alvo: "card-registros",      desenhar: desenharOcorrencias },
   { id: "jornada",       rotulo: "Jornada",  url: "/api/motorista/jornada",
     alvo: "card-jornada",        desenhar: desenharJornada },
-  { id: "rh",            rotulo: "RH",       url: "/api/motorista/conversas",
+  // DUAS FONTES NA MESMA ABA: o mural (comunicado para todos) e a fila (o
+  // pedido dele) sao objetos diferentes no servidor — um nao tem dono nem
+  // resposta, o outro tem —, mas para quem le sao a mesma coisa: "o que o RH
+  // tem comigo". Duas abas obrigariam o motorista a aprender a diferenca antes
+  // de entender o que fazer.
+  { id: "rh",            rotulo: "RH",
+    url: ["/api/motorista/conversas", "/api/motorista/mural"],
     alvo: "card-rh",             desenhar: desenharRh },
   // `conta` NAO ENTRA NA BARRA (ver o comentario do botao no cabecalho): ela
   // e uma aba de verdade — abre pelo mesmo `abrirAba`, tem secao propria —,
@@ -1319,18 +1329,27 @@ function desenharJornada(d) {
 // A LISTA VEM PRIMEIRO, A CONVERSA DEPOIS: `rhAberta` guarda qual esta aberta
 // e o mesmo `desenharRh` pinta os dois estados. Duas telas separadas exigiriam
 // um segundo roteador so para esta aba.
-let RH = { dados: null, aberta: null };
+let RH = { dados: null, mural: [], aberta: null };
 
-function desenharRh(d) {
+function desenharRh(d, m) {
   RH.dados = d;
+  RH.mural = (m && m.comunicados) || [];
   RH.aberta = null;
   const alvo = $("card-rh");
   const c = d.conversas || [];
 
+  // O COMUNICADO VEM PRIMEIRO, e nao no fim: ele e o unico item desta aba que
+  // a empresa PRECISA que ele leia. Um pedido de ferias dele pode esperar a
+  // rolagem; a convencao coletiva, nao.
+  const pend = RH.mural.filter(function (x) { return !x.confirmado; });
   let html = "";
-  if (d.pendencias) {
-    html += "<div class='tarja'>" + plural(d.pendencias, "comunicado espera",
+  if (pend.length) {
+    html += "<div class='tarja'>" + plural(pend.length, "comunicado espera",
       "comunicados esperam") + " a sua confirmação de leitura.</div>";
+  }
+  if (RH.mural.length) {
+    html += card("Comunicados da empresa",
+      RH.mural.map(comunicadoRh).join(""));
   }
 
   html += card("Falar com o RH",
@@ -1348,9 +1367,9 @@ function desenharRh(d) {
            "pedidos abertos") + ". Aguarde uma resposta antes de abrir outro.</p>"
        : ""));
 
-  html += card("Seus pedidos e comunicados",
+  html += card("Seus pedidos",
     c.length ? c.map(itemRh).join("")
-             : "<p class='vaziomsg'>Você ainda não tem nenhuma conversa.</p>");
+             : "<p class='vaziomsg'>Você ainda não abriu nenhum pedido.</p>");
 
   alvo.innerHTML = html;
   alvo.querySelectorAll(".rh-assunto").forEach(function (b) {
@@ -1359,6 +1378,43 @@ function desenharRh(d) {
   alvo.querySelectorAll("[data-conversa]").forEach(function (b) {
     b.addEventListener("click", function () { rhAbrir(b.dataset.conversa); });
   });
+  alvo.querySelectorAll("[data-mural]").forEach(function (b) {
+    b.addEventListener("click", function () { muralCiencia(b.dataset.mural, b); });
+  });
+  // ABRIR A ABA JA CONTA COMO "VIU". Nao e ciencia — e o que separa "viu e nao
+  // confirmou" de "nunca abriu", que sao duas conversas diferentes que o RH
+  // vai ter com a pessoa. Sai sem esperar resposta (`void`): e carimbo, e uma
+  // falha aqui nao pode atrapalhar a leitura.
+  RH.mural.filter(function (x) { return !x.confirmado; }).forEach(function (x) {
+    void pedir("/api/motorista/mural/" + x.id + "/visto",
+               { method: "POST", body: JSON.stringify({}) });
+  });
+}
+
+async function muralCiencia(id, btn) {
+  ocupado(btn, true);
+  const r = await pedir("/api/motorista/mural/" + id + "/ciencia",
+    { method: "POST", body: JSON.stringify({}) });
+  ocupado(btn, false, "Li e entendi");
+  if (!r.ok && r.status === 401) return mostrar("tela-entrar");
+  if (!r.ok) return;
+  delete cache.rh;
+  await abrirAba("rh");
+}
+
+function comunicadoRh(x) {
+  return "<div class='item'><div class='top'><div class='tit'>"
+    + esc(x.titulo) + "</div><div class='quando'>"
+    + dia((x.quando || "").slice(0, 10)) + "</div></div>"
+    + "<div class='rh-comunicado'>" + esc(x.texto) + "</div>"
+    + "<div class='meta'>" + esc(x.autor ? "RH · " + x.autor : "RH") + "</div>"
+    + (x.confirmado
+       ? "<div class='meta'><span class='selo ok'>VOCÊ CONFIRMOU EM "
+         + dia((x.confirmado_em || "").slice(0, 10)) + "</span></div>"
+       : "<button type='button' class='sair rh-ciencia' data-mural='" + x.id
+         + "' style='background:var(--ok);color:#fff;border-color:var(--ok);"
+         + "font-weight:600;margin-top:var(--e1)'>Li e entendi</button>")
+    + "</div>";
 }
 
 function itemRh(x) {

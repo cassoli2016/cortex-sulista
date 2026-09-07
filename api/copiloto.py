@@ -311,7 +311,16 @@ def _app_motorista() -> dict:
                       (SELECT count(*) FROM mot_conversas
                         WHERE status <> 'resolvida'
                           AND ultima_em < now() - interval '3 days')::int
-                        AS conversas_paradas""")
+                        AS conversas_paradas,
+                      -- O MURAL. "Publicamos e quantos confirmaram" e pergunta
+                      -- de gestao, e nao tem resposta em tela nenhuma alem da
+                      -- propria aba de comunicados.
+                      (SELECT count(*) FROM mot_comunicados
+                        WHERE encerrado_em IS NULL)::int AS comunicados_no_ar,
+                      (SELECT count(*) FROM mot_comunicado_ciencia k
+                         JOIN mot_comunicados c2 ON c2.id = k.comunicado_id
+                        WHERE c2.encerrado_em IS NULL
+                          AND k.ciencia_em IS NULL)::int AS ciencias_pendentes""")
     except Exception as exc:  # noqa: BLE001
         if pglocal.sem_tabela(exc):
             return {"instalado": False}
@@ -319,7 +328,9 @@ def _app_motorista() -> dict:
     return {"instalado": True, **dict(r or {"vinculados": 0, "ativos_30d": 0,
                                             "mestre_30d": 0, "com_multa": 0,
                                             "conversas_abertas": 0,
-                                            "conversas_paradas": 0})}
+                                            "conversas_paradas": 0,
+                                            "comunicados_no_ar": 0,
+                                            "ciencias_pendentes": 0})}
 
 
 def _fontes_do_snapshot() -> dict:

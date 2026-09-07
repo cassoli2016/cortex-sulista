@@ -1,3 +1,40 @@
+- versao: "1.3.0"
+  data: "2026-09-07"
+  adicionado:
+    - >-
+      O RH passou a poder mandar UM comunicado para todos os motoristas de uma
+      vez. Ele escreve na aba Comunicados do Canal do Motorista, publica, e o
+      aviso aparece no app de cada um com um botão de "li e entendi" — a tela
+      mostra a fração de quem já confirmou, quem abriu e não confirmou, e quem
+      nunca abriu.
+    - >-
+      É um objeto separado da caixa de conversas, de propósito: um comunicado
+      vira UM cartão com "45 de 80", e não 300 conversas na fila. Sem essa
+      separação, publicar destruiria os dois números que fazem a caixa ser uma
+      fila — a ordem por quem espera há mais tempo e o "paradas há 3 dias ou
+      mais".
+    - >-
+      O público é definido no momento em que você publica. Quem for contratado
+      depois não passa a dever confirmação de um comunicado antigo, e a fração
+      não muda de denominador sozinha a cada admissão ou desligamento.
+    - >-
+      Encerrar um comunicado tira ele do app e para de pedir confirmação, sem
+      apagar o que já foi registrado: um aviso de março que segue cobrando
+      "li e entendi" ensina o motorista a ignorar o pedido, inclusive no de
+      hoje.
+    - >-
+      Não sai aviso em massa por WhatsApp — o teto do sistema é de 60
+      destinatários distintos por dia e ele protege o número que fala com
+      clientes. Quem avisa é a marca no app. Quem quiser conversar sobre um
+      comunicado abre um pedido normal, que aí entra na fila com dono.
+  corrigido:
+    - >-
+      O assunto "Comunicado do RH" da caixa de conversas virou "Aviso
+      individual". Com o mural, os dois tinham o mesmo nome e o motorista via
+      o mesmo aviso em dois lugares da tela, sem nada que dissesse por quê.
+      Eles continuam existindo separados: o mural avisa todos de uma vez e não
+      se responde; o aviso individual é para uma pessoa, dentro de uma conversa
+      com dono — convocação, pendência de documento, orientação.
 - versao: "1.2.3"
   data: "2026-09-07"
   corrigido:
