@@ -305,6 +305,33 @@ try {
     Parar-Arvore $processo
   }
 
+  # E OS ORFAOS DE ANTES, que a arvore acima NAO alcanca. Quando um restart
+  # antigo matou so o supervisor, os filhos ficaram vivos, SEM escutar e sem
+  # pai. Medido em 06/09/2026: oito deles, de duas instancias, segurando 19 e 7
+  # conexoes cada -- 32 no banco onde deviam ser 8.
+  #
+  # NAO DA PARA ACHA-LOS PELA LINHA DE COMANDO "uvicorn": os workers do uvicorn
+  # nascem por `multiprocessing.spawn`, e a linha deles e
+  # `python.exe -c "from multiprocessing.spawn import spawn_main; spawn_main(
+  # parent_pid=N, ...)"` -- a palavra uvicorn nao aparece. Conferido.
+  #
+  # O QUE OS IDENTIFICA COM PRECISAO e o proprio `parent_pid=N` com o processo
+  # N JA MORTO: filho de spawn sem pai e, por definicao, lixo. O filtro nao
+  # encosta em processo com pai vivo, entao uma suite ou um script em execucao
+  # passa incolume.
+  $orfaos = @()
+  foreach ($cand in @(Get-CimInstance Win32_Process -Filter "Name = 'python.exe'" -ErrorAction SilentlyContinue)) {
+    if ($cand.CommandLine -notlike '*spawn_main*parent_pid=*') { continue }
+    if ($cand.CommandLine -notmatch 'parent_pid=(\d+)') { continue }
+    $paiId = [int]$Matches[1]
+    $pai = Get-CimInstance Win32_Process -Filter "ProcessId = $paiId" -ErrorAction SilentlyContinue
+    if (-not $pai) { $orfaos += $cand }
+  }
+  if ($orfaos.Count -gt 0) {
+    Registrar ("varrendo " + $orfaos.Count + " worker(s) orfao(s) de restart anterior")
+    foreach ($x in $orfaos) { Stop-Process -Id $x.ProcessId -Force -ErrorAction SilentlyContinue }
+  }
+
   $livre = $false
   foreach ($tentativa in 1..20) {
     Start-Sleep -Milliseconds 400

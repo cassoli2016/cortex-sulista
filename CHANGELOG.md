@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.262.2] — 06/09/2026  ·  CX-06/09/2026-v0.262.2
+
+### Corrigido
+- A correção anterior impedia que novas cópias do sistema se acumulassem, mas não limpava as que já tinham ficado para trás: oito processos órfãos de reinícios antigos continuavam vivos, consumindo 32 conexões do banco onde deviam ser 8. Eles não apareciam de nenhuma das formas óbvias — não atendem em porta nenhuma e o processo que os criou já morreu. A rotina de atualização agora os reconhece e encerra sozinha, e o sistema se limpa no próximo ciclo sem ninguém precisar reiniciar a máquina.
+
 ## [0.262.1] — 06/09/2026  ·  CX-06/09/2026-v0.262.1
 
 ### Corrigido

@@ -4516,3 +4516,47 @@ tinha estendido a regra para ela.
   problema.
 - **Guard com glob nao recursivo protege menos do que parece.** O deste caso
   cobria uma pasta de duas, e a metade descoberta tinha defeito.
+
+---
+
+## Os oito orfaos que nao apareciam de jeito nenhum (2026-09-06, v0.262.2)
+
+A v0.262.1 consertou a CAUSA (o restart matava so o dono do socket e deixava os
+filhos orfaos segurando a porta). Nao consertou a HERANCA: os oito workers que
+ja tinham ficado para tras continuavam vivos, com 19 e 7 conexoes cada -- 32 no
+banco onde deviam ser 8.
+
+E eles nao aparecem de nenhuma forma obvia:
+
+- **por porta, nao**: nao escutam mais nada;
+- **por arvore, nao**: o pai morreu, `ParentProcessId` aponta para um PID que
+  nao existe;
+- **por linha de comando "uvicorn", TAMBEM NAO** -- e este foi o que quase me
+  enganou. Escrevi um filtro `*uvicorn*api.main:app*` e ele pegaria ZERO
+  workers, porque o uvicorn cria os workers por `multiprocessing.spawn` e a
+  linha deles e:
+
+      python.exe -c "from multiprocessing.spawn import spawn_main; spawn_main(parent_pid=N, ...)"
+
+  Sem a palavra uvicorn em lugar nenhum. So descobri porque fui CONFERIR o
+  filtro em vez de confiar nele: subi um uvicorn de teste com `--workers 3` e
+  li a linha de comando dos filhos.
+
+**O que os identifica com precisao esta na propria linha**: `parent_pid=N` com
+o processo N ja morto. Filho de `spawn` sem pai e, por definicao, lixo -- e o
+filtro nao encosta em processo com pai vivo, entao uma suite ou um script em
+execucao passa incolume.
+
+Validado criando o cenario de verdade: subi um uvicorn com dois workers, matei
+SO o supervisor (reproduzindo o defeito antigo), confirmei os dois filhos vivos
+e orfaos, e a deteccao achou exatamente os dois.
+
+### O que fica como regra
+
+- **Filtro por linha de comando merece ser CONFERIDO contra o processo real.**
+  O `*uvicorn*` parecia obvio e pegaria zero; o que o processo diz de si mesmo
+  raramente e o que a gente supoe.
+- **Consertar a causa nao limpa a heranca.** As duas coisas sao entregas
+  diferentes, e a segunda so aparece se alguem for contar o que ficou.
+- **Processo orfao tem assinatura propria** (`parent_pid` apontando para um
+  morto), e ela e mais precisa que qualquer heuristica por nome.
