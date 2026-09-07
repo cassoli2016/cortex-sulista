@@ -453,66 +453,50 @@ def test_a_cobertura_do_mapa_vai_na_tela_SEM_nomear_fornecedor():
 # registro de tela, uma chamada que precisa existir.
 
 
-def test_o_medidor_usa_o_MESMO_fator_de_arco_da_Torre():
-    """Dois arcos com medidas diferentes na mesma casa seriam duas verdades
-    sobre o que é "cheio"."""
-    assert INDEX.count("* 1.319") >= 1
-    corpo = INDEX.split("function tvCliGauge")[1].split("\n}")[0]
-    assert "1.319" in corpo
-
-
-def test_sem_regua_o_medidor_NAO_inventa_verde():
-    corpo = INDEX.split("function tvCliGauge")[1].split("\n}")[0]
-    assert "sem régua de freetime" in corpo
-
-
-def test_a_rosca_leva_rotulo_DIRETO_porque_TV_nao_tem_tooltip():
-    corpo = INDEX.split("function tvCliRosca")[1].split("\n}")[0]
-    assert "tvc-leg" in corpo
-    assert "title=" not in corpo
-
-
-def test_a_rosca_declara_por_que_e_rosca_e_nao_barra():
-    """A casa prefere barra empilhada quando UMA categoria domina.
-
-    Aqui as etapas ficam equilibradas, que é o caso em que o anel funciona — e
-    isso está escrito, para quem mudar saber que a escolha foi medida e não
-    estética.
-    """
-    ctx = INDEX.split("function tvCliRosca")[0][-1200:]
-    assert "barra empilhada" in ctx and "domina" in ctx
-
-
-def test_numero_em_portugues_leva_VIRGULA():
-    """O separador saía do JavaScript, não do país: o float concatenado na
-    string entregava ponto no mural."""
-    assert "function tvH(v)" in INDEX
-    corpo = INDEX.split("async function loadTvCli")[1].split("\nasync function")[0]
-    assert "tvH(" in corpo
-    assert "descarga_piso + 'h'" not in corpo
+# O MEDIDOR DE FREETIME, A ROSCA E O `tvH` SAIRAM EM 07/09/2026, e com eles os
+# cinco guards que moravam aqui (fator do arco, "sem régua não inventa verde",
+# rótulo direto da rosca, "por que rosca e não barra", e a vírgula do pt-BR do
+# `tvH`, que era o único consumidor dele).
+#
+# O freetime é métrica de COBRANÇA — quem pagou pela hora parada — e estava num
+# mural que o CLIENTE lê; ele continua nas telas `sac` e `cliop`, que são de
+# análise. A rosca repartia as cargas por etapa: exatamente os três números que
+# os chips do herói já mostravam ao lado dela, e a casa manda usar BARRA
+# EMPILHADA quando uma categoria domina — que é o que entrou no lugar.
+#
+# Guard de função que não existe mais é ruído verde. O que substituiu está em
+# `tests/frontend/test_tvcli_figuras.py`, e lá as figuras são EXECUTADAS.
 
 
 # ============================== o painel de TV: presença sem inventar cor
 
-def test_a_TV_nao_estica_os_cards_ate_a_altura_do_mais_alto():
-    """`align-items:start` na segunda linha.
+def test_a_parede_tem_ALTURA_e_nao_termina_no_conteudo():
+    """A grade é presa à altura da TV, não ao tamanho do que coube nela.
 
-    Com o `stretch` padrão o cartão do medidor acompanhava a altura da tabela e
-    sobrava meia tela de vazio embaixo do arco. Numa parede, vazio não é
-    respiro — é espaço que podia estar dizendo alguma coisa.
+    Até 07/09/2026 eram duas `.tv-grid` em FLUXO e sobrava UM TERÇO da tela
+    preto embaixo do ticker. O que este guard afirma É o texto (a regra de CSS
+    que prende a altura); que ela FUNCIONA está medido no navegador, em
+    `tests/frontend/test_tvcli_figuras.py::test_a_parede_ACOMPANHA_a_altura_da_TV`.
+
+    `flex:1 1 0` e não `1 1 auto`: com base `auto` a altura hipotética da grade
+    é a do CONTEÚDO, e um cartão com lista comprida a faz crescer para além da
+    tela — medido, 844 → 867 px.
     """
-    assert ".tvc-linha2{align-items:start}" in INDEX
-    assert 'class="tv-grid tvc-linha2"' in INDEX
+    assert "#view-tvcli.on{height:calc(100vh - 76px)" in INDEX
+    assert ".tvc-wall{flex:1 1 0;min-height:0;overflow:hidden;display:grid;" in INDEX
 
 
-def test_a_grade_da_TV_e_minmax_0_1fr():
+def test_a_grade_da_TV_e_minmax_0_nas_duas_direcoes():
     """A armadilha que a régua NÃO pega em painel de TV.
 
     `1fr` é `minmax(auto,1fr)`: a trilha não encolhe abaixo do min-content, e
     a tabela `nowrap` de quatro colunas empurrou o card para FORA da tela sem
     erro nenhum. A régua de largura pula os `E_TV`, então aqui o guard é este.
+    Vale para LINHA também, e pelo mesmo motivo — um cartão com lista comprida
+    esticaria a faixa inteira.
     """
-    assert "#view-tvcli .tv-grid{grid-template-columns:repeat(4,minmax(0,1fr))}" in INDEX
+    assert "grid-template-columns:repeat(4,minmax(0,1fr));" in INDEX
+    assert "grid-template-rows:repeat(2,minmax(0,1.06fr)) minmax(0,0.8fr)}" in INDEX
     assert "#view-tvcli .tv-tab{table-layout:fixed}" in INDEX
 
 
@@ -524,7 +508,7 @@ def test_a_tabela_da_TV_nao_quebra_linha():
     divide igual e o número da coleta sai com reticências.
     """
     assert "#tvcli-cargas td,#view-tvcli .tv-tab th{white-space:nowrap;overflow:hidden;" in INDEX
-    for n in (1, 2, 3, 4):
+    for n in (1, 2, 3, 4, 5):
         assert "#view-tvcli .tv-tab th:nth-child(%d){width:" % n in INDEX
 
 
@@ -537,11 +521,19 @@ def test_o_heroi_traz_o_TOTAL_e_a_reparticao_junto():
 
 
 def test_o_chip_de_etapa_leva_o_NUMERO_junto_da_cor():
-    """Sem tooltip numa TV, cor sozinha não diz nada."""
-    corpo = INDEX.split("async function loadTvCli")[1].split("\n}")[0]
+    """Sem tooltip numa TV, cor sozinha não diz nada.
+
+    O chip virou UM helper (`tvCliChip`) em 07/09/2026: existia em quatro
+    cópias quase iguais, e cada cópia trazia a cor ESCRITA dentro do `style=`
+    — literal de cor em atributo, que o `verificar_estrutura.py` proíbe.
+    """
+    corpo = INDEX.split("function tvCliChip")[1].split("\n}")[0]
     assert "tvc-chip" in corpo
+    assert "<b>' + n + '</b>" in corpo, "o chip perdeu o número"
+    assert "background:' + cor" in corpo, "o chip perdeu o ponto colorido"
+    laco = INDEX.split("async function loadTvCli")[1].split("\n}")[0]
     for etapa in ("'Em viagem'", "'No destino'", "'Na origem'"):
-        assert etapa + "," in corpo, etapa
+        assert etapa + "," in laco, etapa
 
 
 def test_carga_sem_apontamento_NAO_aparece_no_painel_do_cliente():
@@ -568,7 +560,11 @@ def test_o_brilho_segue_a_cor_do_ESTADO_e_nao_inventa_uma():
     """
     assert ".tvc-glow{box-shadow:inset 0 0 0 2px currentColor" in INDEX
     corpo = INDEX.split("async function loadTvCli")[1].split("\n}")[0]
-    assert "card.style.color = cor" in corpo
+    # DOIS cartões acendem agora, e cada um com a própria régua: o de chegadas
+    # no âmbar quando alguma passou da estimativa, o de parados só no ARTEFATO
+    # (permanência acima de 24h). Nenhum deles inventa verde.
+    assert corpo.count(".style.color = ") == 2, corpo.count(".style.color = ")
+    assert "tvc-glow" in corpo
 
 
 def test_o_ticker_so_aparece_quando_ha_o_que_dizer():

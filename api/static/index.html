@@ -1437,17 +1437,52 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
    O vocabulario de cor NAO muda -- sao as mesmas tres do semaforo de TV, e
    continuam discretas. O que muda e o tamanho e o brilho, que e o que faz um
    numero ser lido do outro lado da sala. */
-/* A grade da segunda linha NAO estica os cards ate a altura do mais alto:
-   com `stretch` (o padrao), o cartao do medidor acompanhava a tabela e sobrava
-   meia tela de vazio embaixo do arco. Numa parede, vazio nao e respiro -- e
-   espaco que podia estar dizendo alguma coisa. */
-.tvc-linha2{align-items:start}
+/* A PAREDE INTEIRA, e nao "ate onde o conteudo foi".
+   Ate 07/09/2026 esta tela era duas `.tv-grid` em FLUXO: elas terminavam onde
+   o conteudo terminava e sobrava UM TERCO da TV preto embaixo do ticker. Numa
+   parede, vazio nao e respiro -- e espaco que podia estar dizendo alguma
+   coisa, e quem paga a TV esta olhando para ele.
+   O `tvope` ja resolvia isso com altura explicita (`.tvw`); aqui a view ja e
+   `display:flex` coluna (`.view.on`), entao basta dar altura a ela e mandar a
+   grade CRESCER. As tres faixas tem pesos diferentes de proposito: a de cima e
+   a leitura de tres segundos, a do meio e a operacao de agora, a de baixo e o
+   contexto -- e contexto pede menos altura que decisao. */
+#view-tvcli.on{height:calc(100vh - 76px);min-height:0}
+/* `flex:1 1 0`, E NAO `1 1 auto`. Com base `auto` a altura hipotetica da
+   grade e a do CONTEUDO: quando um cartao pede mais, a grade CRESCE para
+   alem da tela e o `fr` das linhas cresce junto -- medido, 844 -> 867 px com a
+   lista forcada. Com base ZERO a altura sai so do espaco livre, que e o que
+   "a parede tem a altura da TV" quer dizer. O `overflow` e o cinto: o que nao
+   couber e cortado, nunca empurrado para fora da tela. */
+.tvc-wall{flex:1 1 0;min-height:0;overflow:hidden;display:grid;gap:0.68vw;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  /* `minmax(0,…)` NAS LINHAS TAMBEM, e nao so nas colunas: `1.06fr` cru e
+     `minmax(auto,1.06fr)`, e a faixa nao encolheria abaixo do min-content.
+     HONESTIDADE SOBRE A CAUSA: sabotado sozinho, este `minmax` nao acende o
+     guard -- quem segura de verdade e o `flex:1 1 0` acima, e foi ele que a
+     medicao apontou. Isto aqui e cinto e suspensorio, e fica escrito assim
+     para o proximo nao "descobrir" que a linha era o conserto. */
+  grid-template-rows:repeat(2,minmax(0,1.06fr)) minmax(0,0.8fr)}
 /* `1fr` E `minmax(auto,1fr)`: a trilha nao encolhe abaixo do min-content, e uma
    tabela `nowrap` de quatro colunas empurrou o card para FORA da tela -- sem
    erro nenhum, exatamente como a casa ja documentou para as grades de cards. A
    regua de largura nao pega painel de TV (ela pula os E_TV), entao aqui o
    cuidado e manual. */
-#view-tvcli .tv-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.tvc-wall>.tv-card{min-width:0;min-height:0;overflow:hidden;
+  display:flex;flex-direction:column;padding:1.05vw 1.25vw}
+/* O TRATAMENTO QUE O CARTAO DO FREETIME TINHA, agora e o vocabulario da tela.
+   Ele era o unico com borda e brilho, e por isso era o unico que se lia do
+   outro lado da sala -- os outros quatro pareciam fundo. Agora TODO cartao que
+   carrega um numero de decisao acende na cor do proprio estado; o mapa e a
+   tabela ficam de fora de proposito, porque um mural onde tudo brilha e um
+   mural onde nada chama. */
+.tvc-glow{box-shadow:inset 0 0 0 2px currentColor,0 0 1.6vw -.4vw currentColor}
+.tvc-neutro{color:#3E6A93}
+.tvc-wall>.tv-card .tv-label{margin-bottom:.35vw}
+/* O RODAPE DO CARTAO GRUDA EMBAIXO: com a altura fixa da faixa, deixar o
+   `tv-sub` subir atras do conteudo fazia cada cartao ancorar a procedencia
+   numa altura diferente, e a linha de baixo da parede ficava serrilhada. */
+.tvc-wall>.tv-card .tv-sub{margin-top:auto;padding-top:.4vw}
 /* E a tabela reparte a largura que TEM, em vez de pedir a que queria: com
    `fixed` as colunas dividem o card e o `text-overflow` faz o resto. */
 #view-tvcli .tv-tab{table-layout:fixed}
@@ -1455,25 +1490,121 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
    rota -- que e a mais longa -- saia cortada no meio do nome da cidade
    enquanto "Coleta" sobrava largura. As proporcoes vem do conteudo real:
    rota e o dobro de qualquer outra. */
-#view-tvcli .tv-tab th:nth-child(1){width:12%}
-#view-tvcli .tv-tab th:nth-child(2){width:37%}
-#view-tvcli .tv-tab th:nth-child(3){width:16%}
-#view-tvcli .tv-tab th:nth-child(4){width:17%}
-#view-tvcli .tv-tab th:nth-child(5){width:18%}
+/* AS PROPORCOES VEM DO CONTEUDO REAL, medido na operacao de 07/09/2026: a
+   rota chega a 43 caracteres ("QUATRO BARRAS/PR -> SAO BERNARDO DO CAMPO/SP")
+   e era a unica coluna que cortava sempre. Coleta cede -- e numero de 5
+   digitos e nunca vai crescer. */
+#view-tvcli .tv-tab th:nth-child(1){width:10%}
+#view-tvcli .tv-tab th:nth-child(2){width:44%}
+#view-tvcli .tv-tab th:nth-child(3){width:13%}
+#view-tvcli .tv-tab th:nth-child(4){width:19%}
+#view-tvcli .tv-tab th:nth-child(5){width:14%}
 /* A tabela desta tela ocupa METADE da largura, com quatro colunas: na fonte
    de 21px do padrao de TV o proprio numero da coleta saia com reticencias.
    Ela e a unica coisa aqui que se le de perto (quem precisa de linha a linha
    abre a tela), entao ela cede o tamanho para os numeros que se leem de longe. */
-#view-tvcli .tv-tab{font-size:clamp(14px,1.15vw,20px)}
-#view-tvcli .tv-tab td{padding:9px 10px}
+/* LETRA MENOR, POR CORTAR MENOS. Numa parede, texto inteiro em 16px se le
+   melhor que texto com reticencias em 20px -- a reticencia obriga quem olha a
+   adivinhar, e adivinhar de longe e o que faz alguem ler a rota errada. */
+#view-tvcli .tv-tab{font-size:clamp(12px,0.86vw,17px)}
+#view-tvcli .tv-tab th{font-size:clamp(10px,0.7vw,14px);letter-spacing:.05em}
+/* SEIS LINHAS TEM DE CABER. O `padding:9px` era medida de TELA; na faixa de
+   altura fixa da parede ele empurrava as duas ultimas linhas para fora do
+   cartao, e `overflow:hidden` as cortava sem erro nenhum -- a lista dizia 4
+   quando o renderizador tinha mandado 6. */
+#view-tvcli .tv-tab td{padding:0.26vw 0.55vw;line-height:1.25}
+#view-tvcli .tv-tab th{padding-bottom:0.26vw}
+/* A TABELA E O RODAPE DELA DIVIDEM O CARTAO, e o rodape fica no chao. Sem
+   isto o `margin-top:auto` do `.tv-sub` competia com a tabela e o contador
+   saia EMPURRADO para fora do cartao -- invisivel, com a lista mentindo o
+   total de novo. */
+#view-tvcli .tv-wide table{flex:0 0 auto}
 /* A TABELA DA TV NAO QUEBRA LINHA. Rota e situacao em duas linhas dobram a
    altura de cada registro e a lista come a tela inteira; numa parede, texto
    cortado com reticencias se le melhor que texto empilhado. */
 #tvcli-cargas td,#view-tvcli .tv-tab th{white-space:nowrap;overflow:hidden;
-  text-overflow:ellipsis}
-.tvc-hero{display:flex;align-items:center;gap:2.2vw}
+  text-overflow:ellipsisflex:1 1 auto;min-height:0;overflow:hidden}
+.tvc-hero{display:flex;align-items:center;gap:2.2vw;flex:1 1 auto;min-height:0}
 .tvc-hero .n{font-size:clamp(64px,7.4vw,150px);font-weight:800;line-height:.92;
   font-variant-numeric:tabular-nums;letter-spacing:-.02em;color:#fff}
+/* O HEROI MENOR, para os cartoes de um quarto de largura. Mesma familia -- o
+   numero continua sendo a coisa maior do cartao --, so nao compete com o
+   numero-rei da faixa de cima. */
+.tvc-hero.s{gap:1.1vw}
+.tvc-hero.s .n{font-size:clamp(40px,4.6vw,92px)}
+/* PROXIMAS CHEGADAS: hora em mono, destino cortando com reticencias. A hora e
+   o que se le de longe, entao ela vem primeiro e em tabular -- lista de horas
+   desalinhadas obriga o olho a reler cada linha. */
+/* A LISTA ENCOLHE E CORTA -- ela nao empurra o rodape.
+   Sem `min-height:0` um filho de flex nao encolhe abaixo do conteudo, e as
+   tres linhas de espera passaram POR CIMA da procedencia (visto no print de
+   07/09/2026, cartao "Parados agora"). Numa parede, duas linhas sobrepostas
+   nao se leem como erro -- se leem como um texto estranho, e ninguem
+   desconfia do numero ao lado. */
+.tvc-prox{display:flex;flex-direction:column;gap:.28vw;margin-top:.55vw;
+  flex:1 1 auto;min-height:0;overflow:hidden}
+.tvc-prox div{display:flex;align-items:baseline;gap:.6vw;font-size:clamp(12px,1vw,20px);
+  color:#C6D4E2;white-space:nowrap;overflow:hidden}
+.tvc-prox b{font-variant-numeric:tabular-nums;font-weight:800;color:#fff;flex:none}
+.tvc-prox span{overflow:hidden;text-overflow:ellipsis}
+.tvc-prox i{font-style:normal;color:#8FA6BC;flex:none}
+/* BARRAS DO VOLUME: o mes corrente sai HACHURADO, como em toda serie da casa.
+   Sem isso a ultima coluna despenca todo dia 1o e alguem le queda de demanda
+   onde so ha mes pela metade. */
+/* A AREA DE DESENHO E SO DAS BARRAS. O valor de cada mes flutua ACIMA da
+   propria barra (`bottom` igual a altura dela) e o rotulo do mes vai para um
+   eixo separado embaixo -- assim a escala percentual e PURA, e a linha da
+   media pode ser posicionada pelo mesmo `bottom` sem ter de descontar a
+   altura de rotulo nenhum. */
+.tvc-barras{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.tvc-plot{position:relative;flex:1 1 auto;min-height:0;display:flex;
+  align-items:flex-end;gap:.5vw}
+.tvc-col{position:relative;flex:1 1 0;min-width:0;height:100%;
+  display:flex;align-items:flex-end}
+.tvc-col b{position:absolute;left:0;right:0;text-align:center;
+  margin-bottom:.15vw;font-size:clamp(9px,.68vw,14px);color:#E5EDF4;
+  font-variant-numeric:tabular-nums}
+.tvc-eixo{display:flex;gap:.5vw;padding-top:.25vw;flex:none}
+.tvc-eixo em{flex:1 1 0;min-width:0;text-align:center;font-style:normal;
+  font-size:clamp(8px,.6vw,12px);color:#8FA6BC;white-space:nowrap}
+/* LINHA MEDIA: tracejada e apagada de proposito. Ela e REFERENCIA, nao meta --
+   uma linha cheia e brilhante seria lida como alvo a bater, e nao ha meta de
+   volume contratada com o cliente. */
+.tvc-media{position:absolute;left:0;right:0;height:0;border-top:2px dashed #E0705F;
+  opacity:.85;z-index:2;pointer-events:none}
+.tvc-media em{position:absolute;right:0;bottom:.15vw;font-style:normal;
+  font-size:clamp(9px,.66vw,13px);font-weight:700;color:#E0705F;
+  background:#132A40;padding:0 .25vw;border-radius:.15vw}
+.tvc-barras .bar{width:100%;border-radius:.16vw .16vw 0 0;background:#3E6A93}
+.tvc-barras .bar.par{background:repeating-linear-gradient(135deg,#3E6A93 0 .3vw,
+  #22405C .3vw .6vw)}
+.tvc-barras .bar.ult{background:#4ADE80}
+.tvc-barras .bar.ult.par{background:repeating-linear-gradient(135deg,#4ADE80 0 .3vw,
+  #2A6E45 .3vw .6vw)}
+/* ROTAS: barra proporcional DENTRO da linha, com o rotulo por cima. Numa
+   parede, uma tabela de duas colunas obriga o olho a ir e voltar; a barra
+   responde "qual e a maior" antes de ler numero nenhum. */
+.tvc-rotas{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;
+  justify-content:center;gap:.36vw}
+/* CABECALHO DE COLUNA, pedido por quem le a parede: sem ele o numero da
+   direita era um numero solto -- podia ser carga, tonelada ou real. */
+.tvc-rotas-h{display:flex;justify-content:space-between;padding:0 .6vw .1vw;
+  font-size:clamp(9px,.66vw,13px);letter-spacing:.07em;text-transform:uppercase;
+  color:#8FA6BC;font-weight:700;flex:none}
+.tvc-rota{position:relative;border-radius:.22vw;background:#0F2135;overflow:hidden;
+  padding:.28vw .6vw;display:flex;align-items:center;gap:.7vw;
+  font-size:clamp(10px,.82vw,17px);color:#E5EDF4;white-space:nowrap}
+.tvc-rota .fill{position:absolute;inset:0 auto 0 0;background:#23486B;z-index:0}
+.tvc-rota span,.tvc-rota b{position:relative;z-index:1}
+.tvc-rota span{overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;min-width:0}
+.tvc-rota b{font-variant-numeric:tabular-nums;font-weight:800;flex:none}
+/* BARRA EMPILHADA DAS ETAPAS. Rotulo DIRETO dentro do segmento quando ele
+   couber, e nunca legenda em outro lugar: sem tooltip numa parede, cor sozinha
+   nao diz nada -- e os chips ao lado do numero ja carregam o par cor/rotulo. */
+.tvc-empilha{display:flex;gap:.22vw;height:1.5vw;margin-top:.9vw;flex:none}
+.tvc-empilha i{display:flex;align-items:center;justify-content:center;
+  border-radius:.16vw;font-style:normal;font-size:clamp(10px,.72vw,15px);
+  font-weight:800;color:#0B1926;overflow:hidden;white-space:nowrap}
 .tvc-hero .lado{display:flex;flex-direction:column;gap:.55vw;min-width:0}
 /* CHIP DE ETAPA: o ponto colorido carrega o estado e o numero vem colado.
    Sem tooltip numa TV, cor sozinha nao diz nada -- tem de vir com o rotulo. */
@@ -1485,8 +1616,6 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
 /* O BRILHO segue a cor do proprio arco: nao acrescenta significado, so faz o
    estado alcancar a distancia. `drop-shadow` e no elemento, entao o arco
    verde brilha verde e o vermelho brilha vermelho, sem regra nova. */
-.tvc-gauge svg,.tvc-rosca svg{filter:drop-shadow(0 0 .5vw rgba(0,0,0,.45))}
-.tvc-glow{box-shadow:inset 0 0 0 2px currentColor,0 0 1.6vw -.4vw currentColor}
 /* TICKER: a unica coisa que se move na tela, e por isso a que chama. Anda so
    quando ha o que dizer; parado, o painel fica quieto. */
 .tvc-tick{margin-top:22px;background:#0F2135;border-radius:14px;overflow:hidden;
@@ -3979,43 +4108,82 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <section class="view" id="view-tvcli">
         <div class="tv-head"><div class="tv-left"><img class="tv-logo" src="/static/sulista-logo-branco.svg" alt="Sulista"><span class="tv-upd tv-next"></span></div><div class="tv-title"><h2 id="tvcli-titulo">OPERAÇÃO DO CLIENTE</h2><span class="tv-farol" id="tvcli-farol" style="display:none"></span></div><div class="tv-right"><span class="tv-clock"></span><a href="javascript:tvFull()" title="tela cheia" aria-label="Tela cheia">⛶</a><a href="#home" title="sair do modo TV" aria-label="Sair do modo TV">✕</a></div></div>
 
-        <!-- LINHA 1: o numero que a sala precisa ver da porta, e o mapa.
+        <!-- A PAREDE, em tres faixas de peso decrescente.
+             FAIXA 1 e a leitura de tres segundos (o total e onde estao);
+             FAIXA 2 e a operacao de AGORA (o que chega, o que esta parado, e a
+             lista); FAIXA 3 e o contexto (volume e rotas), que responde "como
+             tem sido" e nao pede acao nenhuma.
              O heroi junta o TOTAL com a repartição por etapa: numa parede,
              obrigar o olho a somar quatro cartoes para chegar no total e
              perder a leitura de tres segundos que a TV existe para dar. -->
-        <div class="tv-grid">
-          <div class="tv-card" style="grid-column:span 2">
+        <div class="tvc-wall">
+          <div class="tv-card tvc-glow tvc-neutro" style="grid-column:span 2">
             <div class="tv-label">Cargas em curso</div>
             <div class="tvc-hero">
               <div class="n" id="tvcli-hero">—</div>
               <div class="lado" id="tvcli-etapas"></div>
             </div>
+            <!-- A REPARTICAO VIRA BARRA EMPILHADA, e nao volta a ser rosca.
+                 E a forma que a casa manda usar quando UMA categoria domina:
+                 fatia de 3% num anel nao se le, e a operacao passa meses com
+                 quase tudo em viagem. Aqui ela tambem paga o alugue do espaco
+                 -- o cartao do numero-rei tinha meia altura vazia. -->
+            <div class="tvc-empilha" id="tvcli-empilha"></div>
             <div class="tv-sub" id="tvcli-hero-sub"></div>
           </div>
           <div class="tv-card tvc-mapa" style="grid-column:span 2">
             <div id="tvCliMapa"></div>
             <div class="tv-regiao" id="tvcli-mapa-sub">Cargas em curso</div>
           </div>
-        </div>
 
-        <!-- LINHA 2: as duas figuras e a lista. A lista fica MENOR de
-             proposito: numa parede ela e referencia, nao leitura -- quem
-             precisa de linha a linha abre a tela, nao a TV. -->
-        <div class="tv-grid tvc-linha2" style="margin-top:22px">
-          <div class="tv-card" id="tvcli-card-gauge">
-            <div class="tv-label">Dentro do freetime</div>
-            <div id="tvcli-gauge" class="tvc-gauge"></div>
-            <div class="tv-sub" id="tvcli-gauge-sub"></div>
+          <!-- CHEGAM HOJE substituiu o medidor de freetime (07/09/2026).
+               Freetime e metrica de COBRANCA -- quem pagou pela hora parada --
+               e estava num mural que o CLIENTE le; ela continua na tela `sac`
+               e na `cliop`, que sao de analise. O que a sala do cliente quer
+               ler da porta e o que encosta na doca dele hoje. -->
+          <div class="tv-card" id="tvcli-card-chegam">
+            <div class="tv-label">Chegam hoje</div>
+            <div class="tvc-hero s">
+              <div class="n" id="tvcli-chegam">—</div>
+              <div class="lado" id="tvcli-chegam-fx"></div>
+            </div>
+            <div class="tvc-prox" id="tvcli-prox"></div>
+            <div class="tv-sub" id="tvcli-chegam-sub"></div>
           </div>
-          <div class="tv-card">
-            <div class="tv-label">Por etapa do trajeto</div>
-            <div id="tvcli-rosca" class="tvc-rosca"></div>
-            <div class="tv-sub" id="tvcli-rosca-sub"></div>
+
+          <!-- PARADOS AGORA no lugar da rosca. A rosca repartia as cargas por
+               etapa -- exatamente os mesmos tres numeros dos chips do heroi, ao
+               lado dele. Dois cartoes dizendo a mesma coisa gastam metade da
+               faixa para nao acrescentar nada. Isto acrescenta: quem esta no
+               patio AGORA e ha quanto tempo. -->
+          <div class="tv-card" id="tvcli-card-parados">
+            <div class="tv-label">Parados agora</div>
+            <div class="tvc-hero s">
+              <div class="n" id="tvcli-parados">—</div>
+              <div class="lado" id="tvcli-parados-fx"></div>
+            </div>
+            <div class="tvc-prox" id="tvcli-parados-lista"></div>
+            <div class="tv-sub" id="tvcli-parados-sub"></div>
           </div>
+
+          <!-- A lista fica MENOR de proposito: numa parede ela e referencia,
+               nao leitura -- quem precisa de linha a linha abre a tela. -->
           <div class="tv-card tv-wide" style="grid-column:span 2">
             <div class="tv-label">Cargas em curso — onde estão agora</div>
             <table class="tv-tab"><thead><tr><th>Coleta</th><th>Rota</th><th>Veículo</th><th>Situação</th><th>Previsão</th></tr></thead>
             <tbody id="tvcli-cargas"></tbody></table>
+            <div class="tv-sub" id="tvcli-cargas-sub"></div>
+          </div>
+
+          <div class="tv-card" id="tvcli-card-vol" style="grid-column:span 2">
+            <div class="tv-label">Volume — 12 meses</div>
+            <div class="tvc-barras" id="tvcli-barras"></div>
+            <div class="tv-sub" id="tvcli-vol-sub"></div>
+          </div>
+          <div class="tv-card" style="grid-column:span 2">
+            <div class="tv-label">Rotas mais usadas — 12 meses</div>
+            <div class="tvc-rotas" id="tvcli-rotas"></div>
+            <div class="tv-sub" id="tvcli-rotas-sub"></div>
           </div>
         </div>
 
@@ -13275,80 +13443,138 @@ async function tvCliMapa(cargas, resumo){
    As duas figuras seguem as regras que valem para qualquer grafico da casa:
    semaforo DISCRETO (nao degrade), rotulo direto ao lado, e nada de numero
    sem unidade. */
-/* Horas em portugues: `3` vira "3h" e `4.5` vira "4,5h". Concatenar o float
-   direto na string entregava o ponto no mural -- e numero com separador errado
-   numa parede e o tipo de detalhe que faz quem le duvidar do resto. */
-function tvH(v){
-  return v == null ? 'n/d'
-    : v.toLocaleString('pt-BR', {maximumFractionDigits:1}) + 'h';
-}
 
-function tvCliGauge(pct, cls, zona){
-  if(pct == null){
-    return '<div class="tv-sub" style="text-align:center">sem régua de freetime<br>cadastrada para este cliente</div>';
+/* AS FIGURAS DESTA PAREDE SAO DESENHADAS A MAO, e isso e uma leitura da regra
+   e nao um descuido. A casa manda usar ECharts em todo grafico, com UMA
+   excecao escrita: o gauge dos paineis de TV. A excecao vale aqui pelo motivo
+   que a criou -- os construtores da casa (`ecOpcoes` e companhia) leem a
+   paleta do TEMA, e painel de TV e justamente o que a casa CONGELA fora do
+   tema. Um grafico da biblioteca nesta tela nasceria com as cores do tema
+   claro dentro de um mural escuro. Se um dia os construtores aceitarem uma
+   paleta explicita, esta tela volta para eles.
+
+   O que morreu junto com o freetime (07/09/2026): `tvCliGauge`, o medidor de
+   "dentro do freetime", e `tvCliRosca`, que repartia as cargas por etapa --
+   exatamente os tres numeros que os chips do heroi ja mostravam ao lado. */
+
+/* BARRAS DO VOLUME. Doze meses, o corrente HACHURADO, e uma LINHA MEDIA.
+   A serie vem GERADA pelo servidor (`get_historico` monta o intervalo mes a
+   mes), entao mes sem carga e uma barra de altura zero e nao um buraco -- que
+   e o que faria abril emendar em agosto.
+
+   A MEDIA SO CONTA MES FECHADO, e essa e a unica decisao dificil desta figura.
+   O mes corrente tem meia coleta e entraria puxando a media para baixo; a
+   regua ficaria mais facil de bater justamente no dia 1o, e a barra do mes
+   parcial apareceria acima de uma media que ela mesma rebaixou. E a mesma
+   regra da casa para toda media de referencia. O rotulo diz "meses fechados"
+   para ninguem tentar reconciliar com o total de doze.
+
+   A ESCALA PARA EM 86% de proposito: o valor de cada mes fica ACIMA da barra,
+   e barra de 100% empurraria o numero para fora da area de desenho. */
+function tvCliBarras(meses){
+  if(!meses || !meses.length){
+    return '<div class="tv-sub" style="margin:auto">sem histórico no período</div>';
   }
-  /* 1.319 e o fator do arco: 100% preenche 131,9 de um dasharray de 300.
-     E o mesmo numero do gauge de meta da Torre -- dois arcos com medidas
-     diferentes na mesma casa seriam duas verdades sobre "cheio". */
-  const cor = cls === 'ok' ? '#4ADE80' : (cls === 'warn' ? '#FBBF24' : '#F87171');
-  const arco = Math.max(0, Math.min(100, pct)) * 1.319;
-  /* DOIS ARCOS, e nao um. O verde e o que esta dentro sob QUALQUER contrato; o
-     ambar por cima e ate onde o numero poderia ir se toda a faixa do meio
-     fosse do tipo de maior tolerancia. Um arco so mostrava 39% em vermelho e escondia
-     que o teto e ~70% -- justamente a ambiguidade que este painel existe para
-     nao esconder, e que numa parede ninguem vai ler no rodape.
-     O NUMERO continua sendo o conservador: e o unico que nao depende de um
-     dado que nao temos. */
-  const ate = Math.max(0, Math.min(100, (zona == null ? pct : pct + zona)));
-  const arcoAte = ate * 1.319;
-  return '<svg viewBox="0 0 100 58" style="width:13vw">'
-    + '<path d="M8 50 A42 42 0 0 1 92 50" fill="none" stroke="#1E3A54" stroke-width="9" stroke-linecap="round"/>'
-    + (ate > pct
-        ? '<path d="M8 50 A42 42 0 0 1 92 50" fill="none" stroke="#FBBF24" stroke-width="9"'
-          + ' stroke-linecap="round" opacity="0.55"'
-          + ' stroke-dasharray="' + arcoAte.toFixed(1) + ' 300"/>'
-        : '')
-    + '<path d="M8 50 A42 42 0 0 1 92 50" fill="none" stroke="' + cor + '" stroke-width="9" stroke-linecap="round"'
-    + ' stroke-dasharray="' + arco.toFixed(1) + ' 300"/>'
-    + '<text x="50" y="47" text-anchor="middle" font-size="21" font-weight="800" fill="' + cor + '">'
-    + pct.toFixed(0) + '%</text>'
-    + (ate > pct
-        ? '<text x="50" y="57" text-anchor="middle" font-size="8" fill="#FBBF24">até '
-          + ate.toFixed(0) + '%</text>'
-        : '')
-    + '</svg>';
+  const TETO = 86;
+  const alvo = Math.max.apply(null, meses.map(function(m){ return m.cargas; }));
+  const ROT = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const fechados = meses.filter(function(m){ return !m.parcial; });
+  const media = fechados.length
+    ? fechados.reduce(function(a, m){ return a + (m.cargas || 0); }, 0) / fechados.length
+    : null;
+
+  const colunas = meses.map(function(m, i){
+    /* ALTURA MINIMA DE 2%: mes com 1 carga e mes com 0 tem de se distinguir na
+       parede, e uma barra de meio pixel se le como ausencia. */
+    const h = alvo ? Math.max(m.cargas ? 2 : 0, TETO * m.cargas / alvo) : 0;
+    const ult = i === meses.length - 1;
+    const cls = 'bar' + (ult ? ' ult' : '') + (m.parcial ? ' par' : '');
+    return '<div class="tvc-col"><b style="bottom:' + h.toFixed(1) + '%">'
+      + (m.cargas || '') + '</b>'
+      + '<div class="' + cls + '" style="height:' + h.toFixed(1) + '%"></div></div>';
+  }).join('');
+
+  const linha = (media != null && alvo)
+    ? '<i class="tvc-media" style="bottom:' + (TETO * media / alvo).toFixed(1) + '%">'
+      + '<em>média ' + Math.round(media) + '</em></i>'
+    : '';
+
+  const eixo = meses.map(function(m){
+    const mm = parseInt((m.mes || '').slice(5, 7), 10);
+    return '<em>' + (ROT[mm - 1] || '') + '</em>';
+  }).join('');
+
+  return '<div class="tvc-plot">' + colunas + linha + '</div>'
+       + '<div class="tvc-eixo">' + eixo + '</div>';
 }
 
-/* ROSCA. A casa prefere barra empilhada quando UMA categoria domina, porque
-   fatia de 3% num anel nao se le. Aqui as etapas ficam equilibradas (medido em
-   05/09/2026: 30 em viagem, 33 no destino, 3 na origem), que e o caso em que o
-   anel funciona -- e o total no meio responde "quantas ao todo" sem uma
-   segunda leitura. Se um dia uma etapa passar a dominar, o certo e trocar por
-   barra, nao encolher a fatia. */
-function tvCliRosca(fatias){
-  const total = fatias.reduce(function(a, f){ return a + f.n; }, 0);
-  if(!total) return '<div class="tv-sub" style="text-align:center">nenhuma carga em curso</div>';
-  const R = 34, C = 2 * Math.PI * R;
-  let ini = 0;
-  const aneis = fatias.filter(function(f){ return f.n > 0; }).map(function(f){
-    const frac = f.n / total, dash = frac * C;
-    const el = '<circle cx="50" cy="50" r="' + R + '" fill="none" stroke="' + f.cor + '"'
-      + ' stroke-width="15" stroke-dasharray="' + dash.toFixed(2) + ' ' + (C - dash).toFixed(2) + '"'
-      + ' stroke-dashoffset="' + (-ini).toFixed(2) + '" transform="rotate(-90 50 50)"/>';
-    ini += dash;
-    return el;
-  }).join('');
-  const svg = '<svg viewBox="0 0 100 100" style="width:11.5vw">' + aneis
-    + '<text x="50" y="47" text-anchor="middle" font-size="21" font-weight="800" fill="#fff">'
-    + total + '</text>'
-    + '<text x="50" y="61" text-anchor="middle" font-size="9" fill="#8FA6BC">CARGAS</text></svg>';
-  /* ROTULO DIRETO: sem tooltip, a legenda leva o numero junto da cor. */
-  const leg = '<div class="tvc-leg">' + fatias.map(function(f){
-    return '<span><i style="background:' + f.cor + '"></i>' + esc(f.rot)
-         + ' <b>' + f.n + '</b></span>';
-  }).join('') + '</div>';
-  return svg + leg;
+/* ROTAS. Barra proporcional DENTRO da linha: numa parede, "qual e a maior" tem
+   de ser respondido antes de ler numero nenhum. O cabecalho nomeia as duas
+   colunas -- sem ele o numero da direita era um numero solto, que podia ser
+   carga, tonelada ou real. */
+function tvCliRotas(rotas){
+  if(!rotas || !rotas.length){
+    return '<div class="tv-sub" style="margin:auto">sem rota no período</div>';
+  }
+  const alvo = rotas[0].cargas || 1;
+  return '<div class="tvc-rotas-h"><span>Rota</span><span>Cargas</span></div>'
+    + rotas.slice(0, 5).map(function(r){
+        const w = Math.max(3, 100 * (r.cargas || 0) / alvo);
+        return '<div class="tvc-rota"><i class="fill" style="width:' + w.toFixed(1) + '%"></i>'
+          + '<span>' + esc(r.rota) + '</span><b>' + (r.cargas || 0) + '</b></div>';
+      }).join('');
 }
+
+/* "HA QUANTO TEMPO", em horas e minutos. Acima do teto fisico de 24h a casa
+   nao mede: e apontamento atravessando dias, nao veiculo parado, e a mesma
+   regua do SAC/Freetime e do portal. Dizer "ha 73h" seria numero inventado. */
+function tvCliDesde(quando){
+  if(!quando) return null;
+  const t = new Date(quando.replace(' ', 'T'));
+  if(isNaN(t)) return null;
+  const h = (Date.now() - t.getTime()) / 3600000;
+  if(h < 0) return null;
+  if(h > 24) return {h: h, txt: 'mais de 24h', acima: true};
+  const hh = Math.floor(h), mm = Math.round((h - hh) * 60);
+  return {h: h, acima: false,
+          txt: hh ? (hh + 'h' + String(mm).padStart(2, '0')) : (mm + ' min')};
+}
+
+/* O ROTULO DA PAREDE e mais curto que o do ERP, e so o rotulo.
+   Os nomes longos vem da tabela de dominio `public.ocorrencia` e continuam
+   inteiros na tela `cliop` -- aqui "Chegada para carregamento" saia como
+   "Chegada ..." com reticencias, que e pior que a abreviacao. O mapa e
+   explicito de proposito: marco que nao estiver aqui aparece com o nome do
+   ERP, nunca traduzido por adivinhacao. */
+/* CHIP DE ETAPA, num lugar so. Ele existia em quatro copias quase iguais, e
+   cada copia trazia a cor ESCRITA DENTRO do `style=` -- que e justamente o que
+   o `verificar_estrutura.py` proibe: literal de cor em atributo nao vira com o
+   tema, e a varredura de tema nao alcanca o que o JavaScript desenha. O painel
+   de TV e exceção (ele e escuro nos dois temas), mas a exceção do verificador
+   se reconhece pelo prefixo `tv-` do vizinho, e nao pelo nosso `tvc-`.
+   Passar a cor por VARIAVEL resolve os dois: some o literal do atributo e some
+   a quarta copia da mesma string. */
+const TVCLI_CINZA = '#8FA6BC', TVCLI_AMBAR = '#FBBF24', TVCLI_TINTA = '#C6D4E2';
+
+function tvCliChip(rotulo, n, cor){
+  return '<span class="tvc-chip" style="color:' + cor + '">'
+    + '<i style="background:' + cor + '"></i>'
+    + '<span style="color:' + TVCLI_TINTA + '">' + esc(rotulo) + '</span> '
+    + '<b>' + n + '</b></span>';
+}
+
+/* QUANTAS LINHAS A PAREDE MOSTRA. Constante, e nao numero solto no meio do
+   renderizador: quem mexer na altura da faixa precisa achar isto. */
+const TVCLI_LINHAS = 5;
+
+const TVCLI_MARCO_CURTO = {
+  'Chegada para carregamento': 'Na origem',
+  'Aguardando carregamento':   'Aguard. carga',
+  'Saída do carregamento':     'Saiu da origem',
+  'Em viagem':                 'Em viagem',
+  'Chegada para descarga':     'No destino',
+  'Aguardando descarga':       'Aguard. descarga',
+};
 
 async function loadTvCli(){
   const seq = ++tvCliSeq;
@@ -13369,11 +13595,15 @@ async function loadTvCli(){
         '<div class="tv-sub">Abra <b>Minha Operação</b> neste navegador, escolha '
         + 'o cliente, e volte a esta tela — a escolha fica lembrada.</div>';
       document.getElementById('tvcli-hero-sub').textContent = 'nenhum cliente escolhido';
-      document.getElementById('tvcli-gauge').innerHTML = '';
-      document.getElementById('tvcli-gauge-sub').textContent = '';
-      document.getElementById('tvcli-rosca').innerHTML = '';
-      document.getElementById('tvcli-rosca-sub').textContent = '';
-      document.getElementById('tvcli-cargas').innerHTML = '';
+      /* LIMPA TUDO, e a lista e explicita: um `id` esquecido aqui deixa o
+         numero do cliente ANTERIOR na parede depois da troca, com o titulo
+         novo em cima -- e ninguem desconfia de um numero que continua ali. */
+      ['tvcli-chegam','tvcli-chegam-fx','tvcli-chegam-sub','tvcli-prox',
+       'tvcli-parados','tvcli-parados-fx','tvcli-parados-sub',
+       'tvcli-parados-lista','tvcli-barras','tvcli-vol-sub','tvcli-rotas',
+       'tvcli-rotas-sub','tvcli-cargas'].forEach(function(id){
+        const el = document.getElementById(id); if(el) el.innerHTML = '';
+      });
       document.getElementById('tvcli-tick').hidden = true;
       if(tvCliLayer) tvCliLayer.clearLayers();
       const sub = document.getElementById('tvcli-mapa-sub');
@@ -13381,10 +13611,20 @@ async function loadTvCli(){
       return;
     }
 
+    /* AS DUAS OUTRAS ABAS EM PARALELO. Elas nao dependem uma da outra e a
+       parede recarrega de minuto em minuto: em serie, o painel esperava duas
+       viagens ao ERP para pintar. `permanencia` continua vindo porque o
+       ticker mede a permanencia acima de 24h por ela. */
     const q2 = new URLSearchParams({aba:'permanencia'});
     if(raiz) q2.set('raiz', raiz);
-    const rP = await fetch('/api/portal/cliente?' + q2.toString(), {cache:'no-store'});
+    const q3 = new URLSearchParams({aba:'historico', meses:'12'});
+    if(raiz) q3.set('raiz', raiz);
+    const [rP, rH] = await Promise.all([
+      fetch('/api/portal/cliente?' + q2.toString(), {cache:'no-store'}),
+      fetch('/api/portal/cliente?' + q3.toString(), {cache:'no-store'}),
+    ]);
     const dP = rP.ok ? await rP.json() : {};
+    const dH = rH.ok ? await rH.json() : {};
     if(seq !== tvCliSeq) return;
     tvCliOk = true;
 
@@ -13416,49 +13656,139 @@ async function loadTvCli(){
       ['Na origem',  naOrigem,   '#8FA6BC'],
     ];
     document.getElementById('tvcli-etapas').innerHTML = etapas.map(function(e){
-      return '<span class="tvc-chip" style="color:' + e[2] + '">'
-        + '<i style="background:' + e[2] + '"></i>'
-        + '<span style="color:#C6D4E2">' + e[0] + '</span> <b>' + e[1] + '</b></span>';
+      return tvCliChip(e[0], e[1], e[2]);
     }).join('');
+    /* A BARRA REPARTE O TOTAL, na ordem do trajeto (origem -> estrada ->
+       destino), que e a ordem em que a carga anda. Segmento zerado NAO entra:
+       uma lasca de 1px com a cor de uma etapa vazia se le como "tem uma la". */
+    document.getElementById('tvcli-empilha').innerHTML = total
+      ? etapas.slice().reverse().filter(function(e){ return e[1] > 0; })
+          .map(function(e){
+            return '<i style="flex:' + e[1] + ';background:' + e[2] + '">'
+              + (e[1] / total >= 0.14 ? esc(e[0]) + ' ' + e[1] : '') + '</i>';
+          }).join('')
+      : '';
     document.getElementById('tvcli-hero-sub').textContent =
       'manifesto ainda não encerrado · últimos ' + (dA.janela_dias || 45) + ' dias · '
       + (dA.concluidas_na_janela || 0) + ' concluídas no período';
 
-    const de = dP.descarga || {}, ca = dP.carga || {}, ft = dP.freetime || {};
+    /* ---------------------------------------------------------- CHEGAM HOJE
+       A PREVISAO E ESTIMATIVA, e o cartao diz isso no rodape. Ela sai da
+       mediana historica da propria rota (`_eta_por_rota` no servidor), contada
+       da SAIDA do carregamento -- carga que ainda nao saiu nao tem de onde
+       contar e NAO entra na conta. Por isso o rodape leva a cobertura: "5 de 7
+       a caminho" e o que impede alguem de ler "chegam 5" como "so ha 5". */
+    const hojeISO = _iso(new Date());
+    const d0 = new Date();
+    const agoraTxt = hojeISO + ' ' + String(d0.getHours()).padStart(2, '0')
+                             + ':' + String(d0.getMinutes()).padStart(2, '0');
+    const aCaminho = cargas.filter(function(c){ return c.marco_cod === 395 || c.marco_cod === 400; });
+    const comEta = aCaminho.filter(function(c){ return !!c.eta; });
+    const chegamHoje = comEta.filter(function(c){ return c.eta.slice(0, 10) === hojeISO; });
+    const venceram = chegamHoje.filter(function(c){ return c.eta < agoraTxt; });
+    const manha = chegamHoje.filter(function(c){ return c.eta.slice(11) < '12:00'; }).length;
+    const tarde = chegamHoje.length - manha;
 
-    /* MEDIDOR: a faixa conservadora, com o teto em ambar por cima. */
-    const dentroPct = de.dentro_pct;
-    const cls = (dentroPct == null) ? '' : (dentroPct >= 80 ? 'ok' : (dentroPct >= 60 ? 'warn' : 'ruim'));
-    document.getElementById('tvcli-gauge').innerHTML = tvCliGauge(
-      dentroPct == null ? null : dentroPct, cls, de.zona_pct);
-    /* O CARD inteiro acende na cor do estado. E o mesmo semaforo, discreto --
-       so alcanca mais longe que um numero pequeno no meio do cartao. */
-    const card = document.getElementById('tvcli-card-gauge');
-    if(card){
-      const cor = cls === 'ok' ? '#4ADE80' : (cls === 'warn' ? '#FBBF24' : (cls ? '#F87171' : ''));
-      card.className = 'tv-card' + (cor ? ' tvc-glow' : '');
-      card.style.color = cor || '';
+    document.getElementById('tvcli-chegam').textContent = chegamHoje.length;
+    document.getElementById('tvcli-chegam-fx').innerHTML =
+      tvCliChip('até as 12h', manha, TVCLI_CINZA)
+      + tvCliChip('à tarde', tarde, TVCLI_CINZA);
+
+    /* AS TRES PROXIMAS, e nao a lista inteira: a lista inteira ja esta no
+       cartao ao lado. Aqui vale a pergunta "o que encosta na doca agora". */
+    const prox = comEta.slice().sort(function(a, b){ return a.eta < b.eta ? -1 : 1; })
+                  .filter(function(c){ return c.eta >= agoraTxt; }).slice(0, 3);
+    document.getElementById('tvcli-prox').innerHTML = prox.map(function(c){
+      const dia = c.eta.slice(0, 10) === hojeISO
+        ? '' : '<i>' + c.eta.slice(8, 10) + '/' + c.eta.slice(5, 7) + '</i>';
+      return '<div><b>' + c.eta.slice(11) + '</b>' + dia
+        + '<span>' + esc(c.destino + '/' + c.uf_destino) + '</span></div>';
+    }).join('');
+
+    /* SEMAFORO SO ONDE HA REGUA A BATER. Ambar quando alguma passou da
+       estimativa; fora disso o cartao fica no azul neutro da casa -- verde
+       sem regua e verde inventado, e a mediana nao e promessa: metade das
+       viagens passa dela por definicao. */
+    const cardCh = document.getElementById('tvcli-card-chegam');
+    if(cardCh){
+      cardCh.className = 'tv-card tvc-glow' + (venceram.length ? '' : ' tvc-neutro');
+      cardCh.style.color = venceram.length ? '#FBBF24' : '';
     }
-    document.getElementById('tvcli-gauge-sub').textContent = ft.contratos
-      ? ((de.dentro || 0) + ' de ' + (de.n || 0) + ' descargas dentro de '
-         + tvH(ft.descarga_piso)
-         + (ft.ambiguo ? ' · ' + (de.zona || 0) + ' entre ' + tvH(ft.descarga_piso)
-                         + ' e ' + tvH(ft.descarga_teto) + ' conforme a mercadoria' : '')
-         + ' · mediana ' + tvH(de.mediana_h))
-      : 'sem freetime cadastrado para este cliente';
+    document.getElementById('tvcli-chegam-sub').textContent = aCaminho.length
+      ? (comEta.length + ' de ' + aCaminho.length + ' a caminho com estimativa'
+         + (venceram.length ? ' · ' + venceram.length + ' passou da hora prevista' : '')
+         + ' · estimativa pela mediana da rota')
+      : 'nenhuma carga a caminho neste momento';
 
-    document.getElementById('tvcli-rosca').innerHTML = tvCliRosca([
-      {rot:'Na origem',  n: naOrigem,   cor:'#8FA6BC'},
-      {rot:'Em viagem',  n: emViagem,   cor:'#4ADE80'},
-      {rot:'No destino', n: naDescarga, cor:'#FBBF24'},
-    ]);
-    document.getElementById('tvcli-rosca-sub').textContent =
-      'carregamento: mediana ' + tvH(ca.mediana_h)
-      + ' · ' + (dP.cargas_no_periodo || 0) + ' cargas apontadas no mês';
+    /* --------------------------------------------------------- PARADOS AGORA
+       Parado e quem chegou e nao saiu: os marcos de CHEGADA e de AGUARDANDO,
+       nas duas pontas. `Saida do carregamento` (395) e `Em viagem` (400) sao
+       estrada, e `Fim de descarga` ja nao esta em curso. */
+    const PARADO = [394, 398, 396, 399];
+    const parados = cargas.filter(function(c){ return PARADO.indexOf(c.marco_cod) >= 0; })
+      .map(function(c){ return {c: c, d: tvCliDesde(c.marco_em)}; })
+      .filter(function(x){ return !!x.d; })
+      .sort(function(a, b){ return b.d.h - a.d.h; });
+    const naOrig = parados.filter(function(x){ return x.c.marco_cod < 396; }).length;
 
-    /* TABELA: 6 linhas. Quem limita e o RENDERIZADOR, nao o CSS -- rolagem
-       dentro do card e inutil numa parede que ninguem toca. E numa parede a
-       lista e referencia: quem precisa de linha a linha abre a tela. */
+    document.getElementById('tvcli-parados').textContent = parados.length;
+    document.getElementById('tvcli-parados-fx').innerHTML =
+      tvCliChip('na origem', naOrig, TVCLI_CINZA)
+      + tvCliChip('no destino', parados.length - naOrig, TVCLI_AMBAR);
+    document.getElementById('tvcli-parados-lista').innerHTML =
+      parados.slice(0, 3).map(function(x){
+        return '<div><b>' + x.d.txt + '</b><span>'
+          + esc((x.c.marco_cod < 396 ? x.c.origem + '/' + x.c.uf_origem
+                                     : x.c.destino + '/' + x.c.uf_destino)) + '</span></div>';
+      }).join('');
+    /* O CARTAO NAO ACENDE POR TEMPO DE PATIO, e a omissao e deliberada: a
+       unica regua contratual para isso e o freetime, que saiu desta parede de
+       proposito. Inventar aqui um limite de horas seria criar uma regra da
+       casa dentro de um `if` de front-end. Acende so no ARTEFATO -- parada
+       acima de 24h e apontamento atravessando dias, nao veiculo parado. */
+    const acima24 = parados.filter(function(x){ return x.d.acima; }).length;
+    const cardPa = document.getElementById('tvcli-card-parados');
+    if(cardPa){
+      cardPa.className = 'tv-card tvc-glow' + (acima24 ? '' : ' tvc-neutro');
+      cardPa.style.color = acima24 ? '#FBBF24' : '';
+    }
+    document.getElementById('tvcli-parados-sub').textContent = parados.length
+      ? ('maior espera ' + parados[0].d.txt + ' · desde o último apontamento'
+         + (acima24 ? ' · ' + acima24 + ' acima de 24h' : ''))
+      : 'nenhuma carga parada em pátio agora';
+
+    /* ------------------------------------------------------- VOLUME E ROTAS
+       O contexto da faixa de baixo. Ele nao pede acao -- responde "como tem
+       sido", que e a pergunta que o cliente faz quando olha a parede sem uma
+       carga especifica na cabeca. */
+    document.getElementById('tvcli-barras').innerHTML = tvCliBarras(dH.meses);
+    const mm = dH.meses || [];
+    const ultimo = mm[mm.length - 1], penult = mm[mm.length - 2];
+    document.getElementById('tvcli-vol-sub').textContent = ultimo
+      ? ((ultimo.cargas || 0) + ' cargas no mês'
+         + (ultimo.parcial ? ' (parcial, hachurado)' : '')
+         + (penult ? ' · mês anterior ' + (penult.cargas || 0) : '')
+         + ' · ' + (dH.cargas_total || 0) + ' em 12 meses')
+      : '';
+
+    document.getElementById('tvcli-rotas').innerHTML = tvCliRotas(dH.rotas);
+    /* TOP-N LEVA CONTADOR, senao vira total falso: quem soma as cinco barras
+       tem de saber que nao somou a operacao. */
+    document.getElementById('tvcli-rotas-sub').textContent = (dH.rotas || []).length
+      ? (Math.min(5, dH.rotas_mostradas || 0) + ' de ' + (dH.rotas_total || 0)
+         + ' rotas · ' + (dH.cargas_nas_rotas_mostradas || 0) + ' das '
+         + (dH.cargas_total || 0) + ' cargas')
+      : '';
+
+    /* TABELA: CINCO linhas, e o numero e do RENDERIZADOR, nao do CSS --
+       rolagem dentro do card e inutil numa parede que ninguem toca. Eram seis,
+       e a sexta nao cabia na faixa de altura: o `overflow` do cartao a cortava
+       ao MEIO, o que na parede se le como defeito de tela, nao como lista
+       longa. E numa parede a lista e referencia: quem precisa de linha a linha
+       abre a tela.
+       E ELA LEVA CONTADOR, que faltava desde sempre: cinco linhas sem dizer
+       "de 11" e um total falso -- a mesma regra do Top-N das rotas, que este
+       painel ja cumpria do outro lado. */
     document.getElementById('tvcli-cargas').innerHTML = cargas.length
       ? (function(){
           const hoje = _iso(new Date());
@@ -13468,7 +13798,7 @@ async function loadTvCli(){
           const d0 = new Date();
           const agora = hoje + ' ' + String(d0.getHours()).padStart(2,'0')
                              + ':' + String(d0.getMinutes()).padStart(2,'0');
-          return cargas.slice(0, 6).map(function(c){
+          return cargas.slice(0, TVCLI_LINHAS).map(function(c){
             /* A PREVISAO so existe para quem ja saiu: antes disso nao ha de
                onde contar, e travessao e mais honesto que hora inventada.
                O DIA vem junto da hora -- numa parede, "09:45" sozinho e lido
@@ -13492,11 +13822,15 @@ async function loadTvCli(){
             return '<tr><td>' + esc(String(c.coleta)) + '</td>'
               + '<td>' + esc(c.origem + '/' + c.uf_origem + ' \u2192 ' + c.destino + '/' + c.uf_destino) + '</td>'
               + '<td>' + esc(c.placa || '\u2014') + '</td>'
-              + '<td>' + esc(c.marco) + '</td>'
+              + '<td>' + esc(TVCLI_MARCO_CURTO[c.marco] || c.marco) + '</td>'
               + '<td>' + eta + '</td></tr>';
           }).join('');
         })()
       : '<tr><td colspan="5">nenhuma carga em curso</td></tr>';
+    document.getElementById('tvcli-cargas-sub').textContent = cargas.length
+      ? (Math.min(TVCLI_LINHAS, cargas.length) + ' de ' + cargas.length
+         + ' cargas · a lista completa está em Minha Operação')
+      : '';
 
     tvCliMapa(cargas, dA.posicao);
     tvCliTicker(dA, dP, {emViagem: emViagem, total: total});
@@ -13515,6 +13849,11 @@ function tvCliTicker(dA, dP, n){
   const itens = [];
   const pos = dA.posicao || {};
   const de = dP.descarga || {};
+  /* O ACHADO DE FREETIME SAIU DAQUI em 07/09/2026, junto com o medidor: ele
+     dizia "N descarga(s) acima do freetime em qualquer contrato no mes", que e
+     conversa de COBRANCA passando na parede do cliente. A permanencia acima de
+     24h continua, e por outro motivo -- ela nao acusa ninguem, avisa que um
+     apontamento ficou em aberto e que aquele numero nao foi medido. */
 
   const semPos = (pos.veiculos || 0) - (pos.com_posicao || 0);
   if(semPos > 0){
@@ -13533,10 +13872,6 @@ function tvCliTicker(dA, dP, n){
   }).length;
   if(vencidas > 0){
     itens.push(['#FBBF24', vencidas + ' carga(s) passaram da estimativa de chegada']);
-  }
-  if(de.fora_pct != null && de.fora > 0){
-    itens.push(['#F87171', de.fora + ' descarga(s) acima do freetime em qualquer contrato no mês ('
-                + de.fora_pct + '%)']);
   }
   if(de.fora_da_regua){
     itens.push(['#8FA6BC', de.fora_da_regua + ' permanência(s) acima de 24h não medida(s) — '
@@ -19658,6 +19993,7 @@ function renderRhmot(d){
       + '</button>';
   }).join('');
 }
+
 
 // ---------------------------- o mural (comunicado para todos) -------------
 //

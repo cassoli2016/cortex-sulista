@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.4.1] — 07/09/2026  ·  CX-07/09/2026-v1.4.1
+
+### Alterado
+- O Painel de TV da Operação do Cliente foi refeito. O medidor de "dentro do freetime" SAIU: freetime é a conta de quem paga pela hora parada, e ela estava passando num mural que o cliente lê. Ela continua inteira nas telas SAC / Freetime e Minha Operação, que são de análise.
+- No lugar entrou CHEGAM HOJE — quantas cargas encostam na doca hoje, repartidas entre manhã e tarde, com as três próximas em hora e destino. O cartão acende em âmbar só quando alguma passou da hora prevista, e o rodapé diz que a previsão é ESTIMATIVA (sai da mediana histórica da rota) e quantas das cargas a caminho têm estimativa. Metade das viagens passa da mediana por definição — um mural que promete hora de chegada vira cobrança na reunião seguinte.
+- O painel passou a ocupar a TV inteira. Ele terminava onde o conteúdo terminava e sobrava um terço de tela preta embaixo do rodapé rolante. Agora são três faixas: a leitura de três segundos em cima, a operação de agora no meio, e o contexto embaixo.
+- Entraram três cartões que não existiam: PARADOS AGORA (quem chegou e não saiu, nas duas pontas, com a maior espera), VOLUME EM 12 MESES (com o mês corrente hachurado e uma linha de média que conta só meses fechados) e ROTAS MAIS USADAS, agora com título nas colunas. Saiu a rosca "por etapa do trajeto", que mostrava exatamente os mesmos três números dos chips ao lado dela — a repartição virou uma barra dentro do próprio cartão do total.
+- A lista de cargas parou de cortar texto: letra menor, colunas remedidas pelo tamanho real das rotas, e um rodapé dizendo quantas cargas ficaram de fora ("5 de 11"). Antes ela mostrava seis linhas, e a sexta saía cortada ao meio pela borda do cartão.
+
 ## [1.4.0] — 07/09/2026  ·  CX-07/09/2026-v1.4.0
 
 ### Adicionado
