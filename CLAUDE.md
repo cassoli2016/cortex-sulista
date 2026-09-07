@@ -789,11 +789,20 @@ overlay `uv run --no-sync --with pytest --with playwright==<lock> pytest …`.
 Commit + push no mesmo minuto (seção 1). Rótulo: `CX-DD/MM/AAAA-vX.Y.Z` (data
 DA VERSÃO), no rodapé da sidebar e em `GET /api/versao` (autenticado).
 
-**O `1.0.0` é DECLARADO, não derivado** — os três critérios (restauração de
-backup provada por `scripts/testar_restauracao.py`; reconciliação com o ERP em
-`docs/RECONCILIACAO.md` + `scripts/conferir_numeros.py`, hoje sem divergência;
-as três receitas conferidas entre si) **estão cumpridos desde 30/08/2026**.
-Virar 1.0.0 é decisão de quem opera.
+**O `1.0.0` FOI DECLARADO em 06/09/2026**, por decisão de quem opera, com os
+três critérios conferidos NA HORA — e não pela afirmação que estava escrita
+aqui. Os verificadores são `scripts/testar_restauracao.py` (o backup restaura,
+a API sobe apontada para a cópia e os módulos leem dela) e
+`scripts/conferir_numeros.py` (os números batem entre si; as três receitas
+conferidas uma contra a outra). `docs/RECONCILIACAO.md` guarda o estado.
+
+**E a lição que o 1.0.0 quase carregou junto:** até 06/09 este parágrafo dizia
+"cumpridos desde 30/08/2026" enquanto os DOIS verificadores morriam no meio —
+um com `KeyError` desde 02/09 (levando junto a cascata da DRE e as três
+receitas), o outro com `UnicodeEncodeError`. A afirmação sobreviveu aos
+instrumentos. Por isso **os dois agora são EXECUTADOS pela suíte**
+(`tests/reconciliacao/test_conferidor_executa.py`) e não apenas conferidos por
+leitura de texto: critério cuja prova não roda não é critério, é frase.
 
 ---
 

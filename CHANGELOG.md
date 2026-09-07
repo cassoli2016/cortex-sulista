@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.0.0] — 06/09/2026  ·  CX-06/09/2026-v1.0.0
+
+### Adicionado
+- O CÓRTEX chega à versão 1.0.0. O número não muda nada no que a tela mostra: ele diz que os três compromissos que a casa combinou como condição para chamar o sistema de pronto foram verificados, e que a verificação foi feita hoje, com os instrumentos funcionando.
+- Primeiro: o backup restaura. Uma cópia do backup foi restaurada num banco separado, o sistema subiu apontado para ela e todos os módulos leram dados reais dali. Segundo: os números batem entre si — a conferência cruzada de saldo, recebíveis, fluxo, antecipação, quilometragem, ordens de compra, DRE, faturamento e vencidos fecha SEM NENHUMA divergência. Terceiro: as três leituras de receita que convivem no sistema foram conferidas uma contra a outra, com as diferenças explicadas.
+- Vale registrar o que quase impediu isso, porque é a parte que importa: as duas verificações estavam QUEBRADAS e ninguém sabia — uma havia quatro dias, e com ela não rodavam nem a conferência da DRE nem a das três receitas. Foram consertadas hoje, e passaram a ser executadas automaticamente a cada rodada de testes, para não voltarem a falhar em silêncio. O 1.0.0 se apoia em medição feita agora, não em uma afirmação antiga.
+
 ## [0.265.2] — 06/09/2026  ·  CX-06/09/2026-v0.265.2
 
 ### Corrigido
