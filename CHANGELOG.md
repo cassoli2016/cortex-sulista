@@ -4,6 +4,18 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.7.0] — 07/09/2026  ·  CX-07/09/2026-v1.7.0
+
+### Adicionado
+- Um menu novo, TMS, separado dos demais: é onde fica a frente fiscal — o que a casa troca direto com a SEFAZ, sem intermediário. Ele nasce com duas telas: o CT-e de Contrapartida, que já existia e veio da Controladoria, e a Notas de Entrada, que é nova. As duas usam o mesmo certificado digital e a mesma pilha; ficam juntas porque, quando o certificado vencer, as duas param no mesmo dia.
+- Notas de Entrada: as notas que os fornecedores emitiram CONTRA a Sulista, buscadas direto no serviço nacional da SEFAZ. É a única fonte que não depende de alguém lembrar de mandar o XML por e-mail. A tela mostra a recolha filial por filial — o que já chegou, quanto falta, quando foi a última busca e até quando vale o certificado de cada uma.
+- São dez caixas, uma por filial ativa: a SEFAZ mantém uma fila separada por CNPJ. A busca roda sozinha de duas em duas horas, das 7h às 19h — não de hora em hora porque a SEFAZ freia quem consulta demais sem ter o que buscar, e de madrugada não nasce nota de fornecedor.
+- Cada documento diz, na própria linha, se está "só resumo" ou "XML completo". Não é detalhe técnico: a SEFAZ entrega só o resumo (quem emitiu, valor, situação) enquanto ninguém manifesta ciência da operação, e o XML completo é o que a lei manda guardar por cinco anos. A manifestação ficou para um segundo momento — a contabilidade já busca essa mesma caixa, e dois sistemas manifestando a mesma nota geram evento duplicado.
+- O XML fica guardado no banco da casa, e não em arquivo solto: a guarda é de cinco anos, e o backup que se prova todo dia é o do banco.
+
+### Corrigido
+- Duas coisas que só apareceram na primeira conversa de verdade com a SEFAZ. A espera depois de um freio dela estava meia hora maior do que ela pede, o que atrasaria a recolha todo dia sem motivo. E o marcador de "até onde já li" avançava sozinho quando a SEFAZ RECUSAVA a consulta — o que teria pulado meses de histórico em silêncio, numa função que existe justamente para não perder documento.
+
 ## [1.6.1] — 07/09/2026  ·  CX-07/09/2026-v1.6.1
 
 ### Alterado

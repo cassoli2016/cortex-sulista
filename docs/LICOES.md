@@ -5071,3 +5071,114 @@ esta no `CLAUDE.md`; aqui ela foi aplicada antes de custar:
   nao tem frescor para cobrar. Painel que acende todo dia deixa de ser lido.
 - **Painel que junta duas fontes precisa de guard nos DOIS sentidos** -- o nome
   que ele cita tem de existir, e o que existe tem de estar citado.
+
+---
+
+## A recolha de NF na SEFAZ: sete defeitos de biblioteca e dois meus (2026-09-07, v1.7.0)
+
+Pedido de quem opera: *"depois vamos fazer a integracao com a Sefaz para
+recolha de NF da Sulista"*. E, no meio do caminho: *"toda essa parte de
+desenvolver do TMS fica em um menu separado dos demais"*.
+
+### O que se recolhe, e por que o XML importa
+
+O servico nacional de **Distribuicao de DFe** entrega ao destinatario tudo que
+foi emitido contra o CNPJ dele. E a unica fonte que nao depende de o fornecedor
+mandar o XML por e-mail -- e o XML AUTORIZADO e a obrigacao de guarda de cinco
+anos.
+
+Por isso ele vai para o BANCO, e nao para `data/`: o que ja mora em `data/` e
+cache reconstruivel e segredo em arquivo, e **o unico backup que a casa PROVA
+todo dia e o do PostgreSQL** (`testar_restauracao.py` restaura o dump, sobe a
+API em cima dele e compara o volume POR TABELA). Guardar obrigacao fiscal fora
+do unico backup verificado seria confiar num backup que ninguem testou.
+
+### SETE defeitos da `erpbrasil.edoc`, e o pior e mudo
+
+Quatro ja estavam documentados na contrapartida (endereco de SEFAZ propria,
+serializacao, confianca TLS, leitura da resposta). O caminho da NF-e, que se
+supunha maduro, cobrou mais tres -- todos medidos contra o servico real:
+
+| # | sintoma | causa |
+|---|---|---|
+| 5 | `NameError: distDFeInt is not defined`, no meio da consulta | `six` ausente |
+| 6 | `ValueError: invalid literal for int(): 'PR'` | a UF vai em codigo IBGE |
+| 7 | `239 Rejeicao: Cabecalho - Versao do arquivo XML nao suportada` | a distribuicao e 1.01, nao 4.00 |
+
+**O quinto e o que ensina.** O modulo importa os bindings legados dentro de
+`with suppress(ImportError)`; eles fazem `from six.moves import zip_longest`, e
+sem o `six` o import nao da erro -- ele APAGA os nomes, em silencio, e a falha
+reaparece muito depois como `NameError` dentro da consulta. Um `uv sync` que
+deixe o `six` cair nao quebra import nenhum: quebra a recolha, e so na hora de
+recolher. Por isso ele entrou no `pyproject` COM GUARD.
+
+O sexto tem um detalhe que merece nota: os dois mapas de UF da propria
+biblioteca sao incompativeis entre si. `nfe.SIGLA_ESTADO` e `{'41': 'PR'}`
+(codigo -> sigla, codigo em TEXTO); `cte.SIGLA_ESTADO` e `{'PR': 41}` (sigla ->
+codigo, em inteiro). Usar o do modulo "certo" devolve `None` em silencio.
+
+### E dois defeitos MEUS, que so a chamada real cobrou
+
+**1. Margem inventada em cima de prazo declarado.** Pus o freio pos-656 em 90
+minutos "por precaucao". A SEFAZ escreve o prazo na propria rejeicao -- *"Tente
+apos 1 hora"* -- e as 18:18, com 62 minutos decorridos e o bloqueio DELA ja
+vencido, quem estava segurando a recolha era o MEU freio. Virou 65 minutos: a
+hora dela mais folga de relogio. Cautela sem numero nao e cautela, e meia hora
+de atraso todo dia.
+
+**2. Rejeicao nao e progresso.** Numa rejeicao 656 a SEFAZ tambem devolve
+`ultNSU` -- e ele nao e o que consumimos, e onde a sequencia DELA esta. O
+`greatest()` do banco o gravou como progresso, e o ponteiro da matriz saltou de
+0 para **1.144.010** sozinho: tres meses de historico pulados em silencio,
+numa integracao cuja razao de existir e nao perder documento. Agora o ponteiro
+so anda com DOCUMENTO na mao (cStat 138); o numero vai para `max_nsu`, que e o
+que ele de fato e, e e dele que a tela tira o "quanto falta".
+
+O segundo saiu de uma sabotagem que ficou VERDE. O guard do 656 sabotava o
+`break` do laco -- e o `break` era redundante com o `!= 138` logo abaixo, entao
+o teste passava dos dois jeitos. Verde que nao ficaria vermelho apontou para o
+lugar certo: o freio de verdade nao estava no laco, estava na proxima
+varredura, e nao existia.
+
+### O que a SEFAZ contou antes de alguem contar
+
+A primeira consulta a partir do NSU zero voltou `656 · Consumo Indevido (Deve
+ser utilizado o ultNSU nas solicitacoes subsequentes)` com **ultNSU
+1.144.010**. O NSU e do CNPJ, nao do consumidor: uma sequencia em 1,1 milhao e
+o rastro de alguem que vem lendo ha tempo. Confirmado por quem opera -- **a
+contabilidade ja baixa esta mesma caixa**.
+
+Duas consequencias, e a segunda decide a politica:
+
+1. **Ler em paralelo e seguro** -- cada consumidor guarda o proprio ponteiro.
+2. **Manifestar em paralelo NAO e.** O evento e do documento, nao do
+   consumidor: quem manifesta ASSUME a ciencia com prazo legal correndo, e o
+   segundo evento a SEFAZ rejeita. A manifestacao ficou para um segundo
+   momento, por decisao de quem opera.
+
+O custo dito na cara: **a casa fica com o RESUMO, nao com o XML.** Da para
+conferir a nota contra a ordem de compra; nao da para a guarda de cinco anos.
+Por isso "so resumo" x "XML completo" e um chip em TODA LINHA da tela, e nao um
+rodape -- e a diferenca entre ter e nao ter a obrigacao cumprida, e esconde-la
+num rodape faria a tela parecer que a nota inteira esta guardada.
+
+### O grupo TMS
+
+As duas telas que falam documento eletronico com a SEFAZ saem dos grupos
+antigos e ficam juntas -- e nao por arrumacao: **usam o mesmo certificado A1 e
+a mesma pilha, entao quando o certificado vencer as duas param no mesmo dia.**
+O `ctecp` veio de Controladoria; trocar de grupo nao mexe em RBAC, porque o
+acesso e por id de tela.
+
+### O que fica como regra
+
+- **Prazo que o fornecedor DECLARA nao se arredonda para cima "por seguranca"**
+  -- a margem inventada vira atraso diario, e ninguem vai revisitar o numero.
+- **O que vem dentro de uma REJEICAO nao e progresso.** Campo de estado em
+  resposta de erro descreve o servidor, nao o que voce consumiu.
+- **`with suppress(ImportError)` em volta de binding e uma bomba-relogio**: a
+  dependencia que cai nao quebra o import, apaga o nome -- e o erro aparece
+  longe, em outra linguagem.
+- **Integracao que nao autentica por token nao cabe no cofre de credenciais**,
+  e forcar isso criaria um campo mentiroso. Ela se descreve no painel por
+  `integracoes._extras()`.

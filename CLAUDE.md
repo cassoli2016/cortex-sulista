@@ -146,6 +146,7 @@ a ACL em vez de afirmar a proteção.
 | ANTT | anpiso, anrntrc | `config/antt_coeficientes.yaml`, `config/antt_cargas.yaml`, `rntrc_*` |
 | Business Intelligence | prodveic, tvfat, tvope, tvdir | AVA (tvdir lê a mesma /api/visao-geral da home) |
 | Gestão | gesacao, gesata | `ges_*` (banco local) |
+| TMS | ctecp, dfe | a frente FISCAL: documento eletrônico direto com a SEFAZ. Emite (`api/contrapartida/`) e recolhe (`api/sefaz/`, `dfe_*`) com o mesmo certificado A1 — quando ele vence, as duas param no mesmo dia |
 | Suporte | sup, supfila | `sup_*` no banco local + espelho opcional no GitHub |
 | Administração | doc, aud, integ | `index.html` (doc); `aud_*` + `audit_log` (auditoria de uso, `api/auditoria.py`); `integ` junta o cofre de credenciais com os cartões da Saúde (`api/integracoes.py`) |
 
@@ -777,6 +778,25 @@ Regras duráveis — as crônicas (medições, formatos, tetos) estão em
 - **Sem credencial não é falha, é instalação incompleta** (`info` na Saúde);
   alarme vermelho = "não está chegando AGORA", nunca contagem de tropeços;
   cadências diferentes têm limiares separados.
+- **RECOLHA DE DFe NA SEFAZ** (`api/sefaz/`): o NSU é o estado inteiro, é POR
+  CNPJ (a Sulista tem dez caixas, uma por filial ativa) e é TEXTO de 15 dígitos
+  — `int()` no meio do caminho e a varredura passa a achar que já leu o que não
+  leu. Três regras que custam caro se erradas: o NSU se grava a CADA lote (uma
+  queda no meio não pode recomeçar do zero, que é o padrão que o **656** pune);
+  **o ponteiro só anda com DOCUMENTO na mão** — o `ultNSU` que vem dentro de uma
+  REJEIÇÃO descreve o servidor, não o que consumimos, e gravá-lo pulou 1,1
+  milhão de posições em silêncio; e resumo NUNCA sobrescreve documento completo
+  (a SEFAZ manda `resNFe` antes da ciência e `procNFe` depois — a ordem inversa
+  APAGA o XML da guarda de cinco anos). **Prazo que o fornecedor declara não se
+  arredonda para cima**: o freio pós-656 é 65 min porque ela pede 60.
+  **NÃO SOMOS O ÚNICO CONSUMIDOR** — a contabilidade já baixa a mesma caixa;
+  ler em paralelo é seguro, MANIFESTAR não é (o evento é do documento, e quem
+  manifesta assume a ciência com prazo legal). Guards: `tests/sefaz/`.
+- **`with suppress(ImportError)` em volta de binding é bomba-relógio.** A
+  `erpbrasil.edoc` importa os bindings legados assim; sem o `six` os nomes
+  `distDFeInt`/`retDistDFeInt` somem SEM erro e a falha reaparece como
+  `NameError` no meio da consulta. `six` está em `[project.dependencies]` por
+  isso, com guard — um `uv sync` que o deixe cair não quebra import nenhum.
 - **TLS**: tudo sai por `api/tls.contexto()` (certifi, 118 raízes — o armazém
   do Windows em serviço SISTEMA fica incompleto e "self-signed in chain"
   significa RAIZ FALTANDO).
