@@ -6,6 +6,7 @@
 > ajuste com quem opera.
 > Rascunho 05/09/2026 · **núcleo da fase 1 construído em 06/09/2026** (§0) ·
 > **cinco telas + acesso mestre entregues em 07/09/2026 na v1.1.0** (§0-ter) ·
+> **canal com o RH em 07/09/2026 na v1.2.0** (§0-quater) ·
 > base: `main` em v0.255.0.
 
 ---
@@ -153,6 +154,80 @@ sozinho responder por parcela grande do envio diário, trocar é uma linha de
    PRINCIPAL** (§0-bis).
 5. Versão e bloco em `docs/versoes.yaml` — ficam para a entrega ao `main`, com
    o número combinado com as outras worktrees (são nove).
+
+---
+
+## 0-quater. O canal com o RH (v1.2.0) — e a regra do §10 que ele contraria
+
+**Este documento põe CHAT na lista do que fica de fora** (§10), com uma razão
+que continua boa: *"a casa já tem WhatsApp; um segundo canal de conversa é um
+canal que ninguém lê e uma expectativa de resposta que ninguém atende"*.
+
+Quem opera pediu o canal assim mesmo, em 07/09/2026. A razão do §10 não foi
+ignorada — foi ENDEREÇADA no desenho, e é isso que faz a decisão ser diferente
+de simplesmente desobedecer:
+
+> **isto não é conversa, é FILA COM ASSUNTO, DONO E ESTADO** — a mesma forma
+> dos chamados do Suporte (`sup_chamados`), que já funciona na casa há tempo.
+
+| O que o §10 temia | O que impede aqui |
+|---|---|
+| "ninguém lê" | a caixa do RH ordena do MAIS PARADO, e **"paradas há 3+ dias" é o primeiro KPI da tela** — e vai também para a Saúde do Servidor |
+| "expectativa que ninguém atende" | assunto de LISTA FECHADA + `status` + `atribuido_id`: "aberta há N dias" é número, não sensação |
+
+**O §10 continua valendo para o que ele de fato proíbe.** Não há caixa de texto
+sem assunto, não há conversa sem dono, não há mensagem que não caiba numa fila
+com fim. Se um dia a fila estiver cheia e velha, a Saúde vai dizer — e aí a
+decisão de manter ou desligar se toma com o número na mesa, que é a única forma
+de ela ser diferente da que o §10 tomou no escuro.
+
+### O que foi construído
+
+| | |
+|---|---|
+| `sql/cortex/0063_motorista_rh.sql` | `mot_assuntos` (a lista fechada, em TABELA — o RH acrescenta assunto sem esperar entrega), `mot_conversas`, `mot_mensagens` (append-only) |
+| `api/motorista/conversas.py` | os dois lados no mesmo módulo; o escopo do motorista entra na cláusula `WHERE`, junto do id |
+| tela `rhmot` (painel) | a caixa do RH, com os seis registros de sempre |
+| aba **RH** no app | assuntos com texto de ajuda, pedidos, comunicados e a confirmação de leitura |
+| `tests/motorista/test_conversas.py` + `tests/frontend/test_rhmot_e2e.py` | 30 guards; 7 provados por sabotagem |
+
+### As decisões que não se negociam depois
+
+1. **O ESCOPO ENTRA NA CLÁUSULA, NÃO NUM `if`.** Esta é a primeira coisa do
+   app em que o navegador manda um IDENTIFICADOR DE LINHA — até aqui todo
+   escopo saía da sessão e não havia o que forjar. O `motorista_codigo` da
+   sessão vai no `WHERE` junto do id; um `if` conferindo o dono depois da
+   busca é a linha que alguém apaga, e o sintoma é ler a conversa de outra
+   pessoa.
+2. **A recusa é a MESMA para "não existe" e "não é sua"** — distinguir as duas
+   transformaria a rota num contador de conversas alheias.
+3. **O aviso do WhatsApp não leva conteúdo nem assunto, e NÃO abre a janela de
+   horário.** `entrada.py` abre a janela de propósito (código de entrada é
+   resposta a quem está esperando às 03:40); aqui é o contrário — resposta do
+   RH é mensagem de empresa, que é o que a janela existe para conter.
+4. **Comunicado em massa não existe.** 300 conversas de uma vez entopem a fila
+   que o resto do desenho existe para manter atendível, e o aviso sairia contra
+   o teto de 60 destinatários/dia do número que fala com clientes. Mural é
+   outro objeto — sem fila e sem resposta —, e não este.
+5. **A caixa do RH não devolve o `motorista_codigo`** (é o CPF para pessoa
+   física). Só id opaco e nome, como no acesso mestre e na escolha da entrada.
+6. **Anexo e foto ficam para depois, de propósito.** Foto de documento é metade
+   do valor deste canal e é também upload, limite, tipo, ACL e retenção — o
+   `sup_anexos` já mostrou que isso é um módulo, não um campo. O que não se faz
+   é meia implementação de upload num canal que trata de documento de
+   trabalhador.
+7. **A tela `rhmot` fica SÓ no perfil de Recursos Humanos**, e a Diretoria não
+   entra. A caixa mostra o que trabalhador escreveu sobre férias, benefício e
+   saúde: a lista de quem enxerga precisa ser a menor possível, e tela nova
+   acaba dentro do perfil amplo por inércia.
+
+### O código mestre passou a se gerar no CÓRTEX
+
+Gestão → Integrações → *App do motorista — acesso da administração* → **gerar**.
+O código sai forte (≈140 bits, sem O/0/l/I/1 porque é lido de uma tela e
+digitado noutra), vai para o cofre no mesmo instante e é mostrado UMA vez. A
+alternativa era digitar 24 caracteres aleatórios num `.env` de produção — o que
+dá um de dois finais: ou ninguém configura, ou alguém escolhe algo memorizável.
 
 ---
 
@@ -519,8 +594,11 @@ público é majoritariamente agregado, o que já reescreveu a fase 1.
 ## 10. O que fica FORA, de propósito
 
 - **Rastreamento contínuo do motorista.** Não é para isso.
-- **Chat.** A casa já tem WhatsApp; um segundo canal de conversa é um canal que
-  ninguém lê e uma expectativa de resposta que ninguém atende.
+- ~~**Chat.**~~ **Revisto em 07/09/2026 (v1.2.0), e o argumento continua de
+  pé.** O que entrou não foi chat: foi FILA COM ASSUNTO, DONO E ESTADO, com a
+  fila parada medida na tela e na Saúde do Servidor. Ver §0-quater — inclusive
+  o que continua proibido: caixa de texto sem assunto, conversa sem dono, e
+  mensagem que não caiba numa fila com fim.
 - **Qualquer número de dinheiro da empresa** — frete, custo, CKM, resultado.
 - **Escrita no ERP.**
 - **Aprovação de nada.** O motorista relata; quem decide é a casa.

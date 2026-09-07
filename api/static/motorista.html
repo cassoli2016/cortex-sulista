@@ -155,25 +155,39 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
   cursor:pointer}
 
 /* ================================ o app (depois de entrar) =========== */
+/* O `padding` LATERAL SAI DAQUI e vai para os filhos: a faixa da marca sangra
+   de borda a borda, e um padding no contentor a deixaria com duas tiras cinza
+   nas laterais. Quem recebe a margem sao as secoes. */
 .app{max-width:520px;margin:0 auto;
-  padding:0 var(--e2) calc(var(--e3) + env(safe-area-inset-bottom))}
-.app header{display:flex;align-items:center;gap:var(--e1);padding:var(--e2) 0 var(--e1)}
-/* O BRILHO DO ANEL E ADITIVO: ele foi desenhado para o navy do login e da
-   sidebar, e sobre fundo claro as linhas somam ate o branco e a marca some.
-   O disco navy devolve a ele o chao que o desenho pressupoe — e a mesma cor
-   da faixa do cartao de entrada, entao as duas telas seguem sendo a mesma
-   marca. Nao e enfeite: sem ele a marca fica lavada justamente no tema claro,
-   que e o que o motorista usa no sol. */
-.app .anelmini{width:44px;height:44px;display:block;flex:0 0 auto;
-  background:var(--navy-900);border-radius:50%}
-.marca{font-weight:700;letter-spacing:.11em;font-size:15px;flex:1 1 auto;min-width:0}
-.conta-btn{flex:0 0 auto;width:44px;height:44px;border-radius:50%;cursor:pointer;
-  background:transparent;border:1px solid var(--linha);color:var(--ink2);
-  display:grid;place-items:center;padding:0}
-.conta-btn svg{width:21px;height:21px;stroke:currentColor;fill:none;
+  padding:0 0 calc(var(--e3) + env(safe-area-inset-bottom))}
+.app > section, .app > .saudacao{padding-left:var(--e2);padding-right:var(--e2)}
+
+/* ============================ a faixa da marca ======================= */
+.appbar{display:flex;align-items:center;gap:11px;
+  padding:10px var(--e2) 10px 11px;background:var(--navy-900);
+  /* GRUDA NO TOPO: a marca e o unico elemento que nao pode sumir na rolagem —
+     e ela e tambem o que diz ao motorista que ele esta no sistema da empresa,
+     e nao numa pagina qualquer que chegou por link. */
+  position:sticky;top:0;z-index:10}
+/* O ANEL NAO PRECISA MAIS DE DISCO POR BAIXO: a faixa E o navy para o qual ele
+   foi desenhado. O `mix-blend-mode` some junto com o remendo. */
+.app .anelmini{width:38px;height:38px;display:block;flex:0 0 auto}
+.wordmark{font-weight:700;letter-spacing:.13em;font-size:15px;color:#fff;
+  flex:0 0 auto;text-indent:.13em}
+/* A logo empurra o resto para a esquerda e fica colada no botao — e ela que
+   fecha a faixa, como no cartao de entrada. `min-width:0` para que um SVG
+   largo nao force a faixa a rolar para o lado. */
+.appbar .sulista{height:15px;margin-left:auto;flex:0 1 auto;min-width:0;
+  opacity:.95}
+.conta-btn{flex:0 0 auto;width:36px;height:36px;border-radius:50%;cursor:pointer;
+  background:transparent;border:1px solid rgba(255,255,255,.28);
+  color:rgba(255,255,255,.9);display:grid;place-items:center;padding:0}
+.conta-btn svg{width:19px;height:19px;stroke:currentColor;fill:none;
   stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.conta-btn[aria-current="page"]{color:var(--accent);border-color:var(--accent)}
-.marca small{display:block;font-weight:500;letter-spacing:0;font-size:12px;color:var(--ink2)}
+.conta-btn[aria-current="page"]{color:#fff;border-color:#fff;
+  background:rgba(255,255,255,.14)}
+.saudacao{margin:var(--e2) 0 var(--e1);font-size:14px;color:var(--ink2)}
+.saudacao b{color:var(--ink);font-weight:600}
 .card{background:var(--papel);border:1px solid var(--linha);
   border-radius:var(--radius);padding:var(--e2);margin-bottom:var(--e2)}
 .card h1{font-size:19px;margin:0 0 var(--e1)}
@@ -221,6 +235,12 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
 .navbar button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;
   white-space:nowrap}
 .navbar button[aria-current="page"]{color:var(--accent)}
+.navbar button{position:relative}
+/* A BOLINHA fica sobre o icone e nao ao lado do rotulo: ao lado, ela empurra o
+   texto e a trilha da grade encolhe o vizinho. `--erro` porque ela pede acao,
+   e nao porque algo esta errado — e a mesma tinta do semaforo da casa. */
+.navbar .pip{position:absolute;top:8px;left:calc(50% + 6px);width:9px;height:9px;
+  border-radius:50%;background:var(--erro);border:2px solid var(--papel)}
 /* A ALTURA DA BARRA VIRA FOLGA NO FIM DA PAGINA. Sem isto o ultimo cartao
    fica debaixo da barra e ninguem descobre que ha mais conteudo. */
 .app.comnav{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
@@ -229,9 +249,8 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
 /* VERMELHA E NO TOPO DE TUDO, e nao um aviso discreto: quem esta aqui esta
    vendo a conta de outra pessoa, e um print desta tela sem a tarja vira "o
    app mostrou isso ao motorista", que e falso. */
-.mestre{position:sticky;top:0;z-index:15;background:var(--brand);color:#fff;
-  padding:9px var(--e2);font-size:13px;font-weight:600;text-align:center;
-  margin:0 calc(-1 * var(--e2)) var(--e1)}
+.mestre{position:sticky;top:0;z-index:16;background:var(--brand);color:#fff;
+  padding:9px var(--e2);font-size:13px;font-weight:600;text-align:center}
 .mestre b{font-weight:700}
 
 /* ================================ blocos de conteudo ================= */
@@ -288,6 +307,41 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
 .linksec{display:block;width:100%;background:none;border:0;font:inherit;
   font-size:12.5px;color:var(--n500);text-align:center;margin-top:var(--e2);
   padding:10px;cursor:pointer;text-decoration:underline}
+/* ============================== o canal com o RH ==================== */
+.escolha button.rh-assunto{display:block;width:100%;text-align:left;font:inherit;
+  background:var(--papel);color:var(--ink);border:1px solid var(--linha);
+  border-radius:8px;padding:12px;margin-bottom:var(--e1);cursor:pointer;
+  min-height:52px}
+.escolha button.rh-assunto b{display:block;font-size:15px;font-weight:600}
+.escolha button.rh-assunto span{display:block;font-size:12.5px;color:var(--ink2);
+  margin-top:3px;line-height:1.4}
+.rh-item{display:block;width:100%;text-align:left;font:inherit;cursor:pointer;
+  background:none;border:0;border-bottom:1px solid var(--linha);
+  padding:12px 0;color:inherit}
+.rh-item:last-child{border-bottom:0}
+.rh-item .top{display:flex;justify-content:space-between;gap:var(--e1);
+  align-items:baseline}
+.rh-item .tit{font-weight:600;font-size:15px}
+.rh-item .quando{font-size:12px;color:var(--ink2);white-space:nowrap}
+.rh-item .meta{font-size:12.5px;color:var(--ink2);margin-top:3px}
+.rh-fio{margin:var(--e1) 0 var(--e2)}
+.rh-bolha{border-radius:10px;padding:10px 12px;margin-bottom:var(--e1);
+  max-width:90%;font-size:14.5px;line-height:1.45;white-space:pre-wrap;
+  word-break:break-word}
+.rh-bolha.rh{background:var(--fundo);border:1px solid var(--linha)}
+/* A do MOTORISTA vai a direita, como em todo aplicativo de mensagem que ele ja
+   usa. Nao e imitacao de chat: e a convencao que diz sem palavra nenhuma qual
+   das duas falas e a dele. */
+.rh-bolha.motorista{background:color-mix(in srgb,var(--navy-700) 12%,transparent);
+  border:1px solid color-mix(in srgb,var(--navy-700) 26%,transparent);
+  margin-left:auto}
+.rh-bolha.sistema{background:none;border:0;color:var(--ink2);font-size:12.5px;
+  text-align:center;max-width:100%;padding:2px 0}
+.rh-bolha .quem{font-size:11px;color:var(--ink2);margin-bottom:3px;
+  text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.rh-resp{width:100%;font:inherit;font-size:16px;padding:11px;border-radius:8px;
+  border:1px solid var(--n300);background:var(--papel);color:var(--ink);
+  resize:vertical}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -367,10 +421,26 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
 -->
 <div class="app" id="app" hidden>
   <div class="mestre" id="tarja-mestre" hidden></div>
-  <header>
+  <!--
+    O CABECALHO E A FAIXA DA MARCA, e nao tres elementos soltos sobre o fundo
+    claro. Tres coisas se resolvem juntas nesta escolha:
+
+    1. A LOGO DA SULISTA E BRANCA (`fill:#fff` no SVG, e e a unica que a casa
+       versiona). Sobre o cinza do app ela simplesmente nao existe; sobre o
+       navy ela e a mesma marca do login, do painel e dos paineis de TV.
+    2. O ANEL FOI DESENHADO PARA O NAVY. O brilho dele e ADITIVO: sobre fundo
+       claro as linhas somam ate o branco e a marca fica lavada — era por isso
+       que ele vinha com um disco escuro por baixo, que e remendo. Na faixa ele
+       tem o chao que o desenho pressupoe.
+    3. `--navy-800/900` sao os tokens que a casa CONGELA de proposito (nao
+       mudam com o tema). A faixa sai identica no claro e no escuro, e igual a
+       do cartao de entrada — as duas telas passam a ser a mesma marca.
+  -->
+  <header class="appbar">
     <canvas id="anelmini" class="anelmini" aria-hidden="true"></canvas>
-    <div class="marca">CÓRTEX<small id="marca-sub">Motorista</small></div>
-    <!-- A CONTA SAI DA BARRA DE BAIXO, e fica aqui. Com ela lá seriam SETE
+    <span class="wordmark">CÓRTEX</span>
+    <img class="sulista" src="/static/sulista-logo-branco.svg" alt="Sulista">
+    <!-- A CONTA SAI DA BARRA DE BAIXO, e fica aqui. Com ela la seriam SETE
          itens em 375 px de tela: 53 px cada, e "Registros" ja nao cabe no
          rotulo. A barra e para o que se usa todo dia; conta e sair sao coisa
          de uma vez por mes. -->
@@ -379,14 +449,13 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
         <path d="M5 20a7 7 0 0 1 14 0"/></svg>
     </button>
   </header>
+  <!-- O NOME FORA DA FAIXA. Dentro dela ele disputaria espaco com a logo em
+       390 px e sairia cortado no primeiro sobrenome; aqui cabe inteiro. -->
+  <p class="saudacao" id="marca-sub"></p>
   <div class="tarja" id="tarja-velha" hidden></div>
 
   <section id="tela-viagem" hidden>
     <div class="card" id="card-viagem"></div>
-  </section>
-
-  <section id="tela-produtividade" hidden>
-    <div id="card-produtividade"></div>
   </section>
 
   <section id="tela-desempenho" hidden>
@@ -403,6 +472,10 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
 
   <section id="tela-jornada" hidden>
     <div id="card-jornada"></div>
+  </section>
+
+  <section id="tela-rh" hidden>
+    <div id="card-rh"></div>
   </section>
 
   <section id="tela-conta" hidden>
@@ -481,8 +554,8 @@ function aparelho() {
 const ENTRADA = ["tela-entrar", "tela-codigo", "tela-escolha", "tela-mestre"];
 
 // As seis secoes do app logado. A ordem AQUI e a ordem da barra de baixo.
-const SECOES = ["tela-viagem", "tela-produtividade", "tela-desempenho",
-                "tela-multas", "tela-registros", "tela-jornada", "tela-conta"];
+const SECOES = ["tela-viagem", "tela-desempenho", "tela-multas",
+                "tela-registros", "tela-jornada", "tela-rh", "tela-conta"];
 
 function mostrar(qual) {
   ENTRADA.forEach((id) => { $(id).hidden = (id !== qual); });
@@ -511,8 +584,14 @@ function anelLigar() {
     const mn = $("anelmini");
     if (mn && !mn.dataset.anel) {
       mn.dataset.anel = "1";
-      cortexAnel.ligar(mn, { alfa: .5, largura: 1.15, linhas: 26, pontos: 120,
-                             amplitude: .115, espessura: .13, velocidade: 1.5 });
+      // CALIBRADO PARA 38 px NA FAIXA, e nao herdado do anel grande do login.
+      // O brilho e ADITIVO: a 150 px, 44 linhas finas somam num degrade
+      // continuo; a 38 px as mesmas 44 linhas cabem em ~19 px de espessura e
+      // viram um cinza claro — a marca perde o tijolo em cima e o azul na
+      // base, que sao ELA. Menos linhas, mais grossas e mais opacas devolvem
+      // a cor no tamanho em que ela e realmente vista.
+      cortexAnel.ligar(mn, { alfa: .58, largura: 1.45, linhas: 20, pontos: 110,
+                             amplitude: .125, espessura: .16, velocidade: 1.5 });
     }
   } catch (e) { /* a marca e enfeite; a tela nao depende dela */ }
 }
@@ -751,15 +830,22 @@ const ICON = {
   multas: "<path d='M12 3l9 16H3z'/><path d='M12 9v4'/><path d='M12 16.5v.5'/>",
   registros: "<path d='M6 3h9l4 4v14H6z'/><path d='M15 3v4h4'/>" +
              "<path d='M9 12h7'/><path d='M9 16h7'/>",
-  jornada: "<circle cx='12' cy='12' r='8.5'/><path d='M12 7.5V12l3 2'/>"
+  jornada: "<circle cx='12' cy='12' r='8.5'/><path d='M12 7.5V12l3 2'/>",
+  rh: "<path d='M4 5.5h16a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H10" +
+      "l-4.5 3.5V16.5H4A1.5 1.5 0 0 1 2.5 15V7A1.5 1.5 0 0 1 4 5.5Z'/>" +
+      "<path d='M7 9.5h10M7 12.5h6'/>"
 };
 
 const ABAS = [
   { id: "viagem",        rotulo: "Viagem",   url: "/api/motorista/viagem",
     alvo: "card-viagem",         desenhar: desenharViagem },
-  { id: "produtividade", rotulo: "30 dias",  url: "/api/motorista/produtividade",
-    alvo: "card-produtividade",  desenhar: desenharProdutividade },
-  { id: "desempenho",    rotulo: "Condução", url: "/api/motorista/desempenho",
+  // DESEMPENHO CARREGA DUAS ROTAS, e a fusao nao e economia de tela: os 30
+  // dias e a conducao respondem a MESMA pergunta ("como eu fui?") e separa-las
+  // obrigava o motorista a comparar duas abas de cabeca. O que forcou a
+  // decisao foi a barra: com o canal do RH seriam SETE itens em 390 px — 55 px
+  // cada, e "Registros" ja nao cabe no rotulo.
+  { id: "desempenho",    rotulo: "Desempenho",
+    url: ["/api/motorista/produtividade", "/api/motorista/desempenho"],
     alvo: "card-desempenho",     desenhar: desenharDesempenho },
   { id: "multas",        rotulo: "Multas",   url: "/api/motorista/multas",
     alvo: "card-multas",         desenhar: desenharMultas },
@@ -767,6 +853,8 @@ const ABAS = [
     alvo: "card-registros",      desenhar: desenharOcorrencias },
   { id: "jornada",       rotulo: "Jornada",  url: "/api/motorista/jornada",
     alvo: "card-jornada",        desenhar: desenharJornada },
+  { id: "rh",            rotulo: "RH",       url: "/api/motorista/conversas",
+    alvo: "card-rh",             desenhar: desenharRh },
   // `conta` NAO ENTRA NA BARRA (ver o comentario do botao no cabecalho): ela
   // e uma aba de verdade — abre pelo mesmo `abrirAba`, tem secao propria —,
   // so nao ocupa um dos lugares do polegar.
@@ -776,7 +864,8 @@ const ABAS = [
 
 // A aba `registros` fala com a secao `ocorrencias` do servidor: o nome curto
 // e para caber na barra do celular, e a chave do servidor e a do assunto.
-const SECAO_DO_SERVIDOR = { registros: "ocorrencias", conta: "conta" };
+const SECAO_DO_SERVIDOR = { registros: "ocorrencias", rh: "conversas",
+                            conta: "conta" };
 
 const cache = {};        // id da aba -> resposta ja carregada
 let euAtual = {};        // o que /api/motorista/eu devolveu
@@ -793,8 +882,14 @@ function montarBarra(secoes) {
     const b = document.createElement("button");
     b.type = "button";
     b.dataset.aba = a.id;
+    // A BOLINHA E DO SERVIDOR, e nao um estado que a pagina inventa: e ela
+    // que faz o motorista ABRIR a aba do RH. Sem isso, a resposta espera ate
+    // ele passar por ali por acaso — que e exatamente o "canal que ninguem le"
+    // que o escopo do app temia.
+    const n = ((euAtual.avisos || {})[SECAO_DO_SERVIDOR[a.id] || a.id]) || 0;
     b.innerHTML = "<svg viewBox='0 0 24 24' aria-hidden='true'>" +
-      ICON[a.id] + "</svg><span>" + esc(a.rotulo) + "</span>";
+      ICON[a.id] + "</svg><span>" + esc(a.rotulo) + "</span>" +
+      (n ? "<i class='pip' aria-label='" + n + " novidade(s)'></i>" : "");
     b.addEventListener("click", () => abrirAba(a.id));
     nav.appendChild(b);
   });
@@ -822,20 +917,32 @@ async function abrirAba(id) {
   if (cache[id]) { pintar(aba, cache[id]); return; }
 
   $(aba.alvo).innerHTML = "<div class='card carregando'>Carregando…</div>";
-  const r = await pedir(aba.url);
+  // `url` PODE SER UMA LISTA: uma aba que responde a uma pergunta pode precisar
+  // de duas rotas (desempenho = 30 dias + conducao). Elas vao JUNTAS, e nao em
+  // sequencia — num 4G de rodovia, duas idas encadeadas dobram a espera de uma
+  // tela que ja e a mais pesada do app.
+  const urls = Array.isArray(aba.url) ? aba.url : [aba.url];
+  const rs = await Promise.all(urls.map(function (u) { return pedir(u); }));
   // SESSAO EXPIRADA VOLTA PARA A ENTRADA, de qualquer aba. Sem isto o app
   // ficaria mostrando "nao consegui carregar" para sempre depois de 30 dias.
-  if (!r.ok && r.status === 401) return mostrar("tela-entrar");
-  if (!r.ok) {
+  if (rs.some(function (x) { return !x.ok && x.status === 401; }))
+    return mostrar("tela-entrar");
+  const ruim = rs.find(function (x) { return !x.ok; });
+  if (ruim) {
     $(aba.alvo).innerHTML = "<div class='card'><h1>Não consegui carregar</h1>" +
-      "<p class='vaziomsg'>" + esc(r.mensagem) + "</p></div>";
+      "<p class='vaziomsg'>" + esc(ruim.mensagem) + "</p></div>";
     return;
   }
-  cache[id] = r;
-  pintar(aba, r);
+  cache[id] = rs;
+  pintar(aba, rs);
 }
 
-function pintar(aba, r) {
+function pintar(aba, rs) {
+  // A TARJA E A MAIS VELHA DAS RESPOSTAS DA ABA: com duas rotas, dizer a idade
+  // da mais nova esconderia que a outra e de duas horas atras.
+  const r = rs.reduce(function (a, b) {
+    return (b.velha && (!a.velha || b.velhaIdade > a.velhaIdade)) ? b : a;
+  }, rs[0]);
   // A TARJA DE LEITURA VELHA E DA ABA QUE ESTA ABERTA. Ela vem do CABECALHO
   // HTTP daquela resposta (`X-Leitura-Velha`), nao do corpo — regra da casa: o
   // gancho do fetch a desenha para qualquer rota, existente ou futura.
@@ -851,7 +958,7 @@ function pintar(aba, r) {
   } else {
     t.hidden = true;
   }
-  aba.desenhar(r.dados);
+  aba.desenhar.apply(null, rs.map(function (x) { return x.dados; }));
 }
 
 // ---------------------------------------------------------- desenho: peças
@@ -919,7 +1026,9 @@ function variacao(v, inverter) {
 }
 
 // ---------------------------------------------------------- desenho: abas
-function desenharProdutividade(d) {
+// Devolve HTML em vez de escrever na tela: ele e o PRIMEIRO bloco da aba de
+// desempenho, e nao uma tela propria. Quem escreve e `desenharDesempenho`.
+function trechoProdutividade(d) {
   const a = d.atual, ant = d.anterior;
   const kpis =
     kpi("Viagens", num(a.viagens), "antes: " + num(ant.viagens)) +
@@ -938,7 +1047,7 @@ function desenharProdutividade(d) {
     "<div class='item'><div class='top'><div class='tit'>" + esc(x.destino) +
     "</div><div class='val'>" + num(x.viagens) + "</div></div></div>").join("");
 
-  $("card-produtividade").innerHTML =
+  return (
     card("Últimos " + d.janela_dias + " dias",
       "<div class='kpis'>" + kpis + "</div>" +
       "<p class='nota'>Contra os " + d.janela_dias +
@@ -957,17 +1066,21 @@ function desenharProdutividade(d) {
         : "Este destino soma ") + num(d.destinos_viagens) + " das " +
       num(a.viagens) + " viagens.</p>") : "") +
     "<p class='nota'>Fonte: " + esc(d.fonte) + ". O km é o contratado da " +
-    "viagem, não a leitura do hodômetro.</p>";
+    "viagem, não a leitura do hodômetro.</p>");
 }
 
-function desenharDesempenho(d) {
+function desenharDesempenho(prod, d) {
   const alvo = $("card-desempenho");
+  // OS 30 DIAS VEM PRIMEIRO E SEMPRE. Eles saem do ERP e existem para TODO
+  // motorista; a telemetria cobre so quem roda veiculo com equipamento. Pondo
+  // a conducao na frente, o agregado abriria a aba e leria "sem telemetria"
+  // antes de ver que ela tem o que dizer sobre ele.
+  let html = trechoProdutividade(prod);
   if (!d.tem_dado) {
-    alvo.innerHTML = card("Condução",
+    alvo.innerHTML = html + card("Condução",
       "<p class='vaziomsg'>" + esc(d.motivo) + "</p>");
     return;
   }
-  let html = "";
 
   if (d.nota) {
     const n = d.nota;
@@ -1195,6 +1308,202 @@ function desenharJornada(d) {
   alvo.innerHTML = html;
 }
 
+
+// ------------------------------------------------------- o canal com o RH
+//
+// NAO E CHAT, e a tela precisa dizer isso sem escrever "isto nao e um chat":
+// quem abre um pedido escolhe um ASSUNTO de lista, le a AJUDA do assunto antes
+// de escrever (e metade dos pedidos morre ali — "seu contracheque esta no app
+// do Globus" nao precisa de ninguem do RH), e ve o ESTADO e QUEM esta com ele.
+//
+// A LISTA VEM PRIMEIRO, A CONVERSA DEPOIS: `rhAberta` guarda qual esta aberta
+// e o mesmo `desenharRh` pinta os dois estados. Duas telas separadas exigiriam
+// um segundo roteador so para esta aba.
+let RH = { dados: null, aberta: null };
+
+function desenharRh(d) {
+  RH.dados = d;
+  RH.aberta = null;
+  const alvo = $("card-rh");
+  const c = d.conversas || [];
+
+  let html = "";
+  if (d.pendencias) {
+    html += "<div class='tarja'>" + plural(d.pendencias, "comunicado espera",
+      "comunicados esperam") + " a sua confirmação de leitura.</div>";
+  }
+
+  html += card("Falar com o RH",
+    "<p class='vaziomsg'>Escolha o assunto. O RH responde por aqui e você "
+    + "recebe um aviso no WhatsApp.</p>"
+    + "<div class='escolha' style='margin-top:var(--e1)'>"
+    + (d.assuntos || []).map(function (a) {
+        return "<button type='button' class='rh-assunto' data-a='" + esc(a.chave)
+          + "'><b>" + esc(a.rotulo) + "</b>"
+          + (a.ajuda ? "<span>" + esc(a.ajuda) + "</span>" : "") + "</button>";
+      }).join("")
+    + "</div>"
+    + (d.abertas >= d.max_abertas
+       ? "<p class='nota'>Você tem " + plural(d.abertas, "pedido aberto",
+           "pedidos abertos") + ". Aguarde uma resposta antes de abrir outro.</p>"
+       : ""));
+
+  html += card("Seus pedidos e comunicados",
+    c.length ? c.map(itemRh).join("")
+             : "<p class='vaziomsg'>Você ainda não tem nenhuma conversa.</p>");
+
+  alvo.innerHTML = html;
+  alvo.querySelectorAll(".rh-assunto").forEach(function (b) {
+    b.addEventListener("click", function () { rhNovo(b.dataset.a); });
+  });
+  alvo.querySelectorAll("[data-conversa]").forEach(function (b) {
+    b.addEventListener("click", function () { rhAbrir(b.dataset.conversa); });
+  });
+}
+
+function itemRh(x) {
+  const selos = [];
+  if (x.nao_lidas) selos.push("<span class='selo erro'>" + x.nao_lidas
+    + " NOVA(S)</span>");
+  if (x.pede_ciencia) {
+    // UM SELO SÓ QUANDO HÁ AÇÃO: no comunicado, "confirme a leitura" e "o RH
+    // respondeu" dizem a mesma coisa, e dois selos empilhados fazem o leitor
+    // procurar a diferença entre eles em vez de apertar o botão.
+    selos.push("<span class='selo aviso'>CONFIRME A LEITURA</span>");
+  } else if (!x.aberta) {
+    selos.push("<span class='selo ok'>ENCERRADO</span>");
+  } else if (x.status === "aguardando_motorista") {
+    selos.push("<span class='selo frio'>O RH RESPONDEU</span>");
+  }
+  return "<button type='button' class='rh-item' data-conversa='" + x.id + "'>"
+    + "<div class='top'><div class='tit'>"
+    + esc(x.titulo || x.assunto_rotulo) + "</div>"
+    + "<div class='quando'>" + dia((x.ultima_em || "").slice(0, 10)) + "</div></div>"
+    + "<div class='meta'>" + esc(x.resumo || "") + "</div>"
+    + (selos.length ? "<div class='meta'>" + selos.join(" ") + "</div>" : "")
+    + "</button>";
+}
+
+// ---- abrir uma conversa --------------------------------------------------
+async function rhAbrir(id) {
+  const alvo = $("card-rh");
+  alvo.innerHTML = "<div class='card carregando'>Carregando…</div>";
+  const r = await pedir("/api/motorista/conversas/" + encodeURIComponent(id));
+  if (!r.ok && r.status === 401) return mostrar("tela-entrar");
+  if (!r.ok) { alvo.innerHTML = card("", "<p class='vaziomsg'>"
+    + esc(r.mensagem) + "</p>") + rhVoltar(); return; }
+  RH.aberta = id;
+  const c = r.dados.conversa, msgs = r.dados.mensagens || [];
+
+  const fio = msgs.map(function (m) {
+    if (m.papel === "sistema")
+      return "<div class='rh-bolha sistema'>" + esc(m.texto) + "</div>";
+    return "<div class='rh-bolha " + m.papel + "'>"
+      + "<div class='quem'>" + esc(m.papel === "rh" ? (m.autor || "RH") : "Você")
+      + " · " + esc(horarioCurto(m.quando)) + "</div>" + esc(m.texto) + "</div>";
+  }).join("");
+
+  let acao;
+  if (c.pede_ciencia) {
+    // O UNICO BOTAO DO APP QUE REGISTRA UMA AFIRMACAO DELE sobre um documento
+    // da empresa. Por isso ele diz o que faz, e nao "OK".
+    acao = "<button class='sair' id='b-ciencia' style='background:var(--ok);"
+      + "color:#fff;border-color:var(--ok);font-weight:600'>Li e entendi</button>";
+  } else if (c.aberta) {
+    acao = "<textarea class='rh-resp' id='rh-texto' rows='3' "
+      + "placeholder='Escreva aqui'></textarea>"
+      + "<button class='sair' id='b-rh-enviar' style='background:var(--navy-700);"
+      + "color:#fff;border-color:var(--navy-700);font-weight:600;margin-top:var(--e1)'>"
+      + "Enviar</button>";
+  } else {
+    acao = "<p class='nota'>Este pedido foi encerrado. Se ainda precisar de "
+      + "alguma coisa, abra um novo.</p>";
+  }
+
+  alvo.innerHTML = card(c.assunto_rotulo,
+    (c.titulo ? "<h1 style='margin-bottom:var(--e1)'>" + esc(c.titulo) + "</h1>" : "")
+    + "<p class='nota' style='margin-top:0'>"
+    + (c.aberta ? "Em aberto" : "Encerrado")
+    + (c.atendente ? " · com " + esc(c.atendente) : "") + "</p>"
+    + "<div class='rh-fio'>" + fio + "</div>" + acao) + rhVoltar();
+
+  const bv = $("b-rh-voltar"); if (bv) bv.addEventListener("click", rhVoltarLista);
+  const bc = $("b-ciencia");
+  if (bc) bc.addEventListener("click", function () { rhCiencia(id, bc); });
+  const be = $("b-rh-enviar");
+  if (be) be.addEventListener("click", function () { rhEnviar(id, be); });
+}
+
+function rhVoltar() {
+  return "<button class='sair' id='b-rh-voltar'>← Voltar</button>";
+}
+
+async function rhVoltarLista() {
+  delete cache.rh;              // a lista mudou: quem acabou de ler zerou o não-lido
+  await abrirAba("rh");
+}
+
+// ---- escrever ------------------------------------------------------------
+async function rhNovo(assunto) {
+  const a = (RH.dados.assuntos || []).find(function (x) { return x.chave === assunto; });
+  if (!a) return;
+  const alvo = $("card-rh");
+  alvo.innerHTML = card(a.rotulo,
+    (a.ajuda ? "<p class='vaziomsg'>" + esc(a.ajuda) + "</p>" : "")
+    + "<textarea class='rh-resp' id='rh-texto' rows='5' style='margin-top:var(--e1)' "
+    + "placeholder='Conte o que você precisa, em poucas linhas.'></textarea>"
+    + "<button class='sair' id='b-rh-enviar' style='background:var(--navy-700);"
+    + "color:#fff;border-color:var(--navy-700);font-weight:600;margin-top:var(--e1)'>"
+    + "Enviar para o RH</button>"
+    + "<div class='msg' id='m-rh' hidden></div>") + rhVoltar();
+  $("b-rh-voltar").addEventListener("click", rhVoltarLista);
+  $("b-rh-enviar").addEventListener("click", function () {
+    rhEnviar(null, $("b-rh-enviar"), assunto);
+  });
+  $("rh-texto").focus();
+}
+
+async function rhEnviar(id, btn, assunto) {
+  const el = $("rh-texto"), texto = (el.value || "").trim();
+  if (!texto) { el.focus(); return; }
+  ocupado(btn, true);
+  const r = id
+    ? await pedir("/api/motorista/conversas/" + id + "/mensagem",
+        { method: "POST", body: JSON.stringify({ texto: texto }) })
+    : await pedir("/api/motorista/conversas",
+        { method: "POST", body: JSON.stringify({ assunto: assunto, texto: texto }) });
+  ocupado(btn, false, id ? "Enviar" : "Enviar para o RH");
+  if (!r.ok && r.status === 401) return mostrar("tela-entrar");
+  if (!r.ok) {
+    // A RECUSA DO SERVIDOR E LEGIVEL E APARECE INTEIRA: "voce ja tem um pedido
+    // aberto sobre ferias, continue por ele" ensina; "erro" nao.
+    const m = $("m-rh");
+    if (m) { m.className = "msg erro"; m.textContent = r.mensagem; m.hidden = false; }
+    else { aviso("m-entrar", r.mensagem); }
+    return;
+  }
+  delete cache.rh;
+  const alvo = id || (r.dados && r.dados.id);
+  if (alvo) { await rhAbrir(alvo); } else { await rhVoltarLista(); }
+}
+
+async function rhCiencia(id, btn) {
+  ocupado(btn, true);
+  const r = await pedir("/api/motorista/conversas/" + id + "/ciencia",
+    { method: "POST", body: JSON.stringify({}) });
+  ocupado(btn, false, "Li e entendi");
+  if (!r.ok && r.status === 401) return mostrar("tela-entrar");
+  if (!r.ok) return;
+  delete cache.rh;
+  await rhAbrir(id);
+}
+
+function horarioCurto(iso) {
+  if (!iso) return "";
+  const d = String(iso).replace("T", " ");
+  return dia(d.slice(0, 10)) + " " + d.slice(11, 16);
+}
+
 function desenharConta() {
   const l = [["Nome", euAtual.nome || "—"]];
   if (euAtual.telefone) l.push(["Celular", euAtual.telefone]);
@@ -1221,11 +1530,16 @@ async function abrirApp() {
     tm.innerHTML = "ACESSO DA ADMINISTRAÇÃO · você está vendo o app de <b>" +
       esc(euAtual.nome || "") + "</b>";
     tm.hidden = false;
-    $("marca-sub").textContent = euAtual.nome || "Motorista";
   } else {
     tm.hidden = true;
-    $("marca-sub").textContent = euAtual.nome || "Motorista";
   }
+  // PRIMEIRO NOME na saudação, nome inteiro na aba Conta: "Olá, José Carlos
+  // de Oliveira Sobrinho" ocupa duas linhas num celular e não cumprimenta
+  // ninguém melhor que "Olá, José".
+  const nome = (euAtual.nome || "").trim();
+  $("marca-sub").innerHTML = nome
+    ? "Olá, <b>" + esc(nome.split(/\s+/)[0]) + "</b>."
+    : "";
 
   const visiveis = montarBarra(euAtual.secoes || {});
   await abrirAba(visiveis.length ? visiveis[0].id : "conta");

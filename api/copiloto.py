@@ -301,13 +301,25 @@ def _app_motorista() -> dict:
                          FROM smt_infracao_viagem v
                          JOIN mot_vinculos m
                            ON m.motorista_codigo = v.motorista_codigo
-                        WHERE v.motorista_codigo <> '') AS com_multa""")
+                        WHERE v.motorista_codigo <> '') AS com_multa,
+                      -- O CANAL DO RH, em contagem. A pergunta de gestao que
+                      -- ele responde no chat e "o canal com o motorista esta
+                      -- sendo atendido?" — e ela nao tem resposta em tela
+                      -- nenhuma alem da propria caixa do RH.
+                      (SELECT count(*) FROM mot_conversas
+                        WHERE status <> 'resolvida')::int AS conversas_abertas,
+                      (SELECT count(*) FROM mot_conversas
+                        WHERE status <> 'resolvida'
+                          AND ultima_em < now() - interval '3 days')::int
+                        AS conversas_paradas""")
     except Exception as exc:  # noqa: BLE001
         if pglocal.sem_tabela(exc):
             return {"instalado": False}
         raise
     return {"instalado": True, **dict(r or {"vinculados": 0, "ativos_30d": 0,
-                                            "mestre_30d": 0, "com_multa": 0})}
+                                            "mestre_30d": 0, "com_multa": 0,
+                                            "conversas_abertas": 0,
+                                            "conversas_paradas": 0})}
 
 
 def _fontes_do_snapshot() -> dict:

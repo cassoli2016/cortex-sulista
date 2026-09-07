@@ -618,6 +618,26 @@ def _app_motorista() -> dict:
                           % r["recusadas"])
     except Exception as exc:  # noqa: BLE001
         log.info("saude: acesso mestre indisponivel (%s)", type(exc).__name__)
+
+    # O CANAL DO RH. A FILA PARADA e o unico numero que diz se ele esta
+    # funcionando — e o escopo do app previa exatamente a falha que ele mede:
+    # "um canal que ninguem le". Aqui ela deixa de ser sensacao.
+    #
+    # AMARELO E NAO VERMELHO: conversa parada e trabalho atrasado de gente, nao
+    # sistema quebrado. Vermelho aqui treinaria todo mundo a ignorar o cartao
+    # do app do motorista, que e onde mora "o codigo parou de chegar".
+    try:
+        from api.motorista import conversas as _mc
+        c = _mc.contagem()
+        if c["total"]:
+            partes.append("canal do RH: %d em aberto" % c["vivas"])
+            if c["sem_dono"]:
+                partes.append("%d sem dono" % c["sem_dono"])
+            if c["paradas_3d"]:
+                partes.append("⚠ %d parada(s) ha 3+ dias" % c["paradas_3d"])
+    except Exception as exc:  # noqa: BLE001
+        log.info("saude: canal do RH indisponivel (%s)", type(exc).__name__)
+
     return {"nome": nome, "status": "ok", "detalhe": " · ".join(partes)}
 
 

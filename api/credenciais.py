@@ -571,7 +571,46 @@ MINIMO_POR_CREDENCIAL = {"SMTP_SENHA": 4, "MONKEY_SELLER_ID": 1,
                          "TRESS_SENHA": 4, "TRESS_LOGIN": 3,
                          "MONKEY_AMBIENTE": 3, "PROLOG_FILIAIS": 1,
                          "PROLOG_USUARIO": 3, "PROLOG_AUTH_PREFIXO": 3,
-                         "PROLOG_AUTH_HEADER": 3}
+                         "PROLOG_AUTH_HEADER": 3,
+                         # PARA CIMA, e não para baixo — é o único aqui assim.
+                         # Os outros abaixam o mínimo porque o FORNECEDOR decide
+                         # o tamanho da senha dele (a da 3S entrou depois de a
+                         # tela recusar a senha certa por ser curta). Este é
+                         # segredo NOSSO, e abre a PII de ~300 pessoas: o piso
+                         # é o do módulo que o usa (`mestre.TAMANHO_MINIMO`).
+                         # Sem esta linha, o mínimo de 8 da casa deixaria
+                         # passar um código que o app depois recusaria em
+                         # silêncio — "salvei e não funciona".
+                         "MOTORISTA_CODIGO_MESTRE": 16}
+
+
+def gerar_codigo_mestre() -> str:
+    """Um código mestre novo, forte, gerado AQUI — e nunca guardado em texto.
+
+    POR QUE O GERADOR MORA NO CÓRTEX (pedido de quem opera, 07/09/2026): a
+    alternativa era alguém digitar 24 caracteres aleatórios num `.env` da
+    máquina de produção. Na prática isso significa um de dois finais — ou
+    ninguém configura, e o acesso de conferência não existe; ou alguém escolhe
+    um valor memorizável, e o segredo que abre a PII de ~300 pessoas vira um
+    palpite. Gerar no produto tira as duas saídas ruins e ainda torna a
+    ROTAÇÃO possível: trocar passa a ser um botão, não uma visita ao servidor.
+
+    O ALFABETO NÃO TEM O/0/l/I/1, e os grupos vão separados por hífen. É a
+    mesma regra da senha provisória da casa, e pela mesma razão: este código é
+    LIDO DE UMA TELA E DIGITADO NOUTRA, às vezes num celular. Caractere
+    ambíguo aqui não é elegância — é o chamado de "não funciona" que ninguém
+    consegue diagnosticar, porque quem digitou jura que digitou certo.
+
+    Entropia: 4 grupos × 6 caracteres de um alfabeto de 57 ≈ 140 bits. O teto
+    de 6 tentativas por hora por endereço (`mestre.MAX_TENTATIVAS_HORA`) é o
+    que segura o laço; isto é o que torna o laço inútil.
+    """
+    import secrets
+    import string
+    alfabeto = "".join(c for c in string.ascii_letters + string.digits
+                       if c not in "O0lI1")
+    return "-".join("".join(secrets.choice(alfabeto) for _ in range(6))
+                    for _ in range(4))
 
 
 def _carregar() -> dict:

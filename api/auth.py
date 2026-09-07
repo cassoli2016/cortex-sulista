@@ -110,6 +110,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "mul":     ("Multas — Smartec", "Frota"),
     "prem":    ("Premiação de Motoristas", "Telemetria"),
     "rh":      ("RH — Vagas", "Recursos Humanos"),
+    "rhmot":   ("RH — Canal do Motorista", "Recursos Humanos"),
     "hc":      ("Headcount", "Recursos Humanos"),
     "folha":   ("Custo de Folha", "Recursos Humanos"),
     "pedagio": ("Validação de Pedágio", "Operação"),
@@ -208,6 +209,10 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/financeiro/tupy",          frozenset({"antport"})),
     ("/api/rh/folha-custo",           frozenset({"folha"})),
     ("/api/rh/horas-extras",          frozenset({"he"})),
+    # O canal do RH com o motorista. Prefixo PROPRIO e mais especifico que
+    # qualquer outro `/api/rh/...`: nenhuma entrada aqui pode engoli-lo, e ele
+    # nao engole ninguem.
+    ("/api/rh/motorista",             frozenset({"rhmot"})),
     ("/api/rh/vagas",                 frozenset({"rh"})),
     ("/api/financeiro/overview",      frozenset({"fluxo", "receber", "pagar"})),
     ("/api/financeiro/dre-cliente",   frozenset({"drecli"})),
@@ -518,9 +523,10 @@ _PERFIS_MODELO = [
      ["oc", "custos", "pecas"]),
     ("Painéis TV",  "Apenas os painéis de TV (faturamento e operação) — para telão/quiosque.",
      ["tvfat", "tvope"]),
-    ("Recursos Humanos", "Vagas, headcount, custo de folha, indicadores, horas extras e CNH.",
+    ("Recursos Humanos", "Vagas, headcount, custo de folha, indicadores, horas "
+                         "extras, CNH e o canal com o motorista.",
      ["rh", "hc", "folha", "folhaind", "he", "cnh", "ferias", "people",
-      "des", "desrh"]),
+      "des", "desrh", "rhmot"]),
     ("Diretoria",   "Visão executiva ampla: consolidado, copiloto e principais indicadores.",
      ["home", "cop", "fluxo", "dre", "drecli", "com", "km", "prodveic", "torre", "jorn", "mvb", "veic", "prem", "rh", "hc", "folha", "folhaind", "he", "fech", "anpiso", "anrntrc",
       "telcon", "telcond", "telhod"]),
@@ -976,6 +982,29 @@ def _seed_perfis_modelo(c: psycopg.Connection) -> None:
                               " VALUES(%s,%s) ON CONFLICT DO NOTHING",
                               (row["id"], t))
         c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v41', '1') ON CONFLICT(chave) DO NOTHING")
+
+    # v42 (2026-09-07): o canal do RH com o motorista (`rhmot`). SÓ o perfil de
+    # Recursos Humanos, e a Diretoria NÃO entra — de propósito.
+    #
+    # A caixa mostra o que trabalhador escreveu sobre férias, contracheque,
+    # benefício e saúde. Isso é conversa entre o empregado e o RH, e a lista de
+    # quem enxerga precisa ser a MENOR possível: uma tela nova acaba dentro do
+    # perfil amplo por inércia, e ninguém repara que o comercial passou a ler o
+    # pedido de adiantamento de um motorista. Quem precisar entra pela Gestão,
+    # nomeadamente.
+    #
+    # O SEED (a lista de telas do perfil-modelo, acima) só vale para instalação
+    # NOVA — o perfil já existe no banco vivo. É esta migração que dá a tela a
+    # quem já trabalha aqui; sem ela, a tela nasceria invisível para todo mundo
+    # e o canal ficaria com o motorista escrevendo para ninguém.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v42'").fetchone():
+        row = c.execute("SELECT id FROM perfis WHERE nome=%s",
+                        ("Recursos Humanos",)).fetchone()
+        if row:
+            c.execute("INSERT INTO perfil_telas(perfil_id, tela)"
+                      " VALUES(%s,%s) ON CONFLICT DO NOTHING",
+                      (row["id"], "rhmot"))
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v42', '1') ON CONFLICT(chave) DO NOTHING")
 
 
 def _agora() -> str:

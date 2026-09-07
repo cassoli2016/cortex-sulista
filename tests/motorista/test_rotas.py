@@ -20,6 +20,8 @@ ele a DESCOBRE, então rota nova entra no teste sozinha.
 """
 from __future__ import annotations
 
+import re
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -56,6 +58,22 @@ def rotas_do_app() -> list:
     return fora
 
 
+def _chamavel(caminho: str) -> str:
+    """`/api/motorista/conversas/{cid}` → `/api/motorista/conversas/1`.
+
+    O CANAL DO RH TROUXE A PRIMEIRA ROTA COM PARÂMETRO DE CAMINHO, e sem esta
+    substituição o guard pedia o path LITERAL: o FastAPI respondia 422 (o
+    `{cid}` não é um inteiro) e a asserção quebrava por forma, não por falta de
+    sessão. A tentação, nesse momento, é pôr a rota em `SEM_SESSAO` para o
+    teste passar — e isso a abriria ao mundo, que é exatamente o que este
+    arquivo existe para impedir.
+
+    O `1` é seguro e não enfraquece nada: a sessão é exigida ANTES de qualquer
+    consulta, então a resposta continua sendo 401 exista ou não a linha 1.
+    """
+    return re.sub(r"\{[^}]+\}", "1", caminho)
+
+
 def test_toda_rota_do_app_exige_sessao():
     """O guard que faz a exceção do prefixo caber. NÃO tem lista fixa."""
     from api.main import app
@@ -64,10 +82,20 @@ def test_toda_rota_do_app_exige_sessao():
     assert achadas, "nenhuma rota de motorista encontrada — o guard ficou cego"
     for caminho, metodos in achadas:
         for metodo in metodos:
-            r = c.request(metodo, caminho, json={})
+            r = c.request(metodo, _chamavel(caminho), json={})
             assert r.status_code == 401, (
                 f"{metodo} {caminho} respondeu {r.status_code} SEM SESSÃO — "
                 "rota nova sem `_eu(req)` nasce aberta ao mundo")
+
+
+def test_o_guard_alcanca_as_rotas_COM_PARAMETRO():
+    """O espelho de `_chamavel`: sem ele, alguém "conserta" o guard fazendo-o
+    PULAR os caminhos com `{}` — e aí toda rota de conversa nasce fora da
+    varredura, em silêncio."""
+    com_param = [c for c, _ in rotas_do_app() if "{" in c]
+    assert com_param, "nenhuma rota com parâmetro — este guard ficou vago"
+    assert _chamavel("/api/motorista/conversas/{cid}/mensagem") == \
+        "/api/motorista/conversas/1/mensagem"
 
 
 def test_sair_e_a_excecao_e_ela_e_deliberada():

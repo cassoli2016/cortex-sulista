@@ -27,7 +27,9 @@ import json
 
 EU = {"nome": "João da Silva", "telefone": "5547999990001", "mestre": False,
       "secoes": {"viagem": True, "produtividade": True, "desempenho": True,
-                 "multas": True, "ocorrencias": True, "jornada": False}}
+                 "multas": True, "ocorrencias": True, "jornada": False,
+                 "conversas": True},
+      "avisos": {}}
 
 VIAGEM = {"viagem": {
     "numero": "178010", "placa": "NYP3J22", "carretas": ["JOK3011"],
@@ -170,9 +172,12 @@ def test_a_barra_desenha_so_as_abas_que_a_pessoa_TEM(pagina):
     _, erros = _abrir(pg, base_url)
     abas = pg.eval_on_selector_all(
         "#navbar button", "els => els.map(e => e.dataset.aba)")
-    assert abas == ["viagem", "produtividade", "desempenho", "multas",
-                    "registros"], abas
+    # SEIS, E NAO SETE: `produtividade` nao tem aba propria — os 30 dias sao o
+    # primeiro bloco de `desempenho`, porque respondem a MESMA pergunta e
+    # porque sete itens em 390 px dao 55 px cada, onde "Registros" ja nao cabe.
+    assert abas == ["viagem", "desempenho", "multas", "registros", "rh"], abas
     assert "jornada" not in abas
+    assert len(abas) <= 6, "a barra passou de seis itens — nao cabe no polegar"
     assert not erros, erros
 
 
@@ -215,7 +220,7 @@ def test_as_cinco_abas_desenham_sem_erro_de_script(pagina):
     nulo no meio, campo que o payload não tem, chave escrita com outro nome."""
     pg, base_url = pagina
     _, erros = _abrir(pg, base_url)
-    for aba, marca in (("produtividade", "Últimos 30 dias"),
+    for aba, marca in (("desempenho", "Últimos 30 dias"),
                        ("desempenho", "O que melhorar"),
                        ("multas", "Multas e notificações"),
                        ("registros", "Registros da operação")):
@@ -294,7 +299,7 @@ def test_a_pagina_nao_rola_para_o_LADO(pagina):
     `1fr` é `minmax(auto,1fr)` e a trilha não encolhe abaixo do min-content."""
     pg, base_url = pagina
     _abrir(pg, base_url)
-    for aba in ("viagem", "produtividade", "desempenho", "multas", "registros"):
+    for aba in ("viagem", "desempenho", "multas", "registros", "rh"):
         _ir(pg, aba)
         sobra = pg.evaluate(
             "document.documentElement.scrollWidth - "
@@ -335,3 +340,195 @@ def test_a_nota_mes_a_mes_aparece_SEM_grafico(pagina):
     assert externos == ["/static/anel.js"], (
         "a página do motorista passou a carregar script além da marca: %r"
         % externos)
+
+
+# ==================================================== o cabecalho da marca ==
+
+def test_o_cabecalho_e_a_faixa_da_marca_com_as_DUAS_logos(pagina):
+    """A logo da Sulista é BRANCA (`fill:#fff` no SVG, e é a única que a casa
+    versiona): sobre o cinza do app ela simplesmente não existe. A faixa navy é
+    o que a torna possível — e é a mesma cor do cartão de entrada, então as
+    duas telas passam a ser a mesma marca.
+
+    O anel também depende dela: o brilho dele é ADITIVO, e sobre fundo claro as
+    linhas somam até o branco. Antes da faixa ele vinha com um disco escuro por
+    baixo, que era remendo — e sobre a faixa esse disco seria uma mancha preta
+    em cima de outra.
+    """
+    pg, base_url = pagina
+    _, erros = _abrir(pg, base_url)
+
+    fundo = pg.eval_on_selector(".appbar", "e => getComputedStyle(e).backgroundColor")
+    assert fundo not in ("rgba(0, 0, 0, 0)", "transparent"), (
+        "a faixa ficou sem fundo — a logo branca some e o anel lava")
+
+    logo = pg.get_attribute(".appbar .sulista", "src")
+    assert logo == "/static/sulista-logo-branco.svg"
+    largura = pg.eval_on_selector(".appbar .sulista",
+                                  "e => e.getBoundingClientRect().width")
+    assert largura > 40, (
+        "a logo da Sulista não está sendo desenhada (%.0f px)" % largura)
+    assert "CÓRTEX" in pg.text_content(".appbar .wordmark")
+
+    disco = pg.eval_on_selector(".anelmini",
+                                "e => getComputedStyle(e).backgroundColor")
+    assert disco in ("rgba(0, 0, 0, 0)", "transparent"), (
+        "o anel manteve o disco de remendo: %r" % disco)
+    assert not erros, erros
+
+
+def test_a_faixa_nao_rola_para_o_lado_com_nome_comprido(pagina):
+    """A logo, o wordmark e o botão disputam 390 px. Se algum deles não
+    encolher, a faixa empurra a página para o lado — e a régua deste app é a
+    largura de um celular, não os 900 px do painel."""
+    pg, base_url = pagina
+    _abrir(pg, base_url,
+           {**EU, "nome": "JOSE CARLOS DE OLIVEIRA SOBRINHO FILHO"})
+    sobra = pg.evaluate("document.documentElement.scrollWidth - "
+                        "document.documentElement.clientWidth")
+    assert sobra <= 0, "a faixa empurrou a página %d px para o lado" % sobra
+    # O NOME FICA FORA DA FAIXA justamente por isto: lá ele sairia cortado no
+    # primeiro sobrenome. Aqui cabe.
+    assert "JOSE" in pg.text_content("#marca-sub").upper()
+
+
+# ======================================================= o canal com o RH ==
+
+CONVERSAS = {
+    "conversas": [
+        {"id": 7, "assunto": "ferias", "assunto_rotulo": "Férias",
+         "origem": "motorista", "titulo": "", "status": "aguardando_motorista",
+         "aberta": True, "criada_em": "2026-09-01T09:00:00",
+         "ultima_em": "2026-09-06T15:00:00", "nao_lidas": 1,
+         "resumo": "Suas férias vencem em 12/2026.", "pede_ciencia": False,
+         "ciencia_em": None},
+        {"id": 8, "assunto": "comunicado", "assunto_rotulo": "Comunicado do RH",
+         "origem": "rh", "titulo": "Convenção coletiva 2026",
+         "status": "aguardando_motorista", "aberta": True,
+         "criada_em": "2026-09-05T09:00:00", "ultima_em": "2026-09-05T09:00:00",
+         "nao_lidas": 1, "resumo": "O reajuste entra na folha de outubro.",
+         "pede_ciencia": True, "ciencia_em": None}],
+    "nao_lidas": 2, "pendencias": 1, "abertas": 2,
+    "assuntos": [{"chave": "ferias", "rotulo": "Férias",
+                  "ajuda": "Para pedir, adiantar ou tirar dúvida.",
+                  "pede_ciencia": False},
+                 {"chave": "contracheque", "rotulo": "Contracheque e descontos",
+                  "ajuda": "Dúvida sobre valor ou desconto.",
+                  "pede_ciencia": False}],
+    "max_abertas": 5, "fonte": "CÓRTEX · canal do RH"}
+
+CONVERSA = {
+    "conversa": {"id": 7, "assunto": "ferias", "assunto_rotulo": "Férias",
+                 "origem": "motorista", "titulo": "",
+                 "status": "aguardando_motorista", "aberta": True,
+                 "pede_ciencia": False, "criada_em": "2026-09-01T09:00:00",
+                 "atendente": "Fernanda"},
+    "mensagens": [
+        {"id": 1, "papel": "sistema", "autor": "",
+         "texto": "Pedido aberto sobre Férias.", "evento": "abertura",
+         "quando": "2026-09-01T09:00:00"},
+        {"id": 2, "papel": "motorista", "autor": "João",
+         "texto": "Quando vencem minhas férias?", "evento": "",
+         "quando": "2026-09-01T09:00:00"},
+        {"id": 3, "papel": "rh", "autor": "Fernanda",
+         "texto": "Vencem em 12/2026. Ja pode agendar.", "evento": "",
+         "quando": "2026-09-06T15:00:00"}]}
+
+
+def _com_rh(pg, eu):
+    """As rotas do canal POR CIMA das outras.
+
+    No Playwright a rota registrada por ÚLTIMO é avaliada primeiro — por isso
+    esta vem depois de `_rotas`, e não antes.
+    """
+    pedidas = _rotas(pg, eu)
+
+    def rota(route):
+        u = route.request.url.split("?")[0]
+        pedidas.append(u[u.index("/api"):])
+        corpo = CONVERSAS if u.rstrip("/").endswith("/conversas") else CONVERSA
+        route.fulfill(status=200, content_type="application/json",
+                      body=json.dumps(corpo))
+
+    pg.route("**/api/motorista/conversas**", rota)
+    return pedidas
+
+
+def _abrir_rh(pg, base_url, avisos=None):
+    eu = {**EU, "secoes": {**EU["secoes"], "conversas": True},
+          "avisos": avisos if avisos is not None else {"conversas": 2}}
+    _com_rh(pg, eu)
+    erros = []
+    pg.on("pageerror", lambda e: erros.append(str(e)))
+    pg.set_viewport_size({"width": 390, "height": 780})
+    pg.goto("%s/static/motorista.html" % base_url)
+    pg.wait_for_selector("#tela-viagem:not([hidden])", timeout=15000)
+    return erros
+
+
+def test_a_aba_do_RH_mostra_os_assuntos_e_a_lista(pagina):
+    """NÃO É CHAT, e a tela diz isso sem escrever "isto não é um chat": quem
+    abre um pedido escolhe um ASSUNTO e lê a AJUDA dele antes de escrever — é
+    ela que resolve metade dos pedidos sem virar fila."""
+    pg, base_url = pagina
+    erros = _abrir_rh(pg, base_url)
+    _ir(pg, "rh")
+    texto = pg.text_content("#tela-rh")
+    assert "Férias" in texto and "Contracheque" in texto
+    assert "Para pedir, adiantar" in texto, "a ajuda do assunto não apareceu"
+    assert "Convenção coletiva 2026" in texto
+    assert "CONFIRME A LEITURA" in texto, "o comunicado sem ciência não avisa"
+    assert not erros, erros
+
+
+def test_a_bolinha_de_recado_aparece_na_barra(pagina):
+    """É ela que faz o motorista ABRIR a aba. Sem isso, a resposta do RH espera
+    até ele passar por ali por acaso — que é o "canal que ninguém lê" que o
+    escopo do app temia."""
+    pg, base_url = pagina
+    _abrir_rh(pg, base_url)
+    pg.wait_for_selector("#navbar button[data-aba='rh'] .pip", timeout=15000)
+    assert pg.eval_on_selector_all(
+        "#navbar button[data-aba='multas'] .pip", "e => e.length") == 0
+
+
+def test_sem_recado_a_bolinha_nao_existe(pagina):
+    """A outra ponta: uma bolinha fixa passaria no teste de cima e viraria um
+    aviso permanente — que é a mesma coisa que aviso nenhum."""
+    pg, base_url = pagina
+    _abrir_rh(pg, base_url, avisos={})
+    pg.wait_for_selector("#navbar button[data-aba='rh']", timeout=15000)
+    assert pg.eval_on_selector_all("#navbar .pip", "e => e.length") == 0
+
+
+def test_a_conversa_mostra_os_dois_lados_e_quem_atende(pagina):
+    """"O RH" não devolve ligação nenhuma; "a Fernanda está com o seu pedido"
+    devolve."""
+    pg, base_url = pagina
+    _abrir_rh(pg, base_url)
+    _ir(pg, "rh")
+    pg.click("[data-conversa='7']")
+    pg.wait_for_selector(".rh-bolha.rh", timeout=15000)
+    texto = pg.text_content("#tela-rh")
+    assert "Quando vencem minhas férias?" in texto
+    assert "Vencem em 12/2026" in texto
+    assert "Fernanda" in texto
+    # A fala DELE vai à direita — a convenção que diz, sem palavra nenhuma,
+    # qual das duas é a dele.
+    lado = pg.eval_on_selector(".rh-bolha.motorista",
+                               "e => getComputedStyle(e).marginLeft")
+    assert lado != "0px", "a bolha do motorista não foi para a direita"
+
+
+def test_a_aba_do_RH_some_se_o_servidor_disser_que_nao_ha(pagina):
+    """`secoes` manda, aqui como na jornada: a barra desenha o que o servidor
+    disser, e não uma lista fixa da página."""
+    pg, base_url = pagina
+    eu = {**EU, "secoes": {**EU["secoes"], "conversas": False}}
+    _com_rh(pg, eu)
+    pg.set_viewport_size({"width": 390, "height": 780})
+    pg.goto("%s/static/motorista.html" % base_url)
+    pg.wait_for_selector("#tela-viagem:not([hidden])", timeout=15000)
+    abas = pg.eval_on_selector_all("#navbar button",
+                                   "els => els.map(e => e.dataset.aba)")
+    assert "rh" not in abas

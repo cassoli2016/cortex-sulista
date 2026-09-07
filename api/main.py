@@ -670,6 +670,22 @@ def _mot_recusa(mensagem: str, *, status: int = HTTP_RECUSA) -> JSONResponse:
                         content={"erro": "recusa", "mensagem": mensagem})
 
 
+async def _corpo_json(req: Request) -> dict:
+    """O corpo, ou `{}` — nunca uma excecao.
+
+    Um `await req.json()` cru levanta em corpo vazio e em corpo que nao e
+    objeto, e isso viraria 500 numa rota publica; a rota tem de RECUSAR pelo
+    conteudo que faltou ("escolha um assunto"), nao explodir pela forma. As
+    tres rotas de entrada ja faziam isto a mao, cada uma com o seu try — este
+    e o mesmo codigo num lugar so.
+    """
+    try:
+        corpo = await req.json()
+    except Exception:  # noqa: BLE001
+        corpo = {}
+    return corpo if isinstance(corpo, dict) else {}
+
+
 def _eu(req: Request) -> dict:
     """A sessao do motorista desta requisicao. Levanta `SemSessao`."""
     from api.motorista import sessao as msessao
@@ -771,7 +787,12 @@ def motorista_eu(req: Request) -> JSONResponse:
                          # A TARJA DEPENDE DISTO. Sem a marca chegando a
                          # pagina, quem administra esquece em que conta esta.
                          "mestre": bool(sess.get("mestre")),
-                         "secoes": _mot_secoes(sess)})
+                         "secoes": _mot_secoes(sess),
+                         # A MARCA DE RECADO NOVO. Vem no boot porque e ela que
+                         # faz o motorista ABRIR a aba do RH — sem isso, a
+                         # resposta fica esperando ate ele passar por ali por
+                         # acaso, e o canal vira o que o escopo temia.
+                         "avisos": _mot_avisos(sess)})
 
 
 def _mot_secoes(sess: dict) -> dict:
@@ -783,11 +804,25 @@ def _mot_secoes(sess: dict) -> dict:
     except Exception as exc:  # noqa: BLE001
         log.info("secoes do motorista: jornada indisponivel (%s)",
                  type(exc).__name__)
-    # As outras quatro valem para TODO motorista: "nenhuma multa sua" e
-    # "nenhuma ocorrencia" sao boa noticia, nao tela vazia — ao contrario da
-    # jornada, que para o agregado e ausencia permanente.
+    # As outras valem para TODO motorista: "nenhuma multa sua" e "nenhuma
+    # ocorrencia" sao boa noticia, nao tela vazia — ao contrario da jornada,
+    # que para o agregado e ausencia permanente. O canal do RH vale para todos
+    # pelo mesmo motivo: falar com o RH nao depende de ja ter falado.
     return {"viagem": True, "produtividade": True, "desempenho": True,
-            "multas": True, "ocorrencias": True, "jornada": tem_jornada}
+            "multas": True, "ocorrencias": True, "jornada": tem_jornada,
+            "conversas": True}
+
+
+def _mot_avisos(sess: dict) -> dict:
+    """Quantos recados esperam por ele. Uma consulta local, e ela NAO derruba
+    o login: sem o numero a bolinha nao aparece, que e a degradacao certa."""
+    from api.motorista import conversas as mconv
+    try:
+        d = mconv.minhas(sess)
+        return {"conversas": int(d["nao_lidas"]) + int(d["pendencias"])}
+    except Exception as exc:  # noqa: BLE001
+        log.info("avisos do motorista indisponiveis (%s)", type(exc).__name__)
+        return {}
 
 
 @app.post("/api/motorista/sair")
@@ -887,6 +922,94 @@ def motorista_jornada(req: Request) -> JSONResponse:
     return _mot_ler(req, mjor.minha, "jornada")
 
 
+# ------------------------------------------------------- o canal com o RH
+#
+# A PRIMEIRA COISA DESTE APP EM QUE O NAVEGADOR MANDA UM ID DE LINHA. Ate aqui
+# todo escopo saia da sessao e nao havia o que forjar; agora ha. A defesa nao
+# esta nestas rotas e sim em `conversas._minha()`, que poe o
+# `motorista_codigo` da SESSAO na clausula WHERE junto do id — nunca uma busca
+# por id seguida de um `if` conferindo o dono. As duas formas parecem iguais e
+# nao sao: o `if` e a linha que alguem apaga numa refatoracao, e o sintoma e
+# ler a conversa de outra pessoa.
+
+def _mot_escrever(req: Request, acao, assunto: str, corpo: dict) -> JSONResponse:
+    """Rota de ESCRITA do app: sessao, recusa legivel, e trilha SEMPRE.
+
+    A auditoria vem ANTES de qualquer coisa externa (regra da casa) e depois da
+    gravacao — o que se registra e o que aconteceu, nao o que se pretendia.
+    """
+    from api.motorista import conversas as mconv
+    from api.motorista import sessao as msessao
+    try:
+        sess = _eu(req)
+    except msessao.SemSessao:
+        return _mot_recusa("Faca login para continuar.", status=401)
+    try:
+        r = acao(sess, corpo)
+    except mconv.Recusa as exc:
+        return _mot_recusa(str(exc))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("%s do motorista falhou: %s", assunto, type(exc).__name__)
+        return _mot_recusa("Nao consegui salvar agora. Tente de novo.")
+    auth.audit("motorista:%d" % sess["motorista_id"], "motorista_" + assunto,
+               alvo=str(r.get("id") or r.get("conversa_id") or ""),
+               ip=_ip_do_cliente(req))
+    return JSONResponse(r)
+
+
+@app.get("/api/motorista/conversas")
+def motorista_conversas(req: Request) -> JSONResponse:
+    from api.motorista import conversas as mconv
+    return _mot_ler(req, mconv.minhas, "conversas")
+
+
+@app.get("/api/motorista/conversas/{cid}")
+def motorista_conversa(cid: int, req: Request) -> JSONResponse:
+    from api.motorista import conversas as mconv
+    from api.motorista import sessao as msessao
+    try:
+        sess = _eu(req)
+    except msessao.SemSessao:
+        return _mot_recusa("Faca login para continuar.", status=401)
+    try:
+        return JSONResponse(mconv.ler(sess, cid))
+    except mconv.Recusa as exc:
+        return _mot_recusa(str(exc), status=404)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("conversa do motorista falhou: %s", type(exc).__name__)
+        return _mot_recusa("Nao consegui carregar isto agora.")
+
+
+@app.post("/api/motorista/conversas")
+async def motorista_conversa_abrir(req: Request) -> JSONResponse:
+    from api.motorista import conversas as mconv
+    corpo = await _corpo_json(req)
+    return _mot_escrever(
+        req, lambda s, c: mconv.abrir(s, str(c.get("assunto") or ""),
+                                      str(c.get("texto") or "")),
+        "conversa_abriu", corpo)
+
+
+@app.post("/api/motorista/conversas/{cid}/mensagem")
+async def motorista_conversa_mensagem(cid: int, req: Request) -> JSONResponse:
+    from api.motorista import conversas as mconv
+    corpo = await _corpo_json(req)
+    return _mot_escrever(
+        req, lambda s, c: mconv.responder(s, cid, str(c.get("texto") or "")),
+        "conversa_respondeu", corpo)
+
+
+@app.post("/api/motorista/conversas/{cid}/ciencia")
+async def motorista_conversa_ciencia(cid: int, req: Request) -> JSONResponse:
+    """"Li e entendi" num comunicado. E o unico botao do app que registra uma
+    AFIRMACAO do motorista sobre um documento da empresa — por isso ele tem
+    trilha propria e vira mensagem de sistema, com data, na conversa."""
+    from api.motorista import conversas as mconv
+    corpo = await _corpo_json(req)
+    return _mot_escrever(req, lambda s, c: mconv.dar_ciencia(s, cid),
+                         "conversa_ciencia", corpo)
+
+
 # --------------------------------------------------------- o acesso mestre
 #
 # AS DUAS ROTAS ABAIXO SAO A SEGUNDA EXCECAO DESTE MODULO (a primeira sao as
@@ -959,6 +1082,165 @@ async def motorista_mestre_entrar(req: Request) -> JSONResponse:
     resp = JSONResponse({"ok": True, "nome": r["nome"], "mestre": True})
     msessao.gravar_cookie(resp, r["token"], req, horas=mm.TTL_HORAS)
     return resp
+
+
+# ===========================================================================
+# O CANAL DO RH — o lado de DENTRO (painel), tela `rhmot`.
+#
+# Estas rotas sao do PAINEL e passam pelo middleware normal: `/api/rh/motorista`
+# esta em `ROTA_TELAS` apontando para a tela `rhmot`, entao quem nao tem a tela
+# leva 403 antes de chegar aqui. Nada do app do motorista alcanca isto — o
+# cookie dele nem e enviado para fora de `/api/motorista`.
+#
+# A CAIXA ORDENA PELO MAIS PARADO, nao pelo mais recente. E a diferenca entre
+# uma fila e uma caixa de e-mail: numa caixa por data, quem escreveu ha tres
+# semanas nunca mais e visto — e e exatamente essa pessoa que liga para a torre,
+# que e o telefonema que este canal existe para tirar.
+# ===========================================================================
+
+def _rh_recusa(mensagem: str, *, status: int = HTTP_RECUSA) -> JSONResponse:
+    return JSONResponse(status_code=status,
+                        content={"erro": "recusa", "mensagem": mensagem})
+
+
+@app.get("/api/rh/motorista/conversas")
+def rh_motorista_caixa(req: Request, status: str = "",
+                       busca: str = "") -> JSONResponse:
+    from api.motorista import conversas as mconv
+    try:
+        return JSONResponse(mconv.caixa(status, busca))
+    except mconv.Recusa as exc:
+        return _rh_recusa(str(exc))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("caixa do RH falhou: %s", type(exc).__name__)
+        return _rh_recusa("Nao consegui carregar a caixa agora.")
+
+
+@app.get("/api/rh/motorista/conversas/{cid}")
+def rh_motorista_conversa(cid: int, req: Request) -> JSONResponse:
+    from api.motorista import conversas as mconv
+    try:
+        return JSONResponse(mconv.ler_rh(cid))
+    except mconv.Recusa as exc:
+        return _rh_recusa(str(exc), status=404)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("conversa do RH falhou: %s", type(exc).__name__)
+        return _rh_recusa("Nao consegui carregar a conversa agora.")
+
+
+@app.get("/api/rh/motorista/motoristas")
+def rh_motorista_lista(req: Request, busca: str = "") -> JSONResponse:
+    """Para quem o RH pode abrir conversa. **So id opaco e nome.**
+
+    A mesma disciplina da lista do acesso mestre e da escolha da entrada: o
+    `motorista_codigo` e o CPF para pessoa fisica, e esta lista vai para um
+    navegador.
+    """
+    from api.motorista import mestre as mm
+    try:
+        return JSONResponse(mm.motoristas(busca))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("lista de motoristas do RH falhou: %s", type(exc).__name__)
+        return _rh_recusa("Nao consegui carregar a lista agora.")
+
+
+async def _rh_conversa_escrever(req: Request, acao, evento: str,
+                                alvo=None) -> JSONResponse:
+    """Escrita do lado do RH: sessao do painel, trilha, e o aviso DEPOIS.
+
+    A ORDEM E A REGRA DA CASA: grava, audita, e so entao sai para o mundo. Se o
+    WhatsApp falhar, a resposta continua existindo no app e o motorista a le
+    quando abrir; o contrario deixaria um aviso apontando para uma resposta que
+    nao existe.
+    """
+    from api.motorista import conversas as mconv
+    sess = req.scope.get("state", {}).get("sessao") or {}
+    autor = sess.get("nome") or sess.get("email") or ""
+    try:
+        r = await sem_travar(acao, sess.get("id"), autor)
+    except mconv.Recusa as exc:
+        return _rh_recusa(str(exc))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("%s do RH falhou: %s", evento, type(exc).__name__)
+        return _rh_recusa("Nao consegui salvar agora. Tente de novo.")
+    auth.audit(autor or "rh", evento,
+               alvo=str(alvo if alvo is not None else r.get("id") or ""),
+               ip=_ip_do_cliente(req))
+    return JSONResponse(r)
+
+
+async def _avisar_motorista(conversa_id: int) -> dict:
+    """Manda o aviso de que ha resposta. NUNCA levanta, NUNCA abre a janela.
+
+    `entrada.py` abre a janela de horario de proposito — codigo de entrada e
+    resposta a alguem com o celular na mao as 03:40. **Aqui e o contrario e a
+    janela FICA**: resposta do RH e mensagem de empresa, que e exatamente o que
+    a janela existe para conter. Aviso de ferias as 3 da manha e a denuncia que
+    faz o numero da casa ser banido — e o motorista perderia junto o canal que a
+    torre usa.
+
+    O texto NAO leva o conteudo nem o assunto: o que o RH escreveu pode ser
+    sobre salario, saude ou desligamento, e WhatsApp e lido em tela de bloqueio,
+    muitas vezes num aparelho compartilhado (medido: 5 dos 585 motoristas
+    dividem o numero). O canal tem o conteudo; o aviso so diz que ele existe.
+    """
+    from api.motorista import conversas as mconv
+    from api.whatsapp import envio as wa
+    try:
+        fone, _nome = mconv.telefone_de(conversa_id)
+        if not fone:
+            return {"ok": False, "erro": "sem telefone"}
+        return await sem_travar(wa.enviar, fone, mconv.AVISO,
+                                usuario="rh-canal-motorista",
+                                origem="motorista_conversa")
+    except Exception as exc:  # noqa: BLE001
+        # O aviso e ENFEITE do canal: a resposta ja esta gravada e o motorista
+        # a ve ao abrir o app. Derrubar a resposta do RH por causa do WhatsApp
+        # seria trocar o essencial pelo acessorio.
+        log.warning("aviso do canal do RH nao saiu: %s", type(exc).__name__)
+        return {"ok": False, "erro": type(exc).__name__}
+
+
+@app.post("/api/rh/motorista/conversas")
+async def rh_motorista_abrir(req: Request) -> JSONResponse:
+    from api.motorista import conversas as mconv
+    corpo = await _corpo_json(req)
+    resp = await _rh_conversa_escrever(
+        req,
+        lambda uid, autor: mconv.abrir_rh(
+            corpo.get("motorista"), str(corpo.get("assunto") or ""),
+            str(corpo.get("titulo") or ""), str(corpo.get("texto") or ""),
+            autor_id=uid, autor_nome=autor),
+        "rh_conversa_abriu")
+    if resp.status_code == 200:
+        import json as _json
+        await _avisar_motorista(_json.loads(bytes(resp.body))["id"])
+    return resp
+
+
+@app.post("/api/rh/motorista/conversas/{cid}/mensagem")
+async def rh_motorista_responder(cid: int, req: Request) -> JSONResponse:
+    from api.motorista import conversas as mconv
+    corpo = await _corpo_json(req)
+    resp = await _rh_conversa_escrever(
+        req,
+        lambda uid, autor: mconv.responder_rh(
+            cid, str(corpo.get("texto") or ""), autor_id=uid, autor_nome=autor),
+        "rh_conversa_respondeu", alvo=cid)
+    if resp.status_code == 200:
+        await _avisar_motorista(cid)
+    return resp
+
+
+@app.post("/api/rh/motorista/conversas/{cid}/status")
+async def rh_motorista_status(cid: int, req: Request) -> JSONResponse:
+    from api.motorista import conversas as mconv
+    corpo = await _corpo_json(req)
+    return await _rh_conversa_escrever(
+        req,
+        lambda uid, autor: mconv.mudar_status(
+            cid, str(corpo.get("status") or ""), autor_nome=autor),
+        "rh_conversa_status", alvo=cid)
 
 
 @app.get("/sw.js")
@@ -1987,6 +2269,45 @@ def gestao_credenciais() -> JSONResponse:
     # /api/gestao/* já é restrito a admin pelo AuthMiddleware (api/auth.py:654)
     return JSONResponse({"servicos": credenciais.panorama(),
                          "credenciais": credenciais.listar()})
+
+
+@app.post("/api/gestao/credenciais/gerar-mestre")
+def gestao_gerar_codigo_mestre(req: Request) -> JSONResponse:
+    """Gera o código mestre do app do motorista, grava no cofre e MOSTRA UMA VEZ.
+
+    ESTA É A ÚNICA ROTA DA CASA QUE DEVOLVE UM SEGREDO NO CORPO, e a exceção
+    tem a mesma forma da senha provisória: o valor é gerado PELO SISTEMA (nunca
+    escolhido), vai para o cofre no mesmo instante, e a resposta é a única
+    chance de lê-lo — depois disso nem esta tela consegue.
+
+    `/api/gestao/*` já é restrito a admin pelo próprio middleware, antes de
+    chegar aqui. E o segredo NÃO ENTRA NA TRILHA: o `audit_log` é append-only e
+    imutável, então um valor que entrasse ali não sairia mais. O que se registra
+    é que alguém gerou, e quando — que é a pergunta que a auditoria responde.
+
+    GERAR SUBSTITUI O ANTERIOR, e isso é a rotação: quem sabia o código velho
+    perde o acesso na hora. As sessões mestres já abertas continuam valendo até
+    vencerem (8 h) — encerrá-las junto seria derrubar a conferência que alguém
+    pode estar fazendo no meio, e o prazo curto é justamente o que torna isso
+    aceitável.
+    """
+    from api import credenciais
+    from api.motorista import mestre as mm
+    autor = (getattr(req.state, "sessao", None) or {}).get("email") or "?"
+    novo = credenciais.gerar_codigo_mestre()
+    try:
+        credenciais.gravar(mm.CHAVE, novo)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("falha ao gravar o codigo mestre: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao",
+            "mensagem": "Nao foi possivel gravar o codigo no cofre."})
+    auth.audit(autor, "codigo_mestre_gerado", alvo=mm.CHAVE,
+               detalhe="app do motorista", ip=_ip_do_cliente(req))
+    return JSONResponse({
+        "ok": True, "codigo": novo,
+        "aviso": ("Copie agora: este código não é mostrado outra vez. Ele "
+                  "substitui o anterior — quem tinha o antigo perdeu o acesso.")})
 
 
 @app.post("/api/gestao/credenciais")

@@ -488,6 +488,42 @@ svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-
   letter-spacing:.02em;margin-top:2px}
 .milk-venc{color:var(--red)}
 .milk-andam{color:var(--n500)}
+/* ===================== RH · Canal do Motorista ========================= */
+/* `minmax(0,1fr)` NAS DUAS TRILHAS, nunca `1fr` cru: `1fr` e `minmax(auto,1fr)`
+   e a trilha nao encolhe abaixo do min-content de uma tabela `nowrap` — foi
+   assim que o cartao da direita de GR e Margem por cliente nasceu FORA da tela,
+   sem erro nenhum. Abaixo de 1100px vira uma coluna: duas listas lado a lado
+   nao cabem em tela nenhuma estreita. */
+.rhmot-grade{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);
+  gap:var(--e2);align-items:start}
+@media (max-width:1100px){.rhmot-grade{grid-template-columns:minmax(0,1fr)}}
+.rhmot-item{display:block;width:100%;text-align:left;font:inherit;cursor:pointer;
+  background:none;border:0;border-bottom:1px solid var(--linha);padding:10px 8px}
+.rhmot-item:hover{background:var(--fundo)}
+.rhmot-item[aria-current="true"]{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.rhmot-item .l1{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.rhmot-item .nome{font-weight:600}
+/* `text-align:left` EXPLÍCITO: a casa já tem uma `.meta` que alinha à
+   direita, e ela vence esta por chegar antes na cascata com a mesma
+   especificidade. A regra existia, estava certa e NÃO VALIA — o nome do
+   motorista ficava à esquerda e o resumo dele à direita, no mesmo cartão.
+   Regra de componente dentro de um bloco estilizado nasce qualificada. */
+.rhmot-item .meta{font-size:12px;color:var(--ink2);margin-top:2px;
+  text-align:left}
+.rhmot-bolha{border-radius:10px;padding:9px 11px;margin-bottom:9px;max-width:88%;
+  font-size:14px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.rhmot-bolha.motorista{background:var(--fundo);border:1px solid var(--linha)}
+.rhmot-bolha.rh{background:color-mix(in srgb,var(--accent) 12%,transparent);
+  margin-left:auto;border:1px solid color-mix(in srgb,var(--accent) 30%,transparent)}
+.rhmot-bolha.sistema{background:none;border:0;color:var(--ink2);font-size:12.5px;
+  text-align:center;max-width:100%;padding:4px 0}
+.rhmot-bolha .quem{font-size:11px;color:var(--ink2);margin-bottom:3px;
+  text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.rhmot-fio{max-height:46vh;overflow:auto;padding-right:4px}
+.rhmot-resp{width:100%;font:inherit;font-size:14px;padding:9px;border-radius:8px;
+  border:1px solid var(--n300);background:var(--papel);color:var(--ink);
+  min-height:74px;resize:vertical}
+
 .milk-filtros{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;
   padding:0 18px 16px}
 .milk-filtros label{display:flex;flex-direction:column;gap:4px;
@@ -2675,6 +2711,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       </button>
       <div class="subs closed" id="subsRh">
         <a href="#des" class="sub" data-view="des" title="Avaliação de Desempenho — matriz nine box, desempenho × potencial"><span class="ic" data-ic="desic"></span><span>Avaliação de Desempenho</span></a>
+        <a href="#rhmot" class="sub" data-view="rhmot" title="Canal do Motorista — pedidos e comunicados entre o RH e o motorista"><span class="ic" data-ic="rhmotic"></span><span>Canal do Motorista</span></a>
         <a href="#cnh" class="sub" data-view="cnh" title="CNH dos Motoristas — vencimento e cobertura do cadastro"><span class="ic" data-ic="cnhic"></span><span>CNH dos Motoristas</span></a>
         <a href="#folha" class="sub" data-view="folha" title="Custo de Folha (GLOBUS)"><span class="ic" data-ic="folhaic"></span><span>Custo de Folha</span></a>
         <a href="#ferias" class="sub" data-view="ferias" title="Férias — vencimento pela CLT, quem está de férias e quem precisa agendar"><span class="ic" data-ic="feriasic"></span><span>Férias — Vencimento</span></a>
@@ -5281,6 +5318,46 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
 </section>
+
+      <!-- ================================================================
+           RH · CANAL DO MOTORISTA
+           A CAIXA ORDENA PELO MAIS PARADO, nao pelo mais recente — e a
+           diferenca entre uma FILA e uma caixa de e-mail. Numa caixa por data,
+           quem escreveu ha tres semanas nunca mais e visto, e e exatamente
+           essa pessoa que liga para a torre.
+           Duas colunas em telas largas (lista | conversa) e uma so no celular:
+           `minmax(0,1fr)` nas duas trilhas, porque `1fr` cru nao encolhe
+           abaixo do min-content e o painel da direita nasceria fora da tela.
+           ================================================================ -->
+      <section class="view" id="view-rhmot">
+        <div class="kpis k4" id="kpis-rhmot"></div>
+        <div class="card">
+          <div class="head"><h2>Caixa do RH <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Conversas entre o RH e o motorista, do banco da casa (mot_conversas). Cada uma tem ASSUNTO de lista fechada, ESTADO e DONO — nao e chat: e fila. A ordem e do MAIS PARADO para o mais recente, porque numa caixa por data quem escreveu ha tres semanas nunca mais e visto. 'Parada' conta desde a ultima mensagem, de qualquer um dos lados. O motorista nao e usuario do painel: ele entra pelo app (/motorista), com identidade propria.">i</span></h2>
+            <span class="hint" id="hintRhmot"></span></div>
+          <div class="milk-filtros">
+            <label>Estado<select id="fRhmotStatus" onchange="loadRhmot()" aria-label="Estado da conversa">
+              <option value="">Em aberto</option>
+              <option value="aberta">Sem dono</option>
+              <option value="em_atendimento">Em atendimento</option>
+              <option value="aguardando_motorista">Aguardando o motorista</option>
+              <option value="resolvida">Resolvidas</option>
+            </select></label>
+            <label>Motorista<input id="fRhmotBusca" type="text" placeholder="nome ou parte dele" oninput="rhmotBuscaDebounce()" aria-label="Buscar motorista"></label>
+            <button class="btn" type="button" onclick="rhmotNova()">Abrir conversa</button>
+          </div>
+        </div>
+        <div class="rhmot-grade">
+          <div class="card">
+            <div class="head"><h2>Conversas</h2><span class="hint" id="hintRhmotLista"></span></div>
+            <div class="tablewrap tabroll" id="rhmot-lista"></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2 id="rhmot-titulo">Conversa</h2>
+              <span class="hint" id="hintRhmotConv"></span></div>
+            <div id="rhmot-conversa"></div>
+          </div>
+        </div>
+      </section>
 
       <section class="view" id="view-cnh">
         <div class="card">
@@ -8333,6 +8410,7 @@ const ICONS = {
   peopleic: IC('<circle cx="9" cy="7.5" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16.5 3.6a3 3 0 0 1 0 7.8"/><path d="M18 19a5 5 0 0 0-2.6-4.4"/>'),
   poliic: IC('<path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5z"/><circle cx="12" cy="11" r="2.2"/><path d="M12 13.2V17"/>'),
   pneuic: IC('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.6"/><path d="M12 3v5.4M12 15.6V21M3 12h5.4M15.6 12H21"/>'),
+  rhmotic: IC('<path d="M4 5.5h16a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 3.5V16.5H4A1.5 1.5 0 0 1 2.5 15V7A1.5 1.5 0 0 1 4 5.5Z"/><path d="M7 9.5h10M7 12.5h6"/>'),
   feriasic: IC('<rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><path d="m9 15 2 2 4-4"/>'),
   cnhic: IC('<rect x="2" y="4.5" width="20" height="15" rx="2.5"/><circle cx="8" cy="11" r="2.2"/><path d="M4.6 16.4a3.7 3.7 0 0 1 6.8 0"/><path d="M14.5 9.5h5M14.5 12.5h5M14.5 15.5h3"/>'),
   folhaindic: IC('<circle cx="7" cy="6.5" r="3"/><path d="M2.5 14a4.5 4.5 0 0 1 9 0"/><path d="M14 20V9M18 20V5M21.5 20h-11"/>'),
@@ -8362,7 +8440,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { tvcom:'Painel TV — Comunicação', home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', aud:'Auditoria e Uso', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { tvcom:'Painel TV — Comunicação', home:'Visão Geral', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', aud:'Auditoria e Uso', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -8638,7 +8716,7 @@ const VIEW_GROUP = {home:'',cop:'',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',pecas:'Sup',
   prodveic:'Bi',fat:'Ctr',gr:'Ope',tvcli:'Bi',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',tvcom:'Bi',
-  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',people:'Rh',des:'Rh',gestao:'Adm',srv:'Adm',sup:'Spt',supfila:'Spt',doc:'Adm',aud:'Adm',mon:'Adm',gesacao:'Ges',gesata:'Ges',
+  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',rhmot:'Rh',people:'Rh',des:'Rh',gestao:'Adm',srv:'Adm',sup:'Spt',supfila:'Spt',doc:'Adm',aud:'Adm',mon:'Adm',gesacao:'Ges',gesata:'Ges',
   // Telemetria e ANTT tinham grupo na barra lateral mas ficaram de fora deste
   // mapa: o acordeao nao abria sozinho ao navegar para elas (agora a busca
   // global navega, entao isso passou a incomodar de verdade).
@@ -8832,7 +8910,7 @@ function qsView(k){
     if(V('fFechMes'))p.set('mes',V('fFechMes'));
   } else if(k==='fat'){
     if(V('fFatMes'))p.set('mes',V('fFatMes'));
-  } else if(k==='gr'||k==='mprev'||k==='comrast'||k==='qual'||k==='port'||k==='crm'||k==='rh'||k==='hc'||k==='folhaind'||k==='cnh'||k==='ferias'||k==='pneus'||k==='people'||k==='des'||k==='poli'||k==='ctecp'){
+  } else if(k==='gr'||k==='mprev'||k==='comrast'||k==='qual'||k==='port'||k==='crm'||k==='rh'||k==='hc'||k==='folhaind'||k==='cnh'||k==='ferias'||k==='rhmot'||k==='pneus'||k==='people'||k==='des'||k==='poli'||k==='ctecp'){
     // vistas-snapshot sem filtro local: qsView() sempre devolve '' — o
     // loader grava LOADEDQS[k]='' (não '1') para o cache de staleness
     // funcionar (senão nunca bate e cada navegação refaz a consulta).
@@ -8857,7 +8935,7 @@ function semFilterbar(v){
   // porque quem filtra acredita no resultado.
   return v==='cop'||v==='mon'||v==='aud'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='antport'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='pneus'||v==='people'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='antport'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='rhmot'||v==='pneus'||v==='people'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','').split('?')[0];   // `#sup?chamado=12` é a tela sup
@@ -8976,7 +9054,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,pecas:DATAPECAS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+  const LOADMAP={fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -19424,6 +19502,204 @@ function renderFeriasCusto(d){
       <td class="num" style="color:var(--n500)">${x.avos?BRL.format(x.avos):'—'}</td>
       <td class="num" style="font-weight:600">${BRL.format(x.total)}</td>
     </tr>`).join('') || '<tr><td colspan="6" style="color:var(--n500)">nenhuma unidade</td></tr>';
+}
+
+
+// ===================== RH · Canal do Motorista ==========================
+//
+// A CAIXA E UMA FILA, NAO UMA CAIXA DE E-MAIL: o servidor ordena do MAIS
+// PARADO para o mais recente, e esta tela nao reordena. Numa caixa por data,
+// quem escreveu ha tres semanas nunca mais e visto — e e exatamente essa
+// pessoa que liga para a torre, que e o telefonema que este canal existe para
+// tirar. `parada_dias` vira selo vermelho.
+let RHMOT = {conversas: [], assuntos: [], atual: null}, rhmotSeq = 0, rhmotTimer = 0;
+
+function rhmotBuscaDebounce(){
+  // Digitar num campo de busca nao pode ser uma requisicao por tecla.
+  clearTimeout(rhmotTimer); rhmotTimer = setTimeout(loadRhmot, 350);
+}
+
+async function loadRhmot(fundo){
+  skelKpis('kpis-rhmot',4);
+  const seq=++rhmotSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  if(!fundo) document.getElementById('content').classList.add('loading');
+  try{
+    const V=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
+    const p=new URLSearchParams();
+    if(V('fRhmotStatus')) p.set('status', V('fRhmotStatus'));
+    if(V('fRhmotBusca')) p.set('busca', V('fRhmotBusca'));
+    const r=await fetch('/api/rh/motorista/conversas?'+p.toString(),
+      {cache:'no-store', headers: fundo?{'X-Carga-Fundo':'1'}:{}});
+    const d=await respostaJSON(r); if(seq!==rhmotSeq) return;
+    if(!d.ok){ showBanner(d.mensagem||'Erro ao carregar a caixa do RH.'); return; }
+    hideBanner(); RHMOT.conversas=d.dados.conversas||[]; RHMOT.assuntos=d.dados.assuntos||[];
+    renderRhmot(d.dados);
+  }catch(e){ if(seq===rhmotSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===rhmotSeq){ if(btn) btn.disabled=false;
+    document.getElementById('content').classList.remove('loading'); } }
+}
+
+function renderRhmot(d){
+  const r=d.resumo||{};
+  const naoLidas=RHMOT.conversas.reduce((a,c)=>a+(c.nao_lidas||0),0);
+  document.getElementById('kpis-rhmot').innerHTML=[
+    kpi('Em aberto', (r.vivas||0).toLocaleString('pt-BR'),
+        (r.total||0).toLocaleString('pt-BR')+' no total'),
+    kpi('Sem dono', (r.abertas||0).toLocaleString('pt-BR'),
+        'ninguém pegou ainda', (r.abertas||0)>0?'neg':'pos'),
+    // O NUMERO QUE DIZ SE O CANAL FUNCIONA. Sem ele, "temos um canal com o
+    // motorista" e uma frase; com ele, e uma medicao — e e por ele que a
+    // decisao de manter ou desligar o canal se toma com dado na mesa.
+    kpi('Paradas há 3+ dias', (r.paradas_3d||0).toLocaleString('pt-BR'),
+        'sem mensagem de ninguém', (r.paradas_3d||0)>0?'neg':'pos'),
+    kpi('Não lidas', naoLidas.toLocaleString('pt-BR'),
+        naoLidas===1?'mensagem do motorista':'mensagens do motorista')
+  ].join('');
+  document.getElementById('hintRhmot').textContent = d.fonte||'';
+  // TOP-N LEVA CONTADOR: sem ele, as linhas mostradas leem-se como o total.
+  document.getElementById('hintRhmotLista').textContent =
+    d.mostradas>=d.limite ? (d.mostradas+' de '+(r.total||0)+' — refine a busca')
+                          : (d.mostradas+' conversa(s)');
+
+  const lista=document.getElementById('rhmot-lista');
+  if(!RHMOT.conversas.length){
+    lista.innerHTML='<p class="muted" style="padding:10px">Nenhuma conversa neste filtro.</p>';
+    document.getElementById('rhmot-conversa').innerHTML='';
+    return;
+  }
+  lista.innerHTML=RHMOT.conversas.map(function(c){
+    const selos=[];
+    if(c.nao_lidas) selos.push('<span class="pill neg">'+c.nao_lidas+' nova(s)</span>');
+    if(c.parada_dias>=3 && c.status!=='resolvida')
+      selos.push('<span class="pill warn">parada há '+Math.round(c.parada_dias)+'d</span>');
+    if(c.origem==='rh') selos.push('<span class="pill">do RH</span>');
+    if(c.status==='resolvida') selos.push('<span class="pill pos">resolvida</span>');
+    return '<button type="button" class="rhmot-item" data-id="'+c.id+'" onclick="rhmotAbrir(this.dataset.id)">'
+      + '<div class="l1"><span class="nome">'+esc(c.motorista)+'</span>'
+      + '<span class="muted" style="font-size:12px">'+esc(c.assunto_rotulo)+'</span></div>'
+      + '<div class="meta">'+esc((c.resumo||'').slice(0,90))+'</div>'
+      + '<div class="meta">'+selos.join(' ')+(c.atendente?' <span class="muted">com '+esc(c.atendente)+'</span>':'')+'</div>'
+      + '</button>';
+  }).join('');
+}
+
+async function rhmotAbrir(id){
+  const alvo=document.getElementById('rhmot-conversa');
+  alvo.innerHTML='<p class="muted">Carregando…</p>';
+  document.querySelectorAll('.rhmot-item').forEach(function(b){
+    if(b.dataset.id===String(id)) b.setAttribute('aria-current','true');
+    else b.removeAttribute('aria-current');
+  });
+  const r=await fetch('/api/rh/motorista/conversas/'+encodeURIComponent(id), {cache:'no-store'});
+  const d=await respostaJSON(r);
+  if(!d.ok){ alvo.innerHTML='<p class="muted">'+esc(d.mensagem||'Não consegui abrir.')+'</p>'; return; }
+  RHMOT.atual=d.dados.conversa;
+  renderRhmotConversa(d.dados);
+}
+
+function renderRhmotConversa(d){
+  const c=d.conversa;
+  document.getElementById('rhmot-titulo').textContent = c.motorista+' · '+c.assunto_rotulo;
+  document.getElementById('hintRhmotConv').textContent =
+    'estado: '+String(c.status||'').replace(/_/g,' ')+
+    (c.atendente ? ' · com '+c.atendente : ' · sem dono');
+
+  const fio=(d.mensagens||[]).map(function(m){
+    if(m.papel==='sistema')
+      return '<div class="rhmot-bolha sistema">'+esc(m.texto)+' · '+fmtDT(m.quando)+'</div>';
+    return '<div class="rhmot-bolha '+m.papel+'">'
+      + '<div class="quem">'+esc(m.papel==='rh'?(m.autor||'RH'):c.motorista)
+      + ' · '+fmtDT(m.quando)+'</div>'+esc(m.texto)+'</div>';
+  }).join('');
+
+  const opts=['aberta','em_atendimento','aguardando_motorista','resolvida']
+    .map(function(s){ return '<option value="'+s+'"'+(s===c.status?' selected':'')+'>'
+            +s.replace(/_/g,' ')+'</option>'; }).join('');
+
+  document.getElementById('rhmot-conversa').innerHTML =
+    '<div class="rhmot-fio">'+(fio||'<p class="muted">Sem mensagens.</p>')+'</div>'
+    + '<textarea class="rhmot-resp" id="rhmotTexto" placeholder="Escreva a resposta. O motorista recebe um aviso no WhatsApp — sem o conteúdo — e lê no app." aria-label="Resposta ao motorista"></textarea>'
+    + '<div style="display:flex;gap:9px;align-items:center;margin-top:9px;flex-wrap:wrap">'
+    + '<button class="btn" type="button" onclick="rhmotResponder()">Responder</button>'
+    + '<label style="font-size:12px;color:var(--ink2)">Estado '
+    + '<select id="rhmotStatus" onchange="rhmotStatus()" aria-label="Mudar o estado">'+opts+'</select></label>'
+    + '</div>';
+}
+
+async function rhmotResponder(){
+  if(!RHMOT.atual) return;
+  const el=document.getElementById('rhmotTexto'), texto=(el.value||'').trim();
+  if(!texto){ el.focus(); return; }
+  el.disabled=true;
+  // A RECARGA DA TELA FICA FORA DO `try` DA ACAO: uma falha ao redesenhar nao
+  // pode parecer falha ao enviar — quem le acabaria mandando a mesma resposta
+  // duas vezes. E o `await r.json()` tem try proprio (500 em texto viraria
+  // "erro de rede"): quem faz isso e o `respostaJSON` da casa.
+  let d;
+  try{
+    const r=await fetch('/api/rh/motorista/conversas/'+RHMOT.atual.id+'/mensagem',
+      {method:'POST', headers:{'Content-Type':'application/json'},
+       body:JSON.stringify({texto:texto})});
+    d=await respostaJSON(r);
+  }catch(e){ d={ok:false, mensagem:'Sem conexão. Tente de novo.'}; }
+  el.disabled=false;
+  if(!d.ok){ showBanner(d.mensagem||'Não consegui enviar.'); return; }
+  el.value='';
+  await rhmotAbrir(RHMOT.atual.id); loadRhmot(true);
+}
+
+async function rhmotStatus(){
+  if(!RHMOT.atual) return;
+  const novo=document.getElementById('rhmotStatus').value;
+  let d;
+  try{
+    const r=await fetch('/api/rh/motorista/conversas/'+RHMOT.atual.id+'/status',
+      {method:'POST', headers:{'Content-Type':'application/json'},
+       body:JSON.stringify({status:novo})});
+    d=await respostaJSON(r);
+  }catch(e){ d={ok:false, mensagem:'Sem conexão. Tente de novo.'}; }
+  if(!d.ok){ showBanner(d.mensagem||'Não consegui mudar o estado.'); return; }
+  await rhmotAbrir(RHMOT.atual.id); loadRhmot(true);
+}
+
+// ---- abrir conversa NOVA, do lado do RH ----------------------------------
+// UM MOTORISTA POR VEZ, e nao uma lista: comunicado em massa parece a coisa
+// obvia e e justamente o que este canal nao faz — 300 conversas de uma vez
+// entopem a fila que o resto do desenho existe para manter atendivel, e o
+// aviso teria de sair contra o teto de 60 destinatarios/dia do numero que fala
+// com clientes. Mural e outro objeto: sem fila e sem resposta.
+async function rhmotNova(){
+  const busca=prompt('Nome do motorista (ou parte dele):');
+  if(busca===null) return;
+  const r=await fetch('/api/rh/motorista/motoristas?busca='+encodeURIComponent(busca||''),
+    {cache:'no-store'});
+  const d=await respostaJSON(r);
+  if(!d.ok){ showBanner(d.mensagem||'Não consegui buscar.'); return; }
+  const lista=(d.dados.motoristas||[]).slice(0,20);
+  if(!lista.length){ showBanner('Nenhum motorista com esse nome.'); return; }
+  const menu=lista.map(function(m,i){ return (i+1)+') '+m.nome; }).join('\n');
+  const idx=parseInt(prompt('Quem?\n'+menu+'\n\nDigite o número:')||'',10);
+  if(!idx || idx<1 || idx>lista.length) return;
+  const alvo=lista[idx-1];
+
+  const doRh=(RHMOT.assuntos||[]);
+  if(!doRh.length){ showBanner('Nenhum assunto do RH configurado.'); return; }
+  const menuA=doRh.map(function(a,i){ return (i+1)+') '+a.rotulo; }).join('\n');
+  const ea=parseInt(prompt('Assunto:\n'+menuA+'\n\nDigite o número:')||'',10);
+  if(!ea || ea<1 || ea>doRh.length) return;
+  const assunto=doRh[ea-1];
+
+  const titulo=prompt('Título (uma linha):')||'';
+  const texto=prompt('Mensagem para '+alvo.nome+':')||'';
+  if(!texto.trim()) return;
+
+  const rr=await fetch('/api/rh/motorista/conversas',
+    {method:'POST', headers:{'Content-Type':'application/json'},
+     body:JSON.stringify({motorista:alvo.id, assunto:assunto.chave,
+                          titulo:titulo, texto:texto})});
+  const dd=await respostaJSON(rr);
+  if(!dd.ok){ showBanner(dd.mensagem||'Não consegui abrir a conversa.'); return; }
+  await loadRhmot(); rhmotAbrir(dd.dados.id);
 }
 
 async function loadCnh(fundo){
@@ -36713,10 +36989,59 @@ function integCampo(c){
   const val=c.segredo?'':esc(c.valor||'');
   const ph=c.segredo?(c.configurado?'digite para trocar':'colar o valor')
                     :esc(c.placeholder||'');
+  /* O CÓDIGO MESTRE DO APP DO MOTORISTA GANHA UM BOTÃO DE GERAR, e é o único.
+     A alternativa era alguém digitar 24 caracteres aleatórios à mão — o que na
+     prática dá um de dois finais: ou ninguém configura (e o acesso de
+     conferência não existe), ou alguém escolhe um valor memorizável, e o
+     segredo que abre a PII de ~300 pessoas vira palpite. O botão também é o
+     que torna a ROTAÇÃO possível: trocar passa a ser um clique. */
+  const gerar = c.nome==='MOTORISTA_CODIGO_MESTRE'
+    ? ' <button type="button" class="integ-lnk" onclick="gerarCodigoMestre()">'
+      + (c.configurado?'gerar um novo':'gerar agora') + '</button>'
+    : '';
   return '<div><label for="'+id+'">'+esc(c.rotulo)+opc+'</label>'
     +'<input type="'+(c.segredo?'password':'text')+'" id="'+id+'" value="'+val+'"'
     +' placeholder="'+ph+'" autocomplete="off" aria-label="'+esc(c.rotulo)+' — '+esc(c.nome)+'">'
-    +'<div class="integ-dica">'+esc(c.descricao||'')+integEstadoCampo(c)+'</div></div>';
+    +'<div class="integ-dica">'+esc(c.descricao||'')+integEstadoCampo(c)+gerar+'</div></div>';
+}
+
+/* MOSTRA UMA VEZ E SÓ UMA VEZ — depois nem esta tela consegue ler de volta.
+   Por isso ele aparece num campo SELECIONÁVEL, e não num alerta que some: o
+   valor precisa poder ser copiado, e "anote antes de fechar" num `alert` é
+   como se perde um segredo recém-criado. */
+async function gerarCodigoMestre(){
+  if(!confirm('Gerar um código mestre novo? Ele substitui o anterior na hora: '
+    + 'quem tinha o antigo perde o acesso. O novo aparece UMA vez.')) return;
+  let d;
+  try{
+    const r=await fetch('/api/gestao/credenciais/gerar-mestre',{method:'POST'});
+    d=await respostaJSON(r);
+  }catch(e){ d={ok:false, mensagem:'Sem conexão com a API.'}; }
+  if(!d.ok){ showBanner(d.mensagem||'Não consegui gerar o código.'); return; }
+  const cod=d.dados.codigo;
+  const cx=document.createElement('div');
+  cx.className='card';
+  cx.style.cssText='position:fixed;inset:auto 16px 16px 16px;z-index:9999;max-width:520px;margin:0 auto;box-shadow:0 12px 40px rgba(0,0,0,.3)';
+  cx.innerHTML='<div class="head"><h2>Código mestre do app do motorista</h2></div>'
+    +'<p style="margin:0 0 8px">'+esc(d.dados.aviso||'')+'</p>'
+    +'<input class="mono" readonly value="'+esc(cod)+'" style="width:100%;font-size:17px;padding:10px" aria-label="Código mestre gerado">'
+    +'<div style="display:flex;gap:9px;margin-top:9px">'
+    +'<button class="btn" type="button" id="cmCopiar">Copiar</button>'
+    +'<button class="ghost" type="button" id="cmFechar">Fechar</button></div>';
+  document.body.appendChild(cx);
+  const campo=cx.querySelector('input'); campo.focus(); campo.select();
+  cx.querySelector('#cmCopiar').addEventListener('click',function(){
+    campo.select();
+    /* `navigator.clipboard` não existe fora de HTTPS/localhost, e a tela roda
+       atrás do túnel: sem a rede do `execCommand`, "Copiar" seria um botão que
+       não faz nada em parte das instalações. */
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(cod); }
+    else { try{ document.execCommand('copy'); }catch(e){} }
+    this.textContent='Copiado';
+  });
+  cx.querySelector('#cmFechar').addEventListener('click',function(){
+    cx.remove(); integCarregar();   /* o cartao volta dizendo 'configurado' */
+  });
 }
 
 function integCorpo(s){
@@ -37921,6 +38246,7 @@ boot();
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Recursos Humanos</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
         <a href="#des" onclick="fecharDrawer()"><span class="ic" data-ic="desic"></span>Avaliação de Desempenho</a>
+        <a href="#rhmot" onclick="fecharDrawer()"><span class="ic" data-ic="rhmotic"></span>Canal do Motorista</a>
         <a href="#cnh" onclick="fecharDrawer()"><span class="ic" data-ic="cnhic"></span>CNH dos Motoristas</a>
         <a href="#folha" onclick="fecharDrawer()"><span class="ic" data-ic="folhaic"></span>Custo de Folha</a>
         <a href="#ferias" onclick="fecharDrawer()"><span class="ic" data-ic="feriasic"></span>Férias — Vencimento</a>

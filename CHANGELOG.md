@@ -4,6 +4,18 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.2.0] — 07/09/2026  ·  CX-07/09/2026-v1.2.0
+
+### Adicionado
+- O RH e o motorista passaram a ter um canal direto. Pelo app, o motorista escolhe um assunto — férias, contracheque, ponto e jornada, documento e exame, benefício, adiantamento — e escreve; a caixa do RH recebe, alguém assume, responde, e o motorista recebe um aviso no WhatsApp para ler no app. O RH também abre a conversa: comunicado (com confirmação de leitura registrada, com data) e pedido de documento.
+- NÃO É UM CHAT, e a diferença é o desenho inteiro. Toda conversa tem ASSUNTO, ESTADO e DONO, e a caixa do RH ordena do MAIS PARADO para o mais recente — ao contrário de uma caixa de e-mail, onde quem escreveu há três semanas nunca mais é visto. "Paradas há 3 dias ou mais" é o primeiro número da tela: é ele que responde se o canal está sendo atendido, em vez de a resposta ser uma impressão.
+- O aviso do WhatsApp NÃO leva o conteúdo nem o assunto, e respeita a janela de horário da casa. O que o RH escreve pode ser sobre salário ou saúde, e WhatsApp se lê na tela de bloqueio — às vezes num aparelho que duas pessoas dividem. O canal tem o conteúdo; o aviso só diz que ele existe. Comunicado em massa não existe de propósito: seriam 300 conversas de uma vez contra um teto de 60 destinatários por dia.
+- O CÓDIGO MESTRE DO APP AGORA SE GERA NO PRÓPRIO CÓRTEX, em Gestão → Integrações: um botão cria um código forte, guarda no cofre e mostra uma única vez. Trocar passa a ser um clique — e quem tinha o antigo perde o acesso na hora.
+- O cabeçalho do app do motorista virou a faixa da marca, com o anel do CÓRTEX e a logo da Sulista — a mesma cara da tela de entrada, igual no tema claro e no escuro. E as abas "30 dias" e "Condução" viraram uma só, Desempenho: as duas respondiam a mesma pergunta, e separá-las obrigava a comparar duas telas de cabeça.
+
+### Corrigido
+- Na lista de conversas do RH, o resumo de cada conversa aparecia alinhado à direita enquanto o nome do motorista ficava à esquerda, no mesmo cartão.
+
 ## [1.1.0] — 07/09/2026  ·  CX-07/09/2026-v1.1.0
 
 ### Adicionado
