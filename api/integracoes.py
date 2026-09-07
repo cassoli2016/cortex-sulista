@@ -150,6 +150,45 @@ def _modos_publicos(svc: dict) -> list[dict]:
     } for m in svc.get("modos", [])]
 
 
+def _extras() -> list[dict]:
+    """Integrações que NÃO autenticam por token, e por isso não estão no cofre.
+
+    O cofre de `api/credenciais.py` é um cadastro de CAMPOS — token, usuário,
+    senha, URL. A SEFAZ não cabe nele: quem autentica é um certificado A1 em
+    arquivo, com validade de um ano e senha própria, e o "está configurada?"
+    dela é uma pergunta diferente (o `.pfx` existe? abre? é do CNPJ certo? ainda
+    vale?).
+
+    Forçar isso para dentro do cofre criaria um campo mentiroso ("caminho do
+    certificado") e faria a tela de Gestão oferecer a edição de uma coisa que
+    não se edita por lá. A junção é aqui, que é o lugar dela.
+    """
+    saida = []
+    try:
+        from api.sefaz import painel as sefaz_painel
+    except Exception as exc:  # noqa: BLE001
+        log.warning("integracoes: painel da SEFAZ indisponivel: %s",
+                    type(exc).__name__)
+        return saida
+    try:
+        saida.append(sefaz_painel.cartao_de_integracao())
+    except Exception as exc:  # noqa: BLE001
+        # Uma integração que falha ao SE DESCREVER não pode derrubar a tela das
+        # outras dez — mas também não pode sumir dela em silêncio.
+        log.warning("integracoes: cartao da SEFAZ falhou: %s", type(exc).__name__)
+        saida.append({
+            "chave": "sefaz", "nome": "SEFAZ (recolha de NF)",
+            "resumo": "Documentos fiscais emitidos contra a Sulista.",
+            "alimenta": "Notas de Entrada", "estado": "erro",
+            "configuracao": {"estado": "desconhecida", "status": "erro",
+                             "falta": ["não foi possível ler o estado"],
+                             "modo": None, "regime": None},
+            "chegada": {"regime": "coleta", "status": "erro",
+                        "detalhe": "não foi possível ler o estado da recolha"},
+        })
+    return saida
+
+
 def panorama(cartoes: list[dict] | None = None) -> dict:
     """Uma linha por fornecedor, com as duas metades casadas.
 
@@ -227,6 +266,9 @@ def panorama(cartoes: list[dict] | None = None) -> dict:
             "cartao_saude": nome_cartao,
             "aba": svc.get("aba"),
         })
+
+    for extra in _extras():
+        linhas.append(extra)
 
     linhas.sort(key=lambda l: (_PESO.get(l["estado"], 9), l["nome"].lower()))
     return {

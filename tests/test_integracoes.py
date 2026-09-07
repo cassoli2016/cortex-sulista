@@ -273,3 +273,46 @@ def test_a_rota_NAO_esta_sob_api_gestao():
 def auth_rotas():
     from api import auth
     return [(r, t) for r, t in auth.ROTA_TELAS]
+
+
+# ============================== integracao que NAO autentica por token
+
+def test_a_SEFAZ_aparece_no_painel_mesmo_fora_do_cofre():
+    """O cofre de credenciais e um cadastro de CAMPOS (token, usuario, senha).
+    A SEFAZ nao cabe nele: quem autentica e um certificado A1 em arquivo, com
+    validade de um ano. Forcar isso para dentro do cofre criaria um campo
+    mentiroso e faria a tela de Gestao oferecer a edicao de uma coisa que nao
+    se edita por la.
+
+    Mas ela NAO PODE sumir do painel por isso -- integracao invisivel e
+    exatamente o que esta tela existe para impedir."""
+    chaves = {i["chave"] for i in it.panorama([])["integracoes"]}
+    assert "sefaz" in chaves, (
+        "a SEFAZ sumiu do painel. Integracao que nao esta no cofre entra por "
+        "`_extras()` — ausencia aqui nao da erro nenhum, so some.")
+
+
+def test_o_extra_que_falha_ao_se_descrever_NAO_derruba_o_painel(monkeypatch):
+    """Uma integracao com defeito nao pode levar as outras dez junto -- mas
+    tambem nao pode sumir em silencio: ela aparece VERMELHA dizendo que nao deu
+    para ler o estado dela."""
+    import api.sefaz.painel as painel
+
+    def explode():
+        raise RuntimeError("o banco caiu")
+
+    monkeypatch.setattr(painel, "cartao_de_integracao", explode)
+    d = it.panorama([])
+    sefaz = next(i for i in d["integracoes"] if i["chave"] == "sefaz")
+    assert sefaz["estado"] == "erro"
+    assert len(d["integracoes"]) > 1, "levou as outras junto"
+
+
+def test_o_cartao_da_SEFAZ_diz_quantas_filiais_TEM_certificado():
+    """"Falta certificado" sem dizer de quantas nao ajuda ninguem: sao dez
+    caixas, e a diferenca entre uma e nove muda o que a pessoa faz hoje."""
+    from api.sefaz import painel
+    c = painel.cartao_de_integracao()
+    assert c["chave"] == "sefaz"
+    assert "filial" in c["chegada"]["detalhe"]
+    assert c["configuracao"]["modo"] == "certificado A1"
