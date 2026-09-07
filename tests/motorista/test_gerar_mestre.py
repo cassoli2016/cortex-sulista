@@ -142,3 +142,31 @@ def test_falha_ao_gravar_NAO_devolve_o_codigo(cliente, monkeypatch):
     r = cliente.post("/api/gestao/credenciais/gerar-mestre")
     assert r.status_code == 500
     assert "codigo" not in r.json()
+
+
+def test_gerar_AVISA_quando_ja_havia_um_codigo(cliente, cofre_falso, monkeypatch):
+    """O aviso muda quando existe código anterior — e isso nasceu de um erro
+    real, meu, em 07/09/2026.
+
+    O botão foi usado às 10:08 e eu sobrescrevi o cofre às 11:52 movendo o
+    valor do `.env`, sem conferir se já havia um. O código que a pessoa tinha
+    anotado parou de valer, e **não há como recuperá-lo**: o cofre guarda um
+    só, e o `audit_log` — corretamente — não guarda o segredo.
+
+    Substituir é o comportamento CERTO (é isso que faz "gerar de novo" ser
+    rotação). O que faltava era a resposta DIZER que substituiu, para quem
+    clicou saber que o código anterior morreu ali. Aviso genérico para os dois
+    casos é o que faz alguém clicar "só para ver" e derrubar o acesso de quem
+    estava usando o outro.
+    """
+    monkeypatch.setattr(credenciais, "ler", lambda nome: "")
+    primeiro = cliente.post("/api/gestao/credenciais/gerar-mestre").json()
+    assert primeiro["substituiu"] is False
+    assert "substitui" not in primeiro["aviso"].lower()
+
+    monkeypatch.setattr(credenciais, "ler", lambda nome: "ja-havia-um-aqui-12345")
+    segundo = cliente.post("/api/gestao/credenciais/gerar-mestre").json()
+    assert segundo["substituiu"] is True
+    assert "substitu" in segundo["aviso"].lower(), (
+        "quem clicou não foi avisado de que o código anterior morreu")
+    assert "não abre mais" in segundo["aviso"] or "deixou de valer" in segundo["aviso"]

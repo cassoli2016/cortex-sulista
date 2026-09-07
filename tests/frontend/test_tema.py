@@ -260,12 +260,13 @@ def test_TODO_token_usado_no_painel_EXISTE():
     FUNCIONA — a cor sai. Misturar os dois casos faria este guard falar de
     estilo quando ele existe para falar de coisa quebrada.
 
-    DÍVIDA CONHECIDA, medida em 07/09/2026 e ANTERIOR a esta tela: quatro
-    tokens sem fallback e sem declaração — `--amber` (3 usos), `--e2` (1),
-    `--green-700` (2) e `--n800` (3). São propriedades caindo no chão hoje, no
-    painel em produção. Ficam listadas em vez de corrigidas às pressas porque
-    corrigi-las é ESCOLHER UMA COR, e cor do painel é decisão de quem é dono da
-    marca — não de quem passou por aqui. A lista só pode ENCOLHER.
+    A LISTA DE DÍVIDA ESTÁ VAZIA, e isso durou pouco de propósito: quando este
+    guard nasceu ela tinha quatro nomes anteriores a esta tela (`--amber`,
+    `--e2`, `--green-700`, `--n800`, nove lugares), e todos foram trocados pelo
+    token da casa com o par claro/escuro — que é o ponto de usar token e não
+    literal. Ela só pode ENCOLHER: o `assert` de baixo recusa nome que já foi
+    corrigido e continua aqui, senão a dívida pareceria maior do que é e
+    ninguém confiaria nela no dia seguinte.
     """
     import re
     # `var(--x)` sem vírgula = sem fallback. Com vírgula, a cor sai.
@@ -273,7 +274,7 @@ def test_TODO_token_usado_no_painel_EXISTE():
     declarados = set(re.findall(r"(--[A-Za-z0-9_-]+)\s*:", HTML))
     fantasmas = sem_fallback - declarados
 
-    conhecidos = {"--amber", "--e2", "--green-700", "--n800"}
+    conhecidos: set[str] = set()
     novos = sorted(fantasmas - conhecidos)
     assert not novos, (
         "token usado SEM FALLBACK e nunca declarado: %s — `var()` de nome "

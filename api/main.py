@@ -2294,6 +2294,14 @@ def gestao_gerar_codigo_mestre(req: Request) -> JSONResponse:
     from api import credenciais
     from api.motorista import mestre as mm
     autor = (getattr(req.state, "sessao", None) or {}).get("email") or "?"
+    # HAVIA UM ANTES? A resposta muda por causa disso, e o motivo e um erro
+    # real de 07/09/2026: o botao foi usado as 10:08 e o cofre foi sobrescrito
+    # as 11:52 por outro caminho, sem ninguem saber. Substituir e o
+    # comportamento CERTO — e o que faz "gerar de novo" ser rotacao —, mas quem
+    # clica precisa LER que o anterior morreu ali. Aviso igual nos dois casos e
+    # o que faz alguem clicar "so para ver" e derrubar o acesso de quem estava
+    # usando o outro. O valor anterior NAO e lido para nada alem deste booleano.
+    ja_havia = bool(credenciais.ler(mm.CHAVE))
     novo = credenciais.gerar_codigo_mestre()
     try:
         credenciais.gravar(mm.CHAVE, novo)
@@ -2305,9 +2313,12 @@ def gestao_gerar_codigo_mestre(req: Request) -> JSONResponse:
     auth.audit(autor, "codigo_mestre_gerado", alvo=mm.CHAVE,
                detalhe="app do motorista", ip=_ip_do_cliente(req))
     return JSONResponse({
-        "ok": True, "codigo": novo,
-        "aviso": ("Copie agora: este código não é mostrado outra vez. Ele "
-                  "substitui o anterior — quem tinha o antigo perdeu o acesso.")})
+        "ok": True, "codigo": novo, "substituiu": ja_havia,
+        "aviso": ("Copie agora: este código não é mostrado outra vez."
+                  + (" Ele SUBSTITUIU o código anterior, que não abre mais — "
+                     "quem estava usando aquele perdeu o acesso agora."
+                     if ja_havia else
+                     " Este é o primeiro código; guarde-o em lugar seguro."))})
 
 
 @app.post("/api/gestao/credenciais")

@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.2.3] — 07/09/2026  ·  CX-07/09/2026-v1.2.3
+
+### Adicionado
+- Ao gerar um novo código mestre do app do motorista, a tela agora avisa quando ele SUBSTITUIU um código anterior — e diz, com todas as letras, que o antigo deixou de abrir. Antes o aviso era o mesmo no primeiro código e na troca, e clicar "só para ver" derrubava o acesso de quem estivesse usando o outro.
+
+### Corrigido
+- Nove lugares do painel usavam nomes de cor que nunca foram definidos, e o navegador descartava a regra inteira em silêncio: um texto na Avaliação de Desempenho, dois "confere"/"registrado" em verde, três textos do portal do cliente e a borda da célula de atenção do nine box. Todos passaram a usar a cor da casa — que, ao contrário do nome inventado, tem versão clara E escura.
+- O fundo dos mapas ficava cinza-claro no tema escuro, e num painel de TV, que é sempre escuro, virava uma mancha clara na parede enquanto o mapa carregava. Vinha da folha do Leaflet e valia para todos os mapas do sistema.
+
 ## [1.2.2] — 07/09/2026  ·  CX-07/09/2026-v1.2.2
 
 ### Corrigido

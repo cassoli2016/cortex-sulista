@@ -495,7 +495,7 @@ svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-
    sem erro nenhum. Abaixo de 1100px vira uma coluna: duas listas lado a lado
    nao cabem em tela nenhuma estreita. */
 .rhmot-grade{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);
-  gap:var(--e2);align-items:start}
+  gap:18px;align-items:start}
 @media (max-width:1100px){.rhmot-grade{grid-template-columns:minmax(0,1fr)}}
 .rhmot-item{display:block;width:100%;text-align:left;font:inherit;cursor:pointer;
   background:none;border:0;border-bottom:1px solid var(--n200);padding:10px 8px}
@@ -1244,7 +1244,7 @@ tr.dre-conta>td{font-size:11.5px;color:var(--n500)}
 #des-matriz .nbcx{border:1px solid var(--n200);border-radius:8px;padding:9px;
   background:var(--n0);min-height:96px;display:flex;flex-direction:column;gap:2px}
 #des-matriz .nbcx.bom{border-color:var(--green);background:var(--green-50,transparent)}
-#des-matriz .nbcx.atencao{border-color:var(--amber)}
+#des-matriz .nbcx.atencao{border-color:var(--yellow)}
 #des-matriz .nbcx.ruim{border-color:var(--red)}
 #des-matriz .nbnome{font-size:11px;font-weight:700;text-transform:uppercase;
   letter-spacing:.04em;color:var(--n700)}
@@ -1414,6 +1414,22 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
   white-space:nowrap;overflow:hidden;text-overflow:clip}
 .tvw .tv-sub{font-size:clamp(9px,0.66vw,13px);margin-top:0.1vw}
 .tvw-mapa{grid-row:1/3;grid-column:2;position:relative}
+/* O FUNDO DO MAPA VEM DA FOLHA VENDORIZADA DO LEAFLET, e ela é clara.
+   `.leaflet-container{background:#ddd}` (leaflet.css:261) vale para TODO mapa
+   da casa, e aparece enquanto os tiles carregam e em qualquer vão da borda —
+   uma ilha cinza-clara no tema escuro e, pior, num painel de TV que é sempre
+   escuro. Foi o único achado do `auditar_tema.py` nas 82 telas.
+
+   NÃO SE CORRIGE NO VENDOR: a folha é de terceiro e a próxima atualização
+   levaria o remendo junto, em silêncio. A regra mora aqui, e a especificidade
+   basta (`.leaflet-container` tem a mesma, e esta folha vem depois).
+
+   DUAS SUPERFÍCIES, porque são dois mundos: o painel segue o tema (`--n100`
+   tem par claro/escuro) e o painel de TV NÃO — `--navy-*` e os painéis de TV
+   são o que a casa congela de propósito, então ali vale a cor do cartão. */
+.leaflet-container{background:var(--n100)}
+.tv-card .leaflet-container,.tvw-mapa .leaflet-container,
+.tvc-mapa .leaflet-container{background:#132A40}
 #tvMapa{position:absolute;inset:0;border-radius:0.42vw;z-index:1}
 #tvCliMapa{position:absolute;inset:0;border-radius:0.42vw;z-index:1}
 .tvc-mapa{position:relative;min-height:9.5vw}
@@ -1951,7 +1967,7 @@ body.tvmode #tarja-velha{background:#3A2E12;border-color:#FBBF24;color:#FBBF24}
   border-radius:0 8px 8px 0;padding:10px 14px}
 .cp-acaofaixa .rot{font:700 10.5px/1 var(--font);letter-spacing:.06em;
   text-transform:uppercase;color:var(--n500);white-space:nowrap}
-.cp-acaofaixa .txt{font-size:13px;color:var(--n800);flex:1;min-width:240px}
+.cp-acaofaixa .txt{font-size:13px;color:var(--n700);flex:1;min-width:240px}
 .cp-acaofaixa .excecao{font-size:12px;color:var(--yellow);white-space:nowrap}
 /* GRUPOS DO VALIDADOR: `grave` trava a emissao hoje, `leve` e defeito que nao
    impede. Barra lateral, e nao opacidade — apagar a linha mata a cor dos selos
@@ -1959,7 +1975,7 @@ body.tvmode #tarja-velha{background:#3A2E12;border-color:#FBBF24;color:#FBBF24}
 .tab tr.cp-l-grave td:first-child{box-shadow:inset 3px 0 0 var(--red)}
 .tab tr.cp-l-leve  td:first-child{box-shadow:inset 3px 0 0 var(--n300)}
 .tab tr.cp-l-leve td{color:var(--n600)}
-.tab tr.cp-l-leve td:first-child{color:var(--n800)}
+.tab tr.cp-l-leve td:first-child{color:var(--n700)}
 /* o resumo do validador usa a mesma grade do cronometro, com valores menores */
 #cpValidResumo .val{font:700 22px/1.1 var(--font);color:var(--n900)}
 #cpValidResumo .val.ok{color:var(--green)}
@@ -1978,7 +1994,7 @@ body.tvmode #tarja-velha{background:#3A2E12;border-color:#FBBF24;color:#FBBF24}
   padding:7px 12px;cursor:help}
 .cp-pend .item.bad{box-shadow:inset 3px 0 0 var(--red)}
 .cp-pend .item.warn{box-shadow:inset 3px 0 0 var(--yellow)}
-.cp-pend .txt{color:var(--n800);font-weight:500}
+.cp-pend .txt{color:var(--n700);font-weight:500}
 .cp-pend .acao{color:var(--n500);border-left:1px solid var(--n200);
   padding-left:8px}
 .cp-pager{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
@@ -17729,7 +17745,7 @@ function pnCpkPintar(d){
   /* A CONFERENCIA VAI NA TELA, nao no log. Ela e o segundo caminho para o
      mesmo numero, e mandar o CPK sem ela seria pedir para acreditar. */
   const c = d.km_confronto || {};
-  const sim = '<b style="color:var(--green-700)">confere</b>';
+  const sim = '<b style="color:var(--green)">confere</b>';
   const nao = '<b style="color:var(--red)">DIVERGE</b>';
   document.getElementById('pn-km-confere').innerHTML = `
     <tr><td>Carreta roda menos que cavalo</td><td class="num">${k.ok?sim:nao} · ${k.razao_pct==null?'—':k.razao_pct+'%'}</td></tr>
@@ -17979,7 +17995,7 @@ async function pnRegGravar(){
         + esc((d.dados && d.dados.mensagem) || 'não foi possível registrar') + '</b>';
       return;
     }
-    msg.innerHTML = '<b style="color:var(--green-700)">registrado</b>';
+    msg.innerHTML = '<b style="color:var(--green)">registrado</b>';
     PNREG = null;
     document.getElementById('pnRegSerie').value = '';
     document.getElementById('pnRegFicha').textContent = '';
@@ -30927,7 +30943,7 @@ async function loadDreAtk(){
     const dubio = a.certeza === 'confirmar';
     return `<div class="card" style="margin:0">
       <div class="head"><h2>${i+1}. ${esc(a.titulo)}
-        <span style="float:right;font:700 18px/1 var(--mono);color:${dubio?'var(--amber)':'var(--n900)'}">${BRL.format(a.valor_mes||0)}<span style="font:400 11px/1 var(--font);color:var(--n500)">/mês em jogo</span></span></h2></div>
+        <span style="float:right;font:700 18px/1 var(--mono);color:${dubio?'var(--yellow-700)':'var(--n900)'}">${BRL.format(a.valor_mes||0)}<span style="font:400 11px/1 var(--font);color:var(--n500)">/mês em jogo</span></span></h2></div>
       <div style="padding:0 18px 14px">
         ${dubio ? '<p style="margin:0 0 9px"><span class="chip warn">confirmar antes de decidir</span></p>' : ''}
         <p style="margin:0 0 9px">${esc(a.o_que_e)}</p>
