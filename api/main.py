@@ -1839,6 +1839,27 @@ def comunicacao_tv() -> JSONResponse:
             "mensagem": "Nao foi possivel ler a comunicacao da frota."})
 
 
+@app.get("/api/integracoes")
+def integracoes_panorama() -> JSONResponse:
+    """As integracoes da casa, com CONFIGURACAO e CHEGADA DE DADO juntas.
+
+    Rota `def` (nao `async`): ela le o ERP e roda PowerShell por dentro da
+    Saude, e trabalho bloqueante em rota `async` trava o servidor inteiro. Rota
+    sincrona o FastAPI ja poe no threadpool.
+
+    Tela `integ`, de RBAC normal. Nao devolve valor de credencial nenhum -- so
+    "falta o token", nunca qual e; e por isso que ela pode ser liberada por
+    perfil em vez de viver atras de /api/gestao.
+    """
+    from api import integracoes
+    try:
+        return JSONResponse(integracoes.panorama())
+    except Exception as exc:  # noqa: BLE001
+        log.exception("integracoes: panorama falhou")
+        return JSONResponse({"erro": "nao foi possivel montar o panorama",
+                             "tipo": type(exc).__name__}, status_code=500)
+
+
 @app.get("/api/auditoria")
 def auditoria_uso(dias: int = 30) -> JSONResponse:
     """Indicadores de USO — acessos, tempo de sessao, telas e trilha de acoes.

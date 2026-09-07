@@ -147,6 +147,11 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     # e nao um pedaco da Gestao: quem atende quem esta esperando a carga nao
     # precisa de usuarios, perfis e senhas para isso.
     "mon":     ("Monitoramentos de Carga", "Administração"),
+    # Central de Integracoes. Tela de RBAC NORMAL, e nao mais uma coisa atras
+    # de /api/gestao: quem opera precisa saber que a telemetria parou de chegar
+    # sem depender de um administrador. Ela nao mostra nem edita segredo -- e
+    # justamente isso que permite libera-la por perfil.
+    "integ":   ("Integrações", "Administração"),
     "supfila": ("Suporte — Atendimento", "Suporte"),
 }
 
@@ -157,6 +162,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/financeiro/filtros",       frozenset(TELAS)),
     # documentação e versão: qualquer usuário logado, com qualquer tela
     ("/api/auditoria",                frozenset({"aud"})),
+    ("/api/integracoes",              frozenset({"integ"})),
     ("/api/monitoramentos",           frozenset({"mon"})),
     ("/api/documentacao",             frozenset(TELAS)),
     ("/api/versao",                   frozenset(TELAS)),

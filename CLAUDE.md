@@ -147,7 +147,7 @@ a ACL em vez de afirmar a proteção.
 | Business Intelligence | prodveic, tvfat, tvope, tvdir | AVA (tvdir lê a mesma /api/visao-geral da home) |
 | Gestão | gesacao, gesata | `ges_*` (banco local) |
 | Suporte | sup, supfila | `sup_*` no banco local + espelho opcional no GitHub |
-| Administração | doc, aud | `index.html` (doc); `aud_*` + `audit_log` (auditoria de uso, `api/auditoria.py`) |
+| Administração | doc, aud, integ | `index.html` (doc); `aud_*` + `audit_log` (auditoria de uso, `api/auditoria.py`); `integ` junta o cofre de credenciais com os cartões da Saúde (`api/integracoes.py`) |
 
 As tabelas locais vivem em `sql/cortex/` (39 migrations): auth/usuários/fotos,
 push, correio, previsão, antecipações, extrato, orçamento, contrapartida,
@@ -180,6 +180,19 @@ para tela nova**; os guards moram em arquivos que não falam do assunto.
   Aplicativo fora do menu não dá erro nenhum, por isso a ausência tem alarme
   próprio. O endereço e o QR saem da origem de QUEM PEDIU (o CÓRTEX responde
   pelo túnel, pelo ngrok e por `127.0.0.1`).
+- **O ESTADO de uma integração tem DUAS metades, e a tela `integ` é a junção.**
+  `api/credenciais.py` diz se está CONFIGURADA (e o que falta); os cartões de
+  `api/servidor.py` dizem se está CHEGANDO DADO. Uma integração configurada
+  pode estar parada há cinco dias, e enquanto as metades viviam em duas telas
+  isso eram dois verdes em lugares diferentes. `api/integracoes.py` casa as
+  duas por fornecedor e o semáforo vale o **PIOR** dos dois lados. Duas coisas
+  que NÃO são alarme: "não configurada" (recurso que a empresa não contratou) e
+  fornecedor consultado sob demanda (TomTom, QualP — não há última coleta para
+  envelhecer). A tela é de RBAC normal porque **não mostra nem edita
+  credencial** — diz que falta o token, nunca qual é; editar segredo continua
+  em Gestão. Integração nova é obrigada a declarar como o dado dela chega
+  (`tests/test_integracoes.py`), e renomear um cartão da Saúde derruba a suíte
+  com o nome antigo no erro.
 - Integração é **módulo por fornecedor** em `api/<fornecedor>/` (gobrax,
   smartec, tomtom, whatsapp, monkey, jornada/RasterJOR, pedagio/QualP) — não
   existe hub genérico de conectores.

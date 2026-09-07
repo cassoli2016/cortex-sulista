@@ -601,6 +601,15 @@ glossario:
   definicao: 'Nota de 0 a 100 que a plataforma de telemetria atribui ao motorista no mês, a partir do
     comportamento de condução. É o insumo da premiação junto com o km rodado: prêmio = km × valor por
     km × (nota ÷ 100).'
+- termo: Integração parada
+  definicao: 'Uma integração pode estar CONFIGURADA e mesmo assim não estar trazendo dado — a
+    credencial continua válida e a coleta parou. As duas metades da pergunta viviam em telas
+    diferentes (Gestão › Integrações dizia se estava configurada; Saúde do Servidor, se tinha
+    chegado dado), e é a junção que responde se dá para confiar no número que a tela está
+    mostrando agora. A tela Integrações mostra as duas lado a lado, e o semáforo vale o PIOR dos
+    dois: configuração em dia com coleta parada há cinco dias não é "em dia". Fornecedor
+    consultado sob demanda (TomTom, QualP) não tem última coleta para envelhecer, e por isso não
+    acende alarme — a tela diz isso em vez de fingir um semáforo.'
 - termo: RNTRC
   definicao: Registro Nacional de Transportadores Rodoviários de Cargas. Todo transportador que faz frete
     por conta de terceiros precisa dele ativo; contratar quem está irregular é infração. As categorias
@@ -874,11 +883,13 @@ grupos:
 - nome: Administração
   resumo: >-
     Usuários, perfis e permissões por tela, saúde da máquina onde a API roda, a auditoria de uso
-    (quem entra, por quanto tempo e em que telas, além da trilha de ações que já existia), o
-    acompanhamento dos monitoramentos de carga pedidos na página pública, e esta documentação.
+    (quem entra, por quanto tempo e em que telas, além da trilha de ações que já existia), o estado
+    de cada integração com fornecedor, o acompanhamento dos monitoramentos de carga pedidos na
+    página pública, e esta documentação.
   telas:
   - gestao
   - srv
   - aud
+  - integ
   - mon
   - doc

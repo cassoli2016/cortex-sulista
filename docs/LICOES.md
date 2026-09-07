@@ -4991,3 +4991,83 @@ mesmo assim escapou na leitura. Foi o teste que pegou.
   violacao e justamente o que define a regra.
 - **Cancelamento por carga externa nao e falha nossa** -- e o cartao que
   confunde os dois manda procurar defeito onde nao ha.
+## A Central de Integracoes, e as duas metades da pergunta (2026-09-07, v1.5.0)
+
+Pedido de quem opera: *"vamos montar um painel com o status de todas as
+integracoes que temos hoje no cortex"*.
+
+### A pergunta ja tinha resposta -- partida em dois lugares
+
+Antes de escrever a tela, o inventario: a casa tem **11 integracoes externas**
+(Gobrax, Smartec, RasterJOR, RasterIntegra, Prolog, Monkey, Z-API, 3S, TomTom,
+QualP, SMTP), cada uma um modulo em `api/<fornecedor>/`. E ja havia duas telas
+falando delas:
+
+| tela | responde | nao responde |
+|---|---|---|
+| Gestao > Integracoes (`api/credenciais.py`) | esta CONFIGURADA? o que falta? | chegou dado? |
+| Saude do Servidor (`api/servidor.py`) | esta CHEGANDO DADO? | esta configurada? |
+
+**Uma integracao pode estar configurada e parada ha cinco dias.** Pode estar
+recebendo telemetria com a credencial da premiacao faltando (o cartao da Gobrax
+ja diz isso, e o da premiacao e outro). Nenhuma das duas telas mostrava as duas
+metades juntas -- e e a JUNCAO que responde a unica pergunta que interessa:
+*da para confiar no numero que a tela de Telemetria esta mostrando agora?*
+
+Entao a tela nova nao e uma terceira copia: e a juncao. `api/integracoes.py`
+nao coleta nada e nao guarda estado -- le as duas fontes que ja existem e as
+casa por fornecedor.
+
+### O semaforo vale o PIOR dos dois lados
+
+Configuracao em dia com coleta parada nao e "em dia". Escrito assim, obvio;
+partido em duas telas, invisivel -- eram dois verdes em lugares diferentes.
+
+E duas decisoes sobre o que NAO e alarme, que sao o que separa um painel util
+de um vitral que se aprende a ignorar:
+
+- **"Nao configurada" nao e vermelho.** Integracao que a empresa nao contratou
+  nao e defeito, e recurso que nao existe nesta instalacao.
+- **Sob demanda nao e coleta parada.** TomTom e QualP sao consultados na hora,
+  por viagem e por rota: nao ha "ultima coleta" para envelhecer. Cobrar frescor
+  deles acenderia alarme todo dia com tudo funcionando -- e alarme diario vira
+  ruido, que e como se ensina a ignorar o vermelho de verdade.
+
+### Tela de RBAC normal, e o que permitiu isso
+
+As duas fontes sao de administrador (`/api/gestao`). Esta e tela normal, em
+Administracao, liberada por perfil -- porque **ela nao mostra e nao edita
+credencial**: diz que falta um token, nunca qual e. Trocar segredo continua so
+em Gestao. Sem essa fronteira a tela teria de ficar atras de admin, e a
+operacao continuaria dependendo de um administrador para saber que a telemetria
+parou de chegar.
+
+O guard `test_o_panorama_NAO_carrega_valor_de_credencial` confere contra os
+valores REAIS do cofre desta instalacao -- um duble ali provaria o duble.
+
+### A ponte e um mapa escrito a mao, e por isso leva DOIS guards
+
+`CARTAO_DA_SAUDE` casa a chave do fornecedor com o NOME do cartao na Saude.
+Mapa escrito a mao deixou dois guards cegos nesta casa **nesta mesma semana**:
+o `MODULOS_SQL` sem o proprio modulo do agrupador, e a lista de agendadores
+nomeando `aviso-carga` quando a thread se chama `rastreio-aviso`. A licao ja
+esta no `CLAUDE.md`; aqui ela foi aplicada antes de custar:
+
+1. Todo nome mapeado **existe** entre os cartoes da Saude -- renomear um cartao
+   la derruba a suite aqui, com o nome antigo no erro. Sem isso, a integracao
+   apareceria com "ainda nao tem medicao" para uma coleta que esta viva.
+2. Todo fornecedor do cofre esta **decidido**: tem cartao, ou e sob demanda, ou
+   nao e fornecedor externo. Nenhuma das tres e o padrao -- integracao nova
+   obriga alguem a escolher. Sabotado com uma `sefaz` solta no cofre, o teste
+   diz o que fazer com ela.
+
+### O que fica como regra
+
+- **Duas telas que respondem meia pergunta cada nao somam uma resposta.** Quem
+  precisa decidir junta as duas de cabeca, todo dia, e erra no dia corrido.
+- **Semaforo consolidado vale o PIOR componente**, senao a metade boa esconde a
+  ruim.
+- **Nem toda ausencia e alarme**: nao contratado e "certo assim", e sob demanda
+  nao tem frescor para cobrar. Painel que acende todo dia deixa de ser lido.
+- **Painel que junta duas fontes precisa de guard nos DOIS sentidos** -- o nome
+  que ele cita tem de existir, e o que existe tem de estar citado.

@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.5.0] — 07/09/2026  ·  CX-07/09/2026-v1.5.0
+
+### Adicionado
+- Uma tela nova, Integrações, em Administração: todas as integrações da casa numa lista só, cada uma dizendo o que faz, que telas alimenta, se está configurada e se o dado está de fato chegando.
+- Essa resposta existia partida em dois lugares. Gestão › Integrações diz se a credencial está lá; a Saúde do Servidor diz se chegou dado. Uma integração pode estar perfeitamente configurada e parada há cinco dias, e nenhuma das duas telas mostrava as duas metades juntas — mas é a junção que responde se dá para confiar no número que a tela de Telemetria está mostrando agora. Por isso o semáforo de cada cartão vale o PIOR dos dois lados.
+- "Não configurada" não é vermelho: integração que a empresa não contratou não é defeito, é recurso que não existe aqui. E fornecedor consultado na hora (TomTom, QualP) não tem "última coleta" para envelhecer — o cartão diz isso, em vez de acender alarme todo dia com tudo funcionando.
+- A tela não mostra e não edita credencial: ela diz que falta um token, nunca qual é. É exatamente isso que permite liberá-la por perfil, como qualquer outra tela — quem opera passa a enxergar que a telemetria parou de chegar sem depender de um administrador. Trocar segredo continua só em Gestão.
+- Integração nova aparece aqui sozinha, e não por disciplina: ela nasce no mesmo registro que a tela de configuração já lê, e uma verificação automática reprova a entrega se alguém publicar um fornecedor sem dizer como o dado dele chega. Renomear um cartão na Saúde também derruba a suíte, com o nome antigo no erro.
+
 ## [1.4.2] — 07/09/2026  ·  CX-07/09/2026-v1.4.2
 
 ### Corrigido
