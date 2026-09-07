@@ -10,12 +10,24 @@ O aviso era disparado de hora em hora por uma tarefa do Windows
    era atendido às 13h00 — vinte e dois minutos depois — e depois de hora em
    hora a partir do servidor, não a partir dela. O pedido era o contrário:
    contar do momento em que a pessoa pediu.
-2. **A tarefa não estava registrada nesta máquina.** Em 05/09/2026 só existiam
-   quatro tarefas do CÓRTEX no agendador (API, AutoDeploy, Ngrok, Tunnel), e
-   nenhuma delas roda `avisar_cargas.py` — ainda assim os avisos saíam em
-   HH:00. Ou seja: o que dispara o aviso hoje não está escrito em lugar nenhum
-   deste repositório, e um recurso que fala com cliente não pode depender de
-   uma peça que ninguém sabe onde está.
+2. **A HORA CHEIA TEM DONO, e ele estava escondido do instrumento.** Este
+   parágrafo dizia, até 07/09/2026, que "a tarefa não estava registrada nesta
+   máquina" — que em 05/09 só existiam quatro tarefas do CÓRTEX (API,
+   AutoDeploy, Ngrok, Tunnel) e que o gatilho dos avisos em HH:00 não estava
+   escrito em lugar nenhum. **Era falso, e a culpa é do instrumento:**
+   `Get-ScheduledTask` e `schtasks /query` sem elevação listam só o que o
+   usuário tem permissão de LER, calados. A tarefa `Cortex Sulista - Aviso de
+   Cargas` existe, roda como SISTEMA de hora em hora, e apareceu inteira no
+   log de eventos do próprio agendador
+   (`Microsoft-Windows-TaskScheduler/Operational`, evento 100) — junto com
+   outras quatro que a mesma consulta escondia (`3S coleta`, `WhatsApp
+   agendado`, `Relatorios por e-mail`, `CTe Contrapartida`). Ler o XML dela em
+   `C:\Windows\System32\Tasks\` responde *Acesso negado*, que é a mesma
+   causa dita por outro caminho.
+
+   A lição não é sobre WhatsApp: **consulta que enxerga um subconjunto
+   respondeu "não existe", e a resposta virou parágrafo de documentação.**
+   Censo de tarefa do Windows se faz pelo log de eventos, ou elevado.
 
 Aqui ele passa a viver junto da API, que é uma das tarefas que EXISTEM de
 verdade e sobe no boot. É o mesmo padrão do digest diário (`api/push.py`):
@@ -33,10 +45,24 @@ um relógio novo sem desligar o antigo.
 
 O CICLO É CURTO DE PROPÓSITO
 ============================
-Dez minutos. Não é para mandar de dez em dez — quem manda é o intervalo de 60
-— é para o atraso máximo entre "venceu" e "saiu" ser de dez minutos. Com ciclo
-de uma hora, a âncora de 12h38 voltaria a ser atendida às 14h00, que é
+Dois minutos. Não é para mandar de dois em dois — quem manda é o intervalo de
+60 — é para o atraso máximo entre "venceu" e "saiu" ser de dois minutos. Com
+ciclo de uma hora, a âncora de 12h38 voltaria a ser atendida às 14h00, que é
 exatamente o defeito que isto existe para corrigir.
+
+ERA DEZ MINUTOS ATÉ 07/09/2026, e dez minutos NÃO SOMEM: eles se acumulam.
+A âncora é o ÚLTIMO ENVIO, então cada mensagem sai no primeiro ponto da grade
+depois dos 60 minutos e ANCORA A SEGUINTE ali — o horário de entrega anda para
+a frente o dia inteiro e nunca volta. Medido nas duas inscrições vivas em
+06/09/2026: mediana de 68 e 70 minutos contra os 60 prometidos, com a entrega
+caminhando 06:00 → 07:01 → 08:21 → 09:22 → 11:31 → 13:37 → 14:45 → 16:00.
+E a grade se RE-FASA a cada reinício da API (é o `ATRASO_INICIAL_S` contado do
+boot), e o AutoDeploy reinicia várias vezes por dia — 16 vezes naquele dia, no
+`logs/api.log`. Com dois minutos o passeio cabe no minuto, não na hora.
+
+O CICLO OCIOSO É BARATO, e é isso que permite encurtá-lo: uma consulta ao banco
+LOCAL. O ERP só é procurado (`aviso._carga_da_inscricao`) para quem já venceu, e
+quem venceu é justamente quem receberia mensagem de qualquer jeito.
 """
 from __future__ import annotations
 
@@ -56,8 +82,9 @@ from ..sob_teste import sob_teste  # noqa: E402
 log = logging.getLogger("cortex.rastreio.agendador")
 
 #: De quanto em quanto tempo o laço acorda. Ver o cabeçalho: isto é a PRECISÃO
-#: da entrega, não a frequência do envio.
-CICLO_S = 600
+#: da entrega, não a frequência do envio — e o erro dele ENTRA no intervalo
+#: entregue, porque a âncora é o último envio.
+CICLO_S = 120
 
 #: Espera antes do primeiro ciclo. O AutoDeploy reinicia a API várias vezes por
 #: dia; sem esta folga, cada reinício dispararia uma varredura de envio no

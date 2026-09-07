@@ -177,9 +177,12 @@ def test_o_ciclo_e_MENOR_que_o_intervalo_por_telefone():
     ser atendida na hora cheia — que é o defeito que tudo isto corrige."""
     from api.rastreio import assinatura
     assert agendador.CICLO_S < assinatura.INTERVALO_MIN * 60
-    assert agendador.CICLO_S <= 900, (
-        "acima de 15 min o atraso entre 'venceu' e 'saiu' fica visível para "
-        "quem espera a carga")
+    assert agendador.CICLO_S <= 180, (
+        "o erro do ciclo NAO some: a ancora e o ultimo envio, entao cada "
+        "mensagem sai no primeiro ponto da grade depois dos 60 min e ancora a "
+        "seguinte ali — o horario de entrega anda para a frente o dia inteiro. "
+        "Com 600s medimos mediana de 68 e 70 min contra os 60 prometidos em "
+        "06/09/2026, com a entrega caminhando de 06:00 para 16:00")
 
 
 def test_ha_folga_antes_do_primeiro_ciclo():

@@ -4644,3 +4644,98 @@ motorista, posteriores ao backup.
 - **O que salvou foi backup diario mais comparacao de volume POR TABELA.** Sem
   o passo 5, 219 registros teriam sumido em silencio: ninguem olha
   `rntrc_transportador` todo dia.
+
+---
+
+## 07/09/2026 — O aviso do rastreio saia na hora errada, e eram DOIS relogios
+
+A reclamacao veio de quem opera: "o tempo de envio nao esta de acordo com o
+tempo configurado para recebimento". A promessa da pagina, para o padrao, e
+"a cada hora, quando houver novidade, entre 06:00 e 20:00".
+
+### O que a trilha diz (`zap_envios`, `ok=1`, `origem='rastreio_carga'`)
+
+Os dois telefones inscritos na carga 94540, em 06/09:
+
+```
+...251704   06:00  07:01(+61,8)  08:21(+80,1)  09:22(+60,0)  10:22(+60,0)
+            11:31(+69,9)  12:31(+60,0)  13:37(+66,0)  14:45(+68,0)  16:00(+74,2)
+...859121   06:00  07:01(+61,8)  08:21(+80,1)  09:21(+60,0)  10:22(+60,0)
+            11:21(+59,9)  12:25(+64,0)  13:27(+62,0)  14:35(+68,0)  16:00(+84,2)
+```
+
+Mediana de 69,9 e 68,0 minutos contra os 60 prometidos, com a hora de entrega
+caminhando o dia inteiro. E um intervalo de **59,9 min** — abaixo do piso.
+
+### Causa 1: a hora cheia tem dono, e o instrumento nao o enxergava
+
+O docstring de `api/rastreio/agendador.py` afirmava que a tarefa do Windows
+"nao estava registrada nesta maquina" — que em 05/09 so existiam quatro tarefas
+do CORTEX e que o gatilho dos avisos em HH:00 nao estava escrito em lugar
+nenhum do repositorio. A conclusao vinha de `Get-ScheduledTask`.
+
+**A tarefa existe.** `Cortex Sulista - Aviso de Cargas` disparou em 07/09 as
+06:00:01, 07:00:02, 08:00:02 e 09:00:02, como SISTEMA, e os envios de HH:00:0X
+caem 3 a 4 segundos depois dela. Ela aparece inteira no log de eventos do
+proprio agendador (`Microsoft-Windows-TaskScheduler/Operational`, evento 100),
+junto de outras QUATRO que a mesma consulta escondia: `3S coleta`, `WhatsApp
+agendado`, `Relatorios por e-mail`, `CTe Contrapartida`. Ler o XML dela em
+`C:\Windows\System32\Tasks\` responde *Acesso negado* — a mesma causa dita por
+outro caminho: **`Get-ScheduledTask` e `schtasks /query` sem elevacao listam so
+o que o usuario tem permissao de LER, calados.**
+
+A licao nao e sobre WhatsApp: **uma consulta que enxerga um subconjunto
+respondeu "nao existe", a resposta virou paragrafo de documentacao, e o
+paragrafo justificou construir um segundo relogio ao lado do primeiro.** Censo
+de tarefa do Windows se faz pelo log de eventos, ou elevado.
+
+Os dois relogios nao duplicam mensagem — a ancora e a mesma linha do banco, e
+o dado confirma (nenhum par abaixo de 59,9 min). Mas o telefone passa a ser
+servido por quem tocar primeiro depois de vencido o piso, e o horario deixa de
+ter dono. A tarefa tambem ignora a janela: em 05/09 e 06/09 ela disparou as
+21:00 e o envio foi recusado por "fora da janela" (ids 41, 74, 75); o agendador
+da API nem teria tentado (`_fora_da_janela`).
+
+### Causa 2: o erro do ciclo NAO some, ele se acumula
+
+`CICLO_S` era 600 s, documentado como "o atraso maximo entre venceu e saiu e de
+dez minutos". A frase esta certa e a conclusao dela estava errada: **a ancora e
+o ULTIMO ENVIO**, entao cada mensagem sai no primeiro ponto da grade depois dos
+60 minutos e ancora a seguinte ali. O atraso nao e um erro por mensagem que se
+cancela — e um passo para a frente que nunca volta. Some-se a isso o
+`ATRASO_INICIAL_S` contado do boot: cada reinicio da API re-fasa a grade, e o
+AutoDeploy reiniciou 16 vezes naquele dia (`logs/api.log`).
+
+Agora sao 120 s. O ciclo ocioso e uma consulta ao banco LOCAL — o ERP so e
+procurado para quem ja venceu, que e quem receberia mensagem de qualquer jeito.
+
+### Causa 3: o piso de 60 minutos era, na pratica, 59min30s
+
+`desde_min` saia de `(extract(epoch FROM ...)/60)::int`. **O cast de
+`double precision` para `int` no Postgres ARREDONDA** — medido no banco vivo:
+`59m31s` vira `60`. O piso anti-spam, que `CADENCIAS` foi escrito para nunca
+deixar afrouxar ("um `30` digitado aqui seria um freio afrouxado sem ninguem
+perceber"), afrouxava sozinho meio minuto no SQL, um andar abaixo de onde o
+guard olhava. Virou `floor(...)`.
+
+**Por que nenhum teste pegou:** os tres guards do piso viviam em
+`tests/rastreio/test_aviso.py` e passavam `desde_min=61` e `desde_min=22` de
+fixture — todos sobre a comparacao em Python. **Nenhum executava o SQL que
+PRODUZ o `desde_min`.** Regra escrita em SQL que nenhum teste roda e regra que
+so se confere lendo. O guard novo (`tests/rastreio/test_ancora_do_telefone.py`)
+executa `assinatura.ATIVAS_SQL` contra um schema descartavel, com um parametro
+por caso de borda, e cada um foi sabotado: com o `::int` de volta, tres ficam
+vermelhos (`assert 60 == 59`).
+
+### O que fica como regra
+
+- **Consulta que pode enxergar um subconjunto nunca responde "nao existe".**
+  Antes de concluir ausencia, perguntar de que o instrumento e capaz —
+  `Get-ScheduledTask` sem elevacao nao e censo.
+- **Erro de ciclo em relogio ancorado no ULTIMO evento se acumula.** "Atraso
+  maximo de N" so vale quando a ancora e a grade; quando a ancora e o evento,
+  N e um passo diario para a frente.
+- **Piso escrito em SQL pede guard que EXECUTA o SQL.** Cast para inteiro
+  arredonda; freio que arredonda para baixo e freio que afrouxa sozinho.
+- **Nao ha zero mensagem repetida sem UM relogio.** Dois gatilhos idempotentes
+  nao duplicam, mas tambem nao tem horario.

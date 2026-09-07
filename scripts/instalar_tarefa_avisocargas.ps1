@@ -1,16 +1,29 @@
 # Tarefa agendada: AVISO HORARIO DAS CARGAS por WhatsApp.
 #
-# ESTA TAREFA DEIXOU DE SER NECESSARIA em 05/09/2026. O relogio do aviso passou
-# a viver DENTRO da API (`api/rastreio/agendador.py`), que ja sobe pela tarefa
-# "Cortex Sulista - API", e acorda a cada 10 minutos em vez de na hora cheia -
-# porque a cadencia agora conta do momento em que a PESSOA pediu, nao do
-# relogio do servidor.
+# NAO REGISTRE ESTA TAREFA. Ela esta APOSENTADA desde 07/09/2026, e o motivo
+# nao e redundancia - e horario.
 #
-# O script continua aqui e continua funcionando. Rodar os dois nao duplica
-# mensagem: quem decide se manda e o intervalo por telefone
-# (`assinatura.INTERVALO_MIN`) contra a ultima mensagem gravada, entao dois
-# gatilhos leem a mesma ancora e chegam a mesma conclusao. Se voce registrar
-# esta tarefa, ela vira uma rede de seguranca; nao registrar e o normal.
+# O relogio do aviso vive DENTRO da API (`api/rastreio/agendador.py`), que ja
+# sobe pela tarefa "Cortex Sulista - API", e acorda a cada 2 minutos: a
+# cadencia conta do momento em que a PESSOA pediu, nao do relogio do servidor.
+#
+# ATE 07/09/2026 este cabecalho dizia que rodar os dois "vira uma rede de
+# seguranca". A primeira metade da frase continua verdadeira - dois gatilhos
+# leem a MESMA ancora do banco e nao duplicam mensagem. A segunda estava
+# errada: com dois relogios, quem serve o telefone e o que tocar primeiro
+# depois de vencido o piso, e o horario de entrega deixa de ter dono. Medido em
+# 06/09/2026, com esta tarefa viva: intervalos de 60 a 84 minutos onde a pagina
+# promete uma hora, e a mensagem caminhando 06:00 -> 07:01 -> 08:21 -> 09:22 ->
+# 11:31 -> 13:37 -> 16:00. Esta tarefa tambem IGNORA a janela de horario: em
+# 05/09 e 06/09 ela disparou as 21:00 e o envio foi recusado la na frente.
+#
+# Se ela ainda estiver registrada nesta maquina, desligue (PowerShell ELEVADO):
+#   Disable-ScheduledTask -TaskName "Cortex Sulista - Aviso de Cargas"
+#
+# E NAO CONFIE no `Get-ScheduledTask` sem elevacao para conferir se ela existe:
+# ele lista so o que o usuario tem permissao de LER, calado. Foi assim que esta
+# tarefa passou por inexistente enquanto rodava de hora em hora. O censo honesto
+# esta no log de eventos `Microsoft-Windows-TaskScheduler/Operational`.
 #
 # Quem se inscreveu na pagina publica de rastreio recebe, de hora em hora, como
 # esta a carga dele - enquanto ela estiver em viagem. A entrega encerra a

@@ -464,28 +464,51 @@ def cancelar_por_telefone(telefone: str, numero: int | None = None) -> int:
         return 0
 
 
-def ativas() -> list[dict]:
-    """As inscrições que ainda valem. A tarefa de aviso parte daqui."""
+#: A CONSULTA QUE O AVISO LÊ, num lugar só e não dentro da função.
+#:
+#: Ela é constante porque tem um GUARD que a executa contra um schema
+#: descartável (`tests/rastreio/test_ancora_do_telefone.py`): o piso de uma
+#: mensagem por hora é uma regra de banco, escrita em SQL, e regra em SQL que
+#: nenhum teste roda é regra que se confere lendo — foi assim que o
+#: arredondamento abaixo passou catorze dias no ar.
+#:
+#: `floor`, E NÃO `::int`. O cast de `double precision` para `int` no Postgres
+#: ARREDONDA: `59m31s` virava `60`, e o piso de 60 minutos era, na prática,
+#: 59min30s. Não é teoria — em 06/09/2026 o telefone final 9121 recebeu duas
+#: mensagens separadas por 59,9 minutos. O piso existe para o número da empresa
+#: não ser bloqueado; um piso que arredonda para baixo é um freio que afrouxa
+#: sozinho, sem ninguém decidir isso.
+ATIVAS_SQL = """
+    SELECT id, grupo, empresa, filial, numero, serie, telefone,
+           ultimo_texto, ultima_assinatura, ultimo_envio, envios,
+           criado_em, janela_inicio, janela_fim, cadencia,
+           -- A ÂNCORA DO TELEFONE, calculada no banco para não
+           -- depender do relógio de quem lê. `max(ultimo_envio)` é a
+           -- última vez que FALAMOS com ele; quando nunca falamos,
+           -- vale o pedido mais ANTIGO — quem está esperando desde as
+           -- 12h38 não pode ir para o fim da fila porque pediu uma
+           -- segunda carga às 14h.
+           (SELECT floor(extract(epoch FROM now() - coalesce(
+                     max(i2.ultimo_envio), min(i2.criado_em)))/60)
+              FROM rst_inscricao i2
+             WHERE i2.telefone = i.telefone
+               AND i2.ativo AND i2.expira_em > now())::int
+             AS desde_min
+    FROM rst_inscricao i
+    WHERE ativo AND expira_em > now()
+    ORDER BY coalesce(ultimo_envio, criado_em)"""
+
+
+def ativas(esquema: str | None = None) -> list[dict]:
+    """As inscrições que ainda valem. A tarefa de aviso parte daqui.
+
+    `esquema` existe para o GUARD, que precisa rodar esta consulta contra um
+    schema descartável. Produção nunca passa nada — e é de propósito que o
+    padrão seja `None`: um teste que esqueça de redirecionar lê e escreve em
+    cima do cliente de verdade.
+    """
     try:
-        return [dict(r) for r in pglocal.query("""
-            SELECT id, grupo, empresa, filial, numero, serie, telefone,
-                   ultimo_texto, ultima_assinatura, ultimo_envio, envios,
-                   criado_em, janela_inicio, janela_fim, cadencia,
-                   -- A ÂNCORA DO TELEFONE, calculada no banco para não
-                   -- depender do relógio de quem lê. `max(ultimo_envio)` é a
-                   -- última vez que FALAMOS com ele; quando nunca falamos,
-                   -- vale o pedido mais ANTIGO — quem está esperando desde as
-                   -- 12h38 não pode ir para o fim da fila porque pediu uma
-                   -- segunda carga às 14h.
-                   (SELECT extract(epoch FROM now() - coalesce(
-                             max(i2.ultimo_envio), min(i2.criado_em)))/60
-                      FROM rst_inscricao i2
-                     WHERE i2.telefone = i.telefone
-                       AND i2.ativo AND i2.expira_em > now())::int
-                     AS desde_min
-            FROM rst_inscricao i
-            WHERE ativo AND expira_em > now()
-            ORDER BY coalesce(ultimo_envio, criado_em)""")]
+        return [dict(r) for r in pglocal.query(ATIVAS_SQL, esquema=esquema)]
     except Exception as exc:  # noqa: BLE001
         log.warning("rastreio: leitura de inscrições falhou: %s",
                     type(exc).__name__)

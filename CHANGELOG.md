@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.2.1] — 07/09/2026  ·  CX-07/09/2026-v1.2.1
+
+### Corrigido
+- O aviso de carga por WhatsApp voltou a sair de hora em hora. Quem acompanha uma carga pela página pública recebia com intervalos de 60 a 84 minutos, e o horário da mensagem caminhava o dia inteiro — quem foi avisado às 06:00 recebia a seguinte às 07:01, depois às 08:21, 09:22, 11:31, 13:37 e 16:00. Eram duas causas somadas: havia DOIS relógios disparando o mesmo aviso (a tarefa do Windows, de hora cheia, e o relógio de dentro da API), e o relógio da API acordava de dez em dez minutos — atraso que não some, porque a mensagem seguinte é contada a partir da que saiu. Agora ele acorda de dois em dois minutos.
+- A promessa de "no máximo uma mensagem por hora" era cumprida com meio minuto de folga a menos: a conta da idade da última mensagem arredondava, e 59 minutos e meio já valiam como uma hora. O piso agora é uma hora cheia. É o freio que protege o número de WhatsApp da empresa de ser bloqueado por quem recebe.
+
 ## [1.2.0] — 07/09/2026  ·  CX-07/09/2026-v1.2.0
 
 ### Adicionado

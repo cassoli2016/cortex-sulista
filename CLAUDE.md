@@ -677,7 +677,15 @@ Regras duráveis — as crônicas (medições, formatos, tetos) estão em
   AVA (são 19), ler o CATÁLOGO de integrações do ERP (`integracao.*`), e ler
   TODOS os arquivos que a casa versiona. RasterJOR estava em
   `sulista.rasterjor_*`; a Smartec era o `tipointegracao` 32; a tarifa de
-  pedágio já estava no ERP.
+  pedágio já estava no ERP. **E perguntar do que o INSTRUMENTO é capaz:**
+  `Get-ScheduledTask`/`schtasks /query` sem elevação listam só o que o usuário
+  pode LER — calados. Eles diziam "quatro tarefas do CÓRTEX" enquanto cinco
+  outras rodavam como SISTEMA (`Aviso de Cargas`, `3S coleta`, `WhatsApp
+  agendado`, `Relatorios por e-mail`, `CTe Contrapartida`), e a ausência virou
+  parágrafo de documentação que justificou um segundo relógio ao lado do
+  primeiro. Censo de tarefa se faz pelo log de eventos
+  (`Microsoft-Windows-TaskScheduler/Operational`) ou elevado. Crônica em
+  `docs/LICOES.md` (07/09/2026).
 - **Ler a resposta INTEIRA do fornecedor uma vez** (a Gobrax devolvia 14
   indicadores e o CÓRTEX lia 3); ler `description` de spec antes de inferir
   (o `Tipo` da Smartec só existia lá); premissa de custo escrita envelhece —
