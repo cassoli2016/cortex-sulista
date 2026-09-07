@@ -24,6 +24,21 @@ resultado — o freio é por CNPJ e dura cerca de uma hora. Por isso a recolha
 respeita `INTERVALO_MINIMO` entre varreduras do mesmo CNPJ mesmo quando alguém
 manda rodar de novo: o freio dela é mais caro que a espera nossa.
 
+**E O NSU É UM CURSOR DE MÃO ÚNICA — não endereço.** Isto foi medido em
+07/09/2026 e é o fato menos óbvio deste serviço. Depois de a SEFAZ servir a
+faixa 1.143.500 → 1.144.010, pedir a MESMA faixa de novo, mais de uma hora
+depois, voltou 656: para ela, consumidor que não avança é consumidor com
+defeito. Não existe "reler o trecho" pelo `distNSU`.
+
+A consequência é dura e precisa estar escrita: **um lote mal processado do
+nosso lado não se recupera pedindo de novo.** Foi o que aconteceu — 510
+documentos gravados vazios por um defeito nosso, e a faixa não voltou. O que
+resta para um documento específico é `consNSU` (NSU avulso), uma chamada por
+documento, com limite próprio.
+
+Por isso as três camadas de recusa a documento vazio (aqui, em `leitura` e em
+`armazenamento`) não são zelo: o lote passa UMA vez.
+
 POR QUE O NSU É GRAVADO A CADA LOTE
 -----------------------------------
 Uma primeira varredura pode ter milhares de documentos, dezenas de lotes. Se o

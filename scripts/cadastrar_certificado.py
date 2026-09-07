@@ -247,7 +247,21 @@ def main(argv: list[str]) -> int:
     segredo_arquivo.proteger(SENHAS)
 
     print()
-    print("OK: certificado e senha no cofre (data/certificados/, fora do git).")
+    print("OK: certificado e senha no cofre, fora do git.")
+    # O CAMINHO ABSOLUTO, e nao "data/certificados/". `data/` NAO e
+    # compartilhado entre worktrees: cadastrar numa arvore de trabalho nao leva
+    # nada para producao, e a tela de la continua dizendo "senha nao
+    # cadastrada" sem explicar por que. Aconteceu em 07/09/2026 -- o caminho
+    # relativo escondia exatamente a informacao que resolveria.
+    print("    %s" % DIR_CERT)
+    if RAIZ.name != "cortex-sulista":
+        print()
+        print("ATENCAO: esta NAO e a arvore de producao (%s)." % RAIZ.name)
+        print("         A API de producao le de")
+        print("         C:\\Users\\inteligencia\\Documents\\cortex-sulista\\data\\certificados")
+        print("         Rode este mesmo comando LA, ou a tela vai dizer")
+        print("         'senha nao cadastrada' para um certificado que existe.")
+    print()
     print("    A senha entra e NAO volta: nenhum endpoint a expoe.")
     return 0
 
