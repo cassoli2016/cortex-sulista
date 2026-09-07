@@ -43,6 +43,7 @@ CARGA = {
                       "area": {"lat": -26.3, "lng": -48.8, "raio_km": 11}},
         "mapa": {"origem": {"lat": -26.30, "lng": -48.84},
                  "destino": {"lat": -29.76, "lng": -51.15}},
+        "aviso_janela": {"inicio": "06:00", "fim": "20:00"},
         "movimentacao": [
             {"rotulo": "Chegou no cliente", "marco": True,
              "onde": "Resende/RJ", "em": "2026-09-06T19:05:39"},
@@ -269,6 +270,62 @@ def test_voltar_devolve_a_LISTA_e_nao_o_formulario_vazio(pagina):
     pg.wait_for_selector(".carga")
     assert len(pg.query_selector_all(".carga")) == 2
     assert pg.query_selector(".det-a1") is None
+
+
+def test_a_pagina_DIZ_o_horario_em_que_os_avisos_saem(pagina):
+    """Fora da janela nada é enviado, e esse silêncio é DESENHO — mas desenho
+    que ninguém conhece é indistinguível de defeito: quem acompanha a carga às
+    23h fica esperando uma mensagem que não vem e conclui que quebrou."""
+    pg, base = pagina
+    _abrir_detalhe(pg, base, 1024)
+    texto = pg.inner_text(".zap .janela")
+    assert "06:00" in texto and "20:00" in texto
+    # E DIZ QUE NÃO ACUMULA — a segunda dúvida de quem lê a primeira frase.
+    assert "acumulado" in texto or "acumula" in texto
+
+
+def test_o_aviso_de_horario_diz_AUTOMATICOS_e_nao_mente(pagina):
+    """A primeira mensagem do cadastro e a confirmação do SAIR saem em QUALQUER
+    horário — são resposta a algo que a pessoa acabou de fazer. Um texto
+    dizendo "só enviamos entre 6h e 20h", sem o qualificador, seria falso duas
+    vezes por dia."""
+    pg, base = pagina
+    _abrir_detalhe(pg, base, 1024)
+    texto = pg.inner_text(".zap .janela").lower()
+    assert "automátic" in texto, texto
+
+
+def test_quem_JA_recebe_tambem_ve_o_horario(pagina):
+    """O aviso é para TODOS: quem já é avisado precisa tanto quanto — mais,
+    até, porque é ele que estranha o silêncio da noite."""
+    pg, base = pagina
+    pg.set_viewport_size({"width": 1024, "height": 900})
+    _rotas(pg)
+    # Sem `doc`/`cnpj` em mãos (entrada pelo LINK) o cartão troca de texto.
+    pg.route("**/api/rastreio/link*", lambda r: r.fulfill(
+        status=200, content_type="application/json", body=json.dumps(CARGA)))
+    pg.goto(f"{base}/static/rastreio.html#c=umtokenqualquer")
+    pg.wait_for_selector(".det-a1")
+    assert "já recebe" in pg.inner_text(".zap")
+    assert "06:00" in pg.inner_text(".zap .janela")
+
+
+def test_sem_leitura_da_janela_a_pagina_NAO_inventa_horario(pagina):
+    """Prometer um horário que não se conseguiu ler é pior que não prometer
+    nada: a pessoa organiza a espera dela em cima do número."""
+    pg, base = pagina
+    pg.set_viewport_size({"width": 1024, "height": 900})
+    _rotas(pg)
+    sem = {"ok": True, "carga": {**CARGA["carga"], "aviso_janela": {}}}
+    pg.route("**/api/rastreio/carga*", lambda r: r.fulfill(
+        status=200, content_type="application/json", body=json.dumps(sem)))
+    pg.goto(f"{base}/static/rastreio.html")
+    pg.fill("#doc", "1234"); pg.fill("#cnpj", "0051"); pg.click("#btn")
+    pg.wait_for_selector(".carga"); pg.click(".carga")
+    pg.wait_for_selector(".det-a1")
+    assert pg.query_selector(".zap .janela") is None
+    # E o resto do cartão continua lá — a ressalva some, o recurso não.
+    assert "Avisar-me" in pg.inner_text(".zap")
 
 
 def test_o_formulario_NAO_fica_no_topo_do_detalhe(pagina):

@@ -215,6 +215,12 @@ button.principal:active{background:#7d211b}
    em "Avisar-me"; quem quiser ajustar horário e frequência abre. Dois seletores
    sempre visíveis fariam todo mundo parar para ler uma decisão que a maioria
    não quer tomar — e o padrão já é o que a maioria quer. */
+/* A JANELA DE ENVIO. Fica em CINZA e menor que o texto do cartao: e uma
+   ressalva, nao a chamada — quem chegou aqui quer cadastrar o telefone, e o
+   horario e o que ele precisa saber DEPOIS de decidir, nao antes. */
+.zap .janela{font-size:12.5px;color:var(--n500);line-height:1.45;
+  margin:0 0 10px;padding:9px 10px;border-radius:8px;background:var(--n100)}
+.zap .janela b{color:var(--n600);font-family:var(--mono)}
 .zap details{margin-top:10px}
 .zap summary{font-size:13px;font-weight:600;color:var(--orange-500);
   cursor:pointer;padding:8px 0;min-height:40px;display:flex;
@@ -391,6 +397,31 @@ function pintarLista(d){
     </button>`).join('') + '</div>';
 }
 
+/* O HORARIO EM QUE OS AVISOS SAEM, dito para TODO MUNDO — quem vai se
+   cadastrar e quem ja recebe.
+
+   POR QUE ISTO E NECESSARIO: fora da janela nada e enviado, e o silencio da
+   madrugada e DESENHO. So que desenho que ninguem conhece e indistinguivel de
+   defeito: quem acompanha a carga as 23h fica esperando uma mensagem que nao
+   vem e conclui que o recurso quebrou.
+
+   E DIZ QUE NAO ACUMULA, que e a segunda duvida de quem le a primeira frase.
+   Fila noturna viraria rajada matinal — o comportamento que faz alguem
+   bloquear o numero da empresa.
+
+   "AUTOMATICOS" NAO E ENFEITE: a primeira mensagem do cadastro e a
+   confirmacao do SAIR saem em QUALQUER horario, porque sao resposta a uma coisa
+   que a pessoa acabou de fazer. Dizer "so enviamos entre 6h e 20h" sem o
+   qualificador seria falso duas vezes por dia. */
+function janelaAviso(c){
+  const j = (c && c.aviso_janela) || {};
+  if(!j.inicio || !j.fim) return '';   // sem leitura, nao se promete horario
+  return `<p class="janela">🕐 Os avisos automáticos são enviados das
+    <b>${esc(j.inicio)}</b> às <b>${esc(j.fim)}</b>. Fora desse horário nada é
+    enviado — e nada fica acumulado: na próxima janela você recebe a situação
+    atual da carga.</p>`;
+}
+
 function pintarDetalhe(c){
   MAPA_ABERTO = null;
   const a = c.andamento || {};
@@ -524,6 +555,7 @@ function pintarDetalhe(c){
         <p><b>Receber por WhatsApp</b><br>Avisamos enquanto a carga estiver em
           viagem, e quando ela for entregue. Só mandamos mensagem quando há
           novidade — você escolhe o horário e a frequência.</p>
+        ${janelaAviso(c)}
         <div class="linha">
           <input id="fone" type="tel" inputmode="numeric"
                  placeholder="DDD + número" autocomplete="tel"
@@ -551,6 +583,7 @@ function pintarDetalhe(c){
       </div>` : `<div class="zap">
         <p><b>Você já recebe os avisos desta carga por WhatsApp.</b><br>
           Para parar, responda <b>SAIR</b> na conversa.</p>
+        ${janelaAviso(c)}
       </div>`}
       </div>
     </div></div></div>`;

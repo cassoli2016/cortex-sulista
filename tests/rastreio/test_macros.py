@@ -177,6 +177,59 @@ def test_a_consulta_LIMITA_a_janela_e_a_placa(monkeypatch):
     assert "o.veiculo = " in macros.SQL
 
 
+def test_a_janela_do_aviso_vem_da_CONFIGURACAO_e_nao_do_codigo():
+    """A página DIZ o horário em que os avisos saem, e ele é editável em
+    Gestão › WhatsApp — já foi 08:00 e hoje é 06:00. Cravar o horário no HTML
+    o tornaria mentira no dia em que alguém mudasse a configuração."""
+    from api.rastreio import detalhe
+    from api.whatsapp import config as wcfg
+    c = wcfg.ler()
+    assert detalhe._janela_do_aviso() == {"inicio": c["janela_inicio"],
+                                          "fim": c["janela_fim"]}
+
+
+def test_o_PAYLOAD_da_carga_leva_a_janela_ate_a_pagina(monkeypatch):
+    """O guard que faltava, e a lição: o primeiro testava só a FUNÇÃO isolada.
+    Trocar `"aviso_janela": _janela_do_aviso()` por `{}` no payload deixava a
+    página muda e o teste verde — a função certa, desligada do lugar onde ela
+    importa. Sabotar mostrou; sem sabotar, este arquivo teria passado a
+    impressão de cobrir algo que não cobria."""
+    from api.rastreio import detalhe
+    from api.whatsapp import config as wcfg
+
+    monkeypatch.setattr(detalhe, "_andamento", lambda linha: {})
+    monkeypatch.setattr(detalhe, "_notas", lambda chaves: [])
+    monkeypatch.setattr(detalhe, "_movimentacao", lambda linha: [])
+
+    # A linha crua do ERP, com o mínimo que `consulta._limpo` exige.
+    linha = {"grupo": 1, "empresa": 1, "filial": 1, "numero": 51283,
+             "serie": 1, "dtemissao": None, "dtprevisaoentrega": None,
+             "dtentrega": None, "dtagendamentoentrega": None,
+             "dtiniciodescarga": None, "placa": None, "carreta": None,
+             "cidadecoleta": None, "ufcoleta": None,
+             "destinatario_nome": None, "destinatario_cidade": None,
+             "destinatario_uf": None, "motorista_nome": None,
+             "cliente_nome": None, "pagador_nome": None}
+    carga = detalhe._montar(linha, {"g": 1, "e": 1, "f": 1, "n": 51283,
+                                    "s": 1})
+    c = wcfg.ler()
+    assert carga["aviso_janela"] == {"inicio": c["janela_inicio"],
+                                     "fim": c["janela_fim"]}
+
+
+def test_sem_ler_a_configuracao_a_janela_sai_VAZIA(monkeypatch):
+    """Prometer um horário que não se conseguiu ler é pior que não prometer
+    nada: a página omite a linha em vez de inventar."""
+    from api.rastreio import detalhe
+    from api.whatsapp import config as wcfg
+
+    def explode():
+        raise RuntimeError("arquivo de configuração ilegível")
+
+    monkeypatch.setattr(wcfg, "ler", explode)
+    assert detalhe._janela_do_aviso() == {}
+
+
 def test_a_consulta_NAO_tem_porcentagem_solta():
     """`%` em constante de consulta vira placeholder do psycopg — inclusive
     dentro de comentário. Custou uma hora em 06/09/2026: a consulta foi

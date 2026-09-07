@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.265.2] — 06/09/2026  ·  CX-06/09/2026-v0.265.2
+
+### Corrigido
+- A página de rastreio passou a dizer, para todo mundo, o horário em que os avisos por WhatsApp são enviados — hoje das 06:00 às 20:00. Fora dessa faixa nada é enviado, e isso é intencional: mensagem de empresa de madrugada vira reclamação, e reclamação de usuário é o que faz o WhatsApp bloquear o número da transportadora. Só que o silêncio não estava escrito em lugar nenhum, e desenho que ninguém conhece é indistinguível de defeito: quem acompanhava a carga às 23h ficava esperando uma mensagem que não vinha e concluía que o recurso tinha quebrado.
+- O texto também esclarece que nada fica acumulado: na próxima janela a pessoa recebe a situação atual da carga, e não a fila do que deixou de ser enviado durante a noite.
+- O horário mostrado vem da configuração (Gestão › WhatsApp), não está escrito na página: se a faixa mudar, a tela acompanha sozinha. E a frase fala em avisos AUTOMÁTICOS de propósito — a primeira mensagem do cadastro e a confirmação de quem responde SAIR continuam saindo em qualquer horário, porque são resposta a algo que a pessoa acabou de fazer.
+
 ## [0.265.1] — 06/09/2026  ·  CX-06/09/2026-v0.265.1
 
 ### Corrigido

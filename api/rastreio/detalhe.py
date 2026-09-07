@@ -495,6 +495,25 @@ def obter(termo: str, cnpj4: str, carga_id: str) -> dict:
         "n": alvo["numero"], "s": alvo["serie"]})}
 
 
+def _janela_do_aviso() -> dict:
+    """O horário em que os avisos automáticos saem, para a página DIZER.
+
+    VEM DO SERVIDOR, e não escrito no HTML, porque a janela é editável em
+    Gestão › WhatsApp — já foi de 08:00 e hoje é 06:00. Um horário cravado na
+    página viraria mentira no dia em que alguém mudasse a configuração, e a
+    pessoa esperaria uma mensagem que não vem.
+
+    Falha de leitura devolve vazio, e a página omite a linha: prometer um
+    horário que não se conseguiu ler é pior que não prometer nada.
+    """
+    try:
+        from ..whatsapp import config as wcfg
+        c = wcfg.ler()
+        return {"inicio": c["janela_inicio"], "fim": c["janela_fim"]}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 def _movimentacao(linha: dict) -> list[dict]:
     """A movimentação REAL da viagem desta carga, pelas macros do rastreador.
 
@@ -550,6 +569,12 @@ def _montar(linha: dict, chaves: dict) -> dict:
         # bloco; o que ela nao faz e dizer "sem movimentacao", que seria ler
         # ausencia de leitura como imobilidade do caminhao.
         "movimentacao": _movimentacao(linha),
+        # O HORARIO EM QUE OS AVISOS SAEM, dito na tela para todo mundo — quem
+        # ja e avisado e quem ainda vai se cadastrar. Sem isto, quem acompanha
+        # uma carga a noite fica esperando uma mensagem que nao vem e conclui
+        # que o recurso quebrou; o silencio da madrugada e desenho, e desenho
+        # que ninguem conhece e indistinguivel de defeito.
+        "aviso_janela": _janela_do_aviso(),
         "notas": _notas(chaves),
         "mapa": pontos,
         "consultado_em": datetime.now(timezone.utc).isoformat(),
