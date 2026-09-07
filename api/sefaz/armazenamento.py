@@ -118,6 +118,16 @@ def gravar(cnpj: str, doc: dict) -> str:
     """
     d = dict(doc)
     d["nsu"] = nsu(d.get("nsu"))
+    # ÚLTIMA TRINCHEIRA: documento sem XML não entra. `leitura.descomprimir()`
+    # já recusa vazio, e esta linha existe porque a de lá já falhou uma vez —
+    # 510 linhas com `xml = ''` em 07/09/2026, com contagem certa e tela cheia.
+    # A guarda mais barata contra "ausência com aparência de presença" é a
+    # que fica no lugar onde a ausência viraria permanente.
+    if not (d.get("xml") or "").strip():
+        raise ValueError(
+            "documento sem XML (cnpj %s, NSU %s, esquema %r) — gravar isto "
+            "criaria uma linha que PARECE guardada e não está"
+            % (cnpj, d["nsu"], d.get("esquema")))
     with pglocal.get_conn(_esq()) as conn, conn.cursor() as cur:
         cur.execute("SELECT completo FROM dfe_documento WHERE cnpj=%s AND nsu=%s",
                     (cnpj, d["nsu"]))

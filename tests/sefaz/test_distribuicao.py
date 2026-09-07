@@ -524,3 +524,69 @@ def test_o_137_tambem_nao_faz_o_ponteiro_pular(caixa):
                                       "000000000000900", "000000000000900", [])])
     dist.recolher(CNPJ, "PR", cliente=cliente, forcar=True)
     assert arm.caixa(CNPJ)["ultimo_nsu"] == "000000000000500"
+
+
+# ============================ o vazio que atravessou tudo (07/09/2026)
+
+def test_gzip_de_VAZIO_nao_levanta_no_Python_e_por_isso_a_guarda_existe():
+    """A premissa do defeito, escrita como teste.
+
+    `gzip.decompress(b"")` DEVOLVE b"" em vez de levantar. Toda a protecao de
+    "documento torto nao derruba o lote" dependia de uma excecao que nunca
+    vinha -- entao o conteudo ausente atravessava a leitura inteira sem um
+    arranhao e virava uma linha no banco com `xml = ''`.
+
+    Se um dia o Python passar a levantar, este teste fica vermelho e a guarda
+    de `descomprimir` vira redundante -- o que e uma boa noticia dita alto, em
+    vez de uma premissa esquecida."""
+    import base64 as _b64, gzip as _gz
+    assert _gz.decompress(_b64.b64decode("")) == b""
+
+
+def test_conteudo_vazio_e_ERRO_e_nao_documento(caixa):
+    """510 documentos gravados com XML vazio: contagem certa, tela cheia,
+    guarda de cinco anos vazia, e nenhum erro em lugar nenhum. Um documento sem
+    XML nao e um documento -- e a ausencia dele com aparencia de presenca."""
+    with pytest.raises(leitura.DocumentoVazio):
+        leitura.descomprimir("")
+    with pytest.raises(leitura.DocumentoVazio):
+        leitura.descomprimir(_zip(""))
+
+    # e o lote inteiro nao cai por causa dele: ele so nao entra
+    docs = [{"nsu": "1", "esquema": "resNFe_v1.01", "conteudo": ""},
+            {"nsu": "2", "esquema": "resNFe_v1.01", "conteudo": _zip(RES_NFE)}]
+    assert [l["nsu"] for l in leitura.ler_lote(docs)] == ["2"]
+
+
+def test_gravar_RECUSA_documento_sem_xml(caixa):
+    """A ultima trincheira, no lugar onde a ausencia viraria permanente."""
+    with pytest.raises(ValueError, match="sem XML"):
+        arm.gravar(CNPJ, {"nsu": "7", "esquema": "resNFe_v1.01", "xml": ""})
+    assert arm.documentos(CNPJ) == []
+
+
+def test_o_conteudo_vem_do_valueOf_do_binding():
+    """O binding da `nfelib_legacy` e generateDS: o texto do elemento mora em
+    `valueOf_`, nao em `value`. Ler o atributo errado nao da erro -- devolve
+    vazio, e o vazio atravessava tudo (acima). Ordem: generateDS primeiro,
+    porque e o que a biblioteca de fato carrega."""
+    class DocGenerateDS:
+        NSU = "000000000000009"
+        schema = "resNFe_v1.01.xsd"
+        valueOf_ = _zip(RES_NFE)
+
+    class Lote:
+        docZip = [DocGenerateDS()]
+
+    docs = dist._docs_da_resposta(type("R", (), {"loteDistDFeInt": Lote()})())
+    assert len(docs) == 1 and docs[0]["conteudo"], "o conteudo saiu VAZIO"
+    linhas = leitura.ler_lote(docs)
+    assert linhas and linhas[0]["emitente"] == "12345678000199"
+
+
+def test_o_esquema_vem_com_xsd_no_fim_e_isso_nao_atrapalha():
+    """MEDIDO no servico real: a SEFAZ manda `resEvento_v1.01.xsd`, com a
+    extensao. O casamento por PREFIXO absorve isso sozinho -- que e a segunda
+    vez que ele salva (a primeira foi a versao do schema)."""
+    assert leitura.classificar("resEvento_v1.01.xsd") == ("evento", False)
+    assert leitura.classificar("procNFe_v4.00.xsd") == ("nfe", True)

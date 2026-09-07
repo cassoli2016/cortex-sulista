@@ -196,8 +196,20 @@ def _docs_da_resposta(ret) -> list[dict]:
         saida.append({
             "nsu": _campo(d, "NSU") or _campo(d, "nsu"),
             "esquema": _campo(d, "schema") or _campo(d, "schema_"),
-            # o conteúdo é o TEXTO do próprio elemento (gzip em base64)
-            "conteudo": getattr(d, "value", None) or getattr(d, "content", None) or "",
+            # O CONTEÚDO É O TEXTO DO PRÓPRIO ELEMENTO (gzip em base64), e o
+            # nome do atributo depende de QUEM gerou o binding:
+            #
+            #   valueOf_   generateDS  <- é o que a `nfelib_legacy` usa, e é o
+            #                             que a biblioteca carrega de verdade
+            #   value      xsdata
+            #   content    outras
+            #
+            # `valueOf_` VEM PRIMEIRO por isso. Ele estava ausente da lista na
+            # primeira versão, e o efeito foi mudo: 510 documentos gravados com
+            # XML VAZIO — a contagem certa, a tela cheia, e nada dentro.
+            "conteudo": (getattr(d, "valueOf_", None)
+                         or getattr(d, "value", None)
+                         or getattr(d, "content", None) or ""),
         })
     return saida
 

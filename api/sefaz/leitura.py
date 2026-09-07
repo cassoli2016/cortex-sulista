@@ -61,10 +61,30 @@ def classificar(esquema: str) -> tuple[str, bool]:
     return "desconhecido", False
 
 
+class DocumentoVazio(ValueError):
+    """O `docZip` chegou (ou saiu) sem conteúdo."""
+
+
 def descomprimir(conteudo: str) -> str:
-    """O `docZip` é gzip em base64. Devolve o XML em texto."""
-    bruto = base64.b64decode(conteudo)
-    return gzip.decompress(bruto).decode("utf-8", errors="replace")
+    """O `docZip` é gzip em base64. Devolve o XML em texto.
+
+    VAZIO É ERRO, E PRECISA SER DITO — porque o Python NÃO o diz.
+    `gzip.decompress(b"")` devolve `b""` em vez de levantar, então um conteúdo
+    ausente atravessa esta função inteira sem um arranhão e vira uma linha no
+    banco com `xml = ''`.
+
+    Foi exatamente o que aconteceu em 07/09/2026: o atributo do binding tinha
+    outro nome (`valueOf_`), o conteúdo veio vazio, e a recolha gravou 510
+    documentos com XML VAZIO. Contagem certa, tela cheia, guarda de cinco anos
+    vazia — e nenhum erro em lugar nenhum. Um documento sem XML não é um
+    documento: é a ausência dele com a aparência de presença.
+    """
+    if not (conteudo or "").strip():
+        raise DocumentoVazio("docZip sem conteúdo")
+    xml = gzip.decompress(base64.b64decode(conteudo)).decode("utf-8", errors="replace")
+    if not xml.strip():
+        raise DocumentoVazio("docZip descomprimiu para vazio")
+    return xml
 
 
 def _tag(xml: str, nome: str) -> str | None:
