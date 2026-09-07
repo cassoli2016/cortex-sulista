@@ -166,7 +166,13 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
    que e o que o motorista usa no sol. */
 .app .anelmini{width:44px;height:44px;display:block;flex:0 0 auto;
   background:var(--navy-900);border-radius:50%}
-.marca{font-weight:700;letter-spacing:.11em;font-size:15px}
+.marca{font-weight:700;letter-spacing:.11em;font-size:15px;flex:1 1 auto;min-width:0}
+.conta-btn{flex:0 0 auto;width:44px;height:44px;border-radius:50%;cursor:pointer;
+  background:transparent;border:1px solid var(--linha);color:var(--ink2);
+  display:grid;place-items:center;padding:0}
+.conta-btn svg{width:21px;height:21px;stroke:currentColor;fill:none;
+  stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.conta-btn[aria-current="page"]{color:var(--accent);border-color:var(--accent)}
 .marca small{display:block;font-weight:500;letter-spacing:0;font-size:12px;color:var(--ink2)}
 .card{background:var(--papel);border:1px solid var(--linha);
   border-radius:var(--radius);padding:var(--e2);margin-bottom:var(--e2)}
@@ -193,6 +199,95 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
   background:transparent;color:var(--ink2);border:1px solid var(--linha);
   border-radius:var(--radius);cursor:pointer}
 .rodape{color:var(--ink2);font-size:12px;text-align:center;padding-top:var(--e1)}
+
+/* ======================= a barra de baixo (o polegar) ================ */
+/* FIXA NO RODAPE, e nao abas no topo. O polegar alcanca a base da tela; o
+   topo de um celular grande exige a segunda mao, que o motorista nao tem
+   livre. `env(safe-area-inset-bottom)` porque o iPhone come 34px ali com a
+   barra do sistema, e sem isso o ultimo item fica sob o dedo do sistema. */
+.navbar{position:fixed;left:0;right:0;bottom:0;z-index:20;
+  background:var(--papel);border-top:1px solid var(--linha);
+  padding-bottom:env(safe-area-inset-bottom);
+  display:grid;grid-template-columns:repeat(var(--n,5),minmax(0,1fr))}
+/* `minmax(0,1fr)` e nao `1fr`: `1fr` e `minmax(auto,1fr)` e a trilha nao
+   encolhe abaixo do min-content do rotulo — com cinco itens e um nome
+   comprido, o ultimo nasce FORA da tela sem erro nenhum. */
+.navbar button{appearance:none;background:none;border:0;font:inherit;
+  min-height:56px;padding:7px 2px 8px;cursor:pointer;color:var(--ink2);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;font-size:11px;font-weight:600;letter-spacing:.02em;min-width:0}
+.navbar button svg{width:21px;height:21px;stroke:currentColor;fill:none;
+  stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.navbar button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.navbar button[aria-current="page"]{color:var(--accent)}
+/* A ALTURA DA BARRA VIRA FOLGA NO FIM DA PAGINA. Sem isto o ultimo cartao
+   fica debaixo da barra e ninguem descobre que ha mais conteudo. */
+.app.comnav{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+
+/* ============================== a tarja do acesso mestre ============= */
+/* VERMELHA E NO TOPO DE TUDO, e nao um aviso discreto: quem esta aqui esta
+   vendo a conta de outra pessoa, e um print desta tela sem a tarja vira "o
+   app mostrou isso ao motorista", que e falso. */
+.mestre{position:sticky;top:0;z-index:15;background:var(--brand);color:#fff;
+  padding:9px var(--e2);font-size:13px;font-weight:600;text-align:center;
+  margin:0 calc(-1 * var(--e2)) var(--e1)}
+.mestre b{font-weight:700}
+
+/* ================================ blocos de conteudo ================= */
+.kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--e1)}
+.kpi{background:var(--papel);border:1px solid var(--linha);
+  border-radius:var(--radius);padding:12px var(--e1)}
+.kpi .rot{font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink2);font-weight:600;line-height:1.25}
+.kpi .val{font-size:23px;font-weight:700;line-height:1.15;margin-top:3px;
+  font-variant-numeric:tabular-nums}
+.kpi .sub{font-size:12px;color:var(--ink2);margin-top:2px}
+.kpi .val.nd{font-size:17px;color:var(--ink2);font-weight:600}
+.up{color:var(--ok)} .down{color:var(--erro)} .neutro{color:var(--ink2)}
+
+.item{border-bottom:1px solid var(--linha);padding:12px 0}
+.item:last-child{border-bottom:0;padding-bottom:0}
+.item .top{display:flex;justify-content:space-between;gap:var(--e1);
+  align-items:baseline}
+.item .tit{font-weight:600;font-size:15px;line-height:1.3}
+.item .quando{font-size:12px;color:var(--ink2);white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+.item .meta{font-size:12.5px;color:var(--ink2);margin-top:3px}
+.item .val{font-weight:700;font-variant-numeric:tabular-nums}
+
+.selo{display:inline-block;border-radius:6px;padding:2px 7px;font-size:11px;
+  font-weight:700;letter-spacing:.03em}
+.selo.aviso{background:color-mix(in srgb,var(--aviso) 18%,transparent);color:var(--aviso)}
+.selo.erro{background:color-mix(in srgb,var(--erro) 16%,transparent);color:var(--erro)}
+.selo.ok{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+.selo.frio{background:color-mix(in srgb,var(--ink2) 14%,transparent);color:var(--ink2)}
+
+/* A BARRA COMPARATIVA. Nao e grafico: e uma regua de uma dimensao, com a
+   marca da frota em cima. Grafico aqui exigiria biblioteca, e a pagina nao
+   carrega nenhuma — o alvo e < 150 KB no 4G de uma rodovia. */
+.regua{position:relative;height:8px;border-radius:4px;margin:9px 0 4px;
+  background:color-mix(in srgb,var(--ink2) 18%,transparent);overflow:visible}
+.regua .eu{position:absolute;top:0;bottom:0;left:0;border-radius:4px;
+  background:var(--accent)}
+.regua .marca{position:absolute;top:-3px;bottom:-3px;width:2px;
+  background:var(--ink);opacity:.55}
+.reguaLeg{display:flex;justify-content:space-between;font-size:11px;
+  color:var(--ink2);font-variant-numeric:tabular-nums}
+
+.conselho{background:color-mix(in srgb,var(--accent) 9%,transparent);
+  border:1px solid color-mix(in srgb,var(--accent) 28%,transparent);
+  border-radius:8px;padding:11px var(--e1);margin-top:var(--e1);font-size:14px}
+.conselho b{display:block;margin-bottom:3px}
+.nota{color:var(--ink2);font-size:12px;margin-top:var(--e1);line-height:1.45}
+.vaziomsg{color:var(--ink2);font-size:14px}
+.carregando{color:var(--ink2);font-size:14px;padding:var(--e2) 0}
+.busca{width:100%;font:inherit;font-size:16px;padding:12px;min-height:48px;
+  border:1px solid var(--n300);border-radius:6px;background:var(--n0);
+  color:var(--n900)}
+.linksec{display:block;width:100%;background:none;border:0;font:inherit;
+  font-size:12.5px;color:var(--n500);text-align:center;margin-top:var(--e2);
+  padding:10px;cursor:pointer;text-decoration:underline}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -236,22 +331,90 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
       <p class="lg-sub">Este celular está cadastrado para mais de um motorista.</p>
       <div class="escolha" id="lista-escolha"></div>
     </div>
+
+    <!-- ACESSO MESTRE. Fica dentro do MESMO cartão da marca, e não numa
+         página escondida: quem administra entra pela porta da frente, com a
+         empresa na tela, e a tarja vermelha aparece assim que ele entra. -->
+    <div class="lg-body" id="tela-mestre" hidden>
+      <h1>Acesso da administração</h1>
+      <p class="lg-sub">Abre o app de um motorista para conferência. Tudo o que
+        for aberto aqui fica registrado.</p>
+      <label for="mestre-codigo">Código mestre</label>
+      <input class="campo" id="mestre-codigo" type="password"
+             autocomplete="off" autocapitalize="off" spellcheck="false">
+      <label for="mestre-busca">Motorista (nome ou parte dele)</label>
+      <input class="campo" id="mestre-busca" type="text" autocomplete="off"
+             placeholder="deixe em branco para listar">
+      <button class="lg-btn" id="b-mestre">Procurar</button>
+      <button class="lg-btn claro" id="b-mestre-voltar">Voltar</button>
+      <div class="msg" id="m-mestre" hidden></div>
+      <div class="escolha" id="mestre-lista" style="margin-top:var(--e2)"></div>
+      <p class="nota" id="mestre-conta" hidden></p>
+    </div>
   </div>
   <p class="lg-pe">Não recebeu? Fale com a torre.</p>
+  <button class="linksec" id="b-abrir-mestre"
+          style="color:rgba(255,255,255,.55)">Acesso da administração</button>
 </div>
 
 <!-- ====================================================== o app ======== -->
-<div class="app">
+<!--
+  UMA SECAO POR ABA, e a barra de baixo troca entre elas. Cada uma carrega
+  SOZINHA, na primeira vez que e aberta (`ABAS[].carregar`), e nao no boot:
+  seis chamadas de rede num 4G de rodovia, para ver um cartao, e o app que
+  demora dez segundos para abrir. O que abre por padrao e a viagem — que e o
+  motivo proprio do agregado para instalar isto.
+-->
+<div class="app" id="app" hidden>
+  <div class="mestre" id="tarja-mestre" hidden></div>
+  <header>
+    <canvas id="anelmini" class="anelmini" aria-hidden="true"></canvas>
+    <div class="marca">CÓRTEX<small id="marca-sub">Motorista</small></div>
+    <!-- A CONTA SAI DA BARRA DE BAIXO, e fica aqui. Com ela lá seriam SETE
+         itens em 375 px de tela: 53 px cada, e "Registros" ja nao cabe no
+         rotulo. A barra e para o que se usa todo dia; conta e sair sao coisa
+         de uma vez por mes. -->
+    <button class="conta-btn" id="b-conta" type="button" aria-label="Minha conta">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="3.5"/>
+        <path d="M5 20a7 7 0 0 1 14 0"/></svg>
+    </button>
+  </header>
+  <div class="tarja" id="tarja-velha" hidden></div>
+
   <section id="tela-viagem" hidden>
-    <header>
-      <canvas id="anelmini" class="anelmini" aria-hidden="true"></canvas>
-      <div class="marca">CÓRTEX<small>Motorista</small></div>
-    </header>
-    <div class="tarja" id="tarja-velha" hidden></div>
     <div class="card" id="card-viagem"></div>
-    <button class="sair" id="b-sair">Sair</button>
-    <p class="rodape" id="rodape-nome"></p>
   </section>
+
+  <section id="tela-produtividade" hidden>
+    <div id="card-produtividade"></div>
+  </section>
+
+  <section id="tela-desempenho" hidden>
+    <div id="card-desempenho"></div>
+  </section>
+
+  <section id="tela-multas" hidden>
+    <div id="card-multas"></div>
+  </section>
+
+  <section id="tela-registros" hidden>
+    <div id="card-registros"></div>
+  </section>
+
+  <section id="tela-jornada" hidden>
+    <div id="card-jornada"></div>
+  </section>
+
+  <section id="tela-conta" hidden>
+    <div class="card">
+      <h2>Minha conta</h2>
+      <div class="linhas" id="linhas-conta"></div>
+    </div>
+    <button class="sair" id="b-sair">Sair</button>
+    <p class="rodape">CÓRTEX · Transportadora Sulista</p>
+  </section>
+
+  <nav class="navbar" id="navbar" hidden aria-label="Seções do app"></nav>
 </div>
 
 <script src="/static/anel.js"></script>
@@ -315,14 +478,19 @@ function aparelho() {
 // viagem e o app propriamente dito, claro e de leitura direta. Trocar de uma
 // familia para a outra troca o FUNDO DA PAGINA, e por isso a classe no <body>:
 // e ela que faz o login parecer o login do CORTEX e o app parecer um app.
-const ENTRADA = ["tela-entrar", "tela-codigo", "tela-escolha"];
+const ENTRADA = ["tela-entrar", "tela-codigo", "tela-escolha", "tela-mestre"];
+
+// As seis secoes do app logado. A ordem AQUI e a ordem da barra de baixo.
+const SECOES = ["tela-viagem", "tela-produtividade", "tela-desempenho",
+                "tela-multas", "tela-registros", "tela-jornada", "tela-conta"];
 
 function mostrar(qual) {
-  ENTRADA.concat("tela-viagem")
-    .forEach((id) => { $(id).hidden = (id !== qual); });
+  ENTRADA.forEach((id) => { $(id).hidden = (id !== qual); });
   const entrando = ENTRADA.indexOf(qual) >= 0;
   document.body.classList.toggle("entrando", entrando);
   $("entrada").hidden = !entrando;
+  $("app").hidden = entrando;
+  if (entrando) SECOES.forEach((id) => { $(id).hidden = true; });
   window.scrollTo(0, 0);
 }
 
@@ -425,8 +593,87 @@ async function confirmar(motorista) {
   }
   codigoAtual = "";
   $("codigo").value = "";
-  await abrirViagem(r.dados.nome || "");
+  await abrirApp();
 }
+
+// ------------------------------------------------------------ acesso mestre
+// O codigo E CONFERIDO NO SERVIDOR NAS DUAS ROTAS (listar e entrar), nunca
+// aqui: guardar o valor digitado numa variavel de pagina e o normal (ele
+// precisa ir junto no segundo pedido), mas nada nesta pagina decide se ele
+// vale. A recusa e sempre a MESMA frase, venha ela de codigo errado, de teto
+// por endereco ou de acesso nao configurado — a diferenca entre elas diria a
+// quem tenta se vale a pena continuar.
+// "Não recebeu? Fale com a torre" e o proprio link de administração não fazem
+// sentido NA tela de administração — o rodapé é da entrada do motorista.
+function rodapeDaEntrada(mostrarRodape) {
+  document.querySelector(".lg-pe").hidden = !mostrarRodape;
+  $("b-abrir-mestre").hidden = !mostrarRodape;
+}
+
+$("b-abrir-mestre").addEventListener("click", () => {
+  aviso("m-mestre", "");
+  $("mestre-lista").innerHTML = "";
+  $("mestre-conta").hidden = true;
+  mostrar("tela-mestre");
+  rodapeDaEntrada(false);
+});
+
+$("b-mestre-voltar").addEventListener("click", () => {
+  $("mestre-codigo").value = "";
+  mostrar("tela-entrar");
+  rodapeDaEntrada(true);
+});
+
+async function mestreProcurar() {
+  const codigo = $("mestre-codigo").value.trim();
+  if (!codigo) return aviso("m-mestre", "Digite o código mestre.");
+  aviso("m-mestre", "");
+  ocupado($("b-mestre"), true);
+  const r = await pedir("/api/motorista/mestre/motoristas", {
+    method: "POST",
+    body: JSON.stringify({ codigo: codigo, busca: $("mestre-busca").value.trim() })
+  });
+  ocupado($("b-mestre"), false, "Procurar");
+  if (!r.ok) return aviso("m-mestre", r.mensagem);
+
+  const lista = $("mestre-lista");
+  lista.innerHTML = "";
+  (r.dados.motoristas || []).forEach((m) => {
+    const b = document.createElement("button");
+    b.textContent = m.nome || ("Motorista " + m.id);
+    b.dataset.id = m.id;
+    b.addEventListener("click", () => mestreEntrar(b.dataset.id));
+    lista.appendChild(b);
+  });
+  // O CONTADOR DO CORTE, sempre. "40 motoristas" quando sao 300 e a diferenca
+  // entre conferir a operacao e achar que se conferiu.
+  const c = $("mestre-conta");
+  if (!r.dados.mostrados) {
+    c.textContent = "Nenhum motorista com esse nome.";
+  } else {
+    c.textContent = "Mostrando " + r.dados.mostrados + " de " +
+      r.dados.total + (r.dados.total > r.dados.mostrados
+        ? " — refine a busca para ver os outros." : ".");
+  }
+  c.hidden = false;
+}
+
+async function mestreEntrar(id) {
+  aviso("m-mestre", "");
+  const r = await pedir("/api/motorista/mestre/entrar", {
+    method: "POST",
+    body: JSON.stringify({ codigo: $("mestre-codigo").value.trim(),
+                           motorista: Number(id), aparelho: aparelho() })
+  });
+  if (!r.ok) return aviso("m-mestre", r.mensagem);
+  $("mestre-codigo").value = "";
+  $("mestre-lista").innerHTML = "";
+  await abrirApp();
+}
+
+$("b-mestre").addEventListener("click", mestreProcurar);
+$("mestre-busca").addEventListener("keydown",
+  (e) => { if (e.key === "Enter") mestreProcurar(); });
 
 $("b-confirmar").addEventListener("click", () => confirmar(""));
 $("codigo").addEventListener("keydown", (e) => { if (e.key === "Enter") confirmar(""); });
@@ -483,22 +730,119 @@ function desenharViagem(dados) {
     "</div>";
 }
 
-async function abrirViagem(nome) {
-  mostrar("tela-viagem");
-  $("rodape-nome").textContent = nome || "";
-  const r = await pedir("/api/motorista/viagem");
+// ==================================================== o motor das abas ====
+//
+// CADA ABA CARREGA SOZINHA, na primeira vez que e aberta, e o resultado fica
+// guardado (`cache`) enquanto a sessao viver. Carregar as seis no boot seriam
+// seis idas ao servidor para ver um cartao, e este app existe para quem tem a
+// pior conexao da empresa.
+//
+// A ABA QUE NAO EXISTE PARA A PESSOA NAO APARECE. `secoes` vem do servidor
+// (`/api/motorista/eu`): a jornada apurada cobre o motorista EMPREGADO, e dois
+// tercos dos motoristas sao agregados. Uma aba que abre e diz "sem dados" para
+// quem nunca vai ter dado ensina a pessoa a nao confiar no resto da tela.
+const ICON = {
+  viagem: "<path d='M3 7h11v9H3z'/><path d='M14 10h4l3 3v3h-7z'/>" +
+          "<circle cx='7' cy='18' r='2'/><circle cx='17' cy='18' r='2'/>",
+  produtividade: "<path d='M4 20V10'/><path d='M10 20V4'/><path d='M16 20v-7'/>" +
+                 "<path d='M22 20H2'/>",
+  desempenho: "<path d='M12 3a9 9 0 1 0 9 9'/><path d='M12 12l6-4'/>" +
+              "<circle cx='12' cy='12' r='1.6'/>",
+  multas: "<path d='M12 3l9 16H3z'/><path d='M12 9v4'/><path d='M12 16.5v.5'/>",
+  registros: "<path d='M6 3h9l4 4v14H6z'/><path d='M15 3v4h4'/>" +
+             "<path d='M9 12h7'/><path d='M9 16h7'/>",
+  jornada: "<circle cx='12' cy='12' r='8.5'/><path d='M12 7.5V12l3 2'/>"
+};
+
+const ABAS = [
+  { id: "viagem",        rotulo: "Viagem",   url: "/api/motorista/viagem",
+    alvo: "card-viagem",         desenhar: desenharViagem },
+  { id: "produtividade", rotulo: "30 dias",  url: "/api/motorista/produtividade",
+    alvo: "card-produtividade",  desenhar: desenharProdutividade },
+  { id: "desempenho",    rotulo: "Condução", url: "/api/motorista/desempenho",
+    alvo: "card-desempenho",     desenhar: desenharDesempenho },
+  { id: "multas",        rotulo: "Multas",   url: "/api/motorista/multas",
+    alvo: "card-multas",         desenhar: desenharMultas },
+  { id: "registros",     rotulo: "Registros", url: "/api/motorista/ocorrencias",
+    alvo: "card-registros",      desenhar: desenharOcorrencias },
+  { id: "jornada",       rotulo: "Jornada",  url: "/api/motorista/jornada",
+    alvo: "card-jornada",        desenhar: desenharJornada },
+  // `conta` NAO ENTRA NA BARRA (ver o comentario do botao no cabecalho): ela
+  // e uma aba de verdade — abre pelo mesmo `abrirAba`, tem secao propria —,
+  // so nao ocupa um dos lugares do polegar.
+  { id: "conta",         rotulo: "Conta",    url: "", forade: true,
+    alvo: "linhas-conta",        desenhar: null }
+];
+
+// A aba `registros` fala com a secao `ocorrencias` do servidor: o nome curto
+// e para caber na barra do celular, e a chave do servidor e a do assunto.
+const SECAO_DO_SERVIDOR = { registros: "ocorrencias", conta: "conta" };
+
+const cache = {};        // id da aba -> resposta ja carregada
+let euAtual = {};        // o que /api/motorista/eu devolveu
+
+function montarBarra(secoes) {
+  const nav = $("navbar");
+  nav.innerHTML = "";
+  const visiveis = ABAS.filter((a) => {
+    const chave = SECAO_DO_SERVIDOR[a.id] || a.id;
+    return !a.forade && secoes[chave] !== false;
+  });
+  nav.style.setProperty("--n", visiveis.length);
+  visiveis.forEach((a) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.dataset.aba = a.id;
+    b.innerHTML = "<svg viewBox='0 0 24 24' aria-hidden='true'>" +
+      ICON[a.id] + "</svg><span>" + esc(a.rotulo) + "</span>";
+    b.addEventListener("click", () => abrirAba(a.id));
+    nav.appendChild(b);
+  });
+  nav.hidden = false;
+  $("app").classList.add("comnav");
+  return visiveis;
+}
+
+async function abrirAba(id) {
+  const aba = ABAS.find((a) => a.id === id);
+  if (!aba) return;
+  SECOES.forEach((s) => { $(s).hidden = (s !== "tela-" + id); });
+  Array.from($("navbar").children).forEach((b) => {
+    if (b.dataset.aba === id) b.setAttribute("aria-current", "page");
+    else b.removeAttribute("aria-current");
+  });
+  if (id === "conta") $("b-conta").setAttribute("aria-current", "page");
+  else $("b-conta").removeAttribute("aria-current");
+  window.scrollTo(0, 0);
+
+  // A TARJA É DA ABA ABERTA, e a conta não tem leitura nenhuma: deixá-la
+  // acesa aqui seria tarja grudada — que é pior que tarja nenhuma, porque
+  // some com a confiança na tela inteira.
+  if (id === "conta") { $("tarja-velha").hidden = true; desenharConta(); return; }
+  if (cache[id]) { pintar(aba, cache[id]); return; }
+
+  $(aba.alvo).innerHTML = "<div class='card carregando'>Carregando…</div>";
+  const r = await pedir(aba.url);
+  // SESSAO EXPIRADA VOLTA PARA A ENTRADA, de qualquer aba. Sem isto o app
+  // ficaria mostrando "nao consegui carregar" para sempre depois de 30 dias.
+  if (!r.ok && r.status === 401) return mostrar("tela-entrar");
   if (!r.ok) {
-    if (r.status === 401) return mostrar("tela-entrar");
-    $("card-viagem").innerHTML = "<h1>Não consegui carregar</h1><p style='color:var(--ink2);font-size:14px'>" +
-      esc(r.mensagem) + "</p>";
+    $(aba.alvo).innerHTML = "<div class='card'><h1>Não consegui carregar</h1>" +
+      "<p class='vaziomsg'>" + esc(r.mensagem) + "</p></div>";
     return;
   }
-  // NUMERO VELHO SERVIDO CALADO E PIOR QUE TELA VAZIA, porque ninguem
-  // desconfia dele. Quando o servidor serve a ultima leitura boa, a tarja e
-  // OBRIGATORIA — e diz a idade, que e o que decide se da para usar.
+  cache[id] = r;
+  pintar(aba, r);
+}
+
+function pintar(aba, r) {
+  // A TARJA DE LEITURA VELHA E DA ABA QUE ESTA ABERTA. Ela vem do CABECALHO
+  // HTTP daquela resposta (`X-Leitura-Velha`), nao do corpo — regra da casa: o
+  // gancho do fetch a desenha para qualquer rota, existente ou futura.
   //
-  // E ela tem de SUMIR quando o numero volta a ser bom: tarja grudada e pior
-  // que tarja nenhuma, porque some a confianca na tela inteira.
+  // NUMERO VELHO SERVIDO CALADO E PIOR QUE TELA VAZIA, porque ninguem
+  // desconfia dele. E ela tem de SUMIR quando o numero volta a ser bom: tarja
+  // grudada some com a confianca na tela inteira.
   const t = $("tarja-velha");
   if (r.velha) {
     t.textContent = "Sem conexão com o sistema agora. Estes dados são de " +
@@ -507,13 +851,395 @@ async function abrirViagem(nome) {
   } else {
     t.hidden = true;
   }
-  desenharViagem(r.dados);
+  aba.desenhar(r.dados);
 }
+
+// ---------------------------------------------------------- desenho: peças
+function card(titulo, miolo, extra) {
+  return "<div class='card'" + (extra || "") + ">" +
+    (titulo ? "<h2>" + esc(titulo) + "</h2>" : "") + miolo + "</div>";
+}
+
+function kpi(rot, val, sub, classe) {
+  const nd = (val === null || val === undefined || val === "");
+  return "<div class='kpi'><div class='rot'>" + esc(rot) + "</div>" +
+    "<div class='val" + (nd ? " nd" : "") + (classe ? " " + classe : "") + "'>" +
+    esc(nd ? "não informado" : val) + "</div>" +
+    (sub ? "<div class='sub'>" + esc(sub) + "</div>" : "") + "</div>";
+}
+
+function num(v, casas) {
+  if (v === null || v === undefined) return null;
+  return Number(v).toLocaleString("pt-BR", {
+    minimumFractionDigits: casas || 0, maximumFractionDigits: casas || 0 });
+}
+
+function reais(v) {
+  if (v === null || v === undefined) return null;
+  return "R$ " + Number(v).toLocaleString("pt-BR",
+    { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function dia(iso) {
+  if (!iso) return "";
+  const [a, m, d] = String(iso).split("-");
+  return (d && m) ? d + "/" + m + "/" + String(a).slice(2) : String(iso);
+}
+
+// "2026-08" -> "08/2026". A competencia e guardada no formato que ORDENA e
+// mostrada no formato que se le — a mesma regra do resto da casa.
+function comp(c) {
+  const [a, m] = String(c || "").split("-");
+  return (a && m) ? m + "/" + a : String(c || "");
+}
+
+// PLURAL DE VERDADE, e nao "1 dia(s)". Parenteses no meio da frase e o jeito
+// de a tela parecer rascunho para quem a le todo dia.
+function plural(n, um, muitos) {
+  return num(n) + " " + (Math.abs(Number(n)) === 1 ? um : muitos);
+}
+
+// O ERP escreve o tipo em CAIXA ALTA e sem acento ("DIRECAO NOTURNA"). Caixa
+// alta inteira grita; inventar o acento seria escrever o que a fonte nao diz.
+// Sobra a inicial maiuscula — que e o texto do ERP, so legivel.
+function frase(t) {
+  const s = String(t || "").toLowerCase().trim();
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
+}
+
+// VARIACAO COM SINAL E COR, e `null` NAO E ZERO: quem nao tem periodo
+// anterior (entrou agora, estava de ferias) nao variou 0% — nao tem com o que
+// comparar, e "0%" ali seria uma afirmacao falsa com cara de medida.
+function variacao(v, inverter) {
+  if (v === null || v === undefined) return "";
+  const bom = inverter ? v < 0 : v > 0;
+  const classe = Math.abs(v) < 1.5 ? "neutro" : (bom ? "up" : "down");
+  return "<span class='" + classe + "'>" + (v > 0 ? "+" : "") +
+    num(v, 1) + "%</span>";
+}
+
+// ---------------------------------------------------------- desenho: abas
+function desenharProdutividade(d) {
+  const a = d.atual, ant = d.anterior;
+  const kpis =
+    kpi("Viagens", num(a.viagens), "antes: " + num(ant.viagens)) +
+    kpi("Km das viagens", num(a.km), "antes: " + num(ant.km)) +
+    kpi("Dias com viagem", num(a.dias_com_viagem),
+        a.km_por_dia ? num(a.km_por_dia) + " km por dia" : "") +
+    kpi("Viagens vazias", num(a.vazias),
+        a.viagens ? Math.round(100 * a.vazias / a.viagens) + "% do total" : "");
+
+  const linhas = [];
+  if (a.em_curso) linhas.push(["Em curso agora", num(a.em_curso)]);
+  if (a.placas) linhas.push(["Veículos que você rodou", num(a.placas)]);
+  if (a.ufs) linhas.push(["Estados", num(a.ufs)]);
+
+  const dest = d.destinos.map((x) =>
+    "<div class='item'><div class='top'><div class='tit'>" + esc(x.destino) +
+    "</div><div class='val'>" + num(x.viagens) + "</div></div></div>").join("");
+
+  $("card-produtividade").innerHTML =
+    card("Últimos " + d.janela_dias + " dias",
+      "<div class='kpis'>" + kpis + "</div>" +
+      "<p class='nota'>Contra os " + d.janela_dias +
+      " dias anteriores: viagens " + (variacao(d.variacao.viagens) || "—") +
+      " · km " + (variacao(d.variacao.km) || "—") + "</p>" +
+      (linhas.length ? "<div class='linhas'>" + linhas.map(([r, v]) =>
+        "<div class='linha'><span>" + esc(r) + "</span><b>" + esc(v) +
+        "</b></div>").join("") + "</div>" : "")) +
+    // O CONTADOR CONTA O QUE ESTA NA TELA, nao o teto do corte: com tres
+    // destinos e um teto de cinco, "os 5 destinos mais frequentes" e um total
+    // falso — a armadilha classica do Top-N, so que na frase em vez de no
+    // numero.
+    (dest ? card("Para onde você mais foi", dest +
+      "<p class='nota'>" + (d.destinos.length > 1
+        ? "Os " + d.destinos.length + " destinos mais frequentes somam "
+        : "Este destino soma ") + num(d.destinos_viagens) + " das " +
+      num(a.viagens) + " viagens.</p>") : "") +
+    "<p class='nota'>Fonte: " + esc(d.fonte) + ". O km é o contratado da " +
+    "viagem, não a leitura do hodômetro.</p>";
+}
+
+function desenharDesempenho(d) {
+  const alvo = $("card-desempenho");
+  if (!d.tem_dado) {
+    alvo.innerHTML = card("Condução",
+      "<p class='vaziomsg'>" + esc(d.motivo) + "</p>");
+    return;
+  }
+  let html = "";
+
+  if (d.nota) {
+    const n = d.nota;
+    html += card("Sua nota · " + esc(comp(n.competencia)) + (n.parcial ? " (parcial)" : ""),
+      "<div class='kpis'>" +
+      kpi("Nota", num(n.nota, 0), n.nota_mediana_frota !== null
+          ? "mediana da frota: " + num(n.nota_mediana_frota, 0) : "") +
+      kpi("Posição", n.posicao ? n.posicao + "º" : null,
+          n.posicao ? "entre " + n.ranqueados + " motoristas" : "") +
+      kpi("Km no mês", num(n.km)) +
+      kpi("Fora do ranking", num(n.abaixo_do_piso),
+          "rodaram menos de " + num(n.km_piso) + " km") +
+      "</div>" +
+      (n.sem_ranking_motivo
+        ? "<p class='nota'>" + esc(n.sem_ranking_motivo) + "</p>" : ""));
+  }
+
+  // A NOTA MÊS A MÊS, EM LISTA E NÃO EM GRÁFICO. A regra da casa é que todo
+  // gráfico é ECharts, e o ECharts são 990 KB que esta página não carrega — o
+  // leitor está no 4G de uma rodovia. Seis linhas com o número e a variação
+  // dizem a mesma coisa, custam zero e são legíveis no sol.
+  const ev = (d.evolucao || []).slice(-6);
+  if (ev.length > 1) {
+    html += card("Sua nota mês a mês",
+      ev.map((e, i) => {
+        const antes = i ? ev[i - 1].nota : null;
+        const dif = (antes === null || !antes) ? null
+          : Math.round(1000 * (e.nota - antes) / antes) / 10;
+        return "<div class='linha'><span>" + esc(comp(e.competencia)) +
+          (e.parcial ? " <span class='selo frio'>PARCIAL</span>" : "") +
+          "</span><b>" + num(e.nota, 0) +
+          (dif === null ? "" : " <span style='font-weight:400'>" +
+            variacao(dif) + "</span>") + "</b></div>";
+      }).join("") +
+      "<p class='nota'>Só as competências em que você rodou aparecem aqui.</p>");
+  }
+
+  const m = d.melhorar || [];
+  html += card("O que melhorar",
+    (m.length
+      ? m.map((i) =>
+          "<div class='item'><div class='top'><div class='tit'>" +
+          esc(i.rotulo) + "</div><div class='val'>" + num(i.pct, 1) + "%</div>" +
+          "</div>" + regua(i) +
+          "<div class='conselho'><b>" + esc(i.o_que) + "</b>" +
+          esc(i.como) + "</div></div>").join("")
+      : "<p class='vaziomsg'>" + esc(d.melhorar_vazio) + "</p>") +
+    "<p class='nota'>" + esc(d.melhorar_criterio) + "</p>");
+
+  if ((d.indicadores || []).length) {
+    // ITEM E NAO `.linha`: o rotulo do indicador e a referencia da frota nao
+    // cabem lado a lado em 390 px — a linha quebrava no meio do valor
+    // ("35,0% · frota" numa linha, "12,0%" na outra). Rotulo em cima com o
+    // numero dele; a frota embaixo, que e onde a referencia pertence.
+    html += card("Todos os indicadores · " + esc(comp(d.competencia)) +
+      (d.parcial ? " (parcial)" : ""),
+      d.indicadores.map((i) =>
+        "<div class='item'><div class='top'><div class='tit'>" +
+        esc(i.rotulo) + "</div><div class='val'>" + num(i.pct, 1) +
+        "%</div></div><div class='meta'>" +
+        (i.mediana_frota !== null
+          ? "frota: " + num(i.mediana_frota, 1) + "%" : "sem referência") +
+        (i.no_quarto_pior
+          ? " <span class='selo aviso'>NO QUARTO PIOR</span>" : "") +
+        "</div></div>").join(""));
+  }
+
+  html += "<p class='nota'>" + esc(d.ressalva) +
+    (d.veiculo_compartilhado
+      ? " <b>Neste mês o veículo teve mais de um motorista.</b>" : "") +
+    (d.placas.length ? " Placas: " + esc(d.placas.join(" · ")) + "." : "") +
+    "<br>Fonte: " + esc(d.fonte) + "</p>";
+  alvo.innerHTML = html;
+}
+
+// A REGUA DO INDICADOR. Uma dimensao, com a marca da frota — nao e grafico e
+// nao carrega biblioteca nenhuma. A escala vai de 0 ao MAIOR entre ele, a
+// mediana e o p75, para a barra nunca sair do trilho.
+function regua(i) {
+  // 15% DE FOLGA no fim da escala: sem ela, quem tem o maior valor da
+  // comparacao enche a barra inteira e ela se le como "100%", que e outro
+  // numero e nao e o dele.
+  const teto = 1.15 * Math.max(i.pct || 0, i.mediana_frota || 0,
+                               i.p75_frota || 0, 1);
+  const meu = Math.max(0, Math.min(100, 100 * (i.pct || 0) / teto));
+  const ref = Math.max(0, Math.min(100, 100 * (i.mediana_frota || 0) / teto));
+  return "<div class='regua'><div class='eu' style='width:" + meu.toFixed(1) +
+    "%'></div><div class='marca' style='left:" + ref.toFixed(1) + "%'></div></div>" +
+    "<div class='reguaLeg'><span>você " + num(i.pct, 1) + "%</span>" +
+    "<span>frota " + num(i.mediana_frota, 1) + "%</span></div>";
+}
+
+function desenharMultas(d) {
+  const r = d.resumo;
+  let html = card("Multas e notificações",
+    "<div class='kpis'>" +
+    kpi("Multas em aberto", num(r.multas_abertas)) +
+    kpi("Notificações", num(r.notificacoes_abertas), "ainda cabe defesa") +
+    kpi("Valor em aberto", reais(r.valor_aberto)) +
+    kpi("Pontos", num(r.pontos)) +
+    "</div><p class='nota'>" + esc(d.pontos_ressalva) + "</p>");
+
+  if (r.com_prazo_urgente) {
+    html += card("", "<p><span class='selo erro'>PRAZO CORRENDO</span> " +
+      plural(r.com_prazo_urgente, "notificação", "notificações") +
+      " com prazo de indicação de condutor acabando. " +
+      "Fale com a torre hoje.</p>");
+  }
+
+  html += card("Últimos " + Math.round(d.janela_dias / 30) + " meses",
+    (d.itens.length
+      ? d.itens.map((i) =>
+          "<div class='item'><div class='top'><div class='tit'>" +
+          esc(i.descricao) + "</div><div class='quando'>" + dia(i.data) +
+          "</div></div><div class='meta'>" +
+          esc([i.placa, i.onde, i.hora].filter(Boolean).join(" · ")) +
+          (i.pontos ? " · " + i.pontos + " pontos" : "") +
+          (i.valor ? " · " + reais(i.valor) : "") + "</div>" +
+          "<div class='meta'>" +
+          (i.em_aberto ? "<span class='selo aviso'>EM ABERTO</span>"
+                       : "<span class='selo ok'>RESOLVIDA</span>") + " " +
+          (i.especie === "notificacao"
+            ? "<span class='selo frio'>NOTIFICAÇÃO</span>" : "") + " " +
+          (i.prazo_urgente
+            ? "<span class='selo erro'>INDICAR ATÉ " + dia(i.prazo_indicacao) +
+              "</span>" : "") + " " +
+          (i.disputada ? "<span class='selo frio'>VIAGEM INCERTA</span>" : "") +
+          "</div></div>").join("")
+      : "<p class='vaziomsg'>Nenhuma multa apareceu nas suas viagens neste " +
+        "período.</p>"));
+
+  html += "<p class='nota'>" + esc(d.atribuicao) + "<br>Fonte: " +
+    esc(d.fonte) + "</p>";
+  $("card-multas").innerHTML = html;
+}
+
+function desenharOcorrencias(d) {
+  const r = d.resumo;
+  let html = card("Registros da operação",
+    "<div class='kpis'>" +
+    kpi("Nos últimos 12 meses", num(r.total_12m)) +
+    kpi("Nos últimos " + d.recente_dias + " dias", num(r.recentes_30d)) +
+    kpi("Sem solução lançada", num(r.sem_solucao)) +
+    kpi("Reconhecimentos", num(r.meritos)) +
+    "</div>");
+
+  html += card("O que foi registrado",
+    (d.itens.length
+      ? d.itens.map((i) =>
+          "<div class='item'><div class='top'><div class='tit'>" +
+          esc(i.tipo) + "</div><div class='quando'>" + dia(i.data) +
+          "</div></div><div class='meta'>" +
+          (i.merito ? "<span class='selo ok'>RECONHECIMENTO</span> " : "") +
+          esc(i.veiculo ? "Veículo " + i.veiculo : "") +
+          (i.tratada_em ? (i.veiculo ? " · " : "") + "tratada em " +
+            dia(i.tratada_em) : "") + "</div></div>").join("")
+      : "<p class='vaziomsg'>Nenhum registro seu nos últimos 12 meses.</p>"));
+
+  html += "<p class='nota'>São as ocorrências de motorista lançadas no " +
+    "sistema da empresa. O texto interno de cada uma não aparece aqui — " +
+    "para saber mais sobre alguma, fale com a torre.<br>Fonte: " +
+    esc(d.fonte) + "</p>";
+  $("card-registros").innerHTML = html;
+}
+
+function desenharJornada(d) {
+  const alvo = $("card-jornada");
+  if (!d.tem_dado) {
+    alvo.innerHTML = card("Jornada",
+      "<p class='vaziomsg'>" + esc(d.motivo) + "</p>");
+    return;
+  }
+  const l = d.leitura, k = d.kpis;
+  // A DEFASAGEM VEM PRIMEIRO, antes de qualquer hora: todos os numeros abaixo
+  // descrevem um passado que pode ter dias.
+  let html = "<div class='tarja'" + (l.parada ? "" : " style='background:" +
+    "color-mix(in srgb,var(--ink2) 12%,transparent);color:var(--ink2)'") + ">" +
+    "Apuração até " + dia(l.ultimo_dia) +
+    (l.dias_atras !== null
+      ? " · " + plural(l.dias_atras, "dia atrás", "dias atrás") : "") +
+    ". " + esc(d.aviso) + "</div>";
+
+  html += card("Últimos " + d.janela_dias + " dias",
+    "<div class='kpis'>" +
+    kpi("Dias trabalhados", num(k.dias_trabalhados),
+        plural(k.dias_sem_jornada, "dia", "dias") + " sem jornada") +
+    kpi("Jornada média", k.h_media_dia !== null ? num(k.h_media_dia, 1) + " h" : null) +
+    kpi("Horas de direção", num(k.h_direcao, 1) + " h") +
+    kpi("Hora extra", num(k.h_extra, 1) + " h") +
+    "</div>" +
+    "<div class='linhas'>" +
+    "<div class='linha'><span>Tempo total</span><b>" + num(k.h_total, 1) +
+    " h</b></div>" +
+    "<div class='linha'><span>Refeição</span><b>" + num(k.h_refeicao, 1) +
+    " h</b></div>" +
+    "<div class='linha'><span>Descanso</span><b>" + num(k.h_descanso, 1) +
+    " h</b></div>" +
+    "<div class='linha'><span>Falta de repouso</span><b>" +
+    num(k.h_falta_repouso, 1) + " h</b></div></div>" +
+    (d.nao_fechadas.dias
+      ? "<p class='nota'><span class='selo frio'>CADASTRO</span> " +
+        plural(d.nao_fechadas.dias, "dia ficou", "dias ficaram") +
+        " de fora destas contas por ter jornada não fechada (mais de 24 h " +
+        "numa linha) — são " +
+        num(d.nao_fechadas.h_fora, 1) + " h que precisam de correção no " +
+        "sistema, não de explicação sua.</p>" : ""));
+
+  html += card("Inconformidades apontadas",
+    (d.inconformidades.length
+      ? d.inconformidades.map((i) =>
+          "<div class='linha'><span>" + esc(frase(i.tipo)) +
+          "</span><b>" + i.n + "</b></div>").join("")
+      : "<p class='vaziomsg'>Nenhuma no período.</p>"));
+
+  if (d.marcacoes.length) {
+    html += card("Marcações que não são violação",
+      d.marcacoes.map((i) =>
+        "<div class='linha'><span>" + esc(frase(i.tipo)) +
+        "</span><b>" + i.n + "</b></div>").join("") +
+      "<p class='nota'>Direção noturna é trabalho noturno: é legal, gera " +
+      "adicional e não conta como violação.</p>");
+  }
+
+  html += "<p class='nota'>Fonte: " + esc(d.fonte) + "</p>";
+  alvo.innerHTML = html;
+}
+
+function desenharConta() {
+  const l = [["Nome", euAtual.nome || "—"]];
+  if (euAtual.telefone) l.push(["Celular", euAtual.telefone]);
+  if (euAtual.mestre) l.push(["Acesso", "administração (conferência)"]);
+  $("linhas-conta").innerHTML = l.map(([r, v]) =>
+    "<div class='linha'><span>" + esc(r) + "</span><b>" + esc(v) +
+    "</b></div>").join("");
+}
+
+// -------------------------------------------------------------- abrir o app
+async function abrirApp() {
+  const r = await pedir("/api/motorista/eu");
+  if (!r.ok) { mostrar("tela-entrar"); $("fone").focus(); return false; }
+  euAtual = r.dados || {};
+  Object.keys(cache).forEach((k) => delete cache[k]);   // conta nova, dado novo
+  mostrar("");                                          // sai da entrada
+  $("app").hidden = false;
+
+  // A TARJA DO ACESSO MESTRE. Ela e obrigatoria e vem da SESSAO, nao de uma
+  // variavel desta pagina: quem administra esquece em que conta esta, e um
+  // print sem a tarja vira "o app mostrou isso ao motorista", que e falso.
+  const tm = $("tarja-mestre");
+  if (euAtual.mestre) {
+    tm.innerHTML = "ACESSO DA ADMINISTRAÇÃO · você está vendo o app de <b>" +
+      esc(euAtual.nome || "") + "</b>";
+    tm.hidden = false;
+    $("marca-sub").textContent = euAtual.nome || "Motorista";
+  } else {
+    tm.hidden = true;
+    $("marca-sub").textContent = euAtual.nome || "Motorista";
+  }
+
+  const visiveis = montarBarra(euAtual.secoes || {});
+  await abrirAba(visiveis.length ? visiveis[0].id : "conta");
+  return true;
+}
+
+$("b-conta").addEventListener("click", () => abrirAba("conta"));
 
 $("b-sair").addEventListener("click", async () => {
   await pedir("/api/motorista/sair", { method: "POST" });
-  foneAtual = ""; codigoAtual = "";
+  foneAtual = ""; codigoAtual = ""; euAtual = {};
+  Object.keys(cache).forEach((k) => delete cache[k]);
   $("fone").value = ""; $("codigo").value = "";
+  $("tarja-mestre").hidden = true;
   aviso("m-entrar", ""); aviso("m-codigo", "");
   mostrar("tela-entrar");
 });
@@ -521,9 +1247,7 @@ $("b-sair").addEventListener("click", async () => {
 // -------------------------------------------------------------------- boot
 (async function () {
   anelLigar();
-  const r = await pedir("/api/motorista/eu");
-  if (r.ok) { await abrirViagem(r.dados.nome || ""); }
-  else { mostrar("tela-entrar"); $("fone").focus(); }
+  if (!(await abrirApp())) { mostrar("tela-entrar"); $("fone").focus(); }
 })();
 </script>
 </body>

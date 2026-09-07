@@ -286,12 +286,28 @@ def _app_motorista() -> dict:
             """SELECT (SELECT count(*) FROM mot_vinculos WHERE ativo) AS vinculados,
                       (SELECT count(*) FROM mot_sessoes
                         WHERE encerrada_em IS NULL
-                          AND vista_em > now() - interval '30 days') AS ativos_30d""")
+                          AND vista_em > now() - interval '30 days') AS ativos_30d,
+                      -- A SESSÃO MESTRE SAI SEPARADA, e não somada às outras:
+                      -- misturá-las faria "quantos motoristas usam o app?" ser
+                      -- respondido contando a mesma pessoa conferindo. Uso do
+                      -- app e conferência do app são perguntas diferentes.
+                      (SELECT count(*) FROM mot_sessoes
+                        WHERE mestre
+                          AND criada_em > now() - interval '30 days') AS mestre_30d,
+                      -- Quantos motoristas TÊM multa atribuída pela viagem.
+                      -- Contagem, nunca a lista: o snapshot inteiro vai para o
+                      -- prompt do chat, que pode cair no fallback externo.
+                      (SELECT count(DISTINCT v.motorista_codigo)
+                         FROM smt_infracao_viagem v
+                         JOIN mot_vinculos m
+                           ON m.motorista_codigo = v.motorista_codigo
+                        WHERE v.motorista_codigo <> '') AS com_multa""")
     except Exception as exc:  # noqa: BLE001
         if pglocal.sem_tabela(exc):
             return {"instalado": False}
         raise
-    return {"instalado": True, **dict(r or {"vinculados": 0, "ativos_30d": 0})}
+    return {"instalado": True, **dict(r or {"vinculados": 0, "ativos_30d": 0,
+                                            "mestre_30d": 0, "com_multa": 0})}
 
 
 def _fontes_do_snapshot() -> dict:

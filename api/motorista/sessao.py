@@ -26,6 +26,12 @@ TRÊS COISAS QUE O TOKEN NÃO RESOLVE, e por isso `mot_sessoes` existe:
 O TTL É LONGO DE PROPÓSITO (30 dias, deslizante). Sessão curta aqui não é
 segurança, é o motorista pedindo código toda semana e desistindo do app — e o
 que protege de verdade é o desligamento, que é imediato e independe do prazo.
+
+A EXCEÇÃO É A SESSÃO MESTRE (`api/motorista/mestre.py`, 07/09/2026), e ela
+inverte cada um desses argumentos: quem entra por ali não é o motorista, entra
+para conferir, e o aparelho é de escritório. Prazo de horas, `mestre = true` na
+linha, e a tarja obrigatória na tela — o `atual()` devolve a marca justamente
+para a página não ter como esquecer em que conta está.
 """
 from __future__ import annotations
 
@@ -92,17 +98,26 @@ def _agora() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def emitir(motorista_id: int, sessao_id: int) -> str:
+def emitir(motorista_id: int, sessao_id: int, *, horas: float | None = None) -> str:
     """O `sub` é o ID OPACO, nunca o `motorista_codigo`.
 
     Para pessoa física o código do ERP é o CPF, e o token vive no cookie do
     aparelho — um documento que não precisa estar ali não fica ali. Ver
     `sql/cortex/0058_motorista_id_opaco.sql`.
+
+    `horas` encurta o prazo, e quem usa isso é o ACESSO MESTRE
+    (`api/motorista/mestre.py`): 30 dias deslizantes é o que faz o motorista
+    não desistir do app, e é o contrário do que se quer num acesso de
+    administração — ali o prazo longo é uma porta aberta num aparelho que
+    ninguém lembra que está logado. O prazo curto entra no `exp` do TOKEN e no
+    `max_age` do COOKIE, e não só num dos dois: cookie que sobrevive ao token
+    faz a página parecer logada e receber 401 em toda leitura.
     """
     agora = _agora()
+    prazo = (timedelta(hours=float(horas)) if horas
+             else timedelta(days=TTL_DIAS))
     return jwt.encode({"sub": str(int(motorista_id)), "sid": int(sessao_id),
-                       "tipo": TIPO, "iat": agora,
-                       "exp": agora + timedelta(days=TTL_DIAS)},
+                       "tipo": TIPO, "iat": agora, "exp": agora + prazo},
                       _segredo(), algorithm="HS256")
 
 
@@ -110,10 +125,13 @@ def _https(request: Request) -> bool:
     return request.headers.get("x-forwarded-proto", request.url.scheme) == "https"
 
 
-def gravar_cookie(resp: Response, token: str, request: Request) -> None:
+def gravar_cookie(resp: Response, token: str, request: Request, *,
+                  horas: float | None = None) -> None:
+    """`horas` encurta o cookie junto com o token — ver `emitir`."""
     resp.set_cookie(key=COOKIE, value=token, httponly=True, samesite="lax",
                     path=COOKIE_PATH, secure=_https(request),
-                    max_age=TTL_DIAS * 24 * 3600)
+                    max_age=int(horas * 3600) if horas
+                            else TTL_DIAS * 24 * 3600)
 
 
 def apagar_cookie(resp: Response, request: Request) -> None:
@@ -122,13 +140,22 @@ def apagar_cookie(resp: Response, request: Request) -> None:
 
 
 def abrir(motorista_codigo: str, *, aparelho: str = "", ip: str = "",
-          agente: str = "", esquema: str | None = None) -> int:
-    """Cria a linha da sessão e devolve o id dela."""
+          agente: str = "", mestre: bool = False,
+          esquema: str | None = None) -> int:
+    """Cria a linha da sessão e devolve o id dela.
+
+    `mestre` marca a sessão aberta pelo código da casa em vez do código do
+    WhatsApp (`api/motorista/mestre.py`). Ela é a MESMA sessão em tudo o mais —
+    mesmo escopo, mesmas rotas —, e a marca serve para três coisas que não se
+    fazem sem ela: a tarja obrigatória na tela, o prazo curto e a trilha que
+    distingue as duas entradas depois.
+    """
     linha = pglocal.um(
-        """INSERT INTO mot_sessoes(motorista_codigo, aparelho, ip, agente)
-           VALUES (%(cod)s, %(ap)s, %(ip)s, %(ag)s) RETURNING id""",
+        """INSERT INTO mot_sessoes(motorista_codigo, aparelho, ip, agente, mestre)
+           VALUES (%(cod)s, %(ap)s, %(ip)s, %(ag)s, %(m)s) RETURNING id""",
         {"cod": str(motorista_codigo), "ap": (aparelho or "")[:64],
-         "ip": (ip or "")[:64], "ag": (agente or "")[:200]},
+         "ip": (ip or "")[:64], "ag": (agente or "")[:200],
+         "m": bool(mestre)},
         _esq(esquema))
     return int(linha["id"])
 
@@ -163,6 +190,7 @@ def atual(token: str | None, esquema: str | None = None) -> dict | None:
     try:
         linha = pglocal.um(
             """SELECT s.id AS sessao_id, s.motorista_codigo, s.vista_em,
+                      s.mestre,
                       v.id AS motorista_id, v.nome, v.telefone, v.ativo
                  FROM mot_sessoes s
                  JOIN mot_vinculos v ON v.motorista_codigo = s.motorista_codigo
@@ -196,7 +224,12 @@ def atual(token: str | None, esquema: str | None = None) -> dict | None:
     return {"motorista_codigo": str(linha["motorista_codigo"]),
             "motorista_id": int(linha["motorista_id"]),
             "nome": linha["nome"] or "", "telefone": linha["telefone"] or "",
-            "sessao_id": int(sid)}
+            "sessao_id": int(sid),
+            # A MARCA VIAJA NA SESSÃO, e é ela que obriga a tarja. Sem sair
+            # daqui, a página não teria como saber em que conta está — e um
+            # print de tela de administração viraria "o app mostrou isso ao
+            # motorista", que é falso.
+            "mestre": bool(linha.get("mestre"))}
 
 
 def _envelheceu(vista_em) -> bool:

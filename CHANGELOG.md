@@ -4,6 +4,18 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.1.0] — 07/09/2026  ·  CX-07/09/2026-v1.1.0
+
+### Adicionado
+- O app do motorista deixou de ser só "a minha viagem". Ele passou a responder cinco perguntas que hoje viram telefonema para a torre: quais multas apareceram nas minhas viagens, como está a minha condução na telemetria e o que fazer para melhorar, o que a empresa registrou sobre mim, quanto eu rodei nos últimos 30 dias, e o que a apuração de jornada está dizendo. A navegação virou uma barra no rodapé, com alvo de polegar; cada aba carrega só quando é aberta, para o app continuar abrindo rápido no 4G da estrada.
+- MULTAS. Cada infração aberta pelo órgão é casada com a viagem que estava acontecendo naquela placa naquele instante — foi assim que 156 infrações encontraram 39 dos 80 motoristas já cadastrados. A tela mostra a descrição, o local, a data, o valor e os pontos, e diz na cara que isso é o que apareceu NA viagem dele, não uma indicação de condutor: quem indica é a empresa, junto ao órgão, e quem discordar tem para quem ligar. A notificação (que ainda cabe defesa) aparece separada da multa, e o prazo de indicação vira destaque vermelho quando está acabando.
+- CONDUÇÃO. A nota da Gobrax do mês, a posição no ranking e — o que não existia em lugar nenhum para o motorista — até três pontos concretos do que melhorar, com o que fazer escrito na língua de quem dirige ("desligue o motor na fila", "use o freio motor antes do pedal"). Só entra na lista o indicador em que ele está no quarto pior da frota: quem está bem recebe a resposta honesta, que é nenhum conselho.
+- REGISTROS, 30 DIAS E JORNADA. As ocorrências lançadas no ERP (o tipo, a data, o veículo e se já foi tratada); viagens, quilômetros, dias rodados e para onde ele mais foi, comparados com os 30 dias anteriores DELE — nunca com a média dos colegas; e a apuração de jornada com horas, hora extra e as inconformidades apontadas, separando o que é violação do que é apenas trabalho noturno. A aba de jornada some para quem é agregado, em vez de abrir vazia.
+- ACESSO DA ADMINISTRAÇÃO. Um código mestre, guardado no cofre, abre o app de qualquer motorista para conferência — com uma tarja vermelha permanente dizendo de quem é a conta que está aberta, prazo de 8 horas e registro na trilha de auditoria. É o que permite validar, contra o ERP, o que cada tela está afirmando sobre uma pessoa.
+
+### Corrigido
+- Na Saúde do Servidor, o cartão do app do motorista dizia "última entrada em data ilegível" desde que nasceu. Agora diz há quanto tempo foi.
+
 ## [1.0.0] — 06/09/2026  ·  CX-06/09/2026-v1.0.0
 
 ### Adicionado

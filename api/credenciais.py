@@ -48,6 +48,18 @@ CAMPOS: dict[str, dict] = {
         "rotulo": "Token de API",
         "descricao": "Token da API Gobrax (telemetria e premiação)"},
 
+    # App do motorista — o acesso de conferência. NÃO é credencial de
+    # fornecedor: é um segredo NOSSO, e o único da casa que abre a PII de ~300
+    # pessoas. Por isso o módulo aplica um piso PRÓPRIO de 16 caracteres
+    # (`mestre.TAMANHO_MINIMO`) em vez de aceitar o mínimo de 8 daqui — um
+    # código curto passa nesta tela e é recusado pelo app, e a Saúde do
+    # Servidor diz que foi recusado, em vez de o acesso ficar fraco em silêncio.
+    "MOTORISTA_CODIGO_MESTRE": {
+        "rotulo": "Código mestre do app do motorista",
+        "descricao": "Abre o app de qualquer motorista para conferência, com "
+                     "tarja na tela e registro na auditoria. Mínimo de 16 "
+                     "caracteres; sem ele o acesso não existe"},
+
     # TomTom — trânsito. SÃO DOIS CAMPOS, e a razão é uma armadilha real:
     #
     # A chave do OVERLAY vai para o NAVEGADOR (o Leaflet baixa os tiles direto,
@@ -520,6 +532,28 @@ SERVICOS: list[dict] = [
         "ajustes": ["ZAPI_CLIENT_TOKEN", "ZAPI2_INSTANCIA", "ZAPI2_TOKEN",
                     "ZAPI2_CLIENT_TOKEN"],
         "aba": "whatsapp",
+    },
+    {
+        # NÃO É FORNECEDOR, e mesmo assim mora aqui — a aba de credenciais é o
+        # único lugar da casa onde um segredo se guarda sem passar pelo `.env`
+        # (que não é versionado e exige acesso à máquina). Pôr este código em
+        # outro lugar significaria, na prática, que ninguém o configura.
+        "chave": "motorista_mestre",
+        "nome": "App do motorista — acesso da administração",
+        "resumo": "Código que abre o app de QUALQUER motorista para "
+                  "conferência, com tarja vermelha na tela dizendo de quem é a "
+                  "conta, prazo de 8 horas e registro na auditoria. É o que "
+                  "permite validar, contra o ERP, o que o app afirma sobre uma "
+                  "pessoa. SEM ELE o acesso simplesmente não existe — o app "
+                  "recusa como recusaria um código errado.",
+        "alimenta": "App do motorista",
+        "modos": [{"chave": "codigo", "rotulo": "Código mestre",
+                   "dica": "mínimo de 16 caracteres — abaixo disso o app "
+                           "recusa o próprio código e a Saúde do Servidor diz "
+                           "por quê. Use um valor longo e aleatório; ele não "
+                           "expira.",
+                   "campos": ["MOTORISTA_CODIGO_MESTRE"]}],
+        "ajustes": [],
     },
 ]
 

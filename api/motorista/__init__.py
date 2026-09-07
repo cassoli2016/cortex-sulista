@@ -40,6 +40,21 @@ rotas `/api/motorista/*` e cobra isso — porque a falha é MUDA: a rota
 funciona, devolve dado certo, e não pergunta quem está lendo.
 
 ═══════════════════════════════════════════════════════════════════════════
+A QUARTA PERGUNTA: E QUEM CONFERE?
+═══════════════════════════════════════════════════════════════════════════
+Desde 07/09/2026 o app diz coisas sobre uma pessoa que vêm de junções frágeis
+(multa casada pela janela da viagem, indicador casado pelo nome na Gobrax) — e
+o único leitor de cada tela é justamente quem menos pode conferir se ela está
+certa. Erro assim vive escondido: cada motorista vê só a dele.
+
+O **código mestre** (`mestre.py`) resolve isso abrindo uma sessão NORMAL na
+conta de quem for escolhido — mesmas rotas, mesmo escopo vindo da sessão —,
+marcada `mestre`, com prazo de horas e tarja obrigatória na tela. Não é um
+perfil de administração dentro do app: **não existe rota que devolva a
+operação de vários motoristas de uma vez.** A única lista é de id e nome, para
+escolher, e ela não abre sessão nenhuma.
+
+═══════════════════════════════════════════════════════════════════════════
 O QUE NÃO SAI DAQUI
 ═══════════════════════════════════════════════════════════════════════════
 Valor de frete, custo, CKM, resultado, e a operação de QUALQUER outro
@@ -47,6 +62,16 @@ motorista. O leitor vê a viagem dele: para onde vai, com que placa, para que
 cliente. `TORRE_TRANSITO_SQL` (a mesma viagem, na tela da torre) devolve
 `valorfrete` e `km`; a consulta daqui é outra de propósito, e não é a mesma com
 um filtro a mais — filtro se esquece, coluna que não existe na query não vaza.
+
+**A ÚNICA EXCEÇÃO DE DINHEIRO É O VALOR DA MULTA**, decidida por quem opera em
+07/09/2026: não é dinheiro da empresa, é o número que está no auto, no boleto e
+na conversa que ele vai ter com a torre. Esconder faria a tela valer menos que
+o papel que ele já recebe. Pontuação de CNH entra pelo mesmo motivo — o ponto é
+dele.
+
+**A ÚNICA COMPARAÇÃO COM COLEGAS É A POSIÇÃO NO RANKING DA GOBRAX**, e ela só
+cabe porque a premiação já é pública entre eles. Produtividade se compara com
+os 30 dias anteriores DELE; nunca com a média da frota.
 
 O CPF do motorista não entra em URL, não vai no payload e não vira chave: a
 chave é `cadastro.codigo`, que é um código de cadastro e não um documento.

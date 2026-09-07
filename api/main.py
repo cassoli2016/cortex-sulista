@@ -750,13 +750,44 @@ async def motorista_confirmar(req: Request) -> JSONResponse:
 
 @app.get("/api/motorista/eu")
 def motorista_eu(req: Request) -> JSONResponse:
+    """Quem esta logado, se e sessao mestre, e o que ele TEM para ver.
+
+    `secoes` existe por causa de uma regra do escopo: **item que nao existe
+    para o agregado nao aparece vazio, some.** Dois tercos dos motoristas sao
+    agregados e nunca terao jornada apurada (a RasterJOR cobre o empregado);
+    uma aba que abre e diz "sem dados" para quem nunca vai ter dado ensina a
+    pessoa a nao confiar no resto da tela.
+
+    A conferencia e uma consulta local de uma linha e nao pode derrubar o
+    login: sem ela a aba fica de fora, que e a degradacao certa.
+    """
     from api.motorista import sessao as msessao
     try:
         sess = _eu(req)
     except msessao.SemSessao:
         return _mot_recusa("Faca login para continuar.", status=401)
     return JSONResponse({"nome": sess["nome"],
-                         "telefone": sess["telefone"]})
+                         "telefone": sess["telefone"],
+                         # A TARJA DEPENDE DISTO. Sem a marca chegando a
+                         # pagina, quem administra esquece em que conta esta.
+                         "mestre": bool(sess.get("mestre")),
+                         "secoes": _mot_secoes(sess)})
+
+
+def _mot_secoes(sess: dict) -> dict:
+    """Que abas o app desenha para ESTE motorista."""
+    from api.motorista import jornada as mjor
+    tem_jornada = False
+    try:
+        tem_jornada = mjor.tem_apuracao(sess)
+    except Exception as exc:  # noqa: BLE001
+        log.info("secoes do motorista: jornada indisponivel (%s)",
+                 type(exc).__name__)
+    # As outras quatro valem para TODO motorista: "nenhuma multa sua" e
+    # "nenhuma ocorrencia" sao boa noticia, nao tela vazia — ao contrario da
+    # jornada, que para o agregado e ausencia permanente.
+    return {"viagem": True, "produtividade": True, "desempenho": True,
+            "multas": True, "ocorrencias": True, "jornada": tem_jornada}
 
 
 @app.post("/api/motorista/sair")
@@ -795,6 +826,139 @@ def motorista_viagem(req: Request) -> JSONResponse:
         log.warning("viagem do motorista falhou: %s", type(exc).__name__)
         return _mot_recusa("Nao consegui falar com o sistema agora. "
                            "Tente de novo em alguns minutos.")
+
+
+def _mot_ler(req: Request, carregar, assunto: str) -> JSONResponse:
+    """A forma de TODA rota de leitura do app, em um lugar só.
+
+    As cinco telas novas (multas, desempenho, ocorrencias, produtividade,
+    jornada) fazem exatamente a mesma coisa: exigem a sessao, chamam uma
+    funcao que recebe a sessao, e degradam em RECUSA LEGIVEL quando a fonte
+    cai. Escrever isso cinco vezes seria cinco chances de uma delas esquecer o
+    `_eu(req)` — que e a falha MUDA deste modulo (a rota funciona, devolve o
+    dado certo, e nao pergunta quem esta lendo).
+
+    O 4xx aqui nao e preciosismo: 5xx o Cloudflare troca pela pagina dele e o
+    motorista ve um erro que nao diz nada. E o `except` e largo de proposito —
+    o ERP e replica de producao de TERCEIRO e ja teve manha ruim; quem cobre a
+    maior parte disso e o cache com ultima leitura boa, e esta e a rede de
+    baixo.
+    """
+    from api.motorista import sessao as msessao
+    try:
+        sess = _eu(req)
+    except msessao.SemSessao:
+        return _mot_recusa("Faca login para continuar.", status=401)
+    try:
+        return JSONResponse(carregar(sess))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("%s do motorista falhou: %s", assunto, type(exc).__name__)
+        return _mot_recusa("Nao consegui carregar isto agora. "
+                           "Tente de novo em alguns minutos.")
+
+
+@app.get("/api/motorista/multas")
+def motorista_multas(req: Request) -> JSONResponse:
+    from api.motorista import multas as mmultas
+    return _mot_ler(req, mmultas.minhas, "multas")
+
+
+@app.get("/api/motorista/desempenho")
+def motorista_desempenho(req: Request) -> JSONResponse:
+    from api.motorista import desempenho as mdesemp
+    return _mot_ler(req, mdesemp.meu, "desempenho")
+
+
+@app.get("/api/motorista/ocorrencias")
+def motorista_ocorrencias(req: Request) -> JSONResponse:
+    from api.motorista import ocorrencias as mocor
+    return _mot_ler(req, mocor.minhas, "ocorrencias")
+
+
+@app.get("/api/motorista/produtividade")
+def motorista_produtividade(req: Request) -> JSONResponse:
+    from api.motorista import produtividade as mprod
+    return _mot_ler(req, mprod.minha, "produtividade")
+
+
+@app.get("/api/motorista/jornada")
+def motorista_jornada(req: Request) -> JSONResponse:
+    from api.motorista import jornada as mjor
+    return _mot_ler(req, mjor.minha, "jornada")
+
+
+# --------------------------------------------------------- o acesso mestre
+#
+# AS DUAS ROTAS ABAIXO SAO A SEGUNDA EXCECAO DESTE MODULO (a primeira sao as
+# de entrada): elas respondem SEM sessao, porque sao o caminho de abrir uma.
+# Quem recusa nelas e `mestre.conferir()`, que LEVANTA — e o teste
+# `test_toda_rota_do_app_exige_sessao` cobra a lista, entao acrescentar uma
+# rota aqui exige escrever a razao la tambem.
+#
+# O contrato inteiro (as seis contencoes, e por que "nao configurado" nao e
+# falha) esta em `api/motorista/mestre.py`.
+
+@app.post("/api/motorista/mestre/motoristas")
+async def motorista_mestre_lista(req: Request) -> JSONResponse:
+    """Quem se pode abrir. NAO ABRE SESSAO NENHUMA, e devolve so id e nome.
+
+    O `motorista_codigo` e o CPF para pessoa fisica e esta lista vai para um
+    navegador — a mesma disciplina da lista de escolha da entrada.
+    """
+    from api.motorista import mestre as mm
+    try:
+        corpo = await req.json()
+    except Exception:  # noqa: BLE001
+        corpo = {}
+    if not isinstance(corpo, dict):
+        corpo = {}
+    try:
+        await sem_travar(mm.conferir, str(corpo.get("codigo") or ""),
+                         ip=_ip_do_cliente(req))
+        return JSONResponse(await sem_travar(
+            mm.motoristas, str(corpo.get("busca") or "")))
+    except mm.Recusa as exc:
+        return _mot_recusa(str(exc))
+
+
+@app.post("/api/motorista/mestre/entrar")
+async def motorista_mestre_entrar(req: Request) -> JSONResponse:
+    """Abre a sessao MESTRE na conta do motorista escolhido.
+
+    O codigo e conferido DE NOVO aqui, e nao so na listagem: sao duas rotas
+    independentes, e uma que confiasse na anterior seria uma rota que abre
+    sessao sem segredo nenhum para quem chamar direto.
+    """
+    from api.motorista import mestre as mm
+    from api.motorista import sessao as msessao
+    try:
+        corpo = await req.json()
+    except Exception:  # noqa: BLE001
+        corpo = {}
+    if not isinstance(corpo, dict):
+        corpo = {}
+    try:
+        await sem_travar(mm.conferir, str(corpo.get("codigo") or ""),
+                         ip=_ip_do_cliente(req))
+        r = await sem_travar(
+            mm.abrir, int(corpo.get("motorista") or 0),
+            aparelho=str(corpo.get("aparelho") or ""),
+            ip=_ip_do_cliente(req), agente=req.headers.get("user-agent", ""))
+    except mm.Recusa as exc:
+        return _mot_recusa(str(exc))
+    except (TypeError, ValueError):
+        return _mot_recusa("Escolha um motorista.")
+
+    # A TRILHA DISTINGUE AS DUAS ENTRADAS. Se a mestre gravasse
+    # `motorista_entrou` como a outra, a auditoria de uso do app viraria
+    # ficcao — "300 acessos" com metade sendo a mesma pessoa conferindo.
+    auth.audit("motorista:mestre", "motorista_mestre_entrou",
+               alvo=str(r["motorista_id"]),
+               detalhe=f"sessao {r['sessao_id']} · {mm.TTL_HORAS}h",
+               ip=_ip_do_cliente(req))
+    resp = JSONResponse({"ok": True, "nome": r["nome"], "mestre": True})
+    msessao.gravar_cookie(resp, r["token"], req, horas=mm.TTL_HORAS)
+    return resp
 
 
 @app.get("/sw.js")

@@ -20,6 +20,17 @@ Regras que importam:
   registra o empate: a tela mostra o vínculo como hipótese, não veredito.
   É a mesma regra do detector de duplicidade da frota: nada se desempata em
   silêncio.
+- O MOTORISTA da viagem entra desde 07/09/2026 (`motorista_codigo`, migration
+  0062). Ele sempre esteve nesta linha e era descartado; passou a ser gravado
+  porque o app do motorista faz a pergunta invertida — não "de quem era a
+  carga desta multa", mas "quais multas apareceram enquanto EU dirigia".
+  Medido sobre os 80 vínculos ativos: 156 infrações casadas, 39 motoristas.
+
+  **Continua sendo HIPÓTESE, e o nome da coluna não muda isso.** "A viagem
+  estava com o Fulano" não é "o Fulano cometeu a infração": o veículo pode
+  ter sido movido por outra pessoa, o auto pode vir de leitura da carreta, e
+  a indicação de condutor é processo do órgão, não dedução nossa. Quem mostra
+  isso diz o que é (`api/motorista/multas.py` carrega a frase).
 """
 from __future__ import annotations
 
@@ -42,6 +53,13 @@ SELECT * FROM (
          p.veiculo AS placa,
          p.dtsaida::date  AS dt_saida,
          p.dtchegada::date AS dt_chegada,
+         -- QUEM ESTAVA AO VOLANTE. Sempre esteve nesta linha e era descartado;
+         -- entra porque o app do motorista faz a pergunta invertida ("quais
+         -- multas apareceram na MINHA viagem"). `cast(... AS text)` pela regra
+         -- da casa: `programacaoembarque.motorista` é varchar HOJE, e tabela de
+         -- terceiro não tem contrato de tipo — a `agrupadorgerencial` trocou
+         -- integer por varchar em 02/09/2026 e matou cinco telas.
+         coalesce(nullif(trim(cast(p.motorista AS text)),''),'') AS motorista,
          coalesce(nullif(trim(ag.descricao),''), nullif(trim(cp.nomefantasia),''),
                   nullif(trim(cp.razaosocial),'')) AS cliente,
          coalesce(nullif(trim(p.cidadeorigem),''),'?')||'/'||coalesce(p.uforigem,'?')
@@ -129,13 +147,16 @@ def casar(esquema: str | None = None) -> dict:
         pglocal.executar(
             """INSERT INTO smt_infracao_viagem
                    (identificador, cliente, rota, dt_saida, dt_chegada,
-                    candidatas, casada_em)
-               VALUES (%s,%s,%s,%s,%s,%s, now())
+                    candidatas, motorista_codigo, casada_em)
+               VALUES (%s,%s,%s,%s,%s,%s,%s, now())
                ON CONFLICT (identificador) DO UPDATE SET
                    cliente = EXCLUDED.cliente, rota = EXCLUDED.rota,
                    dt_saida = EXCLUDED.dt_saida, dt_chegada = EXCLUDED.dt_chegada,
-                   candidatas = EXCLUDED.candidatas, casada_em = now()""",
+                   candidatas = EXCLUDED.candidatas,
+                   motorista_codigo = EXCLUDED.motorista_codigo,
+                   casada_em = now()""",
             (inf["identificador"], v["cliente"], v["rota"], v["dt_saida"],
-             v["dt_chegada"], len(candidatas)), esquema=esq)
+             v["dt_chegada"], len(candidatas), v.get("motorista") or ""),
+            esquema=esq)
         casadas += 1
     return {"recurso": "viagens", "itens": casadas, "chamadas": 1}

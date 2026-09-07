@@ -5,7 +5,78 @@
 > importante — o que NÃO se vai construir e por quê. Muda a cada rodada de
 > ajuste com quem opera.
 > Rascunho 05/09/2026 · **núcleo da fase 1 construído em 06/09/2026** (§0) ·
+> **cinco telas + acesso mestre entregues em 07/09/2026 na v1.1.0** (§0-ter) ·
 > base: `main` em v0.255.0.
+
+---
+
+## 0-ter. A rodada de 07/09/2026 (v1.1.0) — o que entrou, e o que se mediu
+
+Pedido de quem opera, textual: **multas do motorista, indicadores da Gobrax que
+ele precisa melhorar e como melhorar, ocorrências registradas para ele,
+produtividade dos últimos 30 dias e jornada** — mais um acesso de administração
+que abra o app de qualquer motorista, para validar as informações.
+
+### As cinco fontes, e a cobertura MEDIDA antes de construir
+
+Medido em 07/09/2026 contra o banco vivo, sobre os **80 vínculos ativos**:
+
+| Tela | Fonte | Casamento | Cobertura |
+|---|---|---|---|
+| Multas | `smt_infracoes` × viagem da placa no instante | placa + janela da viagem | 156 infrações → **39 dos 80** |
+| Condução | Gobrax `driversOverview` + `vehicle-performance` | nome normalizado | 73/80 no cadastro · 60/80 na performance de agosto |
+| Registros | `cadastro_vinculo_motoristaocorrencia` (AVA) | `cnpjcpfcodigo` | **44 dos 80** em 12 meses |
+| 30 dias | `programacaoembarque` | `motorista` | **68 dos 80** com viagem |
+| Jornada | `jor_jornadas` (RasterJOR) | dígitos do CPF | **70 dos 80** |
+
+### As sete decisões que custaram medição
+
+1. **A multa é HIPÓTESE, e a tela diz.** `smt_infracoes.motorista_nome` existe e
+   é inútil: 2 de 212 traziam nome de gente, o resto vinha "AGREGADO", "NIC",
+   "RECURSO" — estados do processo de indicação. O vínculo real sai do
+   cruzamento que a coleta já fazia contra o AVA, e ele agora grava o motorista
+   (`smt_infracao_viagem.motorista_codigo`, migration 0062). "A viagem estava
+   com o Fulano" **não é** "o Fulano cometeu a infração".
+2. **Ponto de CNH só conta na penalidade.** Somar a pontuação das notificações
+   junto inflou o primeiro motorista medido de 4 para 47 pontos — a notificação
+   é a autuação, estágio em que ainda cabe defesa.
+3. **Não existe indicador por motorista na Gobrax.** Foi medido, não suposto: o
+   `driversOverview` devolve `ID`, `Name`, `DocumentNumber`, `TotalKM` e
+   `Score`, e nada mais. Os 14 indicadores são do VEÍCULO, e o payload carrega
+   quantas pessoas dividiram o volante no mês.
+4. **O conselho sai do QUARTO PIOR, não da mediana.** Pela mediana, metade da
+   frota é cobrada em cada indicador por construção — com catorze indicadores,
+   todo mundo recebe três conselhos todo mês e a tela vira ruído. E pega
+   diferença que não é diferença: freio motor 0,0% contra mediana de 0,93% da
+   frota vira "melhore o freio motor" sem que haja o que melhorar.
+5. **"Demérito" não é dito ao premiado.** 40 dos 54 tipos de ocorrência ainda
+   estão com a PROPOSTA automática de classificação; só 14 foram decididos por
+   uma pessoa. O que se destaca é o mérito, e só quando um humano classificou.
+   O texto livre da ocorrência (`observacao`, `reclamacao`) não sai.
+6. **A jornada não promete saldo do dia.** A fonte é a apuração FECHADA por
+   dia. Um app que somasse as horas de ontem para dizer "faltam 2h10"
+   inventaria o saldo de hoje a partir de dado que não é de hoje — e o
+   motorista pararia, ou não, com base nisso. Quem responde "posso dirigir
+   agora?" é o equipamento na cabine.
+7. **A produtividade se compara com ELE MESMO.** A referência óbvia seria a
+   média da frota, e ela está proibida: o leitor não é gestor, é a pessoa
+   medida. O km vem de `kmfretecompra` (100% de cobertura), não de
+   `jor_jornadas.km`, que traz `NULL` e absurdo (155 km contra 179 h de direção
+   no mesmo motorista).
+
+### O acesso mestre
+
+Um segredo da casa no cofre (`MOTORISTA_CODIGO_MESTRE`) abre uma sessão NORMAL
+na conta de quem for escolhido — mesmas rotas, mesmo escopo vindo da sessão —
+marcada `mestre`, com prazo de 8 h e **tarja vermelha obrigatória** na tela.
+**Não é um perfil de administração dentro do app: não existe rota que devolva a
+operação de vários motoristas de uma vez.** A única lista é de id e nome, para
+escolher, e ela não abre sessão nenhuma. Seis contenções, escritas em
+`api/motorista/mestre.py`; "não configurado" é `info` na Saúde, nunca vermelho.
+
+**O que falta para usar:** pôr o código no cofre (Gestão → credenciais, chave
+`MOTORISTA_CODIGO_MESTRE`, mínimo 16 caracteres). Sem ele o acesso não existe e
+a Saúde do Servidor diz exatamente isso.
 
 ---
 

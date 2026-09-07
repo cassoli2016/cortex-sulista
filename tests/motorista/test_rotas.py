@@ -31,11 +31,18 @@ from api.motorista import sessao as msessao
 #:   entrar/confirmar — é assim que se entra; não há sessão ainda.
 #:   sair             — quem clicou já quer estar fora, e um 401 aqui deixaria
 #:                      o cookie no aparelho de quem pediu para sair.
+#:   mestre/*         — é assim que se abre uma sessão de conferência; também
+#:                      não há sessão ainda. O porteiro delas é
+#:                      `mestre.conferir()`, que LEVANTA, e há teste próprio
+#:                      (`test_mestre.py`) cobrando que as duas recusem sem
+#:                      código e que nenhuma delas devolva a operação de
+#:                      motorista nenhum antes de conferir o segredo.
 #:
 #: Acrescentar uma linha a este conjunto é abrir uma rota ao mundo. Quem
 #: acrescentar sem escrever o porquê está pedindo para o revisor não perceber.
 SEM_SESSAO = {"/api/motorista/entrar", "/api/motorista/confirmar",
-              "/api/motorista/sair"}
+              "/api/motorista/sair", "/api/motorista/mestre/motoristas",
+              "/api/motorista/mestre/entrar"}
 
 
 def rotas_do_app() -> list:
@@ -71,11 +78,30 @@ def test_sair_e_a_excecao_e_ela_e_deliberada():
     assert r.status_code == 200 and r.json()["ok"]
 
 
+def test_toda_rota_de_leitura_esta_no_guard():
+    """O guard acima descobre as rotas sozinho — e ESTE prova que ele não ficou
+    cego por uma lista `SEM_SESSAO` que cresceu demais.
+
+    Sem isto, alguém que acrescentasse uma rota de leitura e a pusesse em
+    `SEM_SESSAO` "para o teste passar" teria o teste passando E a rota aberta
+    ao mundo: o guard varre o que sobra, e o que sobra seria pouco.
+    """
+    lidas = {c for c, _ in rotas_do_app()}
+    for esperada in ("/api/motorista/viagem", "/api/motorista/multas",
+                     "/api/motorista/desempenho", "/api/motorista/ocorrencias",
+                     "/api/motorista/produtividade", "/api/motorista/jornada",
+                     "/api/motorista/eu"):
+        assert esperada in lidas, (
+            f"{esperada} saiu do guard — ou a rota sumiu, ou alguém a pôs em "
+            "SEM_SESSAO, que é abri-la ao mundo")
+
+
 def test_a_pagina_e_a_api_do_app_sao_publicas_para_o_middleware():
     assert auth._rota_publica("/motorista")
     assert auth._rota_publica("/motorista/")
     assert auth._rota_publica("/api/motorista/entrar")
     assert auth._rota_publica("/api/motorista/viagem")
+    assert auth._rota_publica("/api/motorista/mestre/entrar")
 
 
 def test_o_resto_do_api_continua_fechado():

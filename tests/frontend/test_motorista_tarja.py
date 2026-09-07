@@ -23,7 +23,11 @@ from __future__ import annotations
 
 import json
 
-EU = {"nome": "João da Silva", "telefone": "5547999990001"}
+#: O que `/api/motorista/eu` devolve. `secoes` decide quais abas a barra de
+#: baixo desenha — item que não existe para o agregado não aparece vazio.
+EU = {"nome": "João da Silva", "telefone": "5547999990001", "mestre": False,
+      "secoes": {"viagem": True, "produtividade": True, "desempenho": True,
+                 "multas": True, "ocorrencias": True, "jornada": False}}
 
 VIAGEM = {"viagem": {
     "numero": "178010", "placa": "NYP3J22", "carretas": ["JOK3011"],
@@ -87,7 +91,9 @@ def test_a_tarja_SOME_quando_o_numero_volta_a_ser_bom(pagina):
     pg.wait_for_selector("#tarja-velha:not([hidden])", timeout=15000)
 
     estado["velha"] = False
-    pg.evaluate("void abrirViagem('João da Silva')")
+    # A aba guarda o que ja carregou (`cache`): sem apagar a entrada, o clique
+    # repintaria a MESMA resposta e a tarja nunca teria chance de sumir.
+    pg.evaluate("void (delete cache.viagem, abrirAba('viagem'))")
     pg.wait_for_selector("#tarja-velha", state="hidden", timeout=15000)
 
 

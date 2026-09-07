@@ -175,8 +175,29 @@ def _rede() -> dict:
 def _idade_min(iso: str) -> int | None:
     """Minutos desde o carimbo ISO. Devolve None se ilegivel — data estranha
     nao pode derrubar a tela de saude, que e justamente onde se olha quando
-    algo esta errado."""
-    from datetime import datetime
+    algo esta errado.
+
+    `fromisoformat` PRIMEIRO, e nao so os tres formatos fixos: coluna
+    `timestamptz` do PostgreSQL sai como '2026-09-06T12:00:00.123456+00:00', e
+    nenhum dos `strptime` abaixo casa com fuso nem com microssegundo. O cartao
+    do app do motorista dizia "ultima entrada em data ilegivel" desde que
+    nasceu, por isto — defeito MUDO, porque a funcao tinha rede e a rede
+    escondia a causa. Os formatos fixos ficam para quem grava texto sem fuso
+    (a maior parte da casa).
+
+    Carimbo COM fuso se compara com um agora COM fuso: misturar os dois levanta
+    `TypeError`, que aqui viraria "ilegivel" de novo — a mesma mentira com
+    outra causa.
+    """
+    from datetime import datetime, timezone
+    try:
+        quando = datetime.fromisoformat(str(iso))
+    except (ValueError, TypeError):
+        quando = None
+    if quando is not None:
+        agora = (datetime.now(timezone.utc) if quando.tzinfo
+                 else datetime.now())
+        return int((agora - quando).total_seconds() // 60)
     for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"):
         try:
             return int((datetime.now() - datetime.strptime(iso, fmt)).total_seconds() // 60)
@@ -545,7 +566,18 @@ def _app_motorista() -> dict:
                               AND vista_em > now() - interval '7 days') AS vivas,
                           (SELECT count(*) FROM mot_codigos
                             WHERE criado_em > now() - interval '24 hours') AS pedidos,
-                          (SELECT max(criada_em) FROM mot_sessoes) AS ultima""")
+                          (SELECT max(criada_em) FROM mot_sessoes) AS ultima,
+                          -- ACESSO MESTRE: uso e tentativa, SEPARADOS. Um e
+                          -- conferencia normal de quem administra; o outro e
+                          -- alguem tentando o segredo. Somar os dois faria a
+                          -- Saude nao conseguir distinguir "esta sendo usado"
+                          -- de "esta sendo atacado".
+                          (SELECT count(*) FROM mot_sessoes
+                            WHERE mestre
+                              AND criada_em > now() - interval '7 days') AS mestres,
+                          (SELECT count(*) FROM mot_mestre_tentativas
+                            WHERE NOT aceita
+                              AND quando > now() - interval '24 hours') AS recusadas""")
             r = cur.fetchone()
     except Exception as exc:  # noqa: BLE001
         log.warning("saude: app do motorista: %s", type(exc).__name__)
@@ -564,6 +596,28 @@ def _app_motorista() -> dict:
     if r["ultima"]:
         partes.append("última entrada %s" % _ha_quanto(
             _idade_min(r["ultima"].isoformat())))
+
+    # O ACESSO MESTRE. **Não configurado NÃO é falha**, é instalação
+    # incompleta — a mesma regra da integração sem credencial: alarme que não
+    # distingue "quebrado" de "ainda não usado" treina todo mundo a ignorar
+    # alarme. Mas o silêncio TAMBÉM é defeito aqui: sem esta linha, ninguém
+    # descobre que ninguém consegue conferir o app até tentar.
+    try:
+        from api.motorista import mestre as _mm
+        if _mm.configurado():
+            partes.append("mestre configurado (%d uso(s) na semana)"
+                          % (r["mestres"] or 0))
+        else:
+            partes.append("mestre NÃO configurado — sem %s no cofre não há "
+                          "como conferir o app de um motorista" % _mm.CHAVE)
+        if (r["recusadas"] or 0) >= _mm.MAX_TENTATIVAS_HORA:
+            # Tentativa recusada NÃO é vermelho sozinha (erro de digitação
+            # existe), mas passar do teto de uma hora inteira em 24 h merece
+            # ser dito — é o único sinal de que alguém está tentando o segredo.
+            partes.append("⚠ %d tentativa(s) recusada(s) em 24 h"
+                          % r["recusadas"])
+    except Exception as exc:  # noqa: BLE001
+        log.info("saude: acesso mestre indisponivel (%s)", type(exc).__name__)
     return {"nome": nome, "status": "ok", "detalhe": " · ".join(partes)}
 
 
