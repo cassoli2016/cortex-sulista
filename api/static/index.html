@@ -2712,7 +2712,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
    O MINIMO e explicito (300px) e nao `auto`: e `minmax(auto,1fr)` que nao
    encolhe abaixo do min-content e empurra o cartao da direita para fora da
    tela, sem erro nenhum -- a regua mede a largura por isso. */
-.int-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+.int-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
   gap:18px;align-items:start}
 /* O CARTAO INTEIRO ABRE O MODAL, mas quem abre e um <button> DE VERDADE em
    volta do nome, esticado por cima do cartao com um ::after absoluto.
@@ -2746,8 +2746,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 .int-farol.st-ok{background:var(--green)}
 .int-farol.st-alerta{background:var(--yellow)}
 .int-farol.st-erro{background:var(--red)}
-.intcard .int-abrir{font-size:12px;color:var(--n500);margin-top:2px}
-.intcard:hover .int-abrir,.intcard:focus-visible .int-abrir{color:var(--orange-500)}
 /* ---- o modal de uma integracao ---- */
 .intm-cab{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 0 9px}
 .intm-cab h3{margin:0;font-size:17px}
@@ -2784,18 +2782,29 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 .intm-campos .ok{color:var(--green)}
 .intm-campos .nao{color:var(--yellow-700)}
 .intm-campos .opc{color:var(--n500);font-size:11.5px}
-.intcard h3{margin:0;font-size:15px;font-weight:600;color:var(--n900);
+.intcard h3{margin:0;font-size:14px;font-weight:600;color:var(--n900);
   display:flex;align-items:center;gap:9px;flex-wrap:wrap}
-.intcard p.resumo{margin:0;font-size:12.5px;color:var(--n600);line-height:1.5}
-.int-linha{display:grid;grid-template-columns:96px minmax(0,1fr);gap:9px;
-  font-size:12.5px;align-items:baseline}
+/* A COLUNA DO ROTULO SE MEDE SOZINHA. Ela era 96px escritos a mao, e o maior
+   rotulo ("CONFIGURAÇÃO", caixa alta com letter-spacing) quer 86 -- os 10px de
+   sobra eram vao dentro da linha, invisiveis para `auditar_espacos.py`, que
+   mede o espaco ENTRE componentes. Trocar 96 por 86 seria o mesmo erro com
+   outro numero: erra de novo no dia em que alguem renomear um rotulo.
+   `max-content` mede o texto; e as tres linhas viram `display:contents` para
+   caberem na MESMA grade, senao cada uma se mediria por conta e as colunas
+   sairiam desalinhadas entre si. */
+.int-linhas{display:grid;grid-template-columns:max-content minmax(0,1fr);
+  gap:9px;font-size:12px;line-height:1.45;align-items:baseline}
+.int-linha{display:contents}
 .int-linha .rot{color:var(--n500);text-transform:uppercase;font-size:10.5px;
   letter-spacing:.05em;font-weight:600}
 .int-linha .val{color:var(--n700);min-width:0;overflow-wrap:anywhere}
 .int-falta{color:var(--red)}
 .intcard .alimenta{font-size:12px;color:var(--n500)}
 @media(max-width:560px){ .int-grid{grid-template-columns:minmax(0,1fr)}
-  .int-linha{grid-template-columns:minmax(0,1fr);gap:2px} }
+  /* No celular o rotulo vai POR CIMA do valor: a coluna de rotulo mais a de
+     valor nao cabem lado a lado numa tela de 360px sem o valor quebrar em
+     quatro linhas. */
+  .int-linhas{grid-template-columns:minmax(0,1fr);gap:2px} }
 </style>
 <script>
 /* TEMA — carimbado ANTES do primeiro pixel.
@@ -38414,12 +38423,12 @@ function integCartao(i){
                 data-chave="${esc(i.chave)}"
                 onclick="integModalAbrir(this.dataset.chave)">${esc(i.nome)}</button>
         <span class="badge ${esc(rot[1])}">${esc(rot[0])}</span></h3>
-    <p class="resumo">${esc(i.resumo)}</p>
-    <div class="int-linha"><span class="rot">Alimenta</span><span class="val">${esc(i.alimenta)}</span></div>
-    <div class="int-linha"><span class="rot">Configuração</span><span class="val">${integCfgFrase(i.configuracao)}</span></div>
-    ${regime}
-    <div class="int-linha"><span class="rot">Chegada</span><span class="val">${esc(i.chegada.detalhe)}</span></div>
-    <div class="int-abrir">Ver e ajustar →</div>
+    <div class="int-linhas">
+      <div class="int-linha"><span class="rot">Alimenta</span><span class="val">${esc(i.alimenta)}</span></div>
+      <div class="int-linha"><span class="rot">Configuração</span><span class="val">${integCfgFrase(i.configuracao)}</span></div>
+      ${regime}
+      <div class="int-linha"><span class="rot">Chegada</span><span class="val">${esc(i.chegada.detalhe)}</span></div>
+    </div>
   </div>`;
 }
 

@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.6.1] — 07/09/2026  ·  CX-07/09/2026-v1.6.1
+
+### Alterado
+- Os cartões da tela de Integrações ficaram um terço menores (de 215 para 138 pixels de altura), então cabe mais integração na tela sem rolar.
+- Encolheram por corte de conteúdo, não por aperto: saiu a frase de resumo do fornecedor, que já abre no topo do painel de detalhe, e saiu a legenda "Ver e ajustar", que explicava um clique que o cursor e o realce já anunciam. Ficou o que responde a pergunta da tela — quem é, se está bem, o que alimenta, e as duas metades.
+
+### Corrigido
+- A coluna dos rótulos ("ALIMENTA", "CONFIGURAÇÃO", "CHEGADA") passou a se medir sozinha pelo texto mais largo. Ela tinha uma largura fixa escrita à mão, com dez pixels de sobra que ninguém via — e uma largura escrita à mão volta a errar no dia em que alguém renomeia um rótulo.
+
 ## [1.6.0] — 07/09/2026  ·  CX-07/09/2026-v1.6.0
 
 ### Adicionado
