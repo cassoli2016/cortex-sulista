@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.2.2] — 07/09/2026  ·  CX-07/09/2026-v1.2.2
+
+### Corrigido
+- Na tela Canal do Motorista, cinco cores e bordas não saíam. O CSS dela nasceu copiado do app do motorista, que tem paleta própria — e no painel esses nomes de cor não existem, o que faz o navegador descartar a declaração inteira, sem erro e sem aviso. O balão da conversa ficava sem fundo e sem borda, e os textos secundários saíam na cor errada.
+- E entrou a varredura que teria pego os cinco de uma vez: agora a suíte recusa qualquer cor usada no painel que nunca tenha sido definida. Ela achou de imediato outras quatro, anteriores a esta tela, que também estão caindo no chão hoje — ficam listadas como dívida, porque corrigi-las é escolher uma cor, e isso é decisão de quem é dono da marca.
+
 ## [1.2.1] — 07/09/2026  ·  CX-07/09/2026-v1.2.1
 
 ### Corrigido

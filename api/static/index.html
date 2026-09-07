@@ -498,9 +498,9 @@ svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-
   gap:var(--e2);align-items:start}
 @media (max-width:1100px){.rhmot-grade{grid-template-columns:minmax(0,1fr)}}
 .rhmot-item{display:block;width:100%;text-align:left;font:inherit;cursor:pointer;
-  background:none;border:0;border-bottom:1px solid var(--linha);padding:10px 8px}
-.rhmot-item:hover{background:var(--fundo)}
-.rhmot-item[aria-current="true"]{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+  background:none;border:0;border-bottom:1px solid var(--n200);padding:10px 8px}
+.rhmot-item:hover{background:var(--n50)}
+.rhmot-item[aria-current="true"]{background:color-mix(in srgb,var(--orange-500) 10%,transparent)}
 .rhmot-item .l1{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
 .rhmot-item .nome{font-weight:600}
 /* `text-align:left` EXPLÍCITO: a casa já tem uma `.meta` que alinha à
@@ -508,20 +508,20 @@ svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-
    especificidade. A regra existia, estava certa e NÃO VALIA — o nome do
    motorista ficava à esquerda e o resumo dele à direita, no mesmo cartão.
    Regra de componente dentro de um bloco estilizado nasce qualificada. */
-.rhmot-item .meta{font-size:12px;color:var(--ink2);margin-top:2px;
+.rhmot-item .meta{font-size:12px;color:var(--n500);margin-top:2px;
   text-align:left}
 .rhmot-bolha{border-radius:10px;padding:9px 11px;margin-bottom:9px;max-width:88%;
   font-size:14px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
-.rhmot-bolha.motorista{background:var(--fundo);border:1px solid var(--linha)}
-.rhmot-bolha.rh{background:color-mix(in srgb,var(--accent) 12%,transparent);
-  margin-left:auto;border:1px solid color-mix(in srgb,var(--accent) 30%,transparent)}
-.rhmot-bolha.sistema{background:none;border:0;color:var(--ink2);font-size:12.5px;
+.rhmot-bolha.motorista{background:var(--n50);border:1px solid var(--n200)}
+.rhmot-bolha.rh{background:color-mix(in srgb,var(--orange-500) 12%,transparent);
+  margin-left:auto;border:1px solid color-mix(in srgb,var(--orange-500) 30%,transparent)}
+.rhmot-bolha.sistema{background:none;border:0;color:var(--n500);font-size:12.5px;
   text-align:center;max-width:100%;padding:4px 0}
-.rhmot-bolha .quem{font-size:11px;color:var(--ink2);margin-bottom:3px;
+.rhmot-bolha .quem{font-size:11px;color:var(--n500);margin-bottom:3px;
   text-transform:uppercase;letter-spacing:.05em;font-weight:600}
 .rhmot-fio{max-height:46vh;overflow:auto;padding-right:4px}
 .rhmot-resp{width:100%;font:inherit;font-size:14px;padding:9px;border-radius:8px;
-  border:1px solid var(--n300);background:var(--papel);color:var(--ink);
+  border:1px solid var(--n300);background:var(--n0);color:var(--n900);
   min-height:74px;resize:vertical}
 
 .milk-filtros{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;
@@ -19621,7 +19621,7 @@ function renderRhmotConversa(d){
     + '<textarea class="rhmot-resp" id="rhmotTexto" placeholder="Escreva a resposta. O motorista recebe um aviso no WhatsApp — sem o conteúdo — e lê no app." aria-label="Resposta ao motorista"></textarea>'
     + '<div style="display:flex;gap:9px;align-items:center;margin-top:9px;flex-wrap:wrap">'
     + '<button class="btn" type="button" onclick="rhmotResponder()">Responder</button>'
-    + '<label style="font-size:12px;color:var(--ink2)">Estado '
+    + '<label style="font-size:12px;color:var(--n500)">Estado '
     + '<select id="rhmotStatus" onchange="rhmotStatus()" aria-label="Mudar o estado">'+opts+'</select></label>'
     + '</div>';
 }

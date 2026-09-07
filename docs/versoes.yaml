@@ -1,3 +1,18 @@
+- versao: "1.2.2"
+  data: "2026-09-07"
+  corrigido:
+    - >-
+      Na tela Canal do Motorista, cinco cores e bordas não saíam. O CSS dela
+      nasceu copiado do app do motorista, que tem paleta própria — e no painel
+      esses nomes de cor não existem, o que faz o navegador descartar a
+      declaração inteira, sem erro e sem aviso. O balão da conversa ficava sem
+      fundo e sem borda, e os textos secundários saíam na cor errada.
+    - >-
+      E entrou a varredura que teria pego os cinco de uma vez: agora a suíte
+      recusa qualquer cor usada no painel que nunca tenha sido definida. Ela
+      achou de imediato outras quatro, anteriores a esta tela, que também estão
+      caindo no chão hoje — ficam listadas como dívida, porque corrigi-las é
+      escolher uma cor, e isso é decisão de quem é dono da marca.
 - versao: "1.2.1"
   data: "2026-09-07"
   corrigido:

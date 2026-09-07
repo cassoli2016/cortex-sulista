@@ -239,3 +239,65 @@ def test_o_botao_DIZ_em_que_estado_esta(pagina, tema):
     _abrir(pg, base_url, tema=tema)
     titulo = pg.get_attribute("#btnTema", "title") or ""
     assert "fixo em " + tema in titulo, titulo
+
+
+def test_TODO_token_usado_no_painel_EXISTE():
+    """O guard que teria pego os cinco, e não só o `--ink`.
+
+    ISTO FOI UM DEFEITO DE VERDADE, em 07/09/2026: a tela `rhmot` nasceu com
+    CSS copiado do app do motorista, que tem paleta PRÓPRIA (`--ink`, `--ink2`,
+    `--papel`, `--linha`, `--fundo`). No painel esses nomes não existem, e
+    `var(--linha)` SEM FALLBACK é declaração INVÁLIDA: o navegador descarta a
+    propriedade inteira e a borda não sai — sem erro, sem console, sem nada.
+
+    O `test_nao_ha_var_ink_fantasma_no_css` pegou UM porque procura o literal
+    `var(--ink`; os outros quatro passaram. Guard que nomeia um token protege
+    aquele token. Este varre o CONJUNTO, então o próximo nome inventado cai
+    sozinho.
+
+    **SÓ CONTA O QUE NÃO TEM FALLBACK.** `var(--navy-25,#F4F8FC)` é feio (é
+    literal com disfarce, e o docstring do guard do `--ink` já diz isso), mas
+    FUNCIONA — a cor sai. Misturar os dois casos faria este guard falar de
+    estilo quando ele existe para falar de coisa quebrada.
+
+    DÍVIDA CONHECIDA, medida em 07/09/2026 e ANTERIOR a esta tela: quatro
+    tokens sem fallback e sem declaração — `--amber` (3 usos), `--e2` (1),
+    `--green-700` (2) e `--n800` (3). São propriedades caindo no chão hoje, no
+    painel em produção. Ficam listadas em vez de corrigidas às pressas porque
+    corrigi-las é ESCOLHER UMA COR, e cor do painel é decisão de quem é dono da
+    marca — não de quem passou por aqui. A lista só pode ENCOLHER.
+    """
+    import re
+    # `var(--x)` sem vírgula = sem fallback. Com vírgula, a cor sai.
+    sem_fallback = set(re.findall(r"var\(\s*(--[A-Za-z0-9_-]+)\s*\)", HTML))
+    declarados = set(re.findall(r"(--[A-Za-z0-9_-]+)\s*:", HTML))
+    fantasmas = sem_fallback - declarados
+
+    conhecidos = {"--amber", "--e2", "--green-700", "--n800"}
+    novos = sorted(fantasmas - conhecidos)
+    assert not novos, (
+        "token usado SEM FALLBACK e nunca declarado: %s — `var()` de nome "
+        "inexistente é declaração inválida, e o navegador descarta a "
+        "propriedade em silêncio" % ", ".join(novos))
+
+    # A LISTA SÓ ENCOLHE. Um nome que já foi corrigido e continua aqui faz a
+    # dívida parecer maior do que é, e no dia seguinte ninguém confia nela.
+    resolvidos = sorted(conhecidos - fantasmas)
+    assert not resolvidos, (
+        "estes já foram corrigidos e continuam na lista de dívida: %s — tire-os"
+        % ", ".join(resolvidos))
+
+
+def test_o_guard_de_token_ENXERGA_um_fantasma():
+    """A sabotagem em forma de teste: sem isto, a varredura acima poderia estar
+    lendo o HTML errado (ou uma regex que não casa nada) e ficaria verde para
+    sempre — o defeito que ela existe para pegar, aprovado por ela."""
+    import re
+    falso = ".x{color:var(--nao-existe-mesmo)} .y{border-color:var(--tambem-nao,#fff)}"
+    sem_fallback = set(re.findall(r"var\(\s*(--[A-Za-z0-9_-]+)\s*\)", falso))
+    declarados = set(re.findall(r"(--[A-Za-z0-9_-]+)\s*:", falso))
+    assert sem_fallback - declarados == {"--nao-existe-mesmo"}, (
+        "a regex deixou passar o fantasma, ou pegou o que TEM fallback")
+    # e o HTML de verdade declara tokens de sobra — se `declarados` viesse
+    # vazio, o guard acima acusaria tudo e ninguém acreditaria nele
+    assert len(set(re.findall(r"(--[A-Za-z0-9_-]+)\s*:", HTML))) > 20
