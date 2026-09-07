@@ -63,9 +63,20 @@ operação não realizada (210240) AFIRMAM, têm consequência fiscal e não se
 automatizam: exigem alguém pedindo, e a trilha guarda quem foi
 (`dfe_manifestacao`).
 
-Com a contabilidade na mesma caixa (acima), nem a ciência é automática por
-enquanto: sem o XML completo a casa fica com o resumo, o que é uma perda REAL —
-mas menor que dois sistemas assumindo ciência da mesma nota.
+**DECISÃO DE QUEM OPERA, 07/09/2026: a manifestação fica para um segundo
+momento.** Nada neste módulo escreve na SEFAZ — a recolha é só leitura, e é
+assim que ela vai para produção.
+
+O que isso custa, dito na cara: **a casa fica com o RESUMO, não com o XML.**
+`resNFe` traz chave, emitente, valor e situação — dá para conferir a nota
+contra a ordem de compra e para saber que ela existe. Não dá para a guarda
+fiscal de cinco anos, que é do documento autorizado. Enquanto a manifestação
+não vier para cá (ou a contabilidade não repassar o XML), essa metade continua
+com eles.
+
+A tela DIZ isso em cada documento, em vez de deixar parecer que a nota inteira
+está guardada: `completo = false` não é um detalhe técnico, é a diferença entre
+ter e não ter a obrigação cumprida.
 
 O AMBIENTE
 ----------

@@ -607,6 +607,22 @@ glossario:
   definicao: 'Nota de 0 a 100 que a plataforma de telemetria atribui ao motorista no mês, a partir do
     comportamento de condução. É o insumo da premiação junto com o km rodado: prêmio = km × valor por
     km × (nota ÷ 100).'
+- termo: NSU (recolha da SEFAZ)
+  definicao: 'Número Sequencial Único: o ponteiro da caixa de entrada de documentos fiscais de um CNPJ
+    na SEFAZ. Pede-se "o que veio DEPOIS do NSU X" e ela devolve o próximo lote. É por CNPJ, não por
+    quem consulta — então a Sulista tem dez caixas, uma por filial ativa, e um contador que já está em
+    1,1 milhão porque a contabilidade também lê essa mesma caixa. Buraco na numeração é NORMAL: a
+    sequência é do ambiente nacional e ela pula o que não diz respeito à empresa. A SEFAZ freia quem
+    consulta repetidamente sem resultado (código 656, cerca de uma hora de castigo), e por isso a
+    recolha roda de duas em duas horas e não de hora em hora.'
+- termo: Resumo × XML completo
+  definicao: 'A SEFAZ entrega apenas o RESUMO de uma nota de entrada — chave, emitente, valor e
+    situação — enquanto o destinatário não manifestar CIÊNCIA da operação. O XML completo, que é o
+    documento autorizado e o que a lei manda guardar por cinco anos, só vem depois disso. Por isso a
+    tela de Notas de Entrada marca cada linha como "só resumo" ou "XML completo": não é detalhe
+    técnico, é a diferença entre ter e não ter a obrigação cumprida. A manifestação ficou para um
+    segundo momento porque a contabilidade já baixa a mesma caixa, e dois sistemas manifestando a
+    mesma nota geram evento duplicado — quem manifesta assume a ciência com prazo legal correndo.'
 - termo: Integração parada
   definicao: 'Uma integração pode estar CONFIGURADA e mesmo assim não estar trazendo dado — a
     credencial continua válida e a coleta parou. As duas metades da pergunta viviam em telas
@@ -757,13 +773,24 @@ grupos:
     contábil, orçamento contra realizado, previsão de fechamento do mês e o controle de certidões e licenças.
   telas:
   - dre
-  - ctecp
   - bal
   - cont
   - orc
   - fech
   - qual
   - fat
+- nome: TMS
+  resumo: >-
+    A frente fiscal: documento eletrônico trocado direto com a SEFAZ, sem
+    intermediário. De um lado o CT-e de Contrapartida, que a casa EMITE por
+    conta e ordem do agregado; do outro as Notas de Entrada, que a casa
+    RECOLHE — tudo que os fornecedores emitiram contra o CNPJ da Sulista, pelo
+    serviço nacional de Distribuição de DFe. As duas usam o mesmo certificado
+    A1 e a mesma pilha, e ficam juntas por isso: quando o certificado vence, as
+    duas param no mesmo dia.
+  telas:
+  - ctecp
+  - dfe
 - nome: Comercial
   resumo: Clientes, receita por quilômetro, concentração de carteira, margem por cliente, pipeline de leads e a consulta 360
     de um cliente.

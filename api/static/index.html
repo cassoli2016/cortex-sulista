@@ -2805,6 +2805,17 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
      valor nao cabem lado a lado numa tela de 360px sem o valor quebrar em
      quatro linhas. */
   .int-linhas{grid-template-columns:minmax(0,1fr);gap:2px} }
+/* --- tela Notas de Entrada (DFe da SEFAZ) ------------------------------ */
+/* O CHIP DO ESTADO DO DOCUMENTO. `resumo` e `completo` NAO sao decoracao:
+   e a diferenca entre ter e nao ter a guarda fiscal cumprida, e por isso
+   aparece em toda linha em vez de num rodape. */
+.dfe-so-resumo{background:var(--yellow-100);color:var(--yellow-700)}
+.dfe-completo{background:var(--green-100);color:var(--green)}
+.dfe-nsu{font-family:var(--mono);font-size:11.5px;color:var(--n600);
+  white-space:nowrap}
+.dfe-cx td{vertical-align:top}
+.dfe-cx .cert{font-size:11.5px;color:var(--n500)}
+.dfe-cx .cert.mal{color:var(--red)}
 </style>
 <script>
 /* TEMA — carimbado ANTES do primeiro pixel.
@@ -2913,7 +2924,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <div class="subs closed" id="subsCtr">
         <a href="#bal" class="sub" data-view="bal" title="Balanço Patrimonial"><span class="ic" data-ic="balanca"></span><span>Balanço Patrimonial</span></a>
         <a href="#cont" class="sub" data-view="cont" title="Contabilidade — ajuste de agrupadores"><span class="ic" data-ic="ctb"></span><span>Contabilidade</span></a>
-        <a href="#ctecp" class="sub" data-view="ctecp" title="CT-e de Contrapartida — conciliação dos CT-e de agregado que aguardam documento do transportador"><span class="ic" data-ic="ctb"></span><span>CT-e de Contrapartida</span></a>
         <a href="#dre" class="sub" data-view="dre" title="DRE Gerencial"><span class="ic" data-ic="dre"></span><span>DRE Gerencial</span></a>
         <a href="#fat" class="sub" data-view="fat" title="Faturamento Detalhado — emissões do dia a dia contra a meta, por modalidade e cliente"><span class="ic" data-ic="fatic"></span><span>Faturamento Detalhado</span></a>
         <a href="#fech" class="sub" data-view="fech" title="Fechamento do Mês — previsão do resultado antes de fechar"><span class="ic" data-ic="fechic"></span><span>Fechamento do Mês</span></a>
@@ -3015,6 +3025,13 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#telcon" class="sub" data-view="telcon" title="Consumo e Estatísticas — km/l da telemetria contra o abastecimento"><span class="ic" data-ic="telconic"></span><span>Consumo e Estatísticas</span></a>
         <a href="#telhod" class="sub" data-view="telhod" title="Hodômetro e Rastro — leitura direta do veículo e trajeto no mapa"><span class="ic" data-ic="rastroic"></span><span>Hodômetro e Rastro</span></a>
         <a href="#prem" class="sub" data-view="prem" title="Premiação de Motoristas — nota da Gobrax e km rodado"><span class="ic" data-ic="prem"></span><span>Premiação de Motoristas</span></a>
+      </div>
+      <button class="group" id="grpTms" aria-expanded="false" aria-controls="subsTms" onclick="toggleGroup('grpTms','subsTms','cs.tmsGroup')" title="TMS — a frente fiscal: documento eletrônico contra a SEFAZ">
+        <span class="ic" data-ic="tmsic"></span><span>TMS</span><span class="ic chev" data-ic="chev"></span>
+      </button>
+      <div class="subs closed" id="subsTms">
+        <a href="#ctecp" class="sub" data-view="ctecp" title="CT-e de Contrapartida — conciliação dos CT-e de agregado que aguardam documento do transportador"><span class="ic" data-ic="ctb"></span><span>CT-e de Contrapartida</span></a>
+        <a href="#dfe" class="sub" data-view="dfe" title="Notas de Entrada — o que os fornecedores emitiram contra a Sulista, direto da SEFAZ"><span class="ic" data-ic="dfeic"></span><span>Notas de Entrada</span></a>
       </div>
       <div class="navsep" role="separator"></div>
       <button class="group" id="grpAdm" aria-expanded="false" aria-controls="subsAdm" onclick="toggleGroup('grpAdm','subsAdm','cs.admGroup')" title="Administração">
@@ -6987,6 +7004,19 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         </div>
       </section>
+      <section class="view" id="view-dfe">
+        <div class="kband"><div class="kpis k4" id="dfe-kpis"></div></div>
+        <div class="card"><div class="head"><h2>A recolha, filial por filial</h2><span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: o serviço nacional de Distribuição de DFe da SEFAZ (NFeDistribuicaoDFe), consultado por CNPJ com o certificado A1 da empresa. São dez caixas, uma por filial ativa — o serviço mantém uma sequência de NSU separada para cada CNPJ. O NSU é o ponteiro da recolha: pede-se o que veio DEPOIS dele. &quot;Falta&quot; é a distância até o maior NSU que existe na SEFAZ. Esta tela NÃO dispara consulta: quem recolhe é a tarefa agendada, de 2 em 2 horas das 07h às 19h — a SEFAZ freia consulta repetida sem resultado.">ⓘ</span></div>
+          <div class="tabroll" style="max-height:230px"><table class="tab dfe-cx"><thead><tr>
+            <th>Filial</th><th>UF</th><th class="num">Recolhidos</th><th class="num">Falta</th>
+            <th>Última recolha</th><th>Estado</th><th>Certificado</th>
+          </tr></thead><tbody id="dfe-caixas"></tbody></table></div></div>
+        <div class="card"><div class="head"><h2>Documentos recolhidos</h2><span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: dfe_documento, no banco da casa — o XML fica guardado aqui, e não em arquivo, porque a guarda é de cinco anos e o backup que se prova todo dia é o do PostgreSQL. ATENÇÃO AO ESTADO: a SEFAZ entrega apenas o RESUMO (chave, emitente, valor, situação) enquanto o destinatário não manifesta ciência da operação; o XML completo só vem depois disso. A manifestação ficou para um segundo momento — e a contabilidade já baixa esta mesma caixa, então manifestar aqui geraria evento duplicado. Enquanto isso, &quot;só resumo&quot; quer dizer que a nota inteira NÃO está guardada aqui.">ⓘ</span><span class="hint" id="dfe-hint"></span></div>
+          <div class="tabroll" style="max-height:400px"><table class="tab"><thead><tr>
+            <th>Emissão</th><th>Emitente</th><th class="num">Valor</th>
+            <th>Tipo</th><th>Situação</th><th>Estado</th><th>NSU</th>
+          </tr></thead><tbody id="dfe-docs"></tbody></table></div></div>
+      </section>
       <section class="view" id="view-pecas">
         <div class="card">
           <div class="head"><h2>Preço de Peças <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Itens de PEÇA comprados pela manutenção (solicitação de compra, tipo de operação 103), com o preço unitário de cada compra comparado à MEDIANA do próprio código de produto na janela. Serviço, pneu, sinistro e reforma ficam de fora: misturados, envenenam a mediana. A janela padrão é de doze meses porque a mediana precisa de volume — com noventa dias, metade dos produtos fica sem régua.">i</span></h2><span class="hint">o que a oficina paga pela mesma peça, e onde isso destoa</span></div>
@@ -8683,6 +8713,8 @@ const ICONS = {
   sacic: IC('<path d="M5 13v-1a7 7 0 0 1 14 0v1"/><rect x="3" y="13" width="3.5" height="6" rx="1.5"/><rect x="17.5" y="13" width="3.5" height="6" rx="1.5"/><path d="M19 19v.5a3 3 0 0 1-3 3h-2"/>'),
   folhaic: IC('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9.5h4M7 13h6"/><circle cx="16.5" cy="11.5" r="2.3"/><path d="M16.5 10v3"/>'),
   qualic: IC('<rect x="4" y="3" width="16" height="13" rx="2"/><path d="M8 7.5h8M8 11h5"/><circle cx="12" cy="17" r="3"/><path d="m10.5 19.5-1 3 2.5-1.3 2.5 1.3-1-3"/>'),
+  dfeic: IC('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 14h6"/><path d="M9 17.5h3.5"/>'),
+  tmsic: IC('<path d="M3 7h11v8H3z"/><path d="M14 10h4l3 3v2h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>'),
   pecasic: IC('<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-7.2-7.2A2 2 0 0 1 3 12V4a1 1 0 0 1 1-1h8a2 2 0 0 1 1.4.6l7.2 7.2a2 2 0 0 1 0 2.6Z"/><circle cx="7.5" cy="7.5" r="1.5"/>'),
   custosic: IC('<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v5c0 1.6 3.1 3 7 3s7-1.4 7-3V6M5 11v5c0 1.6 3.1 3 7 3s7-1.4 7-3v-5"/>'),
   cexic: IC('<path d="M6 3h12v18l-2.5-1.5L13 21l-2.5-1.5L8 21l-2-1.5z"/><path d="M9 8h6M9 11.5h4"/><path d="M15 15.5h3.5M16.75 13.75v3.5"/>'),
@@ -8796,7 +8828,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { tvcom:'Painel TV — Comunicação', home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { tvcom:'Painel TV — Comunicação', home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Notas de Entrada', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -9067,7 +9099,8 @@ function toggleGroup(gid,sid,key){
 const VIEW_GROUP = {home:'',cop:'',apps:'',
   com:'Com',clif:'Com',crm:'Com',rent:'Com',drecli:'Com',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',banc:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',antport:'Fin',fluxcon:'Fin',rec:'Fin',
-  dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',ctecp:'Ctr',
+  dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',
+  ctecp:'Tms',dfe:'Tms',
   torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',cliop:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',pedagio:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',pecas:'Sup',
@@ -9419,7 +9452,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,pecas:DATAPECAS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={apps:loadApps,integ:loadInteg,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+  const LOADMAP={apps:loadApps,integ:loadInteg,dfe:loadDfe,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -9478,6 +9511,7 @@ const NAV_KW={
   comrast:'rastreador comunicacao sinal offline', comb:'diesel abastecimento posto consumo km/l arla',
   man:'oficina os ordem servico corretiva peca',
   mul:'multa infracao transito pontos cnh smartec notificacao boleto sne detran indicacao condutor licenca cronotacografo antt licenciamento ipva restricao renavam',
+  dfe:'nota entrada nfe dfe sefaz fornecedor xml fiscal chave manifestacao ciencia nsu distribuicao recolha danfe',
   oc:'compra ordem fornecedor entrada nota', custos:'custo painel despesa', pecas:'peça preço mediana sobrepreço fornecedor cotação oficina manutenção',
   hc:'headcount quadro pessoas colaboradores', folha:'salario folha pagamento custo pessoal',
   folhaind:'indicador folha rh', he:'hora extra sobreaviso adicional',
@@ -38359,6 +38393,80 @@ function supLinhaAttrs(id, modo){
    como se ensina a ignorar vermelho. */
 const INTEG_ROT = {ok:['em dia','b-ok'], alerta:['atenção','b-warn'],
                    erro:['parado','b-dang'], info:['sem alarme','b-info']};
+const DFE_TIPO = {nfe:'NF-e', cte:'CT-e', evento:'Evento', desconhecido:'—'};
+/* A situacao vem do CAMPO do documento, nunca da ausencia de outro:
+   1 autorizada, 2 denegada, 3 cancelada (resumo); 100 autorizada (completo). */
+const DFE_SIT = {'1':['Autorizada','b-ok'], '2':['Denegada','b-dang'],
+                 '3':['Cancelada','b-dang'], '100':['Autorizada','b-ok']};
+async function loadDfe(){
+  const tbC = document.getElementById('dfe-caixas');
+  const tbD = document.getElementById('dfe-docs');
+  const kb  = document.getElementById('dfe-kpis');
+  const hint= document.getElementById('dfe-hint');
+  if(!tbC) return;
+  try{
+    const r = await fetch('/api/dfe',{cache:'no-store'});
+    const d = await respostaJSON(r);
+    if(!d.ok){ tbC.innerHTML = '<tr><td colspan="7" class="vazio">'+esc((d.dados||{}).erro||'Não foi possível ler a recolha.')+'</td></tr>'; return; }
+    const dd = d.dados||{}, caixas = dd.caixas||[], docs = dd.documentos||[], tot = dd.total||{};
+
+    const recolhendo = caixas.filter(c=>(c.certificado||{}).tem_certificado).length;
+    if(kb) kb.innerHTML =
+      kpi('Documentos', tot.total ?? 0, 'recolhidos da SEFAZ e guardados aqui')+
+      kpi('Só o resumo', tot.pendentes ?? 0, 'o XML completo depende da manifestação')+
+      kpi('Filiais recolhendo', recolhendo+' de '+caixas.length, 'as demais não têm certificado no cofre')+
+      kpi('NF-e / CT-e', (tot.nfe ?? 0)+' / '+(tot.cte ?? 0), (tot.eventos ?? 0)+' evento(s)');
+
+    tbC.innerHTML = caixas.map(c=>{
+      const cert = c.certificado||{};
+      /* O certificado e a unica coisa que PARA a recolha sem dar erro em lugar
+         nenhum -- por isso vence, vencido e ausente sao ditos aqui. */
+      let cs = 'sem certificado', cls = 'mal';
+      if(cert.tem_certificado){
+        if(cert.erro){ cs = esc(cert.erro); }
+        else if(cert.vencido){ cs = 'VENCIDO em '+esc(cert.valida_ate||'?'); }
+        else if(cert.dias!=null && cert.dias<=30){ cs = 'vence em '+cert.dias+' d'; }
+        else { cs = 'vale até '+esc(cert.valida_ate||'?'); cls=''; }
+      }
+      const est = c.cstat==='656' ? statChip('warn','freada pela SEFAZ')
+                : c.parada        ? statChip('bad','parada há '+Math.round(c.idade_h)+'h')
+                : c.cstat==='137' ? statChip('good','em dia')
+                : c.cstat==='138' ? statChip('good','recolhendo')
+                : c.cstat         ? statChip('warn', esc(c.cstat))
+                :                   statChip('flat','nunca consultada');
+      return `<tr>
+        <td>${esc(c.apelido||c.cnpj)}<div class="dfe-nsu">${esc(c.cnpj)}</div></td>
+        <td>${esc(c.uf||'')}</td>
+        <td class="num">${(c.documentos||{}).total ?? 0}</td>
+        <td class="num">${c.falta==null?'—':numBR(c.falta,0)}</td>
+        <td>${c.ultima_consulta?fmtDT(c.ultima_consulta):'—'}<div class="dfe-nsu">NSU ${esc(c.ultimo_nsu||'')}</div></td>
+        <td>${est}</td>
+        <td class="cert ${cls}">${cs}</td>
+      </tr>`;
+    }).join('')||'<tr><td colspan="7" class="vazio">Nenhuma caixa aberta.</td></tr>';
+
+    if(hint) hint.textContent = docs.length ? docs.length+' mais recentes' : '';
+    tbD.innerHTML = docs.map(x=>{
+      const sit = DFE_SIT[String(x.situacao||'')] || [x.situacao||'—','b-info'];
+      /* "Só resumo" NAO e detalhe tecnico: e a diferenca entre ter e nao ter a
+         obrigacao de guarda cumprida. Por isso esta em toda linha. */
+      const estado = x.completo
+        ? '<span class="badge dfe-completo" title="o XML autorizado está guardado aqui">XML completo</span>'
+        : '<span class="badge dfe-so-resumo" title="a SEFAZ só entrega o resumo enquanto não houver manifestação de ciência — a nota inteira NÃO está guardada aqui">só resumo</span>';
+      return `<tr>
+        <td>${x.emitido_em?fmtDT(x.emitido_em):'—'}</td>
+        <td>${esc(x.emitente_nome||x.emitente||'—')}</td>
+        <td class="num">${x.valor==null?'—':numBR(x.valor,2)}</td>
+        <td>${esc(DFE_TIPO[x.tipo]||x.tipo||'—')}</td>
+        <td><span class="badge ${sit[1]}">${esc(sit[0])}</span></td>
+        <td>${estado}</td>
+        <td class="dfe-nsu">${esc(x.nsu)}</td>
+      </tr>`;
+    }).join('')||'<tr><td colspan="7" class="vazio">Nenhum documento recolhido ainda.</td></tr>';
+  }catch(err){
+    tbC.innerHTML = '<tr><td colspan="7" class="vazio">'+esc(err.message||'Não foi possível falar com a API.')+'</td></tr>';
+  }
+}
 async function loadInteg(){
   const el = document.getElementById('integ-lista');
   const kb = document.getElementById('integ-kpis');
@@ -39155,6 +39263,13 @@ boot();
         <a href="#telcon" onclick="fecharDrawer()"><span class="ic" data-ic="comb"></span>Consumo</a>
         <a href="#telhod" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Hodômetro</a>
         <a href="#prem" onclick="fecharDrawer()"><span class="ic" data-ic="prem"></span>Premiação de Motoristas</a>
+      </div>
+    </div>
+    <div class="dgrp" data-grp="Tms">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>TMS</span><span class="dchev">›</span></button>
+      <div class="dgrp-b">
+        <a href="#ctecp" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>CT-e de Contrapartida</a>
+        <a href="#dfe" onclick="fecharDrawer()"><span class="ic" data-ic="dfeic"></span>Notas de Entrada</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Adm">

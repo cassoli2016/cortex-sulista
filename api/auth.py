@@ -101,10 +101,6 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "oc":      ("Ordens de Compra", "Suprimentos"),
     "custos":  ("Painel de Custos", "Suprimentos"),
     "pecas":   ("Preço de Peças", "Suprimentos"),
-    # Notas de entrada recolhidas da SEFAZ. Fica em SUPRIMENTOS e nao em
-    # Controladoria porque quem usa e quem compra: a nota do fornecedor casa
-    # com a ordem de compra, e e la que a divergencia aparece.
-    "dfe":     ("Notas de Entrada", "Suprimentos"),
     "comb":    ("Combustível", "Frota"),
     "man":     ("Manutenção", "Frota"),
     "veic":    ("Veículos", "Frota"),
@@ -128,7 +124,14 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
                 "Recursos Humanos"),
     "he":      ("Horas Extras", "Recursos Humanos"),
     "poli":    ("Permanência na Planta — Tupy", "Operação"),
-    "ctecp":   ("CT-e de Contrapartida", "Controladoria"),
+    # GRUPO TMS: a frente fiscal fica separada das demais (pedido de quem
+    # opera, 07/09/2026). Sao as telas que falam DOCUMENTO ELETRONICO com a
+    # SEFAZ -- emitir (contrapartida) e recolher (notas de entrada).
+    #
+    # O `ctecp` veio de Controladoria. Trocar de grupo NAO mexe em RBAC: o
+    # acesso e por id de tela, e o grupo so diz onde ela aparece no menu.
+    "ctecp":   ("CT-e de Contrapartida", "TMS"),
+    "dfe":     ("Notas de Entrada", "TMS"),
     "anpiso":  ("Piso Mínimo de Frete", "ANTT"),
     "anrntrc": ("RNTRC dos Transportadores", "ANTT"),
     "telcon":  ("Consumo e Estatísticas", "Telemetria"),
