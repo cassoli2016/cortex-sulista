@@ -242,18 +242,58 @@ def _mensagem(payload) -> str:
                 return v.strip()
             if isinstance(v, dict):
                 interno = _mensagem(v)
-                if interno:
+                if interno and not interno.startswith("{"):
+                    return interno
+        # ENVELOPE. A APIBrasil embrulha o resultado (`{"response": {...}}`),
+        # e uma recusa aninhada sairia sem texto se a busca parasse no topo --
+        # recusa sem mensagem e pior que corpo truncado, porque quem le nao
+        # tem o que investigar.
+        for v in payload.values():
+            if isinstance(v, dict):
+                interno = _mensagem(v)
+                if interno and not interno.startswith("{"):
                     return interno
     return str(payload)[:300]
 
 
+#: Mensagens que falam da CONTA, não da placa. Elas vêm ANTES de qualquer
+#: outra leitura porque a mais comum delas — "Plano ativo não encontrado" —
+#: CONTÉM "não encontrado", e sem esta lista ela seria lida como "o Detran não
+#: conhece esta placa".
+#:
+#: MEDIDO em 08/09/2026 com o Bearer no cofre e sem produto contratado:
+#: HTTP 404 {"error":true,"message":"Plano ativo não encontrado."}
+#:
+#: A confusão não teria sintoma: uma carga de 1.446 placas gravaria todas como
+#: desconhecidas do Detran — um "achado" falso e caro, porque desconhecida no
+#: Detran é justamente o sinal de cadastro furado que se foi buscar. O painel
+#: mostraria 1.446 problemas graves onde há uma assinatura a resolver.
+_ERRO_DE_CONTA = (
+    "plano", "assinatura", "subscription", "credito", "crédito", "saldo",
+    "nao autorizado", "não autorizado", "unauthorized", "forbidden",
+    "token", "limite excedido", "quota", "cota",
+)
+
+
+def _erro_de_conta(payload) -> bool:
+    """A recusa é sobre a NOSSA conta, não sobre a placa perguntada."""
+    texto = _mensagem(payload).lower()
+    return any(m in texto for m in _ERRO_DE_CONTA)
+
+
 def _vazio(payload) -> bool:
-    """A resposta diz "não encontrei esta placa"?
+    """A resposta diz "não encontrei esta PLACA"?
 
     Regra por ENDPOINT, nunca genérica: a Smartec manda ausência com HTTP 400
     e a RasterJOR com HTTP 200 e mensagem no corpo. Aqui a decisão é pelo
     TEXTO da mensagem, porque é o que sobrevive à variação de status.
+
+    E a ordem importa mais que a lista: erro de CONTA é conferido primeiro,
+    senão "Plano ativo não encontrado" cai no "não encontrado" e vira ausência
+    de placa. Ver `_ERRO_DE_CONTA`.
     """
+    if _erro_de_conta(payload):
+        return False
     texto = _mensagem(payload).lower()
     return any(m in texto for m in (
         "nao encontrado", "não encontrado", "not found", "nenhum registro",

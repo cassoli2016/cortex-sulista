@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.12.1] — 08/09/2026  ·  CX-08/09/2026-v1.12.1
+
+### Corrigido
+- Problema de assinatura da APIBrasil deixou de ser confundido com "placa desconhecida no Detran". A APIBrasil responde "Plano ativo não encontrado" quando o produto não está contratado, e a frase contém "não encontrado" — a coleta leria isso como se o Detran não conhecesse o veículo. Uma carga completa marcaria as 1.446 placas como cadastro furado, que é justamente o achado grave que a tela existe para mostrar: seriam 1.446 problemas inventados no lugar de uma assinatura a resolver.
+
 ## [1.12.0] — 08/09/2026  ·  CX-08/09/2026-v1.12.0
 
 ### Adicionado
