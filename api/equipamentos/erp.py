@@ -24,7 +24,7 @@ O QUE FOI MEDIDO ANTES DE ESCREVER ISTO (07/09/2026)
   CRU, e o cadastro diz que é o código do ERP. Código sem domínio não vira
   rótulo inventado — o nome do modelo vem do Detran ou não vem.
 - **`corcabine` está vazio em 100% da frota**; quem tem a cor é
-  `idcorveiculocabine` (1.272 de 1.977, 64%), que casa com `public.corveiculo`.
+  `idcorveiculocabine` (56% da frota ATIVA), que casa com `public.corveiculo`.
   Ler o campo texto e concluir "o ERP não tem cor" seria falso — a cor está
   ali, noutra coluna.
 - **`tipoveiculo.tracao` e `.reboca` são flags 1=sim / 2=não**, e é delas que
@@ -38,7 +38,8 @@ O QUE FOI MEDIDO ANTES DE ESCREVER ISTO (07/09/2026)
 O QUE ESTA FONTE NÃO PODE RESPONDER
 ===================================
 Situação no Detran, CRLV, restrição e FIPE com mês de referência. Não é
-lacuna de preenchimento: o ERP não tem esses campos. Ver `api/apibrasil/`.
+lacuna de preenchimento: o ERP não tem esses campos. Ver
+`api/equipamentos/smartec.py`, que traz o registro do DENATRAN pela Smartec.
 """
 from __future__ import annotations
 
@@ -161,9 +162,10 @@ def _categoria(linha: dict) -> str | None:
 
     NÃO existe 'leve' aqui, e é deliberado: separar VAN e automóvel de um
     caminhão 3/4 exigiria ler a DESCRIÇÃO do tipo, que é heurística, e
-    heurística escondida vira verdade do sistema. Quando a APIBrasil trouxer
-    a `especie` do Detran — que é domínio escrito, não palpite — a categoria
-    ganha o terceiro valor com fonte.
+    heurística escondida vira verdade do sistema. A Smartec traz a `especie`
+    do DENATRAN ('CAMINHÃO TRATOR', 'SEMIRREBOQUE'), que é domínio escrito e
+    não palpite — quando ela cobrir a frota toda, a categoria pode ganhar o
+    terceiro valor com fonte.
     """
     flag = linha.get("flag_tracao")
     if flag is None:
@@ -225,8 +227,8 @@ def ler() -> list[dict]:
 def placas() -> list[dict]:
     """Só placa + vínculo + ativo. É o que a coleta usa para escolher a fila.
 
-    Consulta separada e enxuta de propósito: montar a fila da APIBrasil não
-    precisa dos trinta campos, e a fila é lida com frequência.
+    Consulta separada e enxuta de propósito: quem varre a frota por fase não
+    precisa dos trinta campos, e a lista é lida com frequência.
     """
     linhas = db.query(
         "SELECT trim(placa) AS placa, tipofrota"

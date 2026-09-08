@@ -10,14 +10,14 @@
 --
 -- Então o cadastro nasce aqui, do lado de cá, e o ERP entra como UMA FONTE —
 -- a principal de hoje, não a dona. É diferença de PROPRIEDADE, não de origem
--- do dado: hoje 100% da marca vem do AVA e amanhã pode vir da APIBrasil ou da
+-- do dado: hoje 100% da marca vem do AVA e amanhã pode vir da Smartec ou da
 -- mão de quem cadastra, sem que nada mais no módulo mude.
 --
 -- A CHAVE É A PLACA
 -- -----------------
 -- Pelo mesmo motivo de `api/frota_identidade.py`: é única, está sempre
 -- preenchida e é o que TODO fornecedor externo devolve — Gobrax, Detran,
--- APIBrasil, ANTT. `numerofrota` tem cobertura útil de 46% e some para
+-- Smartec, ANTT. `numerofrota` tem cobertura útil de 46% e some para
 -- terceiro (4,2%); chavear por ele faria metade da frota desaparecer.
 --
 -- "EQUIPAMENTO", E NÃO "VEÍCULO"
@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS eqp_equipamento (
   proprietario_doc    varchar(14),
   proprietario_nome   text,
 
-  -- ---- situação documental (só a APIBrasil/Detran sabe) ----
+  -- ---- situação documental (só a fonte oficial sabe) ----
   situacao            text,          -- o que o Detran responde sobre a placa
   crlv_exercicio      int,
   crlv_vencimento     date,
@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS eqp_equipamento (
   filial              text,
   numero_frota        text,
 
-  -- DE ONDE VEIO CADA CAMPO: {"marca": "erp", "fipe_valor": "apibrasil.fipe"}
+  -- DE ONDE VEIO CADA CAMPO: {"marca": "erp", "chassi": "smartec"}
   --
   -- Não é enfeite de auditoria: é o instrumento que torna a saída do ERP
   -- MENSURÁVEL. Com ele, "o que quebra se o AVA sair amanhã?" é uma CONSULTA
@@ -139,8 +139,8 @@ CREATE INDEX IF NOT EXISTS eqp_equipamento_renavam   ON eqp_equipamento (renavam
 --
 -- 1. A casa já pagou por não fazer isso: a Gobrax devolvia 14 indicadores e o
 --    CÓRTEX lia 3, e os outros 11 só apareceram ao reler a resposta inteira
---    muito depois. A APIBrasil devolve "marca, modelo, versão, chassi e muito
---    mais", e a documentação pública não lista o "muito mais".
+--    muito depois. A Smartec devolve o registro do DENATRAN inteiro, e o
+--    CÓRTEX lê hoje uma parte dele.
 -- 2. Consulta de placa CUSTA. Reler um payload guardado é de graça;
 --    reconsultar ~2.000 placas porque um campo novo virou útil é a fatura de
 --    novo.
@@ -149,8 +149,8 @@ CREATE INDEX IF NOT EXISTS eqp_equipamento_renavam   ON eqp_equipamento (renavam
 -- reconsultar a mesma placa ATUALIZA, nunca duplica.
 CREATE TABLE IF NOT EXISTS eqp_fonte (
   placa      varchar(10)  NOT NULL,
-  -- erp | apibrasil.dados | apibrasil.crlv | apibrasil.fipe
-  -- | apibrasil.seguranca | smartec
+  -- erp | smartec  (a lista viva esta em api/equipamentos/campos.FONTES;
+  -- a 0071 conta por que a familia apibrasil.* saiu daqui)
   fonte      text         NOT NULL,
   -- o que a fonte disse, JÁ traduzido para os nomes de `eqp_equipamento`
   campos     jsonb        NOT NULL DEFAULT '{}'::jsonb,
@@ -187,7 +187,7 @@ CREATE TABLE IF NOT EXISTS eqp_edicao (
 
 -- ================================================================= a consulta
 --
--- O LIVRO-CAIXA DAS CHAMADAS À APIBRASIL.
+-- O LIVRO-CAIXA DAS CHAMADAS PAGAS. (APAGADO NA 0071 -- ver la o porque.)
 --
 -- Existe por três perguntas que não têm outra resposta:
 --   · quanto da cota do dia já foi gasto (o plano tem teto diário);
@@ -206,7 +206,7 @@ CREATE TABLE IF NOT EXISTS eqp_consulta (
   ok         boolean      NOT NULL,
   http       int,
   -- SEMPRE o tipo da exceção ou a mensagem do fornecedor JÁ sanitizada. Nunca
-  -- str(exc) cru: o token da APIBrasil vai em cabeçalho, e biblioteca de HTTP
+  -- str(exc) cru: token de fornecedor vai em cabeçalho, e biblioteca de HTTP
   -- ecoa cabeçalho em erro de conexão — cabeçalho ecoado em log é credencial
   -- publicada.
   erro       text,

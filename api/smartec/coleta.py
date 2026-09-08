@@ -35,6 +35,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
 
+from .. import pglocal
 from . import armazenamento as arm
 from . import cliente
 
@@ -342,6 +343,95 @@ def coletar_custos_veiculo(renavams: list[str],
             "falhas": len(falhas)}
 
 
+#: Horas entre duas passagens POR VEICULO. Restricao, IPVA e taxa de
+#: licenciamento nao mudam de hora em hora; 909 chamadas a cada 6 horas seriam
+#: desperdicio, e uma vez por dia e mais do que suficiente.
+HORAS_POR_VEICULO = 20
+
+
+def _horas_desde(recurso: str, esquema: str | None = None) -> float | None:
+    """Ha quantas horas este recurso TROUXE DADO? `None` = nunca trouxe.
+
+    O criterio e `itens > 0`, e NAO `status = 'ok'` -- essa diferenca decide
+    se o freio funciona. `carga_fechar` marca a passagem inteira como 'erro'
+    se UM veiculo falhar, e na coleta real de 08/09/2026 foram 292 gravados
+    com 11 falhas: uma passagem otima, carimbada de erro.
+    
+    Com o criterio de status, o freio nunca veria uma passagem boa e as 909
+    chamadas se repetiriam a cada 6 horas, para sempre, sem ninguem notar --
+    porque repetir dado que ja se tem nao produz sintoma nenhum.
+
+    Le `smt_carga`, que e onde a propria Smartec ja registra cada passagem.
+    Um contador em memoria nao serviria: o processo reinicia a cada deploy, e
+    o AutoDeploy reinicia a API a cada push -- o freio evaporaria justamente
+    nos dias de mais entrega.
+    """
+    r = pglocal.um(
+        "SELECT extract(epoch FROM (now() - max(inicio))) / 3600.0 AS h"
+        "  FROM smt_carga WHERE recurso = %s AND coalesce(itens, 0) > 0",
+        (recurso,), esquema=arm._esq(esquema))
+    h = (r or {}).get("h")
+    return float(h) if h is not None else None
+
+
+def renavams_da_conta(esquema: str | None = None) -> list[str]:
+    """Os renavams que a conta da Smartec conhece.
+
+    A fila sai de `smt_veiculos`, e nao da frota do ERP, por uma razao
+    pratica: a Smartec so responde por veiculo CADASTRADO NA CONTA dela.
+    Perguntar por um renavam que ela nao monitora gasta chamada e devolve
+    vazio -- e o vazio nao se distingue de "nao ha restricao", que e
+    exatamente a confusao que este modulo existe para nao fazer.
+    """
+    linhas = pglocal.query("SELECT renavam FROM smt_veiculos"
+                           " WHERE nullif(trim(renavam), '') IS NOT NULL"
+                           " ORDER BY renavam", esquema=arm._esq(esquema))
+    return [r["renavam"].strip() for r in linhas if (r.get("renavam") or "").strip()]
+
+
+def coletar_por_veiculo(esquema: str | None = None) -> dict:
+    """A passagem POR VEICULO: restricoes, IPVA e taxa de licenciamento.
+
+    POR QUE ELA NAO EXISTIA, E POR QUE ISSO CUSTOU CARO
+    ===================================================
+    `coletar_tudo()` so faz o que devolve a frota inteira numa chamada -- e
+    esta correto: e ela que roda de 6 em 6 horas. Estes tres recursos pedem um
+    renavam por vez, entao ficaram de fora, escritos e nunca chamados.
+
+    O resultado, medido em 08/09/2026: `smt_restricoes` com ZERO linhas, e
+    `smt_licenciamento.valor_taxa` e `.ipva_valor` NULOS nas 303 linhas. Roubo,
+    furto, Renajud, recall, IPVA em aberto e taxa de licenciamento -- tudo
+    disponivel, tudo pago, nada coletado. Chegou-se a cotar consulta de placa
+    avulsa a R$ 2,50 (~R$ 3.600 pela frota) para obter parte disso.
+
+    A ausencia nao tinha sintoma: a tabela vazia parece "nenhuma restricao", e
+    o valor nulo parece "nada a pagar". Sao as duas leituras erradas mais
+    caras possiveis.
+
+    SEPARADA de `coletar_tudo` de proposito: sao ~900 chamadas (3 por
+    veiculo), que nao cabem numa rotina de 6 em 6 horas. Cadencia propria --
+    diaria basta, porque restricao e IPVA nao mudam de hora em hora.
+    """
+    renavams = renavams_da_conta(esquema)
+    if not renavams:
+        return {"ok": False, "erro": "sem_veiculos",
+                "mensagem": "Nenhum veiculo na conta da Smartec. Rode a "
+                            "coleta de veiculos antes."}
+    fora: dict = {"ok": True, "veiculos": len(renavams), "recursos": {},
+                  "erros": {}}
+    for nome, fn in (("restricoes", coletar_restricoes),
+                     ("custos_veiculo", coletar_custos_veiculo)):
+        try:
+            fora["recursos"][nome] = fn(renavams, esquema=esquema)
+        except Exception as exc:  # noqa: BLE001
+            # NAO PARA NO PRIMEIRO ERRO: falha do IPVA nao pode impedir a
+            # coleta de restricao. Sao recursos independentes.
+            log.warning("smartec: coleta de %s falhou: %s", nome, exc)
+            fora["erros"][nome] = f"{type(exc).__name__}: {exc}"
+            fora["ok"] = False
+    return fora
+
+
 # ───────────────────────────────────────────────────── orquestração
 def coletar_tudo(esquema: str | None = None) -> dict:
     """A passagem periódica: só o que devolve a frota inteira barato.
@@ -369,6 +459,18 @@ def coletar_tudo(esquema: str | None = None) -> dict:
         # derrubar a coleta das multas: o harness abaixo já isola cada passo.
         ("viagens", casar_viagens),
     )
+    # A PASSAGEM POR VEICULO ENTRA AQUI, e nao numa tarefa nova do Windows.
+    #
+    # Tarefa a mais e ponto de falha a mais -- e um censo de tarefas nesta
+    # maquina ja mentiu antes (`Get-ScheduledTask` sem elevacao esconde o que
+    # roda como SISTEMA, e a ausencia virou documentacao). Pendurar no que ja
+    # roda, com freio proprio lido do BANCO, nao depende de ninguem lembrar de
+    # instalar nada.
+    horas = _horas_desde("restricoes", esquema)
+    if horas is None or horas >= HORAS_POR_VEICULO:
+        passos = passos + (("por_veiculo", coletar_por_veiculo),)
+    else:
+        log.info("smartec: passagem por veiculo pulada (rodou ha %.1f h)", horas)
     resultado: dict = {"ok": True, "recursos": {}, "erros": {}}
     for nome, fn in passos:
         try:

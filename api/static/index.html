@@ -7136,16 +7136,11 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
           <div class="card">
             <div class="head">
-              <h3>Conferência no Detran (APIBrasil)</h3>
-              <span class="ihelp" data-help="Cada consulta CUSTA e ha teto diario por plano. A ordem das fases e a do custo: frota propria, depois agregados, depois terceiros. A sonda gasta UMA consulta por produto e mostra o corpo REAL da resposta -- rode-a antes da carga, porque tres dos quatro caminhos de produto foram inferidos e nao confirmados contra a API.">i</span>
+              <h3>Registro do DENATRAN (Smartec)</h3>
+              <span class="ihelp" data-help="A Smartec ja e contratada pela Sulista e coleta todo dia; este botao so TRAZ para o cadastro o que ela ja guardou -- nao gasta chamada nenhuma. Ela cobre os veiculos cadastrados NA CONTA dela, e o cartao abaixo diz quantos sao. Chegou-se a cotar consulta de placa avulsa a R$ 2,50 por veiculo para obter o mesmo dado; a medicao mostrou que ja estava pago.">i</span>
             </div>
             <div class="eqpfil">
-              <select id="eqpProduto"><option value="dados">Dados do veículo</option><option value="crlv">CRLV / licenciamento</option><option value="fipe">FIPE</option><option value="seguranca">Segurança veicular</option></select>
-              <select id="eqpFase"><option value="proprio">Frota própria</option><option value="agregado">Agregados</option><option value="terceiro">Terceiros</option></select>
-              <input type="number" id="eqpLimite" placeholder="Quantas placas" min="1" max="2000" value="10">
-              <button class="btn" onclick="eqpColetar()" id="eqpBtnCol">Consultar</button>
-              <input type="text" id="eqpSondaPlaca" placeholder="Placa para a sonda">
-              <button class="btn" onclick="eqpSondar()" id="eqpBtnSonda" title="Gasta UMA consulta por produto e mostra o corpo real da resposta.">Sondar</button>
+              <button class="btn" onclick="eqpSmartec()" id="eqpBtnSmt">Trazer dados da Smartec</button>
             </div>
             <div id="eqpColRes" class="hint"></div>
           </div>
@@ -9766,7 +9761,7 @@ const NAV_KW={
   comrast:'rastreador comunicacao sinal offline', comb:'diesel abastecimento posto consumo km/l arla',
   man:'oficina os ordem servico corretiva peca',
   mul:'multa infracao transito pontos cnh smartec notificacao boleto sne detran indicacao condutor licenca cronotacografo antt licenciamento ipva restricao renavam',
-  eqp:'equipamento veiculo cadastro frota placa chassi renavam detran crlv licenciamento fipe restricao roubo apibrasil implemento carreta cavalo tracao agregado terceiro proprio',
+  eqp:'equipamento veiculo cadastro frota placa chassi renavam denatran detran smartec licenciamento restricao roubo furto renajud alienacao fiduciaria cronotacografo implemento carreta cavalo tracao agregado terceiro proprio',
   dfe:'nota entrada nfe dfe sefaz fornecedor xml fiscal chave manifestacao ciencia nsu distribuicao recolha danfe',
   oc:'compra ordem fornecedor entrada nota', custos:'custo painel despesa', pecas:'peça preço mediana sobrepreço fornecedor cotação oficina manutenção',
   hc:'headcount quadro pessoas colaboradores', folha:'salario folha pagamento custo pessoal',
@@ -38715,7 +38710,7 @@ function eqpPintarKpis(p){
   const porV = (p.por_vinculo||[]).map(v=>v.rotulo+' '+v.total).join(' · ');
   el.innerHTML =
     kpi('Equipamentos ativos', numBR(p.total), porV) +
-    kpi('Conferidos no Detran',
+    kpi('Conferidos no DENATRAN',
         // ZERO QUE É AUSÊNCIA DE MEDIÇÃO NÃO É DESEMPENHO: enquanto a carga
         // não começou, o KPI diz "não iniciada" em cinza, nunca 0% em verde.
         cob.feito ? pctCob.toFixed(0)+'%' : 'não iniciada',
@@ -38724,9 +38719,11 @@ function eqpPintarKpis(p){
     kpi('Campos que dependem do ERP',
         dep.percentual==null ? 'n/d' : dep.percentual.toFixed(0)+'%',
         numBR(dep.campos_do_erp||0)+' de '+numBR(dep.campos_no_total||0)+' campos') +
-    kpi('Consultas hoje', numBR((p.consultas||{}).hoje||0),
-        (p.consultas||{}).total ? numBR(p.consultas.ok)+' ok em '+
-          numBR(p.consultas.total)+' nos últimos 30 dias' : 'nenhuma ainda');
+    kpi('Alcance da Smartec',
+        (p.cobertura_smartec||{}).percentual==null ? 'n/d'
+          : p.cobertura_smartec.percentual.toFixed(0)+'%',
+        numBR((p.cobertura_smartec||{}).com_smartec||0)+' de '+
+        numBR((p.cobertura_smartec||{}).total||0)+' na conta dela');
 }
 
 function eqpPintarFontes(p){
@@ -38822,51 +38819,21 @@ async function eqpSincronizar(){
   finally{ if(b){ b.disabled=false; b.textContent='Sincronizar com o ERP'; } }
 }
 
-async function eqpColetar(){
-  const produto = document.getElementById('eqpProduto').value;
-  const vinculo = document.getElementById('eqpFase').value;
-  const limite  = parseInt(document.getElementById('eqpLimite').value||'10',10);
-  // AÇÃO QUE GASTA DINHEIRO CONFIRMA ANTES, e a confirmação diz quanto.
-  if(!confirm('Consultar '+limite+' placas ('+vinculo+') no produto "'+produto+
-              '"? Cada placa é uma consulta paga na APIBrasil.')) return;
-  const b = document.getElementById('eqpBtnCol');
-  if(b){ b.disabled = true; b.textContent = 'Consultando…'; }
+async function eqpSmartec(){
+  const b = document.getElementById('eqpBtnSmt');
   const res = document.getElementById('eqpColRes');
+  if(b){ b.disabled = true; b.textContent = 'Trazendo…'; }
   try{
-    const r = await fetch('/api/equipamentos/coletar', {method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({produto, vinculo, limite})});
+    const r = await fetch('/api/equipamentos/smartec', {method:'POST'});
     const d = await respostaJSON(r);
-    // AS TRÊS RESPOSTAS FICAM SEPARADAS: "sem dado" é achado, não falha —
-    // placa ativa que o Detran não conhece é cadastro furado.
+    const c = d.cobertura_smartec || {};
     if(res) res.textContent =
-      d.gravadas+' gravadas · '+d.sem_dado+' que o Detran não conhece · '+
-      d.falhas+' falhas'+(d.parou_por ? ' · parou: '+d.parou_por : '')+
-      (d.cota_restante!=null ? ' · restam '+d.cota_restante+' hoje' : '');
+      numBR(d.lidos_da_smartec||0)+' equipamentos vindos da Smartec · '+
+      'ela alcança '+numBR(c.com_smartec||0)+' de '+numBR(c.total||0)+
+      ' do cadastro'+(c.falta ? ' — faltam '+numBR(c.falta) : '');
     await loadEqp();
   }catch(e){ if(res) res.textContent = 'Falhou: '+(e.message||e); }
-  finally{ if(b){ b.disabled=false; b.textContent='Consultar'; } }
-}
-
-async function eqpSondar(){
-  const placa = (document.getElementById('eqpSondaPlaca').value||'').trim();
-  const res1 = document.getElementById('eqpColRes');
-  if(!placa){ if(res1) res1.textContent='Informe a placa da sonda.'; return; }
-  const b = document.getElementById('eqpBtnSonda');
-  if(b){ b.disabled = true; b.textContent = 'Sondando…'; }
-  const res = document.getElementById('eqpColRes');
-  try{
-    const r = await fetch('/api/equipamentos/sonda', {method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({placa})});
-    const d = await respostaJSON(r);
-    if(res) res.innerHTML = Object.entries(d.produtos||{}).map(([k,v])=>
-      '<div><b>'+esc(k)+'</b>: '+(v.ok ? 'respondeu — campos reconhecidos: '+
-        esc(Object.keys(v.campos_reconhecidos||{}).join(', ')||'nenhum')+
-        ' · NÃO mapeados: '+esc((v.campos_nao_mapeados||[]).join(', ')||'nenhum')
-        : 'não respondeu — '+esc(v.erro||'sem detalhe'))+'</div>').join('');
-  }catch(e){ if(res) res.textContent = 'Falhou: '+(e.message||e); }
-  finally{ if(b){ b.disabled=false; b.textContent='Sondar'; } }
+  finally{ if(b){ b.disabled=false; b.textContent='Trazer dados da Smartec'; } }
 }
 
 async function loadDfe(){

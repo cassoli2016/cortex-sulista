@@ -321,90 +321,6 @@ CAMPOS: dict[str, dict] = {
         "descricao": "Padrão vazio no cabeçalho próprio; Bearer no Authorization",
         "placeholder": "Bearer"},
 
-    # APIBrasil — consulta veicular no Detran, para o cadastro de equipamentos.
-    #
-    # SÃO DOIS SEGREDOS DE NATUREZAS DIFERENTES, e confundi-los produz um erro
-    # de autorização que se lê como "token errado" quando o errado é o PAR: o
-    # Bearer é da CONTA e vale para tudo; o DeviceToken é do PRODUTO, e uma
-    # conta com quatro produtos contratados tem quatro DeviceTokens.
-    #
-    # Os específicos são OPCIONAIS porque uma conta pode ter um DeviceToken só
-    # (é o caso de quem contratou um produto). O cliente usa o específico se
-    # houver e cai no geral se não — nunca o contrário, e nunca inventando um
-    # padrão: DeviceToken de FIPE usado no caminho do CRLV é uma recusa que
-    # custa uma consulta e não diz o motivo.
-    # ---------------------------------------------------------------- a
-    # CAIXA DE XML. Quem autentica aqui nao e um token de fornecedor: e um
-    # APLICATIVO registrado no Entra ID da propria empresa, com permissao de
-    # aplicacao `Mail.Read`. O caminho e esse porque o dominio entrega e-mail
-    # no Exchange Online e a Microsoft DESLIGOU a autenticacao basica de
-    # IMAP/POP la -- um leitor com usuario e senha responderia 535 para
-    # sempre, e o 535 do M365 se le como "senha errada".
-    #
-    # Os tres primeiros NAO sao segredo, e isso e deliberado: tenant e
-    # client_id sao identificadores publicos do registro, e quem configura
-    # precisa CONFERIR se digitou o certo. O cofre mascara valor (`ab12...wxyz`),
-    # e um identificador mascarado e um identificador que ninguem consegue
-    # validar.
-    "XMLMAIL_TENANT_ID": {
-        "rotulo": "ID do tenant (Directory ID)", "segredo": False,
-        "descricao": "O GUID do Microsoft 365 da empresa. Entra ID › Visão "
-                     "geral › ID do diretório (locatário)"},
-    "XMLMAIL_CLIENT_ID": {
-        "rotulo": "ID do aplicativo (Application ID)", "segredo": False,
-        "descricao": "O GUID do aplicativo registrado no Entra ID. É ele que "
-                     "recebe a permissão Mail.Read e é ele que entra na "
-                     "ApplicationAccessPolicy que limita o acesso a esta caixa"},
-    "XMLMAIL_CLIENT_SECRET": {
-        "rotulo": "Segredo do aplicativo",
-        "descricao": "Entra ID › o aplicativo › Certificados e segredos › Novo "
-                     "segredo do cliente. VENCE (o padrão do portal é 6 ou 24 "
-                     "meses) — quando vencer, a coleta para e o cartão da Saúde "
-                     "acende"},
-    "XMLMAIL_CAIXA": {
-        "rotulo": "Endereço da caixa", "segredo": False,
-        "descricao": "A caixa que recebe os XML (xml@sulista.com.br). É lida, "
-                     "nunca escrita: o CÓRTEX não marca como lida, não move e "
-                     "não apaga nada"},
-    "XMLMAIL_DIAS": {
-        "rotulo": "Dias para trás", "segredo": False, "obrigatorio": False,
-        "descricao": "Quantos dias de caixa cada coleta varre (padrão 30). "
-                     "Mensagem já processada é pulada pelo id, então repetir a "
-                     "janela não reprocessa nada — só custa uma listagem"},
-
-    "APIBRASIL_TOKEN": {
-        "rotulo": "Token da conta (Bearer)",
-        "descricao": "Vai no cabeçalho Authorization como Bearer. É o mesmo "
-                     "para todas as APIs da conta. Está em app.apibrasil.io › "
-                     "Minhas APIs"},
-    "APIBRASIL_DEVICE_TOKEN": {
-        "rotulo": "DeviceToken geral", "obrigatorio": False,
-        "descricao": "Usado quando o produto não tiver DeviceToken próprio "
-                     "abaixo. Se a conta tem um só, é este"},
-    "APIBRASIL_DEVICE_TOKEN_DADOS": {
-        "rotulo": "DeviceToken · Dados do veículo", "obrigatorio": False,
-        "descricao": "Produto que devolve marca, modelo, chassi, ano, cor e "
-                     "emplacamento pela placa"},
-    "APIBRASIL_DEVICE_TOKEN_CRLV": {
-        "rotulo": "DeviceToken · CRLV", "obrigatorio": False,
-        "descricao": "Produto do licenciamento: exercício, vencimento, "
-                     "débitos e IPVA"},
-    "APIBRASIL_DEVICE_TOKEN_FIPE": {
-        "rotulo": "DeviceToken · FIPE", "obrigatorio": False,
-        "descricao": "Produto do valor de mercado por placa"},
-    "APIBRASIL_DEVICE_TOKEN_SEGURANCA": {
-        "rotulo": "DeviceToken · Segurança veicular", "obrigatorio": False,
-        "descricao": "Produto de roubo/furto, leilão, sinistro e baixa"},
-    # O TETO DIÁRIO É DADO DE PLANO, NÃO CONSTANTE DE CÓDIGO. O plano gratuito
-    # da APIBrasil é 100/dia e os pagos variam; escrever 100 no código faria a
-    # coleta parar sozinha numa conta que comprou 5.000. Vazio = sem freio
-    # nosso (o freio passa a ser só o do fornecedor, que responde recusando).
-    "APIBRASIL_COTA_DIARIA": {
-        "rotulo": "Teto de consultas por dia", "segredo": False,
-        "obrigatorio": False,
-        "descricao": "O limite do SEU plano. A coleta para ao atingi-lo e "
-                     "retoma no dia seguinte. Vazio = sem freio do CÓRTEX",
-        "placeholder": "100"},
 }
 
 # A ORDEM DOS MODOS IMPORTA: é a mesma prioridade que `modo_auth()` de cada
@@ -564,48 +480,6 @@ SERVICOS: list[dict] = [
         ],
         "ajustes": ["PROLOG_FILIAIS", "PROLOG_API_BASE_URL",
                     "PROLOG_AUTH_HEADER", "PROLOG_AUTH_PREFIXO"],
-    },
-    {
-        "chave": "apibrasil",
-        "nome": "APIBrasil",
-        "resumo": "Consulta de placa no Detran para o cadastro de "
-                  "equipamentos: situação do licenciamento, restrição de "
-                  "roubo/furto e leilão, valor FIPE — e a CONFERÊNCIA do que "
-                  "o ERP afirma sobre chassi, marca e ano. Cada consulta "
-                  "CUSTA: há teto diário por plano.",
-        "alimenta": "TMS — Equipamentos",
-        # O BEARER É O ÚNICO OBRIGATÓRIO, e isso foi MEDIDO, não suposto.
-        #
-        # A APIBrasil tem duas famílias de rota: as que cobram por CRÉDITO
-        # ignoram o DeviceToken, e as que cobram por DISPOSITIVO devolvem 403
-        # sem ele. Em 08/09/2026, com o Bearer no cofre e nenhum DeviceToken,
-        # `/vehicles/dados` respondeu 404 "Plano ativo não encontrado" — e não
-        # 403. A rota não reclamou de cabeçalho: reclamou de ASSINATURA.
-        #
-        # Por isso o DeviceToken entra como campo NÃO obrigatório. Exigi-lo
-        # faria o cartão dizer "incompleta" numa conta que a APIBrasil aceita,
-        # e mandaria a pessoa procurar um token que talvez nem exista para o
-        # produto dela.
-        "modos": [
-            {"chave": "token", "rotulo": "Token da conta + DeviceToken",
-             "dica": "os dois saem de app.apibrasil.io › Minhas APIs; o "
-                     "DeviceToken é por produto contratado",
-             "campos": ["APIBRASIL_TOKEN", "APIBRASIL_DEVICE_TOKEN"]},
-        ],
-        "ajustes": ["APIBRASIL_DEVICE_TOKEN_DADOS",
-                    "APIBRASIL_DEVICE_TOKEN_CRLV",
-                    "APIBRASIL_DEVICE_TOKEN_FIPE",
-                    "APIBRASIL_DEVICE_TOKEN_SEGURANCA",
-                    "APIBRASIL_COTA_DIARIA"],
-        # O REGIME diz o teto de HOJE, que é a única coisa que muda a decisão
-        # de quando rodar a carga. Sem isto o cartão ficaria verde enquanto a
-        # cota do dia estivesse esgotada — "configurada" e "pode consultar
-        # agora" são perguntas diferentes.
-        "regime": lambda: (
-            f"teto de {ler('APIBRASIL_COTA_DIARIA')} consultas por dia"
-            if (ler("APIBRASIL_COTA_DIARIA") or "").strip()
-            else "teto do plano não informado — o CÓRTEX não freia a coleta, "
-                 "quem recusa é o fornecedor"),
     },
     {
         "chave": "monkey",

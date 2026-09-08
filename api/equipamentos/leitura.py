@@ -14,6 +14,7 @@ from decimal import Decimal
 from .. import pglocal
 from . import armazenamento as arm
 from . import consolidacao
+from . import smartec as _smt
 from .campos import CAMPOS, GRUPOS, POR_NOME, ROTULO_FONTE
 from .campos import pendencias_da_independencia
 
@@ -132,11 +133,6 @@ def detalhe(placa: str) -> dict | None:
         if itens:
             grupos.append({"grupo": grupo, "campos": itens})
 
-    consultas = pglocal.query(
-        "SELECT produto, quando, ok, erro, ms FROM eqp_consulta"
-        " WHERE placa = %s ORDER BY quando DESC LIMIT 20",
-        (placa,), esquema=arm.ESQUEMA)
-
     return {
         "placa": placa,
         "resumo": _linha(row),
@@ -147,11 +143,15 @@ def detalhe(placa: str) -> dict | None:
                     "visto_em": _limpo(d.get("visto_em"))}
                    for f, d in sorted(fontes.items())],
         "edicoes": [_linha(e) for e in edicoes.values()],
-        "consultas": [_linha(c) for c in consultas],
     }
 
 
 # ─────────────────────────────────────────────────────────────── o panorama
+
+def _cob_smartec() -> dict:
+    """Quanto da frota a Smartec alcanca. Ver `smartec.cobertura`."""
+    return _smt.cobertura()
+
 
 def panorama() -> dict:
     """A linha de status da tela: o que o cadastro tem e o que falta.
@@ -165,18 +165,18 @@ def panorama() -> dict:
         " WHERE ativo = true GROUP BY 1, 2 ORDER BY 1, 2", esquema=arm.ESQUEMA)
     total = sum(r["n"] for r in por_vinculo)
 
-    # COBERTURA DO DETRAN: quantas placas já têm ALGUMA fonte da APIBrasil.
-    # Contado em `eqp_fonte`, e não por coluna preenchida em
-    # `eqp_equipamento`: uma placa pode ter sido consultada e ter perdido
-    # todos os campos na precedência, e ela FOI consultada — pagar de novo por
-    # ela seria pagar duas vezes.
+    # COBERTURA DA FONTE OFICIAL: quantas placas a Smartec (Detran) alcanca.
+    # Contado em `eqp_fonte`, e nao por coluna preenchida em
+    # `eqp_equipamento`: uma placa pode estar na Smartec e ter perdido todos
+    # os campos na precedencia -- ela FOI alcancada, e some da conta se o
+    # criterio for a coluna.
     cobertura = pglocal.query(
         "SELECT e.vinculo,"
         "       count(*) AS total,"
         "       count(f.placa) AS com_detran"
         "  FROM eqp_equipamento e"
         "  LEFT JOIN (SELECT DISTINCT placa FROM eqp_fonte"
-        "              WHERE fonte LIKE 'apibrasil.%%') f ON f.placa = e.placa"
+        "              WHERE fonte = 'smartec') f ON f.placa = e.placa"
         " WHERE e.ativo = true"
         " GROUP BY 1 ORDER BY 1", esquema=arm.ESQUEMA)
 
@@ -222,7 +222,7 @@ def panorama() -> dict:
                 {"campo": c["nome"], "rotulo": c["rotulo"], "ajuda": c["ajuda"]}
                 for c in pendencias_da_independencia()],
         },
-        "consultas": _limpo(arm.resumo_consultas()),
+        "cobertura_smartec": _limpo(_cob_smartec()),
     }
 
 
@@ -236,8 +236,7 @@ def divergencias_gerais(limite: int = 200) -> dict:
     """
     fontes = arm.todas_as_fontes()
     edicoes = arm.edicoes()
-    com_detran = [p for p, f in fontes.items()
-                  if any(k.startswith("apibrasil.") for k in f)]
+    com_detran = [p for p, f in fontes.items() if "smartec" in f]
     fora = []
     for placa in sorted(com_detran):
         for d in consolidacao.divergencias(fontes[placa], edicoes.get(placa)):

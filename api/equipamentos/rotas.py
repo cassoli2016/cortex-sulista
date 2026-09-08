@@ -109,7 +109,7 @@ def detalhe(placa: str) -> JSONResponse:
 
 @router.post("/sincronizar")
 async def sincronizar(req: Request) -> JSONResponse:
-    """Puxa a frota do ERP. Não gasta consulta paga.
+    """Puxa a frota do ERP e o que a Smartec ja coletou.
 
     Todo I/O bloqueante em rota `async def` passa por `sem_travar()` — senão
     trava o servidor INTEIRO pelo tempo da leitura de 1.446 veículos no AVA.
@@ -118,7 +118,7 @@ async def sincronizar(req: Request) -> JSONResponse:
     from api.main import sem_travar
     sess = _sessao(req)
     try:
-        r = await sem_travar(coleta.sincronizar_erp)
+        r = await sem_travar(coleta.sincronizar)
         arm.auditar(sess.get("usuario"), "eqp_sincronizar_erp",
                     detalhe=json.dumps(r, ensure_ascii=False))
         return JSONResponse(r)
@@ -127,90 +127,24 @@ async def sincronizar(req: Request) -> JSONResponse:
                      "Não foi possível sincronizar com o ERP.")
 
 
-@router.post("/coletar")
-async def coletar(req: Request) -> JSONResponse:
-    """Consulta a APIBrasil. GASTA COTA — e por isso o corpo é explícito.
+@router.post("/smartec")
+async def sincronizar_smartec(req: Request) -> JSONResponse:
+    """Traz o que a Smartec ja coletou para o cadastro.
 
-    Sem valor padrão para `produto` nem para `vinculo`: uma chamada sem
-    parâmetro varreria a frota inteira nos quatro produtos, e isso não pode
-    acontecer por clique errado. Quem gasta dinheiro diz o que está gastando.
+    Nao fala com o fornecedor: le as tabelas `smt_*` que a coleta da Smartec
+    enche todo dia. Quem consulta a Smartec de verdade e
+    `api/smartec/coleta.py` -- e e la que mora o custo.
     """
     from api.main import sem_travar
     sess = _sessao(req)
     try:
-        corpo = json.loads(await req.body() or b"{}")
-    except (json.JSONDecodeError, ValueError, UnicodeDecodeError):
-        corpo = {}
-    produto = (corpo.get("produto") or "").strip()
-    vinculo = (corpo.get("vinculo") or "").strip() or None
-    limite = corpo.get("limite")
-
-    from ..apibrasil import cliente as apib
-    if produto not in apib.CATALOGO:
-        return _recusa("Informe qual produto consultar: "
-                       + ", ".join(apib.CATALOGO))
-    if vinculo and vinculo not in leitura.VINCULOS:
-        return _recusa("Vínculo inválido: " + vinculo)
-    try:
-        limite = max(1, min(int(limite), 2000)) if limite is not None else None
-    except (TypeError, ValueError):
-        return _recusa("Limite inválido.")
-
-    if not apib.configurado(produto):
-        # Instalação incompleta NÃO é 500: é recusa com o conserto na
-        # mensagem, e a pessoa que lê consegue agir sozinha.
-        return _recusa("A APIBrasil não está configurada. "
-                       "Administração › Integrações › APIBrasil.")
-    try:
-        r = await sem_travar(coleta.coletar, produto,
-                             vinculo=vinculo, limite=limite)
-        arm.auditar(sess.get("usuario"), "eqp_coletar", alvo=produto,
+        r = await sem_travar(coleta.sincronizar_smartec)
+        arm.auditar(sess.get("usuario"), "eqp_sincronizar_smartec",
                     detalhe=json.dumps(r, ensure_ascii=False))
         return JSONResponse(r)
     except Exception as exc:  # noqa: BLE001
-        return _erro("equipamentos.coletar", exc,
-                     "Não foi possível consultar a APIBrasil.")
-
-
-@router.post("/sonda")
-async def sonda(req: Request) -> JSONResponse:
-    """Gasta UMA consulta por produto contra uma placa, e mostra o corpo REAL.
-
-    É o que troca adivinhação por medição: três dos quatro caminhos do
-    catálogo foram inferidos, e a documentação pública não publica os campos
-    da resposta. Rodar isto ANTES da carga é o que impede 1.446 placas de
-    baterem num caminho errado.
-    """
-    from api.main import sem_travar
-    sess = _sessao(req)
-    try:
-        corpo = json.loads(await req.body() or b"{}")
-    except (json.JSONDecodeError, ValueError, UnicodeDecodeError):
-        corpo = {}
-    placa = (corpo.get("placa") or "").strip().upper()
-    if not placa:
-        return _recusa("Informe a placa que a sonda deve consultar.")
-
-    from ..apibrasil import cliente as apib
-    if not apib.configurado():
-        return _recusa("A APIBrasil não está configurada. "
-                       "Administração › Integrações › APIBrasil.")
-    try:
-        r = await sem_travar(apib.sondar, placa)
-        # O que sobrou sem de-para vai JUNTO: é o instrumento contra a lição
-        # da Gobrax (14 indicadores devolvidos, 3 lidos, 11 descobertos anos
-        # depois). Aqui "sobrou campo" tem sintoma no dia UM.
-        for produto, res in r.items():
-            if res.get("ok"):
-                res["campos_reconhecidos"] = coleta.normalizar(
-                    produto, res["payload"])
-                res["campos_nao_mapeados"] = coleta.campos_nao_mapeados(
-                    produto, res["payload"])
-        arm.auditar(sess.get("usuario"), "eqp_sonda", alvo=placa)
-        return JSONResponse({"placa": placa, "produtos": r})
-    except Exception as exc:  # noqa: BLE001
-        return _erro("equipamentos.sonda", exc,
-                     "Não foi possível sondar a APIBrasil.")
+        return _erro("equipamentos.smartec", exc,
+                     "Nao foi possivel trazer os dados da Smartec.")
 
 
 @router.post("/{placa}/campo")

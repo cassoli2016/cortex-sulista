@@ -14,8 +14,8 @@ DUAS DECISÕES QUE PARECEM DETALHE E NÃO SÃO
 ===========================================
 
 **1. Vazio não vence.** Uma fonte que respondeu `""` ou `None` não "respondeu
-o campo" — ela não tem o campo. Se vazio vencesse, a APIBrasil devolvendo
-`cor: ""` apagaria a cor que a Smartec tem, e o cadastro pioraria a cada
+o campo" — ela não tem o campo. Se vazio vencesse, a Smartec devolvendo
+`cor: ""` apagaria a cor que o ERP tem, e o cadastro pioraria a cada
 coleta nova, em silêncio. Quem filtra é a própria fonte, ao gravar (ver
 `erp.ler`), e a consolidação confere de novo — a defesa é dupla de propósito,
 porque o custo do engano é destruir dado bom.
@@ -104,7 +104,13 @@ def _converter(valor, tipo: str):
                 return valor
             return _data(str(valor).strip())
         if tipo == "json":
-            return valor
+            # SERIALIZA AQUI, no limite do modulo. Um dict cru chega ao
+            # `executemany` como "cannot adapt type 'dict'" -- erro de driver,
+            # a uma camada de distancia de quem o causou, e que derruba a
+            # consolidacao INTEIRA por causa de um campo de uma placa.
+            import json as _j
+            return valor if isinstance(valor, str) else _j.dumps(
+                valor, ensure_ascii=False, default=str)
         texto = str(valor).strip()
         return texto or None
     except (ValueError, TypeError, InvalidOperation):
@@ -168,7 +174,7 @@ def divergencias(fontes: dict[str, dict],
                  edicao: dict[str, str] | None = None) -> list[dict]:
     """Onde duas fontes têm o campo e discordam.
 
-    Só compara fontes que DECLARAM o campo na precedência: a APIBrasil não
+    Só compara fontes que DECLARAM o campo na precedência: a Smartec não
     opinar sobre `vinculo` não é divergência, é ausência.
 
     A comparação é do valor JÁ CONVERTIDO, e isso importa: `'2022 '` do ERP e
@@ -256,6 +262,20 @@ def reconstruir(placas: list[str] | None = None) -> dict:
     for placa in sorted(alvo):
         valores, origem = resolver(fontes_todas.get(placa, {}),
                                    edicoes.get(placa))
+        # EQUIPAMENTO QUE SÓ A SMARTEC CONHECE NÃO ESTÁ NA FROTA ATIVA.
+        #
+        # `ativo` só tem fonte no ERP, e o ERP só devolve a frota ativa — logo
+        # a ausência dele É a resposta: este equipamento não está entre os que
+        # a Sulista opera hoje. Ele entra no cadastro assim mesmo, e não é
+        # descartado, porque a diferença entre as duas listas é um achado: a
+        # Smartec cobra por veículo monitorado, e monitorar um veículo baixado
+        # é conta paga por nada.
+        #
+        # `False` explícito, e não o DEFAULT da coluna: default só vale no
+        # INSERT, e um UPDATE mandaria NULL numa coluna NOT NULL — o erro
+        # aparece na segunda passada, nunca na primeira, que é o pior momento
+        # para descobrir.
+        valores.setdefault("ativo", False)
         linhas.append((placa, *[valores.get(c) for c in COLUNAS],
                        _json.dumps(origem, ensure_ascii=False)))
     if not linhas:

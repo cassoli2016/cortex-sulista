@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """As quatro tabelas do cadastro no banco da casa.
 
-Módulo PURO sobre o banco: nada aqui fala com o ERP nem com a APIBrasil. É a
+Módulo PURO sobre o banco: nada aqui fala com o ERP nem com a Smartec. É a
 separação que permite testar a consolidação — que é a regra difícil — sem rede
 nenhuma e sem o AVA no ar.
 """
@@ -159,58 +159,6 @@ def edicoes_da_placa(placa: str) -> list[dict]:
         " WHERE placa = %s ORDER BY campo", (placa,), esquema=_esq())
 
 
-# ─────────────────────────────────────────────────────────────── a consulta
-
-def registrar_consulta(placa: str, produto: str, ok: bool, *,
-                       http: int | None = None, erro: str | None = None,
-                       ms: int | None = None) -> None:
-    """O livro-caixa. Toda chamada entra, inclusive as que falharam.
-
-    Gravar só o sucesso faria a cota parecer maior do que é (chamada recusada
-    também conta no teto do fornecedor) e apagaria a resposta para "por que
-    esta placa está vazia?".
-    """
-    with pglocal.get_conn(_esq()) as conn, conn.cursor() as cur:
-        cur.execute(
-            "INSERT INTO eqp_consulta (placa, produto, ok, http, erro, ms)"
-            " VALUES (%s, %s, %s, %s, %s, %s)",
-            (placa, produto, ok, http, erro, ms))
-
-
-def gastas_hoje() -> int:
-    """Quantas consultas já saíram HOJE, em horário local.
-
-    `current_date` do banco, e não `now()` do Python: a cota do fornecedor vira
-    à meia-noite dele, e o banco é quem carrega o fuso da casa. Datas em
-    horário local — `toISOString()` em UTC−3 volta um dia, e aqui isso
-    liberaria uma cota que não existe.
-    """
-    r = pglocal.um("SELECT count(*) AS n FROM eqp_consulta"
-                   " WHERE quando >= current_date", esquema=_esq())
-    return int((r or {}).get("n") or 0)
-
-
-def ultima_consulta_por_placa(produto: str | None = None) -> dict[str, dict]:
-    """Quando cada placa foi consultada pela última vez, e como foi.
-
-    É o que decide a revalidação de 12 meses e o que separa, na tela, "nunca
-    consultada" de "consultada e o Detran não conhece".
-    """
-    sql = ("SELECT DISTINCT ON (placa, produto) placa, produto, quando, ok,"
-           "       erro"
-           "  FROM eqp_consulta")
-    params: tuple = ()
-    if produto:
-        sql += " WHERE produto = %s"
-        params = (produto,)
-    sql += " ORDER BY placa, produto, quando DESC"
-    fora: dict[str, dict] = {}
-    for r in pglocal.query(sql, params or None, esquema=_esq()):
-        fora.setdefault(r["placa"], {})[r["produto"]] = {
-            "quando": r["quando"], "ok": r["ok"], "erro": r["erro"]}
-    return fora
-
-
 def auditar(usuario: str | None, acao: str, alvo: str = "",
             detalhe: str = "") -> None:
     """Toda escrita entra no `audit_log` — a trilha da casa, append-only.
@@ -230,18 +178,3 @@ def auditar(usuario: str | None, acao: str, alvo: str = "",
     except Exception as exc:  # noqa: BLE001
         log.warning("auditoria de %s nao gravada: %s", acao,
                     type(exc).__name__)
-
-
-def resumo_consultas(dias: int = 30) -> dict:
-    """O que a Saúde do Servidor mostra no cartão da APIBrasil."""
-    r = pglocal.um(
-        "SELECT count(*) AS total,"
-        "       sum(CASE WHEN ok THEN 1 ELSE 0 END) AS ok,"
-        "       max(quando) AS ultima"
-        "  FROM eqp_consulta"
-        " WHERE quando >= now() - make_interval(days => %s)",
-        (dias,), esquema=_esq()) or {}
-    return {"total": int(r.get("total") or 0),
-            "ok": int(r.get("ok") or 0),
-            "ultima": r.get("ultima"),
-            "hoje": gastas_hoje()}

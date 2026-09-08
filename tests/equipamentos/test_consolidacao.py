@@ -28,15 +28,15 @@ def test_o_detran_vence_o_erp_no_chassi():
     número e o dinheiro da consulta seria gasto para nada.
     """
     v, o = cons.resolver(_fontes(erp={"chassi": "ERRADO123"},
-                                 **{"apibrasil.dados": {"chassi": "CERTO999"}}))
+                                 **{"smartec": {"chassi": "CERTO999"}}))
     assert v["chassi"] == "CERTO999"
-    assert o["chassi"] == "apibrasil.dados"
+    assert o["chassi"] == "smartec"
 
 
 def test_o_erp_vence_o_detran_no_vinculo():
     """Próprio, agregado ou terceiro é contrato — o Detran não sabe disso."""
     v, o = cons.resolver(_fontes(erp={"vinculo": "agregado"},
-                                 **{"apibrasil.dados": {"vinculo": "proprio"}}))
+                                 **{"smartec": {"vinculo": "proprio"}}))
     assert v["vinculo"] == "agregado"
     assert o["vinculo"] == "erp"
 
@@ -46,7 +46,7 @@ def test_a_mao_vence_tudo():
     correção, e quem corrigiu aprenderia numa semana que corrigir não adianta.
     """
     v, o = cons.resolver(
-        _fontes(erp={"marca": "MBENZ"}, **{"apibrasil.dados": {"marca": "VOLVO"}}),
+        _fontes(erp={"marca": "MBENZ"}, **{"smartec": {"marca": "VOLVO"}}),
         {"marca": "MERCEDES-BENZ"})
     assert v["marca"] == "MERCEDES-BENZ"
     assert o["marca"] == "manual"
@@ -57,13 +57,12 @@ def test_a_mao_vence_tudo():
 def test_fonte_com_campo_vazio_nao_apaga_a_fonte_seguinte():
     """A regra que impede o cadastro de PIORAR a cada coleta.
 
-    Se vazio vencesse, a APIBrasil devolvendo `cor: ""` apagaria a cor que a
+    Se vazio vencesse, a Smartec devolvendo `cor: ""` apagaria a cor que a
     Smartec tem — em silêncio, e a cada coleta nova.
     """
-    v, o = cons.resolver(_fontes(**{"apibrasil.dados": {"cor": ""}},
-                                 smartec={"cor": "BRANCA"}))
+    v, o = cons.resolver(_fontes(smartec={"cor": ""}, erp={"cor": "BRANCA"}))
     assert v["cor"] == "BRANCA"
-    assert o["cor"] == "smartec"
+    assert o["cor"] == "erp"
 
 
 def test_zero_e_false_NAO_sao_vazio():
@@ -73,9 +72,8 @@ def test_zero_e_false_NAO_sao_vazio():
     "não consultado" — o oposto do que se precisa saber sobre um veículo NÃO
     licenciado.
     """
-    v, _ = cons.resolver(_fontes(**{"apibrasil.crlv": {"licenciado": False}},
-                                 smartec={"licenciado": True}))
-    assert v["licenciado"] is False
+    v, _ = cons.resolver(_fontes(smartec={"tem_restricao": False}))
+    assert v["tem_restricao"] is False
 
     v2, _ = cons.resolver(_fontes(erp={"tara_kg": 0}))
     assert v2["tara_kg"] == 0
@@ -89,7 +87,7 @@ def test_o_decimal_brasileiro_nao_vira_numero_mil_vezes_menor():
     Valor FIPE mil vezes menor não parece absurdo numa tabela de veículos
     antigos, e ninguém notaria.
     """
-    v, _ = cons.resolver(_fontes(**{"apibrasil.fipe": {"fipe_valor": "1.234,56"}}))
+    v, _ = cons.resolver(_fontes(erp={"fipe_valor": "1.234,56"}))
     assert v["fipe_valor"] == Decimal("1234.56")
 
 
@@ -98,7 +96,7 @@ def test_valor_que_nao_converte_e_ausencia_e_nao_derruba_a_placa():
 
     Uma placa com um campo estragado derrubaria a consolidação das 1.446.
     """
-    v, o = cons.resolver(_fontes(**{"apibrasil.dados": {"ano_fabricacao": "sem informação"}},
+    v, o = cons.resolver(_fontes(**{"smartec": {"ano_fabricacao": "sem informação"}},
                                  erp={"ano_fabricacao": 2019}))
     assert v["ano_fabricacao"] == 2019
     assert o["ano_fabricacao"] == "erp"
@@ -106,8 +104,8 @@ def test_valor_que_nao_converte_e_ausencia_e_nao_derruba_a_placa():
 
 def test_data_em_formato_desconhecido_e_ausencia_e_nunca_data_errada():
     """Data errada num vencimento de licenciamento é pior que data nenhuma."""
-    v, _ = cons.resolver(_fontes(**{"apibrasil.crlv": {"crlv_vencimento": "31 de março"}}))
-    assert "crlv_vencimento" not in v
+    v, _ = cons.resolver(_fontes(smartec={"cronotacografo_vencimento": "31 de março"}))
+    assert "cronotacografo_vencimento" not in v
 
 
 # ─────────────────────────────────────────────────────────── divergências
@@ -115,12 +113,12 @@ def test_data_em_formato_desconhecido_e_ausencia_e_nunca_data_errada():
 def test_a_divergencia_e_registrada_mesmo_com_a_precedencia_decidindo():
     """Desempatar e calar esconderia exatamente o que se foi buscar."""
     d = cons.divergencias(_fontes(erp={"chassi": "AAA"},
-                                  **{"apibrasil.dados": {"chassi": "BBB"}}))
+                                  **{"smartec": {"chassi": "BBB"}}))
     campos = {x["campo"] for x in d}
     assert "chassi" in campos
     achado = [x for x in d if x["campo"] == "chassi"][0]
-    assert achado["vence"] == "apibrasil.dados"
-    assert {v["fonte"] for v in achado["valores"]} == {"erp", "apibrasil.dados"}
+    assert achado["vence"] == "smartec"
+    assert {v["fonte"] for v in achado["valores"]} == {"erp", "smartec"}
 
 
 def test_caixa_e_espaco_NAO_sao_divergencia():
@@ -130,14 +128,14 @@ def test_caixa_e_espaco_NAO_sao_divergencia():
     que erra é o mesmo que lista nenhuma.
     """
     d = cons.divergencias(_fontes(erp={"marca": "VOLVO"},
-                                  **{"apibrasil.dados": {"marca": "Volvo "}}))
+                                  **{"smartec": {"marca": "Volvo "}}))
     assert not [x for x in d if x["campo"] == "marca"]
 
 
 def test_ausencia_NAO_e_divergencia():
-    """A APIBrasil não opinar sobre um campo não é discordar dele."""
+    """A Smartec não opinar sobre um campo não é discordar dele."""
     d = cons.divergencias(_fontes(erp={"vinculo": "proprio"},
-                                  **{"apibrasil.dados": {"marca": "VOLVO"}}))
+                                  **{"smartec": {"marca": "VOLVO"}}))
     assert not [x for x in d if x["campo"] == "vinculo"]
 
 
@@ -167,14 +165,40 @@ def test_todo_campo_do_catalogo_e_coluna_no_banco():
     """
     from pathlib import Path
     import re
-    sql = (Path(__file__).resolve().parents[2] / "sql" / "cortex"
-           / "0070_equipamentos.sql").read_text(encoding="utf-8")
+    pasta = Path(__file__).resolve().parents[2] / "sql" / "cortex"
+
+    # A tabela nasce na 0070 e as migrations seguintes a ALTERAM. Ler so a
+    # 0070 daria um guard que reprova todo campo novo -- e ler so o ALTER
+    # daria um que aprova qualquer coisa. A varredura junta as duas coisas,
+    # e sai do DISCO: `glob` pega a migration que ainda nem existe.
+    sql = (pasta / "0070_equipamentos.sql").read_text(encoding="utf-8")
     corpo = sql.split("CREATE TABLE IF NOT EXISTS eqp_equipamento")[1]
-    corpo = corpo.split(");")[0]
-    colunas = set(re.findall(r"^\s{2}(\w+)\s+\w", corpo, re.M))
+    colunas = set(re.findall(r"^\s{2}(\w+)\s+\w", corpo.split(");")[0], re.M))
+
+    for arq in sorted(pasta.glob("0*.sql")):
+        # COMENTARIO FORA ANTES DE VARRER. Esta linha nasceu de um defeito
+        # real: um `;` DENTRO de um comentario cortava o bloco ALTER no meio,
+        # e os DROP seguintes ficavam invisiveis para o guard -- que entao
+        # acusava como orfas colunas que ja tinham sido removidas.
+        # Regex sobre SQL le CODIGO, nunca prosa.
+        texto = re.sub(r"--.*", "", arq.read_text(encoding="utf-8"))
+        for bloco in re.findall(
+                r"ALTER TABLE eqp_equipamento(.*?);", texto, re.S):
+            colunas |= set(re.findall(
+                r"ADD COLUMN IF NOT EXISTS\s+(\w+)", bloco))
+            colunas -= set(re.findall(
+                r"DROP COLUMN IF EXISTS\s+(\w+)", bloco))
+
     assert len(colunas) > 20, f"varredura do SQL achou so {len(colunas)} colunas"
     faltando = {c["nome"] for c in CAMPOS} - colunas
     assert not faltando, f"campos sem coluna na migration: {sorted(faltando)}"
+
+    # E O ESPELHO: coluna que nenhum campo do catalogo preenche e coluna
+    # eternamente vazia. Ela se preenche ou se remove -- foi por isso que
+    # `fipe_codigo` e `fipe_referencia` sairam na 0071.
+    estruturais = {"placa", "origem", "criado_em", "atualizado_em"}
+    orfas = colunas - {c["nome"] for c in CAMPOS} - estruturais
+    assert not orfas, f"colunas que nenhum campo preenche: {sorted(orfas)}"
 
 
 def test_campo_so_erp_e_o_que_realmente_so_o_erp_preenche():
