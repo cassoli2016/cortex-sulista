@@ -4,7 +4,7 @@ ONDE ELE MORA, desde 08/09/2026: no modal do cartao **SEFAZ da tela
 Integracoes**. Antes era uma sub-aba "Administração" dentro de Notas de
 Entrada, e sair de la conserta duas coisas de uma vez:
 
-  - Notas de Entrada e tela de OPERACAO. Uma aba que so administrador enxerga
+  - Central de Documentos e tela de OPERACAO. Uma aba que so administrador enxerga
     dentro dela obrigava a esconder botao por perfil, e aba escondida e a que
     ninguem acha quando precisa;
   - o cartao da SEFAZ nas Integracoes PROMETIA um ajuste que nao existia: como
@@ -72,7 +72,7 @@ SEFAZ = {
                "É a única fonte que não depende de o fornecedor mandar o "
                "XML por e-mail — e o XML é a obrigação de guarda de cinco "
                "anos."),
-    "alimenta": "Notas de Entrada", "estado": "alerta",
+    "alimenta": "Central de Documentos", "estado": "alerta",
     "configuracao": {"estado": "incompleta", "status": "alerta",
                      "falta": ["certificado A1 de 9 das 10 filiais"],
                      "modo": "certificado A1", "regime": None},
@@ -276,7 +276,7 @@ def test_a_falha_ao_LER_as_filiais_aparece_no_lugar_do_formulario(pagina):
         "        .includes('nenhuma caixa aberta')", timeout=10000)
 
 
-# ================== a tela de Notas de Entrada NAO tem mais administracao
+# ================== a tela de Central de Documentos NAO tem mais administracao
 
 def _abrir_dfe(pg, base_url, usuario):
     def rota(route):
@@ -309,9 +309,9 @@ def test_notas_de_entrada_NAO_tem_mais_formulario_nem_aba_de_admin(pagina):
     erros = _abrir_dfe(pg, base_url, ADMIN)
     assert not erros, erros
     assert pg.locator("#dfe-cert-caixa").count() == 0, (
-        "o formulario de certificado continua na tela de Notas de Entrada")
+        "o formulario de certificado continua na tela de Central de Documentos")
     assert pg.locator("#tabdfe-adm").count() == 0, (
-        "a aba Administração continua na tela de Notas de Entrada")
+        "a aba Administração continua na tela de Central de Documentos")
     assert pg.locator('#view-dfe .subtabs[data-abas="dfe"] button').count() == 2
 
 

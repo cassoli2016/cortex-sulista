@@ -673,7 +673,7 @@ glossario:
     Integrações, no modal do cartão SEFAZ, e só por administrador: o certificado assina documento
     fiscal em nome da empresa. O arquivo e a senha ficam no servidor, protegidos, e não voltam para a
     tela — nem para quem é administrador. O estado de cada filial (tem certificado, vence em quantos
-    dias, venceu) aparece para quem opera na tela Notas de Entrada, e isso é de propósito: certificado
+    dias, venceu) aparece para quem opera na tela Central de Documentos, e isso é de propósito: certificado
     vencido PARA a recolha sem dar erro em lugar nenhum, e quem opera precisa enxergar a parada mesmo
     sem poder resolvê-la. É também no mesmo modal que se recupera um documento por NSU avulso, o único
     caminho de volta para o que passou na varredura e não ficou guardado.'
@@ -681,7 +681,7 @@ glossario:
   definicao: 'A SEFAZ entrega apenas o RESUMO de uma nota de entrada — chave, emitente, valor e
     situação — enquanto o destinatário não manifestar CIÊNCIA da operação. O XML completo, que é o
     documento autorizado e o que a lei manda guardar por cinco anos, só vem depois disso. Por isso a
-    tela de Notas de Entrada marca cada linha como "só resumo" ou "XML completo": não é detalhe
+    tela de Central de Documentos marca cada linha como "só resumo" ou "XML completo": não é detalhe
     técnico, é a diferença entre ter e não ter a obrigação cumprida. A manifestação ficou para um
     segundo momento porque a contabilidade já baixa a mesma caixa, e dois sistemas manifestando a
     mesma nota geram evento duplicado — quem manifesta assume a ciência com prazo legal correndo.'
@@ -845,8 +845,8 @@ grupos:
   resumo: >-
     A frente fiscal: documento eletrônico trocado direto com a SEFAZ, sem
     intermediário. De um lado o CT-e de Contrapartida, que a casa EMITE por
-    conta e ordem do agregado; do outro as Notas de Entrada, que a casa
-    RECOLHE — tudo que os fornecedores emitiram contra o CNPJ da Sulista, pelo
+    conta e ordem do agregado; do outro a Central de Documentos, onde a casa
+    GUARDA todo XML fiscal — tudo que os fornecedores emitiram contra o CNPJ da Sulista, pelo
     serviço nacional de Distribuição de DFe. As duas usam o mesmo certificado
     A1 e a mesma pilha, e ficam juntas por isso: quando o certificado vence, as
     duas param no mesmo dia.

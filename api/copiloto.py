@@ -135,7 +135,7 @@ _FONTES_ROTULO = {
     "crm_funil": "CRM — Funil Comercial",
     "pedagio_tag": "Validação de Pedágio — fatura do tag",
     "desempenho": "Avaliação de Desempenho — nine box",
-    "recolha_fiscal": "Notas de Entrada — recolha de XML (SEFAZ e e-mail)",
+    "recolha_fiscal": "Central de Documentos — recolha de XML (SEFAZ e e-mail)",
 }
 
 

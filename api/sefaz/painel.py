@@ -204,7 +204,7 @@ def cartao_de_integracao() -> dict:
                    "É a única fonte que não depende de o fornecedor mandar o "
                    "XML por e-mail — e o XML é a obrigação de guarda de cinco "
                    "anos."),
-        "alimenta": "Notas de Entrada",
+        "alimenta": "Central de Documentos",
         "estado": ("ok" if (conf_status == "ok" and chegada_status == "ok")
                    else "alerta"),
         "configuracao": {"estado": conf_estado, "status": conf_status,

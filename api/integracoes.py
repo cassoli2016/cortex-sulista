@@ -180,7 +180,7 @@ def _extras() -> list[dict]:
         saida.append({
             "chave": "sefaz", "nome": "SEFAZ (recolha de NF)",
             "resumo": "Documentos fiscais emitidos contra a Sulista.",
-            "alimenta": "Notas de Entrada", "estado": "erro",
+            "alimenta": "Central de Documentos", "estado": "erro",
             "configuracao": {"estado": "desconhecida", "status": "erro",
                              "falta": ["não foi possível ler o estado"],
                              "modo": None, "regime": None},

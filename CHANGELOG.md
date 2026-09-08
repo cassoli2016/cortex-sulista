@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.16.0] — 08/09/2026  ·  CX-08/09/2026-v1.16.0
+
+### Alterado
+- A tela Notas de Entrada passou a se chamar Central de Documentos, e o nome velho tinha ficado falso: ela começou mostrando o que os fornecedores emitiram CONTRA a Sulista e hoje guarda também os 24.146 CT-e que a própria Sulista emitiu, os MDF-e e os eventos. Quem procurasse um CT-e próprio numa tela de "entrada" procuraria no lugar errado.
+- Ela também mudou de lugar no menu: como o miolo é alfabético, Central de Documentos passou a ser o primeiro item do grupo TMS. Quem já tinha acesso continua tendo — mudou o nome na tela, não a permissão.
+
 ## [1.15.2] — 08/09/2026  ·  CX-08/09/2026-v1.15.2
 
 ### Corrigido

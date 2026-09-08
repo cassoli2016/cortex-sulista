@@ -2840,7 +2840,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
      valor nao cabem lado a lado numa tela de 360px sem o valor quebrar em
      quatro linhas. */
   .int-linhas{grid-template-columns:minmax(0,1fr);gap:2px} }
-/* --- tela Notas de Entrada (DFe da SEFAZ) ------------------------------ */
+/* --- tela Central de Documentos (DFe da SEFAZ) ------------------------------ */
 /* O CHIP DO ESTADO DO DOCUMENTO. `resumo` e `completo` NAO sao decoracao:
    e a diferenca entre ter e nao ter a guarda fiscal cumprida, e por isso
    aparece em toda linha em vez de num rodape. */
@@ -3097,9 +3097,9 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <span class="ic" data-ic="tmsic"></span><span>TMS</span><span class="ic chev" data-ic="chev"></span>
       </button>
       <div class="subs closed" id="subsTms">
+        <a href="#dfe" class="sub" data-view="dfe" title="Central de Documentos — todo XML fiscal da casa num lugar só: o que a SEFAZ entrega, o acervo do ERP e o que chega por e-mail"><span class="ic" data-ic="dfeic"></span><span>Central de Documentos</span></a>
         <a href="#ctecp" class="sub" data-view="ctecp" title="CT-e de Contrapartida — conciliação dos CT-e de agregado que aguardam documento do transportador"><span class="ic" data-ic="ctb"></span><span>CT-e de Contrapartida</span></a>
         <a href="#eqp" class="sub" data-view="eqp" title="Equipamentos — o cadastro de frota do CÓRTEX: identidade, documentação e situação no Detran de cada placa"><span class="ic" data-ic="eqpic"></span><span>Equipamentos</span></a>
-        <a href="#dfe" class="sub" data-view="dfe" title="Notas de Entrada — o que os fornecedores emitiram contra a Sulista, direto da SEFAZ"><span class="ic" data-ic="dfeic"></span><span>Notas de Entrada</span></a>
       </div>
       <div class="navsep" role="separator"></div>
       <button class="group" id="grpAdm" aria-expanded="false" aria-controls="subsAdm" onclick="toggleGroup('grpAdm','subsAdm','cs.admGroup')" title="Administração">
@@ -9079,7 +9079,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { tvcom:'Painel TV — Comunicação', home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Notas de Entrada', eqp:'Equipamentos', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { tvcom:'Painel TV — Comunicação', home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Central de Documentos', eqp:'Equipamentos', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -39554,7 +39554,7 @@ async function dfeBaixarPacote(){
 }
 /* ===================== o ajuste da SEFAZ: certificado A1 e recuperacao ===
    ESTE E O UNICO LUGAR ONDE SE CADASTRA O CERTIFICADO DA EMPRESA. Ele veio da
-   tela Notas de Entrada, onde vivia numa aba que so administrador enxergava:
+   tela Central de Documentos, onde vivia numa aba que so administrador enxergava:
    tela de operacao com decisao de administrador dentro obriga a esconder aba,
    e aba escondida e a que ninguem acha quando precisa.
 
@@ -39758,10 +39758,10 @@ async function dfeRecuperar(){
       return;
     }
     /* ONDE O DOCUMENTO FOI PARAR, dito na resposta: quem recupera por NSU
-       esta na tela de Integracoes, e o documento aparece em Notas de Entrada.
+       esta na tela de Integracoes, e o documento aparece em Central de Documentos.
        Sem esta frase o "guardado" pede uma pergunta seguinte. */
     msg.innerHTML = '<span style="color:var(--green)">guardado ('+esc(dd.estado||'novo')+
-      (dd.emitente_nome?' · '+esc(dd.emitente_nome):'')+') — está em Notas de Entrada</span>';
+      (dd.emitente_nome?' · '+esc(dd.emitente_nome):'')+') — está em Central de Documentos</span>';
   }catch(err){
     msg.innerHTML = '<span style="color:var(--red)">'+esc(err.message||'Erro.')+'</span>';
   }
@@ -39972,7 +39972,7 @@ function integModalHTML(i){
    ANTES DISTO O CARTAO DELA MENTIA: `integAjusteHTML` procurava a chave no
    cofre, nao achava, e o modal ficava em "carregando as configuracoes..."
    PARA SEMPRE -- promessa de ajuste que nao existia. O formulario morava numa
-   aba so-de-administrador dentro de Notas de Entrada, que e tela de operacao.
+   aba so-de-administrador dentro de Central de Documentos, que e tela de operacao.
    Os dois defeitos eram o mesmo defeito, e se resolvem no mesmo lugar. */
 const INTEG_AJUSTE_PROPRIO = {
   sefaz: {html: integAjusteSefaz, pronto: dfeFiliaisPreencher},
@@ -40650,9 +40650,9 @@ boot();
     <div class="dgrp" data-grp="Tms">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>TMS</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
+        <a href="#dfe" onclick="fecharDrawer()"><span class="ic" data-ic="dfeic"></span>Central de Documentos</a>
         <a href="#ctecp" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>CT-e de Contrapartida</a>
         <a href="#eqp" onclick="fecharDrawer()"><span class="ic" data-ic="eqpic"></span>Equipamentos</a>
-        <a href="#dfe" onclick="fecharDrawer()"><span class="ic" data-ic="dfeic"></span>Notas de Entrada</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Adm">

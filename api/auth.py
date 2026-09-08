@@ -131,7 +131,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     # O `ctecp` veio de Controladoria. Trocar de grupo NAO mexe em RBAC: o
     # acesso e por id de tela, e o grupo so diz onde ela aparece no menu.
     "ctecp":   ("CT-e de Contrapartida", "TMS"),
-    "dfe":     ("Notas de Entrada", "TMS"),
+    "dfe":     ("Central de Documentos", "TMS"),
     # O cadastro de EQUIPAMENTOS. Entra no TMS porque e a base do modulo:
     # hoje ele espelha o ERP, e a decisao de quem opera (07/09/2026) e que
     # o TMS deixe de depender do Avacorp -- e um cadastro proprio de frota

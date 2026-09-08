@@ -1,4 +1,4 @@
-"""A tela de Notas de Entrada com as DUAS portas — no navegador.
+"""A tela de Central de Documentos com as DUAS portas — no navegador.
 
 NO NAVEGADOR, e nao no texto do arquivo, pela mesma razao do guard do
 certificado ao lado: a versao de texto-fonte deste arquivo passaria com o

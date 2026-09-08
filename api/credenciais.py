@@ -549,7 +549,7 @@ SERVICOS: list[dict] = [
                   "que ela vai transportar —, o XML chega por e-mail, em "
                   "xml@sulista.com.br. Esta integração lê essa caixa e guarda "
                   "o que for documento fiscal.",
-        "alimenta": "Notas de Entrada",
+        "alimenta": "Central de Documentos",
         # UM MODO SÓ, e não é escolha de arquitetura: é o único que o Exchange
         # Online ainda aceita. IMAP com usuário e senha está desligado lá desde
         # 2023, sem caminho para reabrir.
