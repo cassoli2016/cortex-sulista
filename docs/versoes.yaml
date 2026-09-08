@@ -1,3 +1,17 @@
+- versao: "1.10.3"
+  data: "2026-09-08"
+  corrigido:
+    - >-
+      Correção de uma afirmação errada da versão anterior. A nota da 1.10.2
+      dizia que instalar a busca automática depois das 6h da manhã deixaria o
+      sistema um dia inteiro sem buscar documentos. Isso não é verdade: a
+      repetição de 20 em 20 minutos entra na grade do mesmo dia, e o registro
+      do Windows mostra a tarefa disparando sozinha às 07:20. O engano foi de
+      medição — o log foi consultado às 07:13, antes da primeira ocorrência.
+    - >-
+      A mudança da 1.10.2 continua valendo, por outro motivo: o instalador
+      passar a rodar a tarefa na hora é o que revela na hora um caminho errado
+      de instalação, em vez de deixar isso aparecer no dia seguinte.
 - versao: "1.10.2"
   data: "2026-09-08"
   corrigido:

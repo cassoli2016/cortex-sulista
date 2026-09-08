@@ -126,15 +126,20 @@ $t = Get-ScheduledTask -TaskName $nome -ErrorAction SilentlyContinue
 if (-not $t) { throw "A tarefa NAO foi criada. Nada foi registrado." }
 Log "tarefa '$nome' registrada com sucesso"
 
-# RODA UMA VEZ AGORA, e isso conserta um defeito real: o gatilho e `-Daily -At
-# 06:00`, e instalar as 07:01 significa que a repeticao so comeca AMANHA -- um
-# dia inteiro sem recolha, e sem nada que avise. Aconteceu em 08/09/2026: a
-# tarefa foi registrada as 07:01 e o log de eventos do agendador mostrou os
-# eventos de registro (106, 140) e NENHUM de execucao (100).
+# RODA UMA VEZ AGORA, e a razao e PROVAR A TAREFA na hora: caminho errado no
+# -Execute registra com sucesso e falha 0x80070002 toda vez -- sem rodar aqui,
+# isso so apareceria no primeiro horario, longe de quem instalou.
 #
-# E a partida imediata tem um segundo valor, maior: ela PROVA a tarefa agora.
-# Caminho errado no -Execute registra com sucesso e falha 0x80070002 toda vez;
-# sem rodar aqui, isso so apareceria amanha, no primeiro horario.
+# CORRECAO DE UMA CONCLUSAO ERRADA, e ela fica escrita porque quase virou
+# regra: em 08/09/2026 conclui que instalar as 07:01 com gatilho `-Daily -At
+# 06:00` deixaria a recolha parada ATE O DIA SEGUINTE. Falso. A repeticao entra
+# na grade do mesmo dia -- o log de eventos mostrou a tarefa disparando sozinha
+# as 07:20 (ids 107, 100, 102, com sucesso). O que eu tinha visto era o log
+# consultado as 07:13, ANTES da primeira ocorrencia.
+#
+# A licao nao e sobre o agendador, e sobre a medicao: "nao ha evento de
+# execucao" as 07:13 significava "ainda nao houve", e eu li como "nao havera".
+# Ausencia dentro da janela de espera nao e ausencia.
 Log "disparando a primeira execucao"
 Start-ScheduledTask -TaskName $nome
 Start-Sleep -Seconds 8

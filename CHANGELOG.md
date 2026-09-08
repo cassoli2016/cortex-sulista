@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.10.3] — 08/09/2026  ·  CX-08/09/2026-v1.10.3
+
+### Corrigido
+- Correção de uma afirmação errada da versão anterior. A nota da 1.10.2 dizia que instalar a busca automática depois das 6h da manhã deixaria o sistema um dia inteiro sem buscar documentos. Isso não é verdade: a repetição de 20 em 20 minutos entra na grade do mesmo dia, e o registro do Windows mostra a tarefa disparando sozinha às 07:20. O engano foi de medição — o log foi consultado às 07:13, antes da primeira ocorrência.
+- A mudança da 1.10.2 continua valendo, por outro motivo: o instalador passar a rodar a tarefa na hora é o que revela na hora um caminho errado de instalação, em vez de deixar isso aparecer no dia seguinte.
+
 ## [1.10.2] — 08/09/2026  ·  CX-08/09/2026-v1.10.2
 
 ### Corrigido
