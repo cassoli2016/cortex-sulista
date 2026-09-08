@@ -32,7 +32,7 @@ from __future__ import annotations
 import logging
 
 from ..whatsapp import envio as wa
-from . import assinatura, consulta, detalhe, mensagem
+from . import assinatura, consulta, detalhe, macros, mensagem
 
 log = logging.getLogger("cortex.rastreio.aviso")
 
@@ -65,6 +65,10 @@ def _carga_da_inscricao(ins: dict) -> dict | None:
         "g": ins["grupo"], "e": ins["empresa"], "f": ins["filial"],
         "n": ins["numero"], "s": ins["serie"]}
     estado, rotulo = consulta._estado(linha)
+    # A VIAGEM INTEIRA numa leitura só — a mesma que a página faz. A mensagem
+    # mostra as últimas movimentações; a regra de chegada precisa enxergar até
+    # o `INICIO DE VIAGEM`, que numa viagem com paradas fica bem atrás.
+    movs = detalhe._movimentacao(linha, limite=macros.LIMITE_CRU)
     return {"documento": "CT-e %s" % ins["numero"],
             "origem": consulta._lugar(linha.get("cidadecoleta"),
                                       linha.get("ufcoleta")),
@@ -83,8 +87,55 @@ def _carga_da_inscricao(ins: dict) -> dict | None:
             # dizer uma coisa e a pagina outra sobre o mesmo instante — e o
             # recorte da viagem, que e o que impede a narrativa de outro
             # cliente de vazar, e escrito num lugar so.
-            "movimentacao": detalhe._movimentacao(linha),
+            "movimentacao": movs[:detalhe.MOV_NA_TELA],
+            # A CHEGADA QUE ENCERRA. Não é `movs[0]["rotulo"] == "Chegou no
+            # cliente"`: o mesmo evento é mandado quando o caminhão encosta
+            # para CARREGAR, e a regra que separa os dois mora num lugar só
+            # (`macros.chegada_no_destino`), com a viagem do CT-e 94540 escrita
+            # no docstring como caso de prova.
+            "chegada_no_cliente": detalhe._chegada_no_cliente(linha, movs),
             "andamento": detalhe._andamento(linha)}
+
+
+def _fim_da_carga(carga: dict) -> str | None:
+    """O motivo pelo qual esta carga não se acompanha mais, ou None.
+
+    TRÊS JEITOS DE A CARGA TER CHEGADO, e eles não concorrem — se completam.
+    A entrega e a descarga vêm das DATAS do CT-e, que a operação preenche com
+    atraso (às vezes no dia seguinte); a chegada vem da MACRO do rastreador, no
+    minuto em que o motorista a manda. Enquanto só a entrega encerrava, quem
+    esperava a carga continuava recebendo "faltam 0 km" de hora em hora com o
+    caminhão parado na doca dele — e essa é a mensagem que faz alguém bloquear
+    o número.
+
+    A ORDEM é do mais definitivo para o mais recente, e o rótulo gravado é o
+    que a tela `mon` lê para contar como os monitoramentos terminam.
+    """
+    if carga.get("estado") == "entregue":
+        return "entregue"
+    if carga.get("estado") == "descarregando":
+        # JÁ ESTÁ NA DOCA descarregando: é a mesma notícia da chegada, por
+        # outra fonte. Cai no mesmo balde de propósito — quem lê o painel
+        # quer saber quantas terminaram porque a carga chegou, não por qual
+        # dos dois campos do ERP contou primeiro.
+        return "chegou"
+    if carga.get("chegada_no_cliente"):
+        return "chegou"
+    return None
+
+
+def _encerrar_terminais(pares: list, fora: dict) -> None:
+    """Fecha as inscrições cuja carga chegou. A ENTREGA ENCERRA — só a dela.
+
+    As outras cargas do mesmo telefone seguem sendo avisadas; foi a
+    consolidação por telefone que tornou isso possível dizer, porque antes
+    encerrar era por mensagem.
+    """
+    for ins, carga in pares:
+        motivo = _fim_da_carga(carga)
+        if motivo:
+            assinatura.encerrar(ins["id"], motivo)
+            fora["encerradas"] += 1
 
 
 def rodar(*, ensaio: bool = False, limite: int | None = None) -> dict:
@@ -197,6 +248,14 @@ def rodar(*, ensaio: bool = False, limite: int | None = None) -> dict:
         assin = mensagem.assinatura(cargas, so_marcos=so_marcos)
         if assin and assin == (pares[0][0].get("ultima_assinatura") or ""):
             fora["iguais"] += len(pares)
+            # E MESMO CALANDO, A CARGA QUE CHEGOU SAI DA LISTA. Sem esta linha
+            # a inscrição de quem se cadastrou DEPOIS da chegada ficaria viva
+            # até expirar sozinha aos 15 dias: a primeira mensagem já era a de
+            # chegada, a assinatura nasceu igual, e o ciclo seguinte nunca mais
+            # entraria no ramo que encerra. Silenciosa, mas contando como
+            # monitoramento ativo no painel — um número errado sem sintoma.
+            if not ensaio:
+                _encerrar_terminais(pares, fora)
             continue
 
         if len(fora["amostra"]) < 3:
@@ -215,10 +274,8 @@ def rodar(*, ensaio: bool = False, limite: int | None = None) -> dict:
         fora["enviados"] += 1
         for ins, carga in pares:
             assinatura.marcar_envio(ins["id"], texto, assin=assin)
-            if carga.get("estado") == "entregue":
-                # A ENTREGA ENCERRA — só a dela. As outras cargas do mesmo
-                # telefone seguem sendo avisadas, e é isso que a consolidação
-                # tornou possível dizer: antes, encerrar era por mensagem.
-                assinatura.encerrar(ins["id"], "entregue")
-                fora["encerradas"] += 1
+        # O ENCERRAMENTO VEM DEPOIS DO ENVIO, sempre. É essa ordem que torna a
+        # mensagem de chegada a ÚLTIMA e não a primeira que faltou: encerrar
+        # antes tiraria a inscrição da lista com a novidade ainda por contar.
+        _encerrar_terminais(pares, fora)
     return fora

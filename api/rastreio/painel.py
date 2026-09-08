@@ -53,6 +53,12 @@ DIAS_PADRAO = 14
 #: e verdadeiro que um rótulo bonito e errado.
 MOTIVOS = {
     "entregue": "Carga entregue",
+    # CHEGOU NO CLIENTE é encerramento pela MACRO do rastreador, e por isso é
+    # uma linha separada de "entregue": ele acontece no minuto em que o veículo
+    # encosta na doca, enquanto a data de entrega do CT-e costuma ser lançada
+    # horas depois. Somar os dois esconderia justamente a diferença que fez o
+    # encerramento sair da data e ir para a macro.
+    "chegou": "Chegou no cliente",
     "pagina": "Cancelou na página",
     "whatsapp": "Respondeu SAIR no WhatsApp",
 }
@@ -218,7 +224,12 @@ SELECT
   sum(CASE WHEN ativo AND expira_em >  now() THEN 1 ELSE 0 END)::int AS ativas,
   sum(CASE WHEN ativo AND expira_em <= now() THEN 1 ELSE 0 END)::int AS expiradas,
   sum(CASE WHEN NOT ativo THEN 1 ELSE 0 END)::int AS encerradas,
-  sum(CASE WHEN NOT ativo AND cancelado_por = 'entregue' THEN 1 ELSE 0 END)::int
+  -- OS DOIS MOTIVOS DE "A CARGA CHEGOU", e o KPI conta os dois. Enquanto ele
+  -- olhava só `entregue`, o encerramento pela macro do rastreador — que hoje
+  -- é o caminho comum, porque chega antes da data do CT-e — caía no balde de
+  -- "encerradas" sem dizer por quê, e o número desabaria sem nada ter piorado.
+  sum(CASE WHEN NOT ativo AND cancelado_por IN ('entregue', 'chegou')
+           THEN 1 ELSE 0 END)::int
     AS por_entrega,
   count(DISTINCT CASE WHEN ativo AND expira_em > now() THEN telefone END)::int
     AS fones_ativos,

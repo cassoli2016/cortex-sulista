@@ -58,6 +58,7 @@ um rastreador que não fala com a gente.
 from __future__ import annotations
 
 import logging
+import unicodedata
 
 from . import consulta
 
@@ -99,6 +100,21 @@ MARCOS = frozenset({
     "INICIO DE VIAGEM", "CHEGADA NO CLIENTE", "INICIO DE CARGA E/OU DESCARGA",
     "FIM DE CARGA E/OU DESCARGA", "FIM DE VIAGEM",
 })
+
+#: A MACRO QUE ENCERRA O ACOMPANHAMENTO, e as que dizem que o veículo voltou a
+#: rodar. Estão nomeadas porque a regra de encerramento compara uma a uma — e
+#: `CHEGADA NO CLIENTE`, sozinha, NÃO significa o que o nome promete: o mesmo
+#: evento é mandado quando o caminhão encosta no cliente para CARREGAR. Ver
+#: `chegada_no_destino`, que é onde as três condições moram.
+CHEGADA = "CHEGADA NO CLIENTE"
+INICIOS_DE_VIAGEM = frozenset({"INICIO DE VIAGEM", "REINICIO DE VIAGEM"})
+
+#: Os mesmos dois, já no NOSSO rótulo — que é a forma em que `recentes()`
+#: devolve. Derivados de `PUBLICAS` de propósito: reescrevê-los à mão criaria
+#: uma segunda grafia de "Chegou no cliente" que ninguém veria discordar, e a
+#: regra pararia de disparar no dia em que a redação mudasse, sem erro nenhum.
+_ROTULO_CHEGADA = PUBLICAS[CHEGADA]
+_ROTULOS_INICIO = frozenset(PUBLICAS[k] for k in INICIOS_DE_VIAGEM)
 
 #: Janela de leitura. `dtinc` é a coluna indexada — a tabela tem 1 milhão de
 #: linhas e o AVA é 9.3 com `statement_timeout`. Medido: 0,24 s por placa
@@ -233,3 +249,84 @@ def recentes(placa: str, desde=None, ate=None, limite: int = 6) -> list[dict]:
         if len(fora) >= limite:
             break
     return fora
+
+
+# --------------------------------------------------------------------------
+# a chegada que ENCERRA o acompanhamento
+# --------------------------------------------------------------------------
+def _cru(lugar: str) -> str:
+    """"São Leopoldo/RS" e "SAO LEOPOLDO/RS" são o MESMO município.
+
+    E não é preciosismo: o cadastro do destinatário no ERP escreve a cidade
+    SEM acento (`SAO LEOPOLDO`) e o hub de rastreamento escreve COM
+    (`SÃO LEOPOLDO`). Medido no CT-e 94540 em 08/09/2026 — comparando os dois
+    textos crus, a chegada no destino nunca casaria, e o encerramento
+    automático seria um recurso que nunca dispara. Falha muda, das piores:
+    ninguém reclama de uma mensagem que continua chegando.
+    """
+    t = unicodedata.normalize("NFKD", (lugar or "").strip().upper())
+    return "".join(c for c in t if not unicodedata.combining(c))
+
+
+def mesmo_lugar(a: str | None, b: str | None) -> bool:
+    """Os dois textos falam da mesma cidade? Vazio nunca casa com nada."""
+    return bool(a) and bool(b) and _cru(a) == _cru(b)
+
+
+def chegada_no_destino(movs: list[dict], destino: str | None) -> dict | None:
+    """A chegada no cliente que ENCERRA o acompanhamento, ou None.
+
+    O EVENTO SOZINHO NÃO SERVE, e é por isso que esta função existe em vez de
+    um `if rotulo == "Chegou no cliente"` no aviso. O rastreador manda a mesma
+    `CHEGADA NO CLIENTE` quando o caminhão encosta para CARREGAR — a viagem do
+    CT-e 94540 tem a de Joinville (coleta, 05/09 07:02) e a de São Leopoldo
+    (entrega, 08/09 05:05), com o mesmo texto e a mesma tabela. Encerrar na
+    primeira mataria o acompanhamento antes de a carga sair da origem, e o
+    cliente descobriria isso não recebendo nada.
+
+    TRÊS CONDIÇÕES, e cada uma cobre um jeito diferente de errar:
+
+    1. **Depois de a viagem ter começado** — há um `INICIO DE VIAGEM` (ou
+       `REINICIO`) ANTERIOR à chegada. É o pedido literal de quem opera: a
+       chegada que interessa é a de quem já estava rodando.
+    2. **No lugar do destinatário.** É esta que separa a coleta da entrega
+       quando as duas caem dentro da janela — Joinville não é São Leopoldo. Sem
+       cidade dos dois lados a função devolve None: preferir o silêncio é
+       manter o comportamento antigo (avisar até a entrega ser gravada), e o
+       erro para o outro lado custa o acompanhamento de quem está esperando.
+    3. **Sem ter voltado a rodar depois.** Um `INICIO DE VIAGEM` mais recente
+       que a chegada diz que o caminhão saiu de novo — foi buscar outra coisa,
+       trocou de doca, seguiu para o próximo. A carga não chegou; ela passou.
+
+    `movs` vem de `recentes()`, do MAIS RECENTE para o mais antigo — a mesma
+    ordem da consulta. E vem com O NOSSO RÓTULO, nunca com o texto do hub: a
+    lista branca de `PUBLICAS` já filtrou, e comparar aqui contra o texto cru
+    reabriria a porta que este módulo existe para fechar.
+    """
+    if not destino:
+        return None
+    for i, m in enumerate(movs):
+        rot = m.get("rotulo")
+        if rot in _ROTULOS_INICIO:
+            # Condição 3: o mais recente dos dois é um início de viagem.
+            return None
+        if rot != _ROTULO_CHEGADA:
+            continue
+        if not mesmo_lugar(m.get("onde"), destino):
+            return None                                        # condição 2
+        # A HORA É A DA PRIMEIRA CHEGADA DO BLOCO, não a da última repetição.
+        # O rastreador manda a mesma macro várias vezes enquanto o veículo fica
+        # parado no cliente: no CT-e 94540 foram CINCO entre 05:05 e 07:34, e
+        # dizer "chegou às 07:34" seria contar como chegada a última vez que o
+        # equipamento repetiu — duas horas e meia depois de o caminhão encostar,
+        # para quem estava esperando na doca.
+        j = i
+        while (j + 1 < len(movs)
+               and movs[j + 1].get("rotulo") == _ROTULO_CHEGADA
+               and mesmo_lugar(movs[j + 1].get("onde"), destino)):
+            j += 1
+        if any(x.get("rotulo") in _ROTULOS_INICIO for x in movs[j + 1:]):
+            return movs[j]                                     # condição 1
+        return None
+    return None
+

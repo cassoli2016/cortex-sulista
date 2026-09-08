@@ -514,7 +514,16 @@ def _janela_do_aviso() -> dict:
         return {}
 
 
-def _movimentacao(linha: dict) -> list[dict]:
+#: Quantas movimentações a página mostra. É escolha de TELA — a leitura traz a
+#: viagem inteira (ver `_movimentacao`), e cortar na leitura foi o que quase
+#: quebrou o encerramento automático: com 6 eventos, uma viagem com quatro
+#: paradas empurra o `INICIO DE VIAGEM` para fora, e a regra que precisa dele
+#: (`macros.chegada_no_destino`) passa a não achar nada. Falha muda, do lado
+#: seguro — a mensagem continuaria saindo para sempre.
+MOV_NA_TELA = 6
+
+
+def _movimentacao(linha: dict, limite: int = MOV_NA_TELA) -> list[dict]:
     """A movimentação REAL da viagem desta carga, pelas macros do rastreador.
 
     A JANELA SAI DAQUI e não do módulo de macros, porque quem sabe de QUAL
@@ -522,12 +531,32 @@ def _movimentacao(linha: dict) -> list[dict]:
     definição que o `KM_SQL` usa — e, quando não há viagem aberta (a carga já
     chegou), na emissão do documento. Termina na entrega, para a carga
     entregue não continuar "andando" com a viagem seguinte do mesmo cavalo.
+
+    `limite` é de EXIBIÇÃO e não de leitura: a consulta já traz
+    `macros.LIMITE_CRU` linhas de qualquer jeito, então pedir a viagem inteira
+    não custa uma consulta a mais — custa um corte a menos.
     """
     placa = (linha.get("placa") or "").strip().upper()
     if not placa:
         return []
     desde = macros.saida_da_viagem(placa) or linha.get("dtemissao")
-    return macros.recentes(placa, desde=desde, ate=linha.get("dtentrega"))
+    return macros.recentes(placa, desde=desde, ate=linha.get("dtentrega"),
+                           limite=limite)
+
+
+def _chegada_no_cliente(linha: dict, movs: list[dict]) -> dict | None:
+    """A chegada que encerra o acompanhamento desta carga, ou None.
+
+    Existe aqui — e não no aviso — porque é aqui que mora o DESTINO: a regra
+    compara o lugar da macro com a cidade do destinatário, e é essa comparação
+    que separa "chegou para entregar" de "chegou para carregar". Os dois
+    caminhos até a carga (a página e o WhatsApp) chamam esta mesma função,
+    porque a página dizer uma coisa e a mensagem dizer outra sobre o mesmo
+    caminhão é o defeito que este módulo inteiro evita.
+    """
+    return macros.chegada_no_destino(
+        movs, consulta._lugar(linha.get("destinatario_cidade"),
+                              linha.get("destinatario_uf")))
 
 
 def _montar(linha: dict, chaves: dict) -> dict:
@@ -540,6 +569,12 @@ def _montar(linha: dict, chaves: dict) -> dict:
     """
     _CHAVES_ATUAIS["chaves"] = chaves
     andamento = _andamento(linha)
+    # A VIAGEM INTEIRA numa leitura só: a tela mostra as últimas
+    # (`MOV_NA_TELA`), a regra de chegada precisa enxergar até o início da
+    # viagem. Duas consultas para a mesma tabela seriam duas chances de elas
+    # discordarem.
+    movs = _movimentacao(linha, limite=macros.LIMITE_CRU)
+    chegada = _chegada_no_cliente(linha, movs)
     # ORIGEM E DESTINO VAO INTEIROS. Nao e incoerencia com a posicao
     # arredondada: o endereco de coleta e o de entrega sao de quem despachou e
     # de quem recebe — as duas pontas ja os conhecem. O que se protege e onde
@@ -568,7 +603,12 @@ def _montar(linha: dict, chaves: dict) -> dict:
         # macro (100% da frota propria, 37% dos agregados). A tela some com o
         # bloco; o que ela nao faz e dizer "sem movimentacao", que seria ler
         # ausencia de leitura como imobilidade do caminhao.
-        "movimentacao": _movimentacao(linha),
+        "movimentacao": movs[:MOV_NA_TELA],
+        # CHEGOU E NÃO VOLTOU A RODAR. A página e o WhatsApp leem o MESMO
+        # veredito: enquanto o aviso decidia sozinho quando encerrar, a tela
+        # continuaria dizendo "Em viagem" para uma carga cujo acompanhamento
+        # acabou de ser encerrado — duas verdades sobre o mesmo caminhão.
+        "chegou_no_cliente": bool(chegada),
         # O HORARIO EM QUE OS AVISOS SAEM, dito na tela para todo mundo — quem
         # ja e avisado e quem ainda vai se cadastrar. Sem isto, quem acompanha
         # uma carga a noite fica esperando uma mensagem que nao vem e conclui

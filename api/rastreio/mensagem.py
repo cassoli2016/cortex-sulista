@@ -149,6 +149,26 @@ def montar(carga: dict) -> str | None:
                    "", "\U0001f449 " + lig]
         return "\n".join(linhas)
 
+    ch = carga.get("chegada_no_cliente")
+    if ch:
+        # A ÚLTIMA MENSAGEM DESTA CARGA, e ela DIZ isso. Sumir sem avisar seria
+        # a quarta resposta que esta casa não permite: quem recebeu catorze
+        # avisos e não recebe o décimo quinto não conclui "chegou", conclui
+        # "quebrou" — e liga para a transportadora, que é exatamente o
+        # telefonema que o acompanhamento existe para poupar.
+        quando = (ch.get("em") or "")[11:16]
+        titulo = "*Chegou no cliente*"
+        if ch.get("onde"):
+            titulo += " · %s" % ch["onde"]
+        linhas = _cabecalho(carga, CHEGADA, titulo)
+        linhas += [_trecho(carga), "", barra(100) + "  *100%*"]
+        if quando:
+            linhas.append("\U0001f550 O veículo chegou às %s" % quando)
+        linhas += ["", "Este é o *último aviso* desta carga — o veículo chegou "
+                   "ao destino e encerramos o acompanhamento.",
+                   "", "\U0001f449 " + lig]
+        return "\n".join(linhas)
+
     if a.get("fora_da_rota"):
         # RECUSA DIZENDO O MOTIVO, não silêncio. O veículo pode ter engatado
         # outra carreta e seguido viagem; inventar um progresso aqui seria pior
@@ -226,6 +246,10 @@ def _resumo(carga: dict) -> list[str] | None:
         return ["✅ *%s* · ENTREGUE" % doc, "\U0001f4cd %s" % trecho]
     if carga.get("estado") == "descarregando":
         return ["\U0001f4e6 *%s* · em descarga" % doc, "\U0001f4cd %s" % trecho]
+    if carga.get("chegada_no_cliente"):
+        return ["%s *%s* · CHEGOU NO CLIENTE" % (CHEGADA, doc),
+                "\U0001f4cd %s" % trecho,
+                "_Último aviso desta carga._"]
     if a.get("fora_da_rota"):
         return ["⚠️ *%s* · sem localização agora" % doc,
                 "\U0001f4cd %s" % trecho]
@@ -359,6 +383,12 @@ def _assinatura_de_uma(carga: dict, so_marcos: bool = False) -> str:
         # A DATA DA ENTREGA FICA DE FORA: ela é imutável depois de gravada, e
         # o estado sozinho já separa "chegou" de "está vindo".
         return "%s|%s" % (doc, estado)
+    if carga.get("chegada_no_cliente"):
+        # ESTADO PRÓPRIO, e não um detalhe da assinatura de viagem. Sem ele a
+        # chegada cairia no ramo de baixo, que exige posição fresca — e a
+        # última mensagem, justamente a que encerra, não sairia para quem
+        # estivesse com o rastreador mudo naquele minuto.
+        return "%s|chegou" % doc
     if a.get("fora_da_rota"):
         return "%s|fora" % doc
     if a.get("posicao_velha_min"):

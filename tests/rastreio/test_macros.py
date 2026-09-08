@@ -199,7 +199,11 @@ def test_o_PAYLOAD_da_carga_leva_a_janela_ate_a_pagina(monkeypatch):
 
     monkeypatch.setattr(detalhe, "_andamento", lambda linha: {})
     monkeypatch.setattr(detalhe, "_notas", lambda chaves: [])
-    monkeypatch.setattr(detalhe, "_movimentacao", lambda linha: [])
+    # O DUBLÊ ACOMPANHA A ASSINATURA REAL: `_movimentacao` ganhou `limite`
+    # quando o encerramento por chegada passou a precisar da viagem inteira, e
+    # não só das seis últimas que a tela mostra.
+    monkeypatch.setattr(detalhe, "_movimentacao",
+                        lambda linha, limite=None: [])
 
     # A linha crua do ERP, com o mínimo que `consulta._limpo` exige.
     linha = {"grupo": 1, "empresa": 1, "filial": 1, "numero": 51283,

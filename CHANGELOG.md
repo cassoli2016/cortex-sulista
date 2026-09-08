@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.12.0] — 08/09/2026  ·  CX-08/09/2026-v1.12.0
+
+### Adicionado
+- O acompanhamento da carga por WhatsApp agora TERMINA quando o veículo chega no cliente. A mensagem da chegada diz que é a última, com a hora em que ele encostou e o lugar, e a inscrição é encerrada sozinha — antes o aviso só parava quando a data de entrega era lançada no ERP, o que costuma acontecer horas depois, e nesse intervalo quem esperava a carga recebia "faltam 0 km" de hora em hora com o caminhão parado na doca dele.
+- A chegada que encerra é a de ENTREGA, nunca a de coleta. O rastreador manda a mesma macro quando o caminhão encosta no cliente para CARREGAR, então só conta a chegada que acontece depois de a viagem ter começado, na cidade do destinatário, e sem o veículo ter voltado a rodar em seguida.
+- Quem já está na doca em descarga também deixa de ser avisado, pelo mesmo motivo. Na tela Monitoramentos, "Chegou no cliente" aparece como um encerramento próprio, separado de "Carga entregue".
+
 ## [1.11.0] — 08/09/2026  ·  CX-08/09/2026-v1.11.0
 
 ### Adicionado

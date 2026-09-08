@@ -151,8 +151,19 @@ glossario:
     etapa a carga dela está. A inscrição exige o documento em mãos (CT-e ou
     nota) mais os quatro primeiros dígitos do CNPJ, morre sozinha em 15 dias
     porque ninguém volta para cancelar, e é encerrada pelo próprio sistema
-    quando a carga é entregue. Um telefone pode monitorar até cinco cargas ao
-    mesmo tempo, e cada carga aceita até oito telefones.
+    quando a carga CHEGA no cliente — com uma última mensagem dizendo isso. Um
+    telefone pode monitorar até cinco cargas ao mesmo tempo, e cada carga
+    aceita até oito telefones.
+- termo: Chegada que encerra o aviso
+  definicao: >-
+    A macro "CHEGADA NO CLIENTE" do rastreador é a mesma quando o caminhão
+    encosta para CARREGAR e quando encosta para ENTREGAR — o texto não
+    distingue os dois. Por isso o aviso só trata como fim do acompanhamento a
+    chegada que acontece DEPOIS de a viagem ter começado, na cidade do
+    destinatário, e sem o veículo ter voltado a rodar em seguida. Não havendo
+    essas três coisas, o monitoramento segue até a entrega ser lançada no ERP,
+    que é o comportamento antigo. A hora informada é a da PRIMEIRA chegada: o
+    equipamento repete a macro enquanto o veículo fica parado no cliente.
 - termo: Aviso que não se repete
   definicao: >-
     O aviso do monitoramento sai de hora em hora, mas mensagem IDÊNTICA à
