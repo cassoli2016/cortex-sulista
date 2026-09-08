@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.12.3] — 08/09/2026  ·  CX-08/09/2026-v1.12.3
+
+### Corrigido
+- A mensagem que encerra o acompanhamento da carga não oferece mais "Para sair, responda SAIR": ela dizia "encerramos o acompanhamento" e logo abaixo convidava a cancelar o que já estava cancelado. Quando o telefone acompanha outras cargas, o rodapé continua — e o exemplo de como sair de UMA passa a citar uma carga que segue em viagem, nunca a que acabou de encerrar.
+- Quem se cadastra para acompanhar uma carga que JÁ chegou recebe a situação dela e o cadastro se encerra na hora, dizendo isso. Antes a página prometia "avisamos a cada hora" e a inscrição ficava contando como monitoramento ativo até expirar sozinha, sem nunca enviar nada.
+
 ## [1.12.2] — 08/09/2026  ·  CX-08/09/2026-v1.12.2
 
 ### Corrigido

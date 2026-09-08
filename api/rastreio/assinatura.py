@@ -293,7 +293,8 @@ def inscrever(termo: str, cnpj4: str, carga_id: str, telefone: str,
     #
     # A falha do envio NAO desfaz a inscricao: o cadastro esta gravado, a
     # tarefa horaria pega o proximo ciclo, e a tela diz o que aconteceu.
-    texto_inicial, assin_inicial = _primeira_mensagem(alvo, fone, cad)
+    texto_inicial, assin_inicial, ja_chegou = _primeira_mensagem(alvo, fone,
+                                                                 cad)
     primeira = bool(texto_inicial)
     if primeira:
         # ISTO É O QUE ANCORA O RELÓGIO NO PEDIDO. Sem gravar, a inscrição
@@ -313,6 +314,21 @@ def inscrever(termo: str, cnpj4: str, carga_id: str, telefone: str,
     ritmo = {"tudo": "a cada hora, quando houver novidade",
              "menos": "a cada três horas, quando houver novidade",
              "marcos": "quando a carga mudar de etapa"}[cad]
+
+    # A CARGA QUE JÁ CHEGOU NÃO ABRE ACOMPANHAMENTO NENHUM, e a tela diz isso
+    # em vez de prometer avisos que não virão. O cadastro é encerrado no mesmo
+    # instante: deixá-lo vivo faria a pessoa aparecer como monitoramento ativo
+    # no painel até expirar sozinho aos 15 dias, sem nunca receber nada.
+    if primeira and ja_chegou:
+        encerrar(ident, ja_chegou)
+        return {"ok": True, "id": ident,
+                "telefone": numeros.formatar(fone),
+                "dias": DIAS_VALIDADE, "primeira_enviada": True,
+                "janela": [ini, fim], "cadencia": cad, "encerrada": True,
+                "aviso": "Esta carga já chegou ao destino. Enviamos a "
+                         "situação dela para o seu WhatsApp — não haverá mais "
+                         "avisos."}
+
     return {"ok": True, "id": ident,
             "telefone": numeros.formatar(fone),
             "dias": DIAS_VALIDADE,
@@ -327,8 +343,9 @@ def inscrever(termo: str, cnpj4: str, carga_id: str, telefone: str,
 
 
 def _primeira_mensagem(alvo: dict, fone: str,
-                       cadencia: str = CADENCIA_PADRAO) -> tuple[str | None, str]:
-    """Manda o estado da carga agora. Devolve `(texto, assinatura)`.
+                       cadencia: str = CADENCIA_PADRAO
+                       ) -> tuple[str | None, str, str | None]:
+    """Manda o estado da carga agora. `(texto, assinatura, ja_chegou)`.
 
     DEVOLVE O QUE FOI DITO, E NÃO UM BOOLEANO, porque quem chama precisa
     GRAVÁ-LO. Sem isso a inscrição nascia sem âncora — e o ciclo seguinte, sem
@@ -340,6 +357,12 @@ def _primeira_mensagem(alvo: dict, fone: str,
     compara. Ancorar só o texto deixaria a primeira hora de toda inscrição sem
     proteção nenhuma — exatamente a hora em que a pessoa acabou de dar o número
     e está mais propensa a bloquear.
+
+    E DEVOLVE OS TRÊS: o último diz se a carga JÁ CHEGOU, e com que motivo.
+    Quem cadastra uma carga que acabou de encostar na doca recebe a situação
+    dela e mais nada — abrir um acompanhamento ali seria prometer avisos que
+    nunca virão, e deixar a inscrição viva a faria contar como monitoramento
+    ativo até expirar sozinha aos 15 dias.
     """
     try:
         from . import aviso
@@ -351,7 +374,7 @@ def _primeira_mensagem(alvo: dict, fone: str,
         if not texto:
             # SEM O QUE DIZER nao vira mensagem vazia nem "cadastro efetuado":
             # a primeira coisa que a pessoa recebe tem de ser a carga dela.
-            return None, ""
+            return None, "", None
         # A ANCORA NASCE NA CADENCIA ESCOLHIDA. Ancorar com a régua "tudo" e
         # comparar depois com a régua "marcos" faria a primeira comparação
         # falhar sempre — e a pessoa que pediu menos mensagens receberia uma a
@@ -377,16 +400,23 @@ def _primeira_mensagem(alvo: dict, fone: str,
         # da geral e troca-se UM campo — assim o interruptor, o limite do dia e
         # o teto por numero continuam valendo, que e o ponto.
         from ..whatsapp import resposta
-        r = wa.enviar(fone, texto + aviso.RODAPE, usuario="rastreio",
+        # O RODAPÉ SÓ EXISTE SE HOUVER O QUE CANCELAR — a mesma regra do
+        # aviso horário. "Para sair, responda SAIR" embaixo de uma mensagem
+        # que diz "encerramos o acompanhamento" oferece a saída de algo que já
+        # acabou, e convida a pessoa a responder para cancelar o que já está
+        # cancelado.
+        ja_chegou = aviso._fim_da_carga(carga)
+        r = wa.enviar(fone, texto + ("" if ja_chegou else aviso.RODAPE),
+                      usuario="rastreio",
                       origem="rastreio_cadastro", regras=resposta.regras())
         # O TEXTO CRU, sem o rodapé: é o que quem atende vê como "a última
         # mensagem", e o rodapé muda de uma mensagem para outra (leva o número
         # do documento). Quem compara é a assinatura, que já nasce limpa disso.
-        return (texto, assin) if r.get("ok") else (None, "")
+        return (texto, assin, ja_chegou) if r.get("ok") else (None, "", None)
     except Exception as exc:  # noqa: BLE001
         log.warning("rastreio: primeira mensagem falhou: %s",
                     type(exc).__name__)
-        return None, ""
+        return None, "", None
 
 
 def cancelar(termo: str, cnpj4: str, carga_id: str, telefone: str) -> dict:

@@ -303,6 +303,136 @@ def test_a_carga_EM_VIAGEM_continua_sendo_avisada(cenario):
 
 
 # --------------------------------------------------------------------------
+# o rodapé
+# --------------------------------------------------------------------------
+def test_a_mensagem_que_ENCERRA_nao_oferece_saida(cenario):
+    """Visto no WhatsApp de quem opera, 08/09/2026.
+
+    "Para sair, responda SAIR" embaixo de "encerramos o acompanhamento" oferece
+    a saída de algo que já acabou — e convida a pessoa a responder para
+    cancelar o que já está cancelado, que é o tipo de instrução que faz duvidar
+    do resto da mensagem.
+    """
+    enviados, _ = cenario([_ins()], _carga())
+    aviso.rodar()
+    assert "SAIR" not in enviados[0][1]
+
+
+def _telefone_com(monkeypatch, cenario, cargas: dict):
+    """Um telefone acompanhando VÁRIAS cargas, cada uma no seu estado.
+
+    O dublê é por NÚMERO do documento e entra por `monkeypatch`: atribuir
+    direto em `aviso._carga_da_inscricao` vazaria para os testes seguintes, e
+    o sintoma seria um vermelho em outro arquivo.
+    """
+    inscricoes = [_ins(id=100 + i, numero=n) for i, n in enumerate(cargas)]
+    enviados, encerradas = cenario(inscricoes, None)
+    monkeypatch.setattr(aviso, "_carga_da_inscricao",
+                        lambda ins: cargas[ins["numero"]])
+    return enviados, encerradas
+
+
+def _viajando(doc, pct, falta):
+    return _carga(documento="CT-e %s" % doc, chegada_no_cliente=None,
+                  andamento={"tem_posicao": True, "progresso_pct": pct,
+                             "falta_km": falta, "por_rota": True})
+
+
+def test_com_OUTRA_carga_seguindo_o_rodape_CONTINUA(monkeypatch, cenario):
+    """A saída não some por causa de uma carga que chegou: enquanto houver o
+    que cancelar, quem recebe precisa saber como sair. Opt-out difícil não
+    reduz cancelamento — vira bloqueio do número da empresa."""
+    enviados, _ = _telefone_com(monkeypatch, cenario, {
+        94540: _carga(), 94541: _viajando("94541", 40, 300)})
+    aviso.rodar()
+    assert "SAIR" in enviados[0][1]
+
+
+def test_o_EXEMPLO_do_rodape_nao_sai_da_carga_que_ja_encerrou(monkeypatch,
+                                                              cenario):
+    """`SAIR 94540` ensinando a sintaxe com o número da carga que acabou de se
+    encerrar sozinha é ensinar errado com o pior exemplo possível: a pessoa
+    testa, nada acontece — já não há inscrição — e conclui que o comando não
+    funciona."""
+    enviados, _ = _telefone_com(monkeypatch, cenario, {
+        94540: _carga(), 94541: _viajando("94541", 40, 300),
+        94542: _viajando("94542", 10, 800)})
+    aviso.rodar()
+    texto = enviados[0][1]
+    assert "SAIR 94541" in texto, texto[-300:]
+    assert "SAIR 94540" not in texto
+
+
+# --------------------------------------------------------------------------
+# quem se cadastra com a carga já na doca
+# --------------------------------------------------------------------------
+class _Cur:
+    def execute(self, *a, **k): pass
+    def fetchone(self): return {"n": 0, "id": 1}
+
+
+class _Ctx:
+    def __init__(self, o): self.o = o
+    def __enter__(self): return self.o
+    def __exit__(self, *a): return False
+
+
+class _Conn:
+    def cursor(self): return _Ctx(_Cur())
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+
+
+@pytest.fixture
+def cadastro(monkeypatch):
+    """O cadastro na página pública, com o banco e a Z-API dublados."""
+    from api.rastreio import assinatura
+
+    saiu, encerradas = [], []
+    alvo = {"grupo": 1, "empresa": 1, "filial": 19, "numero": 94540,
+            "serie": 1}
+    monkeypatch.setattr(assinatura.consulta, "buscar_cru",
+                        lambda t, c: ([alvo], None))
+    monkeypatch.setattr(assinatura.consulta, "token", lambda *a: "ID")
+    monkeypatch.setattr(assinatura.pglocal, "get_conn", lambda *a, **k: _Conn())
+    monkeypatch.setattr(assinatura.pglocal, "executar", lambda *a, **k: 1)
+    monkeypatch.setattr(assinatura, "encerrar",
+                        lambda i, m: encerradas.append((i, m)))
+    monkeypatch.setattr(aviso.wa, "enviar",
+                        lambda f, t, **k: (saiu.append(t) or {"ok": True}))
+
+    def _com(carga):
+        monkeypatch.setattr(aviso, "_carga_da_inscricao", lambda i: carga)
+        return assinatura.inscrever("94540", "0051", "ID", "41984251704",
+                                    "1.2.3.4")
+    return _com, saiu, encerradas
+
+
+def test_cadastrar_carga_JA_CHEGADA_manda_a_situacao_e_encerra(cadastro):
+    """O caso de borda que a regra nova cria: a pessoa pede o acompanhamento
+    de uma carga que acabou de encostar na doca. Prometer "avisamos a cada
+    hora" ali é promessa que não se cumpre, e deixar a inscrição viva a faria
+    contar como monitoramento ativo no painel até expirar aos 15 dias, sem a
+    pessoa nunca receber nada."""
+    inscrever, saiu, encerradas = cadastro
+    r = inscrever(_carga())
+    assert r["ok"] and r.get("encerrada") is True
+    assert "já chegou" in r["aviso"] and "hora" not in r["aviso"]
+    assert encerradas and encerradas[0][1] == "chegou"
+    assert saiu and "SAIR" not in saiu[0]
+
+
+def test_cadastrar_carga_EM_VIAGEM_segue_prometendo_o_aviso(cadastro):
+    """A sabotagem do outro lado: o cadastro normal não pode ter mudado."""
+    inscrever, saiu, encerradas = cadastro
+    r = inscrever(_viajando("94540", 40, 300))
+    assert r["ok"] and not r.get("encerrada")
+    assert "hora" in r["aviso"]
+    assert encerradas == []
+    assert "SAIR" in saiu[0]
+
+
+# --------------------------------------------------------------------------
 # o painel
 # --------------------------------------------------------------------------
 def test_o_motivo_novo_TEM_ROTULO_e_entra_no_KPI():

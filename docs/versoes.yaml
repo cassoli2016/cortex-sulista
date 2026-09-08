@@ -1,3 +1,18 @@
+- versao: "1.12.3"
+  data: "2026-09-08"
+  corrigido:
+    - >-
+      A mensagem que encerra o acompanhamento da carga não oferece mais "Para
+      sair, responda SAIR": ela dizia "encerramos o acompanhamento" e logo
+      abaixo convidava a cancelar o que já estava cancelado. Quando o telefone
+      acompanha outras cargas, o rodapé continua — e o exemplo de como sair de
+      UMA passa a citar uma carga que segue em viagem, nunca a que acabou de
+      encerrar.
+    - >-
+      Quem se cadastra para acompanhar uma carga que JÁ chegou recebe a
+      situação dela e o cadastro se encerra na hora, dizendo isso. Antes a
+      página prometia "avisamos a cada hora" e a inscrição ficava contando
+      como monitoramento ativo até expirar sozinha, sem nunca enviar nada.
 - versao: "1.12.2"
   data: "2026-09-08"
   corrigido:

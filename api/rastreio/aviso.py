@@ -223,10 +223,22 @@ def rodar(*, ensaio: bool = False, limite: int | None = None) -> dict:
         if not texto:
             fora["sem_texto"] += len(pares)
             continue
-        # O EXEMPLO DO RODAPÉ é o documento da PRIMEIRA carga: "SAIR 94537"
-        # ensina a sintaxe com um número que a pessoa está vendo na tela.
-        doc = (cargas[0].get("documento") or "").replace("CT-e ", "").strip()
-        completo = texto + mensagem.rodape(len(cargas), doc)
+        # O RODAPÉ FALA DAS CARGAS QUE CONTINUAM, e só existe se houver alguma.
+        #
+        # "Para sair, responda SAIR" embaixo da mensagem que diz "encerramos o
+        # acompanhamento" oferece uma saída de algo que já acabou — e pior:
+        # convida a pessoa a responder para cancelar o que já está cancelado,
+        # que é o tipo de instrução que faz duvidar do resto da mensagem.
+        #
+        # COM VÁRIAS CARGAS ele continua indispensável (uma chegou, as outras
+        # seguem), e aí o EXEMPLO tem de sair de uma que continua: "SAIR 94540"
+        # ensinando a sintaxe com o número da carga que acabou de encerrar
+        # sozinha seria ensinar errado com o pior exemplo possível.
+        seguem = [c for c in cargas if not _fim_da_carga(c)]
+        completo = texto
+        if seguem:
+            doc = (seguem[0].get("documento") or "").replace("CT-e ", "").strip()
+            completo += mensagem.rodape(len(seguem), doc)
 
         # NADA MUDOU NAO SE REPETE. E o que separa "aviso de hora em hora" de
         # "24 mensagens iguais por dia" — e a segunda faz a pessoa bloquear o
