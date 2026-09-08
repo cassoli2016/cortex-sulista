@@ -1,3 +1,38 @@
+- versao: "1.11.0"
+  data: "2026-09-08"
+  adicionado:
+    - >-
+      TMS ganhou a tela Equipamentos: o cadastro de frota do CÓRTEX. Ele traz
+      as 1.446 placas ativas com identidade, classificação, capacidade e
+      emplacamento, com busca por placa, frota, chassi, RENAVAM, marca ou
+      modelo, e filtro por vínculo (próprio, agregado, terceiro) e por
+      categoria (tração ou implemento).
+    - >-
+      Cada campo do cadastro mostra DE ONDE veio. Hoje quase tudo vem do
+      Avacorp, e a tela diz isso com número: a aba "Fontes e cobertura"
+      responde quanto do cadastro ainda depende do ERP e nomeia os campos que
+      não têm nenhuma outra fonte. É o que vai permitir desligar o Avacorp sem
+      descobrir tarde o que se perde junto.
+    - >-
+      Correção à mão vence toda coleta automática. Um campo corrigido na tela
+      não é desfeito pela sincronização seguinte, e fica com autor e motivo.
+    - >-
+      Integração com a APIBrasil para consultar a placa no Detran: situação,
+      licenciamento (CRLV), valor FIPE e restrição de roubo, furto ou leilão —
+      informações que o ERP não tem. O token se coloca em Administração ›
+      Integrações › APIBrasil, com teto diário de consultas por plano.
+    - >-
+      A aba "Divergências" mostra onde o Detran e o ERP discordam. O cadastro
+      do ERP está preenchido em quase 100%, mas preenchido não é conferido:
+      quem digitou o chassi foi uma pessoa. Enquanto a conferência não começar,
+      a tela DIZ que está vazia por falta de medição, e não por estar tudo
+      certo.
+  corrigido:
+    - >-
+      O cadastro passou a ignorar veículo baixado no Avacorp. O filtro que o
+      painel usava dava a frota como 1.977 veículos, mas 534 deles já tinham
+      data de inativação — 163 baixados só em 2026. A frota ativa de verdade
+      é 1.446.
 - versao: "1.10.3"
   data: "2026-09-08"
   corrigido:
