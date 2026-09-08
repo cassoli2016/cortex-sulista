@@ -76,7 +76,8 @@ CAIXAS = {
 }
 
 
-def _abrir(pg, base_url, enviado=None, resposta=None):
+def _abrir(pg, base_url, enviado=None, resposta=None, pedidos=None,
+           total=3):
     def rota(route):
         u = route.request.url
         if "/api/auth/me" in u:
@@ -88,7 +89,18 @@ def _abrir(pg, base_url, enviado=None, resposta=None):
                                           "novos": 1, "repetidos": 0,
                                           "falhas": 0, "ignorados": []}), 200
         elif "/api/dfe" in u:
-            corpo, status = CAIXAS, 200
+            if pedidos is not None:
+                pedidos.append(u)
+            # A PAGINACAO VEM DO SERVIDOR, e o duble a devolve como ele
+            # devolve: total, pagina, paginas e o tamanho da pagina.
+            from urllib.parse import parse_qs, urlparse
+            q = parse_qs(urlparse(u).query)
+            pag = int((q.get("pagina") or ["1"])[0])
+            corpo = {**CAIXAS,
+                     "paginacao": {"total": total, "pagina": pag,
+                                   "paginas": max(1, -(-total // 100)),
+                                   "por_pagina": 100}}
+            status = 200
         else:
             corpo, status = {}, 200
         route.fulfill(status=status, content_type="application/json",
@@ -212,3 +224,108 @@ def test_o_KPI_soma_as_duas_portas_e_diz_quanto_e_de_cada(pagina):
     # cards cheios de numero, e `"3" in banda` seria verde com qualquer coisa.
     assert "1 da SEFAZ" in banda and "1 por e-mail" in banda, banda
     assert "1 enviados na tela" in banda, banda
+
+
+# =============================================== a paginacao e o filtro de data
+
+def test_o_rodape_diz_QUANTOS_existem_e_onde_se_esta(pagina):
+    """O "200 mais recentes" que havia aqui era pior que nada.
+
+    Com 27 documentos ele era a lista inteira; com 201 mil ele CORTAVA em
+    silencio, e a frase se le como "e so isso que ha". O rodape agora responde
+    as tres perguntas que a lista sozinha nao responde: quantos existem, onde
+    eu estou, e como ir adiante.
+    """
+    pg, base = pagina
+    _abrir(pg, base, total=201369)
+    rodape = pg.inner_text("#dfe-pag")
+    assert "201.369" in rodape, rodape
+    assert "página 1 de 2.014" in rodape, rodape
+    assert "1–100 de 201.369" in rodape, rodape
+
+
+def test_o_VALOR_da_nota_sai_em_dinheiro_BRASILEIRO(pagina):
+    """`numBR` e PARSER, nao formatador -- e eu o usei como formatador aqui.
+
+    A coluna mostrava `334286.2` numa tela FISCAL: ponto decimal, sem separador
+    de milhar, formato de outro pais. O segundo argumento que eu passava
+    (`numBR(valor, 2)`) nem existe na funcao, entao nada dava erro: ela devolve
+    o proprio numero e o template o imprime cru.
+    """
+    pg, base = pagina
+    _abrir(pg, base)
+    linhas = pg.inner_text("#dfe-docs")
+    assert "31.250,00" in linhas, linhas
+    assert "1.840,30" in linhas, linhas
+    assert "31250" not in linhas, "o valor saiu cru, sem separador"
+
+
+def test_na_PRIMEIRA_pagina_o_anterior_esta_desligado(pagina):
+    """Botao que existe e nao faz nada ensina a duvidar dos outros."""
+    pg, base = pagina
+    _abrir(pg, base, total=201369)
+    botoes = pg.locator("#dfe-pag button")
+    assert botoes.nth(0).is_disabled() and botoes.nth(1).is_disabled()
+    assert not botoes.nth(2).is_disabled()   # proxima
+    assert not botoes.nth(3).is_disabled()   # ultima
+
+
+def test_virar_a_pagina_pede_SO_A_LISTA(pagina):
+    """O DEFEITO QUE ISTO IMPEDE E DE TEMPO, e nao de tela: o panorama abre os
+    dez certificados .pfx para ler validade (627 ms medidos) e as caixas sao
+    as MESMAS na pagina 2. Sem o `so_docs`, cada clique em "proxima" pagaria
+    isso de novo -- e a navegacao viraria espera."""
+    pg, base = pagina
+    pedidos = []
+    _abrir(pg, base, pedidos=pedidos, total=201369)
+    pedidos.clear()
+    pg.click("#dfe-pag button:nth-of-type(3)")     # proxima
+    pg.wait_for_function(
+        "() => document.getElementById('dfe-pag').textContent.includes('página 2')",
+        timeout=10000)
+    assert len(pedidos) == 1, pedidos
+    assert "pagina=2" in pedidos[0] and "so_docs=1" in pedidos[0], pedidos[0]
+
+
+def test_FILTRAR_devolve_para_a_primeira_pagina(pagina):
+    """Filtrar estando na pagina 40 deixaria a tela vazia com o rodape dizendo
+    "40 de 3" -- e quem visse isso concluiria que o filtro nao achou nada."""
+    pg, base = pagina
+    pedidos = []
+    _abrir(pg, base, pedidos=pedidos, total=201369)
+    pg.click("#dfe-pag button:nth-of-type(4)")     # ultima
+    pg.wait_for_function(
+        "() => document.getElementById('dfe-pag').textContent.includes('página 2.014')",
+        timeout=10000)
+    pedidos.clear()
+    pg.select_option("#dfe-tipo", "cte")
+    pg.wait_for_function(
+        "() => document.getElementById('dfe-pag').textContent.includes('página 1 ')",
+        timeout=10000)
+    assert "pagina=1" in pedidos[-1], pedidos[-1]
+    # e a carga com filtro NAO e so-lista: os KPIs e as caixas mudam junto
+    assert "so_docs=1" not in pedidos[-1], pedidos[-1]
+
+
+def test_o_filtro_de_DATA_diz_que_filtra_a_lista(pagina):
+    """O rotulo dizia "Baixar os XML de", e o campo sempre filtrou a lista
+    tambem. Quem lia aquilo procurava o filtro de periodo em outro lugar."""
+    pg, base = pagina
+    _abrir(pg, base)
+    filtros = pg.inner_text("#view-dfe")
+    assert "Período de emissão" in filtros
+    assert "filtra a lista abaixo" in filtros
+
+
+def test_a_data_entra_no_pedido_e_volta_para_a_pagina_1(pagina):
+    pg, base = pagina
+    pedidos = []
+    _abrir(pg, base, pedidos=pedidos, total=201369)
+    pedidos.clear()
+    pg.fill("#dfe-de", "2026-03-01")
+    pg.wait_for_function("() => window.__ultimo !== undefined || true", timeout=2000)
+    pg.fill("#dfe-ate", "2026-03-31")
+    pg.wait_for_timeout(500)
+    assert pedidos, "mudar a data nao recarregou a lista"
+    assert "de=2026-03-01" in pedidos[-1] and "ate=2026-03-31" in pedidos[-1]
+    assert "pagina=1" in pedidos[-1]

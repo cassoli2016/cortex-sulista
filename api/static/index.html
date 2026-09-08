@@ -2869,6 +2869,10 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
   font-size:13px;padding:6px 9px;border:1px solid var(--n300);border-radius:6px;
   background:var(--n0);color:var(--n900);min-width:0;flex:1 1 180px}
 .dfe-cert-aviso{font-size:12.5px;color:var(--n700);line-height:1.5}
+.dfe-paginacao{display:flex;gap:9px;align-items:center;flex-wrap:wrap;
+  margin-top:9px;font-size:12.5px;color:var(--n600)}
+.dfe-paginacao .btn{min-width:34px}
+.dfe-paginacao .quantos{font-family:var(--mono);font-size:12px;color:var(--n700)}
 
 /* Equipamentos (eqp) — a barra de filtros PROPRIA da tela.
    `.eqpfil input/select` nasce QUALIFICADA de proposito: regra de componente
@@ -7195,17 +7199,24 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <span class="hint" id="dfe-env-msg">entra na mesma lista, com a mesma busca e o mesmo pacote</span>
           </div>
           <div class="linha" style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:9px">
-            <label style="font-size:12.5px;color:var(--n600)">Baixar os XML de</label>
+            <!-- O ROTULO DIZIA "Baixar os XML de", e o campo sempre filtrou a
+                 LISTA tambem. Quem lia aquilo entendia "isto e do .zip" e
+                 procurava o filtro de periodo em outro lugar -- um campo que
+                 faz duas coisas e anuncia uma some para quem precisa da
+                 outra. -->
+            <label style="font-size:12.5px;color:var(--n600)">Período de emissão</label>
             <input type="date" id="dfe-de" aria-label="Emitidos a partir de" onchange="loadDfe()">
             <span style="color:var(--n500)">até</span>
             <input type="date" id="dfe-ate" aria-label="Emitidos até" onchange="loadDfe()">
-            <button class="btn sm" onclick="dfeBaixarPacote()">Baixar .zip</button>
+            <span class="hint">filtra a lista abaixo</span>
+            <button class="btn sm" onclick="dfeBaixarPacote()">Baixar .zip do período</button>
             <span class="hint" id="dfe-pac-msg">um arquivo por documento, nomeado pela chave de acesso</span>
           </div>
           <div class="tabroll" style="max-height:400px"><table class="tab"><thead><tr>
             <th>Emissão</th><th>Emitente</th><th class="num">Valor</th>
             <th>Tipo</th><th>Situação</th><th>Estado</th><th>No ERP</th><th>Origem</th><th></th>
-          </tr></thead><tbody id="dfe-docs"></tbody></table></div></div>
+          </tr></thead><tbody id="dfe-docs"></tbody></table></div>
+          <div class="dfe-paginacao" id="dfe-pag"></div></div>
         </div>
       </section>
       <section class="view" id="view-pecas">
@@ -10834,6 +10845,12 @@ function numBR(s){
   return NaN;
 }
 const fmtNumBR = v => v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+/* O IRMAO INTEIRO. Ele nasceu porque `numBR` foi usado como formatador em sete
+   lugares e nao e um: `numBR` e PARSER (le "1.234,56" e devolve 1234.56), o
+   segundo argumento dele nao existe, e `numBR(334286.2, 2)` devolve o proprio
+   numero -- que o template imprime cru, "334286.2". Nome que engana custa
+   pouco ate alguem escrever a chamada invertida. */
+const fmtIntBR = v => Number(v == null ? 0 : v).toLocaleString('pt-BR', {maximumFractionDigits: 0});
 // monta "mmm–mmm/aa" (ini e fim no mesmo ano) ou "mmm/aa–mmm/aa" (o semestre
 // cruza a virada do ano) — sem o ano nos dois lados, "ago–jan/26" lê-se como
 // se ago TAMBÉM fosse /26 (é /25); ano só some do lado esquerdo quando os dois
@@ -38850,7 +38867,22 @@ async function eqpSmartec(){
   finally{ if(b){ b.disabled=false; b.textContent='Trazer dados da Smartec'; } }
 }
 
-async function loadDfe(){
+/* A PAGINA ATUAL. Ela vive fora do `loadDfe` porque toda mudanca de FILTRO
+   tem de devolve-la para 1: filtrar estando na pagina 40 daria uma tela vazia
+   com o rodape dizendo "40 de 3", e quem visse isso concluiria que o filtro
+   nao achou nada. */
+let DFE_PAG = 1;
+
+function dfeIrPara(n){
+  DFE_PAG = Math.max(1, n|0);
+  loadDfe(true);          // `true` = so a lista; as caixas e os KPIs nao mudam
+}
+
+async function loadDfe(soDocs){
+  /* SO A LISTA quando se vira a pagina. O panorama abre os dez certificados
+     .pfx para ler validade e custa 627 ms medidos -- e as caixas sao as MESMAS
+     na pagina 2. Paga-los a cada clique transformaria navegacao em espera. */
+  if(!soDocs) DFE_PAG = 1;
   const tbC = document.getElementById('dfe-caixas');
   const tbD = document.getElementById('dfe-docs');
   const kb  = document.getElementById('dfe-kpis');
@@ -38869,13 +38901,16 @@ async function loadDfe(){
     if(busca) q.set('busca',busca); if(tipo) q.set('tipo',tipo);
     if(de) q.set('de',de); if(ate) q.set('ate',ate);
     if(orig_) q.set('origem',orig_);
+    q.set('pagina', DFE_PAG);
+    if(soDocs) q.set('so_docs','1');
     const r = await fetch('/api/dfe?'+q.toString(),{cache:'no-store'});
     const d = await respostaJSON(r);
     if(!d.ok){ tbC.innerHTML = '<tr><td colspan="7" class="vazio">'+esc((d.dados||{}).erro||'Não foi possível ler a recolha.')+'</td></tr>'; return; }
     const dd = d.dados||{}, caixas = dd.caixas||[], docs = dd.documentos||[], tot = dd.total||{};
+    dfePaginacao(dd.paginacao);
 
     const recolhendo = caixas.filter(c=>(c.certificado||{}).tem_certificado).length;
-    if(kb) kb.innerHTML =
+    if(kb && !soDocs) kb.innerHTML =
       /* A PROCEDÊNCIA VAI NO SUB-RÓTULO, e não num sexto card: a banda tem
          cinco, e o que decide alguma coisa aqui é o total. De onde veio cada
          um é procedência — mas ela precisa estar DITA, porque um acervo de
@@ -38896,7 +38931,7 @@ async function loadDfe(){
               'de '+(dd.conciliacao.comparaveis ?? 0)+' comparáveis — nota ou CT-e que a operação não registrou')
         : kpi('Sem par no ERP', '—', 'o ERP não respondeu; a recolha vale sozinha'));
 
-    tbC.innerHTML = caixas.map(c=>{
+    if(!soDocs) tbC.innerHTML = caixas.map(c=>{
       const cert = c.certificado||{};
       /* O certificado e a unica coisa que PARA a recolha sem dar erro em lugar
          nenhum -- por isso vence, vencido e ausente sao ditos aqui. */
@@ -38917,12 +38952,13 @@ async function loadDfe(){
         <td>${esc(c.apelido||c.cnpj)}<div class="dfe-nsu">${esc(c.cnpj)}</div></td>
         <td>${esc(c.uf||'')}</td>
         <td class="num">${(c.documentos||{}).total ?? 0}</td>
-        <td class="num">${c.falta==null?'—':numBR(c.falta,0)}</td>
+        <td class="num">${c.falta==null?'—':fmtIntBR(c.falta)}</td>
         <td>${c.ultima_consulta?fmtDT(c.ultima_consulta):'—'}<div class="dfe-nsu">NSU ${esc(c.ultimo_nsu||'')}</div></td>
         <td>${est}</td>
         <td class="cert ${cls}">${cs}</td>
       </tr>`;
     }).join('')||'<tr><td colspan="7" class="vazio">Nenhuma caixa aberta.</td></tr>';
+    if(!soDocs) abaContador('dfe-n-cx', caixas.length);
 
     /* AQUI NAO HA MAIS FORMULARIO. Cadastrar certificado e recuperar NSU sao
        decisoes de administrador e foram para o cartao da SEFAZ na tela
@@ -38934,13 +38970,15 @@ async function loadDfe(){
        nao sai junto -- quem opera precisa VER que a recolha vai parar, mesmo
        sem poder resolver; e o certificado e a unica coisa que a para sem dar
        erro em lugar nenhum. */
-    if(hint) hint.textContent = docs.length ? docs.length+' mais recentes' : '';
+    /* o rodape da paginacao e quem escreve o `dfe-hint` agora: ele sabe o
+       TOTAL, e "200 mais recentes" nao sabia. */
     /* CONTADOR NA ABA: uma aba "Recolha por filial" com dez caixas e uma com
        zero pedem coisas diferentes de quem olha, e o numero poupa o clique.
        O id e o do <span class="aban">, NUNCA o do botao -- passar o do botao
        apagaria o rotulo. */
-    abaContador('dfe-n-docs', docs.length);
-    abaContador('dfe-n-cx', caixas.length);
+    /* O CONTADOR DA ABA E O TOTAL DO FILTRO, e nao o tamanho da pagina: uma
+       aba que diz "100" com 201 mil documentos atras nao informa nada. */
+    abaContador('dfe-n-docs', (dd.paginacao||{}).total ?? docs.length);
     tbD.innerHTML = docs.map(x=>{
       /* O ESTADO REAL VEM DO EVENTO. O cancelamento chega como documento
          SEPARADO, com NSU proprio, e nada muda na linha da nota -- sem isto a
@@ -38968,7 +39006,7 @@ async function loadDfe(){
         <td>${x.emitido_em?fmtDT(x.emitido_em):'—'}${evs}</td>
         <td>${esc(x.emitente_nome||x.descricao||x.emitente||'—')}${
           x.evento_tipo?`<div class="dfe-nsu">evento ${esc(x.evento_tipo)}</div>`:''}</td>
-        <td class="num">${x.valor==null?'—':numBR(x.valor,2)}</td>
+        <td class="num">${x.valor==null?'—':fmtNumBR(x.valor)}</td>
         <td>${esc(DFE_TIPO[x.tipo]||x.tipo||'—')}</td>
         <td><span class="badge ${sit[1]}">${esc(sit[0])}</span></td>
         <td>${estado}</td>
@@ -39668,6 +39706,36 @@ const DFE_ORIGEM = {
   email:  ['e-mail', 'chegou na caixa xml@sulista.com.br'],
   upload: ['enviado na tela', 'alguém arrastou o arquivo aqui'],
 };
+
+/* O RODAPE DA LISTA. Ele responde tres coisas que a lista sozinha nao
+   responde: quantos existem, onde eu estou, e como ir adiante.
+
+   O "200 mais recentes" que havia aqui antes era pior que nao ter nada: com 27
+   documentos ele era a lista inteira, com 201 mil ele CORTAVA em silencio e a
+   frase se lia como "e so isso que ha". */
+function dfePaginacao(p){
+  const el = document.getElementById('dfe-pag');
+  const hint = document.getElementById('dfe-hint');
+  if(!el) return;
+  if(!p || !p.total){
+    el.innerHTML = '';
+    if(hint) hint.textContent = '';
+    return;
+  }
+  const de = (p.pagina-1)*p.por_pagina + 1;
+  const ate = Math.min(p.pagina*p.por_pagina, p.total);
+  if(hint) hint.textContent = fmtIntBR(p.total)+' no filtro atual';
+  const bt = (rot, alvo, ligado, titulo) =>
+    '<button class="btn sm" '+(ligado?'':'disabled ')+'title="'+esc(titulo)+'" '
+    + (ligado?'onclick="dfeIrPara('+alvo+')"':'')+'>'+rot+'</button>';
+  el.innerHTML =
+      bt('«', 1, p.pagina>1, 'primeira página')
+    + bt('‹', p.pagina-1, p.pagina>1, 'página anterior')
+    + '<span class="quantos">'+fmtIntBR(de)+'–'+fmtIntBR(ate)+' de '+fmtIntBR(p.total)+'</span>'
+    + '<span>página '+fmtIntBR(p.pagina)+' de '+fmtIntBR(p.paginas)+'</span>'
+    + bt('›', p.pagina+1, p.pagina<p.paginas, 'próxima página')
+    + bt('»', p.paginas, p.pagina<p.paginas, 'última página');
+}
 
 function dfeOrigem(x){
   const chave = x.origem || 'sefaz';

@@ -339,6 +339,101 @@ def test_SEM_A_MIGRATION_a_tela_continua_de_pe(esquema, monkeypatch):
     assert len(arm.para_pacote()) == 1
 
 
+# ==================================================== a paginacao
+
+def _muitos(n, esquema):
+    """`n` documentos com emissoes e chaves distintas."""
+    for i in range(n):
+        chave = "4126091234567800019955001000001234100001%04d" % i
+        xml = (PROC_NFE.replace(CHAVE, chave)
+               .replace("2026-09-05T14:32:00-03:00",
+                        "2026-09-%02dT14:32:00-03:00" % (1 + i % 28)))
+        arquivo.guardar(arquivo.ler(xml), origem="email")
+
+
+def test_contar_usa_O_MESMO_filtro_da_pagina(esquema):
+    """O DENOMINADOR TEM DE SER DO MESMO RECORTE QUE A PAGINA.
+
+    Se `contar()` e `documentos()` montarem o WHERE cada um por conta, eles
+    divergem no primeiro filtro novo -- e divergem em SILENCIO, porque cada um
+    continua certo sozinho. O sintoma seria o rodape dizendo "1 de 12" com a
+    pagina 12 vazia, e ninguem sabendo em qual dos dois acreditar.
+    """
+    _muitos(12, esquema)
+    arquivo.guardar(arquivo.ler(CANCELAMENTO), origem="email")   # um evento
+
+    assert arm.contar() == 13
+    assert arm.contar(tipo="nfe") == 12
+    assert arm.contar(tipo="evento") == 1
+    assert arm.contar(origem="upload") == 0
+    # e o total bate com o que a lista devolve sem recorte
+    assert arm.contar(tipo="nfe") == len(arm.documentos(tipo="nfe", limite=100))
+
+
+def test_as_paginas_NAO_repetem_nem_perdem_documento(esquema):
+    """Percorrer as paginas devolve cada documento UMA vez."""
+    _muitos(25, esquema)
+    vistos, pagina, tam = [], 0, 10
+    while True:
+        lote = arm.documentos(limite=tam, pulando=pagina * tam)
+        if not lote:
+            break
+        vistos += [d["sha256"] or (d["cnpj"] + d["nsu"]) for d in lote]
+        pagina += 1
+        assert pagina < 10, "laco sem fim"
+
+    assert len(vistos) == 25
+    assert len(set(vistos)) == 25, "documento repetido entre paginas"
+
+
+def test_a_ordenacao_da_lista_e_TOTAL(esquema):
+    """PAGINAR SO E SEGURO SE A ORDEM FOR TOTAL -- e a chave de acesso NAO
+    torna a ordem total.
+
+    ESTE GUARD NASCEU DE UMA SABOTAGEM QUE FICOU VERDE. Eu tinha escrito
+    `ORDER BY emitido_em, recebido_em, chave` achando que a chave desempatava,
+    e o teste de percorrer as paginas passou mesmo com o desempate REMOVIDO --
+    porque no cenario dele as emissoes ja eram todas distintas.
+
+    A chave nao desempata porque ela SE REPETE por construcao: a nota, o resumo
+    dela e o cancelamento dela tem a mesma chave de acesso e sao tres linhas.
+    Aqui o cenario e o real do import em lote -- emissao e recebimento iguais --
+    e o que se afirma e que ainda assim existe um identificador que distingue
+    cada linha das outras.
+    """
+    # a nota, o resumo (sem protocolo) e o cancelamento: TRES linhas, UMA chave
+    for xml in (PROC_NFE, NFE_CRUA, CANCELAMENTO):
+        arquivo.guardar(arquivo.ler(xml), origem="email")
+
+    linhas = arm.documentos(limite=100)
+    assert len({l["chave"] for l in linhas}) == 1, (
+        "o cenario deste guard exige as tres linhas com a MESMA chave")
+    assert len(linhas) == 3
+
+    # e o identificador de ordenacao distingue as tres
+    ident = [l["sha256"] or ((l["cnpj"] or "") + (l["nsu"] or "")) for l in linhas]
+    assert len(set(ident)) == 3, (
+        "duas linhas sem identificador distinto: paginar sobre elas pode "
+        "repetir uma e perder a outra, sem erro nenhum")
+
+    # a prova de que ele ESTA na ordenacao: com emissao e recebimento
+    # empatados, a lista sai na ordem decrescente do identificador
+    with arm.pglocal.get_conn(esquema) as c, c.cursor() as cur:
+        cur.execute("UPDATE dfe_arquivo SET emitido_em = %s, recebido_em = %s",
+                    ("2026-09-05T14:32:00-03:00", "2026-09-08T12:00:00-03:00"))
+    linhas = arm.documentos(limite=100)
+    ident = [l["sha256"] for l in linhas]
+    assert ident == sorted(ident, reverse=True), (
+        "com emissao e recebimento empatados a ordem ficou indefinida: falta o "
+        "desempate por identificador unico no ORDER BY")
+
+
+def test_pular_alem_do_fim_devolve_lista_vazia_e_nao_erro(esquema):
+    """Quem clicar em "ultima pagina" e depois filtrar cai aqui."""
+    _muitos(3, esquema)
+    assert arm.documentos(limite=10, pulando=999) == []
+
+
 # ================================================ a folha e a porta de origem
 
 def test_a_folha_recusa_o_SEM_PROTOCOLO_falando_a_lingua_da_porta():

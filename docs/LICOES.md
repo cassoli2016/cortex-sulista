@@ -5651,3 +5651,81 @@ quarto 656 seguido e preciso ter contado os tres anteriores.
 - **Contador de reincidencia zera com a PROVA de que voltou ao normal**, e nao
   com o sucesso da operacao. Sao coisas diferentes, e confundi-las deixaria a
   caixa horas parada depois de uma resposta boa.
+
+---
+
+## Um parser usado como formatador, e um desempate que nao desempata (2026-09-08, v1.17.0)
+
+Pedido de quem opera: *"coloca uma paginacao na tabela que tem os documentos. E
+um filtro de data".*
+
+### O filtro que ja existia e ninguem achava
+
+O filtro de data estava la desde o comeco e sempre filtrou a lista. O rotulo
+dele dizia **"Baixar os XML de"**, porque nasceu junto com o botao do .zip --
+e quem lia aquilo entendia "isto e do pacote" e ia procurar o filtro de periodo
+em outro lugar.
+
+**Um campo que faz duas coisas e anuncia uma some para quem precisa da outra.**
+A correcao foi de texto: "Periodo de emissao" + "filtra a lista abaixo".
+
+### O que o "200 mais recentes" escondia
+
+A lista trazia 200 linhas e o rodape dizia "200 mais recentes". Com 27
+documentos aquilo era a lista inteira. Com 201.369 e um CORTE EM SILENCIO, e a
+frase se le como "e so isso que ha" -- ninguem procura a pagina 2 de uma lista
+que nao se apresenta como paginada.
+
+O rodape agora responde as tres perguntas que a lista sozinha nao responde:
+quantos existem, onde estou, como vou adiante.
+
+E virar a pagina NAO recarrega tudo: o `panorama()` abre os dez certificados
+`.pfx` para ler validade (627 ms medidos) e as caixas sao as mesmas na pagina 2.
+Medido: 1.322 ms na carga inteira contra **324 ms** ao virar a pagina.
+
+### `numBR` e PARSER, e eu o usei como formatador em sete lugares
+
+A coluna Valor mostrava `334286.2`. Numa tela fiscal, valor de nota com ponto
+decimal e sem separador de milhar nao e so feio -- e o formato de outro pais.
+
+A causa e um nome que engana: `numBR(s)` LE "1.234,56" e devolve 1234.56. Ele
+nao tem segundo argumento, entao `numBR(valor, 2)` nao da erro nenhum: devolve
+o proprio numero, e o template o imprime cru. O formatador da casa se chama
+`fmtNumBR`, e faltava o irmao inteiro (`fmtIntBR`), que a paginacao pedia.
+
+Os sete usos errados eram todos das minhas entregas dos dois ultimos dias --
+nenhum outro lugar da casa faz isso. **Nome que engana custa pouco ate alguem
+escrever a chamada invertida.**
+
+### O desempate que nao desempatava
+
+Escrevi `ORDER BY emitido_em, recebido_em, chave` com um comentario explicando
+que a chave era o desempate estavel, e um guard que percorria as paginas
+conferindo que nenhum documento se repetia.
+
+**Sabotei o desempate e o guard ficou VERDE.** No cenario dele as emissoes ja
+eram todas distintas, entao a ordem nunca dependeu do terceiro criterio: o
+teste media o duble, nao a ordenacao.
+
+E investigando por que ele nao pegava apareceu o defeito de verdade: **a chave
+de acesso NAO e unica**. A nota, o resumo dela e o cancelamento dela tem a
+mesma chave e sao tres linhas. Um desempate que empata nao desempata -- e com
+189 mil documentos importados no MESMO lote (mesmo `recebido_em` ate o
+microssegundo) isso faria um documento aparecer em duas paginas e outro sumir,
+sem erro nenhum.
+
+O que distingue uma linha da outra e a chave primaria de cada lado da uniao:
+`coalesce(sha256, cnpj || nsu)`. O guard novo monta o cenario real -- as tres
+linhas com a mesma chave, emissao e recebimento iguais -- e fica vermelho tanto
+sem desempate quanto com o desempate errado.
+
+### O que fica como regra
+
+- **Paginar exige ordem TOTAL.** O ultimo criterio do `ORDER BY` tem de ser
+  unico por linha; qualquer coisa que se repita deixa a fronteira das paginas
+  indefinida, e o sintoma e um documento que some.
+- **Guard de paginacao com dados artificialmente distintos nao testa
+  paginacao.** O cenario tem de ter os EMPATES que o dado real tem.
+- **Nome de funcao e contrato**: `numBR` parece formatador e e parser, e
+  aceitar um argumento a mais em silencio fecha a armadilha.
+- **Campo que faz duas coisas anuncia as duas.**

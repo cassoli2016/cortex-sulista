@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.17.0] — 08/09/2026  ·  CX-08/09/2026-v1.17.0
+
+### Adicionado
+- A Central de Documentos ganhou paginação. Antes ela mostrava "as 200 mais recentes" e parava por aí — com 27 documentos isso era a lista inteira, com 201 mil era um corte silencioso que se lia como "é só isso que há". Agora o rodapé diz quantos existem no filtro, em que página você está e como ir adiante, com primeira, anterior, próxima e última.
+- Virar a página é rápido de propósito: ela recarrega só a lista, e não o estado das dez caixas nem a validade dos certificados, que não mudam de uma página para a outra.
+
+### Corrigido
+- O filtro de período dizia "Baixar os XML de" e sempre filtrou a LISTA também — quem lia aquilo entendia que era só do .zip e ia procurar o filtro de data em outro lugar. Agora ele se chama "Período de emissão" e diz que filtra a lista.
+- O valor das notas aparecia cru na tabela: 334286.2 em vez de 334.286,20, numa tela fiscal. E o "quanto falta" das caixas saía sem separador de milhar.
+
 ## [1.16.1] — 08/09/2026  ·  CX-08/09/2026-v1.16.1
 
 ### Corrigido

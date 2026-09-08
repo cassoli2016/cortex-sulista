@@ -1943,9 +1943,10 @@ def dfe_certificado(payload: dict, req: Request) -> JSONResponse:
 
 
 @app.get("/api/dfe")
-def dfe_panorama(limite: int = 200, cnpj: str = "", tipo: str = "",
+def dfe_panorama(limite: int = 100, cnpj: str = "", tipo: str = "",
                  de: str = "", ate: str = "", busca: str = "",
-                 origem: str = "") -> JSONResponse:
+                 origem: str = "", pagina: int = 1,
+                 so_docs: int = 0) -> JSONResponse:
     """As notas recolhidas da SEFAZ: as caixas, o que chegou e o que falta.
 
     Rota `def` (nao `async`): le o banco e abre os .pfx para conferir validade,
@@ -1956,28 +1957,45 @@ def dfe_panorama(limite: int = 200, cnpj: str = "", tipo: str = "",
     hora de recolha parada.
     """
     from api.sefaz import armazenamento, painel
+    # SO_DOCS PULA O QUE E CARO E NAO MUDA AO VIRAR A PAGINA. O `panorama()`
+    # abre os dez certificados .pfx para ler validade e custa 627 ms medidos;
+    # as caixas e os KPIs sao os MESMOS na pagina 2. Paga-los a cada clique de
+    # "proxima" seria transformar uma navegacao em espera.
     for nome, valor in (("de", de), ("ate", ate)):
         if valor and _bad_date(valor):
             return JSONResponse(status_code=422, content={
                 "erro": "parametro_invalido",
                 "mensagem": "Parametro %s invalido: use AAAA-MM-DD." % nome})
     try:
-        d = painel.panorama()
+        por_pagina = max(1, min(int(limite or 100), 500))
+        pag = max(1, int(pagina or 1))
+        filtros = dict(tipo=(tipo or "").strip().lower(), de=de, ate=ate,
+                       busca=(busca or "").strip(),
+                       origem=(origem or "").strip().lower())
+        alvo = re.sub(r"[^0-9]", "", cnpj or "") or None
+
+        d = {} if so_docs else painel.panorama()
+        total = armazenamento.contar(alvo, **filtros)
+        # A PAGINA NAO PODE FICAR FORA DO FIM. Filtrar estando na pagina 40
+        # deixaria a tela vazia com o rodape dizendo "40 de 3" -- e quem visse
+        # isso concluiria que o filtro nao achou nada.
+        paginas = max(1, -(-total // por_pagina))
+        pag = min(pag, paginas)
         d["documentos"] = armazenamento.documentos(
-            re.sub(r"[^0-9]", "", cnpj or "") or None, limite=limite,
-            tipo=(tipo or "").strip().lower(), de=de, ate=ate,
-            busca=(busca or "").strip(),
-            origem=(origem or "").strip().lower())
+            alvo, limite=por_pagina, pulando=(pag - 1) * por_pagina, **filtros)
+        d["paginacao"] = {"total": total, "pagina": pag, "paginas": paginas,
+                          "por_pagina": por_pagina}
         # A SEGUNDA PORTA, do lado do estado. A tela precisa dizer se a caixa
         # de XML esta sendo lida -- e, quando nao esta, POR QUE. Falta de
         # credencial aqui nao e falha: e instalacao incompleta, e some da tela
         # no dia em que alguem configurar.
-        try:
-            from api.sefaz import caixa_email
-            d["email"] = caixa_email.estado()
-        except Exception as exc:  # noqa: BLE001
-            log.warning("dfe: estado da caixa de xml (%s)", type(exc).__name__)
-            d["email"] = None
+        if not so_docs:
+            try:
+                from api.sefaz import caixa_email
+                d["email"] = caixa_email.estado()
+            except Exception as exc:  # noqa: BLE001
+                log.warning("dfe: estado da caixa de xml (%s)", type(exc).__name__)
+                d["email"] = None
         # A CONCILIACAO E OPCIONAL E NAO PODE DERRUBAR A TELA. Ela le o ERP,
         # que e replica de producao de TERCEIRO e tem dia ruim -- e a recolha
         # vale sozinha. Falhou, some, e a tela diz que sumiu.

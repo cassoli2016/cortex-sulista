@@ -274,19 +274,16 @@ EVENTO_CANCELA = "110111"
 EVENTO_CARTA = "110112"
 
 
-def documentos(cnpj: str | None = None, *, limite: int = 200,
-               so_incompletos: bool = False, tipo: str = "",
-               de: str = "", ate: str = "", busca: str = "",
-               so_completos: bool = False, origem: str = "") -> list[dict]:
-    """Os documentos, SEM o XML. O XML sai por `xml_de()`, um a um.
+def _filtros(cnpj: str | None = None, *, so_incompletos: bool = False,
+             tipo: str = "", de: str = "", ate: str = "", busca: str = "",
+             so_completos: bool = False, origem: str = "") -> tuple[str, list]:
+    """O WHERE da lista, em UM lugar só.
 
-    Não é economia de bytes: é que uma lista de 200 notas com o XML dentro são
-    ~2 MB numa resposta que a tela usa só para desenhar linhas — e a serialização
-    disso é o tipo de custo que vira lentidão sem ninguém saber de onde veio.
-
-    `busca` procura no NOME do emitente e na CHAVE. Chave se cola inteira do
-    e-mail ou do romaneio; nome se digita pela metade. As duas entram no mesmo
-    campo porque quem procura não separa as duas coisas na cabeça.
+    Ele nasceu dentro de `documentos()` e saiu quando a paginação chegou: a
+    contagem tem de usar EXATAMENTE o mesmo recorte que a página, senão o
+    rodapé diz "1 de 12" e a página 12 vem vazia. Dois WHEREs escritos à mão
+    para a mesma pergunta divergem no primeiro filtro novo — e divergem em
+    silêncio, porque cada um continua certo sozinho.
     """
     onde, args = [], []
     if cnpj:
@@ -327,14 +324,61 @@ def documentos(cnpj: str | None = None, *, limite: int = 200,
             onde.append("(emitente_nome ILIKE %s OR chave ILIKE %s "
                         "OR descricao ILIKE %s)")
             args.extend(["%%%s%%" % busca] * 3)
-    sql = "SELECT * FROM (" + fonte() + ") d"
-    if onde:
-        sql += " WHERE " + " AND ".join(onde)
+    return (" WHERE " + " AND ".join(onde)) if onde else "", args
+
+
+def contar(cnpj: str | None = None, **kw) -> int:
+    """Quantos documentos o filtro alcança — o denominador da paginação.
+
+    MEDIDO antes de escolher: `count(*)` sobre a união inteira custa 95 ms com
+    201 mil linhas, e 14 ms com um mês de recorte. É barato o bastante para o
+    rodapé poder dizer "de quantos" — que é a informação que transforma uma
+    lista cortada em silêncio numa lista que se sabe percorrer.
+    """
+    onde, args = _filtros(cnpj, **kw)
+    with pglocal.get_conn(_esq()) as conn, conn.cursor() as cur:
+        cur.execute("SELECT count(*)::int AS n FROM (" + fonte() + ") d" + onde,
+                    tuple(args))
+        return dict(cur.fetchone() or {}).get("n") or 0
+
+
+def documentos(cnpj: str | None = None, *, limite: int = 200, pulando: int = 0,
+               so_incompletos: bool = False, tipo: str = "",
+               de: str = "", ate: str = "", busca: str = "",
+               so_completos: bool = False, origem: str = "") -> list[dict]:
+    """Os documentos, SEM o XML. O XML sai por `xml_de()`, um a um.
+
+    Não é economia de bytes: é que uma lista de 200 notas com o XML dentro são
+    ~2 MB numa resposta que a tela usa só para desenhar linhas — e a serialização
+    disso é o tipo de custo que vira lentidão sem ninguém saber de onde veio.
+
+    `busca` procura no NOME do emitente e na CHAVE. Chave se cola inteira do
+    e-mail ou do romaneio; nome se digita pela metade. As duas entram no mesmo
+    campo porque quem procura não separa as duas coisas na cabeça.
+    """
+    onde, args = _filtros(cnpj, so_incompletos=so_incompletos, tipo=tipo,
+                          de=de, ate=ate, busca=busca,
+                          so_completos=so_completos, origem=origem)
+    sql = "SELECT * FROM (" + fonte() + ") d" + onde
     # A SEGUNDA CHAVE DE ORDEM É `recebido_em`, e não o NSU: metade das linhas
     # não tem NSU nenhum. Ordenar por uma coluna que é NULL para uma das portas
     # embaralharia justamente o empate que a ordenação existe para desfazer.
-    sql += (" ORDER BY emitido_em DESC NULLS LAST, recebido_em DESC LIMIT %s")
+    #
+    # E A TERCEIRA É UM IDENTIFICADOR ÚNICO, que é o que torna a ordem TOTAL.
+    # Sem ela, dois documentos com a mesma emissão e o mesmo recebimento podem
+    # trocar de lugar entre uma página e outra — e aí um aparece duas vezes e o
+    # outro some, sem erro nenhum. Com 201 mil linhas importadas no mesmo lote
+    # (mesmo `recebido_em` até o microssegundo) isso deixa de ser hipótese.
+    #
+    # NÃO É A CHAVE DE ACESSO, e essa distinção custou uma sabotagem verde: a
+    # nota, o resumo dela e o cancelamento dela têm a MESMA chave — são três
+    # linhas com o mesmo valor, e um desempate que empata não desempata. O que
+    # distingue é a chave primária de cada lado: `sha256` no arquivo,
+    # `(cnpj, nsu)` na caixa da SEFAZ.
+    sql += (" ORDER BY emitido_em DESC NULLS LAST, recebido_em DESC, "
+            "coalesce(sha256, cnpj || nsu) DESC LIMIT %s OFFSET %s")
     args.append(max(1, min(int(limite), 2000)))
+    args.append(max(0, int(pulando)))
     with pglocal.get_conn(_esq()) as conn, conn.cursor() as cur:
         cur.execute(sql, tuple(args))
         linhas = [dict(r) for r in cur.fetchall()]
