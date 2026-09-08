@@ -5294,8 +5294,28 @@ Refeitos, o teste de navegador achou um defeito que o de texto deixaria passar:
 formulario nunca apareceria, nem para administrador, e a string `USER.admin`
 estava la para o guard antigo aprovar.
 
+### A recolha e do CORTEX, e nao do ERP
+
+Dito por quem opera depois de tudo pronto: *"esse modulo faz parte somente do
+cortex, usaremos ele independente do ERP, faz parte do nosso TMS Cortex"*.
+
+O nucleo ja estava limpo -- so `conciliacao.py` tocava o AVA --, mas limpo POR
+ACIDENTE nao e requisito. Virou guard: nenhum arquivo do nucleo importa
+`api.db` nem escreve SQL contra tabela do ERP, e a tela sobrevive ao ERP fora
+do ar (com o cartao virando "nao sei", e nao ZERO -- zero afirmaria uma
+conferencia que ninguem fez).
+
+**O motivo nao e purismo, e a COPIA.** O reaproveitamento entre o CORTEX e o
+TMS Sulista e por copia, nunca por import. Um modulo que so funciona com o AVA
+por perto nao atravessa essa fronteira: ele se REESCREVE -- e e reescrevendo
+que se perdem, uma a uma, as sete correcoes que a `erpbrasil.edoc` exigiu
+contra o servico real.
+
 ### O que fica como regra
 
+- **Requisito de arquitetura sem guard e comentario.** "Nao depende de X"
+  descoberto depois costuma ser verdade por acidente; o teste e o que o
+  transforma em contrato.
 - **Intermediario pago que faz o que o servico publico faz de graca merece a
   pergunta invertida**: o que ele agrega alem do acesso? Aqui era conveniencia,
   e a conveniencia coube em duas semanas de trabalho contra um custo por

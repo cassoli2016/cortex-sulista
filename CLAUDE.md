@@ -811,6 +811,18 @@ Regras duráveis — as crônicas (medições, formatos, tetos) estão em
 - **Sem credencial não é falha, é instalação incompleta** (`info` na Saúde);
   alarme vermelho = "não está chegando AGORA", nunca contagem de tropeços;
   cadências diferentes têm limiares separados.
+- **A RECOLHA NÃO DEPENDE DO ERP, e isso é REQUISITO** (decisão de quem
+  opera, 07/09/2026): `api/sefaz/` é módulo do **TMS Córtex** e vai rodar
+  independente do AVA. A fronteira é literal — `conciliacao.py` é o ÚNICO
+  arquivo que lê o ERP, e é OPCIONAL: a rota o chama num `try`, e o cartão vira
+  "—" (não sei) em vez de zero quando ele falha. Zero afirmaria "conferi e não
+  há nenhum sem par", que ninguém conferiu.
+  `tests/sefaz/test_independencia.py` cobra pelos DOIS lados: nenhum arquivo do
+  núcleo importa `api.db` nem escreve SQL contra tabela do AVA, e a tela
+  sobrevive ao ERP fora do ar. **O motivo é a cópia**: o reaproveitamento entre
+  CÓRTEX e TMS Sulista é por CÓPIA, nunca import — e módulo que só funciona com
+  o AVA por perto não se copia, se REESCREVE. Reescrevendo é onde as sete
+  correções que a `erpbrasil.edoc` exigiu se perdem.
 - **RECOLHA DE DFe NA SEFAZ** (`api/sefaz/`, tela `dfe` no grupo TMS): o
   serviço é gratuito e a casa NÃO paga intermediário — o NSDocs está cadastrado
   no ERP desde 05/2025 e nunca trouxe um documento. **83% das NF-e chegam

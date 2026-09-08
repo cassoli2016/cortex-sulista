@@ -1,7 +1,19 @@
 # -*- coding: utf-8 -*-
 """O documento recolhido contra a operação do ERP — pela CHAVE.
 
-É AQUI QUE A RECOLHA DEIXA DE SER ARQUIVO E VIRA INFORMAÇÃO.
+**ESTE É O ÚNICO ARQUIVO DO MÓDULO QUE LÊ O ERP, E ELE É OPCIONAL.**
+
+A recolha é do CÓRTEX e funciona sem o AVA — é módulo do TMS Córtex, e vai ser
+usado independente do ERP. Tudo que fala com a SEFAZ, lê o XML, guarda, imprime
+e mostra na tela vive sem nada daqui. Este arquivo é a PONTE, e ponte que cai
+não leva a estrada junto: a rota chama a conciliação dentro de um `try`, e
+quando ela falha o cartão vira "—" em vez de zero, e a tela continua.
+
+Apagar este arquivo inteiro tem de deixar a recolha de pé. `tests/sefaz/
+test_independencia.py` cobra as duas coisas: que ninguém do núcleo importe
+`api.db`, e que a tela sobreviva ao ERP fora do ar.
+
+É AQUI QUE A RECOLHA DEIXA DE SER ARQUIVO E VIRA INFORMAÇÃO — quando há ERP.
 
 Guardar XML cumpre uma obrigação e não decide nada. O que decide é a pergunta
 que só aparece quando os dois lados estão na mesma tela:

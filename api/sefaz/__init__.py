@@ -78,6 +78,35 @@ A tela DIZ isso em cada documento, em vez de deixar parecer que a nota inteira
 está guardada: `completo = false` não é um detalhe técnico, é a diferença entre
 ter e não ter a obrigação cumprida.
 
+ESTE MODULO NAO DEPENDE DO ERP
+------------------------------
+
+**A recolha e do CORTEX, e funciona sem o AVA.** Isso e decisao de arquitetura
+de quem opera (07/09/2026), e nao consequencia de como o codigo saiu: o modulo
+e do TMS Cortex, e vai ser usado independente do ERP.
+
+A fronteira, entao, e literal e tem guard:
+
+    api/sefaz/distribuicao.py   fala com a SEFAZ           -- sem ERP
+    api/sefaz/leitura.py        le o XML                   -- sem ERP
+    api/sefaz/armazenamento.py  grava no banco DA CASA     -- sem ERP
+    api/sefaz/busca.py          procura documento          -- sem ERP
+    api/sefaz/impressao.py      DANFE/DACTE/DAMDFE         -- sem ERP
+    api/sefaz/painel.py         o que a tela mostra        -- sem ERP
+    -----------------------------------------------------------------
+    api/sefaz/conciliacao.py    o UNICO que le o ERP, e e OPCIONAL
+
+`tests/sefaz/test_independencia.py` cobra isso: nenhum arquivo do nucleo
+importa `api.db` nem nomeia tabela do AVA. Apagar `conciliacao.py` inteiro tem
+de deixar a recolha funcionando -- e o teste apaga, na pratica, derrubando o
+ERP e conferindo que a tela continua de pe.
+
+POR QUE ISSO IMPORTA, ALEM DA ARQUITETURA: o reaproveitamento entre o CORTEX e
+o TMS Sulista e por COPIA, nunca por import (memoria `tms-sulista-projeto-
+separado`). Um modulo que so funciona com o AVA por perto nao se copia -- ele
+se reescreve, e reescrever e onde as sete correcoes da `erpbrasil.edoc` se
+perdem.
+
 O AMBIENTE
 ----------
 
