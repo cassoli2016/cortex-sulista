@@ -590,3 +590,98 @@ def test_o_esquema_vem_com_xsd_no_fim_e_isso_nao_atrapalha():
     vez que ele salva (a primeira foi a versao do schema)."""
     assert leitura.classificar("resEvento_v1.01.xsd") == ("evento", False)
     assert leitura.classificar("procNFe_v4.00.xsd") == ("nfe", True)
+
+
+# ================================ o cadastro do certificado PELA TELA
+
+def _cliente_web():
+    from fastapi.testclient import TestClient
+    from api import main
+    # TestClient FORA de `with`: sem lifespan. O `_startup_auth` aplicaria
+    # migration no schema de PRODUCAO.
+    return TestClient(main.app)
+
+
+def test_o_cadastro_do_certificado_e_de_ADMINISTRADOR():
+    """A tela `dfe` e de RBAC normal -- quem opera precisa VER se a recolha
+    esta viva. Mas trocar o certificado e outro ato: ele assina documento
+    fiscal em nome da empresa. Por isso a rota mora em /api/gestao, que o
+    middleware trata como admin, e nao junto da tela."""
+    r = _cliente_web().post("/api/gestao/dfe/certificado", json={})
+    assert r.status_code == 401
+    from api import auth
+    assert not auth.rota_sem_tela("/api/gestao/dfe/certificado")
+
+
+def test_a_rota_do_certificado_NAO_esta_na_tela_dfe():
+    """Se estivesse em `/api/dfe/...`, o RBAC da tela a liberaria para quem
+    so precisa OLHAR -- e a fronteira que permite a tela ser aberta ia junto."""
+    from api import auth
+    alvo = [t for r, t in auth.ROTA_TELAS if r == "/api/dfe"]
+    assert alvo == [frozenset({"dfe"})]
+    assert not any(r.startswith("/api/dfe/certificado") for r, _ in auth.ROTA_TELAS)
+
+
+
+
+# ============================== a rota do certificado, no lugar certo
+
+def test_a_rota_do_certificado_EXISTE_e_esta_sob_api_gestao():
+    """`/api/gestao` e admin pelo middleware, e o middleware e FAIL-CLOSED --
+    ele devolve 401 para qualquer caminho sob /api/gestao, exista ou nao.
+
+    Por isso um teste que so afirmasse "401 sem sessao" passaria com a rota
+    MOVIDA para fora de /api/gestao (foi o que aconteceu: sabotada, ela ficou
+    verde). O que precisa ser afirmado e que a rota EXISTE, e ali.
+    """
+    from api import main
+    caminhos = {r.path for r in main.app.routes if hasattr(r, "path")}
+    assert "/api/gestao/dfe/certificado" in caminhos, (
+        "a rota do certificado saiu de /api/gestao — la ela e admin pelo "
+        "middleware; fora, o RBAC da tela `dfe` (de RBAC normal) a liberaria "
+        "para quem so precisa OLHAR")
+    assert "/api/dfe/certificado" not in caminhos
+
+
+def test_o_cadastro_RECUSA_CNPJ_fora_da_recolha(caixa, monkeypatch):
+    """Sem esta trava a rota guardaria certificado de QUALQUER CNPJ numa pasta
+    que a casa protege e USA PARA ASSINAR. A lista de caixas vem do ERP
+    (filiais ativas), nao do que a tela mandar.
+
+    Chama a FUNCAO da rota, e nao o store: a versao anterior deste guard
+    afirmava `arm.caixa(...) is None` -- verdade sobre o armazenamento e nada
+    sobre a rota, que e quem decide. Sabotada a trava, ela ficava verde.
+    """
+    import base64
+    from api import main
+    monkeypatch.setattr("api.sefaz.armazenamento.ESQUEMA", caixa)
+
+    class ReqFalso:
+        state = type("S", (), {"sessao": {"email": "adm@sulista"}})()
+
+    r = main.dfe_certificado(
+        {"cnpj": "11111111111111", "senha": "x",
+         "arquivo_b64": base64.b64encode(b"0" * 10).decode()}, ReqFalso())
+    assert r.status_code == 422
+    corpo = r.body.decode()
+    assert "nao esta na recolha" in corpo or "não está na recolha" in corpo, corpo
+
+
+def test_o_cadastro_ACEITA_o_CNPJ_que_esta_na_recolha(caixa, monkeypatch):
+    """O outro lado: a trava nao pode barrar quem deve passar. Aqui o arquivo e
+    lixo de proposito -- o que se afirma e que ele chegou ATE a validacao do
+    certificado (422 de certificado, e nao 422 de CNPJ)."""
+    import base64
+    from api import main
+    monkeypatch.setattr("api.sefaz.armazenamento.ESQUEMA", caixa)
+
+    class ReqFalso:
+        state = type("S", (), {"sessao": {"email": "adm@sulista"}})()
+
+    r = main.dfe_certificado(
+        {"cnpj": CNPJ, "senha": "x",
+         "arquivo_b64": base64.b64encode(b"nao e um pfx").decode()}, ReqFalso())
+    assert r.status_code == 422
+    corpo = r.body.decode()
+    assert "recolha" not in corpo, (
+        "barrou no CNPJ um que ESTA na recolha: %s" % corpo)

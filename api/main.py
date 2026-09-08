@@ -1839,6 +1839,107 @@ def comunicacao_tv() -> JSONResponse:
             "mensagem": "Nao foi possivel ler a comunicacao da frota."})
 
 
+@app.post("/api/gestao/dfe/certificado")
+def dfe_certificado(payload: dict, req: Request) -> JSONResponse:
+    """Cadastra o certificado A1 de uma filial na recolha. SO ADMINISTRADOR.
+
+    ESTA ROTA E DE GESTAO e nao da tela `dfe`, de proposito. A tela e de RBAC
+    normal -- quem opera precisa VER se a recolha esta viva --, mas trocar o
+    certificado da empresa e ato de administrador: ele assina documento fiscal
+    em nome dela. `/api/gestao` e admin pelo middleware, e essa e a fronteira.
+
+    O .pfx vem em base64 NO CORPO, com a senha. No corpo e nao em query nem
+    header: URL e cabecalho aparecem em log de servidor e de proxy, e senha de
+    certificado em log e vazamento permanente. O corpo de um POST nao e
+    registrado.
+
+    O arquivo e ABERTO aqui com a senha. Se abre, titular, CNPJ e validade saem
+    do PROPRIO certificado -- dado que nao precisa ser digitado e por isso nao
+    pode ser digitado errado. Senha errada vira 422 agora, e nao uma recolha
+    que falha calada daqui a semanas.
+    """
+    import base64
+    from api.contrapartida import cadastro
+    from api.contrapartida.certificado import (MAX_BYTES, CertificadoInvalido,
+                                               conferir_titularidade, ler,
+                                               senha_que_abre)
+    from api.sefaz import armazenamento as arm
+
+    _s = getattr(req.state, "sessao", None) or {}
+    quem = _s.get("email") or _s.get("nome") or "?"
+    cnpj = re.sub(r"[^0-9]", "", str(payload.get("cnpj") or ""))
+
+    # SO CNPJ QUE JA ESTA NA RECOLHA. Sem isto a rota aceitaria guardar
+    # certificado de qualquer CNPJ do mundo numa pasta que a casa protege e
+    # usa para assinar -- e a lista de caixas vem do ERP, nao da tela.
+    if not arm.caixa(cnpj):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "CNPJ nao esta na recolha. As caixas saem das filiais "
+                        "ativas do ERP (scripts/abrir_caixas_dfe.py)."})
+
+    senha = str(payload.get("senha") or "")
+    b64 = str(payload.get("arquivo_b64") or "")
+    if not (senha and b64):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Envie o arquivo .pfx e a senha."})
+    try:
+        bruto = base64.b64decode(b64, validate=True)
+    except Exception:  # noqa: BLE001
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Arquivo invalido."})
+    if len(bruto) > MAX_BYTES:
+        return JSONResponse(status_code=413, content={
+            "erro": "arquivo_grande",
+            "mensagem": "Arquivo acima de %d MB." % (MAX_BYTES // (1024 * 1024))})
+    try:
+        lido = ler(bruto, senha)
+    except CertificadoInvalido as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "certificado_invalido", "mensagem": str(exc)})
+
+    avisos = []
+    if lido.get("aviso_senha"):
+        avisos.append(lido["aviso_senha"])
+    conf = conferir_titularidade(lido, cnpj)
+    if conf:
+        avisos.append(conf)
+    if lido["vencido"]:
+        avisos.append("O certificado venceu em %s: ele fica cadastrado, mas a "
+                      "recolha desta filial nao vai funcionar." % lido["valida_ate"])
+    elif isinstance(lido.get("dias"), int) and lido["dias"] <= 30:
+        avisos.append("Vence em %d dia(s) (%s). Peca a renovacao agora: quando "
+                      "ele vencer, a recolha para e nao ha erro que aponte para "
+                      "o certificado." % (lido["dias"], lido["valida_ate"]))
+    try:
+        # AUDITORIA ANTES da acao externa, como toda escrita da casa.
+        auth.audit(quem, "dfe_certificado", alvo=cnpj,
+                   detalhe="titular=%s valida_ate=%s"
+                           % (lido["titular"], lido["valida_ate"]))
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        cadastro.DIR_CERT.mkdir(parents=True, exist_ok=True)
+        alvo = cadastro.DIR_CERT / ("%s.pfx" % cnpj)
+        alvo.write_bytes(bruto)
+        segredo_arquivo.proteger(alvo)   # ACL de verdade, nao so chmod
+        # A senha que ABRIU, que pode ser a variante sem o espaco colado do
+        # copiar-e-colar. Gravar a digitada faria a recolha falhar meses
+        # depois, longe da causa.
+        cadastro.gravar_senha(cnpj, senha_que_abre(bruto, senha) or senha)
+        segredo_arquivo.proteger(cadastro.SENHAS_PATH)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("dfe: gravar certificado falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao", "mensagem": "Erro ao gravar o certificado."})
+    log.info("dfe: certificado de %s cadastrado por %s", cnpj, quem)
+    # a senha NAO volta, nem mascarada
+    return JSONResponse({"ok": True, "cnpj": cnpj, "titular": lido["titular"],
+                         "valida_ate": lido["valida_ate"], "dias": lido["dias"],
+                         "avisos": avisos})
+
+
 @app.get("/api/dfe")
 def dfe_panorama(limite: int = 200) -> JSONResponse:
     """As notas recolhidas da SEFAZ: as caixas, o que chegou e o que falta.

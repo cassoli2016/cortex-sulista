@@ -2851,6 +2851,14 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 .dfe-cx td{vertical-align:top}
 .dfe-cx .cert{font-size:11.5px;color:var(--n500)}
 .dfe-cx .cert.mal{color:var(--red)}
+.dfe-cert-form{display:grid;gap:9px;margin-top:9px;padding:18px;
+  border:1px dashed var(--n300);border-radius:8px;background:var(--n50)}
+.dfe-cert-form .linha{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.dfe-cert-form label{font-size:12.5px;color:var(--n600);min-width:96px}
+.dfe-cert-form select,.dfe-cert-form input[type=password]{font:inherit;
+  font-size:13px;padding:6px 9px;border:1px solid var(--n300);border-radius:6px;
+  background:var(--n0);color:var(--n900);min-width:0;flex:1 1 180px}
+.dfe-cert-aviso{font-size:12.5px;color:var(--n700);line-height:1.5}
 </style>
 <script>
 /* TEMA — carimbado ANTES do primeiro pixel.
@@ -7046,7 +7054,22 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="tabroll" style="max-height:230px"><table class="tab dfe-cx"><thead><tr>
             <th>Filial</th><th>UF</th><th class="num">Recolhidos</th><th class="num">Falta</th>
             <th>Última recolha</th><th>Estado</th><th>Certificado</th>
-          </tr></thead><tbody id="dfe-caixas"></tbody></table></div></div>
+          </tr></thead><tbody id="dfe-caixas"></tbody></table></div>
+          <div id="dfe-cert-caixa" hidden>
+            <div class="dfe-cert-form">
+              <div class="linha"><b style="font-size:13px">Cadastrar certificado A1</b>
+                <span class="hint">o arquivo e a senha ficam no servidor, protegidos, e a senha não volta para a tela</span></div>
+              <div class="linha"><label for="dfe-cert-cnpj">Filial</label>
+                <select id="dfe-cert-cnpj"></select></div>
+              <div class="linha"><label for="dfe-cert-arq">Arquivo .pfx</label>
+                <input type="file" id="dfe-cert-arq" accept=".pfx,.p12"></div>
+              <div class="linha"><label for="dfe-cert-senha">Senha</label>
+                <input type="password" id="dfe-cert-senha" autocomplete="off"
+                       placeholder="a senha do arquivo, não a de revogação"></div>
+              <div class="linha"><button class="btn sm" onclick="dfeCertEnviar()">Cadastrar</button>
+                <span class="dfe-cert-aviso" id="dfe-cert-msg"></span></div>
+            </div>
+          </div></div>
         <div class="card"><div class="head"><h2>Documentos recolhidos</h2><span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: dfe_documento, no banco da casa — o XML fica guardado aqui, e não em arquivo, porque a guarda é de cinco anos e o backup que se prova todo dia é o do PostgreSQL. ATENÇÃO AO ESTADO: a SEFAZ entrega apenas o RESUMO (chave, emitente, valor, situação) enquanto o destinatário não manifesta ciência da operação; o XML completo só vem depois disso. A manifestação ficou para um segundo momento — e a contabilidade já baixa esta mesma caixa, então manifestar aqui geraria evento duplicado. Enquanto isso, &quot;só resumo&quot; quer dizer que a nota inteira NÃO está guardada aqui.">ⓘ</span><span class="hint" id="dfe-hint"></span></div>
           <div class="tabroll" style="max-height:400px"><table class="tab"><thead><tr>
             <th>Emissão</th><th>Emitente</th><th class="num">Valor</th>
@@ -38541,6 +38564,34 @@ async function loadDfe(){
       </tr>`;
     }).join('')||'<tr><td colspan="7" class="vazio">Nenhuma caixa aberta.</td></tr>';
 
+    /* O FORMULARIO SO EXISTE PARA ADMINISTRADOR. `hidden` e nao `display` para
+       seguir a casa; e o `select` se monta das caixas que a API devolveu, e
+       nao de uma lista escrita aqui -- filial nova entra sozinha. */
+    const cx = document.getElementById('dfe-cert-caixa');
+    if(cx){
+      /* `USER` e `let` de topo, NAO propriedade de `window` -- `window.USER`
+         e sempre undefined e o formulario nunca apareceria, nem para
+         administrador. O teste de navegador pegou isso; o de texto-fonte
+         anterior teria passado, porque a string `USER.admin` estava la. */
+      const ehAdmin = !!(USER && USER.admin);
+      cx.hidden = !ehAdmin;
+      if(ehAdmin){
+        const sel = document.getElementById('dfe-cert-cnpj');
+        /* A FILIAL SEM CERTIFICADO VEM PRIMEIRO: e a que alguem abriu a tela
+           para resolver. Quem ja tem aparece com a validade, porque trocar um
+           certificado que vence e o outro motivo de estar aqui. */
+        const ordenadas = caixas.slice().sort((a,b)=>
+          ((a.certificado||{}).tem_certificado?1:0)-((b.certificado||{}).tem_certificado?1:0));
+        sel.innerHTML = ordenadas.map(c=>{
+          const ct = c.certificado||{};
+          const est = !ct.tem_certificado ? 'sem certificado'
+                    : ct.vencido ? 'VENCIDO'
+                    : ct.dias!=null ? 'vence em '+ct.dias+' d' : 'com certificado';
+          return `<option value="${esc(c.cnpj)}">${esc(c.apelido||c.cnpj)} — ${esc(est)}</option>`;
+        }).join('');
+      }
+    }
+
     if(hint) hint.textContent = docs.length ? docs.length+' mais recentes' : '';
     tbD.innerHTML = docs.map(x=>{
       const sit = DFE_SIT[String(x.situacao||'')] || [x.situacao||'—','b-info'];
@@ -39075,6 +39126,47 @@ async function ritIndicadorInativar(id){
   await loadGesrit();
 }
 
+async function dfeCertEnviar(){
+  const msg = document.getElementById('dfe-cert-msg');
+  const cnpj = (document.getElementById('dfe-cert-cnpj')||{}).value||'';
+  const arq = (document.getElementById('dfe-cert-arq')||{}).files||[];
+  const senhaEl = document.getElementById('dfe-cert-senha');
+  const senha = (senhaEl||{}).value||'';
+  if(!arq.length || !senha){
+    msg.innerHTML = '<span style="color:var(--red)">Escolha o arquivo .pfx e digite a senha.</span>';
+    return;
+  }
+  msg.textContent = 'conferindo o certificado…';
+  try{
+    /* O arquivo vai em base64 NO CORPO, junto da senha. Nao em query nem
+       header: URL e cabecalho aparecem em log de servidor e de proxy, e senha
+       de certificado em log e vazamento permanente. */
+    const b64 = await new Promise((ok,err)=>{
+      const fr = new FileReader();
+      fr.onerror = ()=>err(new Error('não foi possível ler o arquivo'));
+      fr.onload = ()=>ok(String(fr.result).split(',')[1]||'');
+      fr.readAsDataURL(arq[0]);
+    });
+    const r = await fetch('/api/gestao/dfe/certificado', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({cnpj, senha, arquivo_b64: b64})});
+    const d = await respostaJSON(r);
+    if(!d.ok){
+      msg.innerHTML = '<span style="color:var(--red)">'+esc((d.dados||{}).mensagem||'Não foi possível cadastrar.')+'</span>';
+      return;
+    }
+    const dd = d.dados||{};
+    /* A SENHA SAI DA TELA assim que serve. Ela nao volta da API, e deixa-la no
+       campo so cria uma copia viva num computador que fica destravado. */
+    if(senhaEl) senhaEl.value = '';
+    const avisos = (dd.avisos||[]).map(a=>'<div>⚠ '+esc(a)+'</div>').join('');
+    msg.innerHTML = '<span style="color:var(--green)">'+esc(dd.titular||'')+
+      ' — vale até '+esc(dd.valida_ate||'?')+'</span>'+avisos;
+    loadDfe();
+  }catch(err){
+    msg.innerHTML = '<span style="color:var(--red)">'+esc(err.message||'Erro ao enviar.')+'</span>';
+  }
+}
 async function loadInteg(){
   const el = document.getElementById('integ-lista');
   const kb = document.getElementById('integ-kpis');
