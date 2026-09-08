@@ -321,6 +321,45 @@ CAMPOS: dict[str, dict] = {
         "descricao": "Padrão vazio no cabeçalho próprio; Bearer no Authorization",
         "placeholder": "Bearer"},
 
+    # ---------------------------------------------------------------- a
+    # CAIXA DE XML. Quem autentica aqui nao e um token de fornecedor: e um
+    # APLICATIVO registrado no Entra ID da propria empresa, com permissao de
+    # aplicacao `Mail.Read`. O caminho e esse porque o dominio entrega e-mail
+    # no Exchange Online e a Microsoft DESLIGOU a autenticacao basica de
+    # IMAP/POP la -- um leitor com usuario e senha responderia 535 para
+    # sempre, e o 535 do M365 se le como "senha errada".
+    #
+    # Os tres primeiros NAO sao segredo, e isso e deliberado: tenant e
+    # client_id sao identificadores publicos do registro, e quem configura
+    # precisa CONFERIR se digitou o certo. O cofre mascara valor (`ab12...wxyz`),
+    # e um identificador mascarado e um identificador que ninguem consegue
+    # validar.
+    "XMLMAIL_TENANT_ID": {
+        "rotulo": "ID do tenant (Directory ID)", "segredo": False,
+        "descricao": "O GUID do Microsoft 365 da empresa. Entra ID › Visão "
+                     "geral › ID do diretório (locatário)"},
+    "XMLMAIL_CLIENT_ID": {
+        "rotulo": "ID do aplicativo (Application ID)", "segredo": False,
+        "descricao": "O GUID do aplicativo registrado no Entra ID. É ele que "
+                     "recebe a permissão Mail.Read e é ele que entra na "
+                     "ApplicationAccessPolicy que limita o acesso a esta caixa"},
+    "XMLMAIL_CLIENT_SECRET": {
+        "rotulo": "Segredo do aplicativo",
+        "descricao": "Entra ID › o aplicativo › Certificados e segredos › Novo "
+                     "segredo do cliente. VENCE (o padrão do portal é 6 ou 24 "
+                     "meses) — quando vencer, a coleta para e o cartão da Saúde "
+                     "acende"},
+    "XMLMAIL_CAIXA": {
+        "rotulo": "Endereço da caixa", "segredo": False,
+        "descricao": "A caixa que recebe os XML (xml@sulista.com.br). É lida, "
+                     "nunca escrita: o CÓRTEX não marca como lida, não move e "
+                     "não apaga nada"},
+    "XMLMAIL_DIAS": {
+        "rotulo": "Dias para trás", "segredo": False, "obrigatorio": False,
+        "descricao": "Quantos dias de caixa cada coleta varre (padrão 30). "
+                     "Mensagem já processada é pulada pelo id, então repetir a "
+                     "janela não reprocessa nada — só custa uma listagem"},
+
 }
 
 # A ORDEM DOS MODOS IMPORTA: é a mesma prioridade que `modo_auth()` de cada

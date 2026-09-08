@@ -4,6 +4,20 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.14.0] — 08/09/2026  ·  CX-08/09/2026-v1.14.0
+
+### Adicionado
+- O cadastro de Equipamentos passou a mostrar o registro do DENATRAN de cada placa, trazido da Smartec: chassi, cor, espécie oficial, anos e o nome completo do veículo como o Detran o publica ("VW/19.360 CTC 4X2") — que é a única fonte da VERSÃO, o que separa dois caminhões de mesmo modelo e preços muito diferentes.
+- RESTRIÇÕES no cadastro: roubo, furto, bloqueio judicial, Renajud e recall. A tela separa o que IMPEDE o veículo de rodar do que é apenas financiamento — dos 292 veículos consultados, 173 têm alienação fiduciária (o estado normal de uma frota, e por isso não é alarme) e 2 têm restrição impeditiva de verdade. Juntar as duas coisas deixaria metade do painel em vermelho permanente.
+- Mês de licenciamento e vencimento do cronotacógrafo entraram no cadastro. Nenhum dos dois existe no ERP.
+
+### Corrigido
+- A coleta de restrições da Smartec estava escrita há meses e nunca era executada, porque consulta um veículo por vez e ficou de fora da rotina que roda de 6 em 6 horas. A tabela tinha ZERO linhas — roubo e bloqueio judicial simplesmente não eram vistos, e tabela vazia se lê como "frota sem problema". Agora ela roda uma vez por dia junto da coleta normal: a primeira passagem levou 15 segundos e trouxe 292 veículos.
+- Dois achados da primeira coleta, que estavam invisíveis: um veículo próprio EM OPERAÇÃO com bloqueio por ordem judicial, e um com ocorrência de furto/roubo que já não está na frota ativa e continua sendo monitorado (e possivelmente cobrado) na Smartec.
+
+### Removido
+- A integração com a APIBrasil saiu inteira. Ela existiria para consultar placa no Detran a R$ 2,50 por veículo (cerca de R$ 3.600 pela frota), e a medição mostrou que a Smartec — já contratada e já coletando — devolve o mesmo. O que faltava não era fornecedor: era chamar o que já existia.
+
 ## [1.13.0] — 08/09/2026  ·  CX-08/09/2026-v1.13.0
 
 ### Adicionado
