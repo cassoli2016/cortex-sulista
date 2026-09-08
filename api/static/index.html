@@ -38664,6 +38664,19 @@ let EQP_CAT = null;          // catálogo de campos, carregado uma vez
 // Sem ele, a resposta lenta de uma navegação anterior pinta por cima da atual.
 let eqpSeq = 0;
 
+/* O CONTRATO DE `respostaJSON` E `{ok, dados}` -- NAO o payload.
+   Esta funcao existe porque eu errei isso em TODAS as seis chamadas da tela e
+   o erro foi para producao: `EQP_CAT.vinculos` era `undefined`, a tela abria
+   com "undefined is not an object" no lugar da tabela e nada mais carregava.
+   Nenhuma regua pegou -- medir altura e tema nao exercita o caminho do dado.
+   Um helper unico e o que impede a proxima chamada de repetir. */
+async function eqpJSON(r){
+  const rr = await respostaJSON(r);
+  if(!r.ok) throw new Error((rr.dados && rr.dados.mensagem)
+                            || ('HTTP ' + r.status));
+  return rr.dados;
+}
+
 function eqpRot(v, mapa){ return (mapa && mapa[v]) || v || '—'; }
 
 async function loadEqp(){
@@ -38671,7 +38684,7 @@ async function loadEqp(){
   try{
     if(!EQP_CAT){
       const rc = await fetch('/api/equipamentos/catalogo');
-      EQP_CAT = await respostaJSON(rc);
+      EQP_CAT = await eqpJSON(rc);
       const sv = document.getElementById('eqpVinculo');
       const sc = document.getElementById('eqpCategoria');
       if(sv) EQP_CAT.vinculos.forEach(v=>{ sv.insertAdjacentHTML('beforeend',
@@ -38680,8 +38693,8 @@ async function loadEqp(){
         '<option value="'+esc(c.chave)+'">'+esc(c.rotulo)+'</option>'); });
     }
     const [pan, div] = await Promise.all([
-      fetch('/api/equipamentos/panorama').then(respostaJSON),
-      fetch('/api/equipamentos/divergencias?limite=200').then(respostaJSON),
+      fetch('/api/equipamentos/panorama').then(eqpJSON),
+      fetch('/api/equipamentos/divergencias?limite=200').then(eqpJSON),
     ]);
     if(seq !== eqpSeq) return;       // guard de sequência: resposta atrasada
     eqpPintarKpis(pan);
@@ -38781,7 +38794,7 @@ async function eqpFiltrar(){
   if(v && v.value) q.set('vinculo', v.value);
   if(c && c.value) q.set('categoria', c.value);
   const r = await fetch('/api/equipamentos?'+q.toString());
-  const d = await respostaJSON(r);
+  const d = await eqpJSON(r);
   const tb = document.querySelector('#eqpTab tbody');
   if(tb) tb.innerHTML = (d.equipamentos||[]).map(e=>
     '<tr><td><b>'+esc(e.placa)+'</b></td><td>'+esc(e.numero_frota||'—')+'</td>'+
@@ -38808,7 +38821,7 @@ async function eqpSincronizar(){
   if(b){ b.disabled = true; b.textContent = 'Sincronizando…'; }
   try{
     const r = await fetch('/api/equipamentos/sincronizar', {method:'POST'});
-    const d = await respostaJSON(r);
+    const d = await eqpJSON(r);
     const res0 = document.getElementById('eqpConta');
     if(res0) res0.textContent = 'Sincronizado: '+numBR(d.lidos_do_erp)+
       ' equipamentos lidos do ERP.';
@@ -38826,7 +38839,7 @@ async function eqpSmartec(){
   if(b){ b.disabled = true; b.textContent = 'Trazendo…'; }
   try{
     const r = await fetch('/api/equipamentos/smartec', {method:'POST'});
-    const d = await respostaJSON(r);
+    const d = await eqpJSON(r);
     const c = d.cobertura_smartec || {};
     if(res) res.textContent =
       numBR(d.lidos_da_smartec||0)+' equipamentos vindos da Smartec · '+

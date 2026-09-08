@@ -1306,6 +1306,64 @@ def _servico_xml_email() -> dict:
                        % (e.get("caixa") or "caixa", guardados, idade, vazias)}
 
 
+def _servico_cnh() -> dict:
+    """A CNH e o exame toxicologico dos motoristas estao sendo conferidos?
+
+    ESTE CARTAO NASCEU DE UMA AUSENCIA, e a ausencia era invisivel.
+
+    Exame toxicologico vencido IMPEDE o motorista de dirigir (Lei 13.103), e a
+    empresa responde por isso. Ate 08/09/2026 o CORTEX nao conferia nada
+    disso: a tabela existia, o recurso existia no catalogo da Smartec, e nao
+    havia coletor. Nao havia tela vermelha, nao havia log -- so a falta.
+
+    O cartao mede DUAS coisas, e a separacao delas e o ponto:
+
+      · a coleta rodou? (senao, ninguem perguntou);
+      · o que ela trouxe? Medido em 25 condutores, a Smartec devolve o numero
+        da CNH e o nome, e NADA do que importa -- vencimento, pontuacao e
+        toxicologico vieram nulos em 24 de 24. Isso nao e falha do CORTEX nem
+        da coleta: e produto nao habilitado na conta, e o conserto e uma
+        conversa com o fornecedor.
+
+    `alerta`, e nao `erro`: o sistema esta funcionando: quem nao esta
+    entregando e o fornecedor. Vermelho aqui misturaria uma pendencia
+    comercial com uma falha nossa, e quem olha o painel precisa saber para
+    quem ligar.
+    """
+    nome = "CNH e toxicologico (Smartec)"
+    try:
+        from api.smartec import cliente as scli
+        from api.smartec import leitura as slei
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: cnh: %s", type(exc).__name__)
+        return {"nome": nome, "status": "info", "detalhe": "camada indisponivel"}
+
+    if not scli.configurado():
+        return {"nome": nome, "status": "info",
+                "detalhe": "token da Smartec nao configurado"}
+    try:
+        e = slei.estado_cnh()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: cnh estado: %s", type(exc).__name__)
+        return {"nome": nome, "status": "info",
+                "detalhe": "banco local indisponivel"}
+
+    if not e["consultados"]:
+        return {"nome": nome, "status": "info",
+                "detalhe": "nenhum condutor consultado ainda"}
+
+    if e["veredito"].startswith("a Smartec responde"):
+        return {"nome": nome, "status": "alerta",
+                "detalhe": f"{e['consultados']} condutores consultados e "
+                           f"ZERO com vencimento ou toxicologico - o modulo "
+                           f"de CNH parece nao habilitado na conta da Smartec"}
+
+    return {"nome": nome, "status": "ok",
+            "detalhe": f"{e['com_validade']} de {e['consultados']} condutores "
+                       f"com vencimento de CNH, {e['com_toxicologico']} com "
+                       f"toxicologico"}
+
+
 def _servico_premiacao() -> dict:
     """A configuração da premiação está completa?
 
@@ -1880,6 +1938,12 @@ def _servicos() -> list[dict]:
     # Smartec: infrações e licenças. O cartão vigia DUAS coisas — a coleta
     # e o vencimento do acesso ao SNE, que desliga a integração em silêncio.
     servicos.append(_servico_smartec())
+
+    # CNH e toxicologico: cartao PROPRIO, separado do da Smartec, porque a
+    # pergunta e outra e o dono do conserto e outro. A coleta de infracao pode
+    # estar perfeita com a de CNH nao entregando nada -- e foi exatamente o
+    # que se encontrou.
+    servicos.append(_servico_cnh())
 
     # 3S: a leitura direta das carretas. O cartão nasceu com a integração
     # porque a falha dela é MUDA — some posição e o painel só fica pior.

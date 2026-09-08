@@ -32,6 +32,7 @@ custo de descobrir o teto é uma coleta perdida.
 from __future__ import annotations
 
 import logging
+import re
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
 
@@ -389,6 +390,100 @@ def renavams_da_conta(esquema: str | None = None) -> list[str]:
     return [r["renavam"].strip() for r in linhas if (r.get("renavam") or "").strip()]
 
 
+def cpfs_dos_motoristas() -> list[str]:
+    """Os CPFs dos motoristas ATIVOS, do GLOBUS (a folha).
+
+    POR QUE DAQUI, E NAO DO AVA OU DA PROPRIA SMARTEC
+    =================================================
+    Porque a pergunta e "quem dirige para a Sulista HOJE", e quem sabe isso e
+    a folha: `situacaofunc = 'A'` mais a funcao de motorista. A Smartec
+    responderia "quem esta cadastrado NA CONTA dela", que e outra coisa -- e
+    justamente a diferenca entre as duas listas e um dos achados (condutor
+    monitorado que ja saiu da empresa e conta paga por nada).
+
+    MEDIDO em 08/09/2026: 103 motoristas ativos, **83 com CPF**. Os 20 sem CPF
+    nao sao erro desta rotina: sao lacuna de cadastro na folha, e aparecem na
+    contagem para que a cobertura da tela nunca minta sobre o denominador.
+
+    O CPF nao sai daqui para lugar nenhum alem do CORPO da requisicao a
+    Smartec: nao entra em URL, nao entra em log, e a tela mostra mascarado.
+    """
+    from api.queries_folha import EMPRESA, _CNH_BASE
+    from .. import db_folha
+    linhas = db_folha.query(
+        "SELECT c.cpfcnpj cpf " + _CNH_BASE.replace(":emp", str(EMPRESA))
+        + " AND c.cpfcnpj IS NOT NULL")
+    vistos, fora = set(), []
+    for r in linhas:
+        cpf = re.sub(r"[^0-9]", "", str(r.get("cpf") or ""))
+        if len(cpf) == 11 and cpf not in vistos:
+            vistos.add(cpf)
+            fora.append(cpf)
+    return fora
+
+
+def coletar_cnh(cpfs: list[str] | None = None,
+                esquema: str | None = None) -> dict:
+    """CNH e exame toxicologico dos motoristas ativos.
+
+    O QUE ESTA COLETA ENCONTRA HOJE, E POR QUE ELA EXISTE ASSIM MESMO
+    ================================================================
+    MEDIDO em 25 condutores (08/09/2026): `CNH` e `NOME` vieram em 24 de 24, e
+    **VENCIMENTO, PONTUACAO, IMPEDIMENTO e VENCIMENTO_EXAME_TOXICOLOGICO
+    vieram NULOS em 24 de 24**. A conta conhece os condutores, mas a consulta
+    ao DETRAN nao devolve dado -- o modulo de monitoramento aparentemente nao
+    esta habilitado.
+
+    A coleta entra assim mesmo porque hoje essa ausencia e INVISIVEL. Ninguem
+    no CORTEX sabe que a CNH nao esta sendo conferida, e nao saber e o pior
+    estado possivel: toxicologico vencido IMPEDE o motorista de dirigir, e a
+    empresa responde por isso. Gravando o que chega, a Saude passa a dizer
+    "83 condutores consultados, ZERO com vencimento" -- um alarme acionavel
+    (falar com o fornecedor) no lugar de silencio.
+
+    `chamadas` conta o que foi PEDIDO e `itens` o que foi GRAVADO; `sem_dado`
+    conta o CPF que a Smartec nao conhece. As tres sao coisas diferentes e
+    somar as duas ultimas apagaria a unica que aponta para cadastro furado.
+    """
+    cpfs = cpfs if cpfs is not None else cpfs_dos_motoristas()
+    if not cpfs:
+        return {"recurso": "cnh", "itens": 0, "chamadas": 0, "falhas": 0,
+                "sem_dado": 0,
+                "mensagem": "nenhum motorista ativo com CPF na folha"}
+
+    carga = arm.carga_abrir("cnh", esquema)
+    base = _mes_base()
+    n = chamadas = sem_dado = 0
+    falhas: list[str] = []
+
+    def _um(cpf: str):
+        try:
+            return cpf, cliente.chamar("consultar_cnh", Cpf=cpf,
+                                       DataBase=base), None
+        # O CPF NUNCA ENTRA NA MENSAGEM DE ERRO: erro vira log, log vira
+        # arquivo, e o repositorio desta casa e PUBLICO. So o tipo.
+        except Exception as exc:  # noqa: BLE001
+            return cpf, None, type(exc).__name__
+
+    with ThreadPoolExecutor(max_workers=TRABALHADORES) as ex:
+        for cpf, resp, err in ex.map(_um, cpfs):
+            chamadas += 1
+            if err:
+                falhas.append(err)
+                continue
+            if not resp:
+                # CPF que a Smartec nao conhece. NAO e falha: e achado --
+                # motorista dirigindo sem monitoramento de CNH.
+                sem_dado += 1
+                continue
+            n += arm.gravar_cnh(resp, esquema)
+
+    arm.carga_fechar(carga, "erro" if falhas else ("ok" if n else "vazio"),
+                     n, chamadas, "; ".join(sorted(set(falhas)))[:300], esquema)
+    return {"recurso": "cnh", "itens": n, "chamadas": chamadas,
+            "sem_dado": sem_dado, "falhas": len(falhas)}
+
+
 def coletar_por_veiculo(esquema: str | None = None) -> dict:
     """A passagem POR VEICULO: restricoes, IPVA e taxa de licenciamento.
 
@@ -471,6 +566,16 @@ def coletar_tudo(esquema: str | None = None) -> dict:
         passos = passos + (("por_veiculo", coletar_por_veiculo),)
     else:
         log.info("smartec: passagem por veiculo pulada (rodou ha %.1f h)", horas)
+
+    # A CNH tem freio proprio, e nao o mesmo das restricoes: sao populacoes
+    # diferentes (83 pessoas contra 303 veiculos) e podem falhar por motivos
+    # diferentes. Um freio compartilhado faria a falha de uma calar a outra --
+    # e calar e o modo de falha que esta coleta existe para acabar.
+    horas_cnh = _horas_desde("cnh", esquema)
+    if horas_cnh is None or horas_cnh >= HORAS_POR_VEICULO:
+        passos = passos + (("cnh", coletar_cnh),)
+    else:
+        log.info("smartec: coleta de CNH pulada (rodou ha %.1f h)", horas_cnh)
     resultado: dict = {"ok": True, "recursos": {}, "erros": {}}
     for nome, fn in passos:
         try:

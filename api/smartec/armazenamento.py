@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import json as _json
 import logging
+import re
 from datetime import date, datetime
 
 from .. import pglocal
@@ -468,6 +469,73 @@ def gravar_restricoes(renavam: str, placa: str, resp: dict,
 
 
 # ───────────────────────────────────────────────────────── acessos
+# ───────────────────────────────────────────────────────────── CNH e toxico
+
+def gravar_cnh(resp, esquema: str | None = None) -> int:
+    """A CNH de um condutor. Chave natural: o CPF.
+
+    O QUE A SMARTEC DEVOLVE HOJE, MEDIDO (08/09/2026, 25 condutores)
+    ===============================================================
+    `CNH` e `NOME` vieram em 24 de 24; **`VENCIMENTO`, `PONTUACAO`,
+    `IMPEDIMENTO` e `VENCIMENTO_EXAME_TOXICOLOGICO` vieram NULOS em 24 de
+    24.** Um CPF nem consta na conta.
+
+    Ou seja: a Smartec sabe QUEM sao os condutores (numero da CNH e nome), mas
+    a consulta ao DETRAN nao esta retornando dado nenhum -- o modulo de
+    monitoramento de CNH aparentemente nao esta habilitado nesta conta.
+
+    Isto e gravado assim mesmo, e de proposito. A ausencia hoje e INVISIVEL:
+    ninguem no CORTEX sabe que a CNH nao esta sendo conferida. Gravando o que
+    chega, `leitura.estado_cnh()` consegue dizer "24 condutores consultados,
+    ZERO com vencimento" -- que e um alarme acionavel (falar com o
+    fornecedor), enquanto uma tela vazia nao e nada.
+
+    "Coleta vazia NUNCA vira snapshot completo": por isso os campos ausentes
+    ficam NULOS, e nao com um valor de conveniencia.
+    """
+    if isinstance(resp, list):
+        resp = resp[0] if resp else None
+    if not isinstance(resp, dict):
+        return 0
+    cpf = re.sub(r"[^0-9]", "", s(resp.get("CPF")))
+    if not cpf:
+        return 0
+
+    # O BLOCO DE BLOQUEIOS vem SEMPRE, com as chaves presentes e nulas -- e a
+    # mesma armadilha do bloco SENATRAN nas restricoes de veiculo. So conta
+    # bloqueio que tenha DESCRICAO preenchida; a presenca da lista nao e
+    # evidencia de nada.
+    bloqueios = [b for b in (resp.get("BLOQUEIOS") or [])
+                 if isinstance(b, dict) and s(b.get("DESCRICAO"))]
+    situacao = "; ".join(s(b.get("DESCRICAO")) for b in bloqueios)
+    if not situacao and s(resp.get("IMPEDIMENTO")):
+        situacao = s(resp.get("IMPEDIMENTO"))
+
+    pglocal.executar("""
+        INSERT INTO smt_cnh(cpf, nome, registro, categoria, validade,
+               situacao, toxicologico_validade, toxicologico_situacao,
+               pontos, detalhe, data_pesquisa, visto_em)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, now())
+        ON CONFLICT (cpf) DO UPDATE SET
+            nome = EXCLUDED.nome, registro = EXCLUDED.registro,
+            categoria = EXCLUDED.categoria, validade = EXCLUDED.validade,
+            situacao = EXCLUDED.situacao,
+            toxicologico_validade = EXCLUDED.toxicologico_validade,
+            toxicologico_situacao = EXCLUDED.toxicologico_situacao,
+            pontos = EXCLUDED.pontos, detalhe = EXCLUDED.detalhe,
+            data_pesquisa = EXCLUDED.data_pesquisa, visto_em = now()
+    """, (cpf, s(resp.get("NOME")), s(resp.get("CNH")),
+          s(resp.get("CATEGORIA_VERIFICADO")),
+          d(resp.get("VENCIMENTO")), situacao,
+          d(resp.get("VENCIMENTO_EXAME_TOXICOLOGICO")),
+          s(resp.get("OBSERVACAO_TOXICOLOGICO"))
+          or s(resp.get("PESQUISA_TOXICOLOGICO")),
+          i(resp.get("PONTUACAO")),
+          _json.dumps({"bloqueios": bloqueios}, ensure_ascii=False),
+          d(resp.get("DATA_PESQUISA"))), esquema=_esq(esquema))
+    return 1
+
+
 def gravar_acessos(itens: list[dict], servico: str,
                    esquema: str | None = None) -> int:
     n = 0

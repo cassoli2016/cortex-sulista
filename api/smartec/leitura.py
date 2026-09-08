@@ -278,6 +278,56 @@ def mensal(esquema: str | None = None) -> list[dict]:
     """, esquema=esq)]
 
 
+def estado_cnh(esquema: str | None = None) -> dict:
+    """A CNH dos motoristas: quantos foram consultados, e quanto veio.
+
+    ESTA FUNCAO EXISTE PARA TORNAR UMA AUSENCIA VISIVEL.
+
+    A Smartec responde a consulta de CNH e devolve o numero da habilitacao e o
+    nome -- e NADA MAIS: vencimento, pontuacao, impedimento e exame
+    toxicologico vieram nulos em 24 de 24 condutores medidos em 08/09/2026. O
+    modulo de monitoramento aparentemente nao esta habilitado nesta conta.
+
+    Sem esta medicao, isso seria invisivel: a tabela existiria vazia e ninguem
+    perguntaria por que. E nao saber e o pior estado possivel -- exame
+    toxicologico vencido IMPEDE o motorista de dirigir, e a empresa responde
+    por isso.
+
+    `consultados` e quantos CPFs a Smartec conhece; `com_*` e quantos trazem
+    de fato cada dado. Os dois juntos separam "nao perguntamos" de
+    "perguntamos e nao veio", que sao problemas de donos diferentes.
+    """
+    r = pglocal.um(
+        "SELECT count(*) AS consultados,"
+        "       count(validade) AS com_validade,"
+        "       count(toxicologico_validade) AS com_toxicologico,"
+        "       count(pontos) AS com_pontos,"
+        "       sum(CASE WHEN situacao <> '' THEN 1 ELSE 0 END) AS com_situacao,"
+        "       max(visto_em) AS ultima"
+        "  FROM smt_cnh", esquema=_esq(esquema)) or {}
+    consultados = int(r.get("consultados") or 0)
+    fora = {
+        "consultados": consultados,
+        "com_validade": int(r.get("com_validade") or 0),
+        "com_toxicologico": int(r.get("com_toxicologico") or 0),
+        "com_pontos": int(r.get("com_pontos") or 0),
+        "com_situacao": int(r.get("com_situacao") or 0),
+        "ultima": r.get("ultima"),
+    }
+    # O VEREDITO, escrito aqui e nao na tela: e uma leitura do dado, e leitura
+    # de dado nao se repete em cada lugar que a mostra.
+    if not consultados:
+        fora["veredito"] = "nunca coletado"
+    elif fora["com_validade"] or fora["com_toxicologico"]:
+        fora["veredito"] = "recebendo dado"
+    else:
+        fora["veredito"] = (
+            "a Smartec responde mas NAO devolve vencimento nem toxicologico "
+            "em nenhum condutor - o modulo de monitoramento de CNH "
+            "provavelmente nao esta habilitado na conta")
+    return fora
+
+
 def licencas(esquema: str | None = None) -> list[dict]:
     """Vencimentos de documentação, do mais urgente para o menos.
 
