@@ -1358,10 +1358,18 @@ def _servico_cnh() -> dict:
                            f"ZERO com vencimento ou toxicologico - o modulo "
                            f"de CNH parece nao habilitado na conta da Smartec"}
 
+    # ENTREGA PARCIAL TAMBEM E ALERTA, e a razao esta em `leitura.estado_cnh`:
+    # um condutor de 81 com vencimento nao e "funcionando", sao 80 motoristas
+    # cuja habilitacao ninguem vigia.
+    if e["veredito"].startswith("entrega PARCIAL"):
+        return {"nome": nome, "status": "alerta",
+                "detalhe": f"{e['faltam_validade']} de {e['consultados']} "
+                           f"condutores sem vencimento de CNH e "
+                           f"{e['faltam_toxicologico']} sem toxicologico"}
+
     return {"nome": nome, "status": "ok",
-            "detalhe": f"{e['com_validade']} de {e['consultados']} condutores "
-                       f"com vencimento de CNH, {e['com_toxicologico']} com "
-                       f"toxicologico"}
+            "detalhe": f"os {e['consultados']} condutores com vencimento de "
+                       f"CNH e toxicologico"}
 
 
 def _servico_premiacao() -> dict:

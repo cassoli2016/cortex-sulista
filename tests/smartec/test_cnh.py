@@ -160,6 +160,32 @@ def test_o_veredito_separa_NAO_PERGUNTEI_de_PERGUNTEI_E_NAO_VEIO(esq):
     assert leitura.estado_cnh(leitura_esq)["veredito"] == "recebendo dado"
 
 
+def test_UM_condutor_com_dado_NAO_apaga_o_alarme_dos_outros(esq):
+    """O defeito que a coleta real de producao expos, em 08/09/2026.
+
+    A primeira versao dizia "recebendo dado" se QUALQUER condutor tivesse
+    vencimento. Na coleta real, UM de 81 tinha -- e o cartao da Saude ficou
+    VERDE com 80 motoristas cuja habilitacao ninguem estava conferindo.
+
+    Um caso solto nao pode desligar o alarme dos outros oitenta.
+    """
+    from api.smartec import leitura
+
+    arm.gravar_cnh(COMO_VIRIA_COMPLETO, esq)                    # tem tudo
+    # CPFs DISTINTOS do completo: a primeira versao usava um prefixo que
+    # colidia com ele, e o registro bom era SOBRESCRITO -- o teste media 3
+    # condutores onde deviam ser 4.
+    for i in range(3):                                          # nao tem nada
+        arm.gravar_cnh({**COMO_VEM_HOJE, "CPF": f"9990000019{i}"}, esq)
+
+    e = leitura.estado_cnh(esq)
+    assert e["consultados"] == 4 and e["com_validade"] == 1
+    assert e["faltam_validade"] == 3 and e["faltam_toxicologico"] == 3
+    assert e["veredito"].startswith("entrega PARCIAL"), e["veredito"]
+    # E A CONTAGEM VAI JUNTO: "falta 1" e "faltam 80" nao podem se ler igual.
+    assert "3 de 4" in e["veredito"]
+
+
 # ──────────────────────────────────────────────────────────────────── PII
 
 def test_o_CPF_nunca_sai_na_mensagem_de_erro():

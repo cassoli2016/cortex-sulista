@@ -316,15 +316,35 @@ def estado_cnh(esquema: str | None = None) -> dict:
     }
     # O VEREDITO, escrito aqui e nao na tela: e uma leitura do dado, e leitura
     # de dado nao se repete em cada lugar que a mostra.
+    #
+    # A REGRA E POR CONDUTOR, NAO POR EXISTENCIA -- e a primeira versao errou
+    # exatamente nisso. Ela dizia "recebendo dado" se QUALQUER condutor
+    # tivesse vencimento, e na coleta real de 08/09/2026 UM condutor de 81
+    # tinha: o cartao ficou VERDE com 80 motoristas sem ninguem conferindo a
+    # CNH deles. Um caso solto nao pode desligar o alarme dos outros oitenta.
+    #
+    # Cada condutor sem vencimento e um condutor cuja habilitacao ninguem
+    # vigia; cada um sem toxicologico e um risco legal proprio (exame vencido
+    # IMPEDE dirigir). Por isso o veredito so fica bom quando TODOS tem -- e a
+    # contagem vai junto, para que "falta 1" e "faltam 80" nao se leiam igual.
+    faltam_cnh = consultados - fora["com_validade"]
+    faltam_tox = consultados - fora["com_toxicologico"]
+    fora["faltam_validade"] = faltam_cnh
+    fora["faltam_toxicologico"] = faltam_tox
+
     if not consultados:
         fora["veredito"] = "nunca coletado"
-    elif fora["com_validade"] or fora["com_toxicologico"]:
-        fora["veredito"] = "recebendo dado"
-    else:
+    elif not fora["com_validade"] and not fora["com_toxicologico"]:
         fora["veredito"] = (
             "a Smartec responde mas NAO devolve vencimento nem toxicologico "
             "em nenhum condutor - o modulo de monitoramento de CNH "
             "provavelmente nao esta habilitado na conta")
+    elif faltam_cnh or faltam_tox:
+        fora["veredito"] = (
+            f"entrega PARCIAL: {faltam_cnh} de {consultados} condutores sem "
+            f"vencimento de CNH e {faltam_tox} sem toxicologico")
+    else:
+        fora["veredito"] = "recebendo dado"
     return fora
 
 
