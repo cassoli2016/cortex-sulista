@@ -176,6 +176,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     # mesma tela, entao hoje o efeito seria nenhum -- e amanha, quando uma
     # delas precisar de tela propria, a ordem ja esta certa.
     ("/api/dfe/buscar",               frozenset({"dfe"})),
+    ("/api/dfe/pdf",                  frozenset({"dfe"})),
     ("/api/dfe/pacote",               frozenset({"dfe"})),
     ("/api/dfe/xml",                  frozenset({"dfe"})),
     ("/api/dfe",                      frozenset({"dfe"})),

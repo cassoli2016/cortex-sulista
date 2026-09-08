@@ -47,6 +47,19 @@ dependencies = [
   # `NameError: name 'distDFeInt' is not defined` no meio da consulta.
   # Medido em 07/09/2026, contra o servico real.
   "six",
+  # DANFE/DACTE/DAMDFE: a representacao GRAFICA do documento fiscal. O layout e
+  # NORMATIVO (Manual de Orientacao do Contribuinte) -- posicao de cada bloco,
+  # codigo de barras da chave, canhoto, calculo do imposto -- e desenha-lo a
+  # mao erra em detalhes que so aparecem numa fiscalizacao. Cobre os tres
+  # documentos que a recolha traz, e nao so a nota.
+  "brazilfiscalreport>=1.0",
+  # DEPENDENCIA DA `brazilfiscalreport` QUE ELA NAO DECLARA -- o modulo do
+  # DACTE importa `qrcode` e a instalacao limpa nao o traz. Sem ele o import
+  # do Dacte/Damdfe estoura com `ModuleNotFoundError` na hora de imprimir, e
+  # nao no `uv sync`. Mesma familia do `six`: dependencia ausente que so
+  # aparece no uso. A casa ja usa `segno` para o QR dos aplicativos; este e
+  # exigencia da biblioteca fiscal, e nao escolha nossa.
+  "qrcode",
   "truststore>=0.10.4",    # raizes ICP-Brasil pelo cofre do sistema
   "reportlab>=5.0.1",
   # QR dos aplicativos (tela `apps`). Python PURO e sem dependencia
@@ -77,6 +90,8 @@ fiscal = [
   "erpbrasil.assinatura",
   "nfelib",
   "six",                   # ver o comentario em [project.dependencies]
+  "brazilfiscalreport>=1.0",
+  "qrcode",
   "truststore>=0.10.4",
 ]
 

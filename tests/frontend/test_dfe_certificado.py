@@ -184,3 +184,67 @@ def test_o_formulario_JA_NASCE_escondido_no_HTML():
         "o formulario de certificado nasce VISIVEL no HTML: quem nao e "
         "administrador vai ve-lo piscar antes de o script escondê-lo. %s"
         % abertura)
+
+
+# ============================== a folha so aparece onde ela existe
+
+def _com_documentos(pg, base_url, docs):
+    dados = {**CAIXAS, "documentos": docs}
+
+    def rota(route):
+        u = route.request.url
+        corpo = ADMIN if "/api/auth/me" in u else (dados if "/api/dfe" in u else {})
+        route.fulfill(status=200, content_type="application/json",
+                      body=json.dumps(corpo))
+
+    pg.route("**/api/**", rota)
+    pg.goto(base_url + "/static/index.html#dfe")
+    pg.wait_for_selector("#dfe-docs tr", timeout=20000)
+
+
+def test_evento_NAO_ganha_botao_de_folha(pagina):
+    """Cancelamento e passagem nao tem representacao grafica propria -- eles se
+    leem NA nota que alteraram. Um botao que sempre recusa ensina a ignorar
+    botao."""
+    pg, base_url = pagina
+    _com_documentos(pg, base_url, [
+        {"cnpj": "76104397000123", "nsu": "000000001144011", "tipo": "evento",
+         "chave": "41260901178298000197550010001767921298714780",
+         "emitente_nome": None, "emitente": "87124582000104", "valor": None,
+         "emitido_em": "2026-09-07T19:50:32-03:00", "situacao": None,
+         "completo": True, "descricao": "Registro de Passagem Automatico",
+         "evento_tipo": "510630"}])
+    linha = pg.inner_html("#dfe-docs tr:first-child")
+    assert "/api/dfe/xml" in linha, "sumiu ate o XML"
+    assert "/api/dfe/pdf" not in linha, "ofereceu folha para um EVENTO"
+    # e a descricao do evento aparece: sem ela a linha e muda
+    assert "Registro de Passagem" in linha
+
+
+def test_a_NOTA_completa_ganha_XML_e_DANFE(pagina):
+    pg, base_url = pagina
+    _com_documentos(pg, base_url, [
+        {"cnpj": "76104397000123", "nsu": "000000000000001", "tipo": "nfe",
+         "chave": "41260912345678000199550010000012341000012349",
+         "emitente_nome": "METALURGICA EXEMPLO LTDA",
+         "emitente": "12345678000199", "valor": 4821.55,
+         "emitido_em": "2026-09-05T14:32:00-03:00", "situacao": "100",
+         "completo": True, "descricao": None, "evento_tipo": None}])
+    linha = pg.inner_html("#dfe-docs tr:first-child")
+    assert "/api/dfe/xml" in linha and "/api/dfe/pdf" in linha
+    assert "DANFE" in linha
+
+
+def test_o_RESUMO_nao_ganha_nem_XML_nem_folha(pagina):
+    """Baixar um "XML" que e ficha de tres linhas e pior que nao ter botao."""
+    pg, base_url = pagina
+    _com_documentos(pg, base_url, [
+        {"cnpj": "76104397000123", "nsu": "000000000000002", "tipo": "nfe",
+         "chave": "41260912345678000199550010000012341000012348",
+         "emitente_nome": "FORNECEDOR X", "emitente": "12345678000199",
+         "valor": 100.0, "emitido_em": "2026-09-05T10:00:00-03:00",
+         "situacao": "1", "completo": False, "descricao": None,
+         "evento_tipo": None}])
+    linha = pg.inner_html("#dfe-docs tr:first-child")
+    assert "/api/dfe/xml" not in linha and "/api/dfe/pdf" not in linha
+    assert "só resumo" in linha

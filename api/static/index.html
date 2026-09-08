@@ -38520,7 +38520,10 @@ function supLinhaAttrs(id, modo){
    como se ensina a ignorar vermelho. */
 const INTEG_ROT = {ok:['em dia','b-ok'], alerta:['atenção','b-warn'],
                    erro:['parado','b-dang'], info:['sem alarme','b-info']};
-const DFE_TIPO = {nfe:'NF-e', cte:'CT-e', evento:'Evento', desconhecido:'—'};
+const DFE_TIPO = {nfe:'NF-e', cte:'CT-e', mdfe:'MDF-e', evento:'Evento', desconhecido:'—'};
+/* Quais documentos TEM representacao grafica, e como ela se chama. Evento nao
+   entra: cancelamento e passagem se leem NA nota que alteraram. */
+const DFE_TEM_FOLHA = {nfe:'DANFE', cte:'DACTE', mdfe:'DAMDFE'};
 /* A situacao vem do CAMPO do documento, nunca da ausencia de outro:
    1 autorizada, 2 denegada, 3 cancelada (resumo); 100 autorizada (completo). */
 const DFE_SIT = {'1':['Autorizada','b-ok'], '2':['Denegada','b-dang'],
@@ -38610,14 +38613,20 @@ async function loadDfe(){
         : '<span class="badge dfe-so-resumo" title="a SEFAZ só entrega o resumo enquanto não houver manifestação de ciência — a nota inteira NÃO está guardada aqui">só resumo</span>';
       return `<tr>
         <td>${x.emitido_em?fmtDT(x.emitido_em):'—'}</td>
-        <td>${esc(x.emitente_nome||x.emitente||'—')}</td>
+        <td>${esc(x.emitente_nome||x.descricao||x.emitente||'—')}${
+          x.evento_tipo?`<div class="dfe-nsu">evento ${esc(x.evento_tipo)}</div>`:''}</td>
         <td class="num">${x.valor==null?'—':numBR(x.valor,2)}</td>
         <td>${esc(DFE_TIPO[x.tipo]||x.tipo||'—')}</td>
         <td><span class="badge ${sit[1]}">${esc(sit[0])}</span></td>
         <td>${estado}</td>
         <td class="dfe-nsu">${esc(x.nsu)}</td>
-        <td>${x.completo
+        <td style="white-space:nowrap">${x.completo
           ? `<a class="btn sm" href="/api/dfe/xml?cnpj=${encodeURIComponent(x.cnpj)}&nsu=${encodeURIComponent(x.nsu)}" download="${esc(x.chave||x.nsu)}.xml" title="baixar o XML autorizado">XML</a>`
+            /* A FOLHA SO APARECE ONDE EXISTE. Evento (cancelamento, passagem)
+               nao tem representacao grafica propria -- ele se le NA nota que
+               alterou. Oferecer um botao que sempre recusa ensina a ignorar
+               botao. */
+            + (DFE_TEM_FOLHA[x.tipo] ? ` <a class="btn sm" href="/api/dfe/pdf?cnpj=${encodeURIComponent(x.cnpj)}&nsu=${encodeURIComponent(x.nsu)}" target="_blank" rel="noopener" title="abrir o ${esc(DFE_TEM_FOLHA[x.tipo])}">${esc(DFE_TEM_FOLHA[x.tipo])}</a>` : '')
           : '<span class="hint" title="a SEFAZ só entrega o resumo enquanto não houver manifestação de ciência">—</span>'}</td>
       </tr>`;
     }).join('')||'<tr><td colspan="8" class="vazio">Nenhum documento recolhido ainda.</td></tr>';

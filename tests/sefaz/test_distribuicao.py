@@ -885,3 +885,76 @@ def test_passagem_barrada_pelo_freio_NEM_FALA_com_a_SEFAZ(caixa):
     assert barrado.pedidos == [], (
         "o freio deixou passar %d chamada(s) para a SEFAZ dentro do castigo"
         % len(barrado.pedidos))
+
+
+# ============================== DANFE / DACTE: a folha do documento
+
+def test_RESUMO_nao_vira_folha_e_a_recusa_e_o_servico():
+    """Uma folha com cabecalho preenchido e corpo vazio PARECE uma nota, e quem
+    a recebe so descobre o problema depois. Recusar dizendo POR QUE e o que
+    esta tela tem a oferecer aqui."""
+    from api.sefaz import impressao
+    with pytest.raises(impressao.NaoImprimivel) as e:
+        impressao.gerar({"tipo": "nfe", "completo": False}, RES_NFE)
+    assert "RESUMO" in str(e.value) and "ciência" in str(e.value)
+
+
+def test_EVENTO_nao_tem_folha_propria():
+    """Cancelamento e passagem nao sao documento com representacao grafica --
+    eles se leem NA nota que alteraram. Gerar uma folha para cada um encheria
+    a tela de PDFs que nao significam nada sozinhos."""
+    from api.sefaz import impressao
+    with pytest.raises(impressao.NaoImprimivel) as e:
+        impressao.gerar({"tipo": "evento", "completo": True}, RES_EVENTO)
+    assert "evento" in str(e.value).lower()
+
+
+def test_a_folha_cobre_NOTA_CTe_e_MDFe():
+    """A Sulista e TRANSPORTADORA: o DACTE e o DAMDFE sao os que ela mais
+    imprime. Cobrir so a NF-e deixaria de fora o documento da propria casa."""
+    from api.sefaz import impressao
+    assert impressao.rotulo("nfe") == "DANFE"
+    assert impressao.rotulo("cte") == "DACTE"
+    assert impressao.rotulo("mdfe") == "DAMDFE"
+
+
+def test_o_arquivo_e_nomeado_pela_CHAVE():
+    from api.sefaz import impressao
+    ch = "41260912345678000199550010000012341000012349"
+    assert impressao.nome_do_arquivo({"chave": ch}) == ch + ".pdf"
+    # sem chave (evento que o parser nao leu), cai no NSU e NAO finge ser nota
+    assert impressao.nome_do_arquivo({"nsu": "000000000000007"}).startswith("nsu-")
+
+
+def test_a_falha_da_biblioteca_NAO_devolve_o_XML_na_mensagem(monkeypatch):
+    """O XML carrega CNPJ, endereco e itens, e entra na mensagem de algumas
+    falhas da biblioteca. Sai o TIPO da excecao, como em toda integracao."""
+    from api.sefaz import impressao
+
+    class Explode:
+        def __init__(self, xml=None):
+            raise RuntimeError("falhou lendo <CNPJ>12345678000199</CNPJ>")
+
+    monkeypatch.setattr(impressao, "_classe", lambda t: Explode)
+    with pytest.raises(impressao.NaoImprimivel) as e:
+        impressao.gerar({"tipo": "nfe", "completo": True}, PROC_NFE)
+    assert "12345678000199" not in str(e.value)
+    assert "RuntimeError" in str(e.value)
+
+
+def test_a_rota_do_pdf_recusa_com_409_e_nao_500():
+    """Recusa legivel e 4xx: o Cloudflare TROCA o corpo de 5xx pela pagina
+    dele, e a mensagem que explica o resumo nunca chegaria na tela."""
+    from api import main
+    assert main.HTTP_RECUSA == 409
+    from api import auth
+    rotas = [r for r, _ in auth.ROTA_TELAS]
+    assert rotas.index("/api/dfe/pdf") < rotas.index("/api/dfe")
+
+
+def test_a_biblioteca_de_DANFE_esta_instalada():
+    """Mesma razao do guard do `six`: dependencia que cai nao quebra import
+    nenhum aqui -- ela quebra a IMPRESSAO, e so na hora de imprimir."""
+    from brazilfiscalreport.danfe import Danfe  # noqa: F401
+    from brazilfiscalreport.dacte import Dacte  # noqa: F401
+    from brazilfiscalreport.damdfe import Damdfe  # noqa: F401

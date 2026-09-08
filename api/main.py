@@ -1962,6 +1962,37 @@ def dfe_panorama(limite: int = 200) -> JSONResponse:
                              "tipo": type(exc).__name__}, status_code=500)
 
 
+@app.get("/api/dfe/pdf")
+def dfe_pdf(cnpj: str = "", nsu: str = "") -> Response:
+    """A representacao grafica do documento: DANFE, DACTE ou DAMDFE.
+
+    O documento fiscal E o XML; o PDF e a representacao grafica dele, e quem
+    tem o XML autorizado pode gera-la. O que ele resolve e concreto: XML nao se
+    le, e quem precisa conferir, anexar num processo ou mandar para alguem
+    precisa da folha.
+    """
+    from api.sefaz import armazenamento, impressao
+    cnpj = re.sub(r"[^0-9]", "", cnpj or "")
+    linhas = [d for d in armazenamento.documentos(cnpj or None, limite=2000)
+              if d["nsu"] == armazenamento.nsu(nsu)]
+    if not linhas:
+        return JSONResponse(status_code=404, content={
+            "erro": "nao_encontrado", "mensagem": "Documento nao encontrado."})
+    doc = linhas[0]
+    xml = armazenamento.xml_de(doc["cnpj"], doc["nsu"]) or ""
+    try:
+        pdf = impressao.gerar(doc, xml)
+    except impressao.NaoImprimivel as exc:
+        # 409 e nao 500: e RECUSA LEGIVEL, e o Cloudflare troca o corpo de 5xx
+        # pela pagina dele -- a mensagem nunca chegaria na tela.
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "nao_imprimivel", "mensagem": str(exc)})
+    return Response(
+        content=pdf, media_type="application/pdf",
+        headers={"Content-Disposition": 'inline; filename="%s"'
+                                        % impressao.nome_do_arquivo(doc)})
+
+
 @app.get("/api/dfe/buscar")
 def dfe_buscar(chave: str = "", cnpj: str = "", fora: int = 1) -> JSONResponse:
     """Procura UM documento pela chave: no que ja temos, e so depois na SEFAZ.
