@@ -843,3 +843,45 @@ def test_chave_de_tamanho_errado_nem_sai_da_casa(chave, caixa, monkeypatch):
                         lambda *a, **k: (_ for _ in ()).throw(AssertionError("foi fora")))
     r = busca.por_chave(chave)
     assert r["ok"] is False and "dígitos" in r["mensagem"]
+
+
+# ============================ a cadencia: quem limita e o FREIO, nao o relogio
+
+def test_varredura_que_TROUXE_documento_nao_trava_a_seguinte(caixa):
+    """O fato que permite rodar de 20 em 20 minutos.
+
+    A SEFAZ nao limita por TEMPO -- ela pune consulta SEM RESULTADO. Quando vem
+    documento, pode continuar na hora: e assim que se drena uma fila. A
+    varredura que para no maxNSU termina com cStat 138, e 138 NAO arma o freio.
+    """
+    cliente = ClienteFalso([
+        _Resposta("138", "Documento localizado", "000000000000002",
+                  "000000000000002",
+                  [_Doc("000000000000002", "resNFe_v1.01", RES_NFE)])])
+    dist.recolher(CNPJ, "PR", cliente=cliente)
+    assert arm.caixa(CNPJ)["ultimo_cstat"] == "138"
+
+    # a seguinte, imediata, SAI -- e traz o que chegou nesse meio tempo
+    r = dist.recolher(CNPJ, "PR", cliente=ClienteFalso([
+        _Resposta("138", "Documento localizado", "000000000000003",
+                  "000000000000003",
+                  [_Doc("000000000000003", "resEvento_v1.01", RES_EVENTO)])]))
+    assert r["lotes"] == 1 and r["novos"] == 1
+
+
+def test_passagem_barrada_pelo_freio_NEM_FALA_com_a_SEFAZ(caixa):
+    """E isto que torna a repeticao de 20 em 20 minutos gratuita: das tres
+    passagens dentro do castigo, nenhuma chega a abrir conexao. O custo de
+    rodar mais vezes e uma tarefa do Windows acordando, e nada mais."""
+    cliente = ClienteFalso([_Resposta("137", "Nenhum documento localizado",
+                                      "000000000000000", "000000000000000", [])])
+    dist.recolher(CNPJ, "PR", cliente=cliente)
+    assert len(cliente.pedidos) == 1
+
+    barrado = ClienteFalso([])
+    for _ in range(3):
+        r = dist.recolher(CNPJ, "PR", cliente=barrado)
+        assert "pulou" in r
+    assert barrado.pedidos == [], (
+        "o freio deixou passar %d chamada(s) para a SEFAZ dentro do castigo"
+        % len(barrado.pedidos))

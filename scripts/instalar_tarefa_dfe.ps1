@@ -6,14 +6,26 @@
 # destinatario tudo que foi emitido contra o CNPJ dele, e o XML autorizado e
 # a obrigacao de guarda de cinco anos.
 #
-# HORARIO: de 2 em 2 horas, das 07h as 19h. NAO e de hora em hora, e a razao e
-# medida: a SEFAZ FREIA consulta repetida sem resultado (cStat 656, cerca de
-# 1 h de castigo por CNPJ), e na maioria das passagens nao ha nota nova. O
-# proprio script tem freio proprio, entao uma passagem a mais nao machuca -
-# mas tambem nao adianta nada.
+# HORARIO: de 20 em 20 minutos, das 06h as 20h.
+#
+# PARECE agressivo e NAO E, porque a SEFAZ nao limita por TEMPO - ela pune
+# consulta SEM RESULTADO (cStat 656, ~1 h de castigo por CNPJ). Quando vem
+# documento, pode continuar na hora: e assim que se drena uma fila.
+#
+# E o freio esta no SCRIPT, nao no relogio da tarefa. Ele so trava depois de um
+# 137 ("nada novo"), e por 65 minutos. Entao das passagens de 20 em 20 minutos:
+#
+#   - a que encontra documento  -> recolhe e NAO trava (o cStat foi 138)
+#   - a seguinte, se nao ha nada -> ouve 137 uma vez e trava por 65 min
+#   - as tres seguintes          -> nem saem: o freio as barra ANTES da chamada
+#
+# O resultado e no maximo UMA consulta infrutifera por hora - exatamente o que
+# o servico pede - com nota nova aparecendo em ate 20 minutos em vez de duas
+# horas. A versao anterior rodava de 2 em 2 h e deixava dinheiro na mesa: nao
+# reduzia risco nenhum, so atrasava a chegada.
 #
 # De madrugada nao roda: nota de fornecedor e emitida em horario comercial, e
-# uma varredura as 3h so gastaria a cota do dia seguinte.
+# uma varredura as 3h so gastaria a primeira consulta do dia seguinte.
 #
 # Segue o mesmo padrao das tarefas ja instaladas (API, AutoDeploy, Tunnel,
 # Smartec, Pneus, Backup, Monkey): conta SISTEMA, para nao depender de sessao
@@ -84,25 +96,27 @@ Log "acao: $py $alvo"
 $acao = New-ScheduledTaskAction -Execute $py `
   -Argument "`"$alvo`"" -WorkingDirectory $repo
 
-# De 2 em 2 horas das 07h as 19h. Ver o comentario do topo: a SEFAZ freia
-# consulta repetida sem resultado, e passagem que nao traz nada so gasta cota.
-$gatilhos = @(
-  (New-ScheduledTaskTrigger -Daily -At 07:10),
-  (New-ScheduledTaskTrigger -Daily -At 09:10),
-  (New-ScheduledTaskTrigger -Daily -At 11:10),
-  (New-ScheduledTaskTrigger -Daily -At 13:10),
-  (New-ScheduledTaskTrigger -Daily -At 15:10),
-  (New-ScheduledTaskTrigger -Daily -At 17:10),
-  (New-ScheduledTaskTrigger -Daily -At 19:10)
-)
+# UM gatilho com REPETICAO, e nao catorze gatilhos diarios: o agendador do
+# Windows tem repeticao nativa, e uma lista de horarios fixos e o tipo de
+# coisa que fica desatualizada quando alguem quer mudar a janela.
+#
+# Ver o comentario do topo: quem limita a cadencia e o freio do SCRIPT, nao
+# este relogio. Passagem barrada pelo freio nem chega a falar com a SEFAZ.
+$gatilho = New-ScheduledTaskTrigger -Daily -At 06:00
+$gatilho.Repetition = (New-ScheduledTaskTrigger -Once -At 06:00 `
+  -RepetitionInterval (New-TimeSpan -Minutes 20) `
+  -RepetitionDuration (New-TimeSpan -Hours 14)).Repetition
+$gatilhos = @($gatilho)
 
 $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
 
-# Dez caixas, cada uma com teto de 40 lotes. A PRIMEIRA carga e a longa (o
-# historico que a SEFAZ ainda guarda, cerca de tres meses); as seguintes
-# terminam em segundos. 45 min cobre a primeira com folga.
+# Dez caixas, cada uma com teto de 40 lotes. A PRIMEIRA carga e a longa; as
+# seguintes terminam em segundos. 15 min cobre com folga - e o teto tem de ser
+# MENOR que o intervalo de repeticao (20 min), senao duas execucoes se
+# encontram. `IgnoreNew` ja evita a sobreposicao, mas ai a passagem seguinte
+# seria simplesmente perdida.
 $cfg = New-ScheduledTaskSettingsSet -StartWhenAvailable `
-  -DontStopOnIdleEnd -ExecutionTimeLimit (New-TimeSpan -Minutes 45) `
+  -DontStopOnIdleEnd -ExecutionTimeLimit (New-TimeSpan -Minutes 15) `
   -MultipleInstances IgnoreNew
 
 Register-ScheduledTask -TaskName $nome -Action $acao -Trigger $gatilhos `
