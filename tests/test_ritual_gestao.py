@@ -46,8 +46,13 @@ def test_as_QUATRO_gerencias_tem_fonte_automatica():
     inteira dela — e a promessa de "usar as ferramentas do CÓRTEX" fica só para
     as outras três. Isto é o guard da lista escrita à mão: as gerências vêm do
     SEED da migration, e as fontes do registro do módulo."""
-    tem = {f.gerencia for f in ritual.FONTES.values()}
-    assert tem >= {"comercial", "operacao", "manutencao", "rh"}, tem
+    from collections import Counter
+    tem = Counter(f.gerencia for f in ritual.FONTES.values())
+    assert set(tem) >= {"comercial", "operacao", "manutencao", "rh"}, tem
+    # PISO DE TRES: o painel semeia tres por gerencia, e uma gerencia com menos
+    # fontes que isso nasceria pedindo digitacao onde as outras nao pedem.
+    magras = {g: n for g, n in tem.items() if n < 3}
+    assert not magras, "gerência com fontes de menos: %s" % magras
 
 
 def test_a_gerencia_da_fonte_existe_no_cadastro(esquema_pg):

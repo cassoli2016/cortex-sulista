@@ -844,6 +844,165 @@ def excluir_indicador(ind_id: int, esquema: str | None = None) -> dict:
     return {"inativado": True}
 
 
+
+
+# ---------------------------------------------------------------------------
+# SEGUNDA LEVA: o ritual olhando ESTRATEGIA e EXECUCAO, e nao so o mes.
+#
+# A regra de entrada continua a mesma -- leitura barata e ja cacheada --, e
+# todas foram cronometradas contra o sistema vivo antes de entrar: a mais cara
+# e a de horas extras, 2,7 s; a maioria fica abaixo de 1,5 s. Fonte de dez
+# segundos aqui viraria reuniao esperando tela.
+#
+# E DUAS TRADUCOES, porque o pedido veio em linguagem de reuniao e uma linha do
+# painel e um NUMERO SO:
+#
+#   "embarques por cliente"    -> quantos embarques, quantos clientes, e o
+#   "faturamento por cliente"     PESO dos maiores. A quebra por cliente e
+#                                 relatorio (a tela `com` faz isso); o que
+#                                 decide numa reuniao de estrategia e a
+#                                 CONCENTRACAO -- hoje 94% da receita em dez
+#                                 clientes, e 21% num so.
+
+
+def _prod(caminho, fator=1.0):
+    """Produtividade de Veiculos, mes corrente."""
+    return _aninhado("api.queries", "get_produtividade_veiculos", caminho,
+                     fator, janela_mes=True)
+
+
+def _com(caminho, fator=1.0):
+    """Clientes e RKM, mes corrente."""
+    return _aninhado("api.queries", "get_comercial", caminho, fator,
+                     janela_mes=True)
+
+
+def _diarias(campo):
+    """Diaria paga (folha) x dias trabalhados (jornada), mes corrente.
+
+    Duas consultas em bancos diferentes -- a folha no AVA, a jornada no
+    Postgres local --, cruzadas por nome normalizado. Medido em 0,2 s porque as
+    duas ja estao cacheadas; e por isso que entra.
+    """
+    def ler():
+        from api.jornada import diarias as dj
+        ini, fim = _mes_corrente()
+        d = dj.levantar(date.fromisoformat(ini), date.fromisoformat(fim))
+        v = dj.resumo(d, dj.mensal(d)).get(campo)
+        return None if v is None else float(v)
+    return ler
+
+
+def _pneus(campo, de_troca=False):
+    """O que o parque de pneus CUSTA -- nao o instantaneo da Prolog.
+
+    Sai do banco da casa cruzado com o ERP e nao gasta cota da API da Prolog,
+    entao continua respondendo no dia em que ela cair.
+
+    `de_troca` escolhe entre as DUAS funcoes do modulo, e a distincao custou
+    duas fontes mudas: copiei os nomes do snapshot do Copiloto, que RENOMEIA
+    as chaves na saida dele (`vencidos_n` vira `pneus_abaixo_do_limite`).
+    Ler o consumidor em vez da fonte e como se herda um apelido que so existe
+    lá.
+    """
+    def ler():
+        from api.pneus import servico as pn
+        v = (pn.troca() if de_troca else pn.rendimento()).get(campo)
+        return None if v is None else float(v)
+    return ler
+
+
+def _crm(campo):
+    def ler():
+        from api.crm import painel as cp
+        v = (cp.tudo().get("kpis") or {}).get(campo)
+        return None if v is None else float(v)
+    return ler
+
+
+# ---- Comercial: quanto se embarca, para quantos, e quao concentrado.
+_registrar("embarques_mes", "Embarques no mês (CT-e)", "comercial",
+           "CT-e", 0, "maior_melhor", _com("kpis.ctes"),
+           "Clientes e RKM, mês corrente · CT-e emitidos")
+_registrar("clientes_ativos_mes", "Clientes com carga no mês", "comercial",
+           "clientes", 0, "maior_melhor", _com("kpis.clientes"),
+           "Clientes e RKM, mês corrente · clientes distintos com embarque")
+_registrar("concentracao_top10", "Concentração nos 10 maiores clientes",
+           "comercial", "%", 1, "menor_melhor",
+           _com("kpis.concentracao_top10", 100.0),
+           "Clientes e RKM, mês corrente · quanto da receita está nos dez "
+           "maiores. É o número de RISCO da carteira, não de desempenho")
+_registrar("peso_maior_cliente", "Peso do maior cliente", "comercial",
+           "%", 1, "menor_melhor", _com("abc.top1", 100.0),
+           "Clientes e RKM, mês corrente · fatia da receita no cliente nº 1")
+_registrar("crm_ganhas", "Negócios ganhos no período", "comercial",
+           "negócios", 0, "maior_melhor", _crm("ganhas_janela"),
+           "CRM · oportunidades marcadas como ganhas. ATENÇÃO: lê ZERO "
+           "enquanto o funil do CRM não for alimentado — e zero por falta de "
+           "preenchimento não é desempenho")
+_registrar("crm_contas_paradas", "Contas ativas que pararam", "comercial",
+           "contas", 0, "menor_melhor", _crm("contas_paradas"),
+           "CRM · contas da carteira sem faturamento recente")
+
+# ---- Operação: o que a frota rende, e o que ela deixa de render.
+_registrar("receita_por_veiculo", "Receita por veículo no mês", "operacao",
+           "R$", 0, "maior_melhor", _prod("kpis.receita_por_veiculo"),
+           "Produtividade de Veículos, mês corrente · receita ÷ veículos que "
+           "rodaram")
+_registrar("km_por_veiculo", "Km por veículo no mês", "operacao",
+           "km", 0, "maior_melhor", _prod("kpis.km_por_veiculo"),
+           "Produtividade de Veículos, mês corrente")
+_registrar("ociosidade_frota", "Ociosidade da frota", "operacao",
+           "%", 1, "menor_melhor", _prod("kpis.ociosidade", 100.0),
+           "Produtividade de Veículos, mês corrente · veículos da base que não "
+           "rodaram no período")
+_registrar("veiculos_ociosos", "Veículos parados no mês", "operacao",
+           "veículos", 0, "menor_melhor", _prod("kpis.ociosos"),
+           "Produtividade de Veículos, mês corrente · quantos, em número")
+
+# ---- Manutenção: o que o pneu custa por km, e o que vai pedir dinheiro.
+_registrar("cpk_pneus", "CPK — custo de pneu por km", "manutencao",
+           "R$/km", 3, "menor_melhor", _pneus("cpk_mediano"),
+           "Pneus · CPK mediano do parque avaliado. MEDIANA e não média: um "
+           "pneu fora da curva move a média o bastante para se inocentar")
+_registrar("pneus_abaixo_limite", "Pneus abaixo do limite de sulco",
+           "manutencao", "pneus", 0, "menor_melhor",
+           _pneus("vencidos_n", de_troca=True),
+           "Pneus · abaixo do limite interno de troca")
+_registrar("trocas_pneus_30d", "Trocas de pneu previstas em 30 dias",
+           "manutencao", "pneus", 0, "menor_melhor",
+           _pneus("urgentes_30d", de_troca=True),
+           "Pneus · previsão pelo desgaste medido. É planejamento de caixa, "
+           "não alarme")
+
+# ---- RH: o que a hora extra e a diária custam, e quem está indo embora.
+_registrar("horas_extras_mes", "Horas extras no mês", "rh",
+           "R$", 0, "menor_melhor",
+           _aninhado("api.queries_folha", "get_horas_extras",
+                     "kpis.total_mes"),
+           "Horas Extras · valor lançado na competência")
+_registrar("he_pct_folha", "Horas extras sobre a folha", "rh",
+           "%", 1, "menor_melhor",
+           _aninhado("api.queries_folha", "get_horas_extras",
+                     "kpis.pct_proventos"),
+           "Horas Extras · a RÉGUA. O valor absoluto cresce com o quadro; o "
+           "percentual diz se a operação está se apoiando em hora extra")
+_registrar("diarias_mes", "Diárias de motorista no mês", "rh",
+           "R$", 0, "menor_melhor", _diarias("total"),
+           "Jornada · diária paga na folha, mês corrente")
+_registrar("diaria_por_dia", "Diária por dia trabalhado", "rh",
+           "R$", 2, "menor_melhor", _diarias("por_dia"),
+           "Jornada · diária paga ÷ dias trabalhados de quem a jornada "
+           "enxerga. É razão, então não se move com o tamanho da frota")
+_registrar("turnover", "Turnover 12 meses", "rh",
+           "%", 1, "menor_melhor",
+           _aninhado("api.queries_folha", "get_headcount",
+                     "kpis.turnover_pct"),
+           "Headcount · desligamentos sobre o quadro, 12 meses. É o indicador "
+           "mais estratégico do RH: rotatividade alta reaparece como custo de "
+           "treinamento, sinistro e hora extra três meses depois")
+
+
 def fontes_publicas() -> list[dict]:
     """O catálogo, para a tela de cadastro de indicador."""
     return [f.como_dict() for f in FONTES.values()]

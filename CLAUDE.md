@@ -230,7 +230,7 @@ moram em arquivos que não falam do assunto.
 - **O RITUAL SEMANAL (`gesrit`) É A TERCEIRA PERNA DA GESTÃO**, e o que o
   separa de mais uma tela de formulário são três decisões:
   1. **O realizado vem da FONTE, não do gerente, onde a casa já mede.**
-     `api/gestao/ritual.FONTES` é o registro (16 hoje) de escalares que o
+     `api/gestao/ritual.FONTES` é o registro (34 hoje) de escalares que o
      CÓRTEX já calcula; indicador que aponta para uma fonte RECUSA digitação,
      dizendo o motivo. É isso que faz a reunião discutir o desvio em vez de
      conferir de onde veio o número. **Chave de fonte errada NÃO levanta erro**

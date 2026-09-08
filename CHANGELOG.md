@@ -4,6 +4,18 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.9.0] — 07/09/2026  ·  CX-07/09/2026-v1.9.0
+
+### Adicionado
+- O Ritual Semanal passou a oferecer 34 indicadores automáticos para montar o painel, contra os 16 do lançamento. A ideia é o ritual olhar estratégia e execução, e não só o mês corrente — cada gerência agora tem de onde escolher sem precisar digitar número.
+- No Comercial: embarques no mês, clientes com carga, negócios ganhos, e as duas medidas de RISCO da carteira — a concentração nos dez maiores clientes (hoje 94%) e o peso do maior cliente sozinho (21%). "Faturamento por cliente" e "embarques por cliente" viram isso de propósito: a quebra cliente a cliente é relatório, e a tela Clientes e RKM já faz; o que decide numa reunião de estratégia é a concentração.
+- Na Operação: receita por veículo, km por veículo, ociosidade da frota e quantos veículos ficaram parados. É a produtividade da frota medida pelo que ela rende e pelo que ela deixa de render.
+- Na Manutenção: o CPK dos pneus (custo por km rodado, pela MEDIANA — um pneu fora da curva move a média o bastante para se inocentar), quantos pneus estão abaixo do limite de sulco, e quantas trocas o desgaste medido prevê para os próximos 30 dias, que é planejamento de caixa.
+- No RH: horas extras do mês em reais e como percentual da folha, diárias de motorista e a diária por dia trabalhado, e o turnover de 12 meses. As duas réguas percentuais existem porque o valor absoluto cresce com o quadro: é o percentual que diz se a operação está se apoiando em hora extra.
+
+### Corrigido
+- Quatro das fontes novas nasceram mudas e foram consertadas antes de entrar: duas por caminho de importação errado e duas porque o nome da chave foi copiado do Copiloto, que renomeia os campos na saída dele. Chave errada não dá erro nenhum — o indicador apareceria vazio para sempre —, e quem pegou foi o teste que EXECUTA todas as fontes em vez de conferir se a chave está escrita.
+
 ## [1.8.0] — 07/09/2026  ·  CX-07/09/2026-v1.8.0
 
 ### Adicionado
