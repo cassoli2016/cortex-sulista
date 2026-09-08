@@ -135,11 +135,12 @@ def gravar(cnpj: str, doc: dict) -> str:
         cur.execute(
             """INSERT INTO dfe_documento
                  (cnpj, nsu, esquema, tipo, chave, emitente, emitente_nome,
-                  destinatario, valor, emitido_em, situacao, completo, xml)
+                  destinatario, valor, emitido_em, situacao, completo, xml,
+                  descricao, evento_tipo)
                VALUES (%(cnpj)s, %(nsu)s, %(esquema)s, %(tipo)s, %(chave)s,
                        %(emitente)s, %(emitente_nome)s, %(destinatario)s,
                        %(valor)s, %(emitido_em)s, %(situacao)s, %(completo)s,
-                       %(xml)s)
+                       %(xml)s, %(descricao)s, %(evento_tipo)s)
                ON CONFLICT (cnpj, nsu) DO UPDATE SET
                  esquema = EXCLUDED.esquema, tipo = EXCLUDED.tipo,
                  chave = coalesce(EXCLUDED.chave, dfe_documento.chave),
@@ -152,6 +153,8 @@ def gravar(cnpj: str, doc: dict) -> str:
                  emitido_em = coalesce(EXCLUDED.emitido_em,
                                        dfe_documento.emitido_em),
                  situacao = coalesce(EXCLUDED.situacao, dfe_documento.situacao),
+                 descricao = coalesce(EXCLUDED.descricao, dfe_documento.descricao),
+                 evento_tipo = coalesce(EXCLUDED.evento_tipo, dfe_documento.evento_tipo),
                  completo = dfe_documento.completo OR EXCLUDED.completo,
                  xml = EXCLUDED.xml,
                  recebido_em = now()
@@ -162,7 +165,9 @@ def gravar(cnpj: str, doc: dict) -> str:
              "emitente_nome": d.get("emitente_nome"),
              "destinatario": d.get("destinatario"), "valor": d.get("valor"),
              "emitido_em": d.get("emitido_em"), "situacao": d.get("situacao"),
-             "completo": bool(d.get("completo")), "xml": d.get("xml") or ""})
+             "completo": bool(d.get("completo")), "xml": d.get("xml") or "",
+             "descricao": d.get("descricao"),
+             "evento_tipo": d.get("evento_tipo")})
         conn.commit()
     if antes is None:
         return "novo"
@@ -185,7 +190,7 @@ def documentos(cnpj: str | None = None, *, limite: int = 200,
         onde.append("NOT completo")
     sql = ("SELECT cnpj, nsu, esquema, tipo, chave, emitente, emitente_nome, "
            "destinatario, valor::float8 AS valor, emitido_em, situacao, "
-           "completo, recebido_em FROM dfe_documento")
+           "completo, recebido_em, descricao, evento_tipo FROM dfe_documento")
     if onde:
         sql += " WHERE " + " AND ".join(onde)
     sql += " ORDER BY emitido_em DESC NULLS LAST, nsu DESC LIMIT %s"

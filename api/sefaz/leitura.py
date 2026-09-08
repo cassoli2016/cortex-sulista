@@ -145,7 +145,19 @@ def ler_documento(esquema: str, xml: str) -> dict:
         d["emitente"] = _tag(xml, "CNPJ")
         d["emitente_nome"] = _tag(xml, "xNome")
         d["valor"] = _valor(_tag(xml, "vNF") or _tag(xml, "vTPrest"))
-        d["emitido_em"] = _data(_tag(xml, "dhEmi") or _tag(xml, "dEmi"))
+        # A DATA DEPENDE DO QUE O DOCUMENTO E. Nota tem `dhEmi`; EVENTO tem
+        # `dhEvento`, e so ele -- procurar `dhEmi` num `resEvento` devolve None
+        # e a linha aparece sem data nenhuma na tela. Foi o que aconteceu na
+        # primeira recolha com conteudo real: cinco eventos, cinco linhas
+        # mudas.
+        d["emitido_em"] = _data(_tag(xml, "dhEmi") or _tag(xml, "dEmi")
+                                or _tag(xml, "dhEvento"))
+        # `xEvento` e a frase que a PROPRIA SEFAZ escreve ("Cancelamento",
+        # "Registro de Passagem Automatico Originado MDFe"). Guarda-la e melhor
+        # que traduzir `tpEvento` numa tabela nossa: codigo sem tabela de
+        # dominio nao vira rotulo inventado -- e aqui o rotulo veio junto.
+        d["descricao"] = _tag(xml, "xEvento") or _tag(xml, "descEvento")
+        d["evento_tipo"] = _tag(xml, "tpEvento")
         # SITUAÇÃO VEM DO CAMPO, nunca da ausência de outro. `cSitNFe` é
         # 1 autorizada / 2 denegada / 3 cancelada; num documento completo a
         # situação está no protocolo (`cStat` 100 = autorizada).
