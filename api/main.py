@@ -1964,6 +1964,15 @@ def dfe_panorama(limite: int = 200, cnpj: str = "", tipo: str = "",
             re.sub(r"[^0-9]", "", cnpj or "") or None, limite=limite,
             tipo=(tipo or "").strip().lower(), de=de, ate=ate,
             busca=(busca or "").strip())
+        # A CONCILIACAO E OPCIONAL E NAO PODE DERRUBAR A TELA. Ela le o ERP,
+        # que e replica de producao de TERCEIRO e tem dia ruim -- e a recolha
+        # vale sozinha. Falhou, some, e a tela diz que sumiu.
+        try:
+            from api.sefaz import conciliacao
+            d["conciliacao"] = conciliacao.marcar(d["documentos"])
+        except Exception as exc:  # noqa: BLE001
+            log.warning("dfe: conciliacao indisponivel (%s)", type(exc).__name__)
+            d["conciliacao"] = None
         return JSONResponse(d)
     except Exception as exc:  # noqa: BLE001
         log.exception("dfe: panorama falhou")

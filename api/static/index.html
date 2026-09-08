@@ -7113,7 +7113,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
           <div class="tabroll" style="max-height:400px"><table class="tab"><thead><tr>
             <th>Emissão</th><th>Emitente</th><th class="num">Valor</th>
-            <th>Tipo</th><th>Situação</th><th>Estado</th><th>NSU</th><th></th>
+            <th>Tipo</th><th>Situação</th><th>Estado</th><th>No ERP</th><th>NSU</th><th></th>
           </tr></thead><tbody id="dfe-docs"></tbody></table></div></div>
       </section>
       <section class="view" id="view-pecas">
@@ -38587,7 +38587,11 @@ async function loadDfe(){
       kpi('Documentos', tot.total ?? 0, 'recolhidos da SEFAZ e guardados aqui')+
       kpi('Só o resumo', tot.pendentes ?? 0, 'o XML completo depende da manifestação')+
       kpi('Filiais recolhendo', recolhendo+' de '+caixas.length, 'as demais não têm certificado no cofre')+
-      kpi('NF-e / CT-e', (tot.nfe ?? 0)+' / '+(tot.cte ?? 0), (tot.eventos ?? 0)+' evento(s)');
+      kpi('NF-e / CT-e', (tot.nfe ?? 0)+' / '+(tot.cte ?? 0), (tot.eventos ?? 0)+' evento(s)')+
+      (dd.conciliacao
+        ? kpi('Sem par no ERP', dd.conciliacao.sem_par ?? 0,
+              'de '+(dd.conciliacao.comparaveis ?? 0)+' comparáveis — nota ou CT-e que a operação não registrou')
+        : kpi('Sem par no ERP', '—', 'o ERP não respondeu; a recolha vale sozinha'));
 
     tbC.innerHTML = caixas.map(c=>{
       const cert = c.certificado||{};
@@ -38671,6 +38675,14 @@ async function loadDfe(){
         <td>${esc(DFE_TIPO[x.tipo]||x.tipo||'—')}</td>
         <td><span class="badge ${sit[1]}">${esc(sit[0])}</span></td>
         <td>${estado}</td>
+        <td>${x.erp
+          ? `<span class="badge b-ok" title="${esc(x.erp.onde==='cte'?'CT-e':'nota')} nº ${esc(String(x.erp.numero||'?'))}${x.erp.emissao?' de '+esc(x.erp.emissao):''}">nº ${esc(String(x.erp.numero||'—'))}</span>`
+          /* SÓ NOTA E CT-e SÃO COBRADOS. Evento não tem contrapartida no ERP —
+             ele é um FATO SOBRE outro documento —, e marcá-lo de amarelo
+             encheria a coluna de alarme onde não há nada errado. */
+          : (x.tipo==='nfe'||x.tipo==='cte')
+            ? '<span class="badge b-warn" title="documento recolhido que a operação não registrou">sem par</span>'
+            : '<span class="hint">—</span>'}</td>
         <td class="dfe-nsu">${esc(x.nsu)}</td>
         <td style="white-space:nowrap">${x.completo
           ? `<a class="btn sm" href="/api/dfe/xml?cnpj=${encodeURIComponent(x.cnpj)}&nsu=${encodeURIComponent(x.nsu)}" download="${esc(x.chave||x.nsu)}.xml" title="baixar o XML autorizado">XML</a>`
@@ -38681,7 +38693,7 @@ async function loadDfe(){
             + (DFE_TEM_FOLHA[x.tipo] ? ` <a class="btn sm" href="/api/dfe/pdf?cnpj=${encodeURIComponent(x.cnpj)}&nsu=${encodeURIComponent(x.nsu)}" target="_blank" rel="noopener" title="abrir o ${esc(DFE_TEM_FOLHA[x.tipo])}">${esc(DFE_TEM_FOLHA[x.tipo])}</a>` : '')
           : '<span class="hint" title="a SEFAZ só entrega o resumo enquanto não houver manifestação de ciência">—</span>'}</td>
       </tr>`;
-    }).join('')||'<tr><td colspan="8" class="vazio">Nenhum documento recolhido ainda.</td></tr>';
+    }).join('')||'<tr><td colspan="9" class="vazio">Nenhum documento recolhido ainda.</td></tr>';
   }catch(err){
     tbC.innerHTML = '<tr><td colspan="7" class="vazio">'+esc(err.message||'Não foi possível falar com a API.')+'</td></tr>';
   }

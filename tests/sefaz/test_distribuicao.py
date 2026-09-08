@@ -1052,3 +1052,80 @@ def test_a_recuperacao_por_NSU_e_de_ADMINISTRADOR():
     caminhos = {r.path for r in main.app.routes if hasattr(r, "path")}
     assert "/api/gestao/dfe/recuperar" in caminhos
     assert "/api/dfe/recuperar" not in caminhos
+
+
+# ============================ a conciliacao com o ERP, pela CHAVE
+
+def test_a_conciliacao_casa_pela_CHAVE_e_nao_por_numero(caixa, monkeypatch):
+    """Numero de nota se REPETE entre emitentes; a chave e unica no pais e
+    carrega CNPJ, modelo, serie, numero e digito verificador. Casar por numero
+    e a receita conhecida de juntar a nota de um fornecedor com a de outro --
+    e o total continua plausivel."""
+    from api.sefaz import conciliacao
+    ch = "41260912345678000199550010000012341000012349"
+    pedidos = {}
+
+    def db_falso(sql, args=None):
+        pedidos["sql"] = sql
+        pedidos["args"] = args
+        return [{"chave": ch, "numero": 1234, "emissao": None}] if "conhecimento" in sql else []
+
+    monkeypatch.setattr("api.db.query", db_falso)
+    achado = conciliacao.no_erp([ch])
+    assert achado[ch]["onde"] == "cte"
+    # a chave viaja como PARAMETRO, nunca concatenada no SQL
+    assert "ANY(%s)" in pedidos["sql"] and pedidos["args"] == ([ch],)
+    assert ch not in pedidos["sql"]
+
+
+def test_chave_torta_nem_chega_ao_ERP(monkeypatch):
+    from api.sefaz import conciliacao
+    monkeypatch.setattr("api.db.query",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("foi ao ERP")))
+    assert conciliacao.no_erp(["123", "", None, "x" * 44]) == {}
+
+
+def test_o_ERP_com_dia_ruim_NAO_derruba_a_recolha(monkeypatch):
+    """A tela da recolha vale sozinha. O ERP e replica de producao de
+    TERCEIRO: se ele cai, a conciliacao some e o resto continua."""
+    from api.sefaz import conciliacao
+
+    def cai(*a, **k):
+        raise RuntimeError("o ERP nao respondeu")
+
+    monkeypatch.setattr("api.db.query", cai)
+    assert conciliacao.no_erp(["4" * 44]) == {}
+
+
+def test_EVENTO_nao_conta_como_documento_sem_par(monkeypatch):
+    """Evento nao tem contrapartida no ERP -- ele e um FATO SOBRE outro
+    documento. Conta-lo como "nao casado" encheria de ruido justamente o numero
+    que deveria acusar."""
+    from api.sefaz import conciliacao
+    monkeypatch.setattr(conciliacao, "no_erp", lambda ch: {})
+    docs = [{"tipo": "evento", "chave": "1" * 44},
+            {"tipo": "nfe", "chave": "2" * 44}]
+    r = conciliacao.marcar(docs)
+    assert r["comparaveis"] == 1 and r["sem_par"] == 1
+
+
+def test_a_conciliacao_acha_CTe_REAL_do_ERP():
+    """Contra o BANCO VIVO, e nao contra duble: uma consulta que devolve vazio
+    para sempre tambem nao levanta excecao, e passaria num teste com duble.
+
+    Pega chaves REAIS do proprio ERP e confere que a consulta as encontra."""
+    from api import db
+    from api.sefaz import conciliacao
+    try:
+        reais = [r["c"] for r in db.query(
+            "SELECT chaveacessocte AS c FROM conhecimento "
+            "WHERE chaveacessocte IS NOT NULL LIMIT 3")]
+    except Exception as exc:  # noqa: BLE001
+        pytest.skip("ERP indisponivel: %s" % type(exc).__name__)
+    if not reais:
+        pytest.skip("nenhum CT-e com chave no ERP")
+    achado = conciliacao.no_erp(reais)
+    assert len(achado) == len(reais), (
+        "o ERP tem as chaves e a consulta nao as achou: %d de %d"
+        % (len(achado), len(reais)))
+    assert all(v["onde"] == "cte" for v in achado.values())
