@@ -320,3 +320,31 @@ def test_indicador_inativado_SAI_do_painel_e_o_historico_fica(esquema_pg):
     resta = pglocal.um("SELECT count(*) AS n FROM ges_apontamentos",
                        esquema=esquema_pg)["n"]
     assert resta == 1, "inativar apagou o apontamento"
+
+
+def test_o_seed_da_TRES_indicadores_por_gerencia(esquema_pg):
+    """Três é o que cabe em dois minutos de fala sem virar leitura de planilha.
+
+    E o guard confere o CADASTRO contra o REGISTRO de fontes, nos dois sentidos
+    — as duas listas moram em arquivos diferentes (a migration e o módulo), e
+    uma chave que não existe no registro não daria erro: o indicador entraria
+    como automático e ficaria vazio para sempre.
+    """
+    por_ger: dict[str, list[str]] = {}
+    for i in ritual.indicadores(esquema=esquema_pg):
+        por_ger.setdefault(i["gerencia"], []).append(i["fonte"])
+
+    assert sorted(por_ger) == ["comercial", "manutencao", "operacao", "rh"]
+    for ger, fontes in por_ger.items():
+        assert len(fontes) == 3, "%s tem %d indicadores" % (ger, len(fontes))
+        orfas = [f for f in fontes if f != "manual" and f not in ritual.FONTES]
+        assert not orfas, "%s aponta para fonte inexistente: %s" % (ger, orfas)
+
+
+def test_nenhum_indicador_semeado_esta_ORFAO(esquema_pg):
+    """O espelho do teste acima, e o que pega o erro de digitação: `fonte_orfa`
+    é o que a tela pinta em vermelho, e nascer com uma seria a tela avisando de
+    um defeito nosso na primeira semana."""
+    orfaos = [i["nome"] for i in ritual.indicadores(esquema=esquema_pg)
+              if i["fonte_orfa"]]
+    assert not orfaos, orfaos

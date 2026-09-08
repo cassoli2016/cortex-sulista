@@ -8,13 +8,20 @@
       realizado, semáforo, desvio, ação, responsável e prazo), agrupado pelas
       quatro gerências — Comercial, Operação, Manutenção e Recursos Humanos.
     - >-
-      O realizado vem do próprio CÓRTEX onde a casa já mede. Dezesseis
-      indicadores automáticos nascem prontos: receita e contas vencidas da
-      Visão Geral, retorno vazio e km por litro da Análise de KM, OS abertas e
-      custo de manutenção, férias sem agendamento e CNH vencendo. Indicador
-      automático NÃO aceita digitação — é o mesmo número que a tela do assunto
-      mostra, e se ele está errado o conserto é na origem. A reunião passa a
-      discutir o desvio em vez de conferir de onde veio o número.
+      O realizado vem do próprio CÓRTEX onde a casa já mede. Cada gerência
+      nasce com TRÊS indicadores automáticos prontos, escolhidos para abrir
+      dimensões diferentes em vez de repetir o mesmo número: no Comercial,
+      receita faturada, contas vencidas e o atingimento da meta (a régua da
+      primeira etapa do roteiro); na Operação, retorno vazio e km por litro,
+      que medem desperdício, mais o RKM, que mede o que o km rendeu; na
+      Manutenção, OS abertas e custo, que são o efeito, mais ordens de compra
+      atrasadas, que são uma das causas e moram noutra área; no RH, férias e
+      CNH, que são prazo, mais afastados, que é gente. São dezesseis fontes
+      disponíveis ao todo, e o resto se cadastra na tela.
+    - >-
+      Indicador automático NÃO aceita digitação — é o mesmo número que a tela
+      do assunto mostra, e se ele está errado o conserto é na origem. A reunião
+      passa a discutir o desvio em vez de conferir de onde veio o número.
     - >-
       O que o sistema ainda não mede continua entrando como indicador manual, e
       a tela diz qual é qual: número automático e número digitado não têm a
