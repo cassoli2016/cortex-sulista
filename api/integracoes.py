@@ -78,6 +78,7 @@ CARTAO_DA_SAUDE: dict[str, str] = {
     "zapi": "Z-API (WhatsApp)",
     "tress": "3S (rastreamento das carretas)",
     "tomtom": "TomTom (trânsito)",
+    "apibrasil": "APIBrasil (consulta de placa)",
 }
 
 #: O que está no cofre de credenciais mas NÃO é fornecedor externo.

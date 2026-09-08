@@ -132,6 +132,11 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     # acesso e por id de tela, e o grupo so diz onde ela aparece no menu.
     "ctecp":   ("CT-e de Contrapartida", "TMS"),
     "dfe":     ("Notas de Entrada", "TMS"),
+    # O cadastro de EQUIPAMENTOS. Entra no TMS porque e a base do modulo:
+    # hoje ele espelha o ERP, e a decisao de quem opera (07/09/2026) e que
+    # o TMS deixe de depender do Avacorp -- e um cadastro proprio de frota
+    # e a primeira peca de que isso depende.
+    "eqp":     ("Equipamentos", "TMS"),
     "anpiso":  ("Piso Mínimo de Frete", "ANTT"),
     "anrntrc": ("RNTRC dos Transportadores", "ANTT"),
     "telcon":  ("Consumo e Estatísticas", "Telemetria"),
@@ -180,6 +185,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/dfe/pacote",               frozenset({"dfe"})),
     ("/api/dfe/xml",                  frozenset({"dfe"})),
     ("/api/dfe",                      frozenset({"dfe"})),
+    ("/api/equipamentos",             frozenset({"eqp"})),
     ("/api/monitoramentos",           frozenset({"mon"})),
     ("/api/documentacao",             frozenset(TELAS)),
     ("/api/versao",                   frozenset(TELAS)),

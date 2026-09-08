@@ -1226,6 +1226,79 @@ def _servico_smartec() -> dict:
             "detalhe": f"{len(e['recursos'])} recursos coletados{idade}{extra}"}
 
 
+def _servico_apibrasil() -> dict:
+    """A consulta de placa está chegando — e quanto do cadastro ela já cobre?
+
+    ESTE CARTÃO MEDE DUAS COISAS QUE PARECEM UMA SÓ.
+
+    A primeira é a de sempre: a integração responde? A segunda é específica
+    deste fornecedor e é a que decide gasto — **quanto da frota já foi
+    conferida contra o Detran, e quanto da cota do dia sobrou**. Uma
+    integração perfeitamente viva com 0% da frota coberta não é "ok": é uma
+    carga que ninguém começou, e o cartão precisa dizer isso em vez de pintar
+    verde por a última chamada ter dado certo.
+
+    `info` e não vermelho quando falta credencial ou quando a carga ainda não
+    começou: nenhum dos dois é sistema quebrado, e alarme que acende sem haver
+    problema ensina a ignorar o alarme. Vermelho fica para o que é falha de
+    verdade — a última leva de consultas ter falhado inteira.
+    """
+    nome = "APIBrasil (consulta de placa)"
+    try:
+        from api.apibrasil import cliente as apib
+        from api.equipamentos import armazenamento as arm
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: apibrasil: %s", type(exc).__name__)
+        return {"nome": nome, "status": "info", "detalhe": "camada indisponível"}
+
+    if not apib.configurado():
+        return {"nome": nome, "status": "info",
+                "detalhe": "sem credencial (Administração › Integrações › "
+                           "APIBrasil) — o cadastro de equipamentos funciona "
+                           "só com o ERP"}
+    try:
+        r = arm.resumo_consultas()
+        cobertura = pglocal.um(
+            "SELECT count(*) AS total,"
+            "       count(f.placa) AS com_detran"
+            "  FROM eqp_equipamento e"
+            "  LEFT JOIN (SELECT DISTINCT placa FROM eqp_fonte"
+            "              WHERE fonte LIKE 'apibrasil.%%') f"
+            "         ON f.placa = e.placa"
+            " WHERE e.ativo = true") or {}
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: apibrasil estado: %s", type(exc).__name__)
+        return {"nome": nome, "status": "info",
+                "detalhe": "banco local indisponível"}
+
+    total = int(cobertura.get("total") or 0)
+    feitas = int(cobertura.get("com_detran") or 0)
+    pct = (100.0 * feitas / total) if total else 0.0
+    hoje = f" · {r['hoje']} consultas hoje" if r.get("hoje") else ""
+
+    if not r.get("total"):
+        return {"nome": nome, "status": "info",
+                "detalhe": f"credencial ok, nenhuma consulta feita ainda — "
+                           f"{total} equipamentos esperando conferência"}
+
+    # A ÚLTIMA LEVA falhou inteira: é o sintoma de token revogado, produto
+    # descontratado ou cota estourada no fornecedor. Contagem de tropeços
+    # antigos NÃO acende vermelho — vermelho é "não está funcionando AGORA".
+    if r["total"] and r["ok"] == 0:
+        return {"nome": nome, "status": "erro",
+                "detalhe": f"as últimas {r['total']} consultas falharam — "
+                           f"conferir token e produto contratado{hoje}"}
+
+    if feitas == 0:
+        return {"nome": nome, "status": "info",
+                "detalhe": f"consultas respondendo, mas nenhuma placa "
+                           f"gravada ainda{hoje}"}
+
+    return {"nome": nome, "status": "ok",
+            "detalhe": f"{feitas} de {total} equipamentos conferidos no "
+                       f"Detran ({pct:.0f}%){hoje}"}
+
+
 def _servico_premiacao() -> dict:
     """A configuração da premiação está completa?
 
@@ -1804,6 +1877,11 @@ def _servicos() -> list[dict]:
     # 3S: a leitura direta das carretas. O cartão nasceu com a integração
     # porque a falha dela é MUDA — some posição e o painel só fica pior.
     servicos.append(_servico_tress())
+
+    # APIBrasil: a consulta de placa que alimenta o cadastro de equipamentos.
+    # O cartao mede a integracao E a cobertura da frota -- integracao viva com
+    # 0% conferido nao e "ok", e a diferenca decide gasto.
+    servicos.append(_servico_apibrasil())
 
     # Pedágio do tag: a fatura é BAIXADA e ENVIADA por gente, uma vez por mês.
     # O sensor existe porque a parada se disfarça de aba vazia — e o gasto é

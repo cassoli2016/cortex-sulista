@@ -338,6 +338,8 @@ from api.crm.rotas import router as router_crm  # noqa: E402
 app.include_router(router_crm)
 from api.suporte.rotas import router as router_suporte  # noqa: E402
 app.include_router(router_suporte)
+from api.equipamentos.rotas import router as router_equipamentos  # noqa: E402
+app.include_router(router_equipamentos)
 # a raiz do repositorio -- usada por rota que grava arquivo temporario
 ROOT = Path(__file__).resolve().parent.parent
 STATIC = Path(__file__).resolve().parent / "static"

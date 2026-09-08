@@ -804,8 +804,13 @@ grupos:
     serviço nacional de Distribuição de DFe. As duas usam o mesmo certificado
     A1 e a mesma pilha, e ficam juntas por isso: quando o certificado vence, as
     duas param no mesmo dia.
+    E a terceira peça é o CADASTRO DE EQUIPAMENTOS, que é a base do módulo:
+    hoje ele lê a frota do ERP, mas o registro é do CÓRTEX — cada campo guarda
+    de qual fonte veio, e é isso que vai permitir desligar o Avacorp sem
+    perder o cadastro.
   telas:
   - ctecp
+  - eqp
   - dfe
 - nome: Comercial
   resumo: Clientes, receita por quilômetro, concentração de carteira, margem por cliente, pipeline de leads e a consulta 360
