@@ -690,10 +690,19 @@ def test_o_cadastro_ACEITA_o_CNPJ_que_esta_na_recolha(caixa, monkeypatch):
 # ================================= o pacote: o caminho de SAIDA do XML
 
 def _doc(nsu_, xml, **kw):
-    d = {"nsu": nsu_, "esquema": "procNFe_v4.00", "tipo": "nfe",
-         "completo": True, "xml": xml,
-         "chave": "4126091234567800019955001000001234100001234%s" % nsu_[-1],
-         "emitido_em": "2026-09-05T14:32:00-03:00"}
+    """A linha PRONTA para gravar, montada pelo PARSER REAL.
+
+    A primeira versao montava o dicionario a mao e esquecia `emitente_nome` --
+    entao o teste da busca por nome procurava um campo que o proprio teste
+    nunca preenchia, e acusava o codigo. Passar pelo `ler_documento` de
+    verdade e o que faz o duble representar o que a recolha grava.
+    """
+    d = leitura.ler_documento(kw.pop("esquema", "procNFe_v4.00"), xml)
+    d["nsu"] = nsu_
+    d.setdefault("chave", None)
+    d["chave"] = kw.pop("chave", d.get("chave")
+                        or "4126091234567800019955001000001234100001234%s" % nsu_[-1])
+    d.setdefault("emitido_em", "2026-09-05T14:32:00-03:00")
     d.update(kw)
     return d
 
@@ -958,3 +967,88 @@ def test_a_biblioteca_de_DANFE_esta_instalada():
     from brazilfiscalreport.danfe import Danfe  # noqa: F401
     from brazilfiscalreport.dacte import Dacte  # noqa: F401
     from brazilfiscalreport.damdfe import Damdfe  # noqa: F401
+
+
+# ================== o cancelamento chega SEPARADO, e a nota nao muda sozinha
+
+def test_a_nota_CANCELADA_aparece_cancelada(caixa):
+    """O DEFEITO QUE ISTO IMPEDE: o cancelamento chega como documento
+    SEPARADO, com NSU proprio, e a linha da nota original nao muda em nada --
+    `situacao` continua "1 autorizada" para sempre. Quem olhasse a tela veria
+    uma nota valida que nao existe mais.
+
+    A situacao EFETIVA vem do evento, e nao do campo da nota."""
+    ch = "41260912345678000199550010000012341000012349"
+    arm.gravar(CNPJ, _doc("000000000000001", PROC_NFE, chave=ch, situacao="100"))
+    assert arm.documentos(CNPJ)[0]["cancelada"] is False
+
+    cancel = ('<resEvento versao="1.01"><chNFe>%s</chNFe>'
+              '<dhEvento>2026-09-06T09:10:00-03:00</dhEvento>'
+              '<tpEvento>110111</tpEvento><xEvento>Cancelamento</xEvento>'
+              '</resEvento>' % ch)
+    linha = leitura.ler_documento("resEvento_v1.01", cancel)
+    linha["nsu"] = "000000000000002"
+    arm.gravar(CNPJ, linha)
+
+    nota = [d for d in arm.documentos(CNPJ) if d["tipo"] == "nfe"][0]
+    assert nota["cancelada"] is True, "a nota cancelada continua aparecendo valida"
+    assert [e["descricao"] for e in nota["eventos"]] == ["Cancelamento"]
+
+
+def test_a_carta_de_correcao_NAO_cancela(caixa):
+    """Ela altera o documento e nao o derruba. Tratar as duas do mesmo jeito
+    apagaria da tela uma nota que continua valendo."""
+    ch = "41260912345678000199550010000012341000012349"
+    arm.gravar(CNPJ, _doc("000000000000001", PROC_NFE, chave=ch))
+    carta = ('<resEvento versao="1.01"><chNFe>%s</chNFe>'
+             '<dhEvento>2026-09-06T09:10:00-03:00</dhEvento>'
+             '<tpEvento>110112</tpEvento><xEvento>Carta de Correcao</xEvento>'
+             '</resEvento>' % ch)
+    l = leitura.ler_documento("resEvento_v1.01", carta)
+    l["nsu"] = "000000000000003"
+    arm.gravar(CNPJ, l)
+    nota = [d for d in arm.documentos(CNPJ) if d["tipo"] == "nfe"][0]
+    assert nota["cancelada"] is False and nota["tem_carta"] is True
+
+
+# =========================================================== os filtros
+
+def test_a_busca_por_CHAVE_INTEIRA_casa_exato(caixa):
+    """Chave e identidade. `%chave%` num campo de 44 digitos varre a tabela
+    inteira para achar exatamente uma linha."""
+    ch = "41260912345678000199550010000012341000012349"
+    arm.gravar(CNPJ, _doc("000000000000001", PROC_NFE, chave=ch))
+    arm.gravar(CNPJ, _doc("000000000000002", PROC_NFE,
+                          chave="41260912345678000199550010000012341000012340"))
+    assert len(arm.documentos(CNPJ, busca=ch)) == 1
+    # e com pontuacao colada do e-mail, tambem
+    assert len(arm.documentos(CNPJ, busca=ch[:4] + "." + ch[4:])) == 1
+
+
+def test_a_busca_por_NOME_e_por_pedaco(caixa):
+    """Chave se cola inteira; nome se digita pela metade. Os dois no mesmo
+    campo porque quem procura nao separa as duas coisas na cabeca."""
+    arm.gravar(CNPJ, _doc("000000000000001", PROC_NFE))
+    assert len(arm.documentos(CNPJ, busca="METALURGICA")) == 1
+    assert len(arm.documentos(CNPJ, busca="metalur")) == 1
+    assert len(arm.documentos(CNPJ, busca="nao existe")) == 0
+
+
+def test_o_filtro_de_tipo_e_de_periodo(caixa):
+    arm.gravar(CNPJ, _doc("000000000000001", PROC_NFE,
+                          emitido_em="2026-08-15T10:00:00-03:00"))
+    ev = leitura.ler_documento("resEvento_v1.01", RES_EVENTO)
+    ev["nsu"] = "000000000000002"
+    arm.gravar(CNPJ, ev)
+    assert len(arm.documentos(CNPJ, tipo="nfe")) == 1
+    assert len(arm.documentos(CNPJ, tipo="evento")) == 1
+    assert len(arm.documentos(CNPJ, de="2026-08-01", ate="2026-08-31")) == 1
+
+
+def test_a_recuperacao_por_NSU_e_de_ADMINISTRADOR():
+    """Cada chamada gasta cota de um servico que freia: um laco de recuperacao
+    mal dosado custa uma hora de recolha parada para a filial inteira."""
+    from api import main
+    caminhos = {r.path for r in main.app.routes if hasattr(r, "path")}
+    assert "/api/gestao/dfe/recuperar" in caminhos
+    assert "/api/dfe/recuperar" not in caminhos

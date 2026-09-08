@@ -1941,7 +1941,8 @@ def dfe_certificado(payload: dict, req: Request) -> JSONResponse:
 
 
 @app.get("/api/dfe")
-def dfe_panorama(limite: int = 200) -> JSONResponse:
+def dfe_panorama(limite: int = 200, cnpj: str = "", tipo: str = "",
+                 de: str = "", ate: str = "", busca: str = "") -> JSONResponse:
     """As notas recolhidas da SEFAZ: as caixas, o que chegou e o que falta.
 
     Rota `def` (nao `async`): le o banco e abre os .pfx para conferir validade,
@@ -1952,9 +1953,17 @@ def dfe_panorama(limite: int = 200) -> JSONResponse:
     hora de recolha parada.
     """
     from api.sefaz import armazenamento, painel
+    for nome, valor in (("de", de), ("ate", ate)):
+        if valor and _bad_date(valor):
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido",
+                "mensagem": "Parametro %s invalido: use AAAA-MM-DD." % nome})
     try:
         d = painel.panorama()
-        d["documentos"] = armazenamento.documentos(limite=limite)
+        d["documentos"] = armazenamento.documentos(
+            re.sub(r"[^0-9]", "", cnpj or "") or None, limite=limite,
+            tipo=(tipo or "").strip().lower(), de=de, ate=ate,
+            busca=(busca or "").strip())
         return JSONResponse(d)
     except Exception as exc:  # noqa: BLE001
         log.exception("dfe: panorama falhou")
@@ -2015,6 +2024,49 @@ def dfe_buscar(chave: str = "", cnpj: str = "", fora: int = 1) -> JSONResponse:
             "erro": "erro_consulta", "tipo": type(exc).__name__})
     # 200 mesmo quando nao acha: "nao achei" e resposta, nao falha -- e o
     # corpo carrega o MOTIVO, que e o que a tela precisa dizer.
+    return JSONResponse(r)
+
+
+@app.post("/api/gestao/dfe/recuperar")
+def dfe_recuperar(payload: dict, req: Request) -> JSONResponse:
+    """Puxa UM documento por NSU avulso. SO ADMINISTRADOR.
+
+    E O UNICO CAMINHO DE VOLTA para um documento que passou na varredura e nao
+    foi guardado. O `distNSU` nao rele faixa -- para a SEFAZ, consumidor que
+    nao avanca e consumidor com defeito, e a segunda leitura da mesma faixa
+    volta 656. O NSU avulso responde, um por chamada.
+
+    SO ADMINISTRADOR porque cada chamada gasta cota de um servico que freia:
+    um laço de recuperacao mal dosado custa uma hora de recolha parada para a
+    filial inteira. Quem faz isso precisa saber o que esta fazendo.
+    """
+    from api.sefaz import armazenamento as arm, distribuicao as dist
+    _s = getattr(req.state, "sessao", None) or {}
+    quem = _s.get("email") or _s.get("nome") or "?"
+    cnpj = re.sub(r"[^0-9]", "", str(payload.get("cnpj") or ""))
+    nsu = re.sub(r"[^0-9]", "", str(payload.get("nsu") or ""))
+    caixa = arm.caixa(cnpj) if cnpj else None
+    if not caixa:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "CNPJ nao esta na recolha."})
+    if not nsu:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Informe o NSU."})
+    try:
+        auth.audit(quem, "dfe_recuperar", alvo=cnpj, detalhe="nsu=%s" % nsu)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        r = dist.buscar_avulso(cnpj, caixa.get("uf") or "PR", nsu_avulso=nsu)
+    except dist.SemCertificado as exc:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "sem_certificado", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("dfe: recuperar NSU falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=502, content={
+            "erro": "sefaz", "mensagem": "A SEFAZ nao respondeu (%s)."
+                                         % type(exc).__name__})
     return JSONResponse(r)
 
 

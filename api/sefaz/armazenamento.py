@@ -174,13 +174,30 @@ def gravar(cnpj: str, doc: dict) -> str:
     return "completado" if (not antes["completo"] and d.get("completo")) else "repetido"
 
 
+#: Eventos que MUDAM a validade da nota. O `110111` é o cancelamento; o
+#: `110112` é a carta de correção, que altera o documento mas não o derruba.
+#:
+#: SEM ISTO A TELA MOSTRA COMO VÁLIDA UMA NOTA CANCELADA. O cancelamento chega
+#: como documento SEPARADO, com NSU próprio, e a nota original continua no
+#: banco exatamente como estava — nada nela muda. Quem olhasse a linha da nota
+#: veria "Autorizada" para sempre.
+EVENTO_CANCELA = "110111"
+EVENTO_CARTA = "110112"
+
+
 def documentos(cnpj: str | None = None, *, limite: int = 200,
-               so_incompletos: bool = False) -> list[dict]:
+               so_incompletos: bool = False, tipo: str = "",
+               de: str = "", ate: str = "", busca: str = "",
+               so_completos: bool = False) -> list[dict]:
     """Os documentos, SEM o XML. O XML sai por `xml_de()`, um a um.
 
     Não é economia de bytes: é que uma lista de 200 notas com o XML dentro são
     ~2 MB numa resposta que a tela usa só para desenhar linhas — e a serialização
     disso é o tipo de custo que vira lentidão sem ninguém saber de onde veio.
+
+    `busca` procura no NOME do emitente e na CHAVE. Chave se cola inteira do
+    e-mail ou do romaneio; nome se digita pela metade. As duas entram no mesmo
+    campo porque quem procura não separa as duas coisas na cabeça.
     """
     onde, args = [], []
     if cnpj:
@@ -188,6 +205,31 @@ def documentos(cnpj: str | None = None, *, limite: int = 200,
         args.append(cnpj)
     if so_incompletos:
         onde.append("NOT completo")
+    if so_completos:
+        onde.append("completo")
+    if tipo:
+        onde.append("tipo = %s")
+        args.append(tipo)
+    if de:
+        onde.append("emitido_em >= %s::date")
+        args.append(de)
+    if ate:
+        # `< ate + 1 dia`: com timestamp, `<= '2026-09-30'` para na meia-noite
+        # e perde o dia 30 inteiro.
+        onde.append("emitido_em < (%s::date + 1)")
+        args.append(ate)
+    if busca:
+        alvo = re.sub(r"[^0-9]", "", busca)
+        if len(alvo) == 44:
+            # CHAVE COLADA INTEIRA: casa exato, e não por `LIKE`. Chave é
+            # identidade, e `%chave%` num índice de 44 dígitos varre a tabela
+            # para achar exatamente uma linha.
+            onde.append("chave = %s")
+            args.append(alvo)
+        else:
+            onde.append("(emitente_nome ILIKE %s OR chave ILIKE %s "
+                        "OR descricao ILIKE %s)")
+            args.extend(["%%%s%%" % busca] * 3)
     sql = ("SELECT cnpj, nsu, esquema, tipo, chave, emitente, emitente_nome, "
            "destinatario, valor::float8 AS valor, emitido_em, situacao, "
            "completo, recebido_em, descricao, evento_tipo FROM dfe_documento")
@@ -197,9 +239,31 @@ def documentos(cnpj: str | None = None, *, limite: int = 200,
     args.append(max(1, min(int(limite), 2000)))
     with pglocal.get_conn(_esq()) as conn, conn.cursor() as cur:
         cur.execute(sql, tuple(args))
+        linhas = [dict(r) for r in cur.fetchall()]
+        # OS EVENTOS DE CADA NOTA, numa consulta só. Um `SELECT` por linha
+        # seriam 200 idas ao banco para desenhar uma tela.
+        chaves = [l["chave"] for l in linhas if l.get("chave")]
+        eventos: dict[str, list[dict]] = {}
+        if chaves:
+            cur.execute(
+                "SELECT chave, evento_tipo, descricao, emitido_em "
+                "FROM dfe_documento WHERE tipo = 'evento' AND chave = ANY(%s) "
+                "ORDER BY emitido_em", (chaves,))
+            for e in cur.fetchall():
+                eventos.setdefault(e["chave"], []).append(dict(e))
         saida = []
-        for r in cur.fetchall():
-            x = dict(r)
+        for x in linhas:
+            evs = eventos.get(x.get("chave") or "", [])
+            # A SITUAÇÃO EFETIVA vem do EVENTO, e não do campo da nota. O
+            # cancelamento chega como documento separado e não muda nada na
+            # linha original — sem isto a tela mostra "Autorizada" para sempre
+            # numa nota cancelada.
+            x["cancelada"] = any(e["evento_tipo"] == EVENTO_CANCELA for e in evs)
+            x["tem_carta"] = any(e["evento_tipo"] == EVENTO_CARTA for e in evs)
+            x["eventos"] = [{"tipo": e["evento_tipo"], "descricao": e["descricao"],
+                             "em": e["emitido_em"].isoformat()
+                                   if isinstance(e["emitido_em"], datetime) else None}
+                            for e in evs]
             # Serialização converte no LIMITE do módulo: `datetime` estoura no
             # `render()` do JSONResponse, DEPOIS do try/except da rota.
             for c in ("emitido_em", "recebido_em"):
