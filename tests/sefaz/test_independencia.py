@@ -125,3 +125,33 @@ def test_apagar_a_PONTE_deixa_a_recolha_de_pe(monkeypatch):
     assert distribuicao.codigo_uf("PR") == 41
     assert impressao.rotulo("cte") == "DACTE"
     assert busca.local("x" * 44) is None
+
+
+# =========================== a tarefa agendada, na Saude do Servidor
+
+def test_a_tarefa_da_recolha_esta_na_lista_da_SAUDE():
+    """Tarefa que a Saude nao conhece nao vira cartao -- e recolha parada por
+    tarefa desregistrada nao daria sinal nenhum.
+
+    ELA ENTROU SO DEPOIS DE REGISTRADA (08/09/2026, 07:01, log do instalador).
+    Listar antes viraria vermelho permanente, e alarme que grita a toa ensina a
+    ignorar alarme -- e por isso que `CTe Contrapartida` e `Relatorios por
+    e-mail` continuam fora da lista.
+    """
+    from api import servidor
+    assert "Cortex Sulista - DFe SEFAZ" in servidor._TAREFAS
+
+
+def test_o_instalador_da_tarefa_aponta_para_o_script_certo():
+    """Guard contra o erro mudo: um instalador que registra caminho errado
+    cria a tarefa com sucesso e ela falha 0x80070002 toda vez, sem que a Saude
+    saiba dizer por que."""
+    from pathlib import Path
+    raiz = Path(__file__).resolve().parents[2]
+    ps1 = (raiz / "scripts" / "instalar_tarefa_dfe.ps1").read_text(encoding="utf-8")
+    assert 'Join-Path $repo "scripts\coletar_dfe.py"' in ps1
+    assert (raiz / "scripts" / "coletar_dfe.py").exists()
+    # e o NOME tem de ser o mesmo dos dois lados
+    from api import servidor
+    assert "$nome = 'Cortex Sulista - DFe SEFAZ'" in ps1
+    assert "Cortex Sulista - DFe SEFAZ" in servidor._TAREFAS

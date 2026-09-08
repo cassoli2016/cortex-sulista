@@ -1,3 +1,15 @@
+- versao: "1.10.1"
+  data: "2026-09-08"
+  adicionado:
+    - >-
+      A tarefa que busca os documentos na SEFAZ passou a aparecer na Saúde do
+      Servidor, junto das outras. Ela foi registrada nesta máquina hoje de
+      manhã; antes disso ficava de fora da lista de propósito, porque tarefa
+      listada e não instalada vira um vermelho permanente na tela — e alarme
+      que grita à toa ensina a ignorar alarme.
+    - >-
+      Com isso, se a busca parar de rodar, a Saúde avisa. Sem o cartão, uma
+      recolha parada por tarefa desregistrada não daria sinal nenhum.
 - versao: "1.10.0"
   data: "2026-09-07"
   adicionado:

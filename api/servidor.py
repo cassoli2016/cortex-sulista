@@ -51,7 +51,12 @@ _TAREFAS = ["Cortex Sulista - API", "Cortex Sulista - AutoDeploy",
             "Cortex Sulista - Jornada", "Cortex Sulista - Ngrok",
             "Cortex Sulista - Smartec", "Cortex Sulista - WhatsApp agendado",
             "Cortex Sulista - Gerenciamento de Risco",
-            "Cortex Sulista - Monkey"]
+            "Cortex Sulista - Monkey",
+            # Registrada em 08/09/2026, 07:01 (log do instalador). Entra aqui
+            # SO agora, e nao junto com o codigo: tarefa listada antes de
+            # existir vira vermelho permanente na Saude, e alarme que grita a
+            # toa ensina a ignorar alarme.
+            "Cortex Sulista - DFe SEFAZ"]
 # Fora da lista DE PROPÓSITO (instalador existe, registro não comprovado
 # nesta máquina): 'CTe Contrapartida' (aguarda a decisão fiscal) e
 # 'Relatorios por e-mail'. Entrar aqui sem estar registrada viraria um

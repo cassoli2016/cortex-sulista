@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.10.1] — 08/09/2026  ·  CX-08/09/2026-v1.10.1
+
+### Adicionado
+- A tarefa que busca os documentos na SEFAZ passou a aparecer na Saúde do Servidor, junto das outras. Ela foi registrada nesta máquina hoje de manhã; antes disso ficava de fora da lista de propósito, porque tarefa listada e não instalada vira um vermelho permanente na tela — e alarme que grita à toa ensina a ignorar alarme.
+- Com isso, se a busca parar de rodar, a Saúde avisa. Sem o cartão, uma recolha parada por tarefa desregistrada não daria sinal nenhum.
+
 ## [1.10.0] — 07/09/2026  ·  CX-07/09/2026-v1.10.0
 
 ### Adicionado
