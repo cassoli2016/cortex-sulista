@@ -7060,11 +7060,24 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       </section>
       <section class="view" id="view-dfe">
         <div class="kband"><div class="kpis k4" id="dfe-kpis"></div></div>
+        <div class="subtabs" role="tablist" data-abas="dfe" aria-label="Seções desta tela">
+          <button role="tab" id="tabdfe-docs" data-aba="docs" aria-controls="aba-dfe-docs"
+                  aria-selected="true" onclick="abaTrocar('dfe','docs')">Documentos <span class="aban" id="dfe-n-docs"></span></button>
+          <button role="tab" id="tabdfe-cx" data-aba="cx" aria-controls="aba-dfe-cx"
+                  aria-selected="false" onclick="abaTrocar('dfe','cx')">Recolha por filial <span class="aban" id="dfe-n-cx"></span></button>
+          <button role="tab" id="tabdfe-adm" data-aba="adm" aria-controls="aba-dfe-adm"
+                  aria-selected="false" onclick="abaTrocar('dfe','adm')">Administração</button>
+        </div>
+
+        <div class="aba" data-abas="dfe" data-aba="cx" id="aba-dfe-cx" role="tabpanel" aria-labelledby="tabdfe-cx" hidden>
         <div class="card"><div class="head"><h2>A recolha, filial por filial</h2><span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: o serviço nacional de Distribuição de DFe da SEFAZ (NFeDistribuicaoDFe), consultado por CNPJ com o certificado A1 da empresa. São dez caixas, uma por filial ativa — o serviço mantém uma sequência de NSU separada para cada CNPJ. O NSU é o ponteiro da recolha: pede-se o que veio DEPOIS dele. &quot;Falta&quot; é a distância até o maior NSU que existe na SEFAZ. Esta tela NÃO dispara consulta: quem recolhe é a tarefa agendada, de 2 em 2 horas das 07h às 19h — a SEFAZ freia consulta repetida sem resultado.">ⓘ</span></div>
           <div class="tabroll" style="max-height:230px"><table class="tab dfe-cx"><thead><tr>
             <th>Filial</th><th>UF</th><th class="num">Recolhidos</th><th class="num">Falta</th>
             <th>Última recolha</th><th>Estado</th><th>Certificado</th>
           </tr></thead><tbody id="dfe-caixas"></tbody></table></div>
+        </div>
+        </div>
+        <div class="aba" data-abas="dfe" data-aba="adm" id="aba-dfe-adm" role="tabpanel" aria-labelledby="tabdfe-adm" hidden>
           <div id="dfe-cert-caixa" hidden>
             <div class="dfe-cert-form">
               <div class="linha"><b style="font-size:13px">Cadastrar certificado A1</b>
@@ -7089,7 +7102,9 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                 <button class="btn sm" onclick="dfeRecuperar()">Buscar na SEFAZ</button>
                 <span class="dfe-cert-aviso" id="dfe-rec-msg">cada busca gasta uma consulta da cota</span></div>
             </div>
-          </div></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="dfe" data-aba="docs" id="aba-dfe-docs" role="tabpanel" aria-labelledby="tabdfe-docs">
         <div class="card"><div class="head"><h2>Documentos recolhidos</h2><span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: dfe_documento, no banco da casa — o XML fica guardado aqui, e não em arquivo, porque a guarda é de cinco anos e o backup que se prova todo dia é o do PostgreSQL. ATENÇÃO AO ESTADO: a SEFAZ entrega apenas o RESUMO (chave, emitente, valor, situação) enquanto o destinatário não manifesta ciência da operação; o XML completo só vem depois disso. A manifestação ficou para um segundo momento — e a contabilidade já baixa esta mesma caixa, então manifestar aqui geraria evento duplicado. Enquanto isso, &quot;só resumo&quot; quer dizer que a nota inteira NÃO está guardada aqui.">ⓘ</span><span class="hint" id="dfe-hint"></span></div>
           <div class="dfe-filtros">
             <input type="search" id="dfe-q" placeholder="emitente, chave de acesso ou descrição do evento" onkeydown="if(event.key==='Enter')loadDfe()">
@@ -7115,6 +7130,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <th>Emissão</th><th>Emitente</th><th class="num">Valor</th>
             <th>Tipo</th><th>Situação</th><th>Estado</th><th>No ERP</th><th>NSU</th><th></th>
           </tr></thead><tbody id="dfe-docs"></tbody></table></div></div>
+        </div>
       </section>
       <section class="view" id="view-pecas">
         <div class="card">
@@ -38632,6 +38648,18 @@ async function loadDfe(){
          anterior teria passado, porque a string `USER.admin` estava la. */
       const ehAdmin = !!(USER && USER.admin);
       cx.hidden = !ehAdmin;
+      /* A ABA INTEIRA SOME para quem nao e administrador. Deixar o botao
+         "Administração" abrindo um painel vazio e pior que nao te-lo: promete
+         alguma coisa e entrega nada, e quem clica fica achando que a tela
+         quebrou. */
+      const bt = document.getElementById('tabdfe-adm');
+      if(bt){
+        bt.hidden = !ehAdmin;
+        /* E se a pessoa ja estava NELA quando a sessao mudou (troca de
+           usuario, sessao que expirou e voltou com outro perfil), volta para
+           Documentos -- senao ela fica olhando um painel escondido. */
+        if(!ehAdmin && bt.getAttribute('aria-selected') === 'true') abaTrocar('dfe','docs');
+      }
       if(ehAdmin){
         const selRec = document.getElementById('dfe-rec-cnpj');
         if(selRec) selRec.innerHTML = caixas.map(c=>
@@ -38653,6 +38681,12 @@ async function loadDfe(){
     }
 
     if(hint) hint.textContent = docs.length ? docs.length+' mais recentes' : '';
+    /* CONTADOR NA ABA: uma aba "Recolha por filial" com dez caixas e uma com
+       zero pedem coisas diferentes de quem olha, e o numero poupa o clique.
+       O id e o do <span class="aban">, NUNCA o do botao -- passar o do botao
+       apagaria o rotulo. */
+    abaContador('dfe-n-docs', docs.length);
+    abaContador('dfe-n-cx', caixas.length);
     tbD.innerHTML = docs.map(x=>{
       /* O ESTADO REAL VEM DO EVENTO. O cancelamento chega como documento
          SEPARADO, com NSU proprio, e nada muda na linha da nota -- sem isto a
