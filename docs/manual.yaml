@@ -644,6 +644,29 @@ glossario:
     sequência é do ambiente nacional e ela pula o que não diz respeito à empresa. A SEFAZ freia quem
     consulta repetidamente sem resultado (código 656, cerca de uma hora de castigo), e por isso a
     recolha roda de duas em duas horas e não de hora em hora.'
+- termo: As duas portas do XML
+  definicao: 'A recolha tem DUAS entradas, e elas cobrem coisas diferentes. A primeira é a SEFAZ:
+    o serviço nacional de Distribuição de DFe entrega, de 20 em 20 minutos, tudo que foi emitido
+    contra os CNPJs da Sulista — mas só documento em que ela é PARTE (destinatária, transportadora,
+    emitente ou tomadora). Isso não é configuração, é fronteira legal. A segunda é a caixa
+    xml@sulista.com.br: é por onde chega o XML das notas em que a Sulista NÃO é parte nenhuma — a
+    carga de um cliente que ela vai transportar num CT-e que ainda não existe —, que a SEFAZ nunca
+    vai entregar a ela. O CÓRTEX lê essa caixa de 30 em 30 minutos, guarda o que for documento
+    fiscal e ignora o resto (o endereço é público: chega assinatura de e-mail, PDF do DANFE,
+    resposta automática). Quem recebeu um XML no próprio e-mail também pode arrastá-lo na tela, e
+    ele entra na mesma lista. A coluna Origem diz por onde cada documento entrou, e isso importa:
+    o que a SEFAZ entrega vale o que a SEFAZ garante; o que chegou por e-mail vale o que vale quem
+    mandou. E cuidado com o filtro de FILIAL: documento que chega por e-mail não pertence à caixa
+    de filial nenhuma, então filtrar por filial esconde essa porta inteira.'
+- termo: Sem protocolo × só resumo
+  definicao: 'Duas maneiras de a casa NÃO ter o XML autorizado, e elas pedem coisas diferentes de
+    quem lê. "Só resumo" é da SEFAZ: ela entrega apenas chave, emitente, valor e situação enquanto
+    o destinatário não manifestar ciência — o XML inteiro vem depois disso, e o que se faz é
+    esperar (ou manifestar). "Sem protocolo" é da porta do e-mail: o arquivo que a pessoa mandou é
+    o documento assinado SEM a prova de autorização da SEFAZ (começa com <NFe> em vez de
+    <nfeProc>), e o que se faz é pedir a ela o arquivo certo. Os dois parecem a mesma falta e não
+    são: dar a explicação de um para o outro manda alguém procurar uma manifestação que não
+    existe.'
 - termo: Certificado A1 da recolha
   definicao: 'O que autentica a Sulista na SEFAZ não é token: é o certificado digital A1 de cada
     filial — um arquivo com senha, que assina e identifica a empresa. Cadastra-se em Administração ›

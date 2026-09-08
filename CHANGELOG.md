@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.13.0] — 08/09/2026  ·  CX-08/09/2026-v1.13.0
+
+### Adicionado
+- A recolha de XML ganhou a SEGUNDA porta: a caixa xml@sulista.com.br. A SEFAZ só entrega documento em que a Sulista é parte — destinatária, transportadora, emitente ou tomadora —, e é por isso que as pessoas mandam por e-mail a nota do cliente que ela vai transportar. Agora o CÓRTEX lê essa caixa sozinho, guarda o XML e ele aparece na mesma lista de Notas de Entrada, com a mesma busca por chave, o mesmo pacote .zip do mês e a mesma folha (DANFE, DACTE, DAMDFE).
+- Chegou um XML pelo seu próprio e-mail, pelo WhatsApp ou num pendrive? Dá para arrastar o arquivo na tela — um XML ou um .zip com centenas deles. Entra na mesma lista, e é a porta que funciona sem depender de mais nada.
+- Cada linha diz POR ONDE o documento entrou, e isso não é detalhe: o que a SEFAZ entrega vale o que a SEFAZ garante; o que chegou por e-mail vale o que vale quem mandou — e o nome de quem mandou está ali, que é para quem se volta quando o arquivo vem torto.
+- O que chega e NÃO é documento fiscal não some em silêncio. O endereço é público: chega assinatura de e-mail, PDF do DANFE, resposta automática de férias. O CÓRTEX guarda só o que se declara documento fiscal e registra quantos anexos vieram e quantos foram aproveitados — mensagem que chegou e não virou nada é uma linha que alguém precisa ver, senão quem mandou acha que mandou e a operação acha que não veio.
+- Um estado novo na lista: "sem protocolo". É diferente de "só resumo", e a diferença muda o que se faz. "Só resumo" é a SEFAZ ainda não ter entregado a nota inteira (falta a manifestação de ciência); "sem protocolo" é o arquivo que a pessoa mandou ser o documento sem a prova de autorização — e aí o que se faz é pedir a ela o arquivo certo.
+- O Copiloto passou a conhecer a recolha. Ele responde quantos documentos já foram guardados, quantos vieram por cada porta e quando foi a última coleta — sem chave de acesso, sem CNPJ e sem nome de fornecedor, que é o que permite o chat funcionar mesmo quando o modelo local está fora.
+
 ## [1.12.4] — 08/09/2026  ·  CX-08/09/2026-v1.12.4
 
 ### Alterado

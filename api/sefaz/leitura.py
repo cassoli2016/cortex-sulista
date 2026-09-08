@@ -49,6 +49,22 @@ ESQUEMAS: tuple[tuple[str, str, bool], ...] = (
     ("procEventoNFe", "evento", True),
     ("resEvento", "evento", False),
     ("procEventoCTe", "evento", True),
+    # ---------------------------------------------------------------------
+    # DAQUI PARA BAIXO, O QUE A CAIXA DA SEFAZ NUNCA MANDA -- e chega pela
+    # OUTRA porta, o e-mail (`arquivo.py`). O MDF-e não sai do
+    # NFeDistribuicaoDFe, e o documento SEM protocolo (`NFe`, `CTe`, `MDFe`)
+    # não existe do lado de lá: a SEFAZ só entrega o que ela autorizou.
+    #
+    # Eles moram aqui, e não numa segunda tabela de esquemas, porque
+    # `classificar()` é o único lugar da casa que decide tipo e completude.
+    # Dois lugares decidindo isso é como uma porta passa a chamar de "nota" o
+    # que a outra chama de "desconhecido".
+    ("procMDFe", "mdfe", True),
+    ("procEventoMDFe", "evento", True),
+    ("eventoNFe", "evento", False),
+    ("NFe", "nfe", False),
+    ("CTe", "cte", False),
+    ("MDFe", "mdfe", False),
 )
 
 
@@ -132,6 +148,25 @@ def _chave(xml: str) -> str | None:
     return m.group(1) if m else None
 
 
+def _destinatario(xml: str) -> str | None:
+    """O CNPJ de dentro de `<dest>` — o destinatário da nota.
+
+    PRECISA DO BLOCO, e não da tag solta: `<CNPJ>` aparece meia dúzia de vezes
+    num XML de NF-e (emitente, destinatário, transportador, autorizados), e a
+    ordem não é garantida entre versões. Ler "o segundo CNPJ" funciona até o
+    dia em que uma nota vem sem transportador.
+
+    Vale para os dois lados da recolha, e no do e-mail vale MAIS: ali a Sulista
+    costuma não ser parte nenhuma, e o destinatário é o que diz de quem é a
+    nota que alguém mandou.
+    """
+    m = re.search(r"<dest\b.*?</dest>", xml, re.S)
+    if not m:
+        return None
+    cnpj = re.search(r"<CNPJ>(\d{14})</CNPJ>", m.group(0))
+    return cnpj.group(1) if cnpj else None
+
+
 def ler_documento(esquema: str, xml: str) -> dict:
     """Os escalares de um documento do lote. Nunca levanta."""
     tipo, completo = classificar(esquema)
@@ -144,6 +179,7 @@ def ler_documento(esquema: str, xml: str) -> dict:
         # depois no XML da NF-e.
         d["emitente"] = _tag(xml, "CNPJ")
         d["emitente_nome"] = _tag(xml, "xNome")
+        d["destinatario"] = _destinatario(xml)
         d["valor"] = _valor(_tag(xml, "vNF") or _tag(xml, "vTPrest"))
         # A DATA DEPENDE DO QUE O DOCUMENTO E. Nota tem `dhEmi`; EVENTO tem
         # `dhEvento`, e so ele -- procurar `dhEmi` num `resEvento` devolve None

@@ -7169,7 +7169,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         </div>
         <div class="aba" data-abas="dfe" data-aba="docs" id="aba-dfe-docs" role="tabpanel" aria-labelledby="tabdfe-docs">
-        <div class="card"><div class="head"><h2>Documentos recolhidos</h2><span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: dfe_documento, no banco da casa — o XML fica guardado aqui, e não em arquivo, porque a guarda é de cinco anos e o backup que se prova todo dia é o do PostgreSQL. ATENÇÃO AO ESTADO: a SEFAZ entrega apenas o RESUMO (chave, emitente, valor, situação) enquanto o destinatário não manifesta ciência da operação; o XML completo só vem depois disso. A manifestação ficou para um segundo momento — e a contabilidade já baixa esta mesma caixa, então manifestar aqui geraria evento duplicado. Enquanto isso, &quot;só resumo&quot; quer dizer que a nota inteira NÃO está guardada aqui.">ⓘ</span><span class="hint" id="dfe-hint"></span></div>
+        <div class="card"><div class="head"><h2>Documentos recolhidos</h2><span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: dfe_documento, no banco da casa — o XML fica guardado aqui, e não em arquivo, porque a guarda é de cinco anos e o backup que se prova todo dia é o do PostgreSQL. ATENÇÃO AO ESTADO: a SEFAZ entrega apenas o RESUMO (chave, emitente, valor, situação) enquanto o destinatário não manifesta ciência da operação; o XML completo só vem depois disso. A manifestação ficou para um segundo momento — e a contabilidade já baixa esta mesma caixa, então manifestar aqui geraria evento duplicado. Enquanto isso, &quot;só resumo&quot; quer dizer que a nota inteira NÃO está guardada aqui. SÃO DUAS PORTAS: a SEFAZ entrega o que é da Sulista (o que ela emitiu, recebeu ou transporta), e o resto chega pela caixa xml@sulista.com.br — as notas em que a Sulista não é parte nenhuma, que a SEFAZ nunca vai entregar. A coluna Origem diz por onde cada documento entrou. ATENÇÃO AO FILTRO DE FILIAL: documento que chegou por e-mail não pertence à caixa de filial nenhuma, então filtrar por filial esconde essa porta inteira.">ⓘ</span><span class="hint" id="dfe-hint"></span></div>
           <div class="dfe-filtros">
             <input type="search" id="dfe-q" placeholder="emitente, chave de acesso ou descrição do evento" onkeydown="if(event.key==='Enter')loadDfe()">
             <select id="dfe-tipo" onchange="loadDfe()">
@@ -7179,8 +7179,24 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <option value="mdfe">MDF-e</option>
               <option value="evento">Eventos</option>
             </select>
+            <select id="dfe-origem" onchange="loadDfe()">
+              <option value="">as duas portas</option>
+              <option value="sefaz">só da SEFAZ</option>
+              <option value="email">só recebidos por e-mail</option>
+              <option value="upload">só enviados na tela</option>
+            </select>
             <button class="btn sm" onclick="loadDfe()">Filtrar</button>
             <button class="btn sm" onclick="dfeLimpar()">Limpar</button>
+          </div>
+          <div class="linha" style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:9px">
+            <label style="font-size:12.5px;color:var(--n600)">Recebeu um XML por fora?</label>
+            <!-- O `input` fica escondido porque o controle nativo do navegador
+                 nao aceita estilo, e um botao com cara de botao ao lado de
+                 outros dois com cara de botao e o que se espera clicar. -->
+            <input type="file" id="dfe-arq" accept=".xml,.zip" multiple hidden
+                   onchange="dfeEnviarArquivos(this)">
+            <button class="btn sm" onclick="document.getElementById('dfe-arq').click()">Enviar XML ou .zip</button>
+            <span class="hint" id="dfe-env-msg">entra na mesma lista, com a mesma busca e o mesmo pacote</span>
           </div>
           <div class="linha" style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:9px">
             <label style="font-size:12.5px;color:var(--n600)">Baixar os XML de</label>
@@ -7192,7 +7208,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
           <div class="tabroll" style="max-height:400px"><table class="tab"><thead><tr>
             <th>Emissão</th><th>Emitente</th><th class="num">Valor</th>
-            <th>Tipo</th><th>Situação</th><th>Estado</th><th>No ERP</th><th>NSU</th><th></th>
+            <th>Tipo</th><th>Situação</th><th>Estado</th><th>No ERP</th><th>Origem</th><th></th>
           </tr></thead><tbody id="dfe-docs"></tbody></table></div></div>
         </div>
       </section>
@@ -38868,8 +38884,10 @@ async function loadDfe(){
     const tipo  = (document.getElementById('dfe-tipo')||{}).value||'';
     const de    = (document.getElementById('dfe-de')||{}).value||'';
     const ate   = (document.getElementById('dfe-ate')||{}).value||'';
+    const orig_ = (document.getElementById('dfe-origem')||{}).value||'';
     if(busca) q.set('busca',busca); if(tipo) q.set('tipo',tipo);
     if(de) q.set('de',de); if(ate) q.set('ate',ate);
+    if(orig_) q.set('origem',orig_);
     const r = await fetch('/api/dfe?'+q.toString(),{cache:'no-store'});
     const d = await respostaJSON(r);
     if(!d.ok){ tbC.innerHTML = '<tr><td colspan="7" class="vazio">'+esc((d.dados||{}).erro||'Não foi possível ler a recolha.')+'</td></tr>'; return; }
@@ -38877,7 +38895,12 @@ async function loadDfe(){
 
     const recolhendo = caixas.filter(c=>(c.certificado||{}).tem_certificado).length;
     if(kb) kb.innerHTML =
-      kpi('Documentos', tot.total ?? 0, 'recolhidos da SEFAZ e guardados aqui')+
+      /* O NÚMERO DA SEGUNDA PORTA VAI NO SUB-RÓTULO, e não num sexto card:
+         a banda tem cinco, e o que decide alguma coisa aqui é o total. Quantos
+         vieram por e-mail é procedência, não meta. */
+      kpi('Documentos', (tot.total ?? 0) + (tot.email ?? 0),
+          (tot.email ? tot.email+' por e-mail · ' : '')
+          + (tot.total ?? 0)+' recolhidos da SEFAZ')+
       kpi('Só o resumo', tot.pendentes ?? 0, 'o XML completo depende da manifestação')+
       kpi('Filiais recolhendo', recolhendo+' de '+caixas.length, 'as demais não têm certificado no cofre')+
       kpi('NF-e / CT-e', (tot.nfe ?? 0)+' / '+(tot.cte ?? 0), (tot.eventos ?? 0)+' evento(s)')+
@@ -38939,9 +38962,18 @@ async function loadDfe(){
                 : (DFE_SIT[String(x.situacao||'')] || [x.situacao||'—','b-info']);
       /* "Só resumo" NAO e detalhe tecnico: e a diferenca entre ter e nao ter a
          obrigacao de guarda cumprida. Por isso esta em toda linha. */
+      /* SÃO TRÊS ESTADOS, e não dois, desde que existe a segunda porta:
+         "XML completo" (a guarda está cumprida), "só resumo" (a SEFAZ ainda
+         não entregou a nota inteira, falta a ciência) e "sem protocolo" (o
+         arquivo que alguém mandou é o documento sem a prova de autorização).
+         Os dois últimos são ausência do mesmo XML e pedem coisas
+         DIFERENTES de quem lê: um espera a manifestação, o outro pede o
+         arquivo certo a quem enviou. */
       const estado = x.completo
         ? '<span class="badge dfe-completo" title="o XML autorizado está guardado aqui">XML completo</span>'
-        : '<span class="badge dfe-so-resumo" title="a SEFAZ só entrega o resumo enquanto não houver manifestação de ciência — a nota inteira NÃO está guardada aqui">só resumo</span>';
+        : (x.origem && x.origem!=='sefaz')
+          ? '<span class="badge dfe-so-resumo" title="o arquivo recebido é o documento SEM o protocolo de autorização — peça a quem enviou o XML que começa com &lt;nfeProc&gt;">sem protocolo</span>'
+          : '<span class="badge dfe-so-resumo" title="a SEFAZ só entrega o resumo enquanto não houver manifestação de ciência — a nota inteira NÃO está guardada aqui">só resumo</span>';
       const evs = (x.eventos||[]).length
         ? `<div class="dfe-evs">${esc((x.eventos||[]).map(e=>e.descricao||e.tipo).join(' · '))}</div>`
         : '';
@@ -38961,15 +38993,21 @@ async function loadDfe(){
           : (x.tipo==='nfe'||x.tipo==='cte')
             ? '<span class="badge b-warn" title="documento recolhido que a operação não registrou">sem par</span>'
             : '<span class="hint">—</span>'}</td>
-        <td class="dfe-nsu">${esc(x.nsu)}</td>
+        <td>${dfeOrigem(x)}</td>
         <td style="white-space:nowrap">${x.completo
-          ? `<a class="btn sm" href="/api/dfe/xml?cnpj=${encodeURIComponent(x.cnpj)}&nsu=${encodeURIComponent(x.nsu)}" download="${esc(x.chave||x.nsu)}.xml" title="baixar o XML autorizado">XML</a>`
+          ? `<a class="btn sm" href="/api/dfe/xml?${dfeEndereco(x)}" download="${esc(x.chave||x.nsu||x.sha256)}.xml" title="baixar o XML autorizado">XML</a>`
             /* A FOLHA SO APARECE ONDE EXISTE. Evento (cancelamento, passagem)
                nao tem representacao grafica propria -- ele se le NA nota que
                alterou. Oferecer um botao que sempre recusa ensina a ignorar
                botao. */
-            + (DFE_TEM_FOLHA[x.tipo] ? ` <a class="btn sm" href="/api/dfe/pdf?cnpj=${encodeURIComponent(x.cnpj)}&nsu=${encodeURIComponent(x.nsu)}" target="_blank" rel="noopener" title="abrir o ${esc(DFE_TEM_FOLHA[x.tipo])}">${esc(DFE_TEM_FOLHA[x.tipo])}</a>` : '')
-          : '<span class="hint" title="a SEFAZ só entrega o resumo enquanto não houver manifestação de ciência">—</span>'}</td>
+            + (DFE_TEM_FOLHA[x.tipo] ? ` <a class="btn sm" href="/api/dfe/pdf?${dfeEndereco(x)}" target="_blank" rel="noopener" title="abrir o ${esc(DFE_TEM_FOLHA[x.tipo])}">${esc(DFE_TEM_FOLHA[x.tipo])}</a>` : '')
+          /* O MOTIVO DEPENDE DA PORTA. Da SEFAZ falta a manifestacao de
+             ciencia; do e-mail, falta o protocolo no arquivo que a pessoa
+             mandou -- e mandar alguem procurar uma manifestacao que nao existe
+             e pior que nao explicar nada. */
+          : (x.origem && x.origem!=='sefaz')
+            ? '<span class="hint" title="este arquivo veio sem o protocolo de autorização: peça a quem enviou o XML que começa com &lt;nfeProc&gt;">sem protocolo</span>'
+            : '<span class="hint" title="a SEFAZ só entrega o resumo enquanto não houver manifestação de ciência">—</span>'}</td>
       </tr>`;
     }).join('')||'<tr><td colspan="9" class="vazio">Nenhum documento recolhido ainda.</td></tr>';
   }catch(err){
@@ -39489,7 +39527,7 @@ async function ritIndicadorInativar(id){
 }
 
 function dfeLimpar(){
-  ['dfe-q','dfe-tipo','dfe-de','dfe-ate'].forEach(id=>{
+  ['dfe-q','dfe-tipo','dfe-de','dfe-ate','dfe-origem'].forEach(id=>{
     const el = document.getElementById(id); if(el) el.value = '';
   });
   loadDfe();
@@ -39627,6 +39665,68 @@ async function dfeFiliaisPreencher(){
   }catch(err){
     falhou(err.message||'não consegui ler as filiais da recolha');
   }
+}
+
+/* De onde o documento veio, dito na linha. A SEFAZ mostra o NSU (que é o
+   endereço dele na caixa); a segunda porta mostra QUEM mandou, que é a única
+   procedência que ela tem — e é para essa pessoa que se volta quando o
+   arquivo vem torto. */
+function dfeOrigem(x){
+  if(!x.origem || x.origem==='sefaz')
+    return '<span class="hint">SEFAZ</span><div class="dfe-nsu">NSU '+esc(x.nsu||'')+'</div>';
+  const rot = x.origem==='email' ? 'e-mail' : 'enviado na tela';
+  return '<span class="hint">'+esc(rot)+'</span>'
+       + (x.remetente ? '<div class="dfe-nsu">'+esc(x.remetente)+'</div>' : '');
+}
+
+/* O ENDEREÇO DE UM DOCUMENTO depende da porta: o da SEFAZ é `(cnpj, nsu)`, a
+   posição dele no cursor da caixa; o que chegou por fora não tem cursor e é o
+   `sha` do próprio arquivo. */
+function dfeEndereco(x){
+  if(x.sha256) return 'sha='+encodeURIComponent(x.sha256);
+  return 'cnpj='+encodeURIComponent(x.cnpj||'')+'&nsu='+encodeURIComponent(x.nsu||'');
+}
+
+/* ENVIAR UM XML QUE CHEGOU POR FORA. Um por vez, e não tudo de uma vez: se o
+   terceiro arquivo for um PDF, os dois primeiros já entraram e a mensagem diz
+   exatamente qual não serviu. Um lote que falha inteiro por causa de um anexo
+   errado obriga a pessoa a adivinhar qual era. */
+async function dfeEnviarArquivos(input){
+  const msg = document.getElementById('dfe-env-msg');
+  const arquivos = Array.from((input && input.files) || []);
+  if(!arquivos.length) return;
+  let novos = 0, repetidos = 0;
+  const problemas = [];
+  msg.textContent = 'enviando…';
+  for(const f of arquivos){
+    try{
+      const b64 = await new Promise((ok,err)=>{
+        const fr = new FileReader();
+        fr.onerror = ()=>err(new Error('não foi possível ler o arquivo'));
+        fr.onload = ()=>ok(String(fr.result).split(',')[1]||'');
+        fr.readAsDataURL(f);
+      });
+      const r = await fetch('/api/dfe/arquivo', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({nome: f.name, conteudo_b64: b64})});
+      const d = await respostaJSON(r);
+      if(!d.ok){ problemas.push(f.name+': '+((d.dados||{}).mensagem||'recusado')); continue; }
+      novos += (d.dados||{}).novos||0;
+      repetidos += (d.dados||{}).repetidos||0;
+    }catch(err){
+      problemas.push(f.name+': '+(err.message||'erro'));
+    }
+  }
+  /* O CAMPO SE LIMPA sempre: sem isso, escolher o MESMO arquivo de novo não
+     dispara `change` nenhum, e a tela parece travada. */
+  input.value = '';
+  const partes = [];
+  if(novos) partes.push(novos+' documento(s) guardado(s)');
+  if(repetidos) partes.push(repetidos+' já estava(m) aqui');
+  if(problemas.length) partes.push(problemas.join(' · '));
+  msg.innerHTML = '<span style="color:var(--'+(novos?'green':(problemas.length?'red':'n600'))+')">'
+                + esc(partes.join(' · ') || 'nada a fazer') + '</span>';
+  if(novos || repetidos) loadDfe();
 }
 
 async function dfeRecuperar(){

@@ -181,6 +181,79 @@ def gravar(cnpj: str, doc: dict) -> str:
 #: como documento SEPARADO, com NSU próprio, e a nota original continua no
 #: banco exatamente como estava — nada nela muda. Quem olhasse a linha da nota
 #: veria "Autorizada" para sempre.
+# =============================== as DUAS portas, numa lista só na LEITURA
+#
+# `dfe_documento` é a caixa da SEFAZ; `dfe_arquivo` é o XML que chega por fora
+# (hoje, o e-mail `xml@sulista.com.br`). Elas são tabelas separadas porque o
+# que as identifica é diferente — lá é o cursor `(cnpj, nsu)`, aqui é o
+# `sha256` do arquivo —, e enfiar as duas numa só corromperia o cursor da
+# recolha com números inventados.
+#
+# Mas quem opera não faz duas perguntas. Ele faz uma: **quais documentos eu
+# tenho?** Por isso a união vive na leitura, e toda linha diz de ONDE veio: o
+# que a SEFAZ entregou vale o que a SEFAZ garante; o que chegou por e-mail vale
+# o que vale quem mandou, e a tela não pode apagar essa diferença.
+_UNIAO = """
+  SELECT cnpj, nsu, esquema, tipo, chave, emitente, emitente_nome,
+         destinatario, valor::float8 AS valor, emitido_em, situacao, completo,
+         recebido_em, descricao, evento_tipo,
+         'sefaz'::text AS origem, NULL::text AS sha256, NULL::text AS remetente
+    FROM dfe_documento
+  UNION ALL
+  SELECT NULL::varchar(14), NULL::varchar(15), esquema, tipo, chave, emitente,
+         emitente_nome, destinatario, valor::float8, emitido_em, situacao,
+         completo, recebido_em, descricao, evento_tipo,
+         origem, sha256, remetente
+    FROM dfe_arquivo
+"""
+
+_SO_SEFAZ = """
+  SELECT cnpj, nsu, esquema, tipo, chave, emitente, emitente_nome,
+         destinatario, valor::float8 AS valor, emitido_em, situacao, completo,
+         recebido_em, descricao, evento_tipo,
+         'sefaz'::text AS origem, NULL::text AS sha256, NULL::text AS remetente
+    FROM dfe_documento
+"""
+
+#: A resposta é por SCHEMA, e não por processo: a suíte troca de schema a cada
+#: teste (`esquema_pg`), e uma memória global diria "a tabela existe" dentro de
+#: um schema onde ela não existe.
+_TEM_ARQUIVO: dict = {}
+
+
+def tem_tabela_arquivo() -> bool:
+    """A tabela `dfe_arquivo` já existe NESTE schema?
+
+    POR QUE ISTO EXISTE, e não é excesso de cuidado: **o `autodeploy.ps1` NÃO
+    roda `migrar_schema.py`** (conferido em 05/09/2026, e há um `tem_coluna_*`
+    em `api/auth.py` pela mesma razão). Entre o código chegar em produção e
+    alguém aplicar a migration há uma janela de minutos ou de dias — e nela
+    toda consulta que citasse `dfe_arquivo` derrubaria a tela de Notas de
+    Entrada INTEIRA, inclusive a metade que não tem nada a ver com e-mail.
+
+    Uma tela que já funcionava não pode cair por causa de uma porta nova que
+    ainda não abriu.
+    """
+    esq = _esq()
+    if esq not in _TEM_ARQUIVO:
+        try:
+            with pglocal.get_conn(esq) as conn, conn.cursor() as cur:
+                cur.execute("SELECT 1 FROM dfe_arquivo LIMIT 1")
+                cur.fetchall()
+            _TEM_ARQUIVO[esq] = True
+        except Exception as exc:  # noqa: BLE001
+            if not pglocal.sem_tabela(exc):
+                # Banco fora do ar não é "tabela não existe": não se memoiza,
+                # senão a resposta errada sobrevive ao problema.
+                raise
+            _TEM_ARQUIVO[esq] = False
+    return _TEM_ARQUIVO[esq]
+
+
+def fonte() -> str:
+    return _UNIAO if tem_tabela_arquivo() else _SO_SEFAZ
+
+
 EVENTO_CANCELA = "110111"
 EVENTO_CARTA = "110112"
 
@@ -188,7 +261,7 @@ EVENTO_CARTA = "110112"
 def documentos(cnpj: str | None = None, *, limite: int = 200,
                so_incompletos: bool = False, tipo: str = "",
                de: str = "", ate: str = "", busca: str = "",
-               so_completos: bool = False) -> list[dict]:
+               so_completos: bool = False, origem: str = "") -> list[dict]:
     """Os documentos, SEM o XML. O XML sai por `xml_de()`, um a um.
 
     Não é economia de bytes: é que uma lista de 200 notas com o XML dentro são
@@ -201,8 +274,16 @@ def documentos(cnpj: str | None = None, *, limite: int = 200,
     """
     onde, args = [], []
     if cnpj:
+        # FILTRAR POR FILIAL TIRA O QUE VEIO POR E-MAIL, e isso é uma
+        # afirmação verdadeira, não um efeito colateral: o documento que chega
+        # por e-mail chega justamente porque a Sulista NÃO é parte nele — ele
+        # não pertence à caixa de filial nenhuma, e dizer que pertence seria
+        # inventar um vínculo. A tela avisa disso no ⓘ do card.
         onde.append("cnpj = %s")
         args.append(cnpj)
+    if origem:
+        onde.append("origem = %s")
+        args.append(origem)
     if so_incompletos:
         onde.append("NOT completo")
     if so_completos:
@@ -230,12 +311,13 @@ def documentos(cnpj: str | None = None, *, limite: int = 200,
             onde.append("(emitente_nome ILIKE %s OR chave ILIKE %s "
                         "OR descricao ILIKE %s)")
             args.extend(["%%%s%%" % busca] * 3)
-    sql = ("SELECT cnpj, nsu, esquema, tipo, chave, emitente, emitente_nome, "
-           "destinatario, valor::float8 AS valor, emitido_em, situacao, "
-           "completo, recebido_em, descricao, evento_tipo FROM dfe_documento")
+    sql = "SELECT * FROM (" + fonte() + ") d"
     if onde:
         sql += " WHERE " + " AND ".join(onde)
-    sql += " ORDER BY emitido_em DESC NULLS LAST, nsu DESC LIMIT %s"
+    # A SEGUNDA CHAVE DE ORDEM É `recebido_em`, e não o NSU: metade das linhas
+    # não tem NSU nenhum. Ordenar por uma coluna que é NULL para uma das portas
+    # embaralharia justamente o empate que a ordenação existe para desfazer.
+    sql += (" ORDER BY emitido_em DESC NULLS LAST, recebido_em DESC LIMIT %s")
     args.append(max(1, min(int(limite), 2000)))
     with pglocal.get_conn(_esq()) as conn, conn.cursor() as cur:
         cur.execute(sql, tuple(args))
@@ -245,9 +327,13 @@ def documentos(cnpj: str | None = None, *, limite: int = 200,
         chaves = [l["chave"] for l in linhas if l.get("chave")]
         eventos: dict[str, list[dict]] = {}
         if chaves:
+            # OS EVENTOS TAMBÉM VÊM DAS DUAS PORTAS. Um cancelamento
+            # reencaminhado por e-mail cancela a nota do mesmo jeito — ignorá-lo
+            # deixaria a tela mostrando "Autorizada" numa nota que não existe
+            # mais, que é o defeito que esta parte do código existe para evitar.
             cur.execute(
-                "SELECT chave, evento_tipo, descricao, emitido_em "
-                "FROM dfe_documento WHERE tipo = 'evento' AND chave = ANY(%s) "
+                "SELECT chave, evento_tipo, descricao, emitido_em FROM ("
+                + fonte() + ") d WHERE tipo = 'evento' AND chave = ANY(%s) "
                 "ORDER BY emitido_em", (chaves,))
             for e in cur.fetchall():
                 eventos.setdefault(e["chave"], []).append(dict(e))
@@ -287,6 +373,24 @@ def xml_de(cnpj: str, nsu_: str) -> str | None:
 MAX_PACOTE = 5000
 
 
+def _fonte_com_xml() -> str:
+    """A união COM o XML dentro — só o pacote precisa disso.
+
+    `documentos()` de propósito NÃO traz o XML: uma lista de 200 notas com o
+    documento inteiro em cada linha são ~2 MB numa resposta que a tela usa só
+    para desenhar linhas.
+    """
+    if not tem_tabela_arquivo():
+        return ("SELECT cnpj, nsu, tipo, chave, emitido_em, xml, completo, "
+                "'sefaz'::text AS origem, NULL::text AS sha256 "
+                "FROM dfe_documento")
+    return ("SELECT cnpj, nsu, tipo, chave, emitido_em, xml, completo, "
+            "'sefaz'::text AS origem, NULL::text AS sha256 FROM dfe_documento "
+            "UNION ALL "
+            "SELECT NULL::varchar(14), NULL::varchar(15), tipo, chave, "
+            "emitido_em, xml, completo, origem, sha256 FROM dfe_arquivo")
+
+
 def para_pacote(cnpj: str | None = None, de: str = "", ate: str = "",
                 so_completos: bool = True) -> list[dict]:
     """Os documentos de um periodo COM o XML, para virar pacote .zip.
@@ -314,9 +418,13 @@ def para_pacote(cnpj: str | None = None, de: str = "", ate: str = "",
         # significa ate a MEIA-NOITE do dia 30 e perde o dia inteiro.
         onde.append("emitido_em < (%s::date + 1)")
         args.append(ate)
-    sql = ("SELECT cnpj, nsu, tipo, chave, emitido_em, xml FROM dfe_documento "
-           "WHERE " + " AND ".join(onde)
-           + " ORDER BY emitido_em, nsu LIMIT %s")
+    # O PACOTE LEVA AS DUAS PORTAS. Quem baixa o mês para a contabilidade
+    # quer o mês inteiro — e um XML que chegou por e-mail é documento fiscal
+    # igual. O nome do arquivo dentro do zip é a CHAVE, que é a mesma dos dois
+    # lados: a origem não muda o que o contador precisa escriturar.
+    sql = ("SELECT cnpj, nsu, tipo, chave, emitido_em, xml, origem, sha256 "
+           "FROM (" + _fonte_com_xml() + ") d WHERE " + " AND ".join(onde)
+           + " ORDER BY emitido_em, chave LIMIT %s")
     args.append(MAX_PACOTE)
     with pglocal.get_conn(_esq()) as conn, conn.cursor() as cur:
         cur.execute(sql, tuple(args))
@@ -343,6 +451,20 @@ def resumo(cnpj: str | None = None) -> dict:
             "  max(recebido_em) AS ultimo_recebido "
             "FROM dfe_documento " + onde, args)
         d = dict(cur.fetchone() or {})
+        # A CONTA DA OUTRA PORTA VEM SEPARADA, e não somada. `pendentes`
+        # significa "a SEFAZ ainda não entregou o XML completo, falta a
+        # ciência" — um arquivo de e-mail sem protocolo não é isso, é outra
+        # coisa (documento que a pessoa mandou antes de a nota ser autorizada,
+        # ou exportado sem o protocolo). Somar os dois faria o KPI que decide
+        # a obrigação de guarda dizer um número que não decide nada.
+        d["email"] = 0
+        if tem_tabela_arquivo():
+            cur.execute("SELECT count(*)::int AS n, "
+                        "  count(*) FILTER (WHERE NOT completo)::int AS sem_prot "
+                        "FROM dfe_arquivo")
+            e = dict(cur.fetchone() or {})
+            d["email"] = e.get("n") or 0
+            d["email_sem_protocolo"] = e.get("sem_prot") or 0
     if isinstance(d.get("ultimo_recebido"), datetime):
         d["ultimo_recebido"] = d["ultimo_recebido"].isoformat()
     return d

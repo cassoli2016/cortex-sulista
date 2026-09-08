@@ -1944,7 +1944,8 @@ def dfe_certificado(payload: dict, req: Request) -> JSONResponse:
 
 @app.get("/api/dfe")
 def dfe_panorama(limite: int = 200, cnpj: str = "", tipo: str = "",
-                 de: str = "", ate: str = "", busca: str = "") -> JSONResponse:
+                 de: str = "", ate: str = "", busca: str = "",
+                 origem: str = "") -> JSONResponse:
     """As notas recolhidas da SEFAZ: as caixas, o que chegou e o que falta.
 
     Rota `def` (nao `async`): le o banco e abre os .pfx para conferir validade,
@@ -1965,7 +1966,18 @@ def dfe_panorama(limite: int = 200, cnpj: str = "", tipo: str = "",
         d["documentos"] = armazenamento.documentos(
             re.sub(r"[^0-9]", "", cnpj or "") or None, limite=limite,
             tipo=(tipo or "").strip().lower(), de=de, ate=ate,
-            busca=(busca or "").strip())
+            busca=(busca or "").strip(),
+            origem=(origem or "").strip().lower())
+        # A SEGUNDA PORTA, do lado do estado. A tela precisa dizer se a caixa
+        # de XML esta sendo lida -- e, quando nao esta, POR QUE. Falta de
+        # credencial aqui nao e falha: e instalacao incompleta, e some da tela
+        # no dia em que alguem configurar.
+        try:
+            from api.sefaz import caixa_email
+            d["email"] = caixa_email.estado()
+        except Exception as exc:  # noqa: BLE001
+            log.warning("dfe: estado da caixa de xml (%s)", type(exc).__name__)
+            d["email"] = None
         # A CONCILIACAO E OPCIONAL E NAO PODE DERRUBAR A TELA. Ela le o ERP,
         # que e replica de producao de TERCEIRO e tem dia ruim -- e a recolha
         # vale sozinha. Falhou, some, e a tela diz que sumiu.
@@ -1983,7 +1995,7 @@ def dfe_panorama(limite: int = 200, cnpj: str = "", tipo: str = "",
 
 
 @app.get("/api/dfe/pdf")
-def dfe_pdf(cnpj: str = "", nsu: str = "") -> Response:
+def dfe_pdf(cnpj: str = "", nsu: str = "", sha: str = "") -> Response:
     """A representacao grafica do documento: DANFE, DACTE ou DAMDFE.
 
     O documento fiscal E o XML; o PDF e a representacao grafica dele, e quem
@@ -1991,15 +2003,22 @@ def dfe_pdf(cnpj: str = "", nsu: str = "") -> Response:
     le, e quem precisa conferir, anexar num processo ou mandar para alguem
     precisa da folha.
     """
-    from api.sefaz import armazenamento, impressao
-    cnpj = re.sub(r"[^0-9]", "", cnpj or "")
-    linhas = [d for d in armazenamento.documentos(cnpj or None, limite=2000)
-              if d["nsu"] == armazenamento.nsu(nsu)]
-    if not linhas:
-        return JSONResponse(status_code=404, content={
-            "erro": "nao_encontrado", "mensagem": "Documento nao encontrado."})
-    doc = linhas[0]
-    xml = armazenamento.xml_de(doc["cnpj"], doc["nsu"]) or ""
+    from api.sefaz import armazenamento, arquivo, impressao
+    if sha:
+        doc = arquivo.linha_de(sha)
+        if not doc:
+            return JSONResponse(status_code=404, content={
+                "erro": "nao_encontrado", "mensagem": "Documento nao encontrado."})
+        xml = arquivo.xml_de(sha) or ""
+    else:
+        cnpj = re.sub(r"[^0-9]", "", cnpj or "")
+        linhas = [d for d in armazenamento.documentos(cnpj or None, limite=2000)
+                  if d.get("nsu") == armazenamento.nsu(nsu)]
+        if not linhas:
+            return JSONResponse(status_code=404, content={
+                "erro": "nao_encontrado", "mensagem": "Documento nao encontrado."})
+        doc = linhas[0]
+        xml = armazenamento.xml_de(doc["cnpj"], doc["nsu"]) or ""
     try:
         pdf = impressao.gerar(doc, xml)
     except impressao.NaoImprimivel as exc:
@@ -2161,15 +2180,157 @@ def dfe_pacote(cnpj: str = "", de: str = "", ate: str = "",
 
 
 @app.get("/api/dfe/xml")
-def dfe_xml(cnpj: str, nsu: str) -> Response:
+def dfe_xml(cnpj: str = "", nsu: str = "", sha: str = "") -> Response:
     """O XML de UM documento. Fora da listagem de proposito: 200 notas com o
     XML dentro sao ~2 MB numa resposta que a tela usa so para desenhar linhas.
+
+    DOIS ENDERECOS PARA A MESMA COISA, porque sao duas portas: o documento da
+    SEFAZ se acha por `(cnpj, nsu)`, que e a posicao dele no cursor da caixa; o
+    que chegou por e-mail nao tem cursor nenhum e se acha pelo `sha` do
+    proprio arquivo. Inventar um NSU falso para o segundo unificaria a
+    assinatura desta rota e corromperia a varredura da primeira.
     """
-    from api.sefaz import armazenamento
+    from api.sefaz import armazenamento, arquivo
+    if sha:
+        xml = arquivo.xml_de(sha)
+        if not xml:
+            return JSONResponse({"erro": "documento nao encontrado"},
+                                status_code=404)
+        return Response(content=xml, media_type="application/xml")
+    if not (cnpj and nsu):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Informe cnpj+nsu (documento da SEFAZ) ou sha "
+                        "(arquivo recebido por fora)."})
     xml = armazenamento.xml_de(cnpj, nsu)
     if not xml:
         return JSONResponse({"erro": "documento nao encontrado"}, status_code=404)
     return Response(content=xml, media_type="application/xml")
+
+
+@app.post("/api/dfe/arquivo")
+def dfe_receber_arquivo(payload: dict, req: Request) -> JSONResponse:
+    """Recebe um XML (ou um .zip de XML) e guarda na recolha.
+
+    A TERCEIRA PORTA, e ela existe por dois motivos concretos.
+
+    O primeiro e HOJE: a leitura automatica da caixa `xml@sulista.com.br`
+    depende de um aplicativo registrado no Microsoft 365, que e ato de quem
+    administra o tenant. Ate isso acontecer, quem recebeu a nota no proprio
+    e-mail arrasta o arquivo aqui e ele entra na mesma lista, com a mesma
+    busca, o mesmo pacote .zip e a mesma folha.
+
+    O segundo e DEPOIS: sempre vai existir a nota que chegou por WhatsApp, pelo
+    portal do cliente, num pendrive. Uma porta manual nao e remendo enquanto a
+    automatica nao vem -- e o que faz o portal ser o lugar UNICO onde o XML
+    mora, que e a razao de ele existir.
+
+    RBAC DA TELA, e nao de administrador: quem opera e quem recebe nota. A
+    escrita entra no `audit_log` como toda escrita da casa.
+    """
+    import base64
+    from api.sefaz import arquivo as arqmod
+
+    _s = getattr(req.state, "sessao", None) or {}
+    quem = _s.get("email") or _s.get("nome") or "?"
+    nome = str(payload.get("nome") or "arquivo.xml")[:200]
+    b64 = str(payload.get("conteudo_b64") or "")
+    if not b64:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Envie o arquivo."})
+    try:
+        bruto = base64.b64decode(b64, validate=True)
+    except Exception:  # noqa: BLE001
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Arquivo invalido."})
+    if len(bruto) > arqmod.MAX_ZIP_ABERTO:
+        return JSONResponse(status_code=413, content={
+            "erro": "arquivo_grande",
+            "mensagem": "Arquivo acima de %d MB."
+                        % (arqmod.MAX_ZIP_ABERTO // (1024 * 1024))})
+
+    docs, fora = arqmod.do_arquivo(nome, bruto)
+    if not docs:
+        # RECUSA LEGIVEL (4xx), com o motivo de CADA arquivo. "Nao deu certo"
+        # sem dizer o que veio faz a pessoa tentar o mesmo arquivo de novo.
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "sem_documento",
+            "mensagem": "Nenhum documento fiscal neste arquivo.",
+            "ignorados": fora[:20]})
+    try:
+        auth.audit(quem, "dfe_arquivo", alvo=nome,
+                   detalhe="documentos=%d ignorados=%d" % (len(docs), len(fora)))
+    except Exception:  # noqa: BLE001
+        pass
+    r = arqmod.guardar_lote(docs, origem="upload", arquivo_nome=nome,
+                            remetente=quem)
+    log.info("dfe: %s enviou %s (%d documento(s))", quem, nome, len(docs))
+    return JSONResponse({"ok": True, "arquivo": nome, "documentos": len(docs),
+                         "novos": r["novos"], "repetidos": r["repetidos"],
+                         "falhas": r["falhas"], "ignorados": fora[:20]})
+
+
+@app.post("/api/gestao/dfe/coletar-email")
+def dfe_coletar_email(payload: dict, req: Request) -> JSONResponse:
+    """Le a caixa de XML AGORA. SO ADMINISTRADOR.
+
+    A coleta normal e a tarefa agendada; esta rota existe para o dia em que
+    alguem precisa do documento na hora, e para PROVAR a configuracao logo
+    depois de cadastrar o aplicativo -- sem ela, quem configura fica esperando
+    a proxima janela para saber se acertou.
+
+    E de administrador porque o que ela usa e a credencial do aplicativo, e
+    porque a recusa do provedor precisa chegar em quem consegue resolve-la.
+    """
+    from api.sefaz import caixa_email
+
+    _s = getattr(req.state, "sessao", None) or {}
+    quem = _s.get("email") or _s.get("nome") or "?"
+    try:
+        dias = int(payload.get("dias") or caixa_email.DIAS_PADRAO)
+    except (TypeError, ValueError):
+        dias = caixa_email.DIAS_PADRAO
+    try:
+        auth.audit(quem, "dfe_coletar_email", alvo=caixa_email.caixa(),
+                   detalhe="dias=%d" % dias)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        placar = caixa_email.coletar(dias=max(1, min(dias, 365)))
+    except caixa_email.NaoConfigurada as exc:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "nao_configurada", "mensagem": str(exc)})
+    except caixa_email.Indisponivel as exc:
+        # 409 e nao 502: e RECUSA LEGIVEL, e o Cloudflare troca o corpo de 5xx
+        # pela pagina dele -- a mensagem nunca chegaria na tela.
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "indisponivel", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.exception("dfe: coleta da caixa de xml falhou")
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_interno", "tipo": type(exc).__name__})
+    return JSONResponse({"ok": True, **placar})
+
+
+@app.get("/api/gestao/dfe/email")
+def dfe_email_mensagens(limite: int = 30) -> JSONResponse:
+    """As ultimas mensagens lidas da caixa. SO ADMINISTRADOR.
+
+    E de admin por causa do REMETENTE e do ASSUNTO: sao dado de pessoa, e a
+    tela de operacao nao precisa deles para trabalhar -- ela precisa dos
+    DOCUMENTOS, que aparecem na lista para todo mundo que ve a tela.
+
+    O que se olha aqui e a pergunta que so esta lista responde: chegou alguma
+    coisa que NAO virou documento?
+    """
+    from api.sefaz import caixa_email
+    try:
+        return JSONResponse({"mensagens": caixa_email.ultimas(limite),
+                             "estado": caixa_email.estado()})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("dfe: mensagens da caixa (%s)", type(exc).__name__)
+        return JSONResponse({"mensagens": [], "estado": None,
+                             "erro": type(exc).__name__})
 
 
 @app.get("/api/integracoes")

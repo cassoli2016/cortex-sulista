@@ -43,9 +43,15 @@ def _limpo(chave: str) -> str:
 def local(chave: str) -> dict | None:
     """O documento no banco da casa, por chave. Sem tocar na SEFAZ.
 
-    A chave se repete entre CNPJs — a mesma nota chega ao destinatário e ao
-    transportador, cada um na sua caixa. Vence o COMPLETO: entre duas linhas da
-    mesma nota, a que tem o XML inteiro é a que serve.
+    OLHA AS DUAS PORTAS: a caixa da SEFAZ e o XML que chegou por e-mail. É aqui
+    que a segunda porta paga o que ela custou — a nota que a SEFAZ nunca vai
+    entregar (porque a Sulista não é parte nela) responde nesta busca, e a
+    pessoa que digitou a chave não precisa saber por onde ela entrou.
+
+    A chave se repete: a mesma nota chega ao destinatário e ao transportador,
+    cada um na sua caixa, e ainda pode chegar por e-mail. **Vence o COMPLETO** —
+    entre duas linhas da mesma nota, a que tem o XML autorizado é a que serve.
+    Empate resolve pela mais recente.
     """
     ch = _limpo(chave)
     if len(ch) != dist.CHAVE_DIGITOS:
@@ -53,9 +59,9 @@ def local(chave: str) -> dict | None:
     with arm.pglocal.get_conn(arm._esq()) as conn, conn.cursor() as cur:
         cur.execute(
             "SELECT cnpj, nsu, tipo, chave, emitente, emitente_nome, "
-            "       destinatario, valor::float8 AS valor, emitido_em, situacao, "
-            "       completo, recebido_em "
-            "FROM dfe_documento WHERE chave = %s "
+            "       destinatario, valor, emitido_em, situacao, completo, "
+            "       recebido_em, origem, sha256 "
+            "FROM (" + arm.fonte() + ") d WHERE chave = %s "
             "ORDER BY completo DESC, recebido_em DESC LIMIT 1", (ch,))
         r = cur.fetchone()
     if not r:

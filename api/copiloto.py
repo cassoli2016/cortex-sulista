@@ -135,6 +135,7 @@ _FONTES_ROTULO = {
     "crm_funil": "CRM — Funil Comercial",
     "pedagio_tag": "Validação de Pedágio — fatura do tag",
     "desempenho": "Avaliação de Desempenho — nine box",
+    "recolha_fiscal": "Notas de Entrada — recolha de XML (SEFAZ e e-mail)",
 }
 
 
@@ -553,6 +554,49 @@ def _fontes_do_snapshot() -> dict:
         from api.gestao import painel as _p
         return _p.resumo()
 
+    def _recolha_fiscal():
+        """As DUAS portas da recolha de XML — só escalares.
+
+        SEM CHAVE, SEM CNPJ, SEM NOME DE FORNECEDOR, e a razão é a de sempre: o
+        snapshot vai para modelo externo quando o Ollama local não responde, e
+        uma lista de notas com chave de acesso e emitente é justamente o que a
+        regra de PII da casa existe para impedir. O que sobe responde "a
+        recolha está em dia?" e "quanto XML a casa já tem guardado", que é o
+        que alguém pergunta no chat.
+
+        A CONTAGEM DAS DUAS PORTAS VEM SEPARADA porque elas significam coisas
+        diferentes: a da SEFAZ é automática e cobre o que é da Sulista; a do
+        e-mail é humana e cobre o que a SEFAZ nunca vai entregar. Somar as duas
+        num número só esconderia justamente a que pode estar parada.
+        """
+        from api import pglocal as _pg
+        try:
+            from api.sefaz import armazenamento as _arm, caixa_email as _mail
+            r = _arm.resumo()
+            caixas = _arm.caixas(so_ativas=True)
+            e = _mail.estado()
+        except Exception as exc:  # noqa: BLE001
+            # ENTRE O DEPLOY E A MIGRATION ha uma janela em que as tabelas nao
+            # existem. Nao e falha de fonte: e instalacao incompleta.
+            if _pg.sem_tabela(exc):
+                return {"instalado": False}
+            raise
+        arqs = e.get("arquivos") or {}
+        return {
+            "caixas_sefaz": len(caixas),
+            "documentos_sefaz": r.get("total") or 0,
+            "so_resumo": r.get("pendentes") or 0,
+            "nfe": r.get("nfe") or 0,
+            "cte": r.get("cte") or 0,
+            "eventos": r.get("eventos") or 0,
+            "ultimo_recebido": r.get("ultimo_recebido"),
+            "caixa_email_configurada": bool(e.get("configurada")),
+            "documentos_por_email": arqs.get("email") or 0,
+            "documentos_enviados_na_tela": arqs.get("upload") or 0,
+            "mensagens_sem_documento": e.get("vazias") or 0,
+            "ultima_coleta_email": e.get("ultima_coleta"),
+        }
+
     def _ritual():
         """Só o PLACAR da semana — nunca o texto do desvio nem o da ação.
 
@@ -848,6 +892,10 @@ def _fontes_do_snapshot() -> dict:
         # A pagina publica de rastreio e a unica superficie da casa sem login,
         # e ate agora o Copiloto nao sabia que ela existia.
         "monitoramentos_carga": _monitoramentos,
+        # A RECOLHA DE XML, as duas portas. Ela subiu em 07/09/2026 sem entrar
+        # aqui -- e a regra da casa e que integracao nova entre no snapshot no
+        # MESMO commit. Fica corrigido junto com a porta do e-mail.
+        "recolha_fiscal": _recolha_fiscal,
     }
 
 

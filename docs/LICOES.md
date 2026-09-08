@@ -5399,3 +5399,113 @@ E o de profundidade das abas continua, com dois em vez de tres: **tirar um
 bloco do meio de uma tela e exatamente o movimento que deixa `</div>`
 sobrando** -- e ele nao da erro nenhum, so faz `abaTrocar` mostrar um painel
 cujo pai continua escondido.
+
+---
+
+## A segunda porta da recolha, e a fronteira que a obriga a existir (2026-09-08, v1.13.0)
+
+Pedido de quem opera, em duas linhas: *"tem mais um lugar que eu coleto xml,
+pelo email xml@sulista.com.br. Quando nao somos participantes da NF as pessoas
+mandam por la."*
+
+### A frase que e o requisito inteiro
+
+"Quando nao somos participantes." A recolha da SEFAZ nao e incompleta por
+descuido nosso: o servico de Distribuicao de DFe responde POR CNPJ e entrega
+so o documento em que aquele CNPJ e PARTE -- destinatario, transportador,
+emitente ou tomador. **Nao ha configuracao que traga o resto**, e ninguem vai
+conseguir busca-lo depois: a nota do cliente que a Sulista vai transportar, num
+CT-e que ainda nem existe, nao e dela perante o fisco.
+
+Entao a segunda porta nao e conveniencia nem redundancia. Ela cobre um conjunto
+de documentos que a primeira **nunca** vai cobrir, e por isso as duas convivem
+para sempre.
+
+### O que o MX resolveu antes de a discussao comecar
+
+A pergunta natural era "IMAP ou Graph?", e ela se respondeu com uma consulta de
+DNS:
+
+    sulista.com.br  MX  0  sulista-com-br.mail.protection.outlook.com
+
+Exchange Online. E **a Microsoft desligou a autenticacao basica de IMAP/POP no
+Exchange Online**, sem caminho para reabrir. Um leitor IMAP com usuario e senha
+seria um leitor que responde `535` para sempre -- e o `535` do M365 se le como
+"senha errada", mandando a pessoa trocar uma senha que esta certa. A casa ja
+tem essa cicatriz do lado do SMTP.
+
+Sobrou o caminho suportado: aplicativo no Entra ID, permissao de APLICACAO
+`Mail.Read`, token por `client_credentials`. **E ele alcanca TODAS as caixas do
+tenant** -- a do financeiro, a da diretoria. A `ApplicationAccessPolicy` que
+limita o aplicativo a uma caixa nao e passo opcional de instalacao: e a
+diferenca entre um segredo que abre uma caixa de recebimento e um segredo que
+abre a empresa. Daqui nao da para conferir se ela existe (so quem tem o Exchange
+na mao consegue), e por isso ela esta escrita no modulo, no instalador e no
+cartao -- o que nao se mede se escreve.
+
+### Duas tabelas, uma lista
+
+`dfe_documento` tem chave primaria `(cnpj, nsu)`: o CNPJ da filial cuja caixa
+foi lida e a POSICAO do documento na sequencia dela. Os dois campos sao o
+cursor da recolha, nao descricoes do documento -- e o XML que chega por e-mail
+nao tem nenhum dos dois, justamente porque a Sulista nao e parte nele.
+
+Enfia-lo ali com um NSU inventado corromperia a varredura: ela calcula "ate
+onde ja li" a partir dessa coluna, e um numero falso no meio faz a recolha
+pular documento de verdade, em silencio. Entao sao duas tabelas -- e **a uniao
+acontece na LEITURA**, que e onde a pergunta de quem opera vive ("quais
+documentos eu tenho?"), e nao onde os dois chegaram.
+
+**A identidade da segunda tabela e o ARQUIVO** (`sha256` do XML), e nao o
+documento. O mesmo anexo chega tres vezes por construcao: o fornecedor manda, o
+cliente reencaminha, alguem responde a todos. Byte igual, uma linha. E dois
+arquivos DIFERENTES da mesma chave continuam dois -- a nota sem protocolo e a
+autorizada, a nota e o cancelamento dela. Fundir pela chave apagaria um
+documento fiscal para caber num modelo.
+
+### Tres coisas que so aparecem quando a porta e ABERTA
+
+**1. Qualquer um escreve para o endereco.** Sem filtro, a tabela enche de
+assinatura de e-mail em HTML, boleto em XML e resposta automatica de ferias. O
+filtro e a RAIZ do XML: e a unica coisa no arquivo que diz o que ele e sem
+depender de adivinhacao.
+
+**2. O que fica de fora nao pode sumir calado.** Uma mensagem que so trazia o
+PDF do DANFE nao deixa rastro na tabela de documentos -- e sem registrar a
+MENSAGEM ela seria reaberta em toda coleta, para sempre. Pior: quem mandou acha
+que mandou e a operacao acha que nao veio. Por isso cada mensagem lida guarda
+quantos anexos vieram e quantos viraram documento, e `aproveitados = 0` e uma
+lista que alguem precisa olhar.
+
+**3. "A coleta rodou" nao e "chegou e-mail".** Numa semana em que ninguem
+precisa mandar XML, a caixa fica vazia -- e um cartao de saude que medisse "a
+mensagem mais recente" ficaria VERMELHO acusando uma rotina que rodou de meia
+em meia hora sem uma falha. Alarme que acende sem haver problema ensina a
+ignorar alarme. O que se mede e a EXECUCAO, numa tabela de uma linha.
+
+### O guard que ficou verde sabotado, e o que ele estava medindo
+
+Escrevi a conferencia de que documento SEM PROTOCOLO nao conta como completo, e
+o teste com um `<NFe>` cru. Sabotei a linha que confere o protocolo: **28
+passaram**.
+
+A razao: o `<NFe>` cru ja sai incompleto da TABELA DE ESQUEMAS, antes de a
+conferencia rodar. O teste media a tabela, nao a conferencia -- e a conferencia
+existe para outro caso, o `<nfeProc>` que se declara autorizado e nao tem
+`<protNFe>` dentro (arquivo montado a mao, ERP que embrulha a nota antes da
+autorizacao). Com esse caso no guard, a sabotagem fica vermelha.
+
+E a licao nao e nova, e por isso vale escrever de novo: **verde que nunca
+ficaria vermelho nao conferiu nada**, e a unica forma de saber e sabotar.
+
+### O que fica como regra
+
+- **Fronteira legal nao se resolve com configuracao.** Quando um servico nao
+  entrega um dado por definicao, a resposta e outra porta -- nao uma
+  configuracao mais esperta.
+- **DNS responde perguntas de arquitetura.** Um `nslookup -type=MX` decidiu
+  entre duas implementacoes antes de a primeira linha ser escrita.
+- **Permissao de aplicacao e ampla por padrao**; limita-la e parte da
+  instalacao, e o que nao se mede daqui se escreve onde quem instala vai ler.
+- **Porta aberta precisa de filtro E de registro do que ela recusou.** Filtro
+  sem registro transforma "nao aceitei" em "nao chegou".

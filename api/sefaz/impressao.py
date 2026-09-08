@@ -78,6 +78,20 @@ def gerar(documento: dict, xml: str) -> bytes:
     if not documento.get("completo"):
         # A RECUSA É O SERVIÇO AQUI. Uma folha com cabeçalho e corpo vazio
         # PARECE uma nota, e quem a recebe só descobre o problema depois.
+        #
+        # E O MOTIVO DEPENDE DA PORTA POR ONDE O DOCUMENTO ENTROU. Os dois
+        # casos são "falta o XML completo" e são coisas diferentes: da SEFAZ,
+        # falta a MANIFESTAÇÃO (e há o que fazer sobre isso); do e-mail, falta
+        # o PROTOCOLO no arquivo que a pessoa mandou (e o que se faz é pedir o
+        # arquivo certo a ela). Dar a explicação da caixa da SEFAZ para um
+        # arquivo de e-mail manda alguém procurar uma manifestação que não
+        # existe.
+        if (documento.get("origem") or "sefaz") != "sefaz":
+            raise NaoImprimivel(
+                "Este arquivo é o documento SEM o protocolo de autorização — "
+                "veio assim de quem mandou. A folha só se gera a partir do XML "
+                "autorizado; peça a quem enviou o arquivo com o protocolo "
+                "(o que começa com <nfeProc>, e não com <NFe>).")
         raise NaoImprimivel(
             "Este documento chegou só como RESUMO — a SEFAZ entrega a nota "
             "inteira apenas depois da manifestação de ciência. Sem o XML "

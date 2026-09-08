@@ -333,6 +333,45 @@ CAMPOS: dict[str, dict] = {
     # houver e cai no geral se não — nunca o contrário, e nunca inventando um
     # padrão: DeviceToken de FIPE usado no caminho do CRLV é uma recusa que
     # custa uma consulta e não diz o motivo.
+    # ---------------------------------------------------------------- a
+    # CAIXA DE XML. Quem autentica aqui nao e um token de fornecedor: e um
+    # APLICATIVO registrado no Entra ID da propria empresa, com permissao de
+    # aplicacao `Mail.Read`. O caminho e esse porque o dominio entrega e-mail
+    # no Exchange Online e a Microsoft DESLIGOU a autenticacao basica de
+    # IMAP/POP la -- um leitor com usuario e senha responderia 535 para
+    # sempre, e o 535 do M365 se le como "senha errada".
+    #
+    # Os tres primeiros NAO sao segredo, e isso e deliberado: tenant e
+    # client_id sao identificadores publicos do registro, e quem configura
+    # precisa CONFERIR se digitou o certo. O cofre mascara valor (`ab12...wxyz`),
+    # e um identificador mascarado e um identificador que ninguem consegue
+    # validar.
+    "XMLMAIL_TENANT_ID": {
+        "rotulo": "ID do tenant (Directory ID)", "segredo": False,
+        "descricao": "O GUID do Microsoft 365 da empresa. Entra ID › Visão "
+                     "geral › ID do diretório (locatário)"},
+    "XMLMAIL_CLIENT_ID": {
+        "rotulo": "ID do aplicativo (Application ID)", "segredo": False,
+        "descricao": "O GUID do aplicativo registrado no Entra ID. É ele que "
+                     "recebe a permissão Mail.Read e é ele que entra na "
+                     "ApplicationAccessPolicy que limita o acesso a esta caixa"},
+    "XMLMAIL_CLIENT_SECRET": {
+        "rotulo": "Segredo do aplicativo",
+        "descricao": "Entra ID › o aplicativo › Certificados e segredos › Novo "
+                     "segredo do cliente. VENCE (o padrão do portal é 6 ou 24 "
+                     "meses) — quando vencer, a coleta para e o cartão da Saúde "
+                     "acende"},
+    "XMLMAIL_CAIXA": {
+        "rotulo": "Endereço da caixa", "segredo": False,
+        "descricao": "A caixa que recebe os XML (xml@sulista.com.br). É lida, "
+                     "nunca escrita: o CÓRTEX não marca como lida, não move e "
+                     "não apaga nada"},
+    "XMLMAIL_DIAS": {
+        "rotulo": "Dias para trás", "segredo": False, "obrigatorio": False,
+        "descricao": "Quantos dias de caixa cada coleta varre (padrão 30). "
+                     "Mensagem já processada é pulada pelo id, então repetir a "
+                     "janela não reprocessa nada — só custa uma listagem"},
+
     "APIBRASIL_TOKEN": {
         "rotulo": "Token da conta (Bearer)",
         "descricao": "Vai no cabeçalho Authorization como Bearer. É o mesmo "
@@ -588,6 +627,29 @@ SERVICOS: list[dict] = [
                         "MONKEY_TOKEN_URL"]},
         ],
         "ajustes": ["MONKEY_SELLER_ID", "MONKEY_AMBIENTE"],
+    },
+    {
+        "chave": "xmlmail",
+        "nome": "Caixa de XML (e-mail)",
+        "resumo": "A SEGUNDA porta da recolha. A SEFAZ só entrega documento em "
+                  "que a Sulista é PARTE; quando ela não é — a nota do cliente "
+                  "que ela vai transportar —, o XML chega por e-mail, em "
+                  "xml@sulista.com.br. Esta integração lê essa caixa e guarda "
+                  "o que for documento fiscal.",
+        "alimenta": "Notas de Entrada",
+        # UM MODO SÓ, e não é escolha de arquitetura: é o único que o Exchange
+        # Online ainda aceita. IMAP com usuário e senha está desligado lá desde
+        # 2023, sem caminho para reabrir.
+        "modos": [
+            {"chave": "app", "rotulo": "Aplicativo do Microsoft 365",
+             "dica": "registro no Entra ID com permissão de APLICAÇÃO "
+                     "Mail.Read e consentimento do administrador — e uma "
+                     "ApplicationAccessPolicy limitando o aplicativo a esta "
+                     "caixa, senão ele alcança todas as caixas da empresa",
+             "campos": ["XMLMAIL_TENANT_ID", "XMLMAIL_CLIENT_ID",
+                        "XMLMAIL_CLIENT_SECRET", "XMLMAIL_CAIXA"]},
+        ],
+        "ajustes": ["XMLMAIL_DIAS"],
     },
     {
         # Editado na aba E-mail, que tem servidor, porta, remetente e trilha de

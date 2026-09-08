@@ -1226,6 +1226,86 @@ def _servico_smartec() -> dict:
             "detalhe": f"{len(e['recursos'])} recursos coletados{idade}{extra}"}
 
 
+def _servico_xml_email() -> dict:
+    """A caixa `xml@sulista.com.br` está sendo lida?
+
+    O QUE ESTE CARTÃO MEDE, E O QUE ELE SE RECUSA A MEDIR
+    ----------------------------------------------------
+
+    Ele mede a **execução da coleta**, e não a chegada de e-mail. A diferença
+    decide se o alarme presta: numa semana em que ninguém precisou mandar XML,
+    a caixa fica vazia — e um cartão que medisse "a mensagem mais recente"
+    ficaria vermelho acusando uma rotina que rodou de meia em meia hora sem uma
+    falha. Alarme que acende sem haver problema ensina a ignorar alarme.
+
+    Falta de credencial é `info`, não vermelho: é instalação incompleta, e a
+    regra da casa é essa em toda integração. Vermelho fica para a coleta que
+    RODA E FALHA — token vencido, permissão revogada, caixa renomeada.
+
+    E há um número aqui que não é sobre saúde de integração nenhuma: as
+    mensagens que chegaram e **não renderam documento**. Elas não são falha do
+    CÓRTEX (o anexo era o PDF do DANFE, ou a pessoa colou o XML no corpo), mas
+    são exatamente o caso em que quem mandou acha que mandou e a operação acha
+    que não veio. Por isso aparecem aqui.
+    """
+    nome = "Caixa de XML (e-mail)"
+    try:
+        from .sefaz import caixa_email
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: caixa de xml: %s", type(exc).__name__)
+        return {"nome": nome, "status": "info", "detalhe": "camada indisponível"}
+
+    try:
+        e = caixa_email.estado()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: caixa de xml estado: %s", type(exc).__name__)
+        return {"nome": nome, "status": "info", "detalhe": "banco local indisponível"}
+
+    arqs = e.get("arquivos") or {}
+    guardados = arqs.get("email") or 0
+
+    if not e["configurada"]:
+        return {"nome": nome, "status": "info",
+                "detalhe": "sem credencial (Administração › Integrações › "
+                           "Caixa de XML) — falta: %s. O XML que chega por "
+                           "e-mail não entra sozinho enquanto isso"
+                           % ", ".join(e.get("falta") or ["credencial"])}
+
+    if e.get("ultimo_erro") and not e.get("ultimo_sucesso"):
+        return {"nome": nome, "status": "erro",
+                "detalhe": "a coleta nunca terminou bem: %s" % e["ultimo_erro"]}
+
+    if not e.get("ultima_coleta"):
+        return {"nome": nome, "status": "info",
+                "detalhe": "credencial no cofre, nenhuma coleta ainda — "
+                           "a tarefa agendada roda de 30 em 30 minutos"}
+
+    from datetime import datetime, timezone
+    horas = None
+    try:
+        ultimo = datetime.fromisoformat(e["ultimo_sucesso"] or e["ultima_coleta"])
+        horas = (datetime.now(timezone.utc) - ultimo).total_seconds() / 3600.0
+    except Exception:  # noqa: BLE001
+        horas = None
+
+    idade = " · última coleta há %.0f h" % horas if horas is not None else ""
+    vazias = (" · %d mensagem(ns) chegou(aram) sem XML aproveitável"
+              % e["vazias"]) if e.get("vazias") else ""
+
+    if e.get("ultimo_erro"):
+        return {"nome": nome, "status": "erro",
+                "detalhe": "a última coleta falhou: %s%s" % (e["ultimo_erro"], idade)}
+    # Quatro janelas perdidas com a tarefa de 30 min. Menos que isso é tropeço
+    # de rede, e contagem de tropeço não é alarme.
+    if horas is not None and horas > 2:
+        return {"nome": nome, "status": "alerta",
+                "detalhe": "sem coleta há %.0f h — a tarefa agendada roda de "
+                           "30 em 30 min%s" % (horas, vazias)}
+    return {"nome": nome, "status": "ok",
+            "detalhe": "%s · %d documento(s) guardado(s) por esta porta%s%s"
+                       % (e.get("caixa") or "caixa", guardados, idade, vazias)}
+
+
 def _servico_apibrasil() -> dict:
     """A consulta de placa está chegando — e quanto do cadastro ela já cobre?
 
@@ -1882,6 +1962,11 @@ def _servicos() -> list[dict]:
     # O cartao mede a integracao E a cobertura da frota -- integracao viva com
     # 0% conferido nao e "ok", e a diferenca decide gasto.
     servicos.append(_servico_apibrasil())
+
+    # A CAIXA DE XML: a segunda porta da recolha. O cartao nasce com ela porque
+    # a falha dela e MUDA -- o remetente manda, ninguem recebe, e a nota que
+    # faltava continua faltando sem ninguem saber por que.
+    servicos.append(_servico_xml_email())
 
     # Pedágio do tag: a fatura é BAIXADA e ENVIADA por gente, uma vez por mês.
     # O sensor existe porque a parada se disfarça de aba vazia — e o gasto é

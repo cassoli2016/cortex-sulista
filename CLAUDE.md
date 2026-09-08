@@ -857,6 +857,29 @@ Regras duráveis — as crônicas (medições, formatos, tetos) estão em
   **NÃO SOMOS O ÚNICO CONSUMIDOR** — a contabilidade já baixa a mesma caixa;
   ler em paralelo é seguro, MANIFESTAR não é (o evento é do documento, e quem
   manifesta assume a ciência com prazo legal). Guards: `tests/sefaz/`.
+- **A RECOLHA TEM DUAS PORTAS, e a segunda existe por uma fronteira legal.**
+  A SEFAZ só entrega documento em que o CNPJ é PARTE; a nota do cliente que a
+  Sulista vai transportar, mandada antes de o frete existir, **nunca** vai
+  chegar por lá. Ela chega por e-mail, em `xml@sulista.com.br`, e
+  `api/sefaz/caixa_email.py` lê essa caixa pelo **Microsoft Graph** — não por
+  IMAP, porque o domínio entrega no Exchange Online e a Microsoft desligou a
+  autenticação básica de IMAP/POP lá (um leitor com usuário e senha responderia
+  535 para sempre, e o 535 do M365 se lê como "senha errada"). Permissão de
+  APLICAÇÃO `Mail.Read` + **`ApplicationAccessPolicy` limitando o aplicativo a
+  essa caixa**: sem ela, o segredo abre TODAS as caixas do tenant. O módulo não
+  marca como lida, não move e não apaga — "já processei" é estado NOSSO
+  (`dfe_email_mensagem`), porque estado de coleta guardado no sistema do
+  fornecedor some quando alguém arruma a caixa postal.
+  As duas portas são TABELAS SEPARADAS (`dfe_documento` × `dfe_arquivo`) e uma
+  lista só na LEITURA: lá a identidade é o cursor `(cnpj, nsu)`, aqui é o
+  `sha256` do arquivo, e inventar NSU para o que veio de fora corromperia a
+  varredura. Três regras que custam caro se erradas: **mensagem lida fica
+  registrada mesmo sem render documento** (senão é reaberta para sempre); **o
+  que a Saúde mede é a EXECUÇÃO da coleta, não a chegada de e-mail** (semana sem
+  XML deixaria o cartão vermelho acusando uma rotina sã); e **"sem protocolo"
+  não é "só resumo"** — são duas ausências do mesmo XML que pedem coisas
+  diferentes de quem lê. Guards: `tests/sefaz/test_caixa_email.py`,
+  `tests/frontend/test_dfe_duas_portas.py`.
 - **`with suppress(ImportError)` em volta de binding é bomba-relógio.** A
   `erpbrasil.edoc` importa os bindings legados assim; sem o `six` os nomes
   `distDFeInt`/`retDistDFeInt` somem SEM erro e a falha reaparece como
