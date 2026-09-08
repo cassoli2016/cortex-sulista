@@ -125,6 +125,28 @@ Register-ScheduledTask -TaskName $nome -Action $acao -Trigger $gatilhos `
 $t = Get-ScheduledTask -TaskName $nome -ErrorAction SilentlyContinue
 if (-not $t) { throw "A tarefa NAO foi criada. Nada foi registrado." }
 Log "tarefa '$nome' registrada com sucesso"
+
+# RODA UMA VEZ AGORA, e isso conserta um defeito real: o gatilho e `-Daily -At
+# 06:00`, e instalar as 07:01 significa que a repeticao so comeca AMANHA -- um
+# dia inteiro sem recolha, e sem nada que avise. Aconteceu em 08/09/2026: a
+# tarefa foi registrada as 07:01 e o log de eventos do agendador mostrou os
+# eventos de registro (106, 140) e NENHUM de execucao (100).
+#
+# E a partida imediata tem um segundo valor, maior: ela PROVA a tarefa agora.
+# Caminho errado no -Execute registra com sucesso e falha 0x80070002 toda vez;
+# sem rodar aqui, isso so apareceria amanha, no primeiro horario.
+Log "disparando a primeira execucao"
+Start-ScheduledTask -TaskName $nome
+Start-Sleep -Seconds 8
+$i = Get-ScheduledTask -TaskName $nome | Get-ScheduledTaskInfo
+Log ("primeira execucao: ultima=" + $i.LastRunTime + " resultado=" + $i.LastTaskResult)
+if ($i.LastTaskResult -ne 0 -and $i.LastTaskResult -ne 267009) {
+  # 267009 = ainda rodando. Qualquer outro codigo diferente de 0 e falha, e ela
+  # tem de aparecer AQUI e nao amanha.
+  Write-Host ""
+  Write-Host ("ATENCAO: a primeira execucao terminou com codigo " + $i.LastTaskResult) -ForegroundColor Yellow
+  Write-Host "         0x80070002 = caminho nao encontrado; confira o -Execute."
+}
 Write-Host ""
 Write-Host "OK: tarefa '$nome' registrada." -ForegroundColor Green
 $t | Select-Object TaskName, State, @{n='Conta';e={$_.Principal.UserId}} | Format-Table -AutoSize

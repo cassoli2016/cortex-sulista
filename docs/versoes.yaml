@@ -1,3 +1,13 @@
+- versao: "1.10.2"
+  data: "2026-09-08"
+  corrigido:
+    - >-
+      O instalador da busca automática de documentos registrava a tarefa e ia
+      embora. Como ela é programada para começar às 6h da manhã, instalar
+      depois desse horário significava um dia inteiro sem buscar nada — e sem
+      nada que avisasse. Agora ele dispara a primeira execução na hora e
+      confere se ela funcionou: se o caminho estiver errado, você descobre ali,
+      e não no dia seguinte.
 - versao: "1.10.1"
   data: "2026-09-08"
   adicionado:

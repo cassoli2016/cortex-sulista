@@ -155,3 +155,26 @@ def test_o_instalador_da_tarefa_aponta_para_o_script_certo():
     from api import servidor
     assert "$nome = 'Cortex Sulista - DFe SEFAZ'" in ps1
     assert "Cortex Sulista - DFe SEFAZ" in servidor._TAREFAS
+
+
+def test_o_instalador_RODA_a_tarefa_uma_vez():
+    """DEFEITO REAL, 08/09/2026: o gatilho e `-Daily -At 06:00`, a instalacao
+    foi as 07:01, e a repeticao so comecaria AMANHA -- um dia inteiro sem
+    recolha e sem nada que avisasse. O log de eventos do agendador mostrou os
+    eventos de REGISTRO (106, 140) e NENHUM de execucao (100).
+
+    E a partida imediata tem um valor maior que consertar o primeiro dia: ela
+    PROVA a tarefa na hora. Caminho errado no `-Execute` registra com sucesso e
+    falha 0x80070002 toda vez -- sem rodar no instalador, isso so apareceria no
+    primeiro horario do dia seguinte, longe de quem instalou.
+    """
+    from pathlib import Path
+    ps1 = (Path(__file__).resolve().parents[2] / "scripts"
+           / "instalar_tarefa_dfe.ps1").read_text(encoding="utf-8")
+    assert "Start-ScheduledTask -TaskName $nome" in ps1, (
+        "o instalador registra e vai embora: quem instalar depois do horario "
+        "do gatilho fica um dia inteiro sem recolha")
+    assert "LastTaskResult" in ps1, (
+        "roda mas nao confere o resultado -- 0x80070002 passaria calado")
+    # 267009 = ainda rodando; tratar como falha faria toda instalacao gritar
+    assert "267009" in ps1

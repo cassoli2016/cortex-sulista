@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.10.2] — 08/09/2026  ·  CX-08/09/2026-v1.10.2
+
+### Corrigido
+- O instalador da busca automática de documentos registrava a tarefa e ia embora. Como ela é programada para começar às 6h da manhã, instalar depois desse horário significava um dia inteiro sem buscar nada — e sem nada que avisasse. Agora ele dispara a primeira execução na hora e confere se ela funcionou: se o caminho estiver errado, você descobre ali, e não no dia seguinte.
+
 ## [1.10.1] — 08/09/2026  ·  CX-08/09/2026-v1.10.1
 
 ### Adicionado
