@@ -4,6 +4,20 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.10.0] — 07/09/2026  ·  CX-07/09/2026-v1.10.0
+
+### Adicionado
+- Um menu novo, TMS, separado dos demais: é onde fica a frente fiscal — o que a casa troca direto com a SEFAZ, sem intermediário. Ele nasce com o CT-e de Contrapartida, que veio da Controladoria, e com a tela nova de Notas de Entrada.
+- Notas de Entrada é um portal de recolha completo. Ele busca sozinho, de 20 em 20 minutos, tudo que foi emitido contra os CNPJs da Sulista — as notas dos fornecedores, os CT-e, os MDF-e e os eventos deles. São dez caixas, uma por filial ativa, e a tela mostra cada uma: o que já chegou, quanto falta, quando foi a última busca e até quando vale o certificado daquela filial.
+- Dá para tirar o XML de lá — um por vez, ou o mês inteiro num .zip com um arquivo por documento, nomeado pela chave de acesso, que é o nome que todo sistema fiscal espera. E dá para abrir a folha do documento: DANFE, DACTE ou DAMDFE, gerada aqui a partir do XML autorizado.
+- A tela mostra o estado REAL de cada nota. O cancelamento chega da SEFAZ como um documento separado e não muda nada na nota original — sem isso a lista mostraria como válida uma nota que não existe mais. Agora a nota cancelada aparece cancelada, com o evento ao lado, e a carta de correção não é confundida com cancelamento.
+- Cada documento é comparado com o ERP pela chave de acesso. O que a operação não registrou aparece como "sem par" — é nota de compra que ninguém lançou, ou CT-e nosso que não entrou no sistema. Se o ERP estiver fora do ar a comparação some e a recolha continua: ela vale sozinha.
+- Busca por chave de acesso: procura primeiro no que já está guardado e só vai à SEFAZ se não achar. E quando a chave é de um documento em que a Sulista não tem nenhum papel, a tela diz isso — "não é seu" e "não encontrei" são respostas diferentes para quem está procurando.
+- O certificado digital de cada filial se cadastra pela própria tela, por um administrador: escolhe a filial, o arquivo e a senha. O sistema abre o certificado, confere que o CNPJ de dentro é o da filial e avisa quando está perto de vencer — quando ele vence, a recolha para sem dar erro em lugar nenhum.
+
+### Corrigido
+- Três defeitos que só apareceram falando com a SEFAZ de verdade, e os três eram silenciosos: 510 documentos foram gravados VAZIOS numa primeira tentativa (contagem certa, tela cheia, nada dentro); o marcador de "até onde já li" avançava sozinho quando a SEFAZ RECUSAVA a consulta, o que pularia meses de histórico; e a espera depois de um freio da SEFAZ estava meia hora maior do que ela pede.
+
 ## [1.9.0] — 07/09/2026  ·  CX-07/09/2026-v1.9.0
 
 ### Adicionado

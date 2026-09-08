@@ -811,7 +811,27 @@ Regras duráveis — as crônicas (medições, formatos, tetos) estão em
 - **Sem credencial não é falha, é instalação incompleta** (`info` na Saúde);
   alarme vermelho = "não está chegando AGORA", nunca contagem de tropeços;
   cadências diferentes têm limiares separados.
-- **RECOLHA DE DFe NA SEFAZ** (`api/sefaz/`): o NSU é o estado inteiro, é POR
+- **RECOLHA DE DFe NA SEFAZ** (`api/sefaz/`, tela `dfe` no grupo TMS): o
+  serviço é gratuito e a casa NÃO paga intermediário — o NSDocs está cadastrado
+  no ERP desde 05/2025 e nunca trouxe um documento. **83% das NF-e chegam
+  COMPLETAS sem manifestação**, porque a Sulista é TRANSPORTADORA e a SEFAZ
+  entrega o XML inteiro ao transportador indicado; só onde ela é DESTINATÁRIA
+  vem resumo. E só sai documento em que o CNPJ é PARTE (destinatário,
+  transportador, emitente, tomador) — o resto é fronteira legal, não
+  configuração.
+  **O NSU é um cursor de MÃO ÚNICA**: a SEFAZ trata reconsulta da mesma faixa
+  como consumo indevido, então cada lote passa UMA VEZ e um lote mal processado
+  não se recupera pelo `distNSU` (só `consNSU`, um por chamada). É por isso que
+  documento VAZIO é recusado em três camadas — e `gzip.decompress(b"")` NÃO
+  levanta, devolve `b""`.
+  **A cadência é limitada pelo FREIO, não pelo relógio**: a SEFAZ pune consulta
+  SEM RESULTADO (656, ~1 h), não consulta frequente. Com o freio no script, a
+  tarefa roda de 20 em 20 min e gasta no máximo uma consulta infrutífera por
+  hora — a passagem barrada nem abre conexão.
+  E **NÃO somos o único consumidor**: a contabilidade lê a mesma caixa. Ler em
+  paralelo é seguro; MANIFESTAR não é (o evento é do documento, e quem
+  manifesta assume a ciência com prazo legal). Guards: `tests/sefaz/`.
+  Detalhe técnico do laço: o NSU é o estado inteiro, é POR
   CNPJ (a Sulista tem dez caixas, uma por filial ativa) e é TEXTO de 15 dígitos
   — `int()` no meio do caminho e a varredura passa a achar que já leu o que não
   leu. Três regras que custam caro se erradas: o NSU se grava a CADA lote (uma

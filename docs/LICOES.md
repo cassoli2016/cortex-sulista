@@ -5182,3 +5182,126 @@ acesso e por id de tela.
 - **Integracao que nao autentica por token nao cabe no cofre de credenciais**,
   e forcar isso criaria um campo mentiroso. Ela se descreve no painel por
   `integracoes._extras()`.
+
+---
+
+## O portal de recolha, e o NSDocs que nao precisou ser comprado (2026-09-07, v1.10.0)
+
+Pedido de quem opera, em quatro mensagens ao longo da noite: *"tem um sistema
+chamado NSDOCS... eu nao uso ele pq ele precisa de credito e nao vou comprar"*;
+*"faca algo igual ao nsdocs gratis pra mim"*; *"a operacao sempre precisa estar
+baixando os xmls das notas"*; *"vamos montar um portal completo de recolha".*
+
+### O que o NSDocs vende, e o que ja era nosso
+
+Ele e um intermediario que cobra por documento para consultar um servico que a
+SEFAZ atende de graca. Achado no ERP: o cadastro "IMPORTACAO NSDOCS" existe
+desde 15/05/2025, com token, apontando para `api.nsdocs.com.br/v2/documentos`
+-- e as quatro tabelas de documento estao ZERADAS. Nunca trouxe nada, coerente
+com o credito nunca comprado. Nao havia historico a resgatar de la.
+
+O que ele agrega e conveniencia: guarda o XML, gera DANFE, avisa por webhook.
+A parte cara -- falar com a SEFAZ -- ja estava feita.
+
+### O numero que respondeu a pergunta antes de ela ser feita
+
+Quando os primeiros 510 documentos chegaram (vazios por um defeito nosso, mas
+com o TIPO lido certo), a divisao era:
+
+| o que veio | quantos |
+|---|---|
+| **NF-e completa** (`procNFe`) | **129** |
+| NF-e so resumo (`resNFe`) | 26 |
+| eventos | 355 |
+
+**83% das NF-e vieram COMPLETAS, sem manifestacao nenhuma.** A razao e a
+Sulista ser TRANSPORTADORA: a SEFAZ entrega o XML inteiro ao transportador
+indicado no documento, sem exigir ciencia. A ciencia so e necessaria onde ela e
+DESTINATARIA -- as compras dela, que sao as 26.
+
+Isso respondeu duas perguntas de uma vez. A operacao precisa dos XML das notas
+que TRANSPORTA, e esses ja vinham. E "consigo baixar XML que nao esta no nome
+da Sulista?" tem resposta precisa: **so onde ela e PARTE** -- destinataria,
+transportadora, emitente ou tomadora. Fora disso e fronteira legal, nao
+configuracao.
+
+### Os tres defeitos que so a chamada real cobrou
+
+**1. 510 documentos gravados VAZIOS.** Contagem certa, tela cheia, guarda de
+cinco anos vazia, e nenhum erro em lugar nenhum. Duas causas somadas: o
+atributo do binding tinha outro nome (`valueOf_`, generateDS, e nao `value`) e
+**`gzip.decompress(b"")` NAO levanta em Python -- devolve `b""`**. Toda a
+protecao de "documento torto nao derruba o lote" dependia de uma excecao que
+nunca vinha. Consertado em TRES camadas, com um teste que afirma a PREMISSA: se
+o Python mudar isso, ele fica vermelho.
+
+**2. O ponteiro pulou 1,1 milhao de posicoes sozinho.** Numa rejeicao 656 a
+SEFAZ tambem devolve `ultNSU` -- e ele nao e o que consumimos, e onde a
+sequencia DELA esta. O `greatest()` do banco o gravou como progresso. Tres
+meses de historico pulados em silencio, numa integracao cuja razao de existir e
+nao perder documento.
+
+**3. O freio nosso era meia hora maior que o deles.** 90 minutos "por
+precaucao" contra os 60 que a propria rejeicao escreve. Com o bloqueio dela ja
+vencido, quem segurava a recolha era o nosso freio.
+
+### E o fato menos obvio do servico
+
+**O NSU e um cursor de MAO UNICA, nao endereco.** Depois de servir a faixa
+1.143.500 -> 1.144.010, pedir a MESMA faixa de novo, uma hora e meia depois,
+voltou 656: para a SEFAZ, consumidor que nao avanca e consumidor com defeito.
+**Nao existe reler o trecho.** Um lote mal processado do nosso lado nao se
+recupera pedindo de novo -- so por `consNSU`, um documento por chamada.
+
+E daqui saiu a cadencia certa: a SEFAZ nao limita por TEMPO, ela pune consulta
+SEM RESULTADO. Quando vem documento, pode continuar na hora. Com o freio no
+SCRIPT (nao no relogio da tarefa), rodar de 20 em 20 minutos custa **no maximo
+uma consulta infrutifera por hora** -- e as passagens barradas nem abrem
+conexao. De 2 horas para 20 minutos sem gastar nada.
+
+### Nao somos o unico consumidor da caixa
+
+A sequencia em 1,1 milhao era o rastro de alguem que le ha tempo -- a
+contabilidade, confirmado por quem opera. Ler em paralelo e seguro (cada
+consumidor guarda o proprio ponteiro). **Manifestar nao e**: o evento e do
+documento, nao do consumidor, e quem manifesta ASSUME a ciencia com prazo legal
+correndo. A manifestacao ficou para um segundo momento, por decisao de quem
+opera -- e o custo esta dito na tela, documento por documento: "so resumo"
+contra "XML completo".
+
+### Sete defeitos de biblioteca, e o pior e mudo
+
+Quatro herdados da contrapartida, tres desta frente:
+
+  5. `six` ausente APAGA o binding em silencio (`with suppress(ImportError)`)
+  6. a UF vai em codigo IBGE, e os dois mapas da biblioteca sao incompativeis
+  7. a versao da distribuicao e 1.01, nao 4.00
+
+Mais um oitavo na impressao: o modulo do DACTE importa `qrcode`, que a
+instalacao limpa nao traz. Todos com guard, porque **dependencia que cai nao
+quebra import nenhum -- quebra o uso, e so na hora do uso.**
+
+### Tres guards meus que nao guardavam nada
+
+Escritos e sabotados na mesma hora: o da senha procurava uma STRING no arquivo
+(trocar `if(senhaEl)` por `if(false)` a deixa intacta); o da rota afirmava so
+"401 sem sessao" -- e o middleware e fail-closed, devolve 401 para qualquer
+caminho sob `/api/gestao`, exista ou nao; o do CNPJ afirmava algo sobre o
+armazenamento e nada sobre a rota que decide.
+
+Refeitos, o teste de navegador achou um defeito que o de texto deixaria passar:
+`window.USER` -- e `USER` e `let` de topo, nao propriedade de `window`. O
+formulario nunca apareceria, nem para administrador, e a string `USER.admin`
+estava la para o guard antigo aprovar.
+
+### O que fica como regra
+
+- **Intermediario pago que faz o que o servico publico faz de graca merece a
+  pergunta invertida**: o que ele agrega alem do acesso? Aqui era conveniencia,
+  e a conveniencia coube em duas semanas de trabalho contra um custo por
+  documento, para sempre.
+- **Campo de estado em resposta de ERRO descreve o servidor, nao o que voce
+  consumiu.**
+- **Prazo que o fornecedor DECLARA nao se arredonda para cima "por seguranca".**
+- **Cursor de mao unica**: onde nao ha releitura, cada lote passa UMA vez -- e
+  a recusa a dado vazio deixa de ser zelo e vira a unica defesa.
