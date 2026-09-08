@@ -88,8 +88,18 @@ def marcar_consulta(cnpj: str, *, ultimo_nsu: str | None = None,
         campos.append("ultimo_nsu = greatest(ultimo_nsu, %s)")
         args.append(nsu(ultimo_nsu))
     if max_nsu is not None:
-        campos.append("max_nsu = %s")
-        args.append(nsu(max_nsu))
+        # O FIM DA FILA TAMBEM NAO ANDA PARA TRAS, e isto custou uma medicao
+        # errada em 08/09/2026: numa REJEICAO (656) a SEFAZ devolveu
+        # `maxNSU` = `ultNSU` = o nosso proprio ponteiro, e a gravacao direta
+        # apagou o valor bom (1.144.085 virou 1.109.412). A tela passou a dizer
+        # "falta 0" com 35 mil documentos na fila -- e "falta 0" e a frase que
+        # faz alguem parar de olhar.
+        #
+        # E o mesmo defeito do ponteiro, um campo ao lado: CAMPO VINDO DE
+        # RESPOSTA DE ERRO DESCREVE O SERVIDOR, NAO O QUE VOCE CONSUMIU. A
+        # correcao de ontem tratou `ultimo_nsu` e deixou este passar.
+        campos.append("max_nsu = greatest(coalesce(max_nsu, %s), %s)")
+        args.extend([nsu(max_nsu), nsu(max_nsu)])
     args.append(cnpj)
     with pglocal.get_conn(_esq()) as conn, conn.cursor() as cur:
         cur.execute("UPDATE dfe_caixa SET " + ", ".join(campos)
@@ -457,14 +467,22 @@ def resumo(cnpj: str | None = None) -> dict:
         # coisa (documento que a pessoa mandou antes de a nota ser autorizada,
         # ou exportado sem o protocolo). Somar os dois faria o KPI que decide
         # a obrigação de guarda dizer um número que não decide nada.
-        d["email"] = 0
+        d["fora_da_sefaz"] = 0
+        d["por_origem"] = {}
         if tem_tabela_arquivo():
-            cur.execute("SELECT count(*)::int AS n, "
+            # POR ORIGEM, e nao um numero so. Enquanto eram duas portas
+            # (e-mail e envio na tela) um total bastava; com o acervo do ERP
+            # dentro, um campo chamado `email` contando a tabela inteira faria
+            # o KPI dizer "189 mil por e-mail" -- verdadeiro na soma e falso
+            # na frase.
+            cur.execute("SELECT origem, count(*)::int AS n, "
                         "  count(*) FILTER (WHERE NOT completo)::int AS sem_prot "
-                        "FROM dfe_arquivo")
-            e = dict(cur.fetchone() or {})
-            d["email"] = e.get("n") or 0
-            d["email_sem_protocolo"] = e.get("sem_prot") or 0
+                        "FROM dfe_arquivo GROUP BY origem")
+            for linha in cur.fetchall():
+                e = dict(linha)
+                d["por_origem"][e["origem"]] = e["n"]
+                d["fora_da_sefaz"] += e["n"]
+                d["sem_protocolo"] = (d.get("sem_protocolo") or 0) + (e["sem_prot"] or 0)
     if isinstance(d.get("ultimo_recebido"), datetime):
         d["ultimo_recebido"] = d["ultimo_recebido"].isoformat()
     return d

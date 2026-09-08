@@ -38,7 +38,8 @@ CAIXAS = {
          "documentos": {"total": 1, "pendentes": 0}},
     ],
     "total": {"total": 1, "pendentes": 0, "nfe": 1, "cte": 0, "eventos": 0,
-              "email": 2, "email_sem_protocolo": 1},
+              "fora_da_sefaz": 2, "sem_protocolo": 1,
+              "por_origem": {"email": 1, "upload": 1}},
     # O ESTADO DA SEGUNDA PORTA, como o servidor manda quando ela ainda nao foi
     # configurada -- que e o estado real no dia da entrega.
     "email": {"configurada": False, "caixa": "", "falta": ["ID do tenant"],
@@ -128,6 +129,11 @@ def test_a_coluna_ORIGEM_diz_a_porta_e_quem_mandou(pagina):
     assert "SEFAZ" in linhas and "NSU 000000001144010" in linhas
     assert "e-mail" in linhas and "expedicao@cliente.com.br" in linhas
     assert "enviado na tela" in linhas
+    # A SEFAZ E A AUTORIDADE e a linha dela e a unica em negrito: numa lista em
+    # que a maioria veio do acervo do ERP, e o unico jeito de ver de relance o
+    # que tem prova de origem e o que tem copia.
+    assert pg.locator("#dfe-docs tr:nth-child(1) b").count() == 1
+    assert pg.locator("#dfe-docs tr:nth-child(2) b").count() == 0
 
 
 def test_SEM_PROTOCOLO_nao_se_confunde_com_SO_RESUMO(pagina):
@@ -204,4 +210,5 @@ def test_o_KPI_soma_as_duas_portas_e_diz_quanto_e_de_cada(pagina):
     banda = pg.inner_text("#dfe-kpis")
     # A FRASE INTEIRA, e nao "3 aparece em algum lugar": a banda tem cinco
     # cards cheios de numero, e `"3" in banda` seria verde com qualquer coisa.
-    assert "2 por e-mail · 1 recolhidos da SEFAZ" in banda, banda
+    assert "1 da SEFAZ" in banda and "1 por e-mail" in banda, banda
+    assert "1 enviados na tela" in banda, banda

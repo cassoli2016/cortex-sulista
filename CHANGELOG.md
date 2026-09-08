@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.15.0] — 08/09/2026  ·  CX-08/09/2026-v1.15.0
+
+### Adicionado
+- 2026 inteiro entrou na recolha: 189.342 documentos (165.174 NF-e, 24.146 CT-e), de 1º de janeiro até hoje, sem buraco de mês. Eles não vieram da SEFAZ — vieram do próprio ERP, que guarda o XML de tudo que recebe por e-mail dos clientes desde julho de 2020. O acervo estava em casa e ninguém o enxergava fora do ERP.
+- Agora a tela de Notas de Entrada diz de onde veio cada documento, e a SEFAZ aparece em destaque. Não é enfeite: num acervo em que a maioria é cópia importada, é o único jeito de ver de relance o que tem prova de origem. O que a SEFAZ entrega é o que FOI EMITIDO contra o CNPJ; o resto é cópia que alguém guardou, e as duas coisas não valem o mesmo.
+- E é assim que se enxerga o que o ERP deixou passar. Na primeira leva já apareceram quatro notas que a SEFAZ entregou e o ERP não tinha — três emitidas hoje (o ERP depende de o cliente mandar, e isso chega com atraso) e uma de 19 de junho que nunca chegou lá.
+
+### Corrigido
+- A tela dizia "falta 0" com 34.673 documentos na fila da SEFAZ. Numa recusa por consumo indevido, ela devolve o "maior NSU" igual ao ponteiro de quem perguntou — e o CÓRTEX gravava isso por cima do valor bom, como se a fila tivesse acabado. É o mesmo defeito corrigido ontem no ponteiro, no campo ao lado: informação vinda de resposta de ERRO descreve o servidor, não o que você consumiu. "Falta 0" é a frase que faz alguém parar de olhar.
+
 ## [1.14.0] — 08/09/2026  ·  CX-08/09/2026-v1.14.0
 
 ### Adicionado

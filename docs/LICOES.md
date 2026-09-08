@@ -5509,3 +5509,100 @@ ficaria vermelho nao conferiu nada**, e a unica forma de saber e sabotar.
   instalacao, e o que nao se mede daqui se escreve onde quem instala vai ler.
 - **Porta aberta precisa de filtro E de registro do que ela recusou.** Filtro
   sem registro transforma "nao aceitei" em "nao chegou".
+
+---
+
+## O acervo que ja estava em casa, e o "falta 0" com a fila cheia (2026-09-08, v1.15.0)
+
+Pergunta de quem opera: *"pq chegaram so 4 documentos ate agora"* -- e depois
+*"vamos ver se conseguimos 2026"*.
+
+### Por que eram 4
+
+Tres respostas somadas, e nenhuma era "a SEFAZ mandou pouco":
+
+1. **O defeito do dia anterior tinha pulado a janela inteira.** O `ultNSU` de
+   uma REJEICAO gravado como progresso empurrou o ponteiro de ~0 para
+   1.144.010 sem ler nada. Tudo o que a SEFAZ retinha passou por baixo.
+2. **Nove das dez filiais nunca foram consultadas** -- so a matriz tem
+   certificado.
+3. **A maior parte do que chega e EVENTO, nao nota** (23 de 27): passagem
+   automatica, autorizacao de CT-e. E o normal de transportadora.
+
+### O acervo estava em casa
+
+Antes de gastar uma consulta na SEFAZ, fui olhar o AVA. `xmldocumentoeletronico`:
+**921.606 XMLs com chave e conteudo, de 02/07/2020 ate hoje** -- `nfeProc` e
+`cteProc`, com protocolo. E `xmlrecebido`: **258 mil mensagens de e-mail ja
+processadas**, de NFE@TUPY.COM.BR, nfe@mwm.com.br, mastersaf, WiserLog, a
+ultima delas do mesmo dia.
+
+O ERP faz ha anos, e em silencio, o que a segunda porta acabara de ser
+construida para fazer. **A pergunta "conseguimos 2026?" nao era sobre a SEFAZ.**
+
+189.342 documentos de 2026 importados em 5,8 minutos, 1,48 GB. O importador
+mora em `scripts/` e nao em `api/sefaz/`, de proposito: a recolha nao depende
+do ERP (e requisito), entao ele se comporta como mais um REMETENTE da segunda
+porta -- le o AVA e entrega para `arquivo.guardar()`, como a caixa de e-mail
+entrega.
+
+### O que a SEFAZ acrescenta a um acervo de 189 mil documentos
+
+Quem opera respondeu isso sozinho, e a frase e a especificacao inteira:
+*"eu gostaria que viesse da Sefaz se caso o ERP tenha falhado na coleta"*.
+
+Medido com a coleta ainda pela metade: de 1.586 chaves que a SEFAZ entregou,
+**1.582 o ERP ja tinha (99,7%)** e **4 nao** -- tres emitidas naquele mesmo dia
+(o ERP depende de o cliente mandar) e uma de 19 de junho que nunca chegou la.
+
+O acervo do ERP e conveniencia: rapido, de graca, com seis anos. A SEFAZ e
+AUTORIDADE: e ela que diz o que FOI EMITIDO contra o CNPJ, e por isso a tela
+poe a linha dela em negrito. Cobertura de 99,7% nao dispensa a fonte -- ela
+mede exatamente quanto vale a diferenca.
+
+### Rebobinar funcionou, e o medo estava mal calibrado
+
+Em 07/09 media-se que pedir de novo uma faixa ja servida voltava 656, e daquilo
+saiu a regra "o NSU e um cursor de MAO UNICA". Rebobinar o ponteiro para zero
+correu o risco de cair nisso.
+
+Nao caiu: **cStat 138, 2.000 documentos na primeira passada**, e a SEFAZ
+servindo desde 08/01/2026 -- a retencao dela alcanca o que aquele consumidor
+nunca consumiu, e nao apenas 90 dias corridos. A regra continua valendo para
+reler uma faixa **ja consumida**; recomecar do zero uma fila que nunca foi
+drenada e outra coisa.
+
+**Mas ha um limite de FREQUENCIA mesmo com 138.** Rodei passadas em sequencia,
+sem intervalo, e na quarta veio 656. O freio do script cobre 137 e 656 e nao
+espaca passadas bem-sucedidas -- a tarefa agendada, de 20 em 20 minutos, faz
+isso naturalmente. Drenar 35 mil posicoes leva seis horas sem ninguem, e essa e
+a forma certa.
+
+### O "falta 0" com 34.673 na fila
+
+E o achado que mais importa aqui, porque e do tipo mudo. Na resposta 656 a
+SEFAZ devolveu `maxNSU` **igual ao `ultNSU` de quem perguntou** -- o nosso
+proprio ponteiro. A gravacao era direta (`max_nsu = %s`), o valor bom
+(1.144.085) foi sobrescrito por 1.109.412, e a tela passou a dizer **"falta 0"
+com 34.673 documentos esperando**.
+
+E o mesmo defeito de ontem, um campo ao lado. Ontem a correcao foi "o ponteiro
+so anda com documento na mao"; faltou a irma: **o fim da fila tambem nao anda
+para tras**. As duas saem da mesma regra -- *campo vindo de resposta de ERRO
+descreve o servidor, nao o que voce consumiu* --, e a primeira correcao nao
+procurou os outros campos que vinham pela mesma porta.
+
+"Falta 0" e pior que um numero errado qualquer: e a frase que faz alguem parar
+de olhar.
+
+### O que fica como regra
+
+- **Antes de buscar dado fora, procure dentro.** Seis anos de XML estavam a uma
+  consulta de distancia, num ERP que a casa le todo dia.
+- **Ao corrigir um campo contaminado por resposta de erro, varra os VIZINHOS.**
+  Eles chegaram pela mesma porta.
+- **Cobertura alta nao dispensa a fonte de autoridade** -- ela mede o tamanho
+  da diferenca, que era o que se queria saber.
+- **Laco de coleta se escreve contando o ESTADO, nao lendo a saida de texto.**
+  Duas tentativas em bash pararam sozinhas: "0 documento(s)" casa com o fim de
+  "2000 documento(s)".

@@ -337,11 +337,13 @@ def resumo() -> dict:
             SELECT count(*) AS total,
                    count(*) FILTER (WHERE origem = 'email')  AS email,
                    count(*) FILTER (WHERE origem = 'upload') AS upload,
+                   count(*) FILTER (WHERE origem = 'erp')    AS erp,
                    count(*) FILTER (WHERE completo)          AS completos,
                    max(recebido_em)                          AS ultimo
               FROM dfe_arquivo""")
         d = dict(cur.fetchone() or {})
     ultimo = d.get("ultimo")
     return {"total": d.get("total") or 0, "email": d.get("email") or 0,
-            "upload": d.get("upload") or 0, "completos": d.get("completos") or 0,
+            "upload": d.get("upload") or 0, "erp": d.get("erp") or 0,
+            "completos": d.get("completos") or 0,
             "ultimo": ultimo.isoformat() if ultimo is not None else None}

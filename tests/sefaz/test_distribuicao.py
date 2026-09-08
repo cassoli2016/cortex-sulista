@@ -643,6 +643,34 @@ def test_a_rota_do_certificado_EXISTE_e_esta_sob_api_gestao():
     assert "/api/dfe/certificado" not in caminhos
 
 
+def test_o_MAX_NSU_tambem_nao_anda_para_tras(caixa, monkeypatch):
+    """O FIM DA FILA NAO ENCOLHE -- e o irmao do defeito do ponteiro.
+
+    Em 08/09/2026, numa rejeicao 656, a SEFAZ devolveu `maxNSU` igual ao nosso
+    proprio `ultNSU`. A gravacao direta apagou o valor bom (1.144.085 virou
+    1.109.412) e a tela passou a dizer **"falta 0" com 34.673 documentos na
+    fila** -- que e a frase exata que faz alguem parar de olhar.
+
+    A correcao do dia anterior tratou `ultimo_nsu` (o ponteiro so anda com
+    documento na mao) e deixou este campo passar, um ao lado do outro. A regra
+    e a mesma: CAMPO VINDO DE RESPOSTA DE ERRO DESCREVE O SERVIDOR, nao o que
+    voce consumiu.
+    """
+    monkeypatch.setattr("api.sefaz.armazenamento.ESQUEMA", caixa)
+    arm.marcar_consulta(CNPJ, ultimo_nsu="000000000001000",
+                        max_nsu="000000001144085", cstat="138")
+    assert arm.caixa(CNPJ)["max_nsu"] == "000000001144085"
+
+    # a rejeicao chega dizendo que o fim da fila e o proprio ponteiro
+    arm.marcar_consulta(CNPJ, max_nsu="000000000001000", cstat="656",
+                        motivo="Consumo Indevido")
+    c = arm.caixa(CNPJ)
+    assert c["max_nsu"] == "000000001144085", (
+        "o fim da fila encolheu para o valor de uma REJEICAO: a tela passa a "
+        "dizer 'falta 0' com a fila cheia")
+    assert int(c["max_nsu"]) - int(c["ultimo_nsu"]) == 1144085 - 1000
+
+
 def test_a_rota_das_FILIAIS_tambem_e_de_gestao(caixa, monkeypatch):
     """A lista que enche os dois `select` do modal da SEFAZ.
 

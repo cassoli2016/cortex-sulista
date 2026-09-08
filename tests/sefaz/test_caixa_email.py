@@ -296,7 +296,12 @@ def test_o_resumo_conta_as_portas_SEPARADAS(esquema):
     arquivo.guardar(arquivo.ler(NFE_CRUA), origem="email")
     r = arm.resumo()
     assert r["total"] == 1 and r["pendentes"] == 1     # so a caixa da SEFAZ
-    assert r["email"] == 1 and r["email_sem_protocolo"] == 1
+    # E A CONTA DE FORA VEM POR ORIGEM, nao num numero so: com o acervo do ERP
+    # dentro da mesma tabela, um campo unico chamado "email" faria a tela dizer
+    # "189 mil por e-mail" -- verdadeiro na soma e falso na frase.
+    assert r["fora_da_sefaz"] == 1
+    assert r["por_origem"] == {"email": 1}
+    assert r["sem_protocolo"] == 1
 
 
 def test_o_pacote_zip_leva_as_DUAS_portas(esquema):

@@ -7175,8 +7175,9 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <option value="evento">Eventos</option>
             </select>
             <select id="dfe-origem" onchange="loadDfe()">
-              <option value="">as duas portas</option>
+              <option value="">todas as origens</option>
               <option value="sefaz">só da SEFAZ</option>
+              <option value="erp">só importados do ERP</option>
               <option value="email">só recebidos por e-mail</option>
               <option value="upload">só enviados na tela</option>
             </select>
@@ -38862,12 +38863,18 @@ async function loadDfe(){
 
     const recolhendo = caixas.filter(c=>(c.certificado||{}).tem_certificado).length;
     if(kb) kb.innerHTML =
-      /* O NÚMERO DA SEGUNDA PORTA VAI NO SUB-RÓTULO, e não num sexto card:
-         a banda tem cinco, e o que decide alguma coisa aqui é o total. Quantos
-         vieram por e-mail é procedência, não meta. */
-      kpi('Documentos', (tot.total ?? 0) + (tot.email ?? 0),
-          (tot.email ? tot.email+' por e-mail · ' : '')
-          + (tot.total ?? 0)+' recolhidos da SEFAZ')+
+      /* A PROCEDÊNCIA VAI NO SUB-RÓTULO, e não num sexto card: a banda tem
+         cinco, e o que decide alguma coisa aqui é o total. De onde veio cada
+         um é procedência — mas ela precisa estar DITA, porque um acervo de
+         189 mil documentos importados do ERP ao lado de 27 entregues pela
+         SEFAZ some num total só, e as duas coisas não valem o mesmo: a SEFAZ
+         diz o que FOI EMITIDO, o resto é cópia que alguém guardou. */
+      kpi('Documentos', (tot.total ?? 0) + (tot.fora_da_sefaz ?? 0),
+          [(tot.total ?? 0)+' da SEFAZ',
+           ((tot.por_origem||{}).erp ? (tot.por_origem||{}).erp+' do ERP' : ''),
+           ((tot.por_origem||{}).email ? (tot.por_origem||{}).email+' por e-mail' : ''),
+           ((tot.por_origem||{}).upload ? (tot.por_origem||{}).upload+' enviados na tela' : '')
+          ].filter(Boolean).join(' · '))+
       kpi('Só o resumo', tot.pendentes ?? 0, 'o XML completo depende da manifestação')+
       kpi('Filiais recolhendo', recolhendo+' de '+caixas.length, 'as demais não têm certificado no cofre')+
       kpi('NF-e / CT-e', (tot.nfe ?? 0)+' / '+(tot.cte ?? 0), (tot.eventos ?? 0)+' evento(s)')+
@@ -39638,12 +39645,30 @@ async function dfeFiliaisPreencher(){
    endereço dele na caixa); a segunda porta mostra QUEM mandou, que é a única
    procedência que ela tem — e é para essa pessoa que se volta quando o
    arquivo vem torto. */
+const DFE_ORIGEM = {
+  /* A SEFAZ E A AUTORIDADE, e por isso ela e a unica que aparece em negrito:
+     e ela quem diz o que FOI EMITIDO contra os CNPJs da casa. As outras tres
+     sao conveniencia -- chegam antes, ou alcancam o que a SEFAZ ja nao guarda
+     (ela retem cerca de 90 dias) --, e nenhuma delas prova ausencia. */
+  sefaz:  ['SEFAZ', 'entregue pelo serviço nacional de Distribuição de DFe — é a fonte que diz o que foi emitido contra o CNPJ'],
+  erp:    ['ERP', 'XML que o AVA já tinha guardado (ele recebe por e-mail dos clientes há anos). Alcança o passado que a SEFAZ não guarda mais, e NÃO substitui a recolha: o que o ERP não coletou aparece aqui pela SEFAZ'],
+  email:  ['e-mail', 'chegou na caixa xml@sulista.com.br'],
+  upload: ['enviado na tela', 'alguém arrastou o arquivo aqui'],
+};
+
 function dfeOrigem(x){
-  if(!x.origem || x.origem==='sefaz')
-    return '<span class="hint">SEFAZ</span><div class="dfe-nsu">NSU '+esc(x.nsu||'')+'</div>';
-  const rot = x.origem==='email' ? 'e-mail' : 'enviado na tela';
-  return '<span class="hint">'+esc(rot)+'</span>'
-       + (x.remetente ? '<div class="dfe-nsu">'+esc(x.remetente)+'</div>' : '');
+  const chave = x.origem || 'sefaz';
+  const rot = DFE_ORIGEM[chave] || [chave, ''];
+  const detalhe = chave === 'sefaz'
+    ? '<div class="dfe-nsu">NSU '+esc(x.nsu||'')+'</div>'
+    : (x.remetente ? '<div class="dfe-nsu">'+esc(x.remetente)+'</div>' : '');
+  /* O <b> na SEFAZ nao e enfeite: numa lista em que a maioria das linhas veio
+     do acervo do ERP, e o unico jeito de a pessoa ver de relance o que tem
+     prova de origem e o que tem copia. */
+  const nome = chave === 'sefaz'
+    ? '<b style="font-size:12px">SEFAZ</b>'
+    : '<span class="hint">'+esc(rot[0])+'</span>';
+  return '<span title="'+esc(rot[1])+'">'+nome+'</span>'+detalhe;
 }
 
 /* O ENDEREÇO DE UM DOCUMENTO depende da porta: o da SEFAZ é `(cnpj, nsu)`, a
