@@ -535,10 +535,18 @@ SERVICOS: list[dict] = [
                   "o ERP afirma sobre chassi, marca e ano. Cada consulta "
                   "CUSTA: há teto diário por plano.",
         "alimenta": "TMS — Equipamentos",
-        # Um modo só, mas com DOIS campos: o Bearer sozinho não consulta nada.
-        # Deixar o DeviceToken em `ajustes` faria o cartão dizer "ativa" com a
-        # integração incapaz de responder, que é exatamente o verde que a tela
-        # `integ` existe para não dar.
+        # O BEARER É O ÚNICO OBRIGATÓRIO, e isso foi MEDIDO, não suposto.
+        #
+        # A APIBrasil tem duas famílias de rota: as que cobram por CRÉDITO
+        # ignoram o DeviceToken, e as que cobram por DISPOSITIVO devolvem 403
+        # sem ele. Em 08/09/2026, com o Bearer no cofre e nenhum DeviceToken,
+        # `/vehicles/dados` respondeu 404 "Plano ativo não encontrado" — e não
+        # 403. A rota não reclamou de cabeçalho: reclamou de ASSINATURA.
+        #
+        # Por isso o DeviceToken entra como campo NÃO obrigatório. Exigi-lo
+        # faria o cartão dizer "incompleta" numa conta que a APIBrasil aceita,
+        # e mandaria a pessoa procurar um token que talvez nem exista para o
+        # produto dela.
         "modos": [
             {"chave": "token", "rotulo": "Token da conta + DeviceToken",
              "dica": "os dois saem de app.apibrasil.io › Minhas APIs; o "

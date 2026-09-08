@@ -157,22 +157,30 @@ def _bearer() -> str:
 
 
 def _device(produto: str) -> str:
-    """O DeviceToken do produto, com o geral de reserva.
+    """O DeviceToken do produto, com o geral de reserva. VAZIO É VÁLIDO.
 
-    Sem valor padrão inventado: conta que contratou só `dados` não tem
-    DeviceToken de FIPE, e devolver o do `dados` ali produziria um erro de
-    autorização que se lê como token errado.
+    A APIBrasil tem DUAS famílias de rota, e elas cobram diferente:
+
+      · por CRÉDITO — o DeviceToken é ignorado; quem autoriza é o Bearer mais
+        a assinatura da API na conta;
+      · por DISPOSITIVO — a ausência do DeviceToken devolve HTTP 403.
+
+    Por isso este campo NÃO pode ser obrigatório. MEDIDO em 08/09/2026: com o
+    Bearer no cofre e sem DeviceToken nenhum, `/vehicles/dados` respondeu
+    **404 "Plano ativo não encontrado"** — e não 403. Ou seja: aquela rota não
+    reclamou de cabeçalho, reclamou de ASSINATURA.
+
+    Exigir o DeviceToken aqui recusaria, do nosso lado, uma conta que a
+    APIBrasil aceitaria — e o erro diria "credencial faltando" quando não
+    falta nada. Quem decide se ele é necessário é o fornecedor, respondendo
+    403; a nossa parte é mandar o que existe e deixar a recusa dele chegar
+    legível.
     """
     op = CATALOGO.get(produto) or {}
     especifico = (credenciais.ler(op.get("credencial", "")) or "").strip()
     if especifico:
         return especifico
-    geral = (credenciais.ler("APIBRASIL_DEVICE_TOKEN") or "").strip()
-    if not geral:
-        raise ApiBrasilNaoConfigurado(
-            f"DeviceToken do produto '{produto}' não configurado, e não há "
-            f"DeviceToken geral. Administração › Integrações › APIBrasil.")
-    return geral
+    return (credenciais.ler("APIBRASIL_DEVICE_TOKEN") or "").strip()
 
 
 def configurado(produto: str | None = None) -> bool:
@@ -182,9 +190,7 @@ def configurado(produto: str | None = None) -> bool:
     acende sem haver problema ensina a ignorar o alarme.
     """
     try:
-        _bearer()
-        if produto:
-            _device(produto)
+        _bearer()          # o Bearer e o unico obrigatorio; ver `_device`
         return True
     except ApiBrasilNaoConfigurado:
         return False
@@ -320,11 +326,10 @@ def chamar(produto: str, placa: str, *, exigir_confirmado: bool = True) -> dict:
     if not placa:
         raise ApiBrasilRecusa("Placa vazia.")
 
-    cabecalhos = {
-        **CABECALHOS,
-        "Authorization": f"Bearer {_bearer()}",
-        "DeviceToken": _device(produto),
-    }
+    cabecalhos = {**CABECALHOS, "Authorization": f"Bearer {_bearer()}"}
+    device = _device(produto)
+    if device:
+        cabecalhos["DeviceToken"] = device
     url = f"{BASE}{op['path']}"
     dados = _json.dumps({"placa": placa}).encode("utf-8")
     req = urllib.request.Request(url, data=dados, headers=cabecalhos,

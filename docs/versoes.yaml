@@ -1,3 +1,13 @@
+- versao: "1.12.2"
+  data: "2026-09-08"
+  corrigido:
+    - >-
+      O DeviceToken da APIBrasil deixou de ser obrigatório. A APIBrasil cobra
+      de dois jeitos, e nas APIs por crédito o DeviceToken sequer é lido — quem
+      autoriza é o token da conta mais a assinatura da API. Exigindo o campo, o
+      CÓRTEX recusava do lado de cá uma conta que a APIBrasil aceitaria, e
+      mandava procurar um token que pode nem existir para o produto contratado.
+      Agora o cabeçalho só é enviado quando o campo está preenchido.
 - versao: "1.12.1"
   data: "2026-09-08"
   corrigido:

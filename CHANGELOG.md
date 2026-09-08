@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.12.2] — 08/09/2026  ·  CX-08/09/2026-v1.12.2
+
+### Corrigido
+- O DeviceToken da APIBrasil deixou de ser obrigatório. A APIBrasil cobra de dois jeitos, e nas APIs por crédito o DeviceToken sequer é lido — quem autoriza é o token da conta mais a assinatura da API. Exigindo o campo, o CÓRTEX recusava do lado de cá uma conta que a APIBrasil aceitaria, e mandava procurar um token que pode nem existir para o produto contratado. Agora o cabeçalho só é enviado quando o campo está preenchido.
+
 ## [1.12.1] — 08/09/2026  ·  CX-08/09/2026-v1.12.1
 
 ### Corrigido
