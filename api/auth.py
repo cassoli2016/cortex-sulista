@@ -171,6 +171,13 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     # documentação e versão: qualquer usuário logado, com qualquer tela
     ("/api/auditoria",                frozenset({"aud"})),
     ("/api/integracoes",              frozenset({"integ"})),
+    # A MAIS ESPECIFICA ANTES da generica: `/api/dfe` casa por PREFIXO e
+    # engoliria `/api/dfe/pacote` e `/api/dfe/xml`. As tres apontam para a
+    # mesma tela, entao hoje o efeito seria nenhum -- e amanha, quando uma
+    # delas precisar de tela propria, a ordem ja esta certa.
+    ("/api/dfe/buscar",               frozenset({"dfe"})),
+    ("/api/dfe/pacote",               frozenset({"dfe"})),
+    ("/api/dfe/xml",                  frozenset({"dfe"})),
     ("/api/dfe",                      frozenset({"dfe"})),
     ("/api/monitoramentos",           frozenset({"mon"})),
     ("/api/documentacao",             frozenset(TELAS)),

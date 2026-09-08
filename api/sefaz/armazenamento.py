@@ -212,6 +212,48 @@ def xml_de(cnpj: str, nsu_: str) -> str | None:
         return r["xml"] if r else None
 
 
+#: Teto do pacote. Nao e limite de banda: e que um ZIP de 50 mil XML leva
+#: minutos para montar, e a rota e sincrona -- quem pediu fica olhando a tela
+#: parada sem saber se travou. Um mes de operacao cabe folgado aqui.
+MAX_PACOTE = 5000
+
+
+def para_pacote(cnpj: str | None = None, de: str = "", ate: str = "",
+                so_completos: bool = True) -> list[dict]:
+    """Os documentos de um periodo COM o XML, para virar pacote .zip.
+
+    `so_completos=True` por padrao, e e a decisao que importa: um pacote com
+    resumo dentro seria um arquivo que PARECE a nota e nao e. Quem abre um zip
+    de XML espera documento fiscal, nao ficha de tres linhas -- e o contador
+    que receber isso vai descobrir na hora de escriturar.
+
+    A data de corte e a de EMISSAO, nao a de recebimento: e por competencia que
+    a contabilidade pede, e nota emitida dia 30 que chegou dia 2 pertence ao
+    mes 30.
+    """
+    onde, args = ["coalesce(xml,'') <> ''"], []
+    if cnpj:
+        onde.append("cnpj = %s")
+        args.append(cnpj)
+    if so_completos:
+        onde.append("completo")
+    if de:
+        onde.append("emitido_em >= %s::date")
+        args.append(de)
+    if ate:
+        # `< ate + 1 dia` e nao `<= ate`: com timestamp, `<= '2026-09-30'`
+        # significa ate a MEIA-NOITE do dia 30 e perde o dia inteiro.
+        onde.append("emitido_em < (%s::date + 1)")
+        args.append(ate)
+    sql = ("SELECT cnpj, nsu, tipo, chave, emitido_em, xml FROM dfe_documento "
+           "WHERE " + " AND ".join(onde)
+           + " ORDER BY emitido_em, nsu LIMIT %s")
+    args.append(MAX_PACOTE)
+    with pglocal.get_conn(_esq()) as conn, conn.cursor() as cur:
+        cur.execute(sql, tuple(args))
+        return [dict(r) for r in cur.fetchall()]
+
+
 def resumo(cnpj: str | None = None) -> dict:
     """Os escalares da tela e do Copiloto — sem chave, sem CNPJ de fornecedor.
 

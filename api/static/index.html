@@ -7071,9 +7071,17 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </div>
           </div></div>
         <div class="card"><div class="head"><h2>Documentos recolhidos</h2><span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: dfe_documento, no banco da casa — o XML fica guardado aqui, e não em arquivo, porque a guarda é de cinco anos e o backup que se prova todo dia é o do PostgreSQL. ATENÇÃO AO ESTADO: a SEFAZ entrega apenas o RESUMO (chave, emitente, valor, situação) enquanto o destinatário não manifesta ciência da operação; o XML completo só vem depois disso. A manifestação ficou para um segundo momento — e a contabilidade já baixa esta mesma caixa, então manifestar aqui geraria evento duplicado. Enquanto isso, &quot;só resumo&quot; quer dizer que a nota inteira NÃO está guardada aqui.">ⓘ</span><span class="hint" id="dfe-hint"></span></div>
+          <div class="linha" style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:9px">
+            <label style="font-size:12.5px;color:var(--n600)">Baixar os XML de</label>
+            <input type="date" id="dfe-de" aria-label="Emitidos a partir de">
+            <span style="color:var(--n500)">até</span>
+            <input type="date" id="dfe-ate" aria-label="Emitidos até">
+            <button class="btn sm" onclick="dfeBaixarPacote()">Baixar .zip</button>
+            <span class="hint" id="dfe-pac-msg">um arquivo por documento, nomeado pela chave de acesso</span>
+          </div>
           <div class="tabroll" style="max-height:400px"><table class="tab"><thead><tr>
             <th>Emissão</th><th>Emitente</th><th class="num">Valor</th>
-            <th>Tipo</th><th>Situação</th><th>Estado</th><th>NSU</th>
+            <th>Tipo</th><th>Situação</th><th>Estado</th><th>NSU</th><th></th>
           </tr></thead><tbody id="dfe-docs"></tbody></table></div></div>
       </section>
       <section class="view" id="view-pecas">
@@ -38608,8 +38616,11 @@ async function loadDfe(){
         <td><span class="badge ${sit[1]}">${esc(sit[0])}</span></td>
         <td>${estado}</td>
         <td class="dfe-nsu">${esc(x.nsu)}</td>
+        <td>${x.completo
+          ? `<a class="btn sm" href="/api/dfe/xml?cnpj=${encodeURIComponent(x.cnpj)}&nsu=${encodeURIComponent(x.nsu)}" download="${esc(x.chave||x.nsu)}.xml" title="baixar o XML autorizado">XML</a>`
+          : '<span class="hint" title="a SEFAZ só entrega o resumo enquanto não houver manifestação de ciência">—</span>'}</td>
       </tr>`;
-    }).join('')||'<tr><td colspan="7" class="vazio">Nenhum documento recolhido ainda.</td></tr>';
+    }).join('')||'<tr><td colspan="8" class="vazio">Nenhum documento recolhido ainda.</td></tr>';
   }catch(err){
     tbC.innerHTML = '<tr><td colspan="7" class="vazio">'+esc(err.message||'Não foi possível falar com a API.')+'</td></tr>';
   }
@@ -39126,6 +39137,39 @@ async function ritIndicadorInativar(id){
   await loadGesrit();
 }
 
+async function dfeBaixarPacote(){
+  const msg = document.getElementById('dfe-pac-msg');
+  const de = (document.getElementById('dfe-de')||{}).value||'';
+  const ate = (document.getElementById('dfe-ate')||{}).value||'';
+  const q = new URLSearchParams(); if(de) q.set('de',de); if(ate) q.set('ate',ate);
+  msg.textContent = 'montando o pacote…';
+  try{
+    /* `fetch` e nao um <a href> direto: o link nao consegue LER a resposta, e
+       e no corpo dela que vem o motivo de um 404 ("nenhum documento completo
+       no periodo"). Com o link, o navegador baixaria um arquivo de erro. */
+    const r = await fetch('/api/dfe/pacote?'+q.toString(), {cache:'no-store'});
+    if(!r.ok){
+      let m = 'Não foi possível montar o pacote.';
+      try{ m = (await r.json()).mensagem || m; }catch(e){}
+      msg.innerHTML = '<span style="color:var(--red)">'+esc(m)+'</span>';
+      return;
+    }
+    const n = r.headers.get('X-Documentos') || '?';
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (r.headers.get('Content-Disposition')||'').split('filename=')[1]
+      ?.replace(/"/g,'') || 'dfe.zip';
+    document.body.appendChild(a); a.click(); a.remove();
+    /* `revokeObjectURL` DEPOIS do clique, e nao antes: revogar cedo demais
+       cancela o download que acabou de comecar, sem erro nenhum. */
+    setTimeout(()=>URL.revokeObjectURL(url), 30000);
+    msg.textContent = n+' documento(s) no pacote';
+  }catch(err){
+    msg.innerHTML = '<span style="color:var(--red)">'+esc(err.message||'Erro ao baixar.')+'</span>';
+  }
+}
 async function dfeCertEnviar(){
   const msg = document.getElementById('dfe-cert-msg');
   const cnpj = (document.getElementById('dfe-cert-cnpj')||{}).value||'';

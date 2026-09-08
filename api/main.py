@@ -1962,6 +1962,87 @@ def dfe_panorama(limite: int = 200) -> JSONResponse:
                              "tipo": type(exc).__name__}, status_code=500)
 
 
+@app.get("/api/dfe/buscar")
+def dfe_buscar(chave: str = "", cnpj: str = "", fora: int = 1) -> JSONResponse:
+    """Procura UM documento pela chave: no que ja temos, e so depois na SEFAZ.
+
+    A ORDEM NAO E ECONOMIA DE REDE. A SEFAZ CONTA consulta e freia quem
+    pergunta demais (656, ~1 h de castigo por CNPJ) -- e tela de busca e
+    exatamente o lugar onde alguem digita a mesma chave tres vezes porque nao
+    viu o resultado. Ir ao banco primeiro faz a terceira digitacao custar zero.
+
+    `fora=0` procura SO no que ja esta guardado, para quem quer conferir sem
+    gastar cota nenhuma.
+    """
+    from api.sefaz import busca
+    try:
+        r = busca.por_chave(chave, cnpj=re.sub(r"[^0-9]", "", cnpj or ""),
+                            buscar_fora=bool(fora))
+    except Exception as exc:  # noqa: BLE001
+        log.exception("dfe: busca por chave falhou")
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "tipo": type(exc).__name__})
+    # 200 mesmo quando nao acha: "nao achei" e resposta, nao falha -- e o
+    # corpo carrega o MOTIVO, que e o que a tela precisa dizer.
+    return JSONResponse(r)
+
+
+@app.get("/api/dfe/pacote")
+def dfe_pacote(cnpj: str = "", de: str = "", ate: str = "",
+               tudo: int = 0) -> Response:
+    """Os XML de um periodo, num .zip. E ISTO que a operacao chama de "baixar".
+
+    A recolha ja puxa da SEFAZ sozinha; o que faltava era o caminho de SAIDA --
+    sem ele o XML fica guardado num banco que so o servidor abre, e quem precisa
+    mandar para a contabilidade ou anexar num processo nao alcanca.
+
+    UM ARQUIVO POR DOCUMENTO, nomeado pela CHAVE de acesso (44 digitos), que e
+    o nome que todo sistema fiscal do pais espera. Nomear por NSU -- que e o
+    nosso numero interno -- daria um zip que so o CORTEX entende.
+
+    SO DOCUMENTO COMPLETO, por padrao. Um pacote com resumo dentro seria um
+    arquivo que PARECE a nota e nao e, e quem descobre e o contador na hora de
+    escriturar. `tudo=1` inclui os resumos, para quem sabe o que esta pedindo.
+    """
+    import io
+    import zipfile
+    from api.sefaz import armazenamento
+
+    for nome, valor in (("de", de), ("ate", ate)):
+        if valor and _bad_date(valor):
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido",
+                "mensagem": "Parametro %s invalido: use AAAA-MM-DD." % nome})
+    cnpj = re.sub(r"[^0-9]", "", cnpj or "")
+    try:
+        docs = armazenamento.para_pacote(cnpj or None, de, ate,
+                                         so_completos=not tudo)
+    except Exception as exc:  # noqa: BLE001
+        log.exception("dfe: pacote falhou")
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "tipo": type(exc).__name__})
+    if not docs:
+        return JSONResponse(status_code=404, content={
+            "erro": "vazio",
+            "mensagem": "Nenhum documento COMPLETO no periodo. Documento que "
+                        "chegou so como resumo nao entra no pacote."})
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for d in docs:
+            # A CHAVE E O NOME; sem ela, o NSU. Documento sem chave e evento
+            # ou coisa que o parser nao entendeu -- ele vai junto, porque o
+            # que se guarda e tudo, mas com nome que nao finge ser nota.
+            nome = "%s.xml" % (d.get("chave") or ("nsu-%s" % d["nsu"]))
+            z.writestr(nome, d["xml"])
+    buf.seek(0)
+    rotulo = "-".join(x for x in ("dfe", cnpj or "todas", de or "", ate or "") if x)
+    return Response(
+        content=buf.getvalue(), media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="%s.zip"' % rotulo,
+                 "X-Documentos": str(len(docs))})
+
+
 @app.get("/api/dfe/xml")
 def dfe_xml(cnpj: str, nsu: str) -> Response:
     """O XML de UM documento. Fora da listagem de proposito: 200 notas com o

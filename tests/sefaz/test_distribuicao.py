@@ -685,3 +685,161 @@ def test_o_cadastro_ACEITA_o_CNPJ_que_esta_na_recolha(caixa, monkeypatch):
     corpo = r.body.decode()
     assert "recolha" not in corpo, (
         "barrou no CNPJ um que ESTA na recolha: %s" % corpo)
+
+
+# ================================= o pacote: o caminho de SAIDA do XML
+
+def _doc(nsu_, xml, **kw):
+    d = {"nsu": nsu_, "esquema": "procNFe_v4.00", "tipo": "nfe",
+         "completo": True, "xml": xml,
+         "chave": "4126091234567800019955001000001234100001234%s" % nsu_[-1],
+         "emitido_em": "2026-09-05T14:32:00-03:00"}
+    d.update(kw)
+    return d
+
+
+def test_o_pacote_leva_o_XML_e_nomeia_pela_CHAVE(caixa):
+    """A chave de acesso e o nome que TODO sistema fiscal do pais espera.
+    Nomear por NSU -- que e o nosso numero interno -- daria um zip que so o
+    CORTEX entende, e quem recebe e o contador."""
+    arm.gravar(CNPJ, _doc("000000000000001", PROC_NFE))
+    docs = arm.para_pacote(CNPJ)
+    assert len(docs) == 1
+    assert docs[0]["xml"] == PROC_NFE
+    assert docs[0]["chave"] and len(docs[0]["chave"]) == 44
+
+
+def test_o_pacote_NAO_leva_resumo(caixa):
+    """Um pacote com resumo dentro seria um arquivo que PARECE a nota e nao e
+    -- e quem descobre isso e o contador na hora de escriturar."""
+    arm.gravar(CNPJ, _doc("000000000000001", PROC_NFE))
+    arm.gravar(CNPJ, _doc("000000000000002", RES_NFE, completo=False,
+                          esquema="resNFe_v1.01"))
+    assert [d["nsu"] for d in arm.para_pacote(CNPJ)] == ["000000000000001"]
+    # e quem SABE o que esta pedindo consegue os dois
+    assert len(arm.para_pacote(CNPJ, so_completos=False)) == 2
+
+
+def test_o_corte_do_periodo_e_pela_EMISSAO_e_inclui_o_ultimo_dia(caixa):
+    """A contabilidade pede por COMPETENCIA: nota emitida dia 30 que chegou dia
+    2 pertence ao mes 30. E `<= ate` com timestamp perde o dia inteiro -- para
+    no primeiro instante do dia, nao no fim dele."""
+    arm.gravar(CNPJ, _doc("000000000000001", PROC_NFE,
+                          emitido_em="2026-08-31T23:59:00-03:00"))
+    arm.gravar(CNPJ, _doc("000000000000002", PROC_NFE,
+                          emitido_em="2026-09-30T18:00:00-03:00"))
+    arm.gravar(CNPJ, _doc("000000000000003", PROC_NFE,
+                          emitido_em="2026-10-01T08:00:00-03:00"))
+    setembro = arm.para_pacote(CNPJ, de="2026-09-01", ate="2026-09-30")
+    assert [d["nsu"] for d in setembro] == ["000000000000002"], (
+        "o dia 30 as 18h ficou de fora: o corte parou na meia-noite")
+
+
+def test_a_rota_do_pacote_esta_ANTES_da_generica_no_RBAC():
+    """`/api/dfe` casa por PREFIXO e engoliria `/api/dfe/pacote`. Hoje as duas
+    apontam para a mesma tela e o efeito seria nenhum; a ordem existe para o
+    dia em que uma delas precisar de tela propria."""
+    from api import auth
+    rotas = [r for r, _ in auth.ROTA_TELAS]
+    assert rotas.index("/api/dfe/pacote") < rotas.index("/api/dfe")
+    assert rotas.index("/api/dfe/xml") < rotas.index("/api/dfe")
+
+
+def test_o_pacote_e_a_rota_do_xml_exigem_sessao():
+    c = _cliente_web()
+    assert c.get("/api/dfe/pacote").status_code == 401
+    assert c.get("/api/dfe/xml?cnpj=1&nsu=1").status_code == 401
+
+
+# ====================== busca por chave: local PRIMEIRO, SEFAZ depois
+
+def test_a_busca_acha_no_BANCO_sem_tocar_na_SEFAZ(caixa, monkeypatch):
+    """A SEFAZ CONTA consulta e freia quem pergunta demais. Tela de busca e o
+    lugar onde alguem digita a mesma chave tres vezes -- ir ao banco primeiro
+    faz a terceira custar zero."""
+    from api.sefaz import busca
+    monkeypatch.setattr(busca.arm, "ESQUEMA", caixa)
+    arm.gravar(CNPJ, _doc("000000000000001", PROC_NFE,
+                          chave="41260912345678000199550010000012341000012349"))
+
+    def nunca(*a, **k):
+        raise AssertionError("foi a SEFAZ com o documento ja guardado aqui")
+
+    monkeypatch.setattr(busca.dist, "buscar_avulso", nunca)
+    r = busca.por_chave("41260912345678000199550010000012341000012349")
+    assert r["ok"] and r["origem"] == "local"
+    assert r["documento"]["chave"].endswith("2349")
+
+
+def test_entre_duas_linhas_da_mesma_nota_vence_a_COMPLETA(caixa, monkeypatch):
+    """A mesma nota chega ao destinatario e ao transportador, cada um na sua
+    caixa. Se uma veio so como resumo, e a outra inteira, a que serve e a
+    inteira -- devolver a outra seria entregar meia nota tendo a inteira."""
+    from api.sefaz import busca
+    monkeypatch.setattr(busca.arm, "ESQUEMA", caixa)
+    ch = "41260912345678000199550010000012341000012349"
+    arm.abrir_caixa("76104397000204", "FIL SBC", "SP")
+    arm.gravar("76104397000204", _doc("000000000000005", RES_NFE, chave=ch,
+                                      completo=False, esquema="resNFe_v1.01"))
+    arm.gravar(CNPJ, _doc("000000000000001", PROC_NFE, chave=ch))
+    assert busca.local(ch)["completo"] is True
+
+
+def test_nao_achou_no_banco_vai_a_SEFAZ_e_GUARDA(caixa, monkeypatch):
+    from api.sefaz import busca
+    monkeypatch.setattr(busca.arm, "ESQUEMA", caixa)
+    ch = "41260912345678000199550010000012341000012349"
+    assert busca.local(ch) is None
+
+    def falso(cnpj, uf, *, chave="", nsu_avulso="", **k):
+        arm.gravar(cnpj, _doc("000000000000009", PROC_NFE, chave=chave))
+        return {"achou": True, "nsu": "000000000000009", "estado": "novo"}
+
+    monkeypatch.setattr(busca.dist, "buscar_avulso", falso)
+    monkeypatch.setattr(busca, "_primeira_com_certificado",
+                        lambda: {"cnpj": CNPJ, "uf": "PR"})
+    r = busca.por_chave(ch)
+    assert r["ok"] and r["origem"] == "sefaz"
+    assert busca.local(ch) is not None, "buscou fora e nao guardou"
+
+
+def test_NAO_E_SEU_e_diferente_de_NAO_ENCONTREI(caixa, monkeypatch):
+    """"Nao encontrei" manda a pessoa conferir se digitou certo; "a Sulista nao
+    participa" encerra a procura. Confundir os dois custa o tempo de quem esta
+    procurando."""
+    from api.sefaz import busca
+    monkeypatch.setattr(busca.arm, "ESQUEMA", caixa)
+
+    def alheio(*a, **k):
+        raise busca.dist.NaoParticipa("A SEFAZ respondeu que a Sulista nao "
+                                      "participa deste documento")
+
+    monkeypatch.setattr(busca.dist, "buscar_avulso", alheio)
+    monkeypatch.setattr(busca, "_primeira_com_certificado",
+                        lambda: {"cnpj": CNPJ, "uf": "PR"})
+    r = busca.por_chave("41260912345678000199550010000012341000012340")
+    assert r["ok"] is False
+    assert r.get("nao_participa") is True, (
+        "'nao e seu' virou 'nao encontrei': %s" % r)
+
+
+def test_fora_igual_a_zero_NAO_toca_na_SEFAZ(caixa, monkeypatch):
+    from api.sefaz import busca
+    monkeypatch.setattr(busca.arm, "ESQUEMA", caixa)
+    monkeypatch.setattr(busca.dist, "buscar_avulso",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("foi fora")))
+    r = busca.por_chave("41260912345678000199550010000012341000012349",
+                        buscar_fora=False)
+    assert r["ok"] is False and r["origem"] == "local"
+
+
+@pytest.mark.parametrize("chave", ["", "123", "4126091234567800019955001000001234100001234"])
+def test_chave_de_tamanho_errado_nem_sai_da_casa(chave, caixa, monkeypatch):
+    """A SEFAZ recusa antes de olhar qualquer outra coisa -- conferir aqui
+    poupa uma chamada da cota e da uma mensagem melhor."""
+    from api.sefaz import busca
+    monkeypatch.setattr(busca.arm, "ESQUEMA", caixa)
+    monkeypatch.setattr(busca.dist, "buscar_avulso",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("foi fora")))
+    r = busca.por_chave(chave)
+    assert r["ok"] is False and "dígitos" in r["mensagem"]

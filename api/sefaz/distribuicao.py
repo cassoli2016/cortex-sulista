@@ -48,6 +48,7 @@ próxima — e recomeçar do zero é exatamente o padrão de consulta que o 656 
 from __future__ import annotations
 
 import logging
+import re
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -244,6 +245,79 @@ def um_lote(cliente, cnpj: str, ultimo_nsu: str) -> dict:
         "max_nsu": arm.nsu(_campo(resposta, "maxNSU")),
         "docs": _docs_da_resposta(resposta),
     }
+
+
+#: A SEFAZ recusa chave que nao seja de 44 digitos antes de olhar qualquer
+#: outra coisa -- conferir aqui poupa uma chamada e da uma mensagem melhor.
+CHAVE_DIGITOS = 44
+
+
+class NaoParticipa(RuntimeError):
+    """O CNPJ nao e parte do documento pedido."""
+
+
+def buscar_avulso(cnpj: str, uf: str, *, chave: str = "", nsu_avulso: str = "",
+                  ambiente: str = PRODUCAO, cliente=None) -> dict:
+    """UM documento, sob demanda — por chave de acesso ou por NSU.
+
+    DOIS USOS, e o segundo e o que salva:
+
+    1. **Por CHAVE**: alguém tem o número da nota (veio num e-mail, num
+       romaneio, na tela do cliente) e quer o XML. Uma chamada, um documento.
+
+    2. **Por NSU**: é o ÚNICO caminho de volta para um documento que passou na
+       varredura e não foi guardado. O `distNSU` não relê faixa (a SEFAZ trata
+       reconsulta como consumo indevido), mas o NSU avulso responde. Foi assim
+       que os 510 de 07/09/2026 poderiam ter sido recuperados, um a um.
+
+    O QUE ELE **NÃO** FAZ, e não é limitação nossa: baixar documento de
+    terceiro. A distribuição só entrega o que tem o CNPJ do certificado como
+    PARTE — destinatário, transportador, emitente ou tomador. Com a chave de um
+    documento alheio a SEFAZ responde que o interessado não participa, e é
+    fronteira legal, não configuração. Por isso `NaoParticipa` tem nome próprio:
+    "não achei" e "não é seu" são coisas diferentes para quem está procurando.
+    """
+    chave = re.sub(r"[^0-9]", "", chave or "")
+    nsu_avulso = re.sub(r"[^0-9]", "", nsu_avulso or "")
+    if bool(chave) == bool(nsu_avulso):
+        raise ValueError("informe a chave de acesso OU o NSU, um dos dois")
+    if chave and len(chave) != CHAVE_DIGITOS:
+        raise ValueError("a chave de acesso tem %d digitos; vieram %d"
+                         % (CHAVE_DIGITOS, len(chave)))
+
+    cliente = cliente or _cliente(cnpj, uf, ambiente)
+    ret = (cliente.consultar_distribuicao(cnpj_cpf=cnpj, chave=chave) if chave
+           else cliente.consultar_distribuicao(cnpj_cpf=cnpj,
+                                               nsu_especifico=arm.nsu(nsu_avulso)))
+    resposta = getattr(ret, "resposta", ret)
+    cstat = str(_campo(resposta, "cStat") or "")
+    motivo = str(_campo(resposta, "xMotivo") or "")
+    docs = leitura.ler_lote(_docs_da_resposta(resposta))
+
+    saida = {"cnpj": cnpj, "cstat": cstat, "motivo": motivo,
+             "chave": chave or None, "nsu": nsu_avulso or None,
+             "achou": False, "estado": None}
+    if not docs:
+        # 638/589 e a familia de "nao e seu"; o texto varia por SEFAZ, entao a
+        # deteccao olha o MOTIVO tambem -- e sem achar nada, "nao encontrado"
+        # e a resposta honesta em vez de um erro generico.
+        if "participante" in motivo.lower() or "interessado" in motivo.lower():
+            raise NaoParticipa(
+                "A SEFAZ respondeu que a Sulista nao participa deste documento "
+                "(%s). So sai o que tem o CNPJ como destinatario, transportador, "
+                "emitente ou tomador." % (motivo or cstat))
+        return saida
+
+    linha = docs[0]
+    linha["nsu"] = linha.get("nsu") or nsu_avulso or arm.NSU_ZERO
+    saida["estado"] = arm.gravar(cnpj, linha)
+    saida.update({"achou": True, "nsu": linha["nsu"],
+                  "chave": linha.get("chave") or chave or None,
+                  "completo": bool(linha.get("completo")),
+                  "tipo": linha.get("tipo"),
+                  "emitente_nome": linha.get("emitente_nome"),
+                  "valor": linha.get("valor")})
+    return saida
 
 
 def recolher(cnpj: str, uf: str, *, ambiente: str = HOMOLOGACAO,
