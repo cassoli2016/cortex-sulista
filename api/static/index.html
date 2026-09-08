@@ -7158,44 +7158,15 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                   aria-selected="true" onclick="abaTrocar('dfe','docs')">Documentos <span class="aban" id="dfe-n-docs"></span></button>
           <button role="tab" id="tabdfe-cx" data-aba="cx" aria-controls="aba-dfe-cx"
                   aria-selected="false" onclick="abaTrocar('dfe','cx')">Recolha por filial <span class="aban" id="dfe-n-cx"></span></button>
-          <button role="tab" id="tabdfe-adm" data-aba="adm" aria-controls="aba-dfe-adm"
-                  aria-selected="false" onclick="abaTrocar('dfe','adm')">Administração</button>
         </div>
 
         <div class="aba" data-abas="dfe" data-aba="cx" id="aba-dfe-cx" role="tabpanel" aria-labelledby="tabdfe-cx" hidden>
-        <div class="card"><div class="head"><h2>A recolha, filial por filial</h2><span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: o serviço nacional de Distribuição de DFe da SEFAZ (NFeDistribuicaoDFe), consultado por CNPJ com o certificado A1 da empresa. São dez caixas, uma por filial ativa — o serviço mantém uma sequência de NSU separada para cada CNPJ. O NSU é o ponteiro da recolha: pede-se o que veio DEPOIS dele. &quot;Falta&quot; é a distância até o maior NSU que existe na SEFAZ. Esta tela NÃO dispara consulta: quem recolhe é a tarefa agendada, de 2 em 2 horas das 07h às 19h — a SEFAZ freia consulta repetida sem resultado.">ⓘ</span></div>
+        <div class="card"><div class="head"><h2>A recolha, filial por filial</h2><span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: o serviço nacional de Distribuição de DFe da SEFAZ (NFeDistribuicaoDFe), consultado por CNPJ com o certificado A1 da empresa. São dez caixas, uma por filial ativa — o serviço mantém uma sequência de NSU separada para cada CNPJ. O NSU é o ponteiro da recolha: pede-se o que veio DEPOIS dele. &quot;Falta&quot; é a distância até o maior NSU que existe na SEFAZ. Esta tela NÃO dispara consulta: quem recolhe é a tarefa agendada, de 2 em 2 horas das 07h às 19h — a SEFAZ freia consulta repetida sem resultado. O CERTIFICADO é a única coisa que para a recolha sem dar erro em lugar nenhum, e por isso a validade dele aparece aqui; cadastrar ou trocar é ato de administrador e se faz em Administração › Integrações, no cartão da SEFAZ.">ⓘ</span></div>
           <div class="tabroll" style="max-height:230px"><table class="tab dfe-cx"><thead><tr>
             <th>Filial</th><th>UF</th><th class="num">Recolhidos</th><th class="num">Falta</th>
             <th>Última recolha</th><th>Estado</th><th>Certificado</th>
           </tr></thead><tbody id="dfe-caixas"></tbody></table></div>
         </div>
-        </div>
-        <div class="aba" data-abas="dfe" data-aba="adm" id="aba-dfe-adm" role="tabpanel" aria-labelledby="tabdfe-adm" hidden>
-          <div id="dfe-cert-caixa" hidden>
-            <div class="dfe-cert-form">
-              <div class="linha"><b style="font-size:13px">Cadastrar certificado A1</b>
-                <span class="hint">o arquivo e a senha ficam no servidor, protegidos, e a senha não volta para a tela</span></div>
-              <div class="linha"><label for="dfe-cert-cnpj">Filial</label>
-                <select id="dfe-cert-cnpj"></select></div>
-              <div class="linha"><label for="dfe-cert-arq">Arquivo .pfx</label>
-                <input type="file" id="dfe-cert-arq" accept=".pfx,.p12"></div>
-              <div class="linha"><label for="dfe-cert-senha">Senha</label>
-                <input type="password" id="dfe-cert-senha" autocomplete="off"
-                       placeholder="a senha do arquivo, não a de revogação"></div>
-              <div class="linha"><button class="btn sm" onclick="dfeCertEnviar()">Cadastrar</button>
-                <span class="dfe-cert-aviso" id="dfe-cert-msg"></span></div>
-            </div>
-            <div class="dfe-cert-form">
-              <div class="linha"><b style="font-size:13px">Recuperar um documento por NSU</b>
-                <span class="hint">o único caminho de volta para documento que passou e não foi guardado</span></div>
-              <div class="linha"><label for="dfe-rec-cnpj">Filial</label>
-                <select id="dfe-rec-cnpj"></select>
-                <label for="dfe-rec-nsu" style="min-width:auto">NSU</label>
-                <input type="text" id="dfe-rec-nsu" inputmode="numeric" placeholder="000000001143501" style="font-family:var(--mono);font-size:12px;padding:6px 9px;border:1px solid var(--n300);border-radius:6px;background:var(--n0);color:var(--n900)">
-                <button class="btn sm" onclick="dfeRecuperar()">Buscar na SEFAZ</button>
-                <span class="dfe-cert-aviso" id="dfe-rec-msg">cada busca gasta uma consulta da cota</span></div>
-            </div>
-          </div>
         </div>
         <div class="aba" data-abas="dfe" data-aba="docs" id="aba-dfe-docs" role="tabpanel" aria-labelledby="tabdfe-docs">
         <div class="card"><div class="head"><h2>Documentos recolhidos</h2><span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: dfe_documento, no banco da casa — o XML fica guardado aqui, e não em arquivo, porque a guarda é de cinco anos e o backup que se prova todo dia é o do PostgreSQL. ATENÇÃO AO ESTADO: a SEFAZ entrega apenas o RESUMO (chave, emitente, valor, situação) enquanto o destinatário não manifesta ciência da operação; o XML completo só vem depois disso. A manifestação ficou para um segundo momento — e a contabilidade já baixa esta mesma caixa, então manifestar aqui geraria evento duplicado. Enquanto isso, &quot;só resumo&quot; quer dizer que a nota inteira NÃO está guardada aqui.">ⓘ</span><span class="hint" id="dfe-hint"></span></div>
@@ -38943,49 +38914,16 @@ async function loadDfe(){
       </tr>`;
     }).join('')||'<tr><td colspan="7" class="vazio">Nenhuma caixa aberta.</td></tr>';
 
-    /* O FORMULARIO SO EXISTE PARA ADMINISTRADOR. `hidden` e nao `display` para
-       seguir a casa; e o `select` se monta das caixas que a API devolveu, e
-       nao de uma lista escrita aqui -- filial nova entra sozinha. */
-    const cx = document.getElementById('dfe-cert-caixa');
-    if(cx){
-      /* `USER` e `let` de topo, NAO propriedade de `window` -- `window.USER`
-         e sempre undefined e o formulario nunca apareceria, nem para
-         administrador. O teste de navegador pegou isso; o de texto-fonte
-         anterior teria passado, porque a string `USER.admin` estava la. */
-      const ehAdmin = !!(USER && USER.admin);
-      cx.hidden = !ehAdmin;
-      /* A ABA INTEIRA SOME para quem nao e administrador. Deixar o botao
-         "Administração" abrindo um painel vazio e pior que nao te-lo: promete
-         alguma coisa e entrega nada, e quem clica fica achando que a tela
-         quebrou. */
-      const bt = document.getElementById('tabdfe-adm');
-      if(bt){
-        bt.hidden = !ehAdmin;
-        /* E se a pessoa ja estava NELA quando a sessao mudou (troca de
-           usuario, sessao que expirou e voltou com outro perfil), volta para
-           Documentos -- senao ela fica olhando um painel escondido. */
-        if(!ehAdmin && bt.getAttribute('aria-selected') === 'true') abaTrocar('dfe','docs');
-      }
-      if(ehAdmin){
-        const selRec = document.getElementById('dfe-rec-cnpj');
-        if(selRec) selRec.innerHTML = caixas.map(c=>
-          `<option value="${esc(c.cnpj)}">${esc(c.apelido||c.cnpj)}</option>`).join('');
-        const sel = document.getElementById('dfe-cert-cnpj');
-        /* A FILIAL SEM CERTIFICADO VEM PRIMEIRO: e a que alguem abriu a tela
-           para resolver. Quem ja tem aparece com a validade, porque trocar um
-           certificado que vence e o outro motivo de estar aqui. */
-        const ordenadas = caixas.slice().sort((a,b)=>
-          ((a.certificado||{}).tem_certificado?1:0)-((b.certificado||{}).tem_certificado?1:0));
-        sel.innerHTML = ordenadas.map(c=>{
-          const ct = c.certificado||{};
-          const est = !ct.tem_certificado ? 'sem certificado'
-                    : ct.vencido ? 'VENCIDO'
-                    : ct.dias!=null ? 'vence em '+ct.dias+' d' : 'com certificado';
-          return `<option value="${esc(c.cnpj)}">${esc(c.apelido||c.cnpj)} — ${esc(est)}</option>`;
-        }).join('');
-      }
-    }
+    /* AQUI NAO HA MAIS FORMULARIO. Cadastrar certificado e recuperar NSU sao
+       decisoes de administrador e foram para o cartao da SEFAZ na tela
+       Integracoes, que e onde a casa ajusta integracao -- uma tela de
+       operacao com uma aba que so administrador enxerga era a excecao, e a
+       excecao morava justamente na tela que quem opera abre todo dia.
 
+       O QUE FICA: a coluna "Certificado" da tabela acima, que e leitura. Ela
+       nao sai junto -- quem opera precisa VER que a recolha vai parar, mesmo
+       sem poder resolver; e o certificado e a unica coisa que a para sem dar
+       erro em lugar nenhum. */
     if(hint) hint.textContent = docs.length ? docs.length+' mais recentes' : '';
     /* CONTADOR NA ABA: uma aba "Recolha por filial" com dez caixas e uma com
        zero pedem coisas diferentes de quem olha, e o numero poupa o clique.
@@ -39589,6 +39527,108 @@ async function dfeBaixarPacote(){
     msg.innerHTML = '<span style="color:var(--red)">'+esc(err.message||'Erro ao baixar.')+'</span>';
   }
 }
+/* ===================== o ajuste da SEFAZ: certificado A1 e recuperacao ===
+   ESTE E O UNICO LUGAR ONDE SE CADASTRA O CERTIFICADO DA EMPRESA. Ele veio da
+   tela Notas de Entrada, onde vivia numa aba que so administrador enxergava:
+   tela de operacao com decisao de administrador dentro obriga a esconder aba,
+   e aba escondida e a que ninguem acha quando precisa.
+
+   O QUE NAO MUDA COM A MUDANCA DE LUGAR: as rotas continuam sob
+   `/api/gestao`, que o middleware barra para quem nao e administrador. A tela
+   nao e a fronteira -- ela so deixa de oferecer o que nao adianta clicar. */
+function integAjusteSefaz(i){
+  if(!(USER && USER.admin)) return integAjusteSefazLeitura(i);
+  return '<div class="intm-sec"><div class="intm-rot">Configuração e ajustes</div></div>'
+    + '<div id="dfe-cert-caixa">'
+    +   '<div class="dfe-cert-form">'
+    +     '<div class="linha"><b style="font-size:13px">Cadastrar certificado A1</b>'
+    +       '<span class="hint">o arquivo e a senha ficam no servidor, protegidos, e a senha não volta para a tela</span></div>'
+    +     '<div class="linha"><label for="dfe-cert-cnpj">Filial</label>'
+    +       '<select id="dfe-cert-cnpj"><option value="">carregando as filiais…</option></select></div>'
+    +     '<div class="linha"><label for="dfe-cert-arq">Arquivo .pfx</label>'
+    +       '<input type="file" id="dfe-cert-arq" accept=".pfx,.p12"></div>'
+    +     '<div class="linha"><label for="dfe-cert-senha">Senha</label>'
+    +       '<input type="password" id="dfe-cert-senha" autocomplete="off" '
+    +              'placeholder="a senha do arquivo, não a de revogação"></div>'
+    +     '<div class="linha"><button class="btn sm" onclick="dfeCertEnviar()">Cadastrar</button>'
+    +       '<span class="dfe-cert-aviso" id="dfe-cert-msg"></span></div>'
+    +   '</div>'
+    +   '<div class="dfe-cert-form">'
+    +     '<div class="linha"><b style="font-size:13px">Recuperar um documento por NSU</b>'
+    +       '<span class="hint">o único caminho de volta para documento que passou e não foi guardado</span></div>'
+    +     '<div class="linha"><label for="dfe-rec-cnpj">Filial</label>'
+    +       '<select id="dfe-rec-cnpj"><option value="">carregando as filiais…</option></select>'
+    +       '<label for="dfe-rec-nsu" style="min-width:auto">NSU</label>'
+    +       '<input type="text" id="dfe-rec-nsu" inputmode="numeric" placeholder="000000001143501" '
+    +              'style="font-family:var(--mono);font-size:12px;padding:6px 9px;border:1px solid var(--n300);border-radius:6px;background:var(--n0);color:var(--n900)">'
+    +       '<button class="btn sm" onclick="dfeRecuperar()">Buscar na SEFAZ</button>'
+    +       '<span class="dfe-cert-aviso" id="dfe-rec-msg">cada busca gasta uma consulta da cota</span></div>'
+    +   '</div>'
+    + '</div>'
+    + integModalFoot();
+}
+
+/* PARA QUEM NAO E ADMINISTRADOR, o modal continua respondendo a pergunta que
+   ele veio fazer -- o que falta --, e diz por que nao ha formulario. Campo
+   desabilitado no lugar seria pior: convida a tentar e sugere que o valor
+   esta ali. */
+function integAjusteSefazLeitura(i){
+  const falta = ((i.configuracao||{}).falta)||[];
+  const lista = falta.length
+    ? '<ul class="intm-campos">'+falta.map(f =>
+        '<li><span class="nao">—</span><span>'+esc(f)+'</span></li>').join('')+'</ul>'
+    : '<div style="font-size:12.5px;color:var(--n700)">Todas as filiais com certificado no cofre.</div>';
+  return '<div class="intm-sec"><div class="intm-rot">O que esta integração pede</div>'
+    + lista + '</div>'
+    + '<div class="intm-sec"><div style="font-size:12.5px;color:var(--n500)">'
+    + 'Quem autentica aqui não é token: é o certificado digital A1 de cada filial, '
+    + 'arquivo e senha, guardados no servidor. Só administrador cadastra ou troca — '
+    + 'o certificado assina documento fiscal em nome da empresa. O arquivo entra e '
+    + 'não volta: nenhuma rota o devolve, nem para quem é administrador.</div></div>'
+    + integModalFoot();
+}
+
+/* A LISTA DE FILIAIS VEM DA ROTA DE ADMIN, e nao do cartao. Duas razoes: o
+   cartao e de RBAC normal e nao deve carregar CNPJ de filial para todo mundo;
+   e a lista sai das CAIXAS abertas na recolha, que e a mesma fonte que a rota
+   de cadastro confere -- filial nova entra sozinha, e filial que nao esta na
+   recolha nao aparece para ser escolhida. */
+async function dfeFiliaisPreencher(){
+  const sel = document.getElementById('dfe-cert-cnpj');
+  const rec = document.getElementById('dfe-rec-cnpj');
+  if(!sel && !rec) return;
+  const falhou = (t) => {
+    const m = document.getElementById('dfe-cert-msg');
+    if(m) m.innerHTML = '<span style="color:var(--red)">'+esc(t)+'</span>';
+    [sel, rec].forEach(el => { if(el) el.innerHTML = '<option value="">—</option>'; });
+  };
+  try{
+    const r = await fetch('/api/gestao/dfe/filiais', {cache:'no-store'});
+    const d = await respostaJSON(r);
+    if(!d.ok){ falhou((d.dados||{}).mensagem||'não consegui ler as filiais da recolha'); return; }
+    const fs = (d.dados||{}).filiais||[];
+    if(!fs.length){ falhou('nenhuma caixa aberta na recolha'); return; }
+    const nome = f => esc(f.apelido||f.cnpj);
+    if(rec) rec.innerHTML = fs.map(f =>
+      '<option value="'+esc(f.cnpj)+'">'+nome(f)+'</option>').join('');
+    if(sel){
+      /* A FILIAL SEM CERTIFICADO VEM PRIMEIRO: e a que alguem abriu isto para
+         resolver. Quem ja tem aparece com a validade, porque trocar um
+         certificado que vence e o outro motivo de estar aqui. */
+      const ord = fs.slice().sort((a,b) =>
+        (a.tem_certificado?1:0)-(b.tem_certificado?1:0));
+      sel.innerHTML = ord.map(f => {
+        const est = !f.tem_certificado ? 'sem certificado'
+                  : f.vencido ? 'VENCIDO'
+                  : f.dias!=null ? 'vence em '+f.dias+' d' : 'com certificado';
+        return '<option value="'+esc(f.cnpj)+'">'+nome(f)+' — '+esc(est)+'</option>';
+      }).join('');
+    }
+  }catch(err){
+    falhou(err.message||'não consegui ler as filiais da recolha');
+  }
+}
+
 async function dfeRecuperar(){
   const msg = document.getElementById('dfe-rec-msg');
   const cnpj = (document.getElementById('dfe-rec-cnpj')||{}).value||'';
@@ -39612,9 +39652,11 @@ async function dfeRecuperar(){
         (dd.motivo?' — '+esc(dd.motivo):'')+'</span>';
       return;
     }
+    /* ONDE O DOCUMENTO FOI PARAR, dito na resposta: quem recupera por NSU
+       esta na tela de Integracoes, e o documento aparece em Notas de Entrada.
+       Sem esta frase o "guardado" pede uma pergunta seguinte. */
     msg.innerHTML = '<span style="color:var(--green)">guardado ('+esc(dd.estado||'novo')+
-      (dd.emitente_nome?' · '+esc(dd.emitente_nome):'')+')</span>';
-    loadDfe();
+      (dd.emitente_nome?' · '+esc(dd.emitente_nome):'')+') — está em Notas de Entrada</span>';
   }catch(err){
     msg.innerHTML = '<span style="color:var(--red)">'+esc(err.message||'Erro.')+'</span>';
   }
@@ -39655,7 +39697,11 @@ async function dfeCertEnviar(){
     const avisos = (dd.avisos||[]).map(a=>'<div>⚠ '+esc(a)+'</div>').join('');
     msg.innerHTML = '<span style="color:var(--green)">'+esc(dd.titular||'')+
       ' — vale até '+esc(dd.valida_ate||'?')+'</span>'+avisos;
-    loadDfe();
+    /* O QUE SE REPINTA SAO OS CARTOES E O `select`, e NAO este modal: repintar
+       o modal apagaria a mensagem que acabou de chegar -- inclusive o aviso de
+       vencimento, que e a parte que alguem precisa ler. */
+    dfeFiliaisPreencher();
+    loadInteg();
   }catch(err){
     msg.innerHTML = '<span style="color:var(--red)">'+esc(err.message||'Erro ao enviar.')+'</span>';
   }
@@ -39749,14 +39795,33 @@ function integModalAbrir(chave){
   if(integEditaAqui(i) && !INTEG){
     integCarregar().then(() => { if(INTEG_ABERTA===chave) integModalRepintar(); });
   }
+  integAjustePronto(i);
 }
 
-function integEditaAqui(i){ return !!(USER && USER.admin) && !i.aba; }
+/* O QUE SO DA PARA FAZER COM O AJUSTE JA NO DOM. O modal se monta como STRING
+   e so depois entra na pagina -- preencher um `select` antes disso e escrever
+   em elemento que nao existe, em silencio. Por isso este passo e separado, e
+   por isso ele roda TAMBEM depois de repintar. */
+function integAjustePronto(i){
+  /* A CHAVE APARECE UMA VEZ SO, no registro. Escrever 'sefaz' de novo aqui
+     seria uma segunda lista, escrita a mao, sobre o mesmo assunto -- e a
+     segunda e a que ninguem lembra de atualizar. */
+  const proprio = i && INTEG_AJUSTE_PROPRIO[i.chave];
+  if(proprio && proprio.pronto && USER && USER.admin) proprio.pronto();
+}
+
+/* QUEM TRAZ O PROPRIO AJUSTE NAO PRECISA DO COFRE: buscar
+   /api/gestao/credenciais para pintar o formulario do certificado seria uma
+   ida a mais que nao muda um pixel. */
+function integEditaAqui(i){
+  return !!(USER && USER.admin) && !i.aba && !INTEG_AJUSTE_PROPRIO[i.chave];
+}
 
 function integModalRepintar(){
   const i = INTEGP[INTEG_ABERTA]; if(!i) return;
   const alvo = document.getElementById('intm-ajuste');
   if(alvo) alvo.innerHTML = integAjusteHTML(i);
+  integAjustePronto(i);
 }
 
 function integMetade(rot, status, val, fonte){
@@ -39793,12 +39858,30 @@ function integModalHTML(i){
     +'<div id="intm-ajuste">'+integAjusteHTML(i)+'</div>';
 }
 
-/* TRES CAMINHOS, e o modal diz em qual esta:
+/* INTEGRACAO QUE NAO SE AJUSTA POR CAMPO DE COFRE TRAZ O PROPRIO AJUSTE.
+   O cofre de credenciais e um cadastro de CAMPOS -- token, usuario, senha. A
+   SEFAZ nao cabe nele: quem autentica e um certificado A1 em arquivo, com
+   validade e senha proprias, e "esta configurada?" ali e outra pergunta (o
+   .pfx existe? abre? e do CNPJ certo? ainda vale?).
+
+   ANTES DISTO O CARTAO DELA MENTIA: `integAjusteHTML` procurava a chave no
+   cofre, nao achava, e o modal ficava em "carregando as configuracoes..."
+   PARA SEMPRE -- promessa de ajuste que nao existia. O formulario morava numa
+   aba so-de-administrador dentro de Notas de Entrada, que e tela de operacao.
+   Os dois defeitos eram o mesmo defeito, e se resolvem no mesmo lugar. */
+const INTEG_AJUSTE_PROPRIO = {
+  sefaz: {html: integAjusteSefaz, pronto: dfeFiliaisPreencher},
+};
+
+/* QUATRO CAMINHOS, e o modal diz em qual esta:
    1. fornecedor que se configura em OUTRA aba da Gestao (SMTP, Z-API);
-   2. administrador: o formulario, aqui mesmo;
-   3. quem nao e administrador: o que existe e o que falta, sem formulario. */
+   2. integracao que traz o proprio formulario (a SEFAZ, pelo certificado);
+   3. administrador: o formulario do cofre, aqui mesmo;
+   4. quem nao e administrador: o que existe e o que falta, sem formulario. */
 function integAjusteHTML(i){
   if(i.aba) return integAjusteOutraAba(i);
+  const proprio = INTEG_AJUSTE_PROPRIO[i.chave];
+  if(proprio) return proprio.html(i);
   if(!(USER && USER.admin)) return integAjusteLeitura(i);
   const s = (INTEG||[]).find(x => x.chave===i.chave);
   if(!s) return '<div class="intm-sec"><div class="intm-rot">Configuração e ajustes</div>'

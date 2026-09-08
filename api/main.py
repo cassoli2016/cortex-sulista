@@ -2038,6 +2038,29 @@ def dfe_buscar(chave: str = "", cnpj: str = "", fora: int = 1) -> JSONResponse:
     return JSONResponse(r)
 
 
+@app.get("/api/gestao/dfe/filiais")
+def dfe_filiais() -> JSONResponse:
+    """As filiais da recolha e o estado do certificado de cada uma. SO ADMIN.
+
+    ELA EXISTE PARA OS DOIS CAMPOS DE ADMINISTRACAO da SEFAZ, que moram no
+    modal do cartao dela na tela Integracoes. Poderia sair do proprio cartao,
+    e nao sai de proposito: o cartao e de RBAC normal (quem opera precisa
+    saber que a recolha parou sem depender de administrador), e CNPJ de filial
+    nao precisa viajar para todo mundo por causa de um `select` que so
+    administrador ve.
+
+    A LISTA SAI DAS CAIXAS ABERTAS, que e a mesma fonte que `dfe_certificado`
+    confere antes de gravar. Filial nova entra sozinha; filial que nao esta na
+    recolha nao aparece para ser escolhida -- e essas duas frases sao a mesma
+    frase.
+
+    O que volta e o que a tela precisa dizer: apelido, CNPJ e se ha
+    certificado, com a validade. A SENHA NAO VOLTA, e o arquivo tambem nao.
+    """
+    from api.sefaz import painel as sefaz_painel
+    return JSONResponse({"filiais": sefaz_painel.certificados()})
+
+
 @app.post("/api/gestao/dfe/recuperar")
 def dfe_recuperar(payload: dict, req: Request) -> JSONResponse:
     """Puxa UM documento por NSU avulso. SO ADMINISTRADOR.

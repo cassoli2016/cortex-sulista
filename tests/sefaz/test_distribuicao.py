@@ -643,6 +643,41 @@ def test_a_rota_do_certificado_EXISTE_e_esta_sob_api_gestao():
     assert "/api/dfe/certificado" not in caminhos
 
 
+def test_a_rota_das_FILIAIS_tambem_e_de_gestao(caixa, monkeypatch):
+    """A lista que enche os dois `select` do modal da SEFAZ.
+
+    ELA E DE ADMIN E NAO DO CARTAO, e as duas metades desta frase importam. O
+    cartao das Integracoes e de RBAC normal -- quem opera precisa saber que a
+    recolha parou sem depender de administrador --, e por isso o CNPJ de cada
+    filial nao viaja nele. Sob `/api/gestao` o middleware ja barra quem nao e
+    administrador, que e exatamente quem nao ve os campos.
+
+    E o teste chama a FUNCAO, e nao so confere o caminho: rota registrada que
+    levanta na primeira chamada e igualzinha a rota que existe, ate alguem
+    clicar.
+    """
+    import json
+    from api import main
+    caminhos = {r.path for r in main.app.routes if hasattr(r, "path")}
+    assert "/api/gestao/dfe/filiais" in caminhos
+    assert "/api/dfe/filiais" not in caminhos
+
+    monkeypatch.setattr("api.sefaz.armazenamento.ESQUEMA", caixa)
+    corpo = json.loads(main.dfe_filiais().body.decode("utf-8"))
+    fs = corpo["filiais"]
+    assert [f["cnpj"] for f in fs] == [CNPJ], fs
+    assert fs[0]["apelido"] == "FIL MTZ"
+    # OS CAMPOS QUE O `select` LE, todos presentes. O VALOR de
+    # `tem_certificado` depende de haver um .pfx nesta MAQUINA -- afirma-lo
+    # aqui faria o teste passar na bancada de quem cadastrou o certificado e
+    # falhar em toda outra. O que e do codigo e o formato.
+    assert set(fs[0]) >= {"cnpj", "apelido", "tem_certificado", "valida_ate",
+                          "dias", "vencido", "erro"}, fs[0]
+    assert isinstance(fs[0]["tem_certificado"], bool)
+    # e a senha NAO volta, nem mascarada, nem com outro nome
+    assert "senha" not in json.dumps(corpo).lower()
+
+
 def test_o_cadastro_RECUSA_CNPJ_fora_da_recolha(caixa, monkeypatch):
     """Sem esta trava a rota guardaria certificado de QUALQUER CNPJ numa pasta
     que a casa protege e USA PARA ASSINAR. A lista de caixas vem do ERP

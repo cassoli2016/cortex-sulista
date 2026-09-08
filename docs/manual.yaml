@@ -621,7 +621,9 @@ glossario:
     a tela ficar aberta a quem opera: descobrir que a coleta parou não pode depender de um administrador.
     O SMTP e a Z-API são a exceção e o modal diz isso: eles se ajustam nas abas E-mail e WhatsApp da
     Gestão, junto com o resto do envio, porque repetir o campo em dois lugares fazia salvar num e
-    conferir no outro.'
+    conferir no outro. A SEFAZ é a outra exceção, por cima: ela não tem campo
+    nenhum no cofre — quem autentica ali é o certificado A1 em arquivo, e o modal dela traz o próprio
+    formulário.'
 - termo: Envio de e-mail
   definicao: 'O CÓRTEX envia e-mail por um servidor SMTP configurado em Administração › Gestão › E-mail.
     Host, porta e remetente ficam em data/email_config.json; a SENHA vai para o mesmo cofre do token da
@@ -642,6 +644,16 @@ glossario:
     sequência é do ambiente nacional e ela pula o que não diz respeito à empresa. A SEFAZ freia quem
     consulta repetidamente sem resultado (código 656, cerca de uma hora de castigo), e por isso a
     recolha roda de duas em duas horas e não de hora em hora.'
+- termo: Certificado A1 da recolha
+  definicao: 'O que autentica a Sulista na SEFAZ não é token: é o certificado digital A1 de cada
+    filial — um arquivo com senha, que assina e identifica a empresa. Cadastra-se em Administração ›
+    Integrações, no modal do cartão SEFAZ, e só por administrador: o certificado assina documento
+    fiscal em nome da empresa. O arquivo e a senha ficam no servidor, protegidos, e não voltam para a
+    tela — nem para quem é administrador. O estado de cada filial (tem certificado, vence em quantos
+    dias, venceu) aparece para quem opera na tela Notas de Entrada, e isso é de propósito: certificado
+    vencido PARA a recolha sem dar erro em lugar nenhum, e quem opera precisa enxergar a parada mesmo
+    sem poder resolvê-la. É também no mesmo modal que se recupera um documento por NSU avulso, o único
+    caminho de volta para o que passou na varredura e não ficou guardado.'
 - termo: Resumo × XML completo
   definicao: 'A SEFAZ entrega apenas o RESUMO de uma nota de entrada — chave, emitente, valor e
     situação — enquanto o destinatário não manifestar CIÊNCIA da operação. O XML completo, que é o

@@ -1,3 +1,24 @@
+- versao: "1.12.4"
+  data: "2026-09-08"
+  alterado:
+    - >-
+      O cadastro do certificado digital e a recuperação de documento por NSU
+      saíram das Notas de Entrada e foram para Integrações, no cartão da SEFAZ
+      — que é onde a casa ajusta integração. Notas de Entrada é tela de quem
+      opera, e ela fica só com o que quem opera faz: os documentos e o estado
+      das dez caixas.
+    - >-
+      O que NÃO foi junto, de propósito: a validade do certificado de cada
+      filial continua na tela de Notas de Entrada, para quem opera. Certificado
+      vencido para a recolha sem dar erro em lugar nenhum — enxergar a parada
+      não pode depender de ser administrador, mesmo que resolver dependa.
+  corrigido:
+    - >-
+      O cartão da SEFAZ nas Integrações prometia um ajuste que não existia:
+      abrir o modal dele mostrava "carregando as configurações…" para sempre.
+      Ela não tem campo no cofre de credenciais (quem autentica é um
+      certificado em arquivo), e ninguém tinha percebido porque o formulário
+      estava em outra tela. Agora o modal traz o próprio formulário.
 - versao: "1.12.3"
   data: "2026-09-08"
   corrigido:

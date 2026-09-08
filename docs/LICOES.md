@@ -5325,3 +5325,77 @@ contra o servico real.
 - **Prazo que o fornecedor DECLARA nao se arredonda para cima "por seguranca".**
 - **Cursor de mao unica**: onde nao ha releitura, cada lote passa UMA vez -- e
   a recusa a dado vazio deixa de ser zelo e vira a unica defesa.
+
+---
+
+## O formulario que estava na tela errada, e o cartao que prometia o que nao tinha (2026-09-08, v1.12.3)
+
+Pedido de quem opera, em uma linha: *"a aba de administracao que tem nas notas
+de entrada deve ir para as integracoes".*
+
+Mudanca de lugar, e ela achou um defeito parado.
+
+### O que estava errado nos DOIS lados
+
+**Do lado das Notas de Entrada:** e tela de OPERACAO, de RBAC normal, e tinha
+dentro dela uma sub-aba que so administrador enxergava. Isso obriga a esconder
+botao por perfil (`bt.hidden = !ehAdmin`), a devolver a pessoa para outra aba se
+a sessao mudar no meio, e a manter um formulario que a maioria de quem abre a
+tela nunca ve. **Aba escondida e a que ninguem acha quando precisa.**
+
+**Do lado das Integracoes:** o cartao da SEFAZ abria um modal que dizia
+*"carregando as configuracoes..."* e ficava nisso. `integAjusteHTML` procura a
+chave do fornecedor na lista do cofre de credenciais; a SEFAZ nao esta la (quem
+autentica e um certificado A1 em arquivo, nao um token), o `find` voltava
+`undefined`, e o ramo de "ainda carregando" nunca terminava. **O cartao
+prometia um ajuste que nao existia em lugar nenhum daquela tela.**
+
+Os dois eram o mesmo defeito visto de dois angulos: o ajuste da SEFAZ morava
+fora do lugar onde a casa ajusta integracao.
+
+### O que ficou
+
+    Integracoes > cartao SEFAZ > modal   cadastrar certificado, recuperar NSU
+    Notas de Entrada                     os documentos e o estado das caixas
+
+E a divisao dentro do modal segue a mesma regra do resto da tela: administrador
+recebe formulario; quem nao e recebe **o que falta** e a frase que diz por que
+nao ha formulario ali. Campo desabilitado no lugar seria pior -- convida a
+tentar e sugere que o valor esta no HTML.
+
+### O que NAO foi junto, e essa e a parte que se pensa
+
+A coluna **Certificado** ficou nas Notas de Entrada. A tentacao e levar tudo
+que fala de certificado para o mesmo lugar, e seria erro: **o certificado e a
+unica coisa que para a recolha sem dar erro em lugar nenhum.** Quem opera
+precisa VER que ela vai parar, mesmo sem poder resolver. Enxergar e resolver
+sao permissoes diferentes, e trata-las como uma so troca um problema de lugar
+por um pior.
+
+### Tres detalhes que so aparecem fazendo
+
+**A lista de filiais virou rota propria** (`/api/gestao/dfe/filiais`). Ela
+poderia vir dentro do cartao, e nao vem: o cartao e de RBAC normal, e CNPJ de
+filial nao precisa viajar para todo mundo por causa de um `select` que so
+administrador ve.
+
+**O modal se monta como STRING e so depois entra na pagina** -- preencher um
+`select` dentro da funcao que devolve o HTML e escrever em elemento que ainda
+nao existe, em silencio. Por isso o preenchimento e um passo separado
+(`integAjustePronto`), chamado depois de abrir E depois de repintar.
+
+**Depois de cadastrar, o que se repinta sao os cartoes -- nunca o proprio
+modal.** Repintar o modal apagaria a mensagem que acabou de chegar, inclusive o
+aviso de vencimento, que e justamente a parte que alguem precisa ler.
+
+### O guard que mudou de sinal
+
+O antigo afirmava que o formulario nascia `hidden` na marcacao (guardava o
+FLASH entre a primeira pintura e a decisao do `USER.admin`). Fora do documento
+nao ha flash a guardar, e o guard virou o contrario: o formulario **nao pode
+voltar** para a marcacao, onde qualquer um o le com Ctrl+U.
+
+E o de profundidade das abas continua, com dois em vez de tres: **tirar um
+bloco do meio de uma tela e exatamente o movimento que deixa `</div>`
+sobrando** -- e ele nao da erro nenhum, so faz `abaTrocar` mostrar um painel
+cujo pai continua escondido.

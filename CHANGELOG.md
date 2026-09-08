@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.12.4] — 08/09/2026  ·  CX-08/09/2026-v1.12.4
+
+### Alterado
+- O cadastro do certificado digital e a recuperação de documento por NSU saíram das Notas de Entrada e foram para Integrações, no cartão da SEFAZ — que é onde a casa ajusta integração. Notas de Entrada é tela de quem opera, e ela fica só com o que quem opera faz: os documentos e o estado das dez caixas.
+- O que NÃO foi junto, de propósito: a validade do certificado de cada filial continua na tela de Notas de Entrada, para quem opera. Certificado vencido para a recolha sem dar erro em lugar nenhum — enxergar a parada não pode depender de ser administrador, mesmo que resolver dependa.
+
+### Corrigido
+- O cartão da SEFAZ nas Integrações prometia um ajuste que não existia: abrir o modal dele mostrava "carregando as configurações…" para sempre. Ela não tem campo no cofre de credenciais (quem autentica é um certificado em arquivo), e ninguém tinha percebido porque o formulário estava em outra tela. Agora o modal traz o próprio formulário.
+
 ## [1.12.3] — 08/09/2026  ·  CX-08/09/2026-v1.12.3
 
 ### Corrigido
