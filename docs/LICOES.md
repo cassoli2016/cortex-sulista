@@ -5606,3 +5606,48 @@ de olhar.
 - **Laco de coleta se escreve contando o ESTADO, nao lendo a saida de texto.**
   Duas tentativas em bash pararam sozinhas: "0 documento(s)" casa com o fim de
   "2000 documento(s)".
+
+---
+
+## O castigo que cresce, e o freio fixo que o alimentava (2026-09-08, v1.16.1)
+
+Depois de rebobinar o ponteiro da matriz, a caixa serviu 2.000 documentos com
+cStat 138 e sem reclamar. Disparei passadas em SEQUENCIA para drenar a fila mais
+rapido -- e na quarta veio o 656.
+
+Ate aqui, culpa minha e licao conhecida. O que veio depois e que era novo: **a
+tentativa 80 minutos depois voltou 656.** E a seguinte tambem. O freio da casa
+esperava 65 minutos, que e o que a propria rejeicao pede, e nao bastava.
+
+### O que isso significa para um freio de intervalo FIXO
+
+Que ele e pior que nao ter freio nenhum. A tarefa agendada roda de 20 em 20
+minutos; o freio a barrava por 65 e a liberava; ela batia na porta trancada; a
+porta respondia trancando por mais tempo. Com 34.688 documentos na fila, esse
+laco nunca terminaria -- e nada nele daria erro. A caixa ficaria "recolhendo"
+para sempre, com a tela dizendo a verdade sobre um numero que nunca desceria.
+
+### A correcao
+
+A espera DOBRA a cada 656 seguido -- 65 min, 2h10, 4h20, 8h40, teto de 12 h --
+e zera na primeira resposta que nao e 656. Zera tambem no **137** ("nada
+novo"), e isso e deliberado: 137 nao e sucesso de coleta, mas prova que a porta
+voltou a abrir, que e o que o contador esta medindo.
+
+O contador vive numa coluna (`dfe_caixa.freios_seguidos`) porque nao ha
+historico de consultas -- a tabela guarda so a ultima. Para saber que este e o
+quarto 656 seguido e preciso ter contado os tres anteriores.
+
+### O que fica como regra
+
+- **Prazo declarado pelo fornecedor e o PISO, nao o valor.** Ontem a licao foi
+  nao arredondar para cima "por seguranca" (o freio de 90 min contra os 60 que
+  ela pede); hoje e o outro lado: quando a medicao mostra que o real e MAIOR,
+  o numero declarado deixa de servir. As duas licoes nao se contradizem --
+  as duas dizem para medir em vez de supor.
+- **Freio de intervalo fixo contra punicao que escala e um laco infinito
+  silencioso.** Recuar tem de ser na mesma velocidade em que o outro lado
+  aperta.
+- **Contador de reincidencia zera com a PROVA de que voltou ao normal**, e nao
+  com o sucesso da operacao. Sao coisas diferentes, e confundi-las deixaria a
+  caixa horas parada depois de uma resposta boa.

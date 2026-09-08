@@ -643,6 +643,46 @@ def test_a_rota_do_certificado_EXISTE_e_esta_sob_api_gestao():
     assert "/api/dfe/certificado" not in caminhos
 
 
+def test_o_FREIO_DOBRA_a_cada_656_seguido(caixa, monkeypatch):
+    """O CASTIGO DA SEFAZ CRESCE COM A REINCIDENCIA -- medido em 08/09/2026.
+
+    Depois de rebobinar o ponteiro, a caixa serviu 2.000 documentos com cStat
+    138 sem reclamar. Disparei passadas em SEQUENCIA para drenar mais rapido, e
+    na quarta veio o 656. A tentativa seguinte, **80 minutos depois** (mais que
+    os 65 que a propria rejeicao pede), voltou 656 de novo. E a seguinte
+    tambem.
+
+    Com espera FIXA isso e pior que inutil: a tarefa de 20 em 20 minutos bate
+    na porta trancada e a porta responde trancando por mais tempo. A fila de 34
+    mil documentos nunca drenaria.
+    """
+    import api.sefaz.distribuicao as D
+    monkeypatch.setattr("api.sefaz.armazenamento.ESQUEMA", caixa)
+
+    # a escala: 65 min, 2h10, 4h20, 8h40, e o teto de 12 h
+    assert D.espera_do_freio(1) == D.INTERVALO_APOS_FREIO
+    assert D.espera_do_freio(2) == D.INTERVALO_APOS_FREIO * 2
+    assert D.espera_do_freio(3) == D.INTERVALO_APOS_FREIO * 4
+    assert D.espera_do_freio(9) == D.FREIO_TETO, (
+        "sem teto, o decimo freio deixaria a caixa fora do ar por semanas")
+    # zero nao pode virar espera zero: a caixa que nunca foi freada nem chega
+    # aqui, e uma conta que devolvesse 0 liberaria a consulta dentro do castigo
+    assert D.espera_do_freio(0) == D.INTERVALO_APOS_FREIO
+
+    # e o CONTADOR: sobe no 656 e zera em qualquer resposta que nao seja ele
+    arm.marcar_consulta(CNPJ, cstat="656", motivo="Consumo Indevido")
+    assert arm.caixa(CNPJ)["freios_seguidos"] == 1
+    arm.marcar_consulta(CNPJ, cstat="656", motivo="Consumo Indevido")
+    arm.marcar_consulta(CNPJ, cstat="656", motivo="Consumo Indevido")
+    assert arm.caixa(CNPJ)["freios_seguidos"] == 3
+
+    # 137 e "nada novo", e PROVA que a porta voltou a abrir -- zera igual ao 138
+    arm.marcar_consulta(CNPJ, cstat="137", motivo="Nenhum documento localizado")
+    assert arm.caixa(CNPJ)["freios_seguidos"] == 0, (
+        "o contador nao zerou numa resposta boa: a proxima punicao comecaria "
+        "ja dobrada, e a caixa ficaria horas parada sem motivo")
+
+
 def test_o_MAX_NSU_tambem_nao_anda_para_tras(caixa, monkeypatch):
     """O FIM DA FILA NAO ENCOLHE -- e o irmao do defeito do ponteiro.
 

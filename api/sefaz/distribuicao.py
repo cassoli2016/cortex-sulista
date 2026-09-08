@@ -82,6 +82,28 @@ INTERVALO_MINIMO = timedelta(minutes=60)
 #: prazo declarado não é cautela, é meia hora de atraso todo dia.
 INTERVALO_APOS_FREIO = timedelta(minutes=65)
 
+#: E ELA DOBRA A CADA 656 SEGUIDO, com teto de 12 horas.
+#:
+#: MEDIDO EM 08/09/2026, e o numero fixo era pior que inutil: depois de quatro
+#: passadas seguidas (que eu disparei para drenar a fila mais rapido), a caixa
+#: levou 656 e a tentativa 80 MINUTOS DEPOIS voltou 656 de novo. O castigo nao
+#: e de uma hora fixa -- ele cresce com a reincidencia, e cada batida dentro do
+#: bloqueio o renova.
+#:
+#: Com espera fixa de 65 min a tarefa de 20 em 20 minutos bate na porta
+#: trancada, e a porta responde trancando por mais tempo: a fila de 34 mil
+#: documentos nunca drenaria. Dobrar recua na mesma velocidade em que ela
+#: aperta, e o teto existe para a caixa nao ficar um dia inteiro fora do ar por
+#: causa de um dia ruim.
+FREIO_TETO = timedelta(hours=12)
+
+
+def espera_do_freio(freios_seguidos: int) -> timedelta:
+    """65 min, 2h10, 4h20, 8h40, 12h (teto)."""
+    n = max(1, int(freios_seguidos or 1))
+    fator = 2 ** (n - 1)
+    return min(INTERVALO_APOS_FREIO * fator, FREIO_TETO)
+
 #: `2` = homologação. Produção NÃO tem atalho aqui, pela mesma razão do módulo
 #: da contrapartida: trocar de ambiente é decisão de quem chama.
 #:
@@ -338,7 +360,8 @@ def recolher(cnpj: str, uf: str, *, ambiente: str = HOMOLOGACAO,
     agora = datetime.now(timezone.utc)
     ultima = cx.get("ultima_consulta")
     ultimo = cx.get("ultimo_cstat")
-    espera = (INTERVALO_APOS_FREIO if ultimo == CONSUMO_INDEVIDO
+    espera = (espera_do_freio(cx.get("freios_seguidos"))
+              if ultimo == CONSUMO_INDEVIDO
               else INTERVALO_MINIMO if ultimo == FIM_NORMAL else None)
     if not forcar and ultima and espera and (agora - ultima) < espera:
         faltam = espera - (agora - ultima)

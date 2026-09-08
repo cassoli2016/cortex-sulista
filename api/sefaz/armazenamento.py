@@ -84,6 +84,12 @@ def marcar_consulta(cnpj: str, *, ultimo_nsu: str | None = None,
     """
     campos = ["ultima_consulta = now()", "ultimo_cstat = %s", "ultimo_motivo = %s"]
     args: list = [cstat or None, (motivo or None)]
+    # O CONTADOR DE REINCIDENCIA, no MESMO update: o castigo da SEFAZ cresce a
+    # cada 656 seguido, e a espera da casa precisa crescer junto. Zera em
+    # qualquer resposta que nao seja 656 -- inclusive no 137 ("nada novo"),
+    # porque ele prova que a porta voltou a abrir.
+    campos.append("freios_seguidos = CASE WHEN %s THEN freios_seguidos + 1 ELSE 0 END")
+    args.append(cstat == "656")
     if ultimo_nsu is not None:
         campos.append("ultimo_nsu = greatest(ultimo_nsu, %s)")
         args.append(nsu(ultimo_nsu))

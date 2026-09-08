@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.16.1] — 08/09/2026  ·  CX-08/09/2026-v1.16.1
+
+### Corrigido
+- A recolha da SEFAZ ficava parada depois de levar um freio, e insistindo é que ela continuava parada. Quando a SEFAZ bloqueia por consulta excessiva, o bloqueio CRESCE a cada nova batida — e o CÓRTEX esperava sempre os mesmos 65 minutos, então a tarefa voltava de 20 em 20 minutos e renovava o castigo. Agora a espera dobra a cada bloqueio seguido (65 min, 2h10, 4h20, até um teto de 12 horas) e volta ao mínimo assim que a SEFAZ responde normalmente. Com a fila de 34 mil documentos que a matriz tem para recolher, a diferença é entre drenar durante a noite e não drenar nunca.
+
 ## [1.16.0] — 08/09/2026  ·  CX-08/09/2026-v1.16.0
 
 ### Alterado
