@@ -1,3 +1,12 @@
+- versao: "1.15.2"
+  data: "2026-09-08"
+  corrigido:
+    - >-
+      O cartão de CNH da Saúde do Servidor ficava VERDE quando um único
+      motorista tinha o vencimento preenchido — na primeira coleta real foi 1
+      de 81, e os outros 80 seguiam sem ninguém conferindo a habilitação. O
+      cartão agora conta por condutor: só fica bom quando todos têm, e o
+      estado intermediário aparece em amarelo dizendo quantos faltam.
 - versao: "1.15.1"
   data: "2026-09-08"
   corrigido:

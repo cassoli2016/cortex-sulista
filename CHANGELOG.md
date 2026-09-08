@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.15.2] — 08/09/2026  ·  CX-08/09/2026-v1.15.2
+
+### Corrigido
+- O cartão de CNH da Saúde do Servidor ficava VERDE quando um único motorista tinha o vencimento preenchido — na primeira coleta real foi 1 de 81, e os outros 80 seguiam sem ninguém conferindo a habilitação. O cartão agora conta por condutor: só fica bom quando todos têm, e o estado intermediário aparece em amarelo dizendo quantos faltam.
+
 ## [1.15.1] — 08/09/2026  ·  CX-08/09/2026-v1.15.1
 
 ### Adicionado
