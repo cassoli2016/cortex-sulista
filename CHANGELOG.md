@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.15.1] — 08/09/2026  ·  CX-08/09/2026-v1.15.1
+
+### Adicionado
+- CNH e exame toxicológico dos motoristas passaram a ser coletados da Smartec. Exame vencido impede o motorista de dirigir, e até aqui o CÓRTEX não conferia nada disso — não havia coletor, e a ausência não tinha sintoma nenhum.
+- Um cartão novo na Saúde do Servidor diz o estado dessa conferência. Hoje ele acende em AMARELO: a Smartec responde com o nome e o número da CNH de cada condutor, mas devolve vazio o vencimento, a pontuação e o toxicológico — em 24 de 24 medidos. O módulo aparentemente não está habilitado na conta, e o conserto é com o fornecedor. Amarelo e não vermelho porque o sistema está funcionando; quem não está entregando é a Smartec.
+
+### Corrigido
+- A tela de Equipamentos abria com uma mensagem de erro no lugar da tabela e não carregava nada. Era um defeito de JavaScript no jeito de ler a resposta do servidor. Todas as réguas visuais da casa aprovaram a tela antes de ela subir — nenhuma delas percorre o caminho do dado, e um erro assim não muda a altura nem as cores. Agora há um teste que abre a tela de verdade e reprova se ela levantar um único erro.
+
 ## [1.15.0] — 08/09/2026  ·  CX-08/09/2026-v1.15.0
 
 ### Adicionado
