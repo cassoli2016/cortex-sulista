@@ -120,8 +120,10 @@ class TestElegiveis:
         venc = hoje + timedelta(days=60)
         monkeypatch.setattr(elegiveis.db, "get_conn", _erp([
             {"documento": "51366", "cnpj": "11111111000101", "vencimento": venc,
+             "emissao": venc - timedelta(days=60),
              "sacado": "ACME MATRIZ", "valor": 1000.0},
             {"documento": "51367", "cnpj": "11111111000101", "vencimento": venc,
+             "emissao": venc - timedelta(days=60),
              "sacado": "ACME MATRIZ", "valor": 2000.0},
         ]))
         # o 51366 esta no portal, gravado na forma da Monkey
@@ -134,6 +136,11 @@ class TestElegiveis:
         assert g["no_portal"] == 1 and g["valor_no_portal"] == 1000.0, \
             "a chave normalizada tem de reconhecer 000051366-1 como 51366"
         assert g["potencial"] == 1 and g["valor_potencial"] == 2000.0
+        # a emissao vem da consulta e tem de chegar na linha: sem ela a
+        # tela mostra "—" e ninguem descobre que o campo parou de vir
+        t = d["titulos"][0]
+        assert t["emissao"] == (venc - timedelta(days=60)).isoformat()
+        assert t["documento"] == "51367" and t["dias"] == 60
 
     def test_documento_de_OUTRO_sacado_nao_marca_como_ja_antecipado(
             self, cenario, monkeypatch):
@@ -204,3 +211,27 @@ class TestElegiveis:
             self, esquema_pg):
         d = elegiveis.montar(esquema=esquema_pg, hoje=date(2026, 9, 9))
         assert d["disponivel"] is False and "sacado" in d["motivo"]
+
+
+def test_o_duble_do_erp_tem_todos_os_campos_que_a_consulta_devolve():
+    """Duble com MENOS campos que a fonte nao testa contra a fonte.
+
+    Ele testa contra o que o codigo de hoje POR ACASO usa: uma coluna nova na
+    consulta nasce sem cobertura, e o `.get()` que a le devolve None em
+    silencio -- a tela mostra "—" e ninguem descobre que o campo nunca chegou.
+    Foi assim que a `emissao` entrou aqui sem teste nenhum.
+
+    O guard varre o proprio ERP_SQL: coluna nova obriga a atualizar o duble.
+    """
+    import re
+    from api.antecipacoes import elegiveis
+
+    colunas = set(re.findall(r"\bAS\s+([a-z_]+)", elegiveis.ERP_SQL))
+    assert colunas, "a varredura nao achou coluna nenhuma — regex quebrada"
+
+    linhas = _erp([])  # a fabrica; o formato vive nos testes que a usam
+    exemplo = {"documento", "cnpj", "vencimento", "sacado", "emissao", "valor"}
+    faltando = colunas - exemplo
+    assert not faltando, (
+        f"ERP_SQL devolve {sorted(faltando)} que o duble desta suite nao "
+        "fornece — atualize os dicionarios de `_erp(...)` junto com a consulta")

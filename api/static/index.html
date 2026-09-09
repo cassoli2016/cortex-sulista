@@ -6088,14 +6088,25 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <section class="view" id="view-antport">
         <div id="antport-avisos"></div>
         <div class="subtabs" role="tablist" data-abas="antport" aria-label="Seções desta tela">
-          <button role="tab" id="tabantport-tupy" data-aba="tupy" aria-controls="aba-antport-tupy" aria-selected="true" onclick="abaTrocar('antport','tupy')">Portal Tupy</button>
-          <button role="tab" id="tabantport-tupycus" data-aba="tupycus" aria-controls="aba-antport-tupycus" aria-selected="false" onclick="abaTrocar('antport','tupycus')">Custo e concentração</button>
-          <button role="tab" id="tabantport-eleg" data-aba="eleg" aria-controls="aba-antport-eleg" aria-selected="false" onclick="abaTrocar('antport','eleg')">Elegíveis fora de portal <span class="aban" id="elegN"></span></button>
-          <button role="tab" id="tabantport-tupyfil" data-aba="tupyfil" aria-controls="aba-antport-tupyfil" aria-selected="false" onclick="abaTrocar('antport','tupyfil')">Filiais e investidores <span class="aban" id="tupyNFil"></span></button>
-          <button role="tab" id="tabantport-tupytit" data-aba="tupytit" aria-controls="aba-antport-tupytit" aria-selected="false" onclick="abaTrocar('antport','tupytit')">Títulos da Tupy <span class="aban" id="tupyNTit"></span></button>
-          <button role="tab" id="tabantport-tupyval" data-aba="tupyval" aria-controls="aba-antport-tupyval" aria-selected="false" onclick="abaTrocar('antport','tupyval')">Validação do espelho <span class="aban" id="tupyNVal"></span></button>
-          <button role="tab" id="tabantport-conc" data-aba="conc" aria-controls="aba-antport-conc" aria-selected="false" onclick="abaTrocar('antport','conc')">Conciliação da planilha</button>
-          <button role="tab" id="tabantport-imp" data-aba="imp" aria-controls="aba-antport-imp" aria-selected="false" onclick="abaTrocar('antport','imp')">Importar planilha</button>
+          <!-- QUATRO ABAS, UMA PERGUNTA CADA: quanto custa · o que fazer ·
+               de quem · está certo. Eram oito, e oito abas numa tela fazem
+               procurar em vez de ler.
+               A juncao NAO move HTML: `abaTrocar` mostra TODOS os painéis
+               cujo `data-aba` bate, então painéis irmãos compartilham a aba.
+               Só o PRIMEIRO painel de cada aba tem seu `data-ao-abrir` lido —
+               por isso o que carrega sob demanda mora no primeiro. -->
+          <button role="tab" id="tabantport-tupy" data-aba="tupy" aria-controls="aba-antport-tupy" aria-selected="true" onclick="abaTrocar('antport','tupy')">Panorama</button>
+          <button role="tab" id="tabantport-eleg" data-aba="eleg" aria-controls="aba-antport-eleg" aria-selected="false" onclick="abaTrocar('antport','eleg')">Decidir <span class="aban" id="elegN"></span></button>
+          <button role="tab" id="tabantport-tupycus" data-aba="tupycus" aria-controls="aba-antport-tupycus" aria-selected="false" onclick="abaTrocar('antport','tupycus')">Quem compra <span class="aban" id="tupyNFil"></span></button>
+          <button role="tab" id="tabantport-tupyval" data-aba="tupyval" aria-controls="aba-antport-tupyval" aria-selected="false" onclick="abaTrocar('antport','tupyval')">Conferir <span class="aban" id="tupyNVal"></span></button>
+          <!-- CINCO E NAO QUATRO, e quem decidiu foi a regua. Com
+               conciliacao e importacao dentro de "Conferir" a aba dava
+               1.253px contra o teto de 900. Medido painel a painel:
+               busca 150 + validacao 223 = 373; conciliacao 360 +
+               importacao 416 = 776. Duas abas cabem folgadas; uma so,
+               nao. Amontoar para fechar em 868px sem margem quebraria no
+               primeiro dado real, que e quando ninguem esta olhando. -->
+          <button role="tab" id="tabantport-plan" data-aba="plan" aria-controls="aba-antport-conc" aria-selected="false" onclick="abaTrocar('antport','plan')">Planilhas</button>
         </div>
         <div class="aba" data-abas="antport" data-aba="tupy" id="aba-antport-tupy" role="tabpanel" aria-labelledby="tabantport-tupy">
           <div class="kband">
@@ -6105,6 +6116,18 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card">
             <div class="head"><h2>Antecipado por mês de vencimento <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Todos os recebíveis do espelho (mky_recebiveis, varredura completa da API da Monkey 2×/dia), somados pelo MÊS DE VENCIMENTO — e 100% deles são antecipados. A barra laranja é o vendido AGUARDANDO o vencimento; a azul-marinho, o que a Tupy já liquidou ao investidor. A linha é a taxa média de compra (purchased_tax) COMO O PORTAL PUBLICA — a Monkey ainda não confirmou se é a.m. ou a.a. Mês hachurado = vencimento futuro: título já vendido, liquidação por vir. Janela ancorada no último vencimento do espelho.">i</span></h2><span class="hint" id="tupy-mensal-hint"></span></div>
             <div id="chartTupyMensal" style="width:100%;height:300px"></div>
+          </div>
+          <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>A antecipação como linha de crédito <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Somar o nominal antecipado e chamar de dívida erra por um fator de cinco: o mesmo dinheiro gira várias vezes no ano. O capital médio é a soma de (valor × prazo) dividida por 365 — quanto capital a antecipação mantém empregado ao longo de um ano. O custo efetivo é o custo total sobre esse capital, e é o único número comparável com qualquer outra linha de crédito da empresa. É ele que responde 'antecipar é caro?', e não o deságio percentual, que mede prazo.">i</span></h2></div>
+              <div class="kpis k2" id="kpis-estrategia"></div>
+              <div id="estrategia-linha" style="font-size:13px;color:var(--n500);padding:0 18px 9px"></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Se tivesse sido feito de outra forma <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A suspeita natural de quem olha o custo é 'estamos pagando caro porque não escolhemos o comprador'. Dá para medir: para cada mês e faixa de prazo, qual foi o melhor preço que algum investidor praticou DE FATO, e quanto teria custado se todo o volume tivesse ido por ele. Investidor com menos de 20 títulos naquele mês e faixa não conta — ele não era uma porta por onde o volume inteiro poderia passar. Os cortes por prazo vêm sempre com o caixa que se deixa de antecipar: economia sem o seu custo é propaganda.">i</span></h2><span class="hint" id="estrategia-hint"></span></div>
+              <div class="tabroll curta"><table><thead><tr><th>Se tivesse sido assim</th><th class="num">Deixaria de gastar</th><th class="num">Custo dessa escolha</th>
+              </tr></thead><tbody id="estrategia-cen"></tbody></table></div>
+            </div>
           </div>
         </div>
         <div class="aba" data-abas="antport" data-aba="tupycus" id="aba-antport-tupycus" role="tabpanel" aria-labelledby="tabantport-tupycus" data-ao-abrir="tupyCustoDesenhar" hidden>
@@ -6135,8 +6158,33 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="tabroll"><table><thead><tr><th>Sacado</th><th>Cadastro</th><th class="num">Antecipáveis</th><th class="num">Valor</th><th class="num">Deságio est.</th><th class="num">Líquido est.</th><th class="num">Já no portal</th><th class="num">Curto prazo</th>
             </tr></thead><tbody id="eleg-tab"></tbody></table></div>
           </div>
-        </div>
-        <div class="aba" data-abas="antport" data-aba="tupyfil" id="aba-antport-tupyfil" role="tabpanel" aria-labelledby="tabantport-tupyfil" hidden>
+        
+          <div class="card">
+            <div class="head"><h2>Títulos, um a um <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada título em aberto no contas a receber que ainda não foi para portal nenhum, com emissão, vencimento, prazo e o deságio estimado pela taxa que a Tupy está praticando nos últimos 30 dias. Marque para somar: o rodapé mostra quanto caixa entra e quanto custa. A ordem padrão é por VALOR, e não por deságio percentual — o percentual mede PRAZO, não preço: um título de 15 dias sai a 0,57% e um de 78 dias a 3,07%, e os dois custam a mesma taxa mensal. Ordenar por deságio poria os mais curtos no topo com cara de barganha, e não são.">i</span></h2>
+              <div style="display:flex;gap:9px;align-items:center;margin-left:auto">
+                <select id="elegFSac" onchange="elegPintar()" style="max-width:220px"><option value="">todos os clientes</option></select>
+                <button class="btn sec" onclick="elegLimpar()">Limpar seleção</button>
+              </div>
+            </div>
+            <div class="tabroll"><table><thead><tr>
+              <th style="width:30px"><input type="checkbox" id="elegTodos" onclick="elegMarcarTodos(this.checked)" title="marcar os visíveis"></th>
+              <th class="ord" onclick="elegOrdenar('doc')">Documento</th>
+              <th class="ord" onclick="elegOrdenar('sac')">Cliente</th>
+              <th class="num ord" onclick="elegOrdenar('emi')">Emissão</th>
+              <th class="num ord" onclick="elegOrdenar('venc')">Vencimento</th>
+              <th class="num ord" onclick="elegOrdenar('dias')">Dias</th>
+              <th class="num ord" onclick="elegOrdenar('v')">Valor</th>
+              <th class="num ord" onclick="elegOrdenar('tx')">Taxa a.m.</th>
+              <th class="num ord" onclick="elegOrdenar('des')">Deságio est.</th>
+              <th class="num ord" onclick="elegOrdenar('liq')">Líquido est.</th>
+            </tr></thead><tbody id="eleg-tit"></tbody></table></div>
+            <div class="head" style="border-top:1px solid var(--n200);padding-top:9px;margin-top:0">
+              <span class="hint" id="eleg-tit-hint"></span>
+              <span id="eleg-soma" style="margin-left:auto;font-weight:600"></span>
+            </div>
+          </div>
+</div>
+        <div class="aba" data-abas="antport" data-aba="tupycus" id="aba-antport-tupyfil" role="tabpanel" aria-labelledby="tabantport-tupycus" hidden>
           <div class="grid2">
             <div class="card">
               <div class="head"><h2>Por filial da Sulista <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada CNPJ da Sulista é um seller separado no portal — as cinco filiais têm a MESMA razão social lá, então o agrupamento é pelo sellerId, nunca pelo nome. O cedente de cada título é a filial que emitiu a NF contra a Tupy.">i</span></h2><span class="hint" id="tupy-fil-hint"></span></div>
@@ -6152,7 +6200,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </div>
           </div>
         </div>
-        <div class="aba" data-abas="antport" data-aba="tupytit" id="aba-antport-tupytit" role="tabpanel" aria-labelledby="tabantport-tupytit" hidden>
+        <div class="aba" data-abas="antport" data-aba="tupyval" id="aba-antport-tupytit" role="tabpanel" aria-labelledby="tabantport-tupyval" hidden>
           <div class="card">
             <div class="head"><h2>Títulos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os títulos do espelho, do vencimento mais recente para trás — a busca acha por número do documento ou pelo id externo (o número que a Tupy usa). Pago em = effective_payment_date do portal; o campo real_payment_date existe no layout mas nunca veio preenchido (medido na varredura completa).">i</span></h2>
               <span style="display:flex;gap:9px;align-items:center">
@@ -6189,7 +6237,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </div>
           </div>
         </div>
-        <div class="aba" data-abas="antport" data-aba="conc" id="aba-antport-conc" role="tabpanel" aria-labelledby="tabantport-conc" hidden>
+        <div class="aba" data-abas="antport" data-aba="plan" id="aba-antport-conc" role="tabpanel" aria-labelledby="tabantport-plan" hidden>
           <div class="kpis k4" id="kpis-antport"></div>
   <div class="grid2">
             <div class="card">
@@ -6216,7 +6264,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </tr></thead><tbody id="antport-sac"></tbody></table></div>
           </div>
         </div>
-        <div class="aba" data-abas="antport" data-aba="imp" id="aba-antport-imp" role="tabpanel" aria-labelledby="tabantport-imp" hidden>
+        <div class="aba" data-abas="antport" data-aba="plan" id="aba-antport-imp" role="tabpanel" aria-labelledby="tabantport-plan" hidden>
   <div class="card">
             <div class="head"><h2>Importar planilha do portal <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O arquivo é lido no servidor, o layout é reconhecido pelo CABEÇALHO (não pelo nome do arquivo) e o total do rodapé da planilha é conferido contra a soma dos títulos. Em seguida cada documento é confrontado com o contas a receber do ERP pelo número da nota. Nada é enviado para fora.">i</span></h2>
               <span class="hint" id="hintAntportUp"></span></div>
@@ -25696,6 +25744,7 @@ async function loadTupy(){
     const {ok, dados:d}=await respostaJSON(r); if(seq!==tupySeq) return;
     if(!ok){ showBanner(d.mensagem||'Erro ao consultar o portal Tupy.', d.detalhe); return; }
     hideBanner(); DATATUPY=d; renderTupy(d);
+    loadEstrategia();
   }catch(e){ if(seq===tupySeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===tupySeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
@@ -25927,6 +25976,124 @@ function tupyCustoDesenhar(){
     '13 meses pela data de antecipação · '+(mc.mes||'')+' em curso, hachurado';
 }
 
+/* ---- Panorama: a antecipação como linha de crédito, e o contrafactual ----
+   Rota PRÓPRIA e leitura do espelho local (145 ms medidos), separada do
+   /api/financeiro/tupy de propósito: ela responde "valeu a pena", não "o que
+   aconteceu", e uma não pode derrubar a outra. */
+let estrategiaSeq = 0;
+async function loadEstrategia(){
+  const seq = ++estrategiaSeq;
+  try{
+    const r = await fetch('/api/financeiro/antecipacao/estrategia',{cache:'no-store'});
+    const {ok, dados:d} = await respostaJSON(r); if(seq!==estrategiaSeq) return;
+    if(!ok || !d.disponivel){
+      document.getElementById('kpis-estrategia').innerHTML='';
+      document.getElementById('estrategia-cen').innerHTML=
+        '<tr><td colspan="3" class="hint">'+esc((d&&(d.motivo||d.mensagem))||'sem dados')+'</td></tr>';
+      return;
+    }
+    renderEstrategia(d);
+  }catch(e){ if(seq===estrategiaSeq){ document.getElementById('kpis-estrategia').innerHTML=''; } }
+}
+
+function renderEstrategia(d){
+  const L=d.linha||{}, c=d.contrafactual||{};
+  document.getElementById('kpis-estrategia').innerHTML=[
+    kpi('Capital médio empregado', brlAbbr(L.capital_medio||0),
+      L.giros!=null?('o nominal de '+brlAbbr(L.nominal||0)+' girou '+L.giros.toFixed(1).replace('.',',')+'x no ano'):'', '',
+      'Soma de (valor x prazo) dividida por 365 — quanto capital a antecipação mantém empregado ao longo de um ano. NÃO é a soma do nominal: o mesmo dinheiro gira várias vezes, e confundir os dois multiplica a dívida por cinco nesta carteira.'),
+    kpi('Custo efetivo', L.custo_efetivo_aa!=null?(L.custo_efetivo_aa.toFixed(2).replace('.',',')+'% a.a.'):'n/d',
+      brlAbbr(L.custo||0)+' em 12 meses · prazo médio '+(L.prazo_medio!=null?Math.round(L.prazo_medio):'?')+' dias', '',
+      'Custo total sobre o capital médio. É o número comparável com qualquer outra linha de crédito da empresa, e é ele que responde "antecipar é caro?" — não o deságio percentual, que mede prazo.'),
+  ].join('');
+  document.getElementById('estrategia-linha').textContent=
+    'A decisão não é qual título antecipar — a taxa é praticamente a mesma em toda a carteira. É se esse custo bate o retorno alternativo desse caixa.';
+
+  const linhas=[];
+  if(c.economia!=null){
+    linhas.push('<tr><td>Cada título ao investidor mais barato disponível</td>'
+      +'<td class="num" style="font-weight:600">'+brlAbbr(c.economia)+'</td>'
+      +'<td class="num" style="color:var(--n500)">'
+      +(c.economia_pct!=null?(c.economia_pct.toFixed(1).replace('.',',')+'% do custo · só roteamento'):'—')+'</td></tr>');
+  }
+  (d.cortes||[]).forEach(x=>{
+    linhas.push('<tr><td>Antecipar só o que vence em mais de '+x.dias+' dias</td>'
+      +'<td class="num" style="font-weight:600">'+brlAbbr(x.economia||0)+'</td>'
+      +'<td class="num" style="color:var(--n500)">abre mão de '+brlAbbr(x.caixa_abre_mao||0)
+      +(x.caixa_por_real?(' · R$ '+Math.round(x.caixa_por_real)+' por real'):'')+'</td></tr>');
+  });
+  document.getElementById('estrategia-cen').innerHTML=linhas.join('')
+    ||'<tr><td colspan="3" class="hint">sem base para comparar</td></tr>';
+  document.getElementById('estrategia-hint').textContent=
+    'ofertas com pelo menos '+(c.min_oferta||20)+' títulos no mês e faixa';
+}
+
+/* ---- Decidir: a lista por título, com seleção e total corrente ----
+   O resumo por cliente diz ONDE olhar; ele não escolhe título nenhum. */
+let ELEGTIT=[], ELEGSEL=new Set(), elegOrdK='v', elegOrdDesc=true;
+
+function elegChave(t){ return t.sac+'|'+t.doc+'|'+t.venc; }
+
+function elegVisiveis(){
+  const el=document.getElementById('elegFSac');
+  const f=(el&&el.value)||'';
+  const dir = elegOrdDesc ? -1 : 1;
+  return ELEGTIT.filter(t=>!f||t.sac===f).sort((a,b)=>{
+    const va=a[elegOrdK], vb=b[elegOrdK];
+    if(va===vb) return b.v-a.v;
+    return (va>vb?1:-1)*dir;
+  });
+}
+
+function elegOrdenar(k){
+  if(elegOrdK===k) elegOrdDesc=!elegOrdDesc;
+  else { elegOrdK=k; elegOrdDesc=(k==='v'||k==='des'||k==='liq'||k==='dias'); }
+  elegPintar();
+}
+function elegLimpar(){ ELEGSEL.clear(); elegPintar(); }
+function elegMarcarTodos(on){
+  elegVisiveis().forEach(t=>{ if(on){ELEGSEL.add(elegChave(t));}else{ELEGSEL.delete(elegChave(t));} });
+  elegPintar();
+}
+function elegAlternar(ch){
+  if(ELEGSEL.has(ch)) ELEGSEL.delete(ch); else ELEGSEL.add(ch);
+  elegPintar();
+}
+
+function elegPintar(){
+  const vis=elegVisiveis();
+  document.getElementById('eleg-tit').innerHTML = vis.map(t=>{
+    const ch=elegChave(t), m=ELEGSEL.has(ch);
+    return '<tr data-ch="'+esc(ch)+'" onclick="elegAlternar(this.dataset.ch)" style="cursor:pointer'
+      +(m?';background:var(--green-100)':'')+'">'
+      +'<td><input type="checkbox"'+(m?' checked':'')+' tabindex="-1"></td>'
+      +'<td style="font-family:var(--mono);font-size:12px">'+esc(t.doc)+'</td>'
+      +'<td>'+esc(t.sac)+(t.cad?'':' <span class="badge b-warn">do grupo</span>')+'</td>'
+      +'<td class="num" style="font-size:12px">'+esc(t.emi||'—')+'</td>'
+      +'<td class="num" style="font-size:12px">'+esc(t.venc)+'</td>'
+      +'<td class="num">'+t.dias+'</td>'
+      +'<td class="num" style="font-weight:600">'+BRL.format(t.v)+'</td>'
+      +'<td class="num">'+(t.tx!=null?t.tx.toFixed(4).replace('.',','):'—')+'</td>'
+      +'<td class="num">'+(t.des!=null?BRL.format(t.des):'—')+'</td>'
+      +'<td class="num">'+(t.liq!=null?BRL.format(t.liq):'—')+'</td></tr>';
+  }).join('') || '<tr><td colspan="10" class="hint">nenhum título com esse filtro</td></tr>';
+
+  const marcados=vis.filter(t=>ELEGSEL.has(elegChave(t)));
+  const tt=document.getElementById('elegTodos');
+  if(tt) tt.checked = vis.length>0 && marcados.length===vis.length;
+  document.getElementById('eleg-tit-hint').textContent=
+    vis.length.toLocaleString('pt-BR')+' de '+ELEGTIT.length.toLocaleString('pt-BR')+' títulos';
+
+  const sel=ELEGTIT.filter(t=>ELEGSEL.has(elegChave(t)));
+  const soma=document.getElementById('eleg-soma');
+  if(!sel.length){ soma.innerHTML='<span class="hint">marque títulos para somar</span>'; return; }
+  const v=sel.reduce((s,t)=>s+t.v,0), dd=sel.reduce((s,t)=>s+(t.des||0),0);
+  const pz=sel.reduce((s,t)=>s+t.dias*t.v,0)/v;
+  soma.innerHTML=sel.length+' selecionado(s) · caixa <b style="color:var(--green)">'+BRL.format(v-dd)
+    +'</b> · custo '+BRL.format(dd)+' ('+(100*dd/v).toFixed(2).replace('.',',')+'%) · prazo '+Math.round(pz)+' dias';
+}
+
+
 /* Elegíveis fora de portal — rota PRÓPRIA (bate no ERP), carregada só quando
    a aba abre. Não entra no loadTupy porque não depende do espelho: a fonte
    aqui é o contas a receber, e ela tem de responder mesmo com o portal
@@ -25994,7 +26161,16 @@ function renderElegiveis(d){
   document.getElementById('eleg-hint').textContent =
     'posição de '+esc(d.hoje||'')+' · vencimento em mais de '+(d.prazo_minimo||15)+' dias'
     + (d.integrado?'' : ' · ESPELHO DA MONKEY INDISPONÍVEL: o que está no portal da Tupy pode estar contado como fora');
-  abaContador('elegN', (d.linhas||[]).reduce((s,g)=>s+(g.antecipavel||0),0));
+  ELEGTIT = (d.titulos||[]).map(t=>({doc:t.documento, sac:t.sacado,
+    cad:t.filial_cadastrada, emi:t.emissao, venc:t.vencimento, dias:t.dias,
+    v:t.valor, tx:t.taxa_am, des:t.desagio, liq:t.liquido}));
+  ELEGSEL.clear();
+  const fs=document.getElementById('elegFSac');
+  const sacs=[...new Set(ELEGTIT.map(t=>t.sac))].sort();
+  fs.innerHTML='<option value="">todos os clientes</option>'
+    +sacs.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join('');
+  elegPintar();
+  abaContador('elegN', (d.linhas||[]).reduce((s,g)=>s+(g.potencial||0),0));
 }
 
 // ---------------- Faturamento Detalhado ----------------
