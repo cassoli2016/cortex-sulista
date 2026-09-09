@@ -823,7 +823,12 @@ def _fontes_do_snapshot() -> dict:
             {k: d2["kpis"].get(k) for k in (
                 "titulos", "valor_total", "vendidos", "valor_vendido",
                 "desagio_vendido", "desagio_pct", "liquidados",
-                "valor_liquidado", "abertos", "valor_aberto")}
+                "valor_liquidado", "abertos", "valor_aberto",
+                # o custo em si — é com estes que o Copiloto responde
+                # "antecipar é caro?" sem inventar conta. Escalares puros,
+                # como o resto: nome de investidor NÃO entra aqui.
+                "nominal_12m", "desagio_12m", "taxa_am_12m", "custo_aa_12m",
+                "prazo_12m")}
             if d2.get("disponivel") else {"espelho": "vazio"}))(
             __import__("api.monkey.portal",
                        fromlist=["get_portal_tupy"]).get_portal_tupy()),

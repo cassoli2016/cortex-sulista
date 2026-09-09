@@ -6066,6 +6066,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div id="antport-avisos"></div>
         <div class="subtabs" role="tablist" data-abas="antport" aria-label="Seções desta tela">
           <button role="tab" id="tabantport-tupy" data-aba="tupy" aria-controls="aba-antport-tupy" aria-selected="true" onclick="abaTrocar('antport','tupy')">Portal Tupy</button>
+          <button role="tab" id="tabantport-tupycus" data-aba="tupycus" aria-controls="aba-antport-tupycus" aria-selected="false" onclick="abaTrocar('antport','tupycus')">Custo e concentração</button>
           <button role="tab" id="tabantport-tupyfil" data-aba="tupyfil" aria-controls="aba-antport-tupyfil" aria-selected="false" onclick="abaTrocar('antport','tupyfil')">Filiais e investidores <span class="aban" id="tupyNFil"></span></button>
           <button role="tab" id="tabantport-tupytit" data-aba="tupytit" aria-controls="aba-antport-tupytit" aria-selected="false" onclick="abaTrocar('antport','tupytit')">Títulos da Tupy <span class="aban" id="tupyNTit"></span></button>
           <button role="tab" id="tabantport-tupyval" data-aba="tupyval" aria-controls="aba-antport-tupyval" aria-selected="false" onclick="abaTrocar('antport','tupyval')">Validação do espelho <span class="aban" id="tupyNVal"></span></button>
@@ -6080,6 +6081,24 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card">
             <div class="head"><h2>Antecipado por mês de vencimento <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Todos os recebíveis do espelho (mky_recebiveis, varredura completa da API da Monkey 2×/dia), somados pelo MÊS DE VENCIMENTO — e 100% deles são antecipados. A barra laranja é o vendido AGUARDANDO o vencimento; a azul-marinho, o que a Tupy já liquidou ao investidor. A linha é a taxa média de compra (purchased_tax) COMO O PORTAL PUBLICA — a Monkey ainda não confirmou se é a.m. ou a.a. Mês hachurado = vencimento futuro: título já vendido, liquidação por vir. Janela ancorada no último vencimento do espelho.">i</span></h2><span class="hint" id="tupy-mensal-hint"></span></div>
             <div id="chartTupyMensal" style="width:100%;height:300px"></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="antport" data-aba="tupycus" id="aba-antport-tupycus" role="tabpanel" aria-labelledby="tabantport-tupycus" data-ao-abrir="tupyCustoDesenhar" hidden>
+          <div class="card">
+            <div class="head"><h2>Antecipado por mês de ANTECIPAÇÃO <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quanto foi antecipado em cada mês — pergunta diferente da do gráfico ao lado, que soma por MÊS DE VENCIMENTO. A data da antecipação não existe no espelho: real_payment_date é nula nas 48.940 linhas e effective_payment_date coincide com o vencimento. A régua é o createdAt da Monkey, e ele serve porque entre o título entrar na plataforma e ser vendido passam 0,4 DIA (medido em 09/09/2026). Barra hachurada = mês em curso, que é PISO e não número fechado. A linha é a taxa média mensal ponderada.">i</span></h2><span class="hint" id="tupy-ant-hint"></span></div>
+            <div id="chartTupyAntecipado" style="width:100%;height:280px"></div>
+          </div>
+          <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>Quem comprou nos últimos 30 dias <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Concentração do leilão na janela de 30 dias — NÃO no histórico. Na média de doze meses nenhum investidor passa de 31%, e essa média esconde o que importa: quem está levando os lotes AGORA. Concentração alta não é defeito (aqui ela subiu porque o preço melhorou); é dependência. O risco em reais é a diferença entre a taxa do líder e a dos demais, aplicada ao volume anual. Abaixo de 3 dias de leilão na janela não há base para julgar, e o cartão diz isso em vez de acusar.">i</span></h2><span class="hint" id="tupy-conc-hint"></span></div>
+              <div class="tabroll"><table><thead><tr><th>Investidor</th><th class="num">Lotes</th><th class="num">Títulos</th><th class="num">Valor</th><th class="num">Part.</th><th class="num">Taxa a.m.</th>
+              </tr></thead><tbody id="tupy-conc"></tbody></table></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Taxa por faixa de prazo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Taxa média mensal por prazo entre a antecipação e o vencimento, nos últimos 12 meses. O resultado é contraintuitivo e estável: título MAIS LONGO custa MENOS por mês, monotonicamente nas cinco faixas. É coerente com a taxa ser mensal — há custo fixo por operação, e prazo curto tem menos meses para diluí-lo. A amplitude é de cerca de 4% entre as pontas.">i</span></h2><span class="hint" id="tupy-faixa-hint"></span></div>
+              <div class="tabroll"><table><thead><tr><th>Faixa</th><th class="num">Títulos</th><th class="num">Nominal</th><th class="num">Taxa a.m.</th>
+              </tr></thead><tbody id="tupy-faixa"></tbody></table></div>
+            </div>
           </div>
         </div>
         <div class="aba" data-abas="antport" data-aba="tupyfil" id="aba-antport-tupyfil" role="tabpanel" aria-labelledby="tabantport-tupyfil" hidden>
@@ -24873,6 +24892,7 @@ function renderTupy(d){
     return;
   }
   const k=d.kpis||{}, conf=d.conferencia||{}, pain=conf.painel||{};
+  const mc=d.mes_corrente||{}, conc=d.concentracao||{}, lote=d.lote_aberto||{};
   const bate = (pain.origem==null) ? null : (Number(conf.espelho_abertos||0)===Number(pain.titulos||0));
   document.getElementById('kpis-tupy').innerHTML=[
     kpi('Antecipado (histórico)', brlAbbr(k.valor_total||0),
@@ -24889,6 +24909,29 @@ function renderTupy(d){
         :(bate?'confere com o painel de Antecipações ✓':'DIVERGE do painel de Antecipações — ver Validação'),
       bate==null?'':(bate?'pos':'neg'),
       'Títulos que ainda estão no portal (nem vendidos, nem liquidados, nem cancelados) — a posição que o painel de Antecipações usa. Zero aqui é normal: a mesa da Tupy vende rápido, e título vendido sai da posição.'),
+    // ---- segunda banda: o mês em curso, o custo de hoje e a dependência ----
+    kpi('Antecipado no mês', brlAbbr(mc.nominal||0),
+      (mc.titulos||0)+' título'+((mc.titulos||0)===1?'':'s')+' · PARCIAL'
+        +(mc.pct_da_media!=null?' · '+Math.round(mc.pct_da_media)+'% da média mensal':''),
+      '',
+      'Quanto já foi antecipado DENTRO do mês corrente, pela data de antecipação (o createdAt da Monkey, que fica a 0,4 dia da venda). É PISO, nunca número fechado: só sobe até o mês virar. A média de comparação sai apenas dos meses FECHADOS — incluir o mês em curso na régua que ele mesmo é comparado puxaria a régua para baixo. NÃO há projeção de fechamento, e a ausência é deliberada: a cadência aqui é de lote irregular (13 dias sem nenhuma entrada entre 29/07 e 11/08), então projetar por dias corridos multiplicaria um lote que caiu hoje ou daria zero para um mês que fechará normal.'),
+    kpi('Antecipado em 12 meses', brlAbbr(k.nominal_12m||0),
+      brlAbbr(k.desagio_12m||0)+' de deságio'
+        +(k.prazo_12m!=null?' · prazo '+Math.round(k.prazo_12m)+' dias':''),
+      '',
+      'Volume nominal antecipado nos últimos 12 meses, pela data de antecipação. O deságio é o custo total do período: nominal menos o que a Sulista recebeu, somado sobre todos os títulos e só então comparado.'),
+    kpi('Custo do dinheiro hoje',
+      k.taxa_am_12m!=null?(k.taxa_am_12m.toFixed(2).replace('.',',')+'% a.m.'):'n/d',
+      k.custo_aa_12m!=null?('≈ '+k.custo_aa_12m.toFixed(1).replace('.',',')+'% ao ano equivalente'):'sem base',
+      '',
+      'Taxa MENSAL média ponderada pelo valor nos últimos 12 meses. Que a taxa da Monkey é mensal deixou de ser suposição em 09/09/2026: sobre 13.113 títulos, deságio% = taxa × prazo/30 reproduz o deságio real com correlação 0,9997 e erro médio de 0,005 ponto percentual — na hipótese anual daria 0,25% contra os 3,05% observados. O equivalente anual é COMPOSTO, não a mensal vezes 12, e é ele o número comparável com qualquer outra linha de crédito da casa.'),
+    kpi('Concentração do comprador',
+      conc.lider_pct!=null?(conc.lider_pct.toFixed(1).replace('.',',')+'%'):'n/d',
+      conc.motivo?esc(conc.motivo)
+        :((conc.lider||'—')+' · '+(conc.lotes||0)+' lotes em 30 dias'
+          +(conc.risco_anual?' · sair custaria '+brlAbbr(conc.risco_anual)+'/ano':'')),
+      {ok:'pos', atencao:'warn', alerta:'neg'}[conc.estado]||'',
+      'Fatia do maior investidor no valor antecipado dos ÚLTIMOS 30 DIAS — não do histórico, onde nenhum passa de 31% e a dependência de hoje ficaria invisível. Concentração alta NÃO é defeito: aqui ela subiu justamente porque o preço melhorou (o líder entrou 5% mais barato que os demais). O que o cartão mede é dependência, e o valor em reais é o que custaria por ano se esse comprador recuasse e o preço voltasse à faixa dos outros. Abaixo de 3 dias de leilão na janela não há base para julgar, e o cartão diz isso em vez de acusar.'),
   ].join('');
 
   // gráfico mensal — vencimentos futuros hachurados (vendido, a liquidar)
@@ -24941,6 +24984,33 @@ function renderTupy(d){
     <td class="num">${i.taxa_media!=null?i.taxa_media.toFixed(2).replace('.',','):'—'}</td></tr>`).join('')
     ||'<tr><td colspan="4" class="hint">nenhum título vendido ainda</td></tr>';
   document.getElementById('tupy-inv-hint').textContent='quem comprou os títulos vendidos e liquidados';
+
+  // concentração dos últimos 30 dias — participação sobre o total da janela
+  const cl=conc.linhas||[], totC=cl.reduce((s,x)=>s+(x.valor||0),0);
+  document.getElementById('tupy-conc').innerHTML=cl.map(x=>`<tr>
+    <td>${esc(x.investidor)}</td>
+    <td class="num">${(x.lotes||0)}</td>
+    <td class="num">${(x.titulos||0).toLocaleString('pt-BR')}</td>
+    <td class="num" style="font-weight:600">${brlAbbr(x.valor||0)}</td>
+    <td class="num">${totC?((100*(x.valor||0)/totC).toFixed(1).replace('.',',')+'%'):'—'}</td>
+    <td class="num">${x.taxa_am!=null?x.taxa_am.toFixed(4).replace('.',','):'—'}</td></tr>`).join('')
+    ||'<tr><td colspan="6" class="hint">nenhuma venda nos últimos 30 dias</td></tr>';
+  document.getElementById('tupy-conc-hint').textContent=
+    (conc.lotes||0)+' dias de leilão na janela'+((conc.lotes||0)<3?' — base pequena, sem veredito':'');
+
+  // taxa por faixa de prazo — 12 meses
+  document.getElementById('tupy-faixa').innerHTML=(d.faixas_prazo||[]).map(f=>`<tr>
+    <td>${esc(f.faixa)}</td>
+    <td class="num">${(f.titulos||0).toLocaleString('pt-BR')}</td>
+    <td class="num">${brlAbbr(f.nominal||0)}</td>
+    <td class="num" style="font-weight:600">${f.taxa_am!=null?f.taxa_am.toFixed(4).replace('.',','):'—'}</td></tr>`).join('')
+    ||'<tr><td colspan="4" class="hint">sem títulos antecipados na janela</td></tr>';
+  document.getElementById('tupy-faixa-hint').textContent='12 meses · prazo entre a antecipação e o vencimento';
+
+  // o gráfico da aba "Custo e concentração" só se desenha quando ela abre:
+  // ECharts mede o contêiner UMA vez, e medida sob `hidden` vale zero para
+  // sempre — o sintoma seria mudo (eixos certos, rótulos suprimidos).
+  if(!document.getElementById('aba-antport-tupycus').hidden) tupyCustoDesenhar();
 
   // títulos
   document.getElementById('tupy-tit').innerHTML=(d.titulos||[]).map(t=>`<tr>
@@ -25001,6 +25071,38 @@ function renderTupy(d){
 
   const ts=new Date();
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+esc(d.fonte||'');
+}
+
+function tupyCustoDesenhar(){
+  const d=DATATUPY; if(!d || !d.disponivel) return;
+  const serie=(d.antecipado||[]), mc=d.mes_corrente||{};
+  // o mês em curso é o único hachurado: ele ainda vai subir, e barra cheia
+  // ao lado de meses fechados se lê como queda de volume.
+  const parcial=serie.map(m=>m.mes===mc.mes);
+  ecDesenhar('chartTupyAntecipado', serie.length && (() => {
+    const maxV=Math.max(1, ...serie.map(m=>m.nominal||0));
+    const o=ecOpcoes(serie.map(m=>m.mes), maxV,
+      {legenda:['Antecipado','Taxa a.m.'], tipo:'brl', sombra:true});
+    const barras=ecBarras('Antecipado', serie.map(m=>m.nominal||null), CC.laranja,
+      {largura:20, parcial:parcial});
+    const taxas=serie.map(m=>m.taxa_am!=null?+m.taxa_am.toFixed(4):null);
+    const linha=ecLinha('Taxa a.m.', taxas, CC.azul,
+      {eixo:1, rotulo:(v)=>String(v).replace('.',','), tamanho:5});
+    o.yAxis=[o.yAxis, ecEixoOculto(Math.max(1,...taxas.filter(t=>t!=null)))];
+    o.tooltip.formatter=p=>{
+      const m=serie[p[0].dataIndex];
+      let h='<b>'+m.mes+'</b>'+(parcial[p[0].dataIndex]?' <span style="color:#B97709">mês em curso · parcial</span>':'');
+      h+='<br><span style="color:'+CC.laranja+'">&#9632;</span> Antecipado: <b>'+BRL.format(m.nominal||0)+'</b>';
+      if(m.desagio) h+=' <span style="color:'+CC.n500+'">(deságio '+BRL.format(m.desagio)+')</span>';
+      if(m.taxa_am!=null) h+='<br><span style="color:'+CC.azul+'">&#9632;</span> Taxa: <b>'+m.taxa_am.toFixed(4).replace('.',',')+'% a.m.</b>';
+      if(m.prazo_dias!=null) h+='<br><span style="color:'+CC.n500+'">prazo médio '+Math.round(m.prazo_dias)+' dias · '+(m.titulos||0)+' títulos</span>';
+      return h;
+    };
+    o.series=[barras, linha];
+    return o;
+  }), 'nenhum título antecipado na janela');
+  document.getElementById('tupy-ant-hint').textContent=
+    '13 meses pela data de antecipação · '+(mc.mes||'')+' em curso, hachurado';
 }
 
 // ---------------- Faturamento Detalhado ----------------

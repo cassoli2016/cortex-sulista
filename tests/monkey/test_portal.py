@@ -8,8 +8,11 @@ taxa/desagio/investidor — todo titulo do convenio e antecipado.
 """
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 import pytest
 
+from api import pglocal
 from api.monkey import espelho
 from api.monkey import portal
 
@@ -124,3 +127,136 @@ class TestPortal:
         conf = d["conferencia"]
         assert conf["espelho_abertos"] == 1
         assert "painel" in conf
+
+
+class TestCustoEConcentracao:
+    """Os indicadores de custo, mes corrente e dependencia de comprador.
+
+    Cada teste aqui foi SABOTADO antes de entrar: trocar a data de agrupamento,
+    incluir o mes corrente na propria media, usar taxa vezes 12 em vez de
+    composta, ou baixar o piso de base da concentracao faz um destes ficar
+    vermelho. Guard que nao acende nao conferiu nada.
+    """
+
+    def _cria(self, esquema_pg, itens):
+        """itens: (ext, criado_iso, venc, valor, recebe, taxa, comprador)."""
+        pares = []
+        for ext, criado, venc, valor, recebe, taxa, comprador in itens:
+            pares.append(("111", _receb(
+                ext, venc=venc, valor=valor, recebe=recebe,
+                purchasedTax=taxa, buyerName=comprador,
+                createdAt=criado + "T03:00:00.000-03:00",
+                updatedAt=criado + "T12:00:00.000-03:00")))
+        espelho.upsert(pares, esquema=esquema_pg)
+
+    def test_a_serie_de_antecipacao_agrupa_pela_entrada_nao_pelo_vencimento(
+            self, esquema_pg):
+        # o titulo ENTRA num mes e VENCE dois meses depois: as duas series
+        # tem de contá-lo em meses DIFERENTES, senao uma delas esta errada
+        hoje = date.today()
+        entrada = (hoje.replace(day=1) - timedelta(days=1)).replace(day=10)
+        venc = entrada + timedelta(days=75)
+        self._cria(esquema_pg, [("E1", entrada.isoformat(), venc.isoformat(),
+                                 1000.0, 975.0, 1.20, "BANCO A")])
+        d = portal.montar(esquema=esquema_pg)
+        ant = {m["mes"]: m for m in d["antecipado"]}
+        assert ant[entrada.strftime("%Y-%m")]["titulos"] == 1, \
+            "a serie de antecipacao tem de contar no mes de ENTRADA"
+        assert ant.get(venc.strftime("%Y-%m"), {}).get("titulos", 0) == 0, \
+            "contar no mes de vencimento seria repetir a serie que ja existia"
+
+    def test_o_mes_corrente_e_parcial_e_fica_fora_da_propria_media(
+            self, esquema_pg):
+        hoje = date.today()
+        ant_mes = (hoje.replace(day=1) - timedelta(days=1)).replace(day=5)
+        itens = [("M1", ant_mes.isoformat(), (ant_mes + timedelta(days=60)
+                                              ).isoformat(),
+                  10000.0, 9700.0, 1.20, "BANCO A"),
+                 ("M2", hoje.replace(day=1).isoformat(),
+                  (hoje + timedelta(days=60)).isoformat(),
+                  1000.0, 970.0, 1.20, "BANCO A")]
+        self._cria(esquema_pg, itens)
+        mc = portal.montar(esquema=esquema_pg)["mes_corrente"]
+        assert mc["parcial"] is True
+        assert mc["nominal"] == 1000.0
+        # a media so olha meses FECHADOS: se o corrente entrasse, ela cairia
+        # para 5.500 e o "% da media" saltaria de 10% para 18%
+        assert mc["media_fechada"] == 10000.0, \
+            "o mes em curso nao pode entrar na media que ele e' comparado"
+        assert mc["meses_na_media"] == 1
+        assert round(mc["pct_da_media"]) == 10
+
+    def test_taxa_ao_ano_e_composta_nunca_vezes_doze(self):
+        # 1,2488% a.m. -> 16,06% a.a. compostos. Vezes 12 daria 14,99% e
+        # subestimaria o custo em mais de um ponto percentual.
+        aa = portal.ao_ano(1.2488)
+        assert 16.0 < aa < 16.2, aa
+        assert abs(aa - 1.2488 * 12) > 1.0, "esta multiplicando em vez de compor"
+        assert portal.ao_ano(None) is None
+
+    def test_concentracao_sem_base_publica_o_numero_mas_nao_da_veredito(
+            self, esquema_pg):
+        # UM dia de leilao: 100% de concentracao e verdade e nao significa nada
+        hoje = date.today()
+        self._cria(esquema_pg, [
+            ("C1", hoje.isoformat(), (hoje + timedelta(days=60)).isoformat(),
+             5000.0, 4850.0, 1.20, "BANCO A")])
+        c = portal.montar(esquema=esquema_pg)["concentracao"]
+        assert c["lider_pct"] == 100.0, "o percentual continua sendo publicado"
+        assert c["estado"] == "info", "sem base nao se acusa"
+        assert "base" in (c["motivo"] or "")
+
+    def test_concentracao_com_base_acusa_o_lider_e_precifica_a_saida(
+            self, esquema_pg):
+        hoje = date.today()
+        itens = [(f"D{i}", (hoje - timedelta(days=i)).isoformat(),
+                  (hoje + timedelta(days=60)).isoformat(),
+                  10000.0, 9700.0, 1.10, "BANCO LIDER") for i in range(4)]
+        itens.append(("D9", (hoje - timedelta(days=5)).isoformat(),
+                      (hoje + timedelta(days=60)).isoformat(),
+                      1000.0, 970.0, 1.30, "BANCO OUTRO"))
+        self._cria(esquema_pg, itens)
+        c = portal.montar(esquema=esquema_pg)["concentracao"]
+        assert c["lider"] == "BANCO LIDER"
+        assert c["estado"] == "alerta" and c["lider_pct"] > 95
+        assert c["lotes"] >= portal._LOTES_MINIMOS
+        # o lider e' 0,20 p.p. mais barato: sair dele CUSTA, e o cartao diz quanto
+        assert c["risco_anual"] > 0, "concentracao sem consequencia nao decide"
+
+    def test_lote_em_aberto_alarma_por_idade_e_nunca_por_contagem(
+            self, esquema_pg):
+        hoje = date.today()
+        # 40 titulos abertos, todos de HOJE: muitos, e nada de errado
+        self._cria(esquema_pg, [
+            (f"A{i}", hoje.isoformat(), (hoje + timedelta(days=60)).isoformat(),
+             1000.0, 1000.0, 1.20, None) for i in range(40)])
+        with pglocal.get_conn(esquema_pg) as conn, conn.cursor() as cur:
+            cur.execute("UPDATE mky_recebiveis SET status = 'ACTIVE'")
+        lote = portal.montar(esquema=esquema_pg)["lote_aberto"]
+        assert lote["titulos"] == 40 and lote["estado"] == "ok", \
+            "contagem alta com lote fresco nao e' alarme"
+        # o MESMO lote, parado ha tres dias, e' alarme
+        with pglocal.get_conn(esquema_pg) as conn, conn.cursor() as cur:
+            cur.execute("UPDATE mky_recebiveis"
+                        " SET criado_fornecedor = now() - interval '72 hours'")
+        lote = portal.montar(esquema=esquema_pg)["lote_aberto"]
+        assert lote["estado"] == "alerta" and lote["horas"] >= 48
+
+    def test_faixas_de_prazo_medem_da_antecipacao_ate_o_vencimento(
+            self, esquema_pg):
+        hoje = date.today()
+        criado = hoje - timedelta(days=10)
+        self._cria(esquema_pg, [
+            ("F1", criado.isoformat(), (criado + timedelta(days=20)).isoformat(),
+             1000.0, 990.0, 1.30, "BANCO A"),
+            ("F2", criado.isoformat(), (criado + timedelta(days=90)).isoformat(),
+             1000.0, 960.0, 1.10, "BANCO A")])
+        faixas = {f["faixa"]: f for f in portal.montar(esquema=esquema_pg)["faixas_prazo"]}
+        assert "até 29 dias" in faixas and "84 dias ou mais" in faixas, faixas
+        assert faixas["até 29 dias"]["titulos"] == 1
+        assert faixas["84 dias ou mais"]["titulos"] == 1
+
+    def test_a_unidade_da_taxa_e_declarada_e_mensal(self):
+        # o modulo publicava a taxa sem unidade enquanto nao havia prova;
+        # com a prova, publicar cru voltaria a esconder o que se sabe
+        assert portal.TAXA_UNIDADE == "% a.m."

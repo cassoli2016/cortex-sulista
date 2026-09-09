@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.21.0] — 09/09/2026  ·  CX-09/09/2026-v1.21.0
+
+### Adicionado
+- O Portal Tupy passou a responder "quanto antecipamos no mes". Ja havia uma serie mensal, mas ela somava por MES DE VENCIMENTO -- que e a pergunta de quem projeta caixa, nao a de quem fecha o mes. Agora as duas convivem, cada uma dizendo qual pergunta responde.
+- Quatro indicadores novos no topo: quanto ja foi antecipado DENTRO do mes corrente, quanto em doze meses, o custo do dinheiro e a concentracao do comprador. O mes em curso aparece sempre marcado como parcial e comparado contra a media dos meses FECHADOS -- ele e piso, nao numero fechado, e nao ha projecao de fechamento porque os titulos chegam em lotes irregulares (houve 13 dias seguidos sem nenhum).
+- A taxa deixou de aparecer sem unidade. Ela e MENSAL -- conferido contra 13.113 titulos -- e a tela agora diz isso e publica ao lado o equivalente anual, que e o numero comparavel com qualquer outra linha de credito da empresa.
+- Aba nova "Custo e concentracao": quem comprou nos ultimos 30 dias, quanto custaria por ano se esse comprador saisse do leilao, e a taxa por faixa de prazo (titulo mais longo sai mais barato por mes).
+
+### Corrigido
+- O cartao de titulos em aberto dizia quantos estao esperando, mas nunca HA QUANTO TEMPO -- e a idade e que carrega o sinal, porque o normal e vender em menos de meio dia. Um lote travado tinha exatamente a mesma aparencia de um dia normal.
+
 ## [1.20.0] — 09/09/2026  ·  CX-09/09/2026-v1.20.0
 
 ### Adicionado
