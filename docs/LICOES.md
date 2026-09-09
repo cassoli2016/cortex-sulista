@@ -12,6 +12,191 @@
 
 ---
 
+## Três projeções de caixa, nenhuma decidia (2026-09-09, v1.29.0)
+
+Quem opera disse: *"ainda está um pouco confuso e dá para melhorar a leitura,
+preciso saber o quanto preciso antecipar, precisamos de uma verdadeira
+engenharia de caixa."*
+
+A queixa parecia de layout. Não era. A casa tinha **três projeções de caixa
+com três métodos diferentes**, e nenhuma respondia a pergunta:
+
+| onde | horizonte | o que enxerga | antecipa? |
+|---|---|---|---|
+| `fluxcon` › Projeção | dias | só o LANÇADO | não |
+| `fluxcon` › Plano 12 meses | meses | lançado + provisionado | **não** |
+| `antec` | dias | só o LANÇADO | **sim** |
+
+Medidas no mesmo instante (09/09/2026), as duas últimas diziam coisas opostas
+e as duas estavam certas:
+
+- o Plano 12 meses: saldo indo a **−R$ 11,1 milhões** em ago/27, 10 dos 12
+  meses negativos;
+- a tela de Antecipação: antecipe R$ 5,39 milhões e **nenhum dia fica
+  descoberto** em 180 dias.
+
+A diferença inteira era a premissa: a segunda enxerga só o lançado, que o
+próprio módulo de projeção já tinha medido ser ficção a partir do segundo mês
+(no dia 1º o ERP conhece 0% da folha e 92% da dívida financeira). E o
+`index.html` dizia isso na cara, numa string que ninguém tinha lido como
+sintoma:
+
+> "o saldo projetado conta só o que está LANÇADO, então nos meses distantes ele
+> é pessimista — **para dimensionar a operação use a tela de Antecipação**"
+
+**A tela do Fluxo Consolidado mandava o usuário para outra tela para decidir.**
+Essa frase é o defeito, escrito pela própria casa e assinado.
+
+### O que faltava não era um número, era o encadeamento
+
+Antecipar recebível de novembro resolve setembro **e esvazia novembro**. Sem
+modelar esse saque, um simulador antecipa o mesmo dinheiro doze vezes e fecha
+todos os meses — o erro mais caro possível aqui, porque ele **produz um painel
+verde**. É esse encadeamento que transforma "quanto antecipar" de um número
+numa sequência, e é ele que separa, sem opinião, o descasamento de prazo (a
+antecipação resolve) do rombo estrutural (não resolve).
+
+`api/financeiro/plano.py` roda o motor de antecipação POR CIMA da projeção de
+12 meses. Quatro decisões, e cada uma custa dinheiro se invertida:
+
+1. **O piso é MÓVEL** — 5 dias da saída daquele mês, por decisão de quem opera.
+   Piso fixo envelhece: a mesma R$ 1 milhão que é folgada num mês de R$ 9 mi de
+   saída é aperto num de R$ 13 mi. A projeção continua com piso ZERO de
+   propósito: lá a pergunta é "quanto falta para não furar", aqui é "quanto
+   antecipar para operar".
+2. **O saque é BRUTO** — para o caixa receber R$ 100 mil a 1,17% a.m. em 60
+   dias é preciso sacar R$ 102.394. Somar o custo por fora subestima o consumo
+   da pilha justamente no mês em que ela é escassa.
+3. **Saca do mês mais PRÓXIMO primeiro**, que é o mais barato pelo mesmo
+   dinheiro. E **nunca do próprio mês**: aquele recebível já está dentro da
+   entrada do mês, e antecipá-lo só paga deságio. (O motor DIÁRIO faz isso e
+   está certo — lá o buraco é do dia 20 e o título vence no 25. Aqui não há
+   dia, e é por isso que a tela `antec` continua existindo.)
+4. **A pilha tem duas metades com naturezas de prova diferentes.**
+
+### A metade que quase ficou de fora
+
+O recebível LANÇADO de cliente com convênio acaba em dez/26 (R$ 5,69 mi). Só
+com ele, o plano dizia **"descoberto total a partir de jan/27"** — falso: a
+empresa não para de faturar. A outra metade é a fatia elegível do que ainda vai
+ser faturado, e ela é grande:
+
+    mês      set/25 out nov dez jan/26 fev mar abr mai jun jul ago
+    % elegível 36,8 37,8 38,1 31,2 37,8 43,2 42,5 45,5 50,8 52,9 48,8 54,7
+
+**Mediana de 6 meses: 49,8%.** Média de 12: 43,4%. A série SOBE, e a média de
+doze meses responde com um número que já não descreve a empresa — por isso
+mediana, e por isso janela de seis, a mesma que a projeção usa para o nível.
+
+As duas metades nunca viram uma coluna só: um plano que só fecha com
+faturamento futuro tem risco diferente de um que usa nota já emitida.
+
+### O alarme certo não é o descoberto — é a saturação
+
+Com a pilha completa, o plano **fecha os 12 meses**: descoberto zero. Um painel
+que só alarmasse no descoberto ficaria verde o ano inteiro. Mas:
+
+    mês       set  out  nov  dez  jan/27 fev mar abr mai jun jul ago
+    saturação   0%  97%  89%  85%   100% 100% 100% 100% 100% 100% 100% 100%
+
+**A partir de jan/27 o plano precisa de 100% do recebível elegível, todo mês.**
+Não há descoberto — e não há folga: o atraso de um cliente grande vira furo no
+mesmo dia. Esperar o descoberto para avisar é avisar depois que já não há
+remédio. A saturação virou coluna, KPI e a regra do semáforo (<80% ok, 80–99%
+atenção, 100% alerta).
+
+E o número que fecha a leitura: o resultado mensal do fluxo, sem antecipação
+nenhuma, é **−R$ 856 mil/mês** (mediana de 12 meses). A antecipação não está
+corrigindo isso — está FINANCIANDO, a 14,26% ao ano.
+
+### O custo estava 41% inflado, e ninguém podia saber
+
+`_lastro()` chamava `get_antecipacao(taxa_mes=2.0)` — **2,0% ao mês escrito no
+código** — enquanto o portal praticava **1,17% a.m.**, medido em 1.345 títulos
+de 30 dias (`mky_recebiveis`). A tela publicava o custo sem dizer em lugar
+nenhum que aquilo era um chute. **Custo estimado por constante envelhece
+calado**: a taxa muda no portal e a tela não muda nunca. Agora a taxa sai da
+medição, a tela diz de onde ela veio e com que base, e a Saúde do Servidor
+acusa no cartão da Monkey quando a medição some.
+
+### E o custo lido como linha de crédito, não como soma
+
+O plano saca **R$ 73,1 milhões brutos** em 12 meses. Chamar isso de dívida erra
+por um fator de sete: o mesmo dinheiro **gira 7,5 vezes no ano**. O capital
+médio — Σ(valor × prazo) ÷ 365 — é **R$ 9,79 milhões**, com prazo médio de 49
+dias, e o custo efetivo sobre ele é **14,26% a.a.** É a única leitura em que o
+deságio e o limite rotativo (15,67% ao MÊS) ficam na mesma régua. A definição é
+a mesma de `antecipacoes.estrategia`, reusada de propósito: dois módulos com
+duas definições do mesmo conceito divergem no primeiro dia em que alguém mexe
+num só.
+
+### Dois defeitos que a própria reforma criou, e como apareceram
+
+**A borda do horizonte inventava R$ 21,7 milhões de descoberto.** O último mês
+da janela não tem nenhum mês seguinte de onde sacar, então aparecia descoberto
+por CONSTRUÇÃO — jul/27 e ago/27 somavam isso com R$ 5,7 milhões de pilha
+intocada em cada um. O corte da janela não é um fato sobre a empresa. Três
+meses de CAUDA (o prazo médio do recebível elegível é 86 dias) entram como
+fonte de saque e nunca como linha: não têm saldo, não aparecem na tela.
+
+**O gráfico de curto prazo passou a nascer com largura ZERO.** Ele estava na
+aba que era a padrão e deixou de ser. O ECharts mede o contêiner uma vez, e
+medida sob `hidden` vale zero para sempre — o sintoma é mudo: eixos certos,
+rótulos do eixo X sumindo um a um por "colisão" calculada em zero pixel. O
+`ResizeObserver` cobre a VOLTA à aba, **não a primeira pintura**, e quem
+desenha é o `renderFluxcon`, no carregamento da tela. Quem pegou foi o
+`test_eixo_rotulos.py`, um teste que não fala do assunto — e a correção foi nos
+dois lados: a aba redesenha ao abrir, e a fixture do teste passou a abrir a aba
+em vez de assumir que ela está visível.
+
+### A régua cobrou três rodadas, e a medição com dado real cobrou uma quarta
+
+`scripts/medir_paineis.py` mede com a API dublada em `{}`: tabela vazia, avisos
+mudos. É a medida do ESQUELETO. A aba Decidir passava com 854px e ia a
+**1303px** com os doze meses reais — a tabela vai ao teto do `.tabroll` e os
+avisos aparecem. O guard que pega isso mora no e2e, com o payload cheio
+(`test_as_abas_cabem_na_tela_COM_DADO_REAL`), e foi ele que forçou as decisões
+de layout que sobraram: gráfico e ação lado a lado, cartão de conclusão dentro
+do cartão do gráfico, e **os dois toasts que repetiam o que os cartões já
+diziam foram embora** — dizer a mesma coisa em três lugares custava 110px e não
+acrescentava nada.
+
+De passagem, um erro de método meu: ao remover um cartão por script deixei um
+`</div>` órfão. As alturas das outras abas despencaram para 185–304px e eu
+quase li aquilo como "melhorou". **Número que melhora sozinho depois de uma
+edição estrutural é sintoma, não resultado** — a conferência que resolveu foi
+contar a profundidade de cada `.aba` na árvore, e três delas estavam em −1.
+
+### E o filtro que aceitava valor sem mudar nada
+
+A tela tem dois filtros — granularidade e janela em dias — e eles são da
+consulta de CURTO prazo. O plano de 12 meses não os recebe nem poderia: é
+mensal por construção. Com a reforma, a aba padrão passou a ser uma que os
+ignora, e a barra continuava lá: dava para escolher "semana", clicar em
+"Aplicar filtros" e nada mudar. É o mesmo defeito que `integ` e `apps` já
+custaram à casa (07/09/2026). **Campo que aceita valor e não muda nada é pior
+que campo nenhum, porque quem filtrou acredita no resultado.** A barra INTEIRA
+sai nas abas do plano — esconder só o grupo deixaria o botão "Aplicar filtros"
+sozinho, que promete ainda mais.
+
+### O que fica como regra
+
+- **Duas telas que respondem "como está o caixa" com métodos diferentes vão se
+  contradizer, e as duas vão estar certas.** O conserto não é escolher uma: é
+  achar a pergunta que nenhuma responde.
+- **Antecipar é SAQUE.** Todo simulador de antecipação tem de descontar o
+  antecipado do mês de origem, sob pena de produzir um painel verde.
+- **Saturação antes de descoberto.** O indicador que enche antes de transbordar
+  é o que dá tempo de agir.
+- **Custo de antecipação se lê sobre capital médio**, nunca sobre o nominal
+  somado.
+- **Taxa de fornecedor não se escreve no código.** Se não houver medição, a
+  tela diz que não houve.
+- **A régua com dublê mede o esqueleto.** Aba nova pede medição com payload
+  cheio, no e2e.
+
+---
+
 ## A planilha que a torre mantinha à mão era a especificação (2026-09-09)
 
 Quem opera mandou a planilha do controle diário de um cliente e uma frase

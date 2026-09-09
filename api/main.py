@@ -4327,6 +4327,36 @@ def financeiro_projecao(meses: int = 12) -> JSONResponse:
             "erro": "erro_consulta", "mensagem": "Erro ao montar a projeção."})
 
 
+@app.get("/api/financeiro/plano")
+def financeiro_plano(meses: int = 12, piso_dias: int = 5) -> JSONResponse:
+    """Engenharia de caixa: quanto antecipar, quando, de quem e a que custo.
+
+    Roda o motor de antecipação POR CIMA da projeção de 12 meses (lançado +
+    provisionado). É a junção que faltava — a projeção via o buraco e não
+    antecipava; a tela `antec` antecipava e só via o lançado.
+    """
+    from api.financeiro import plano as pl
+    if not (3 <= meses <= pl.proj.HORIZONTE_MAX):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": f"Horizonte inválido: use entre 3 e {pl.proj.HORIZONTE_MAX} meses."})
+    if not (0 <= piso_dias <= 30):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Piso inválido: use entre 0 e 30 dias de saída."})
+    try:
+        return JSONResponse(pl.get_plano(meses=meses, piso_dias=piso_dias))
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("financeiro_plano falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao montar o plano de caixa."})
+
+
 @app.get("/api/financeiro/projecao/detalhe")
 def financeiro_projecao_detalhe(mes: str) -> JSONResponse:
     """A composicao de UM mes: o lancado (fato, com credor) e o provisionado

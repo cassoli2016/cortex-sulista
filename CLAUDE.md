@@ -457,6 +457,38 @@ barra empilhada, não donut.
     uma delas lia `leitura_idade_s` — campo que nunca existiu — e dizia
     "0 min atrás" para sempre; defeito que só aparece no dia ruim, que é o dia
     em que ninguém confere o texto da tarja.
+- **Duas telas que respondem "como está o caixa" com métodos diferentes vão se
+  contradizer, e as duas vão estar CERTAS.** A casa tinha três projeções de
+  caixa (`fluxcon`›Projeção só o lançado; `fluxcon`›Plano lançado+provisionado
+  sem antecipar; `antec` antecipando mas só sobre o lançado). Em 09/09/2026 uma
+  dizia "−R$ 11,1 mi em ago/27" e a outra "nenhum dia descoberto", e a tela
+  chegava a mandar o usuário para OUTRA tela para dimensionar a operação. O
+  conserto não é escolher uma: é achar a pergunta que nenhuma responde —
+  aqui, "quanto antecipar". `api/financeiro/plano.py` roda o motor de
+  antecipação POR CIMA da projeção de 12 meses. Crônica em `docs/LICOES.md`.
+  - **ANTECIPAR É SAQUE**: o antecipado sai das entradas do MÊS DE ORIGEM.
+    Sem isso o simulador antecipa o mesmo dinheiro doze vezes e fecha todos os
+    meses — o erro mais caro possível, porque produz um painel VERDE. E o saque
+    é BRUTO (`falta / (1 − deságio)`): o deságio sai de dentro da operação.
+  - **Piso de caixa é MÓVEL** (5 dias da saída daquele mês, decisão de quem
+    opera). Piso fixo envelhece. A projeção crua segue com piso ZERO: "quanto
+    falta para não furar" e "quanto antecipar para operar" são perguntas
+    diferentes.
+  - **SATURAÇÃO antes de DESCOBERTO.** Enquanto sobra pilha o plano fecha todo
+    mês e o painel fica verde; o alarme é o mês em que ele passa a precisar de
+    100% do recebível elegível (jan/27, 8 de 12 meses). Esperar o descoberto é
+    avisar depois que já não há remédio.
+  - **Custo de antecipação se lê sobre CAPITAL MÉDIO** (Σ valor×prazo ÷ 365),
+    nunca sobre o nominal somado: R$ 73,1 mi de saque em 12 meses são R$ 9,79
+    mi de capital, porque o dinheiro gira 7,5×/ano. É a única régua em que o
+    deságio (14,26% a.a.) e o rotativo (15,67% a.MÊS) se comparam.
+  - **Taxa de fornecedor NÃO se escreve no código.** O `_lastro` usava 2,0%
+    a.m. fixo enquanto o portal praticava 1,17% — 41% de custo a mais,
+    publicado como se fosse medido. Custo por constante envelhece calado.
+- **A régua com dublê mede o ESQUELETO.** `scripts/medir_paineis.py` roda com a
+  API devolvendo `{}`: tabela vazia, avisos mudos. A aba Decidir passava com
+  854px e ia a 1.303px com os doze meses reais. Aba nova pede medição com
+  payload CHEIO, no e2e.
 - **Zero que é ausência de lançamento não é desempenho** — é `n/d` em cinza,
   jamais verde. KPI que só pode dar zero por falta de preenchimento mostra
   "não informado" com a cobertura ("informado em X de Y").

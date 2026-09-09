@@ -75,6 +75,13 @@ def eixo(pagina):
                         if "/api/auth/me" in r.request.url else {})))
     pg.goto(f"{base}/static/index.html#fluxcon")
     pg.wait_for_timeout(1200)
+    # O `chartFc` mora na aba CURTO PRAZO, que nao nasce aberta desde a
+    # reforma da tela (quem nasce aberta e a Decidir). Desenhar com a aba
+    # escondida faz o ECharts medir ZERO de largura, e ai todo rotulo do eixo
+    # X e suprimido por colisao -- o teste passaria a medir o `hidden`, nao a
+    # regra de colisao. Abrir a aba e o que reproduz o que o usuario ve.
+    pg.evaluate("() => abaTrocar('fluxcon','proj')")
+    pg.wait_for_selector("#aba-fluxcon-proj", state="visible")
     pg.evaluate("(linhas) => chartFcRender(linhas)", SEMANAS)
     pg.wait_for_timeout(1800)
     return " ".join(pg.inner_text("#chartFc").split())

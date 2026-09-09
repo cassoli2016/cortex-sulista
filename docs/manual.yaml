@@ -3,6 +3,44 @@ sistema: 'O CÓRTEX é o painel de gestão da Transportadora Sulista S/A. Ele l�
   — financeiro, comercial, operação, frota, pessoas e controladoria. Nenhum número é digitado aqui: tudo
   vem do ERP, e cada card diz no ⓘ de qual tabela e de qual regra ele saiu.'
 glossario:
+- termo: Piso de caixa
+  definicao: >-
+    O saldo mínimo que a tesouraria não pode furar, e a régua contra a qual o
+    Plano de Caixa decide quanto antecipar. Ele é MÓVEL: são 5 dias da saída
+    projetada DAQUELE mês, não um valor fixo. Piso fixo envelhece — a mesma
+    folga de um mês de R$ 9 milhões de saída vira aperto num de R$ 13 milhões,
+    e quem definiu o número há seis meses não sabe disso.
+    A projeção de 12 meses continua usando piso ZERO de propósito: lá a
+    pergunta é "quanto falta para não ficar negativo", aqui é "quanto
+    antecipar para operar". São perguntas diferentes com respostas diferentes,
+    e é por isso que os dois números convivem sem se contradizer.
+- termo: Pilha antecipável
+  definicao: >-
+    O recebível que pode virar caixa antes do vencimento num determinado mês.
+    Tem DUAS metades com naturezas de prova diferentes, e elas nunca são
+    somadas num número só na tela. A primeira é o LANÇADO: nota já emitida,
+    vencimento conhecido, de cliente com convênio de antecipação assinado — é
+    fato, e é executável hoje. A segunda é o FUTURO: a fatia elegível do que
+    ainda vai ser faturado, medida pela mediana de seis meses. Um plano que só
+    fecha com a segunda metade tem risco diferente de um que usa nota já
+    emitida, e essa diferença some se as duas virarem uma coluna só.
+- termo: Saturação da antecipação
+  definicao: >-
+    Quanto da pilha antecipável de um mês o plano precisou consumir. É o
+    ALARME da tela, e ele acende bem antes do descoberto: enquanto sobra
+    pilha, o plano fecha todos os meses e o painel fica verde. O mês em que a
+    saturação bate 100% é o mês em que a antecipação perdeu a folga — dali em
+    diante não há de onde sacar, e o atraso de um cliente grande vira furo no
+    mesmo dia. Esperar o descoberto para avisar é avisar depois que já não há
+    remédio.
+- termo: Capital médio da antecipação
+  definicao: >-
+    Σ(valor × prazo) ÷ 365 — o dinheiro que a antecipação mantém empregado ao
+    longo de um ano. Existe porque somar o nominal antecipado de doze meses e
+    chamar aquilo de dívida erra por um fator de cinco: o mesmo dinheiro gira
+    várias vezes no ano. É sobre o capital médio, e nunca sobre o nominal, que
+    se calcula o custo efetivo ao ano — a única leitura em que o deságio da
+    antecipação e o limite rotativo do banco ficam na mesma régua.
 - termo: Comunicado (mural do RH)
   definicao: >-
     Um aviso da empresa para TODOS os motoristas de uma vez, na aba
@@ -960,9 +998,15 @@ grupos:
   - cop
   - apps
 - nome: Financeiro
-  resumo: Caixa e sua projeção, títulos a receber e a pagar, régua de cobrança, conciliação do extrato,
-    lançamentos bancários (razão do banco lançamento a lançamento), fluxo consolidado por período, antecipação
-    de recebíveis (com importação das planilhas dos portais dos clientes).
+  resumo: >-
+    Caixa e sua projeção, títulos a receber e a pagar, régua de cobrança,
+    conciliação do extrato, lançamentos bancários (razão do banco lançamento a
+    lançamento), antecipação de recebíveis (com importação das planilhas dos
+    portais dos clientes). O Fluxo de Caixa Consolidado é a engenharia de
+    caixa: ele roda o motor de antecipação POR CIMA da projeção de 12 meses e
+    responde QUANTO ANTECIPAR neste mês, de quais vencimentos, a que custo — e,
+    do outro lado, o que a antecipação não resolve, porque antecipar não cria
+    dinheiro, traz para hoje o que entraria depois.
   telas:
   - fluxo
   - fluxcon

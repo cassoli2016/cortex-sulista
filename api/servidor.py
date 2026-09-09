@@ -1793,9 +1793,28 @@ def _servico_monkey(d: dict) -> dict:
         esp_txt = (f" · espelho {esp.get('gravados', 0):,} recebíveis"
                    .replace(",", ".")
                    + (" (última varredura FALHOU)" if esp.get("erro") else ""))
-    return {"nome": nome, "status": "alerta" if (hmg or velha) else "ok",
+    # A CURVA DE DESÁGIO sai daqui, e a perda dela é MUDA. O Plano de Caixa do
+    # Fluxo Consolidado precifica cada antecipação pela taxa medida nestes
+    # títulos; sem medição na janela de 30 dias ele cai numa constante
+    # pessimista e segue publicando um custo — que passa a ser teto, não
+    # preço. A tela do plano diz isso no cartão, mas quem vigia integração
+    # olha aqui, e a espera é que "Monkey verde" signifique que o número do
+    # plano é medido.
+    curva_txt = ""
+    try:
+        from api.financeiro.plano import _curva_de_taxa
+        _fn, curva = _curva_de_taxa()
+        curva_txt = (f" · curva de deságio medida em {curva['base']} títulos"
+                     if curva.get("origem") == "medida"
+                     else " · SEM curva de deságio medida — o Plano de Caixa "
+                          "está usando a taxa de segurança")
+    except Exception as exc:  # noqa: BLE001 - o cartão não morre por isto
+        log.warning("saude sem curva de desagio: %s", type(exc).__name__)
+    sem_curva = "SEM curva" in curva_txt
+    return {"nome": nome,
+            "status": "alerta" if (hmg or velha or sem_curva) else "ok",
             "detalhe": f"{d['titulos']} títulos em aberto · R$ {valor} · "
-                       f"coletado {_ha_quanto(idade)}" + esp_txt
+                       f"coletado {_ha_quanto(idade)}" + esp_txt + curva_txt
                        + (" · ambiente de HOMOLOGAÇÃO, os títulos são de teste"
                           if hmg else "")}
 

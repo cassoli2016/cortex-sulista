@@ -307,6 +307,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     # A MAIS ESPECIFICA ANTES: /detalhe tem de casar antes do prefixo generico.
     ("/api/financeiro/projecao/detalhe", frozenset({"fluxcon"})),
     ("/api/financeiro/projecao", frozenset({"fluxcon"})),
+    ("/api/financeiro/plano", frozenset({"fluxcon"})),
     ("/api/financeiro/dda/importar", frozenset({"fluxcon"})),
     ("/api/financeiro/dda", frozenset({"fluxcon"})),
     # A MAIS ESPECIFICA ANTES: /api/dre/exclusoes/... e escrita e exige

@@ -137,6 +137,7 @@ _FONTES_ROTULO = {
     "desempenho": "Avaliação de Desempenho — nine box",
     "recolha_fiscal": "Central de Documentos — recolha de XML (SEFAZ e e-mail)",
     "projecao_caixa": "Fluxo Consolidado — projeção de caixa de 12 meses",
+    "plano_de_caixa": "Fluxo Consolidado — quanto antecipar, e o que a antecipação não resolve",
 }
 
 
@@ -363,6 +364,48 @@ def _projecao_caixa() -> dict:
         "metodo": ("saidas e entradas por vencimento: o lancado no ERP mais o "
                    "estimado pela curva de lancamento e pelo indice sazonal por "
                    "natureza, com piso medido pelos boletos do DDA"),
+    }
+
+
+def _plano_de_caixa() -> dict:
+    """Quanto antecipar, e o que a antecipacao NAO resolve. So escalares.
+
+    Esta entrada existe separada da `projecao_caixa` porque responde outra
+    pergunta: a projecao diz o tamanho do buraco, o plano diz o que FAZER com
+    ele. Sem ela o chat respondia "voce precisa de R$ 2,66 milhoes" (o pior
+    resultado mensal) a quem perguntava quanto antecipar — numero certo para
+    outra pergunta.
+
+    E o `deficit_estrutural_mes` vem junto de proposito: sem ele o chat
+    sugeriria antecipar contra uma queima, que e adiar o problema com juros.
+    """
+    from api.financeiro.plano import get_plano
+    d = get_plano(12)
+    k = d["kpis"]
+    return {
+        "antecipar_neste_mes": k.get("antecipar_agora"),
+        "mes": k.get("mes_agora"),
+        "custo_neste_mes": k.get("custo_agora"),
+        "executavel_hoje_nota_ja_emitida": k.get("de_lancado_agora"),
+        "piso_de_caixa_do_mes": k.get("piso_agora"),
+        "custo_do_plano_12m": k.get("custo_12m"),
+        "capital_medio_empregado": k.get("capital_medio"),
+        "custo_efetivo_ao_ano_pct": k.get("custo_efetivo_aa"),
+        # O alarme REAL: enquanto sobra pilha o plano fecha todo mes e parece
+        # que nao ha problema. O mes em que a saturacao bate 100% e o mes em
+        # que qualquer atraso de cliente vira furo.
+        "folga_da_antecipacao_acaba_em": k.get("primeiro_saturado"),
+        "meses_sem_folga": k.get("meses_saturados"),
+        "descoberto_12m": k.get("descoberto_total"),
+        "deficit_estrutural_mes": k.get("estrutural_mes"),
+        "pior_saldo_se_nao_antecipar": k.get("pior_saldo_sem"),
+        "piso_dias_de_saida": (d.get("piso") or {}).get("dias"),
+        "taxa_de_desagio_am": (d.get("curva") or {}).get("referencia"),
+        "taxa_medida_ou_estimada": (d.get("curva") or {}).get("origem"),
+        "metodo": ("motor de antecipacao rodado POR CIMA da projecao de 12 "
+                   "meses: antecipa o minimo para o saldo nao furar o piso de "
+                   "N dias de saida, sacando do mes mais proximo primeiro, com "
+                   "o saque descontado das entradas do mes de origem"),
     }
 
 
@@ -966,6 +1009,7 @@ def _fontes_do_snapshot() -> dict:
         # tem os dois e fica na tela, atras do RBAC — e e isso, nao um filtro
         # magico, que permite o fallback externo do chat.
         "projecao_caixa": _projecao_caixa,
+        "plano_de_caixa": _plano_de_caixa,
     }
 
 

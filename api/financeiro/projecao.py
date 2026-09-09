@@ -776,10 +776,20 @@ def _lastro(kpis: dict) -> dict:
     from ..queries import get_antecipacao
     out: dict = {"antecipacao": None, "credito": None, "recebiveis": None}
     try:
-        a = get_antecipacao(dias=180, reserva=0.0, taxa_mes=2.0)["kpis"]
+        # A TAXA SAI DA MEDIÇÃO, não de constante. Até 09/09/2026 esta chamada
+        # passava `taxa_mes=2.0` escrito à mão enquanto o portal praticava
+        # 1,17% a.m. (medido em `mky_recebiveis`, 1.345 títulos em 30 dias):
+        # 41% de custo a mais, publicado numa tela que não dizia em lugar
+        # nenhum que aquele número era um chute. Custo estimado por constante
+        # envelhece calado — a taxa muda no portal e a tela não muda nunca.
+        from .plano import _curva_de_taxa
+        _tx, curva = _curva_de_taxa()
+        taxa = float(curva.get("referencia") or 2.0)
+        a = get_antecipacao(dias=180, reserva=0.0, taxa_mes=taxa)["kpis"]
         out["antecipacao"] = {
             "total": a["total_antecipar"], "custo": a["custo_total"],
-            "custo_pct": a["custo_pct"], "operacoes": a["operacoes"]}
+            "custo_pct": a["custo_pct"], "operacoes": a["operacoes"],
+            "taxa_mes": round(taxa, 4), "taxa_origem": curva.get("origem")}
     except Exception as exc:  # noqa: BLE001 - bloco acessório
         log.warning("lastro sem antecipacao: %s", type(exc).__name__)
     try:

@@ -1,3 +1,74 @@
+- versao: "1.29.0"
+  data: "2026-09-09"
+  adicionado:
+    - >-
+      O Fluxo de Caixa Consolidado passou a responder QUANTO ANTECIPAR. Ate
+      aqui a casa tinha tres projecoes de caixa com tres metodos diferentes, e
+      nenhuma decidia: a aba Projecao contava so o lancado, o Plano 12 meses
+      contava lancado mais provisionado e nao antecipava nada, e a tela de
+      Antecipacao antecipava de verdade mas so enxergava o lancado -- que a
+      propria projecao ja tinha medido ser ficcao a partir do segundo mes. As
+      duas ultimas davam respostas opostas ("voce vai a menos R$ 11,1 milhoes"
+      e "esta tudo coberto") e as duas estavam certas dentro da propria
+      premissa. A tela chegava a mandar o usuario para outra tela para
+      dimensionar a operacao.
+    - >-
+      Agora ha um motor so, e ele roda a antecipacao POR CIMA da projecao de 12
+      meses. A aba DECIDIR abre com o numero de acao -- quanto levar ao banco
+      NESTE mes -- e diz quanto disso e nota ja emitida (executavel hoje) e
+      quanto depende de faturamento que ainda vai acontecer. O grafico mostra
+      as tres linhas que so juntas decidem: o saldo sem antecipar (o tamanho do
+      buraco), o saldo com o plano e o PISO.
+    - >-
+      O piso de caixa agora existe, e e MOVEL: 5 dias da saida projetada
+      daquele mes, a pedido de quem opera. Piso fixo envelhece -- a mesma folga
+      de um mes de R$ 9 milhoes de saida vira aperto num de R$ 13 milhoes.
+    - >-
+      A aba PLANO MES A MES mostra o plano mes a mes com uma coluna que nao
+      existia em lugar nenhum: a SATURACAO, quanto da pilha antecipavel daquele
+      mes o plano precisou consumir. E o alarme que acende antes do descoberto
+      -- enquanto sobra pilha o plano fecha todos os meses e o painel fica
+      verde. Clicando na linha aparece de quais vencimentos o saque sai, a que
+      prazo e a que taxa.
+    - >-
+      E a tela passou a dizer, no mesmo cartao do grafico, o que a antecipacao
+      NAO resolve: o resultado mensal do fluxo sem antecipacao nenhuma. Se ele
+      e negativo, a antecipacao esta FINANCIANDO o deficit, nao corrigindo --
+      ela compra tempo, e o remedio e resultado, prazo com fornecedor ou
+      capital.
+    - >-
+      O custo do plano aparece como CAPITAL MEDIO e taxa ao ano, nao como soma
+      do nominal antecipado. Somar doze meses de saque e chamar de divida erra
+      por um fator de cinco: o mesmo dinheiro gira varias vezes no ano. E so
+      nessa leitura o desagio da antecipacao e o limite rotativo do banco ficam
+      na mesma regua.
+    - >-
+      A pilha antecipavel deixou de acabar em dezembro. O recebivel ja emitido
+      de cliente com convenio acaba onde o faturamento emitido acaba, e so com
+      ele o plano diria "descoberto total a partir de janeiro" -- o que e falso,
+      porque a empresa nao para de faturar. A metade que faltava e a fatia
+      elegivel do que ainda vai ser faturado, medida em 49,8% (mediana de 6
+      meses; 43,4% na media de 12 e SUBINDO -- 54,7% em agosto). As duas
+      metades aparecem separadas na tela, porque um plano que so fecha com
+      faturamento futuro tem outro risco.
+    - >-
+      A Saude do Servidor passou a dizer, no cartao da Monkey, se a curva de
+      desagio esta sendo medida e em quantos titulos. Sem medicao o plano cai
+      numa taxa de seguranca e segue publicando um custo -- que passa a ser
+      teto, e nao preco.
+  corrigido:
+    - >-
+      O custo da antecipacao mostrado no Fluxo Consolidado estava 41% inflado.
+      A conta usava 2,0% ao mes escrito no codigo enquanto o portal praticava
+      1,17% (medido em 1.345 titulos dos ultimos 30 dias), e a tela publicava
+      isso sem dizer em lugar nenhum que era um chute. Agora a taxa sai da
+      medicao, e a tela diz quando nao ha medicao.
+    - >-
+      A aba de curto prazo desenhava o grafico com largura ZERO quando a tela
+      abria em outra aba -- o ECharts mede o container uma vez, e medida sob
+      elemento escondido vale zero para sempre. O sintoma era mudo: os eixos
+      saiam certos e os rotulos das datas sumiam um a um. Ela passou a
+      redesenhar ao abrir.
 - versao: "1.28.0"
   data: "2026-09-09"
   adicionado:

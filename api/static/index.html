@@ -5041,34 +5041,82 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <!-- ===================== FLUXO DE CAIXA CONSOLIDADO ===================== -->
       <section class="view" id="view-fluxcon">
         <div class="kpis k4" id="kpis-fluxcon"></div>
-                <div class="subtabs" role="tablist" data-abas="fluxcon" aria-label="Seções da tela">
-          <button role="tab" id="tabfluxcon-proj" data-aba="proj" aria-controls="aba-fluxcon-proj"
-                  aria-selected="true" onclick="abaTrocar('fluxcon','proj')">Projeção</button>
-          <button role="tab" id="tabfluxcon-plano" data-aba="plano" aria-controls="aba-fluxcon-plano"
-                  aria-selected="false" onclick="abaTrocar('fluxcon','plano')">Plano 12 meses</button>
+                        <div class="subtabs" role="tablist" data-abas="fluxcon" aria-label="Seções da tela">
+          <!-- A ORDEM É A DA DECISÃO: quanto antecipar · como fica cada mês ·
+               de onde vem o número · qual período fura · onde está o dinheiro
+               · o que ficou para trás.
+               Antes, DUAS abas projetavam caixa por métodos diferentes
+               ("Projeção", só o lançado, e "Plano 12 meses", lançado +
+               provisionado) e davam números que não batiam — e nenhuma das
+               duas respondia "quanto antecipar": a tela mandava o usuário
+               para a tela de Antecipação, que é um TERCEIRO método. Agora há
+               um motor só: `financeiro/plano.py` roda a antecipação por cima
+               da projeção, e cada aba mostra uma fatia DELE. -->
+          <button role="tab" id="tabfluxcon-decidir" data-aba="decidir" aria-controls="aba-fluxcon-decidir"
+                  aria-selected="true" onclick="abaTrocar('fluxcon','decidir')">Decidir</button>
           <button role="tab" id="tabfluxcon-planotab" data-aba="planotab" aria-controls="aba-fluxcon-planotab"
-                  aria-selected="false" onclick="abaTrocar('fluxcon','planotab')">Plano — mês a mês</button>
+                  aria-selected="false" onclick="abaTrocar('fluxcon','planotab')">Plano mês a mês</button>
+          <button role="tab" id="tabfluxcon-plano" data-aba="plano" aria-controls="aba-fluxcon-plano"
+                  aria-selected="false" onclick="abaTrocar('fluxcon','plano')">Projeção</button>
+          <button role="tab" id="tabfluxcon-proj" data-aba="proj" aria-controls="aba-fluxcon-proj"
+                  aria-selected="false" onclick="abaTrocar('fluxcon','proj')">Curto prazo</button>
           <button role="tab" id="tabfluxcon-posicao" data-aba="posicao" aria-controls="aba-fluxcon-posicao"
                   aria-selected="false" onclick="abaTrocar('fluxcon','posicao')">Posição</button>
           <button role="tab" id="tabfluxcon-venc" data-aba="venc" aria-controls="aba-fluxcon-venc"
                   aria-selected="false" onclick="abaTrocar('fluxcon','venc')">Vencidos e limites</button>
         </div>
-        <div class="aba" data-abas="fluxcon" data-aba="proj" id="aba-fluxcon-proj"
-             role="tabpanel" aria-labelledby="tabfluxcon-proj" data-ao-abrir="fcBandaDaTela">
-<div class="card">
-          <div class="head"><h2>Saldo projetado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Saldo encadeado: o final de cada período é o inicial do seguinte, começando no saldo de bancos e caixa de hoje — a mesma cascata da planilha de tesouraria, onde o SALDO ANTERIOR de cada aba vem do dia anterior. Entradas = a receber oficial por vencimento; saídas = contas a pagar por vencimento. Só o que está LANÇADO no ERP.">i</span></h2>
-            <span class="hint" id="hintFc"></span></div>
-          <div class="chartwrap" id="wrapFc">
-            <div id="chartFc" style="width:100%;height:250px" role="img" aria-label="Saldo de caixa projetado por período."></div>
+
+        <!-- ============================ DECIDIR ============================
+             A aba com GRÁFICO nasce aberta: o ECharts mede o contêiner UMA
+             vez, e medida sob `hidden` vale zero para sempre. -->
+        <div class="aba" data-abas="fluxcon" data-aba="decidir" id="aba-fluxcon-decidir"
+             role="tabpanel" aria-labelledby="tabfluxcon-decidir" data-ao-abrir="fcPlanoDaTela">
+          <div id="plano-avisos"></div>
+          <div class="kband"><div class="kpis k4" id="kpis-plano"></div></div>
+          <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>Saldo com o plano, sem o plano, e o piso <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Três linhas que só juntas decidem. SEM O PLANO é o saldo encadeado da projeção de 12 meses (lançado + provisionado) sem antecipar nada — é ela que mostra o tamanho do buraco, e por isso não sai daqui. COM O PLANO é o mesmo saldo depois de antecipar o mínimo necessário em cada mês; ela fica colada no PISO por construção, e sozinha não diria nada. O PISO são 5 dias da saída projetada daquele mês — móvel, porque a mesma folga de um mês de R$ 9 milhões vira aperto num de R$ 13 milhões. A distância entre as duas linhas é o esforço que a antecipação está fazendo para segurar a operação.">i</span></h2>
+              <span class="hint" id="hintPlano"></span></div>
+            <div class="chartwrap" id="wrapPlano">
+              <div id="chartPlano" style="width:100%;height:180px" role="img"
+                   aria-label="Saldo de caixa com o plano de antecipação, sem ele, e o piso mínimo."></div>
+            </div>
+            <div style="border-top:1px solid var(--n200);margin:0 18px"></div>
+            <div class="head" style="padding-bottom:0"><h2 style="font-size:13px">O que a antecipação NÃO resolve <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Antecipar não cria dinheiro: traz para hoje o que entraria depois, e cobra deságio pelo adiantamento. Se o fluxo da empresa é deficitário, a antecipação FINANCIA o déficit, não o corrige. O resultado mensal aqui é a mediana de entradas menos saídas dos 12 meses projetados, sem antecipação nenhuma — o buraco que continua existindo depois de o plano fechar todos os meses. E a saturação diz a partir de quando o plano precisa de 100% do recebível elegível: dali em diante não há folga, e atraso de um cliente grande vira furo no mesmo dia.">i</span></h2></div>
+            <div id="plano-limite" class="modl"></div>
+          </div>
+            <div class="card">
+              <div class="head"><h2>O que fazer agora <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O número de AÇÃO: quanto levar ao banco NESTE mês para o saldo não furar o piso. Sai do mesmo motor do plano de 12 meses, mas é o do PRIMEIRO mês — confundi-lo com o total do ano mandaria a tesouraria antecipar cinco vezes mais que o necessário e pagar deságio por isso. A parte de nota JÁ EMITIDA é executável hoje; o resto depende de faturamento que ainda vai acontecer dentro do mês, e por isso aparece separado.">i</span></h2></div>
+              <div id="plano-agora" class="modl"></div>
+            </div>
           </div>
         </div>
+
+        <!-- ======================= PLANO MÊS A MÊS ======================= -->
+        <div class="aba" data-abas="fluxcon" data-aba="planotab" id="aba-fluxcon-planotab"
+             role="tabpanel" aria-labelledby="tabfluxcon-planotab" data-ao-abrir="fcPlanoDaTela" hidden>
+          <div class="card">
+            <div class="head"><h2>Mês a mês, com o plano <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada linha é um mês do plano. ENTRADAS já vem líquida do que meses anteriores anteciparam daquele mês — antecipar é SAQUE, e o saque esvazia o mês de origem; sem isso o plano anteciparia o mesmo dinheiro doze vezes e fecharia tudo, que é o erro mais caro que este cálculo pode cometer, porque produz um painel verde. ANTECIPAR é o saque BRUTO, porque o deságio sai de dentro da própria operação. SATURAÇÃO é quanto da pilha antecipável daquele mês o plano precisou consumir: 100% significa que não sobrou nada para um imprevisto. Clique na linha para ver de quais meses o saque sai, a que prazo e a que taxa.">i</span></h2>
+              <span class="hint" id="hintPlanoTab">clique na linha para ver as operações do mês</span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th style="width:30px"></th><th>Mês</th><th class="num">Entradas</th>
+              <th class="num">Saídas</th><th class="num">Piso</th>
+              <th class="num">Antecipar</th><th class="num">Custo</th>
+              <th class="num">Saturação</th><th class="num">Saldo final</th>
+              <th class="num">Descoberto</th>
+            </tr></thead><tbody id="plano-linhas"></tbody></table></div>
+          </div>
         </div>
+
+        <!-- =========================== PROJEÇÃO ===========================
+             De onde o plano tira o fluxo: o lançado mais o provisionado, com a
+             composição por natureza e o piso medido do DDA. -->
         <div class="aba" data-abas="fluxcon" data-aba="plano" id="aba-fluxcon-plano"
              role="tabpanel" aria-labelledby="tabfluxcon-plano" data-ao-abrir="loadProjecao" hidden>
           <div id="proj-avisos"></div>
           <div class="kpis k4" id="kpis-proj"></div>
           <div class="card">
-            <div class="head"><h2>Entradas, saídas e saldo projetado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O LANÇADO no ERP (barra cheia) mais o que ainda vai ser lançado (barra hachurada), mês a mês. O estimado sai da curva de lançamento medida nos meses fechados e do índice sazonal por natureza — folha de 13º em dezembro, tributo baixo em janeiro. A hachura é a mesma marca que a casa usa para período incompleto: barra cheia num mês que o ERP ainda não conhece mentiria sobre o superávit.">i</span></h2>
+            <div class="head"><h2>Entradas, saídas e saldo projetado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O LANÇADO no ERP (barra cheia) mais o que ainda vai ser lançado (barra hachurada), mês a mês. O estimado sai da curva de lançamento medida nos meses fechados e do índice sazonal por natureza — folha de 13º em dezembro, tributo baixo em janeiro. A hachura é a mesma marca que a casa usa para período incompleto: barra cheia num mês que o ERP ainda não conhece mentiria sobre o superávit. Este é o fluxo CRU, sem antecipação — é ele que a aba Decidir usa como entrada.">i</span></h2>
               <span class="hint" id="hintProj"></span>
               <button class="ghost" id="btnProjDDA" onclick="ddaImportar()">Importar DDA</button></div>
             <div class="chartwrap" id="wrapProj">
@@ -5076,11 +5124,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                    aria-label="Entradas, saídas e saldo de caixa projetados por mês."></div>
             </div>
           </div>
-        </div>
-        <div class="aba" data-abas="fluxcon" data-aba="planotab" id="aba-fluxcon-planotab"
-             role="tabpanel" aria-labelledby="tabfluxcon-planotab" data-ao-abrir="loadProjecao" hidden>
           <div class="card">
-            <div class="head"><h2>Mês a mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O detalhado da projeção. Clique na linha para abrir a decomposição por natureza: quanto já está lançado, quanto o modelo espera e por qual método — curva do próprio mês, nível histórico dessazonalizado ou resto do mês corrente. A coluna Confiança é a fração do mês que já existe no ERP: um mês 90% estimado e um mês 90% lançado não são a mesma informação, e a tela é obrigada a mostrar a diferença.">i</span></h2>
+            <div class="head"><h2>Composição por natureza <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O detalhado da projeção. Clique na linha para abrir a decomposição por natureza: quanto já está lançado, quanto o modelo espera e por qual método — curva do próprio mês, nível histórico dessazonalizado ou resto do mês corrente. A coluna Confiança é a fração do mês que já existe no ERP: um mês 90% estimado e um mês 90% lançado não são a mesma informação, e a tela é obrigada a mostrar a diferença.">i</span></h2>
               <span class="hint" id="hintProjTab">clique na linha para ver a composição por natureza</span></div>
             <div class="tablewrap tabroll"><table><thead><tr>
               <th style="width:30px"></th><th>Mês</th><th class="num">Entradas</th>
@@ -5089,64 +5134,88 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </tr></thead><tbody id="proj-linhas"></tbody></table></div>
           </div>
         </div>
+
+        <!-- ========================== CURTO PRAZO ==========================
+             A janela em que o LANÇADO é confiável — e a única que enxerga
+             buraco DENTRO do mês: o plano tem granularidade mensal, e um mês
+             que fecha no piso pode furar no dia 20. -->
+        <div class="aba" data-abas="fluxcon" data-aba="proj" id="aba-fluxcon-proj"
+             role="tabpanel" aria-labelledby="tabfluxcon-proj" data-ao-abrir="fcCurtoPrazo" hidden>
+          <div class="card">
+            <div class="head"><h2>Saldo projetado, período a período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Saldo encadeado: o final de cada período é o inicial do seguinte, começando no saldo de bancos e caixa de hoje — a mesma cascata da planilha de tesouraria. Entradas = a receber oficial por vencimento; saídas = contas a pagar por vencimento. Só o que está LANÇADO no ERP, e é por isso que esta aba é de CURTO PRAZO: a partir do segundo mês o ERP ainda não conhece o que vai vencer, e a linha vira otimismo por falta de lançamento. Para o horizonte longo use Decidir e Plano mês a mês, que somam o provisionado.">i</span></h2>
+              <span class="hint" id="hintFc"></span></div>
+            <div class="chartwrap" id="wrapFc">
+              <div id="chartFc" style="width:100%;height:230px" role="img" aria-label="Saldo de caixa projetado por período."></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Fluxo período a período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A espinha dorsal da planilha: saldo inicial, entradas, saídas, resultado, saldo final e a NECESSIDADE — quanto falta para o período não fechar negativo. Linha esmaecida = período sem recebível lançado, onde o saldo despenca por ausência de dado e não por previsão de caixa. Clique na linha para abrir a composição do período.">i</span></h2>
+              <span class="hint" id="hintFcTab">clique na linha para ver a composição</span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th style="width:30px"></th><th>Período</th><th class="num">Saldo inicial</th>
+              <th class="num">Entradas</th><th class="num">Saídas</th><th class="num">Resultado</th>
+              <th class="num">Saldo final</th><th class="num">Necessidade</th>
+            </tr></thead><tbody id="fc-linhas"></tbody></table></div>
+          </div>
+        </div>
+
+        <!-- ============================ POSIÇÃO ============================ -->
         <div class="aba" data-abas="fluxcon" data-aba="posicao" id="aba-fluxcon-posicao"
              role="tabpanel" aria-labelledby="tabfluxcon-posicao" data-ao-abrir="fcBandaDaTela" hidden>
-<div class="grid2">
-          <div class="card">
-            <div class="head"><h2>Saldo por banco <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Posição de cada conta ATIVA e marcada como “considerar fluxo de caixa” no ERP — as mesmas que somam o saldo de partida. Contas operacionais (vale-pedágio, cartão) ficam fora porque o próprio ERP as marca assim. A data é a da última posição de cada conta: elas não são todas do mesmo dia.">i</span></h2>
-              <span class="hint" id="hintFcContas"></span></div>
-            <div class="tablewrap tabroll"><table><thead><tr>
-              <th>Conta</th><th class="num">Saldo</th><th class="num">Posição</th>
-            </tr></thead><tbody id="fc-contas"></tbody></table></div>
+          <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>Saldo por banco <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Posição de cada conta ATIVA e marcada como “considerar fluxo de caixa” no ERP — as mesmas que somam o saldo de partida. Contas operacionais (vale-pedágio, cartão) ficam fora porque o próprio ERP as marca assim. A data é a da última posição de cada conta: elas não são todas do mesmo dia.">i</span></h2>
+                <span class="hint" id="hintFcContas"></span></div>
+              <div class="tablewrap tabroll"><table><thead><tr>
+                <th>Conta</th><th class="num">Saldo</th><th class="num">Posição</th>
+              </tr></thead><tbody id="fc-contas"></tbody></table></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Recebíveis e antecipação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O lastro que cobre a necessidade. “Em aberto” é todo o a receber pelo método oficial (fatura_composicao, já faturado), não só o que cai no horizonte — são perguntas diferentes. O custo usa a taxa MEDIDA no portal nos últimos 30 dias, não uma constante: até 09/09/2026 esta conta usava 2,0% a.m. escrito no código enquanto o portal praticava 1,17%, e publicava 41% de custo a mais sem dizer em lugar nenhum que aquilo era um chute.">i</span></h2>
+                <span class="hint">quanto há para antecipar e quanto custaria</span></div>
+              <div class="modl" id="fc-receb"></div>
+            </div>
           </div>
           <div class="card">
-            <div class="head"><h2>Recebíveis e antecipação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O lastro que cobre a necessidade. “Em aberto” é todo o a receber pelo método oficial (fatura_composicao, já faturado), não só o que cai no horizonte — são perguntas diferentes. A necessidade e o custo vêm do mesmo simulador da tela de Antecipação: aqui é o resumo para decidir, lá é o plano operação a operação para executar.">i</span></h2>
-              <span class="hint">quanto há para antecipar e quanto custaria</span></div>
-            <div class="modl" id="fc-receb"></div>
+            <div class="head"><h2>Premissas do plano <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A memória de cálculo do plano, para ele poder ser avaliado em vez de acreditado: o piso adotado e como se calcula, a fatia elegível do faturamento com os seis meses que a sustentam, a curva de taxa medida no portal (com quantos títulos ela foi medida) e os convênios de antecipação vigentes. Premissa que não se mostra é premissa que ninguém confere.">i</span></h2>
+              <span class="hint" id="hintPremissas"></span></div>
+            <div class="modl" id="plano-premissas"></div>
           </div>
         </div>
-        <div class="card">
-          <div class="head"><h2>Fluxo período a período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A espinha dorsal da planilha: saldo inicial, entradas, saídas, resultado, saldo final e a NECESSIDADE — quanto falta para o período não fechar negativo. Linha esmaecida = período sem recebível lançado, onde o saldo despenca por ausência de dado e não por previsão de caixa. Clique na linha para abrir a composição do período.">i</span></h2>
-            <span class="hint" id="hintFcTab">clique na linha para ver a composição</span></div>
-          <div class="tablewrap tabroll"><table><thead><tr>
-            <th style="width:30px"></th><th>Período</th><th class="num">Saldo inicial</th>
-            <th class="num">Entradas</th><th class="num">Saídas</th><th class="num">Resultado</th>
-            <th class="num">Saldo final</th><th class="num">Necessidade</th>
-          </tr></thead><tbody id="fc-linhas"></tbody></table></div>
-        </div>
-        </div>
+
+        <!-- ===================== VENCIDOS E LIMITES ===================== -->
         <div class="aba" data-abas="fluxcon" data-aba="venc" id="aba-fluxcon-venc"
              role="tabpanel" aria-labelledby="tabfluxcon-venc" data-ao-abrir="fcBandaDaTela" hidden>
-<div class="card">
-          <div class="head"><h2>Vencidos — o bloco separado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Contas a pagar já vencidas, agrupadas por natureza. Ficam FORA do fluxo acima de propósito, como no rodapé da planilha de tesouraria: somar isso ao dia a dia faria a operação parecer inviável todos os dias. A maior parte é tributo — inclusive parcelamento em curso, que não vence de novo.">i</span></h2>
-            <span class="hint" id="hintFcVenc"></span></div>
-          <div class="tablewrap tabroll"><table><thead><tr>
-            <th>Natureza</th><th class="num">Títulos</th><th class="num">Valor</th><th class="num">% do vencido</th>
-          </tr></thead><tbody id="fc-venc-nat"></tbody></table></div>
-          <div class="tablewrap tabroll" style="margin-top:10px"><table><thead><tr>
-            <th>Tipo de título</th><th>Natureza</th><th class="num">Títulos</th>
-            <th class="num">Valor</th><th>Mais antigo</th>
-          </tr></thead><tbody id="fc-venc-tipo"></tbody></table></div>
-        </div>
-        <div class="card">
-          <div class="head"><h2>Limites de crédito contratados <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cheque empresa/especial contratado em cada banco. NÃO é caixa: é crédito, e o custo aparece ao lado. O sistema consome sempre do mais barato para o mais caro ao calcular a cobertura de um período negativo. Guardado em data/credito.json, fora do ERP.">i</span></h2>
-            <span class="hint" id="hintCred"></span>
-            <button class="ghost" id="btnCredEdit" onclick="credEditar()">Editar</button></div>
-          <div class="tablewrap tabroll"><table><thead><tr>
-            <th>Banco</th><th>Tipo</th><th class="num">Limite</th>
-            <th class="num">Taxa a.m.</th><th>Vence</th><th class="num">Custo/mês se usado</th>
-          </tr></thead><tbody id="cred-linhas"></tbody></table></div>
-          <div class="ges-cfg" id="cred-form" hidden>
-            <div id="cred-editor"></div>
-            <div class="m-err" id="cred-erro" hidden></div>
+          <div class="card">
+            <div class="head"><h2>Vencidos — o bloco separado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Contas a pagar já vencidas, agrupadas por natureza. Ficam FORA do fluxo acima de propósito, como no rodapé da planilha de tesouraria: somar isso ao dia a dia faria a operação parecer inviável todos os dias. A maior parte é tributo — inclusive parcelamento em curso, que não vence de novo.">i</span></h2>
+              <span class="hint" id="hintFcVenc"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Natureza</th><th class="num">Títulos</th><th class="num">Valor</th><th class="num">% do vencido</th>
+            </tr></thead><tbody id="fc-venc-nat"></tbody></table></div>
+            <div class="tablewrap tabroll" style="margin-top:10px"><table><thead><tr>
+              <th>Tipo de título</th><th>Natureza</th><th class="num">Títulos</th>
+              <th class="num">Valor</th><th>Mais antigo</th>
+            </tr></thead><tbody id="fc-venc-tipo"></tbody></table></div>
           </div>
-          <div class="m-foot" id="cred-foot" hidden>
-            <button class="btn" onclick="credSalvar()">Salvar limites</button>
-            <button class="ghost" onclick="credCancelar()">Cancelar</button>
-            <button class="ghost" onclick="credNova()">+ Banco</button>
+          <div class="card">
+            <div class="head"><h2>Limites de crédito contratados <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cheque empresa/especial contratado em cada banco. NÃO é caixa: é crédito, e o custo aparece ao lado. O sistema consome sempre do mais barato para o mais caro ao calcular a cobertura de um período negativo. Guardado em data/credito.json, fora do ERP.">i</span></h2>
+              <span class="hint" id="hintCred"></span>
+              <button class="ghost" id="btnCredEdit" onclick="credEditar()">Editar</button></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Banco</th><th>Tipo</th><th class="num">Limite</th>
+              <th class="num">Taxa a.m.</th><th>Vence</th><th class="num">Custo/mês se usado</th>
+            </tr></thead><tbody id="cred-linhas"></tbody></table></div>
+            <div class="ges-cfg" id="cred-form" hidden>
+              <div id="cred-editor"></div>
+              <div class="m-err" id="cred-erro" hidden></div>
+            </div>
+            <div class="m-foot" id="cred-foot" hidden>
+              <button class="btn" onclick="credSalvar()">Salvar limites</button>
+              <button class="ghost" onclick="credCancelar()">Cancelar</button>
+              <button class="ghost" onclick="credNova()">+ Banco</button>
+            </div>
           </div>
-        </div>
-        <div id="fc-avisos"></div>
+          <div id="fc-avisos"></div>
         </div>
 </section>
 
@@ -16934,6 +17003,352 @@ const FC_MINIMO = {dia:30, semana:90, mes:180, trimestre:540, semestre:720};
    3. O DDA E O UNICO NUMERO MEDIDO desta aba. O resto e modelo. Por isso ele
       tem card proprio, com nome e CNPJ atras do clique.
 */
+/* ===================== ENGENHARIA DE CAIXA (aba Decidir) =====================
+
+   O motor mora no servidor (`api/financeiro/plano.py`); aqui só se pinta. As
+   decisões de LEITURA, que são as que faziam a tela confundir:
+
+   - O número grande é o do MÊS CORRENTE, nunca o total de 12 meses. Quem abre
+     a tela quer saber quanto levar ao banco esta semana; o total do ano
+     responde outra pergunta, e trocá-los mandaria antecipar cinco vezes mais
+     que o necessário.
+   - O gráfico mostra as TRÊS linhas juntas. Só a "com o plano" seria um
+     painel verde permanente (ela fica colada no piso por construção); só a
+     "sem o plano" seria o desespero de sempre. A distância entre elas é o
+     esforço, e é isso que se lê.
+   - O custo aparece como CAPITAL MÉDIO e taxa ao ano, não como soma do
+     nominal antecipado. Somar doze meses de saque e chamar de dívida erra por
+     um fator de cinco — o mesmo dinheiro gira várias vezes no ano.
+   - A SATURAÇÃO é o alarme, não o descoberto. Enquanto sobra pilha o plano
+     fecha todo mês e a tela fica verde; quando a saturação bate 100% não há
+     mais folga, e o descoberto só apareceria depois — tarde demais.        */
+
+let DATAPLANO = null, planoSeq = 0;
+
+async function loadPlano(){
+  if(DATAPLANO){ renderPlano(DATAPLANO); return; }
+  const seq = ++planoSeq;
+  skelKpis('kpis-plano', 4);
+  try{
+    const r = await fetch('/api/financeiro/plano?meses=12&piso_dias=5', {cache:'no-store'});
+    /* `respostaJSON` devolve {ok, dados} — NAO o payload. Ler `d.kpis` direto
+       daqui nao levanta erro: tudo vira undefined, os KPIs saem R$ 0 e a
+       tabela sai vazia, com cara de "nao ha dado". */
+    const rr = await respostaJSON(r);
+    if(seq !== planoSeq) return;
+    if(!r.ok){ showBanner((rr.dados||{}).mensagem || 'Não foi possível montar o plano de caixa.'); return; }
+    DATAPLANO = rr.dados; renderPlano(rr.dados);
+  }catch(e){ if(seq === planoSeq) showBanner('Não foi possível falar com a API.', e.message); }
+}
+
+function planoTaxa(v){
+  return (v == null) ? '—'
+    : Number(v).toLocaleString('pt-BR', {minimumFractionDigits: 2,
+                                         maximumFractionDigits: 2}) + '%';
+}
+
+function planoPct(v){
+  return (v == null) ? '—'
+    : (100*v).toLocaleString('pt-BR', {maximumFractionDigits: 0}) + '%';
+}
+
+function renderPlano(d){
+  const k = d.kpis || {}, P = d.piso || {}, PL = d.pilha || {}, C = d.curva || {};
+  const fat = PL.fatia_elegivel || {};
+
+  /* Badge de saturação com TRÊS estados. Ela não é um percentual qualquer:
+     abaixo de 80% há folga, entre 80 e 99% a folga está acabando, e em 100% o
+     mês depende de todo o recebível elegível existir e entrar no prazo. */
+  const satCls = s => s == null ? '' : (s >= 0.99 ? 'b-alert' : (s >= 0.8 ? 'b-warn' : 'b-ok'));
+
+  document.getElementById('kpis-plano').innerHTML = [
+    kpi('Antecipe agora', BRL.format(k.antecipar_agora || 0),
+        (k.antecipar_agora > 0
+          ? (k.mes_agora || '') + ' · ' + BRL.format(k.de_lancado_agora || 0) + ' é nota já emitida'
+          : 'o mês fecha acima do piso sem antecipar'),
+        (k.antecipar_agora || 0) > 0 ? 'warn' : 'pos',
+        'Quanto levar ao banco NESTE mês para o saldo não furar o piso de '
+        + BRL.format(k.piso_agora || 0) + ' (5 dias de saída). A parte de nota já emitida é '
+        + 'executável hoje; o resto depende de faturamento que ainda vai acontecer dentro do mês.'),
+    kpi('Custo do plano (12 meses)', BRL.format(k.custo_12m || 0),
+        (k.custo_efetivo_aa != null
+          ? NMI.format(k.custo_efetivo_aa) + '% a.a. sobre ' + BRL.format(k.capital_medio || 0)
+            + ' de capital médio'
+          : 'sem operação no horizonte'),
+        'warn',
+        'O deságio somado de todas as operações do plano. O capital médio é Σ(valor × prazo) ÷ 365 — '
+        + 'o dinheiro que a antecipação mantém empregado ao longo do ano. Somar o nominal antecipado '
+        + '(' + BRL.format(k.antecipar_12m || 0) + ') e chamar de dívida erra por um fator de cinco: '
+        + 'o mesmo dinheiro gira ' + (k.giros_ano != null ? NMI.format(k.giros_ano) : '—')
+        + ' vezes no ano, com prazo médio de '
+        + (k.prazo_medio != null ? Math.round(k.prazo_medio) : '—') + ' dias.'),
+    kpi('Folga da antecipação',
+        k.primeiro_saturado ? ('acaba em ' + k.primeiro_saturado) : 'sobra o ano todo',
+        k.primeiro_saturado
+          ? (k.meses_saturados + ' de ' + (d.linhas || []).length + ' meses no limite')
+          : 'nenhum mês precisa de toda a pilha',
+        k.primeiro_saturado ? 'neg' : 'pos',
+        'O mês a partir do qual o plano precisa de 100% do recebível elegível. Dali em diante não há '
+        + 'de onde sacar: atraso de um cliente grande vira furo no mesmo dia. É este o alarme, e não o '
+        + 'descoberto — o descoberto só apareceria depois que já não houvesse remédio.'),
+    kpi('Buraco estrutural', BRL.format(Math.abs(k.estrutural_mes || 0)) + '/mês',
+        (k.estrutural_mes || 0) < 0 ? 'a antecipação financia, não corrige'
+                                    : 'o fluxo se sustenta sozinho',
+        (k.estrutural_mes || 0) < 0 ? 'neg' : 'pos',
+        'Mediana de entradas menos saídas dos 12 meses projetados, SEM antecipação nenhuma. '
+        + 'Antecipar não cria dinheiro: traz para hoje o que entraria depois e cobra deságio. '
+        + 'Se este número é negativo, a antecipação está financiando o déficit — o remédio é '
+        + 'resultado, prazo com fornecedor ou capital, e o plano só compra o tempo de conseguir um deles.'),
+  ].join('');
+
+  document.getElementById('hintPlano').textContent =
+    'piso de ' + (P.dias != null ? P.dias : 5) + ' dias de saída · pior saldo sem antecipar '
+    + BRL.format(k.pior_saldo_sem || 0);
+
+  /* A banda da TELA (`kpis-fluxcon`) sai daqui pelo mesmo motivo que já saía
+     do Plano: ela publica "Necessidade operacional" calculada sobre o
+     LANÇADO, e esta aba publica "Antecipe agora" calculado sobre o lançado
+     MAIS o estimado. Números diferentes com nomes parecidos, um em cima do
+     outro, leem-se como o sistema se contradizendo — que é exatamente a
+     queixa que originou esta tela. As outras abas repõem a banda pelo
+     `data-ao-abrir`.
+     A CONDIÇÃO é por causa da corrida: `renderPlano` chega assíncrono, e sem
+     ela uma resposta que volta depois de o usuário ter trocado de aba
+     esconderia a banda numa aba que a quer — defeito que só aparece na
+     conexão lenta, que é quando ninguém está olhando. */
+  const abaDec = document.getElementById('aba-fluxcon-decidir');
+  if(abaDec && !abaDec.hidden) fcBandaDaTela(false);
+
+  planoGrafico(d);
+
+  /* --- o que fazer agora --------------------------------------------- */
+  /* MESMA marcacao do bloco de recebiveis do consolidado (`mrow`/`mlbl`/
+     `mval`): dois blocos de definicao com classes proprias na mesma tela sao
+     duas aparencias para a mesma coisa, e a segunda sempre fica para tras. */
+  const linha = (r, v, st, sub) =>
+    '<div class="mrow"><div class="mlbl">' + esc(r)
+      + (sub ? '<div style="font-size:11px;color:var(--n500);font-weight:400">'
+               + esc(sub) + '</div>' : '')
+      + '</div><div class="mval" style="' + (st || '') + '">' + esc(v) + '</div></div>';
+  const prim = (d.linhas || [])[0] || {};
+  let ag = '';
+  if((k.antecipar_agora || 0) > 0){
+    /* TRES linhas, e as duas metades da pilha no SUBTITULO da primeira. Elas
+       eram linha propria e o card ia a 494px — a regua da tela e 900 e o
+       grafico ao lado ja custa 275. O que nao pode sumir e a distincao entre
+       nota emitida (executavel hoje) e faturamento futuro (promessa): sao
+       riscos diferentes, e um plano que so fecha com a segunda metade nao e o
+       mesmo plano. */
+    const dep = (k.antecipar_agora || 0) - (k.de_lancado_agora || 0);
+    ag += linha('Levar ao banco', BRL.format(k.antecipar_agora),
+                'font-weight:700;color:var(--red)',
+                BRL.format(k.de_lancado_agora || 0) + ' de nota já emitida'
+                + (dep > 0 ? ' · ' + BRL.format(dep) + ' depende de faturar no mês' : ''));
+    ag += linha('Custo', BRL.format(k.custo_agora || 0), '',
+                (prim.operacoes || []).length
+                  ? 'deságio de ' + planoTaxa((prim.operacoes[0] || {}).taxa_am)
+                    + ' a.m. · vencimentos de '
+                    + ((prim.operacoes || []).map(o => o.origem_rotulo).join(', '))
+                  : '');
+    ag += linha('Piso do mês', BRL.format(k.piso_agora || 0), 'color:var(--n500)',
+                (P.dias || 5) + ' dias da saída projetada de ' + (k.mes_agora || ''));
+    ag += '<div style="padding:4px 0 0"><a href="#antec" style="font-size:12px;'
+        + 'color:var(--orange-500,#E85D10);font-weight:600;text-decoration:none">'
+        + 'Ver quais títulos levar, um a um &rarr;</a></div>';
+  }else{
+    ag = '<div style="color:var(--green);font-weight:600">'
+       + esc((k.mes_agora || 'o mês') + ' fecha acima do piso sem antecipar nada.') + '</div>'
+       + '<div style="color:var(--n500);padding-top:4px">Piso de '
+       + esc(BRL.format(k.piso_agora || 0)) + '.</div>';
+  }
+  document.getElementById('plano-agora').innerHTML = ag;
+
+  /* --- o que a antecipação NÃO resolve -------------------------------- */
+  /* DUAS linhas. "Custo de financiar isso" era a terceira e saiu: ele já é o
+     KPI "Custo do plano (12 meses)" na banda, dois centímetros acima, com a
+     mesma taxa ao ano. O que ele acrescentava — a comparação com o rotativo,
+     que é a única forma de ver que o deságio é barato PERTO do que existe —
+     ficou no subtítulo, onde não custa uma linha inteira. */
+  let li = '';
+  li += linha('Resultado do fluxo', BRL.format(k.estrutural_mes || 0) + '/mês',
+              (k.estrutural_mes || 0) < 0 ? 'font-weight:700;color:var(--red)'
+                                          : 'font-weight:700;color:var(--green)',
+              'mediana dos 12 meses, sem antecipação · financiado a '
+              + (k.custo_efetivo_aa != null ? NMI.format(k.custo_efetivo_aa) : '—')
+              + '% a.a., contra ' + NMI.format((d.rotativo || {}).taxa_efetiva || 0)
+              + '% ao MÊS do rotativo do banco');
+  li += linha('Folga acaba em', k.primeiro_saturado || 'não acaba no horizonte',
+              k.primeiro_saturado ? 'font-weight:700;color:var(--red)' : '',
+              k.primeiro_saturado
+                ? 'a partir daí o plano usa 100% do elegível, em '
+                  + (k.meses_saturados || 0) + ' mês(es)'
+                : '');
+  /* O DESCOBERTO só aparece quando existe. Linha fixa em "R$ 0" treinaria o
+     olho a ignorar justamente a linha que, no dia em que sair de zero, é a
+     mais grave da tela. */
+  if((k.descoberto_total || 0) > 0)
+    li += linha('Descoberto', BRL.format(k.descoberto_total),
+                'font-weight:700;color:var(--red)',
+                'a partir de ' + (k.primeiro_descoberto || '') + ' nem antecipando fecha');
+  document.getElementById('plano-limite').innerHTML = li;
+
+  /* --- tabela mês a mês ---------------------------------------------- */
+  document.getElementById('plano-linhas').innerHTML = (d.linhas || []).map((l, i) => {
+    const ops = l.operacoes || [];
+    const det = '<div class="tablewrap"><table>'
+      + '<thead><tr><th>Saca do vencimento de</th><th class="num">Prazo</th>'
+      + '<th class="num">Taxa a.m.</th><th class="num">Deságio</th><th class="num">Bruto</th>'
+      + '<th class="num">Líquido no caixa</th><th class="num">Nota emitida</th></tr></thead>'
+      + '<tbody>' + (ops.length ? ops.map(o => '<tr>'
+        + '<td>' + esc(o.origem_rotulo) + '</td>'
+        + '<td class="num">' + o.prazo_dias + ' d</td>'
+        + '<td class="num">' + planoTaxa(o.taxa_am) + '</td>'
+        + '<td class="num">' + planoTaxa(o.desagio_pct) + '</td>'
+        + '<td class="num" style="font-weight:600">' + BRL.format(o.bruto) + '</td>'
+        + '<td class="num">' + BRL.format(o.liquido) + '</td>'
+        + '<td class="num" title="Parte que já é nota emitida de cliente com convênio — '
+          + 'executável hoje. O resto depende de faturamento futuro.">'
+          + BRL.format(o.de_lancado) + '</td>'
+        + '</tr>').join('')
+        : '<tr><td colspan="7" style="color:var(--n500)">nenhuma operação neste mês</td></tr>')
+      + '</tbody></table></div>'
+      + (l.sacado_de_mim > 0
+          ? '<div style="padding:6px 0 0;color:var(--n500);font-size:12px">Meses anteriores já '
+            + 'anteciparam ' + esc(BRL.format(l.sacado_de_mim)) + ' com vencimento neste mês — '
+            + 'por isso a entrada aqui é menor que a projetada ('
+            + esc(BRL.format(l.entradas_projetadas)) + ').</div>'
+          : '')
+      + '<div style="padding:6px 0 0"><a href="#" onclick="projComposicao(\'' + l.mes
+          + '\');return false;" style="font-size:12px;color:var(--orange-500,#E85D10);'
+          + 'font-weight:600;text-decoration:none">Ver a composição do mês: o que está '
+          + 'lançado, por credor, e de onde sai cada provisão &rarr;</a></div>';
+    return '<tr class="forn-row" aria-expanded="false" aria-controls="plano-det-' + i + '" '
+      + 'tabindex="0" role="button" onclick="planoToggle(' + i + ')" '
+      + 'onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();planoToggle('
+      + i + ');}">'
+      + '<td><span class="expander">' + ICONS['chevr2'] + '</span></td>'
+      + '<td style="font-weight:600">' + esc(l.rotulo) + '</td>'
+      + '<td class="num" style="color:var(--green)">' + BRL.format(l.entradas) + '</td>'
+      + '<td class="num" style="color:var(--red)">' + BRL.format(l.saidas) + '</td>'
+      + '<td class="num" style="color:var(--n500)">' + BRL.format(l.piso) + '</td>'
+      + '<td class="num" style="font-weight:700">'
+        + (l.antecipar > 0 ? BRL.format(l.antecipar) : '—') + '</td>'
+      + '<td class="num">' + (l.custo > 0 ? BRL.format(l.custo) : '—') + '</td>'
+      + '<td class="num">' + (l.saturacao == null ? '—'
+          : '<span class="badge ' + satCls(l.saturacao) + '" title="Quanto da pilha antecipável '
+            + 'deste mês o plano precisou consumir. 100% = não sobrou nada para um imprevisto.">'
+            + planoPct(l.saturacao) + '</span>') + '</td>'
+      + '<td class="num">' + BRL.format(l.saldo_final) + '</td>'
+      + '<td class="num" style="color:' + (l.descoberto > 0 ? 'var(--red)' : 'inherit') + '">'
+        + (l.descoberto > 0 ? BRL.format(l.descoberto) : '—') + '</td>'
+      + '</tr>'
+      + '<tr class="forn-det" id="plano-det-' + i + '"><td colspan="10">' + det + '</td></tr>';
+  }).join('');
+
+  document.getElementById('hintPlanoTab').textContent =
+    (k.meses_com_operacao || 0) + ' de ' + (d.linhas || []).length + ' meses exigem antecipação';
+
+  /* --- premissas ------------------------------------------------------ */
+  /* TRÊS linhas, não cinco: o card é premissa, não relatório, e a régua de
+     altura da tela é medida por aba. O que era linha própria e virou subtítulo
+     (o recebível já emitido, os convênios) continua VISÍVEL — sumir com a
+     premissa para caber seria trocar um problema de layout por um de
+     confiança. */
+  let pr = '';
+  pr += linha('Piso de caixa', BRL.format(k.piso_agora || 0), '',
+              (P.metodo || '') + ' — móvel, acompanha o tamanho da operação');
+  pr += linha('Fatia elegível do faturamento', planoPct(fat.share), '',
+              'mediana de ' + (fat.n || 0) + ' meses (de ' + planoPct(fat.min)
+              + ' a ' + planoPct(fat.max) + ') · '
+              + BRL.format(PL.lancado_total || 0) + ' já emitidos em aberto');
+  pr += linha('Taxa de deságio',
+              (C.referencia != null ? planoTaxa(C.referencia) + ' a.m.' : '—'),
+              '', C.origem === 'medida'
+                    ? 'medida no portal em ' + (C.base || 0) + ' títulos dos últimos 30 dias'
+                    : 'SEM medição no portal — usando a constante de segurança');
+  document.getElementById('plano-premissas').innerHTML = pr;
+  document.getElementById('hintPremissas').textContent =
+    (PL.convenios || []).length + ' convênio(s): '
+    + ((PL.convenios || []).map(c => c.nome).join(' · ') || '—');
+
+  /* --- avisos --------------------------------------------------------- */
+  const A = [];
+  if(C.origem !== 'medida')
+    A.push(['t-warn', 'Custo do plano sem medição do portal',
+      'A curva de taxa sai de mky_recebiveis (a varredura da Monkey). Sem ela o plano usa uma '
+      + 'constante pessimista, e o custo mostrado é teto, não preço. Confira a coleta da Monkey '
+      + 'na Saúde do Servidor.']);
+  /* A SATURAÇÃO e o DÉFICIT ESTRUTURAL não viram toast: eles já são KPI da
+     banda e linha do cartão "o que a antecipação não resolve". Dizer a mesma
+     coisa em três lugares custava 110px numa aba que a régua limita a 900, e
+     não acrescentava nada — o toast repete o que está dois centímetros acima.
+     Toast aqui é só para o que NÃO tem lugar próprio: dado que faltou. */
+  if((d.quebra_de_nivel || {}).houve)
+    A.push(['t-info', 'A base de faturamento mudou de patamar',
+      'A projeção que alimenta o plano acompanha o degrau em vez de espalhá-lo pela sazonalidade. '
+      + 'Veja a aba Projeção.']);
+  document.getElementById('plano-avisos').innerHTML = A.map(([cl, t, m]) =>
+    '<div class="toast ' + cl + '"><b>' + esc(t) + '</b>' + esc(m) + '</div>').join('');
+}
+
+/* GRAFICO: as TRES linhas do plano.
+
+   "Sem o plano" é a projeção crua — é ela que mostra o buraco, e some do
+   desenho ela deixaria um painel permanentemente verde. "Com o plano" fica
+   colada no piso por construção. "Piso" é a régua móvel.
+
+   O eixo inclui o zero SEMPRE: a linha sem plano fica negativa em quase todo
+   o horizonte, e um eixo que começasse no mínimo esconderia a travessia. */
+function planoGrafico(d){
+  ecDesenhar('chartPlano', (d.linhas || []).length && (() => {
+    const L = d.linhas, rot = L.map(l => l.rotulo);
+    const sem = (d.sem_plano || []).map(x => x.saldo_final);
+    const com = L.map(l => l.saldo_final);
+    const piso = L.map(l => l.piso);
+    const todos = com.concat(piso, sem.length ? sem : [0]);
+    const o = ecOpcoes(rot, Math.max(1, ...todos.map(Math.abs)),
+      {tipo: 'moeda', legenda: ['Sem antecipar', 'Com o plano', 'Piso'],
+       eixoY: {name: 'SALDO DE CAIXA'}});
+    o.series = [
+      ecLinha('Sem antecipar', sem, CC.vermelho, {tamanho: 5, tracejada: true}),
+      ecLinha('Com o plano', com, CC.verde, {tamanho: 6, area: true}),
+      ecLinha('Piso', piso, CC.n500, {tamanho: 0, simbolo: 'none', largura: 1.6,
+                                      tracejada: true}),
+    ];
+    const lo = Math.min(0, ...todos), hi = Math.max(0, ...todos);
+    const amp = (hi - lo) || 1;
+    o.yAxis = {type: 'value', min: lo - amp * 0.08, max: hi + amp * 0.12,
+               axisLabel: {color: CC.n600, fontSize: 10.5,
+                 formatter: v => (Math.abs(v) >= 1e6 ? NMI.format(v / 1e6) + ' mi'
+                                                     : Math.round(v / 1e3) + ' mil')},
+               splitLine: {lineStyle: {color: CC.grid}},
+               name: 'SALDO DE CAIXA', nameLocation: 'end', nameGap: 12,
+               nameTextStyle: {color: CC.n500, fontSize: 10, align: 'left'}};
+    o.tooltip.formatter = p => {
+      const l = L[p[0].dataIndex] || {};
+      const s = (d.sem_plano || [])[p[0].dataIndex] || {};
+      return '<b>' + esc(l.rotulo) + '</b><br>'
+        + '<span style="color:#C03221">&#9632;</span> Sem antecipar: <b>'
+          + BRL.format(s.saldo_final || 0) + '</b><br>'
+        + '<span style="color:#1E7F4F">&#9632;</span> Com o plano: <b>'
+          + BRL.format(l.saldo_final || 0) + '</b><br>'
+        + 'Piso: <b>' + BRL.format(l.piso || 0) + '</b><br>'
+        + (l.antecipar > 0
+            ? 'Antecipar: <b>' + BRL.format(l.antecipar) + '</b> · custo '
+              + BRL.format(l.custo) + '<br>'
+            : 'Não precisa antecipar<br>')
+        + (l.saturacao != null ? 'Saturação da pilha: <b>' + planoPct(l.saturacao) + '</b>' : '');
+    };
+    return o;
+  }), 'sem plano no horizonte');
+}
+
+function planoToggle(i){
+  const det = document.getElementById('plano-det-' + i); if(!det) return;
+  const aberto = det.classList.toggle('open');
+  det.previousElementSibling.setAttribute('aria-expanded', String(aberto));
+}
+
 let DATAPROJ = null, projSeq = 0;
 
 /* A BANDA DA TELA SAI DE CENA NAS DUAS ABAS DO PLANO, e nao e' por altura.
@@ -16948,6 +17363,57 @@ let DATAPROJ = null, projSeq = 0;
 function fcBandaDaTela(mostrar){
   const b = document.getElementById('kpis-fluxcon');
   if(b) b.style.display = (mostrar === false) ? 'none' : '';
+  /* A banda e os FILTROS andam juntos, e pelo mesmo motivo: os dois falam do
+     curto prazo. Ver `fcFiltrosDaTela`. */
+  fcFiltrosDaTela(mostrar !== false);
+}
+
+/* As duas abas do plano: escondem banda e filtros, e carregam o motor. Elas
+   precisam de um gancho PROPRIO porque `data-ao-abrir` chama sem argumento —
+   `fcBandaDaTela` sozinha MOSTRARIA a banda, que e o contrario do que estas
+   duas querem. */
+function fcPlanoDaTela(){
+  fcBandaDaTela(false);
+  loadPlano();
+}
+
+/* A aba de CURTO PRAZO tem gráfico e NÃO nasce mais aberta — quem nasce
+   aberta é a Decidir, porque é ela que responde a pergunta da tela.
+
+   O ECharts mede o contêiner UMA vez, e medida sob `hidden` vale zero para
+   sempre. O sintoma é mudo: os eixos saem certos e os rótulos do X somem, um
+   a um, porque a decisão de colisão foi tomada numa largura de zero pixel.
+   O `ResizeObserver` do `echartsRegistrar` cobre a VOLTA à aba, não a
+   PRIMEIRA pintura — `renderFluxcon` desenha no carregamento da tela, com a
+   aba ainda escondida.
+
+   Por isso a aba redesenha ao abrir, que é o que as outras abas com gráfico
+   desta casa já fazem pelo `data-ao-abrir`. */
+function fcCurtoPrazo(){
+  fcBandaDaTela();
+  if(typeof DATAFLUXCON !== 'undefined' && DATAFLUXCON)
+    chartFcRender(DATAFLUXCON.linhas || []);
+}
+
+/* A BARRA DE FILTROS SAI NAS ABAS DO PLANO, e não é cosmética.
+
+   Os dois filtros desta tela — granularidade e janela em dias — são da
+   consulta do fluxo consolidado de CURTO prazo. O plano de 12 meses não os
+   recebe nem poderia: ele é mensal por construção, e a janela dele é o
+   horizonte inteiro.
+
+   Deixá-los à mostra numa aba que os ignora é o defeito que a casa já pagou
+   em `integ` e `apps`: dá para escolher "semana", clicar em Aplicar filtros e
+   nada mudar. Campo que aceita valor e não muda nada é PIOR que campo nenhum,
+   porque quem filtrou acredita no resultado.
+
+   Some a barra inteira, e não só o grupo: sobraria o botão "Aplicar filtros"
+   sozinho, que promete ainda mais do que o grupo. */
+function fcFiltrosDaTela(mostrar){
+  const bar = document.getElementById('filterbar');
+  if(bar) bar.style.display = mostrar ? '' : 'none';
+  const bt = document.getElementById('btnFiltros');
+  if(bt) bt.classList.toggle('oculto', !mostrar);
 }
 
 
@@ -17383,7 +17849,7 @@ function ddaImportar(){
          da aba cai junto. Sem isto a tela mostraria a importacao nova contra a
          projecao velha — dois numeros certos de momentos diferentes na mesma
          leitura, que e a pior combinacao possivel. */
-      DATAPROJ = null;
+      DATAPROJ = null; DATAPLANO = null;
       showBanner(d.ja_existia
         ? 'Este arquivo já tinha sido importado em ' + fmtDT(d.importado_em) + ' — nada mudou.'
         : d.boletos + ' boletos (' + BRL.format(d.valor) + '), ' + d.novos + ' novos e '
@@ -17409,13 +17875,18 @@ async function loadFluxcon(){
      o confronto do DDA). Recarregar a tela derruba os dois juntos — senao o
      Fluxo Consolidado viria fresco ao lado de um Plano de meia hora atras, e
      nada na tela diria que sao de momentos diferentes. */
-  DATAPROJ = null;
+  DATAPROJ = null; DATAPLANO = null;
   document.getElementById('content').classList.add('loading');
   try{
     const r=await fetch('/api/financeiro/fluxo-consolidado?'+qsView('fluxcon'),{cache:'no-store'});
     const d=await r.json(); if(seq!==fluxconSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao montar o fluxo consolidado.', d.detalhe); return; }
     hideBanner(); DATAFLUXCON=d; renderFluxcon(d); LOADEDQS.fluxcon=qsView('fluxcon');
+    /* A aba DECIDIR nasce aberta, e `data-ao-abrir` só dispara no `abaTrocar`
+       — quem abre a tela nunca troca de aba. Sem esta chamada a primeira
+       coisa que a pessoa vê é a banda vazia do plano, e ela conclui que não
+       há dado. É a mesma razão de o Plano ser chamado aqui e não lá. */
+    loadPlano();
     credCarregar();   // o card de limites vive nesta tela
   }catch(e){ if(seq===fluxconSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===fluxconSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
