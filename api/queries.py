@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 
+import hashlib
 import logging
 import re
 
@@ -183,6 +184,43 @@ _FAIXA = f"""CASE
     WHEN dtvencimento >= {DREF} - 365 THEN '4_vencido_91_365'
     ELSE '5_vencido_mais_365' END"""
 
+# ---------------------------------------------------------------- Partes
+# Filtro por CLIENTE (Contas a Receber) e por FORNECEDOR/CREDOR (Contas a
+# Pagar), os dois de MÚLTIPLA escolha. Lista vazia/ausente = todos.
+#
+# A CHAVE QUE VAI PARA A TELA NÃO É O DOCUMENTO. `fatura.cliente` e
+# `contaapagar.cnpjcpfcodigo` guardam o CNPJ/CPF cru — a MESMA coluna que o
+# resto desta casa masca com `_mask_doc` antes de responder (§8.5: CPF não
+# entra em URL nem aparece inteiro). Um filtro que mandasse o código na query
+# string publicaria o documento na barra de endereço, no histórico do
+# navegador e no log do Cloudflare, sem nenhum sintoma. Então a tela recebe um
+# id OPACO (`parte_id`) e quem traduz id → documento é o SERVIDOR, contra a
+# lista de quem tem título em aberto — que é exatamente o universo em que o
+# filtro opera. Id que não resolve não vira SQL: é recusa legível.
+def _lista_de(coluna: str, chave: str) -> str:
+    """`AND` opcional por lista de códigos — NULL na chave significa TODOS.
+
+    O cast é explícito nas duas pontas porque o psycopg manda a lista sem tipo
+    e o 9.3 não adivinha o `varchar[]` do outro lado do `= ANY`."""
+    return (f"AND (%({chave})s::varchar[] IS NULL"
+            f" OR {coluna} = ANY(%({chave})s::varchar[]))")
+
+
+# AS CONSULTAS DESTE BLOCO SÃO COMPARTILHADAS. `KPI_SQL`, `SALDO_SQL`,
+# `RUNRATE_SQL` e `FLUXO_SQL` também alimentam a Visão Geral e o Fluxo
+# Consolidado, que perguntam pela EMPRESA e não têm (nem devem ter) filtro de
+# parte. Como o filtro é um parâmetro nomeado, quem executa uma delas com um
+# dicionário próprio precisa das duas chaves, ou o psycopg recusa a consulta —
+# e num dos três casos a recusa cairia dentro de um `except` que devolve
+# "recebíveis: não sei". Por isso o "sem recorte" tem NOME: quem monta o
+# dicionário espalha `**SEM_PARTES` em vez de lembrar de duas chaves.
+SEM_PARTES = {"clientes": None, "fornecedores": None}
+
+CLI_F = _lista_de("f.cliente", "clientes")            # fatura com alias `f`
+CLI_FAT = _lista_de("cliente", "clientes")            # fatura sem alias
+FORN_A = _lista_de("a.cnpjcpfcodigo", "fornecedores")  # contaapagar alias `a`
+FORN = _lista_de("cnpjcpfcodigo", "fornecedores")      # contaapagar sem alias
+
 # Recebíveis pelo MÉTODO OFICIAL do ERP (fatura × fatura_composicao,
 # composicao=1 "faturado", valorpendentecnpjcliente, docs 6/8/10/11 + CT-e
 # situacaocte=3) — MESMA regra da Régua de Cobrança/Ficha de Cliente (ver
@@ -205,7 +243,7 @@ WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
   AND fc.tipodocumentoorigem = ANY(string_to_array('6,8,10,11',',')::int[])
   AND (fc.tipodocumentoorigem <> 6 OR co.situacaocte = 3)
   AND (f.filial = %(filial)s OR %(filial)s::int IS NULL)
-"""
+""" + CLI_F
 _REC_OF_RNG = ("AND (f.dtvencimento >= %(venc_de)s::date OR %(venc_de)s::date IS NULL) "
                "AND (f.dtvencimento <= %(venc_ate)s::date OR %(venc_ate)s::date IS NULL)")
 _REC_OF_VENC = "coalesce(f.dtprevisaopagamento, f.dtvencimento)"
@@ -228,21 +266,34 @@ SELECT
      FROM fatura f JOIN fatura_composicao fc USING (grupo,empresa,filial,unidade,sequencia)
      WHERE f.grupo=1 AND fc.valorpendentecnpjcliente>0 AND f.dtcancelamento IS NULL AND f.composicao=2
        AND coalesce(f.dtprevisaopagamento,f.dtvencimento) < {DREF} AND f.dtpagamento IS NULL
-       AND (f.filial = %(filial)s OR %(filial)s::int IS NULL))                     AS receber_pendente_fatur,
+       AND (f.filial = %(filial)s OR %(filial)s::int IS NULL)
+       {CLI_F})                                                                    AS receber_pendente_fatur,
   (SELECT coalesce(sum(valorpendente),0)::float8 FROM contaapagar
-     WHERE valorpendente > 0 {FIL} {RNG})                                          AS pagar_aberto,
-  (SELECT count(*)::int FROM contaapagar WHERE valorpendente > 0 {FIL} {RNG})      AS pagar_qtd,
+     WHERE valorpendente > 0 {FIL} {FORN} {RNG})                                   AS pagar_aberto,
+  -- O MESMO total SEM o filtro de credor. É o denominador da fatia que a tela
+  -- mostra no lugar da posição líquida quando alguém escolhe credores: sem ele
+  -- a resposta a "quanto disso é a Receita Federal?" exigiria tirar o filtro,
+  -- anotar o número e pôr de volta. Custa uma varredura a mais da MESMA tabela
+  -- já em cache do banco (medido: contaapagar aberto tem 5.572 linhas), e não
+  -- existe do lado do a receber de propósito — lá o total oficial passa por
+  -- fatura × fatura_composicao × conhecimento, e a segunda volta seria cara.
   (SELECT coalesce(sum(valorpendente),0)::float8 FROM contaapagar
-     WHERE valorpendente > 0 AND dtvencimento < {DREF} {FIL} {RNG})                AS pagar_vencido,
+     WHERE valorpendente > 0 {FIL} {RNG})                                          AS pagar_aberto_todos,
+  (SELECT count(*)::int FROM contaapagar
+     WHERE valorpendente > 0 {FIL} {FORN} {RNG})                                   AS pagar_qtd,
+  (SELECT coalesce(sum(valorpendente),0)::float8 FROM contaapagar
+     WHERE valorpendente > 0 AND dtvencimento < {DREF} {FIL} {FORN} {RNG})         AS pagar_vencido,
   (SELECT coalesce(sum(valortitulo),0)::float8 FROM fatura
      WHERE dtcancelamento IS NULL
-       AND date_trunc('month', dtemissao) = date_trunc('month', {DREF}) {FIL})     AS faturamento_mes,
+       AND date_trunc('month', dtemissao) = date_trunc('month', {DREF})
+       {FIL} {CLI_FAT})                                                            AS faturamento_mes,
   (SELECT coalesce(sum(fc.valorpendentecnpjcliente),0)::float8
      {_REC_OF_FROM} {_REC_OF_WHERE}
      AND {_REC_OF_VENC} >= {DREF} AND {_REC_OF_VENC} <= {DREF} + 30)               AS receber_prox30,
   (SELECT coalesce(sum(valorpendente),0)::float8 FROM contaapagar
      WHERE valorpendente > 0
-       AND dtvencimento >= {DREF} AND dtvencimento <= {DREF} + 30 {FIL})           AS pagar_prox30
+       AND dtvencimento >= {DREF} AND dtvencimento <= {DREF} + 30
+       {FIL} {FORN})                                                               AS pagar_prox30
 """
 
 AGING_AR_SQL = f"""
@@ -255,7 +306,7 @@ SELECT faixa, count(*)::int AS qtd, sum(valor)::float8 AS valor FROM (
 AGING_AP_SQL = f"""
 SELECT faixa, count(*)::int AS qtd, sum(valor)::float8 AS valor FROM (
   SELECT {_FAIXA} AS faixa, valorpendente AS valor
-  FROM contaapagar WHERE valorpendente > 0 {FIL} {RNG}
+  FROM contaapagar WHERE valorpendente > 0 {FIL} {FORN} {RNG}
 ) t GROUP BY faixa ORDER BY faixa
 """
 
@@ -314,7 +365,7 @@ SELECT
 RUNRATE_SQL = f"""
 SELECT coalesce(avg(mv),0)::float8 AS runrate FROM (
   SELECT sum(valortitulo) AS mv FROM fatura
-  WHERE dtcancelamento IS NULL {FIL}
+  WHERE dtcancelamento IS NULL {FIL} {CLI_FAT}
     AND dtemissao >= date_trunc('month', {DREF}) - interval '6 months'
     AND dtemissao <  date_trunc('month', {DREF})
   GROUP BY date_trunc('month', dtemissao)
@@ -352,7 +403,7 @@ SELECT to_char(date_trunc('month', dtemissao),'YYYY-MM') AS mes,
        extract(month FROM dtemissao)::int AS mnum,
        sum(valortitulo)::float8 AS valor
 FROM fatura
-WHERE dtcancelamento IS NULL {FIL}
+WHERE dtcancelamento IS NULL {FIL} {CLI_FAT}
   AND dtemissao >= date '2023-01-01'
   AND dtemissao < date_trunc('month', {DREF})
 GROUP BY 1, 2 ORDER BY 1
@@ -387,7 +438,7 @@ WITH mov AS (
               ELSE to_char(dtvencimento,'YYYY-MM') END AS ord,
          valorsaldoreceber AS receber, 0::numeric AS pagar
   FROM fatura WHERE coalesce(valorsaldoreceber,0) > 0 AND dtcancelamento IS NULL
-    AND dtvencimento IS NOT NULL {FIL} {RNG}
+    AND dtvencimento IS NOT NULL {FIL} {CLI_FAT} {RNG}
   UNION ALL
   SELECT CASE WHEN dtvencimento < date_trunc('month',{DREF})::date THEN 'atrasado'
               ELSE to_char(dtvencimento,'YYYY-MM') END,
@@ -395,7 +446,7 @@ WITH mov AS (
               ELSE to_char(dtvencimento,'YYYY-MM') END,
          0::numeric, valorpendente
   FROM contaapagar WHERE coalesce(valorpendente,0) > 0
-    AND dtvencimento IS NOT NULL {FIL} {RNG}
+    AND dtvencimento IS NOT NULL {FIL} {FORN} {RNG}
 )
 SELECT mes AS periodo,
        sum(receber)::float8 AS receber,
@@ -406,7 +457,7 @@ FROM mov GROUP BY mes, ord ORDER BY ord
 
 # Distribuição de vencimentos por mês (gráficos de Contas a Receber / a Pagar).
 # Buckets de borda: '0:ant' (mais de 6 meses antes da ref.) e '2:pos' (12+ meses depois).
-def _venc_sql(tabela: str, cond: str, valor: str) -> str:
+def _venc_sql(tabela: str, cond: str, valor: str, extra: str = "") -> str:
     return f"""
 SELECT bucket,
        sum(CASE WHEN dtvencimento <  {DREF} THEN valor ELSE 0 END)::float8 AS vencido,
@@ -418,7 +469,7 @@ FROM (
       WHEN date_trunc('month',dtvencimento) >= date_trunc('month',{DREF}) + interval '12 months' THEN '2:pos'
       ELSE '1:'||to_char(dtvencimento,'YYYY-MM') END AS bucket,
     dtvencimento, {valor} AS valor
-  FROM {tabela} WHERE {cond} AND dtvencimento IS NOT NULL {FIL} {RNG}
+  FROM {tabela} WHERE {cond} AND dtvencimento IS NOT NULL {FIL} {extra} {RNG}
 ) t GROUP BY bucket ORDER BY bucket
 """
 
@@ -436,7 +487,7 @@ FROM (
   {_REC_OF_FROM} {_REC_OF_WHERE} {_REC_OF_RNG}
 ) t GROUP BY bucket ORDER BY bucket
 """
-VENC_AP_SQL = _venc_sql("contaapagar", "valorpendente > 0", "valorpendente")
+VENC_AP_SQL = _venc_sql("contaapagar", "valorpendente > 0", "valorpendente", FORN)
 
 # Drill-down: maiores devedores (a receber) e credores (a pagar).
 # Nome resolvido em `cadastro`; o documento é mascarado antes de sair do backend.
@@ -460,7 +511,7 @@ SELECT a.cnpjcpfcodigo AS codigo,
        sum(a.valorpendente)::float8 AS valor,
        sum(CASE WHEN a.dtvencimento < {DREF} THEN a.valorpendente ELSE 0 END)::float8 AS vencido
 FROM contaapagar a LEFT JOIN cadastro c ON c.codigo = a.cnpjcpfcodigo
-WHERE a.valorpendente > 0 {FIL} {RNG}
+WHERE a.valorpendente > 0 {FIL} {FORN_A} {RNG}
 GROUP BY a.cnpjcpfcodigo, c.nomefantasia, c.razaosocial
 ORDER BY valor DESC LIMIT 15
 """
@@ -483,7 +534,7 @@ SELECT coalesce(nullif(trim(t.descricao),''), 'tipo '||a.tipotitulo::text) AS ti
                 THEN a.valorpendente ELSE 0 END)::float8 AS prox30
 FROM contaapagar a
 LEFT JOIN tipotitulo t ON t.codigo = a.tipotitulo
-WHERE a.valorpendente > 0 {FIL}
+WHERE a.valorpendente > 0 {FIL} {FORN_A}
 GROUP BY 1 ORDER BY 3 DESC
 """
 
@@ -503,6 +554,111 @@ LEFT JOIN tipodocumento td ON td.codigo = fc.tipodocumentoorigem
 {_REC_OF_WHERE}
 GROUP BY 1 ORDER BY 3 DESC
 """
+
+# ------------------------------------------------- Partes do filtro
+# Quem TEM título em aberto — o universo em que os filtros de Contas a Receber
+# e Contas a Pagar operam, e por isso a lista certa para o seletor: cliente que
+# não deve nada não pode ser escolhido, e escolher um que não aparece na tela
+# devolveria tela vazia sem explicação.
+#
+# A lista NÃO segue o período nem a filial: ela é o cadastro de escolhas, não
+# o resultado. Se seguisse, o cliente selecionado desapareceria do próprio
+# seletor no instante em que o período o zerasse — e a pessoa perderia a
+# seleção sem ter mexido nela.
+#
+# Ordenada por saldo DESC: com 664 credores, a ordem alfabética esconde os
+# quatro que respondem por metade do passivo.
+PARTES_CLI_SQL = f"""
+SELECT f.cliente AS codigo,
+       coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''),
+                '(sem cadastro)') AS nome,
+       count(*)::int AS titulos,
+       sum(fc.valorpendentecnpjcliente)::float8 AS valor
+{_REC_OF_FROM}
+LEFT JOIN cadastro c ON c.codigo = f.cliente
+WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
+  AND f.composicao = 1 AND f.dtpagamento IS NULL
+  AND fc.tipodocumentoorigem = ANY(string_to_array('6,8,10,11',',')::int[])
+  AND (fc.tipodocumentoorigem <> 6 OR co.situacaocte = 3)
+GROUP BY 1, 2 ORDER BY 4 DESC
+"""
+
+PARTES_FORN_SQL = """
+SELECT a.cnpjcpfcodigo AS codigo,
+       coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''),
+                '(sem cadastro)') AS nome,
+       count(*)::int AS titulos,
+       sum(a.valorpendente)::float8 AS valor
+FROM contaapagar a LEFT JOIN cadastro c ON c.codigo = a.cnpjcpfcodigo
+WHERE a.valorpendente > 0
+GROUP BY 1, 2 ORDER BY 4 DESC
+"""
+
+
+def parte_id(codigo: str | None) -> str:
+    """Id OPACO e estável de um cliente/fornecedor, para viajar até a tela.
+
+    O código do ERP é o CNPJ/CPF cru (§8.5) — ele não sai daqui, nem no corpo
+    da resposta nem na query string do filtro. O digest é derivado SÓ do
+    código, então é o mesmo entre workers e entre reinícios: a seleção que a
+    pessoa deixou salva no navegador continua valendo depois do deploy."""
+    return hashlib.sha256(str(codigo or "").encode("utf-8")).hexdigest()[:12]
+
+
+@cached(ttl=600, velha_ate=VELHA_ATE)
+def _partes_cru() -> dict:
+    """As duas listas COM o código do ERP — uso interno, nunca resposta.
+
+    Fica separada de `get_partes` porque o mesmo dado serve a duas perguntas
+    com públicos diferentes: a tela precisa do rótulo e do id opaco; o filtro
+    precisa do código para virar SQL. Uma função só obrigaria a segunda a
+    reconsultar o ERP a cada requisição filtrada."""
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(PARTES_CLI_SQL)
+        clientes = cur.fetchall()
+        cur.execute(PARTES_FORN_SQL)
+        fornecedores = cur.fetchall()
+    return {"clientes": clientes, "fornecedores": fornecedores}
+
+
+def get_partes() -> dict:
+    """Payload do seletor: rótulo, id opaco, documento mascarado e saldo."""
+    def _publicar(linhas):
+        # CÓPIA de cada linha: o dicionário guardado no cache é o mesmo objeto
+        # em toda chamada, e apagar `codigo` dele esvaziaria a lista de que o
+        # resolvedor depende — o filtro pararia de funcionar depois da
+        # primeira leitura, sem erro nenhum.
+        return [{"id": parte_id(r["codigo"]), "nome": r["nome"],
+                 "doc": _mask_doc(r["codigo"]), "titulos": r["titulos"],
+                 "valor": r["valor"]}
+                for r in linhas]
+
+    # A LEITURA VELHA NÃO É CARIMBADA AQUI, e isso é decisão, não esquecimento.
+    # `_partes_cru` serve a última leitura boa quando o ERP tem dia ruim — e
+    # deve mesmo: uma lista de OPÇÕES de dez minutos atrás não torna errado
+    # nenhum número da tela. Repassar o carimbo faria o gancho do `fetch`
+    # desenhar a tarja de "dado velho" por cima de indicadores que acabaram de
+    # vir frescos do overview — alarme falso, e do tipo que ensina a ignorar a
+    # tarja. Quem carimba é a consulta que produz NÚMERO.
+    cru = _partes_cru()
+    return {"clientes": _publicar(cru["clientes"]),
+            "fornecedores": _publicar(cru["fornecedores"])}
+
+
+def resolver_partes(ids, quais: str) -> list[str]:
+    """Traduz os ids opacos que vieram da tela nos códigos do ERP.
+
+    Levanta `ValueError` no id que não resolve, em vez de descartá-lo em
+    silêncio: filtro que ignora o que não entendeu devolve um número MENOR e
+    de aparência correta — o pior defeito possível num painel financeiro."""
+    if not ids:
+        return []
+    por_id = {parte_id(r["codigo"]): r["codigo"] for r in _partes_cru()[quais]}
+    desconhecidos = [i for i in ids if i not in por_id]
+    if desconhecidos:
+        raise ValueError("selecao_invalida")
+    return [por_id[i] for i in ids]
+
 
 FILTROS_SQL = """
 SELECT f.codigo, coalesce(nullif(trim(f.apelido),''), f.cidade, 'Filial '||f.codigo) AS nome, f.uf
@@ -576,9 +732,21 @@ def _agrupar_natureza(linhas: list[dict]) -> list[dict]:
 @cached(ttl=90, velha_ate=VELHA_ATE)
 def get_overview(filial: int | None = None, data_ref: str | None = None,
                  horizonte: int = 12, venc_de: str | None = None,
-                 venc_ate: str | None = None) -> dict:
+                 venc_ate: str | None = None,
+                 clientes: tuple[str, ...] = (),
+                 fornecedores: tuple[str, ...] = ()) -> dict:
+    """`clientes`/`fornecedores` são CÓDIGOS do ERP já resolvidos (ver
+    `resolver_partes`) — a rota nunca passa daqui o id opaco da tela.
+
+    TUPLA, e não lista, porque a chave do `cached` é o `repr` dos argumentos:
+    com tupla a mesma seleção reaproveita a leitura anterior, e a ordem que a
+    rota fixa impede que "A,B" e "B,A" virem duas entradas do mesmo número."""
     params = {"filial": filial, "data_ref": data_ref, "horizonte": horizonte,
-              "venc_de": venc_de, "venc_ate": venc_ate}
+              "venc_de": venc_de, "venc_ate": venc_ate,
+              # lista VAZIA vira NULL, que é como o SQL escreve "todos" —
+              # `= ANY('{}')` não casaria com ninguém e a tela ficaria zerada.
+              "clientes": list(clientes) or None,
+              "fornecedores": list(fornecedores) or None}
     with db.get_conn() as conn, conn.cursor() as cur:
         cur.execute(KPI_SQL, params)
         kpis = cur.fetchone()
@@ -712,6 +880,11 @@ def get_overview(filial: int | None = None, data_ref: str | None = None,
         "filial": filial,
         "venc_de": venc_de,
         "venc_ate": venc_ate,
+        # o recorte volta DITO: a tela precisa dizer sobre quantos clientes /
+        # credores aquele número é, e um payload que não carrega o recorte
+        # obriga a tela a confiar na própria memória do formulário.
+        "clientes_sel": len(clientes),
+        "fornecedores_sel": len(fornecedores),
         "data_ref": dref.isoformat(),
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": "ERP AVA (banco sulista) · leitura",
@@ -2625,7 +2798,9 @@ def _ponto_equilibrio(g: dict) -> dict | None:
 def get_visao_geral() -> dict:
     from concurrent.futures import ThreadPoolExecutor
 
-    fin_params = {"filial": None, "data_ref": None, "venc_de": None, "venc_ate": None}
+    # A Visão Geral é da EMPRESA: sem recorte de cliente nem de credor.
+    fin_params = {"filial": None, "data_ref": None, "venc_de": None,
+                  "venc_ate": None, **SEM_PARTES}
     de_be = (date.today().replace(day=1) - __import__("datetime").timedelta(days=365)).replace(day=1).isoformat()
     ate_be = date.today().replace(day=1).isoformat()
 
@@ -6862,7 +7037,8 @@ def get_fluxo_consolidado(gran: str = "semana", dias: int = 180) -> dict:
     rec_horizonte = sum(r["valor"] for r in rec_rows)
     try:
         est = db.query(KPI_SQL, {"data_ref": None, "filial": None,
-                                 "venc_de": None, "venc_ate": None})[0]
+                                 "venc_de": None, "venc_ate": None,
+                                 **SEM_PARTES})[0]
         recebiveis = {
             "aberto": est["receber_aberto"], "titulos": est["receber_qtd"],
             "vencido": est["receber_vencido"], "prox30": est["receber_prox30"],

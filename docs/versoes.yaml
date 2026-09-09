@@ -1,3 +1,35 @@
+- versao: "1.20.0"
+  data: "2026-09-09"
+  adicionado:
+    - >-
+      Contas a Receber ganhou um filtro por CLIENTE, e Contas a Pagar um por
+      FORNECEDOR/CREDOR, os dois de múltipla escolha. O recorte vale para a
+      tela inteira — os quatro indicadores do topo, o aging, os vencimentos
+      por mês, o top-15 e os alertas —, e não só para uma tabela.
+    - >-
+      A escolha acontece num quadro com busca, ordenado do maior saldo para o
+      menor, mostrando quanto cada um deve (ou é devido) e em quantos títulos.
+      A lista traz só quem tem título em aberto: escolher alguém que não
+      aparece na tela devolveria tela vazia sem explicação. São 47 clientes e
+      664 credores hoje, e "Marcar os visíveis" fecha a seleção sobre o
+      resultado da busca — dá para pegar todos os bancos de uma vez.
+    - >-
+      Quem está escolhido fica visível na barra de filtros, um por chip, e sai
+      com um clique. O recorte também vai escrito no rodapé de cada indicador
+      ("· 2 clientes no filtro"): quem chega numa tela já filtrada lê o número
+      e o rodapé DELE, e sem isso os outros cartões pareceriam ser da empresa
+      inteira.
+  alterado:
+    - >-
+      Em Contas a Pagar, com filtro de credor ativo, o cartão "Posição líquida
+      (aberto)" dá lugar a "Fatia do passivo" — quanto os credores escolhidos
+      representam do total a pagar. A posição líquida é "a receber menos a
+      pagar", e o filtro de credor encolhe só um dos dois lados: o número
+      continuaria certo na conta e sem sentido na leitura.
+    - >-
+      O Fluxo de Caixa NÃO recebe o filtro, de propósito: ali a pergunta é o
+      caixa da empresa, e escolher clientes em Contas a Receber não pode
+      encolher a projeção de todo mundo por tabela.
 - versao: "1.19.1"
   data: "2026-09-09"
   adicionado:

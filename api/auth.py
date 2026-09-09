@@ -266,6 +266,12 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/rh/motorista",             frozenset({"rhmot"})),
     ("/api/rh/vagas",                 frozenset({"rh"})),
     ("/api/financeiro/overview",      frozenset({"fluxo", "receber", "pagar"})),
+    # Opções dos filtros de cliente (Contas a Receber) e de credor (Contas a
+    # Pagar). MAIS ESPECÍFICA que qualquer outra `/api/financeiro/...`, e com
+    # público PRÓPRIO: quem só abre o Fluxo não precisa da lista de quem a
+    # empresa deve. `/api/financeiro/filtros` continua sendo de TODA tela
+    # porque lá só há filial.
+    ("/api/financeiro/partes",        frozenset({"receber", "pagar"})),
     ("/api/financeiro/dre-cliente",   frozenset({"drecli"})),
     ("/api/controladoria/previsao",   frozenset({"fech"})),
     ("/api/controladoria/orcamento",  frozenset({"orc"})),

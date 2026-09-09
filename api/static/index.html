@@ -322,6 +322,23 @@ button.ghost[aria-pressed="true"]{background:var(--navy-700);color:var(--on-acce
 .field.multi .chips{gap:6px}
 .field.multi .chip{padding:5px 11px;font-size:12.5px}
 .field.multi .chip .cv{opacity:.72;font-family:var(--mono);font-size:11.5px;margin-left:5px}
+/* ESCOLHER ENTRE MUITOS. Os chips acima dizem o que ESTA escolhido; a escolha
+   em si acontece neste modal, com busca. Sao 47 clientes com recebivel e 664
+   credores com pagavel em aberto: uma barra de chips com 664 itens seria a
+   barra de filtros ocupando a tela, e um `<select multiple>` de 664 linhas
+   obriga a rolar procurando por nome que ninguem lembra inteiro. */
+.pk-topo{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:9px}
+.pk-topo input[type=search]{flex:1;min-width:200px}
+.pk-cont{font-size:12px;color:var(--n500);margin-left:auto}
+.pk-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:0 18px;
+  border:1px solid var(--n200);border-radius:6px;padding:9px;max-height:340px;overflow:auto}
+.pk-lista label{display:flex;gap:9px;align-items:center;font-size:13px;font-weight:500;
+  margin:0;padding:4px;border-radius:4px;cursor:pointer;min-width:0}
+.pk-lista label:hover{background:var(--navy-50)}
+.pk-lista input[type=checkbox]{width:16px;height:16px;min-height:0;margin:0;flex:none}
+.pk-lista .pkn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pk-lista .pkv{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--n500);white-space:nowrap}
+.pk-vazio{grid-column:1/-1;color:var(--n500);font-size:13px;padding:9px 4px}
 /* TODO CONTROLE NASCE COM O ESTILO DA CASA.
    O estilo de campo era OPT-IN: valia para quem estivesse dentro de `.field`
    ou `.cardfilters`. Um `<select>` posto direto num card nao recebia regra
@@ -3594,6 +3611,19 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="spacer"></div>
         <div class="field"><label>&nbsp;</label>
           <button class="btn" onclick="reloadCurrent()">Aplicar filtros</button>
+        </div>
+        <!-- O CAMPO DE PARTES VEM DEPOIS DO BOTAO, e a razao e a regua de
+             altura. `.field.multi` ocupa a linha inteira (`flex-basis:100%`):
+             antes do espacador ele empurrava "Aplicar filtros" para uma
+             TERCEIRA linha e a tela passava de 770 para 909px — 9 acima do
+             teto de 900 da casa. Depois do botao ele custa UMA linha. -->
+        <div class="field multi" id="fldRecCli" style="display:none">
+          <label title="Recorta a tela INTEIRA de Contas a Receber por um ou mais clientes: os quatro indicadores, o aging, os vencimentos por mês, o top de sacados e os alertas. Vazio = todos. A lista traz só quem tem título em aberto, ordenada por saldo. O que ela NÃO faz é agrupar por matriz: o ERP fatura por filial, então um mesmo grupo econômico aparece uma vez por unidade que emitiu.">Cliente</label>
+          <div class="chips" id="fRecCliChips"></div>
+        </div>
+        <div class="field multi" id="fldPagForn" style="display:none">
+          <label title="Recorta a tela INTEIRA de Contas a Pagar por um ou mais credores: indicadores, aging, vencimentos por mês, top de credores e alertas. Vazio = todos. A lista traz só quem tem título pendente, ordenada por saldo — os quatro primeiros são bancos e Receita Federal, e não fornecedores.">Fornecedor / credor</label>
+          <div class="chips" id="fPagFornChips"></div>
         </div>
       </div>
 
@@ -9626,6 +9656,17 @@ function qsView(k){
     if(V('fHor'))p.set('horizonte',V('fHor'));
     if(V('fVencDe'))p.set('venc_de',V('fVencDe'));
     if(V('fVencAte'))p.set('venc_ate',V('fVencAte'));
+    /* AS TRES TELAS DIVIDEM UMA CHAVE ('fin') E UMA RESPOSTA, mas nao dividem
+       o filtro de parte: quem escolhe cliente em Contas a Receber nao esta
+       pedindo que o Fluxo de Caixa da empresa inteira encolha junto. Entao o
+       parametro sai da TELA ATUAL, e nao da chave — e como ele entra na `qs`,
+       trocar de tela ja recarrega sozinho pelo guard do `LOADEDQS`.
+       ORDENADO porque a `qs` e comparada como TEXTO: sem isso a mesma selecao
+       em outra ordem passaria por filtro novo e iria de novo ao ERP. */
+    const quais = PARTE_DA_TELA[currentView()];
+    if(quais && PSEL[quais].size)
+      p.set(quais==='clientes' ? 'clientes' : 'fornecedores',
+            [...PSEL[quais]].sort().join(','));
   } else if(k==='oc'){
     if(V('fFilial'))p.set('filial',V('fFilial'));
     if(V('fEmiDe'))p.set('dt_de',V('fEmiDe'));
@@ -9912,6 +9953,10 @@ function router(){
   // as datas de emissão são COMPARTILHADAS por essas telas: ao trocar de vista o
   // select tem que voltar a descrever o recorte que está nos campos
   if(oc||agr||comb||man||com||kmv||mul||rent||anpiso||lanc||pedagio||anrntrc) emiPresetSync();
+  /* O campo de cliente/credor aparece so nas duas telas que o servidor sabe
+     filtrar, e a lista e buscada AQUI (uma vez por sessao) em vez de no boot:
+     e uma consulta ao ERP que a maioria das telas nao usa. */
+  partesGarantir();
   document.getElementById('grpMul').style.display = mul ? 'flex' : 'none';
   document.getElementById('grpCob').style.display = cob ? 'flex' : 'none';
   document.getElementById('grpRent').style.display = rent ? 'flex' : 'none';
@@ -10342,6 +10387,244 @@ async function initFiltros(){
       o.textContent = f.nome + (f.uf?(' · '+f.uf):''); sel.appendChild(o); });
   }catch(e){ filtrosPromise = null; /* permite retry no próximo load */ }
 }
+/* ---------- Filtro por CLIENTE (a receber) e por CREDOR (a pagar) ----------
+
+   O QUE ELE RECORTA. A tela inteira, e nao um cartao: os quatro indicadores,
+   o aging, os vencimentos por mes, o top-15 e os alertas saem todos da MESMA
+   resposta de /api/financeiro/overview, entao o filtro entra na CONSULTA e
+   nao na pintura. Filtrar so a tabela deixaria o indicador do topo contando
+   quem nao esta mais na tabela — a versao pior de "campo que aceita valor e
+   nao muda nada", porque essa muda METADE da tela.
+
+   POR QUE A CHAVE NAO E O CNPJ. `fatura.cliente` e `contaapagar.cnpjcpfcodigo`
+   guardam o documento cru — a mesma coluna que o top-15 masca antes de sair.
+   O servidor manda um id opaco e so ele sabe traduzir: assim o CPF de um
+   credor pessoa fisica nao vai parar na barra de endereco, no historico do
+   navegador nem no log do Cloudflare.
+
+   POR QUE MODAL, E NAO UM CHIP PARA CADA. Sao 47 clientes com recebivel e 664
+   credores com pagavel em aberto. Os chips mostram o que ESTA escolhido — o
+   idioma que o filtro de sacados da Antecipacao ja usa — e a escolha acontece
+   no modal, com busca. A barra de filtros nao pode virar uma lista.
+
+   POR QUE APLICAR NO BOTAO, E NAO A CADA CLIQUE. Cada carga do overview e uma
+   ida ao ERP de alguns segundos; marcar cinco credores dispararia cinco, e as
+   quatro primeiras respostas seriam descartadas pelo guard de sequencia. O
+   modal escolhe, o "Aplicar" recarrega UMA vez, e so se a selecao mudou. */
+const PARTES = {clientes: null, fornecedores: null};      // universo, do servidor
+const PSEL = {clientes: new Set(), fornecedores: new Set()};
+let partesPromise = null;
+/* Qual lista cada tela usa. Mapa, e nao cadeia de `if`: tela nova do Financeiro
+   que precise do mesmo filtro entra AQUI, num lugar so, e quem nao entrar nao
+   herda o filtro da vizinha por acidente. */
+const PARTE_DA_TELA = {receber: 'clientes', pagar: 'fornecedores'};
+/* Singular e plural DECLARADOS: 'cliente'+'es' vira "clientees", e um
+   rotulo torto num filtro financeiro faz o usuario duvidar do numero. */
+const PARTE_ROTULO = {clientes: ['cliente', 'clientes'],
+                      fornecedores: ['credor', 'credores']};
+const parteRot = (q, n) => PARTE_ROTULO[q][n === 1 ? 0 : 1];
+
+function partesDaTela(){ return PARTE_DA_TELA[currentView()] || ''; }
+
+async function partesCarregar(){
+  try{
+    const r = await fetch('/api/financeiro/partes', {cache:'no-store'});
+    const resp = await respostaJSON(r);
+    if(!resp.ok) throw new Error(resp.dados.mensagem || ('HTTP ' + r.status));
+    PARTES.clientes = resp.dados.clientes || [];
+    PARTES.fornecedores = resp.dados.fornecedores || [];
+  }catch(e){
+    /* Falhar aqui NAO derruba a tela: sem a lista o filtro fica indisponivel e
+       a tela mostra tudo, que e o estado correto de "sem recorte". O campo diz
+       o motivo em vez de sumir — controle que desaparece se le como tela
+       quebrada, e quem estava filtrando nao saberia que parou de filtrar. */
+    partesPromise = null;                      // permite retry na proxima visita
+    PARTES.clientes = PARTES.fornecedores = null;
+    throw e;
+  }
+}
+
+/* Chamado ao entrar em Contas a Receber / a Pagar, e so nelas: quem abre o
+   Fluxo de Caixa nao precisa da lista de quem a empresa deve. */
+function partesGarantir(){
+  const quais = partesDaTela();
+  if(!quais){ partesChips(); return; }
+  if(PARTES[quais]){ partesChips(); return; }
+  /* A promessa PRIMEIRO, os chips depois: `partesChips` decide entre
+     "carregando" e "não pôde ser carregada" olhando `partesPromise`, e na
+     ordem inversa uma segunda visita depois de uma falha mostraria a mensagem
+     de erro justamente enquanto a nova tentativa estava em voo. */
+  partesPromise = partesPromise || partesCarregar();
+  partesChips();
+  partesPromise.then(partesChips, partesChips);
+}
+
+function partesChips(){
+  const quais = partesDaTela();
+  ['clientes', 'fornecedores'].forEach(function(q){
+    const campo = document.getElementById(q === 'clientes' ? 'fldRecCli' : 'fldPagForn');
+    if(campo) campo.style.display = (q === quais) ? '' : 'none';
+  });
+  if(!quais) return;
+  const box = document.getElementById(quais === 'clientes' ? 'fRecCliChips' : 'fPagFornChips');
+  if(!box) return;
+  const uni = PARTES[quais];
+  if(!uni){
+    box.innerHTML = partesPromise
+      ? '<span class="hint">carregando a lista…</span>'
+      : '<span class="hint">a lista de ' + parteRot(quais, 2)
+        + ' não pôde ser carregada — a tela está mostrando todos</span>';
+    return;
+  }
+  const sel = PSEL[quais];
+  const porId = {}; uni.forEach(function(p){ porId[p.id] = p; });
+  /* TETO DE CHIPS. Sem ele a ALTURA DA TELA passa a depender de quantos
+     nomes a pessoa escolheu: cada linha de chips custa ~34px, e o painel tem
+     900px para caber sem rolagem (`scripts/medir_paineis.py` é o juiz). Seis
+     cabem numa linha; o resto vira um chip que diz quantos são e abre a
+     lista. Escondido não é sumido — o número no rodapé de cada indicador
+     continua contando TODOS. */
+  const TETO = 6;
+  /* NA ORDEM DO UNIVERSO (saldo decrescente), e nao na ordem em que foram
+     clicados: com o teto acima, quem some do visor tem de ser o MENOR do
+     recorte, e nao o ultimo que a pessoa marcou. */
+  const escolhidos = uni.filter(function(p){ return sel.has(p.id); }).map(function(p){ return p.id; });
+  const mostrar = escolhidos.slice(0, TETO), sobra = escolhidos.length - mostrar.length;
+  box.innerHTML =
+    '<button class="chip' + (sel.size ? '' : ' active') + '" onclick="partesLimpar()"'
+    + ' title="Sem recorte: a tela soma os ' + uni.length + ' '
+    + parteRot(quais, 2) + ' com título em aberto.">Todos</button>'
+    + mostrar.map(function(id){
+        const p = porId[id];
+        if(!p) return '';
+        return '<button class="chip active" data-id="' + esc(id) + '"'
+          + ' onclick="partesToggle(this.dataset.id)"'
+          + ' title="' + esc(p.nome) + ' · ' + esc(p.doc) + ' · '
+          + BRL.format(p.valor) + ' em ' + p.titulos + ' título(s) em aberto.'
+          + ' Clique para tirar do filtro.">'
+          + esc(antecNomeCurto(p.nome)) + '<span class="cv">×</span></button>';
+      }).join('')
+    + (sobra > 0
+        ? '<button class="chip active" onclick="partesModal()" title="'
+          + sobra + ' ' + parteRot(quais, sobra)
+          + ' a mais no filtro. Clique para ver e mexer na lista inteira.">+'
+          + sobra + '</button>'
+        : '')
+    + '<button class="chip" onclick="partesModal()" title="Escolher um ou mais '
+    + parteRot(quais, 2) + ' da lista, com busca.">+ Escolher…</button>';
+}
+
+function partesToggle(id){
+  const quais = partesDaTela(); if(!quais) return;
+  PSEL[quais].delete(id);
+  partesChips(); load();
+}
+function partesLimpar(){
+  const quais = partesDaTela(); if(!quais) return;
+  if(!PSEL[quais].size) return;                // ja era "todos": nao vai ao ERP
+  PSEL[quais].clear();
+  partesChips(); load();
+}
+
+/* O modal trabalha numa COPIA da selecao. Mexer no `PSEL` direto faria
+   "Cancelar" deixar a escolha pela metade: os chips ja teriam mudado e a tela
+   nao — e a barra passaria a descrever um recorte que o numero nao tem. */
+let _pkSel = null;
+function partesModal(){
+  const quais = partesDaTela(); if(!quais || !PARTES[quais]) return;
+  _pkSel = new Set(PSEL[quais]);
+  abrirModal(
+    '<h3>Escolher ' + parteRot(quais, 2) + '</h3>'
+  + '<div class="hint" style="margin-bottom:9px">Só quem tem título em aberto, '
+  + 'do maior saldo para o menor. Nenhum marcado = todos.</div>'
+  + '<div class="pk-topo">'
+  + '<input type="search" id="pk-busca" placeholder="buscar nome ou documento…"'
+  + ' oninput="pkPintar()" autocomplete="off">'
+  + '<button class="ghost" onclick="pkMarcarVisiveis(true)">Marcar os visíveis</button>'
+  + '<button class="ghost" onclick="pkMarcarVisiveis(false)">Desmarcar</button>'
+  + '<span class="pk-cont" id="pk-cont"></span>'
+  + '</div>'
+  + '<div class="pk-lista" id="pk-lista"></div>'
+  + '<div class="m-err" id="m-err"></div>'
+  + '<div class="m-foot"><button class="ghost" onclick="fecharModal()">Cancelar</button>'
+  + '<button class="btn" onclick="pkAplicar()">Aplicar</button></div>');
+  document.getElementById('modalBox').classList.add('larga');
+  pkPintar();
+}
+
+function _pkFiltrados(){
+  const uni = PARTES[partesDaTela()] || [];
+  const campo = document.getElementById('pk-busca');
+  const t = ((campo && campo.value) || '').trim().toLowerCase();
+  /* Busca tambem no documento MASCARADO: o comeco e o fim do CNPJ sao o que a
+     pessoa tem na mao quando veio de um boleto, e o meio nunca aparece. */
+  return t ? uni.filter(function(p){
+               return (p.nome || '').toLowerCase().includes(t)
+                   || (p.doc || '').toLowerCase().includes(t); })
+           : uni;
+}
+
+function pkPintar(){
+  const quais = partesDaTela();
+  const lista = document.getElementById('pk-lista'); if(!lista) return;
+  const vis = _pkFiltrados();
+  lista.innerHTML = vis.length
+    ? vis.map(function(p){
+        return '<label title="' + esc(p.nome) + ' · ' + esc(p.doc) + ' · '
+          + BRL.format(p.valor) + ' em ' + p.titulos + ' título(s)">'
+          + '<input type="checkbox" value="' + esc(p.id) + '"'
+          + (_pkSel.has(p.id) ? ' checked' : '') + ' onchange="pkMarcar(this)">'
+          + '<span class="pkn">' + esc(p.nome) + '</span>'
+          + '<span class="pkv">' + brlAbbr(p.valor) + '</span></label>';
+      }).join('')
+    : '<div class="pk-vazio">Nenhum ' + parteRot(quais, 1) + ' com esse nome.</div>';
+  const c = document.getElementById('pk-cont');
+  const total = (PARTES[quais] || []).length;
+  if(c) c.textContent = (_pkSel.size ? _pkSel.size + ' marcado(s)'
+                                     : 'nenhum marcado = todos')
+                      + ' · ' + vis.length + ' de ' + total + ' na lista';
+}
+function pkMarcar(el){
+  if(el.checked) _pkSel.add(el.value); else _pkSel.delete(el.value);
+  const c = document.getElementById('pk-cont');
+  /* So o contador: repintar a lista inteira a cada clique perderia a posicao
+     da rolagem, e com 664 linhas isso e a diferenca entre marcar cinco e
+     procurar cinco vezes. */
+  if(c){
+    const quais = partesDaTela(), total = (PARTES[quais] || []).length;
+    c.textContent = (_pkSel.size ? _pkSel.size + ' marcado(s)'
+                                 : 'nenhum marcado = todos')
+                  + ' · ' + _pkFiltrados().length + ' de ' + total + ' na lista';
+  }
+}
+/* "Marcar os visiveis" opera sobre o RESULTADO DA BUSCA, nunca sobre a lista
+   inteira — e o unico jeito de pegar "todos os bancos" sem clicar um a um, e o
+   contador ao lado diz sobre quantos a acao valeu. */
+function pkMarcarVisiveis(ligar){
+  _pkFiltrados().forEach(function(p){ if(ligar) _pkSel.add(p.id); else _pkSel.delete(p.id); });
+  pkPintar();
+}
+function pkAplicar(){
+  const quais = partesDaTela(); if(!quais){ fecharModal(); return; }
+  const antes = [...PSEL[quais]].sort().join(',');
+  const depois = [...(_pkSel || [])].sort().join(',');
+  fecharModal();
+  if(antes === depois) return;                 // nada mudou: nao vai ao ERP
+  PSEL[quais] = new Set(_pkSel);
+  partesChips();
+  load();
+}
+
+/* O que a tela DIZ sobre o recorte, no rodape de cada indicador. Sai da
+   RESPOSTA (`clientes_sel`/`fornecedores_sel`) e nao do formulario: e o
+   payload que sabe sobre quantos aquele numero foi somado, e enquanto uma
+   carga esta em voo o formulario ja mudou. */
+function parteTxt(d, quais){
+  const n = (quais === 'clientes' ? d.clientes_sel : d.fornecedores_sel) || 0;
+  if(!n) return '';
+  return ' · ' + n + ' ' + parteRot(quais, n) + ' no filtro';
+}
+
 function refDate(){
   const v = document.getElementById('fData').value;
   return v ? new Date(v+'T12:00:00') : new Date();
@@ -10690,49 +10973,68 @@ function render(d){
   ].join('');
 
   const arV = sumFaixa(d.aging_receber,'1_a_vencer'), apV = sumFaixa(d.aging_pagar,'1_a_vencer');
+  /* O RECORTE DE PARTE VAI NO RODAPE DE TODOS OS INDICADORES DA TELA, e nao
+     so no primeiro: quem chega numa aba ja aberta ve um numero e o rodape
+     dele — se o recorte estiver escrito em outro cartao, o numero que a pessoa
+     esta olhando parece ser da empresa inteira. */
+  const cliTxt = parteTxt(d,'clientes'), forTxt = parteTxt(d,'fornecedores');
   document.getElementById('kpis-receber').innerHTML=[
-    kpi('A receber (aberto)', BRL.format(k.receber_aberto), k.receber_qtd.toLocaleString('pt-BR')+' faturas'+rangeTxt, ''),
-    kpi('Vencido', BRL.format(k.receber_vencido), pct(k.receber_vencido,k.receber_aberto)+' do aberto',
+    kpi('A receber (aberto)', BRL.format(k.receber_aberto), k.receber_qtd.toLocaleString('pt-BR')+' faturas'+rangeTxt+cliTxt, ''),
+    kpi('Vencido', BRL.format(k.receber_vencido), pct(k.receber_vencido,k.receber_aberto)+' do aberto'+cliTxt,
       k.receber_vencido>0?'neg':'pos', null,
       (function(){ const fr=k.receber_aberto>0?k.receber_vencido/k.receber_aberto:0;
         return statChip(fr>0.1?'bad':(fr>0.05?'warn':'good'),
           fr>0.1?'inadimplência alta':(fr>0.05?'atenção':'sob controle'),
           'Vencido sobre o saldo em aberto. Acima de 5% já pede cobrança ativa; acima de 10% é inadimplência estrutural.',
           fr>0.1?'sevCrit':(fr>0.05?'sevWarn':'sevOk')); })()),
-    kpi('A vencer', BRL.format(arV), 'no período filtrado', ''),
-    kpi('Faturamento do mês', BRL.format(k.faturamento_mes), 'média 6m: '+BRL.format(k.faturamento_medio_6m), ''),
+    kpi('A vencer', BRL.format(arV), 'no período filtrado'+cliTxt, ''),
+    kpi('Faturamento do mês', BRL.format(k.faturamento_mes), 'média 6m: '+BRL.format(k.faturamento_medio_6m)+cliTxt, ''),
   ].join('');
   const velhoAP0=sumFaixa(d.aging_pagar,'5_vencido_mais_365');
   const qtdVelhoAP=((d.aging_pagar||[]).find(r=>r.faixa==='5_vencido_mais_365')||{}).qtd||0;
   document.getElementById('kpis-pagar').innerHTML=[
-    kpi('A pagar (aberto)', BRL.format(k.pagar_aberto), k.pagar_qtd.toLocaleString('pt-BR')+' títulos'+rangeTxt, '', null,
+    kpi('A pagar (aberto)', BRL.format(k.pagar_aberto), k.pagar_qtd.toLocaleString('pt-BR')+' títulos'+rangeTxt+forTxt, '', null,
       velhoAP0>0 ? statChip('warn', brlAbbr(velhoAP0)+' de +1 ano',
         'Parte do saldo é título vencido há mais de um ano: em contas a pagar isso raramente é dívida viva — costuma ser baixa não lançada. Enquanto não for saneado, este total fica inflado.','sevWarn') : ''),
-    kpi('Vencido', BRL.format(k.pagar_vencido), pct(k.pagar_vencido,k.pagar_aberto)+' do aberto',
+    kpi('Vencido', BRL.format(k.pagar_vencido), pct(k.pagar_vencido,k.pagar_aberto)+' do aberto'+forTxt,
       k.pagar_vencido>0?'neg':'pos', null,
       (function(){ const fr=k.pagar_aberto>0?k.pagar_vencido/k.pagar_aberto:0;
         return statChip(fr>0.15?'bad':(fr>0.05?'warn':'good'),
           fr>0.15?'exposição alta':(fr>0.05?'atenção':'sob controle'),
           'Vencido sobre o total em aberto. Em contas a pagar, parte disso costuma ser passivo antigo não baixado — ver o aging.',
           fr>0.15?'sevCrit':(fr>0.05?'sevWarn':'sevOk')); })()),
-    kpi('A vencer', BRL.format(apV), 'no período filtrado', ''),
-    kpi('Posição líquida (aberto)', BRL.format(k.posicao_liquida_aberto), 'a receber − a pagar',
-      k.posicao_liquida_aberto>=0?'pos':'neg', null,
-      statChip('flat','estrutural',
-        'A receber menos a pagar de TODOS os títulos em aberto, sem recorte de prazo: o contas a pagar carrega compromissos de longo prazo (e o passivo antigo não baixado) sem a receita correspondente lançada do outro lado. É quase sempre negativo e NÃO indica insolvência.',
-        'trFlat')),
+    kpi('A vencer', BRL.format(apV), 'no período filtrado'+forTxt, ''),
+    /* COM FILTRO DE CREDOR, A POSICAO LIQUIDA SAI DA BANDA — e nao ganha um
+       aviso, SAI. Ela e "a receber menos a pagar", e o filtro de credor
+       encolhe so o lado de baixo: o numero viraria o a receber da empresa
+       INTEIRA menos o pagavel de tres fornecedores, um resultado enorme e
+       positivo que nao descreve nada. Badge nao resolve isso — quem le a
+       banda le o numero primeiro. No lugar entra o que a escolha de fato
+       responde: quanto do passivo em aberto esta nos credores escolhidos. */
+    (d.fornecedores_sel
+      ? kpi('Fatia do passivo', pct(k.pagar_aberto, k.pagar_aberto_todos),
+          d.fornecedores_sel+' '+parteRot('fornecedores', d.fornecedores_sel)
+            +' · '+BRL.format(k.pagar_aberto_todos)+' a pagar no total', '', null,
+          statChip('flat','recorte',
+            'Quanto o filtro atual representa do total a pagar em aberto no mesmo período e filial. A POSIÇÃO LÍQUIDA não aparece com filtro de credor porque ela compara o a receber da empresa inteira com o a pagar recortado — a conta ficaria certa e o número, sem sentido.',
+            'trFlat'))
+      : kpi('Posição líquida (aberto)', BRL.format(k.posicao_liquida_aberto), 'a receber − a pagar',
+          k.posicao_liquida_aberto>=0?'pos':'neg', null,
+          statChip('flat','estrutural',
+            'A receber menos a pagar de TODOS os títulos em aberto, sem recorte de prazo: o contas a pagar carrega compromissos de longo prazo (e o passivo antigo não baixado) sem a receita correspondente lançada do outro lado. É quase sempre negativo e NÃO indica insolvência.',
+            'trFlat'))),
   ].join('');
 
   {  // concentração dos maiores: 4 sacados podem responder por metade do saldo
     const tops=d.top_receber||[], somaTop=tops.slice(0,5).reduce((a,r)=>a+(r.valor||0),0);
     const h=document.getElementById('top-ar-hint');
-    if(h) h.innerHTML='top 15 por saldo'+(k.receber_aberto>0?` · <b>top 5 = ${pct(somaTop,k.receber_aberto)} do saldo</b>`:'');
+    if(h) h.innerHTML='top 15 por saldo'+esc(cliTxt)+(k.receber_aberto>0?` · <b>top 5 = ${pct(somaTop,k.receber_aberto)} do saldo</b>`:'');
   }
   agingRows('aging-ar', d.aging_receber, 'ar-total');
   {
     const tops=d.top_pagar||[], somaTop=tops.slice(0,5).reduce((a,r)=>a+(r.valor||0),0);
     const h=document.getElementById('top-ap-hint');
-    if(h) h.innerHTML='top 15 por pendente'+(k.pagar_aberto>0?` · <b>top 5 = ${pct(somaTop,k.pagar_aberto)} do saldo</b>`:'');
+    if(h) h.innerHTML='top 15 por pendente'+esc(forTxt)+(k.pagar_aberto>0?` · <b>top 5 = ${pct(somaTop,k.pagar_aberto)} do saldo</b>`:'');
     const av=document.getElementById('apLimbo');
     if(av){
       if(velhoAP0>0){
@@ -10749,8 +11051,8 @@ function render(d){
   fluxoTable(fluxo);
   renderVenc('chartAr','tipAr','wrapAr', d.venc_receber, d.data_ref);
   renderVenc('chartAp','tipAp','wrapAp', d.venc_pagar, d.data_ref);
-  document.getElementById('hintVencAr').textContent='saldo em aberto por mês de vencimento · ref. '+fmtD(d.data_ref)+rangeTxt;
-  document.getElementById('hintVencAp').textContent='pendente por mês de vencimento · ref. '+fmtD(d.data_ref)+rangeTxt;
+  document.getElementById('hintVencAr').textContent='saldo em aberto por mês de vencimento · ref. '+fmtD(d.data_ref)+rangeTxt+cliTxt;
+  document.getElementById('hintVencAp').textContent='pendente por mês de vencimento · ref. '+fmtD(d.data_ref)+rangeTxt+forTxt;
   alerts(d,k,gap);
 
   const lastRec = [...fluxo].reverse().find(f=>f.receber>0 && f.periodo!=='atrasado');

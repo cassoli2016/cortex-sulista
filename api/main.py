@@ -8113,6 +8113,41 @@ def premiacao_serie() -> JSONResponse:
             "erro": "erro_consulta", "mensagem": "Erro ao montar a série da premiação."})
 
 
+# Teto da seleção. Não é zelo: a lista vai para dentro de um `= ANY` que o
+# 9.3 expande, e a query string tem limite prático no proxy. 664 é o tamanho
+# do universo de credores hoje — acima disso a seleção é "todos", e "todos"
+# se diz deixando o filtro VAZIO.
+_MAX_PARTES = 800
+
+
+def _ids_partes(bruto: str | None) -> list[str]:
+    """Ids opacos separados por vírgula, sem repetir e em ordem fixa.
+
+    A ordem sai ordenada de propósito: ela entra na chave do cache do
+    `get_overview`, e sem isso a MESMA seleção em ordem diferente viraria uma
+    segunda ida ao ERP para o mesmo número."""
+    if not bruto:
+        return []
+    return sorted({p.strip() for p in bruto.split(",") if p.strip()})
+
+
+@app.get("/api/financeiro/partes")
+def financeiro_partes() -> JSONResponse:
+    """Quem tem título em aberto — opções dos filtros de cliente e credor."""
+    try:
+        return JSONResponse(queries.get_partes())
+    except psycopg.OperationalError as exc:
+        log.warning("partes sem conexão: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco para listar clientes e credores."})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("partes falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao listar clientes e credores."})
+
+
 @app.get("/api/financeiro/overview")
 def overview(
     filial: int | None = None,
@@ -8120,6 +8155,8 @@ def overview(
     horizonte: int = 12,
     venc_de: str | None = None,
     venc_ate: str | None = None,
+    clientes: str | None = None,
+    fornecedores: str | None = None,
 ) -> JSONResponse:
     horizonte = max(1, min(horizonte, 36))
     for nome, valor in (("data_ref", data_ref), ("venc_de", venc_de), ("venc_ate", venc_ate)):
@@ -8128,10 +8165,37 @@ def overview(
                 "erro": "parametro_invalido",
                 "mensagem": f"Parâmetro {nome} inválido: use o formato AAAA-MM-DD.",
             })
+    ids_cli, ids_for = _ids_partes(clientes), _ids_partes(fornecedores)
+    for nome, ids in (("clientes", ids_cli), ("fornecedores", ids_for)):
+        if len(ids) > _MAX_PARTES:
+            return JSONResponse(status_code=HTTP_RECUSA, content={
+                "erro": "selecao_grande",
+                "mensagem": f"Seleção de {nome} grande demais "
+                            f"({len(ids)}): deixe o filtro vazio para ver todos.",
+            })
+    try:
+        # RESOLVER ANTES DE CONSULTAR, e recusar em vez de descartar: id que
+        # não existe mais (cadastro que quitou tudo, link velho colado) daria
+        # um número MENOR com cara de certo se fosse ignorado em silêncio.
+        cods_cli = tuple(queries.resolver_partes(ids_cli, "clientes"))
+        cods_for = tuple(queries.resolver_partes(ids_for, "fornecedores"))
+    except ValueError:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "selecao_invalida",
+            "mensagem": "A seleção contém alguém que não tem mais título em "
+                        "aberto. Limpe o filtro e escolha de novo.",
+        })
+    except psycopg.OperationalError as exc:
+        log.warning("overview sem conexão (partes): %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?",
+        })
     try:
         return JSONResponse(queries.get_overview(
             filial=filial, data_ref=data_ref, horizonte=horizonte,
-            venc_de=venc_de, venc_ate=venc_ate))
+            venc_de=venc_de, venc_ate=venc_ate,
+            clientes=cods_cli, fornecedores=cods_for))
     except psycopg.OperationalError as exc:
         log.warning("overview sem conexão: %s", exc)
         return JSONResponse(status_code=503, content={
