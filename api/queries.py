@@ -7439,10 +7439,12 @@ def get_antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
         # cliente para ser antecipavel, e nao ha API para consultar isso - a
         # planilha importada e a unica prova. Sem este filtro a tela sugeriria
         # antecipar nota que o banco recusaria na mesa.
+        from api.antecipacoes.valores import documento as _doc_norm
         docs_portal = antec_reg.documentos_no_portal()
         com_planilha = antec_reg.portais_com_planilha()
     except Exception:  # noqa: BLE001 - base local indisponível não derruba a tela
         raizes, sacados_elegiveis = set(), []
+        from api.antecipacoes.valores import documento as _doc_norm
         docs_portal, com_planilha = set(), set()
 
     # Pilha de títulos por vencimento, do maior para o menor (a query já ordena).
@@ -7491,8 +7493,11 @@ def get_antecipacao(dias: int = 90, reserva: float = 0.0, taxa_mes: float = 2.0,
         # EXCLUI. Contar "falta planilha" so no modo estrito faria o numero
         # sumir justamente no modo em que ele vira a proxima acao — pedir o
         # arquivo ao cliente.
+        # O documento do ERP tambem normalizado: `docs_portal` ja vem assim
+        # do `registro`, e comparar um lado cru com o outro limpo e' o mesmo
+        # que nao comparar. Ver `antecipacoes.valores.documento`.
         no_portal = (not docs_portal
-                     or (raiz, (t.get("documento") or "")) in docs_portal)
+                     or (raiz, _doc_norm(t.get("documento"))) in docs_portal)
         if not no_portal:
             falta_planilha += t["valor"]
             s = por_sacado.setdefault(raiz, {"raiz": raiz, "cliente": t["cliente"],

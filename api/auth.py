@@ -296,6 +296,8 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     # e a tela `antport` perde acesso à própria aba.
     ("/api/financeiro/antecipacao/elegiveis",
                                       frozenset({"antport", "antec"})),
+    ("/api/financeiro/antecipacao/estrategia",
+                                      frozenset({"antport", "antec"})),
     ("/api/financeiro/antecipacao",   frozenset({"antec"})),
     ("/api/financeiro/fluxo-consolidado/detalhe", frozenset({"fluxcon"})),
     ("/api/financeiro/fluxo-consolidado", frozenset({"fluxcon"})),

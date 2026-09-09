@@ -7488,6 +7488,18 @@ async def orcamento_plano_importar(req: Request, nome: str = "", ano: int = 0,
             pass
 
 
+@app.get("/api/financeiro/antecipacao/estrategia")
+def antecipacao_estrategia() -> JSONResponse:
+    """A antecipação como linha de crédito, e o contrafactual do custo.
+
+    Síncrona, ao contrário da rota de elegíveis: esta lê só o espelho local
+    (mky_recebiveis), nunca o ERP — 145 ms medidos, e sem dependência de
+    terceiro para responder.
+    """
+    from api.antecipacoes import estrategia
+    return JSONResponse(estrategia.get_estrategia())
+
+
 @app.get("/api/financeiro/antecipacao/elegiveis")
 async def antecipacao_elegiveis() -> JSONResponse:
     """O que está em aberto no ERP, é de sacado com convênio e não chegou a

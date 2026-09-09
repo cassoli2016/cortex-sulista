@@ -39,25 +39,45 @@ escopo faz o título de um sacado se dar por antecipado porque outro sacado
 tem uma nota com o mesmo número. `sponsor_cnpj` do espelho casa exatamente
 com o `cadastro.codigo` do ERP, então o escopo é exato.
 
-FILIAL CADASTRADA × MESMA RAIZ DE CNPJ
-======================================
-`ant_sacados` cadastra por CNPJ de FILIAL, e o ERP tem outras filiais do
-mesmo grupo com título em aberto. Medido: a Adient está cadastrada só em São
-Bernardo (R$ 35 mil), enquanto Pouso Alegre e São José dos Pinhais somam
-R$ 1,55 milhão — e ninguém sabe, olhando a tela, se o convênio cobre as três.
+ISTO NÃO É "DISPONÍVEL PARA ANTECIPAR", E O RÓTULO IMPORTA
+==========================================================
+A primeira versão deste módulo chamava o resultado de "disponível para
+antecipar". Está errado, e errado de um jeito que manda alguém à mesa levar
+título que o banco recusa.
 
-ESTE MÓDULO NÃO DECIDE ISSO. O cadastro é a autoridade sobre elegibilidade, e
-inventar que "a raiz é elegível" criaria uma oportunidade que pode não
-existir. As filiais não cadastradas saem em bloco PRÓPRIO, rotuladas — quem
-opera confere o convênio e, se for o caso, cadastra. Heurística escondida
-vira verdade do sistema; heurística mostrada dos dois lados vira pergunta.
+`api/queries.py` já tinha decidido — e documentado — que **ter convênio não
+basta: o título precisa estar LANÇADO no portal do cliente**, e não há API
+para consultar isso; a planilha importada é a única prova. O que este módulo
+mede é justamente o que está FORA do portal. Ou seja: não é caixa que se
+levanta hoje, é **potencial pendente de lançamento**.
+
+A distinção não é preciosismo — ela troca a ação. "Disponível" manda escolher
+título; "pendente de lançamento" manda pedir o arquivo ao cliente, ou
+descobrir por que 859 títulos da Tupy nunca entraram numa esteira que é
+automática. É a mesma pendência que `registro.portais_com_planilha()` já
+separava: falta o arquivo (dono: quem opera) × falta convênio (dono: quem
+negocia).
+
+A ELEGIBILIDADE É POR RAIZ DE CNPJ
+==================================
+E também não foi decisão minha: `registro.raizes_elegiveis()` já existia, com
+a medição ("o convênio é do GRUPO; casar os 14 dígitos deixaria três quartos
+do recebível de fora"), e `queries.get_antecipacao` — que está NO AR — usa
+essa régua. A primeira versão deste módulo usou CNPJ exato e pôs as demais
+filiais num bloco fora do total: R$ 1,41 milhão de fora, e duas telas da
+mesma casa respondendo "quanto dá para antecipar" com critérios diferentes.
+
+O cadastro continua sendo informação útil, mas como RECORTE e não como corte:
+`de_filial_nao_cadastrada` diz quanto do total vem de filial ainda não
+nomeada em `ant_sacados` — para quem administra o convênio saber que existe,
+sem que o número suma de quem decide caixa.
 """
 from __future__ import annotations
 
-import re
 from datetime import date
 
 from api import db, pglocal
+from api.antecipacoes import valores
 from api.queries import cached
 
 # O teste redireciona isto para um schema próprio (fixture `esquema_pg`).
@@ -71,6 +91,25 @@ ESQUEMA: str | None = None
 # total antecipável — e a tela diz quanto ficou de fora, para o número não
 # encolher em silêncio.
 PRAZO_MINIMO = 15
+
+# QUANTOS TÍTULOS A LISTA DEVOLVE — e por que o teto é alto.
+#
+# A primeira versão cortava em 500, por prudência. MEDIDO: os 500 maiores
+# cobrem 66,4% do valor, ou seja, o corte escondia R$ 1,48 milhão numa tela
+# cuja razão de existir é escolher título. Prudência que apaga um terço da
+# carteira não é prudência.
+#
+# E o custo do inteiro é baixo: os 1.880 dão 584 KB de JSON e **62 KB depois
+# do gzip** (o `GZipMiddleware` está ligado com `minimum_size=2048`), com o
+# `montar()` em ~500 ms contra o ERP. O teto fica só como válvula: se a
+# carteira multiplicar, o corte volta a existir — e aí a tela DIZ quantos
+# ficaram de fora e quanto somam, porque top-N sem contador vira total falso.
+#
+# A ORDEM É POR VALOR, e isso é decisão, não default. O deságio percentual
+# mede PRAZO, não preço: um título de 15 dias sai a 0,57% e um de 78 dias a
+# 3,07%, e os dois custam a MESMA taxa mensal. Uma lista ordenada por deságio
+# poria os mais curtos no topo com cara de barganha — e não são.
+LIMITE_TITULOS = 2000
 
 # A CURVA DE TAXA É MEDIDA, NÃO ESCRITA — e a primeira versão deste módulo a
 # escreveu, o que custou um teste vermelho e uma lição.
@@ -145,20 +184,10 @@ def taxa_estimada(prazo_dias: int, faixas, referencia) -> float | None:
     return faixas[-1][1]
 
 
-def normalizar_documento(valor) -> str | None:
-    """A chave de casamento entre portal e ERP.
-
-    Tira o sufixo de parcela, os não-dígitos e os zeros à esquerda. É a única
-    forma que faz `'000051366-1'` (Monkey) e `'51366'` (ERP) serem o mesmo
-    documento — ver o bloco A CHAVE lá em cima.
-
-    Devolve `None` para o que não sobra dígito nenhum: documento vazio não
-    casa com nada, e deixá-lo virar string vazia faria TODOS os vazios
-    casarem entre si.
-    """
-    s = str(valor or "").strip().split("-")[0]
-    s = re.sub(r"\D", "", s).lstrip("0")
-    return s or None
+# A chave de casamento mora em `valores.documento` -- definicao unica do
+# pacote, com a medicao que a justifica. Este alias existe para nao
+# quebrar quem ja importa daqui (a conciliacao).
+normalizar_documento = valores.documento
 
 
 # Contas a receber em aberto, por RAIZ de CNPJ. A raiz e não o CNPJ inteiro
@@ -174,6 +203,11 @@ SELECT fc.numerosequenciadocumentoorigem::text AS documento,
        coalesce(f.dtprevisaopagamento, f.dtvencimento)::date AS vencimento,
        min(coalesce(nullif(trim(ca.nomefantasia), ''),
                     nullif(trim(ca.razaosocial), ''))) AS sacado,
+       -- `min()` em vez de entrar no GROUP BY: a emissão é constante dentro
+       -- do grupo (mesmo documento, mesmo sacado, mesmo vencimento), e
+       -- agrupá-la por cima quebraria o grupo se o ERP trouxer duas datas
+       -- para a mesma nota — que é justamente o caso que não se quer.
+       min(coalesce(f.dtemissaodocumentoorigem, f.dtemissao))::date AS emissao,
        sum(fc.valorpendentecnpjcliente)::float8 AS valor
 FROM fatura f
 JOIN fatura_composicao fc USING (grupo, empresa, filial, unidade, sequencia)
@@ -255,7 +289,14 @@ def montar(esquema: str | None = None, hoje: date | None = None) -> dict:
             return {"disponivel": False, "motivo": "migration 0006 pendente"}
         raise
 
-    cadastrados = {s["cnpj"] for s in sacados}
+    # A ELEGIBILIDADE E' POR RAIZ, e nao por CNPJ de filial. Nao e' escolha
+    # minha: `registro.raizes_elegiveis()` ja decidiu isso, com medicao, e
+    # `queries.get_antecipacao` -- que esta NO AR -- usa essa regua. Duas
+    # telas respondendo "quanto da para antecipar" com criterios diferentes
+    # de elegibilidade e' pior que qualquer um dos dois criterios.
+    # A primeira versao deste modulo usou CNPJ exato e separou as demais
+    # filiais num bloco fora do total. Ficava R$ 1,41 mi de fora.
+    cadastrados = {s["cnpj"] for s in sacados}   # filiais NOMEADAS no cadastro
     raizes = sorted({s["cnpj"][:8] for s in sacados if s["cnpj"]})
     nome_por_cnpj = {s["cnpj"]: s["nome"] for s in sacados}
 
@@ -271,6 +312,7 @@ def montar(esquema: str | None = None, hoje: date | None = None) -> dict:
         erp = [dict(r) for r in cur.fetchall()]
 
     grupos: dict = {}
+    titulos: list = []
     for r in erp:
         cnpj = str(r["cnpj"]).strip()
         doc = normalizar_documento(r["documento"])
@@ -279,14 +321,17 @@ def montar(esquema: str | None = None, hoje: date | None = None) -> dict:
         g = grupos.setdefault(cnpj, {
             "cnpj": cnpj,
             "sacado": r["sacado"] or nome_por_cnpj.get(cnpj) or cnpj,
-            "cadastrado": cnpj in cadastrados,
+            # elegivel TODO MUNDO da raiz; o flag diz apenas se ESTA filial
+            # esta nomeada no cadastro -- informacao para quem administra o
+            # convenio, nao criterio de exclusao.
+            "filial_cadastrada": cnpj in cadastrados,
             "portal": next((s["portal"] for s in sacados
                             if s["cnpj"] == cnpj), None),
             "titulos": 0, "valor": 0.0,
             "no_portal": 0, "valor_no_portal": 0.0,
             "fora": 0, "valor_fora": 0.0,
             "curto": 0, "valor_curto": 0.0,
-            "antecipavel": 0, "valor_antecipavel": 0.0, "desagio": 0.0,
+            "potencial": 0, "valor_potencial": 0.0, "desagio": 0.0,
             "faixas": {},
         })
         g["titulos"] += 1
@@ -305,26 +350,43 @@ def montar(esquema: str | None = None, hoje: date | None = None) -> dict:
             g["curto"] += 1
             g["valor_curto"] += r["valor"]
             continue
-        g["antecipavel"] += 1
-        g["valor_antecipavel"] += r["valor"]
+        g["potencial"] += 1
+        g["valor_potencial"] += r["valor"]
         tx = taxa_estimada(dias, faixas, ref)
-        if tx is not None:
-            g["desagio"] += r["valor"] * tx / 100.0 * dias / 30.0
+        d_est = (r["valor"] * tx / 100.0 * dias / 30.0) if tx is not None else None
+        if d_est is not None:
+            g["desagio"] += d_est
+        # A LISTA POR TÍTULO — é dela que sai a decisão de o que antecipar.
+        # O resumo por sacado diz ONDE olhar; ele não escolhe título nenhum.
+        titulos.append({
+            "documento": r["documento"],
+            "sacado": g["sacado"],
+            "cnpj": cnpj,
+            "filial_cadastrada": g["filial_cadastrada"],
+            "emissao": r["emissao"].isoformat() if r.get("emissao") else None,
+            "vencimento": r["vencimento"].isoformat(),
+            "dias": dias,
+            "valor": r["valor"],
+            "taxa_am": tx,
+            "desagio": d_est,
+            "liquido": (r["valor"] - d_est) if d_est is not None else None,
+            "desagio_pct": (100.0 * d_est / r["valor"]) if d_est else None,
+        })
 
-    linhas = sorted(grupos.values(), key=lambda x: -x["valor_antecipavel"])
+    linhas = sorted(grupos.values(), key=lambda x: -x["valor_potencial"])
     for g in linhas:
         g["faixas"] = [{"faixa": k, **v} for k, v in sorted(
             g["faixas"].items(), key=lambda kv: -kv[1]["valor"])]
-        g["liquido"] = g["valor_antecipavel"] - g["desagio"]
-        g["desagio_pct"] = (100.0 * g["desagio"] / g["valor_antecipavel"]
-                            if g["valor_antecipavel"] else None)
+        g["liquido"] = g["valor_potencial"] - g["desagio"]
+        g["desagio_pct"] = (100.0 * g["desagio"] / g["valor_potencial"]
+                            if g["valor_potencial"] else None)
 
     def _soma(sel) -> dict:
         alvo = [g for g in linhas if sel(g)]
-        v = sum(g["valor_antecipavel"] for g in alvo)
+        v = sum(g["valor_potencial"] for g in alvo)
         d = sum(g["desagio"] for g in alvo)
         return {"sacados": len(alvo),
-                "titulos": sum(g["antecipavel"] for g in alvo),
+                "titulos": sum(g["potencial"] for g in alvo),
                 "valor": v, "desagio": d, "liquido": v - d,
                 "desagio_pct": (100.0 * d / v) if v else None}
 
@@ -336,9 +398,16 @@ def montar(esquema: str | None = None, hoje: date | None = None) -> dict:
         "taxa_referencia": ref,
         "curva": [{"ate": t, "taxa": x, "base": b}
                   for t, x, b in (faixas or [])],
-        "cadastrados": _soma(lambda g: g["cadastrado"]),
-        "mesma_raiz": _soma(lambda g: not g["cadastrado"]),
+        "total": _soma(lambda g: True),
+        # RECORTE, nao exclusao: quanto do total vem de filial que ainda nao
+        # esta nomeada em `ant_sacados`. Entra no total (a raiz tem convenio)
+        # e aparece separado para quem administra o cadastro saber que existe.
+        "de_filial_nao_cadastrada": _soma(lambda g: not g["filial_cadastrada"]),
         "linhas": linhas,
+        "titulos": sorted(titulos, key=lambda t: -t["valor"])[:LIMITE_TITULOS],
+        "titulos_total": len(titulos),
+        "titulos_valor_total": sum(t["valor"] for t in titulos),
+        "limite_titulos": LIMITE_TITULOS,
         "fonte": ("Contas a receber do ERP (fatura × fatura_composicao, em "
                   "aberto) cruzado por nota normalizada com o espelho da "
                   "Monkey e a posição importada dos demais portais · leitura"),

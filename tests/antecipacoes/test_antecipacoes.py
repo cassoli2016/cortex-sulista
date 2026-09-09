@@ -400,20 +400,59 @@ def test_conciliacao_casa_a_nota_com_zeros_e_sufixo_de_parcela(monkeypatch):
     assert r["cobertura_pct"] == 100.0
 
 
-def test_rota_de_elegiveis_cai_em_antport_e_nao_e_engolida_pela_generica():
-    """`/api/financeiro/antecipacao/elegiveis` tem de ser mapeada ANTES de
-    `/api/financeiro/antecipacao`, que so libera a tela `antec`.
+@pytest.mark.parametrize("rota", [
+    "/api/financeiro/antecipacao/elegiveis",
+    "/api/financeiro/antecipacao/estrategia",
+])
+def test_rotas_especificas_de_antecipacao_caem_em_antport(rota):
+    """As duas tem de ser mapeadas ANTES de `/api/financeiro/antecipacao`,
+    que so libera a tela `antec`.
 
     Sem a ordem, a aba nasceria 403 para quem tem `antport` e nao `antec` --
     e o middleware e fail-closed, entao o sintoma seria a aba vazia sem erro
-    nenhum na tela.
+    nenhum na tela. Parametrizado, e nao uma rota so: cada parametro e um
+    guard, e o segundo prefixo entrou depois do primeiro.
     """
     from api import auth
     import api.main as main
 
-    rota = "/api/financeiro/antecipacao/elegiveis"
     assert rota in {getattr(r, "path", "") for r in main.app.routes}
     telas = [t for p, t in auth.ROTA_TELAS if rota.startswith(p)]
     assert telas, "rota fora de ROTA_TELAS (403 para nao-admin)"
     assert "antport" in telas[0], (
         "a primeira correspondencia e a que vale, e ela tem de liberar antport")
+
+
+def test_documentos_no_portal_sai_com_a_chave_normalizada(esquema_pg):
+    """O conjunto que `queries.get_antecipacao` compara contra o ERP.
+
+    DEFEITO VIVO ate 09/09/2026: o portal grava a nota com zeros a esquerda e
+    sufixo de parcela ('000051366-1') e o ERP grava o inteiro ('51366'); os
+    dois lados iam CRUS para a comparacao e nunca casavam. Medido na tela
+    `antec`: `exigir_portal=True` devolvia ZERO operacoes e R$ 0,00 onde havia
+    R$ 4,95 milhoes -- e zero ali se le como "nao ha o que antecipar", nunca
+    como "a chave esta errada". Depois do conserto: 13 operacoes, R$ 713.679.
+
+    So nao mordia no dia a dia porque `exigir_portal=False` e o padrao desde
+    30/08/2026 -- ou seja, o defeito esperava alguem ligar a opcao.
+    """
+    from api import pglocal
+    from api.antecipacoes import registro
+    with pglocal.get_conn(esquema_pg) as conn, conn.cursor() as cur:
+        cur.execute("INSERT INTO ant_envios (ts, arquivo, portal, titulos,"
+                    " valor_nominal, valor_saldo, vigente, origem)"
+                    " VALUES ('2026-09-09', 'x.xls', 'tupy', 1, 100, 100, 1,"
+                    " 'planilha') RETURNING id")
+        envio = cur.fetchone()["id"]
+        cur.execute("INSERT INTO ant_titulos (envio_id, documento, cnpj_sacado,"
+                    " valor_saldo, antecipavel)"
+                    " VALUES (%s, '000051366-1', '84683374000300', 100, 1)",
+                    (envio,))
+    registro.ESQUEMA = esquema_pg
+    try:
+        pares = registro.documentos_no_portal()
+    finally:
+        registro.ESQUEMA = None
+    assert pares == {("84683374", "51366")}, (
+        "a chave tem de sair normalizada dos dois lados; crua, nada casa com "
+        f"o ERP. Saiu: {pares}")

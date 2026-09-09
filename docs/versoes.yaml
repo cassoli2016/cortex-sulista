@@ -1,3 +1,19 @@
+- versao: "1.26.0"
+  data: "2026-09-09"
+  corrigido:
+    - >-
+      Em Antecipacao de Recebiveis, a opcao "exigir que o titulo esteja no
+      portal" zerava a tela: mostrava nenhuma operacao e R$ 0,00 mesmo
+      havendo quase R$ 5 milhoes de recebivel elegivel. A causa era o numero
+      da nota fiscal, que o portal manda com zeros na frente e o numero da
+      parcela no fim, e o sistema comparava com o do ERP, que vem so o
+      numero. Nenhum casava. Agora os dois lados sao comparados pelo numero
+      limpo, e a opcao volta a mostrar o que existe.
+    - >-
+      Como o padrao da tela e nao exigir o portal, o defeito so aparecia para
+      quem ligava a opcao — e o que ela mostrava era um zero que se le como
+      "nao ha o que antecipar".
+
 - versao: "1.25.0"
   data: "2026-09-09"
   adicionado:

@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.26.0] — 09/09/2026  ·  CX-09/09/2026-v1.26.0
+
+### Corrigido
+- Em Antecipacao de Recebiveis, a opcao "exigir que o titulo esteja no portal" zerava a tela: mostrava nenhuma operacao e R$ 0,00 mesmo havendo quase R$ 5 milhoes de recebivel elegivel. A causa era o numero da nota fiscal, que o portal manda com zeros na frente e o numero da parcela no fim, e o sistema comparava com o do ERP, que vem so o numero. Nenhum casava. Agora os dois lados sao comparados pelo numero limpo, e a opcao volta a mostrar o que existe.
+- Como o padrao da tela e nao exigir o portal, o defeito so aparecia para quem ligava a opcao — e o que ela mostrava era um zero que se le como "nao ha o que antecipar".
+
 ## [1.25.0] — 09/09/2026  ·  CX-09/09/2026-v1.25.0
 
 ### Adicionado

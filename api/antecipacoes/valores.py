@@ -139,3 +139,30 @@ def cnpj_formatado(d: str) -> str:
     if len(d) == 11:
         return f"{d[:3]}.{d[3:6]}.{d[6:9]}-{d[9:]}"
     return d
+
+
+def documento(v) -> str | None:
+    """A chave que casa a nota fiscal entre PORTAL e ERP.
+
+    MORA AQUI porque este e o modulo de normalizacao do pacote, e porque a
+    chave e usada por tres frentes que nao se importam entre si: a
+    conciliacao (portal -> ERP), os elegiveis (ERP -> portal) e o registro
+    (o que ja esta lancado). Tres copias divergiriam no primeiro portal novo.
+
+    O DEFEITO QUE ELA CONSERTA, medido em 09/09/2026:
+
+        Monkey   '000051366-1'   zeros a esquerda + sufixo da parcela
+        ERP      '51366'         inteiro puro
+
+    Cruzando cru, NADA casa -- e "nada casa" tem exatamente a mesma cara de
+    "nada esta no portal". Contra a posicao vigente da Tupy: 0 de 288 com a
+    chave crua, 285 de 288 normalizada. Na tela `antec` isso se materializava
+    em `exigir_portal=True` devolvendo ZERO operacoes e R$ 0,00 onde havia
+    R$ 4,95 milhoes -- lido como "nao ha o que antecipar".
+
+    `None` para o que nao sobra digito: documento vazio nao casa com nada, e
+    deixa-lo virar string vazia faria TODOS os vazios casarem entre si.
+    """
+    s = str(v or "").strip().split("-")[0]
+    s = re.sub(r"\D", "", s).lstrip("0")
+    return s or None

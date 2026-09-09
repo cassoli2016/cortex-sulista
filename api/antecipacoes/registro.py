@@ -283,8 +283,17 @@ def documentos_no_portal() -> set[tuple[str, str]]:
         " WHERE e.vigente=1 AND t.documento <> ''"
         "   AND (t.antecipavel IS NULL OR t.antecipavel = 1)",
         esquema=ESQUEMA), [])
-    return {(r["cnpj_sacado"][:8], r["documento"]) for r in linhas
-            if r["cnpj_sacado"]}
+    # A CHAVE VAI NORMALIZADA, e isto foi conserto. O portal grava a nota com
+    # zeros a esquerda e sufixo de parcela ('000051366-1'), o ERP grava o
+    # inteiro ('51366'), e quem compara este conjunto compara com o do ERP.
+    # Cru, nada casava: `get_antecipacao(exigir_portal=True)` devolvia ZERO
+    # operacoes e R$ 0,00 onde havia R$ 4,95 milhoes -- e zero ali se le como
+    # "nao ha o que antecipar", nao como "a chave esta errada".
+    # Medido em 09/09/2026. Ver `valores.documento`.
+    from api.antecipacoes import valores
+    return {(r["cnpj_sacado"][:8], valores.documento(r["documento"]))
+            for r in linhas
+            if r["cnpj_sacado"] and valores.documento(r["documento"])}
 
 
 def portais_com_planilha() -> set[str]:

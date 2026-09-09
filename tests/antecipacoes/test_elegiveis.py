@@ -5,7 +5,7 @@ O ERP e a fonte da verdade aqui, e nao o portal -- so a Tupy tem integracao,
 e uma posicao de portal desatualizada nao pode se disfarcar de "nao ha nada a
 antecipar". Os testes abaixo travam as quatro decisoes que fazem esse numero
 ser confiavel: a chave normalizada, o escopo por sacado, o piso de prazo e a
-separacao entre filial cadastrada e filial da mesma raiz.
+elegibilidade por RAIZ de CNPJ.
 """
 from __future__ import annotations
 
@@ -80,7 +80,7 @@ class TestCurva:
     def test_sem_medicao_nao_se_inventa_taxa(self):
         faixas, ref = elegiveis.montar_curva([])
         assert (faixas, ref) == (None, None)
-        assert elegiveis.taxa_estimada(60, faixas, ref) is None,             "sem base, o desagio fica em branco em vez de virar numero"
+        assert elegiveis.taxa_estimada(60, faixas, ref) is None
 
     def test_o_prazo_escolhe_a_faixa_e_o_extremo_nao_estoura(self):
         faixas, ref = elegiveis.montar_curva(self.LINHAS)
@@ -133,7 +133,7 @@ class TestElegiveis:
         g = d["linhas"][0]
         assert g["no_portal"] == 1 and g["valor_no_portal"] == 1000.0, \
             "a chave normalizada tem de reconhecer 000051366-1 como 51366"
-        assert g["antecipavel"] == 1 and g["valor_antecipavel"] == 2000.0
+        assert g["potencial"] == 1 and g["valor_potencial"] == 2000.0
 
     def test_documento_de_OUTRO_sacado_nao_marca_como_ja_antecipado(
             self, cenario, monkeypatch):
@@ -150,7 +150,7 @@ class TestElegiveis:
                         " status, sponsor_cnpj, invoice_number)"
                         " VALUES ('1','X','SOLD','99999999000199','000051366-1')")
         g = elegiveis.montar(esquema=cenario, hoje=hoje)["linhas"][0]
-        assert g["antecipavel"] == 1 and g["no_portal"] == 0, \
+        assert g["potencial"] == 1 and g["no_portal"] == 0, \
             "casou nota de sacado diferente"
 
     def test_prazo_curto_sai_do_total_mas_continua_visivel(
@@ -165,12 +165,12 @@ class TestElegiveis:
              "sacado": "ACME MATRIZ", "valor": 1000.0},
         ]))
         g = elegiveis.montar(esquema=cenario, hoje=hoje)["linhas"][0]
-        assert g["valor_antecipavel"] == 1000.0, "3 dias nao e operacao"
+        assert g["valor_potencial"] == 1000.0, "3 dias nao e operacao"
         assert g["curto"] == 1 and g["valor_curto"] == 9000.0, \
             "o curto prazo tem de continuar visivel, nao sumir do total"
         assert g["fora"] == 2
 
-    def test_filial_da_mesma_raiz_nao_entra_no_total_dos_cadastrados(
+    def test_filial_da_mesma_raiz_ENTRA_no_total_e_aparece_no_recorte(
             self, cenario, monkeypatch):
         hoje = date(2026, 9, 9)
         venc = hoje + timedelta(days=60)
@@ -181,11 +181,17 @@ class TestElegiveis:
              "sacado": "ACME OUTRA FILIAL", "valor": 8000.0},
         ]))
         d = elegiveis.montar(esquema=cenario, hoje=hoje)
-        assert d["cadastrados"]["valor"] == 1000.0, \
-            "presumir que a raiz e elegivel inventa oportunidade"
-        assert d["mesma_raiz"]["valor"] == 8000.0
-        assert d["mesma_raiz"]["sacados"] == 1
-        naocad = [g for g in d["linhas"] if not g["cadastrado"]]
+        # O CONVENIO E DO GRUPO: as duas filiais entram no total. E a regua
+        # de `registro.raizes_elegiveis()`, que `queries.get_antecipacao` ja
+        # usa NO AR -- duas telas da mesma casa respondendo 'quanto da para
+        # antecipar' com criterios diferentes de elegibilidade e pior que
+        # qualquer um dos dois criterios.
+        assert d["total"]["valor"] == 9000.0, "filial do grupo ficou de fora"
+        assert d["total"]["sacados"] == 2
+        # a filial nao nomeada no cadastro aparece como RECORTE, nao corte
+        assert d["de_filial_nao_cadastrada"]["valor"] == 8000.0
+        assert d["de_filial_nao_cadastrada"]["sacados"] == 1
+        naocad = [g for g in d["linhas"] if not g["filial_cadastrada"]]
         assert len(naocad) == 1 and naocad[0]["cnpj"] == "11111111000999"
 
     def test_sacado_nao_elegivel_fica_de_fora_da_consulta(self, cenario):
