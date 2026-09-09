@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.17.3] — 08/09/2026  ·  CX-08/09/2026-v1.17.3
+
+### Corrigido
+- A recolha da SEFAZ parava sozinha às 20h e só voltava às 6h da manhã, com 28 mil documentos esperando na fila — e sem dar erro em lugar nenhum: a tarefa agendada tinha uma janela de 14 horas e simplesmente ia dormir quando ela fechava. Hoje isso custou uma noite inteira por cinco minutos de diferença (a janela fechou às 20:00 e a espera da SEFAZ liberava às 20:05). Ela passa a rodar o dia inteiro, de 20 em 20 minutos, o que também é a melhor hora para drenar uma fila: de madrugada não há ninguém esperando.
+
 ## [1.17.2] — 08/09/2026  ·  CX-08/09/2026-v1.17.2
 
 ### Corrigido

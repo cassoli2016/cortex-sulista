@@ -157,6 +157,28 @@ def test_o_instalador_da_tarefa_aponta_para_o_script_certo():
     assert "Cortex Sulista - DFe SEFAZ" in servidor._TAREFAS
 
 
+def test_a_janela_da_tarefa_cobre_o_DIA_INTEIRO():
+    """A TAREFA QUE CONCLUI COM EXITO E VAI DORMIR NO MEIO DA FILA.
+
+    Em 08/09/2026 a recolha parou com 28 mil documentos esperando, e nao houve
+    falha nenhuma: o gatilho era `-Daily -At 06:00` com repeticao por 14 HORAS,
+    entao a janela fechou as 20:00. O freio interno liberava as 20:05 -- cinco
+    minutos depois. A tarefa "concluiu com exito" duas vezes e foi embora ate
+    as 06:00 do dia seguinte.
+
+    Uma janela que nao cobre o dia inteiro e uma parada silenciosa esperando o
+    dia em que o freio cair do lado de fora dela. E drenar fila e trabalho de
+    madrugada.
+    """
+    from pathlib import Path
+    ps1 = (Path(__file__).resolve().parents[2] / "scripts"
+           / "instalar_tarefa_dfe.ps1").read_text(encoding="utf-8")
+    assert "-RepetitionDuration (New-TimeSpan -Hours 24)" in ps1, (
+        "a janela de repeticao nao cobre 24 horas: a recolha para sozinha "
+        "quando o freio da SEFAZ cair fora dela")
+    assert "-Hours 14" not in ps1
+
+
 def test_o_instalador_RODA_a_tarefa_uma_vez():
     """A partida imediata PROVA a tarefa na hora.
 

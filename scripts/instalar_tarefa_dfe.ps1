@@ -6,7 +6,7 @@
 # destinatario tudo que foi emitido contra o CNPJ dele, e o XML autorizado e
 # a obrigacao de guarda de cinco anos.
 #
-# HORARIO: de 20 em 20 minutos, das 06h as 20h.
+# HORARIO: de 20 em 20 minutos, O DIA INTEIRO.
 #
 # PARECE agressivo e NAO E, porque a SEFAZ nao limita por TEMPO - ela pune
 # consulta SEM RESULTADO (cStat 656, ~1 h de castigo por CNPJ). Quando vem
@@ -24,8 +24,21 @@
 # horas. A versao anterior rodava de 2 em 2 h e deixava dinheiro na mesa: nao
 # reduzia risco nenhum, so atrasava a chegada.
 #
-# De madrugada nao roda: nota de fornecedor e emitida em horario comercial, e
-# uma varredura as 3h so gastaria a primeira consulta do dia seguinte.
+# DE MADRUGADA RODA, e isso MUDOU em 08/09/2026. O argumento antigo era "nota
+# de fornecedor e emitida em horario comercial, e uma varredura as 3h so
+# gastaria a primeira consulta do dia seguinte" -- e ele vale para uma caixa EM
+# DIA, em que a madrugada nao traz nada.
+#
+# O que aconteceu com FILA: a tarefa rodou as 19:40 e as 20:00, com exito, e
+# parou -- a janela de 14 horas fechou as 20:00 e o freio interno liberava as
+# 20:05. Cinco minutos. Vinte e oito mil documentos ficaram esperando ate as
+# 06:00 do dia seguinte, e nada disso deu erro: a tarefa "concluiu com exito"
+# duas vezes e foi dormir.
+#
+# Drenar fila e trabalho de madrugada: ninguem esperando, e o castigo da SEFAZ
+# passa dormindo. O custo continua sendo o que ja era -- no maximo UMA consulta
+# infrutifera por hora, garantida pelo freio do script, e passagem barrada nem
+# abre conexao.
 #
 # Segue o mesmo padrao das tarefas ja instaladas (API, AutoDeploy, Tunnel,
 # Smartec, Pneus, Backup, Monkey): conta SISTEMA, para nao depender de sessao
@@ -102,10 +115,10 @@ $acao = New-ScheduledTaskAction -Execute $py `
 #
 # Ver o comentario do topo: quem limita a cadencia e o freio do SCRIPT, nao
 # este relogio. Passagem barrada pelo freio nem chega a falar com a SEFAZ.
-$gatilho = New-ScheduledTaskTrigger -Daily -At 06:00
-$gatilho.Repetition = (New-ScheduledTaskTrigger -Once -At 06:00 `
+$gatilho = New-ScheduledTaskTrigger -Daily -At 00:10
+$gatilho.Repetition = (New-ScheduledTaskTrigger -Once -At 00:10 `
   -RepetitionInterval (New-TimeSpan -Minutes 20) `
-  -RepetitionDuration (New-TimeSpan -Hours 14)).Repetition
+  -RepetitionDuration (New-TimeSpan -Hours 24)).Repetition
 $gatilhos = @($gatilho)
 
 $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
