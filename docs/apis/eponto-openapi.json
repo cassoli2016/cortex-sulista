@@ -1,0 +1,2518 @@
+{
+ "openapi": "3.1.0",
+ "info": {
+  "title": "E-Ponto - External API",
+  "version": "1.0.0",
+  "description": ""
+ },
+ "paths": {
+  "/external-api/productivity-report": {
+   "get": {
+    "operationId": "external_api_router_external_api_external_productivity_report",
+    "summary": "External Productivity Report",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "from_date",
+      "schema": {
+       "format": "date",
+       "title": "From Date",
+       "type": "string"
+      },
+      "required": true
+     },
+     {
+      "in": "query",
+      "name": "to_date",
+      "schema": {
+       "format": "date",
+       "title": "To Date",
+       "type": "string"
+      },
+      "required": true
+     },
+     {
+      "in": "query",
+      "name": "branch_id",
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Branch Id"
+      },
+      "required": false
+     },
+     {
+      "in": "query",
+      "name": "driver_id",
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Driver Id"
+      },
+      "required": false
+     },
+     {
+      "in": "query",
+      "name": "min_time",
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Min Time"
+      },
+      "required": false
+     },
+     {
+      "in": "query",
+      "name": "max_time",
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Max Time"
+      },
+      "required": false
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/GetJourneyProductivityDTO"
+         },
+         "title": "Response",
+         "type": "array"
+        }
+       }
+      }
+     }
+    },
+    "tags": [
+     "Productivity Report"
+    ],
+    "security": [
+     {
+      "GlobalAuth": []
+     }
+    ]
+   }
+  },
+  "/external-api/productivity-report/totalizers": {
+   "get": {
+    "operationId": "external_api_router_external_api_external_productivity_report_totalizers",
+    "summary": "External Productivity Report Totalizers",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "from_date",
+      "schema": {
+       "format": "date",
+       "title": "From Date",
+       "type": "string"
+      },
+      "required": true
+     },
+     {
+      "in": "query",
+      "name": "to_date",
+      "schema": {
+       "format": "date",
+       "title": "To Date",
+       "type": "string"
+      },
+      "required": true
+     },
+     {
+      "in": "query",
+      "name": "branch_id",
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Branch Id"
+      },
+      "required": false
+     },
+     {
+      "in": "query",
+      "name": "driver_id",
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Driver Id"
+      },
+      "required": false
+     },
+     {
+      "in": "query",
+      "name": "min_time",
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Min Time"
+      },
+      "required": false
+     },
+     {
+      "in": "query",
+      "name": "max_time",
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Max Time"
+      },
+      "required": false
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/ProductivityReportTotalizerDto"
+         },
+         "title": "Response",
+         "type": "array"
+        }
+       }
+      }
+     }
+    },
+    "tags": [
+     "Productivity Report"
+    ],
+    "security": [
+     {
+      "GlobalAuth": []
+     }
+    ]
+   }
+  },
+  "/external-api/unconformities/": {
+   "get": {
+    "operationId": "modules_unconformity_external_api_router_find_unconformities",
+    "summary": "Find Unconformities",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "start",
+      "schema": {
+       "format": "date",
+       "title": "Start",
+       "type": "string"
+      },
+      "required": true
+     },
+     {
+      "in": "query",
+      "name": "end",
+      "schema": {
+       "format": "date",
+       "title": "End",
+       "type": "string"
+      },
+      "required": true
+     },
+     {
+      "in": "query",
+      "name": "page",
+      "schema": {
+       "default": 1,
+       "minimum": 1,
+       "title": "Page",
+       "type": "integer"
+      },
+      "required": false
+     },
+     {
+      "in": "query",
+      "name": "page_size",
+      "schema": {
+       "default": 1000,
+       "maximum": 1000,
+       "minimum": 1,
+       "title": "Page Size",
+       "type": "integer"
+      },
+      "required": false
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Paginated"
+        }
+       }
+      }
+     }
+    },
+    "tags": [
+     "Unconformities"
+    ],
+    "security": [
+     {
+      "GlobalAuth": []
+     }
+    ]
+   }
+  },
+  "/external-api/vehicles/": {
+   "get": {
+    "operationId": "vehicle_external_api_router_get_vehicles",
+    "summary": "Get Vehicles",
+    "parameters": [],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/ExternalApiVehicleDto"
+         },
+         "title": "Response",
+         "type": "array"
+        }
+       }
+      }
+     }
+    },
+    "tags": [
+     "Vehicles"
+    ],
+    "security": [
+     {
+      "GlobalAuth": []
+     }
+    ]
+   }
+  },
+  "/external-api/anomalies/": {
+   "get": {
+    "operationId": "modules_anomaly_external_api_router_get_anomalies",
+    "summary": "Get Anomalies",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "from_date",
+      "schema": {
+       "format": "date",
+       "title": "From Date",
+       "type": "string"
+      },
+      "required": true
+     },
+     {
+      "in": "query",
+      "name": "to_date",
+      "schema": {
+       "format": "date",
+       "title": "To Date",
+       "type": "string"
+      },
+      "required": true
+     },
+     {
+      "in": "query",
+      "name": "driver_cpf",
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 11,
+         "minLength": 11,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "example": "82529331010",
+       "title": "Driver Cpf"
+      },
+      "required": false,
+      "example": "82529331010"
+     },
+     {
+      "in": "query",
+      "name": "vehicle_plate",
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "example": "ABC-123",
+       "title": "Vehicle Plate"
+      },
+      "required": false,
+      "example": "ABC-123"
+     },
+     {
+      "in": "query",
+      "name": "anomaly_type",
+      "schema": {
+       "anyOf": [
+        {
+         "$ref": "#/components/schemas/AnomalyType"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "required": false
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/AnomalyDTO"
+         },
+         "title": "Response",
+         "type": "array"
+        }
+       }
+      }
+     }
+    },
+    "description": "Obter anomalias do período.",
+    "tags": [
+     "Anomalies"
+    ],
+    "security": [
+     {
+      "GlobalAuth": []
+     }
+    ]
+   }
+  },
+  "/external-api/absences/": {
+   "post": {
+    "operationId": "modules_absence_external_api_router_create_absence",
+    "summary": "Create Absence",
+    "parameters": [],
+    "responses": {
+     "204": {
+      "description": "No Content"
+     }
+    },
+    "tags": [
+     "Absences"
+    ],
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "title": "MultiPartBodyParams",
+        "type": "object",
+        "properties": {
+         "external_id": {
+          "description": "ID externo",
+          "title": "External Id",
+          "type": "integer"
+         },
+         "driver_cpf": {
+          "description": "CPF do motorista",
+          "maxLength": 11,
+          "minLength": 11,
+          "title": "Driver Cpf",
+          "type": "string"
+         },
+         "description": {
+          "description": "Descrição",
+          "title": "Description",
+          "type": "string"
+         },
+         "type_id": {
+          "description": "ID do tipo de afastamento",
+          "title": "Type Id",
+          "type": "integer"
+         },
+         "start": {
+          "description": "Data/Hora de início",
+          "format": "date-time",
+          "title": "Start",
+          "type": "string"
+         },
+         "end": {
+          "description": "Data/Hora de fim",
+          "format": "date-time",
+          "title": "End",
+          "type": "string"
+         },
+         "observation": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "description": "Observação",
+          "title": "Observation"
+         },
+         "cid": {
+          "anyOf": [
+           {
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "description": "CID",
+          "title": "Cid"
+         },
+         "attachment": {
+          "anyOf": [
+           {
+            "format": "binary",
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "title": "Attachment"
+         }
+        },
+        "required": [
+         "external_id",
+         "driver_cpf",
+         "description",
+         "type_id",
+         "start",
+         "end"
+        ]
+       }
+      }
+     },
+     "required": true
+    },
+    "security": [
+     {
+      "GlobalAuth": []
+     }
+    ]
+   },
+   "get": {
+    "operationId": "modules_absence_external_api_router_list_absences",
+    "summary": "List Absences",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "start",
+      "schema": {
+       "format": "date-time",
+       "title": "Start",
+       "type": "string"
+      },
+      "required": true
+     },
+     {
+      "in": "query",
+      "name": "end",
+      "schema": {
+       "format": "date-time",
+       "title": "End",
+       "type": "string"
+      },
+      "required": true
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/AbsenceResponseDto"
+         },
+         "title": "Response",
+         "type": "array"
+        }
+       }
+      }
+     }
+    },
+    "tags": [
+     "Absences"
+    ],
+    "security": [
+     {
+      "GlobalAuth": []
+     }
+    ]
+   }
+  },
+  "/external-api/absences/{external_pk}": {
+   "delete": {
+    "operationId": "modules_absence_external_api_router_delete_absence",
+    "summary": "Delete Absence",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "external_pk",
+      "schema": {
+       "title": "External Pk",
+       "type": "integer"
+      },
+      "required": true
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "No Content"
+     }
+    },
+    "tags": [
+     "Absences"
+    ],
+    "security": [
+     {
+      "GlobalAuth": []
+     }
+    ]
+   }
+  },
+  "/external-api/drivers/": {
+   "get": {
+    "operationId": "modules_driver_external_api_router_get_drivers",
+    "summary": "Get Drivers",
+    "parameters": [],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/ExternalApiDriverDto"
+         },
+         "title": "Response",
+         "type": "array"
+        }
+       }
+      }
+     }
+    },
+    "tags": [
+     "Vehicles"
+    ],
+    "security": [
+     {
+      "GlobalAuth": []
+     }
+    ]
+   }
+  },
+  "/external-api/driver-events/": {
+   "get": {
+    "operationId": "driver_event_external_api_router_get_driver_events",
+    "summary": "Get Driver Events",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "from_date",
+      "schema": {
+       "description": "Data inicial da consulta",
+       "example": "2024-01-01",
+       "format": "date",
+       "title": "From Date",
+       "type": "string"
+      },
+      "required": true,
+      "description": "Data inicial da consulta",
+      "example": "2024-01-01"
+     },
+     {
+      "in": "query",
+      "name": "to_date",
+      "schema": {
+       "description": "Data final da consulta",
+       "example": "2024-01-31",
+       "format": "date",
+       "title": "To Date",
+       "type": "string"
+      },
+      "required": true,
+      "description": "Data final da consulta",
+      "example": "2024-01-31"
+     },
+     {
+      "in": "query",
+      "name": "driver_document",
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "CPF do motorista (não obrigatório). Se não informado, retorna eventos de todos os motoristas",
+       "example": "12345678900",
+       "title": "Driver Document"
+      },
+      "required": false,
+      "description": "CPF do motorista (não obrigatório). Se não informado, retorna eventos de todos os motoristas",
+      "example": "12345678900"
+     },
+     {
+      "in": "query",
+      "name": "event_type",
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Código do tipo de evento (não obrigatório). Se não informado, retorna todos os tipos. Códigos disponíveis:\n- 990: DIREÇÃO\n- 991: DESCANSO\n- 992: REFEIÇÃO\n- 993: REPOUSO\n- 994: ESPERA\n- 995: PARADO EM JORNADA\n- 997: INÍCIO DE DIREÇÃO\n- 998: FIM DE DIREÇÃO\n- 1000: SEM POSIÇÃO",
+       "example": 990,
+       "title": "Event Type"
+      },
+      "required": false,
+      "description": "Código do tipo de evento (não obrigatório). Se não informado, retorna todos os tipos. Códigos disponíveis:\n- 990: DIREÇÃO\n- 991: DESCANSO\n- 992: REFEIÇÃO\n- 993: REPOUSO\n- 994: ESPERA\n- 995: PARADO EM JORNADA\n- 997: INÍCIO DE DIREÇÃO\n- 998: FIM DE DIREÇÃO\n- 1000: SEM POSIÇÃO",
+      "example": 990
+     },
+     {
+      "in": "query",
+      "name": "event_origin",
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Origem do evento (não obrigatório). Se não informado, retorna todas as origens. Origens disponíveis:\n- BETWEEN_ASSOCIATIONS: Entre associações\n- MACRO: Macro\n- MOBILE: Mobile\n- POSITION: Geolocalização\n- UNKNOWN: Desconhecido\n- WEB: Web\n- SASCAR_RFID: Sascar RFID\n- EVENT_CHANGE_BY_MOBILE: Alteração de evento por mobile\n- FULL_JOURNEY: Jornada completa",
+       "example": "MOBILE",
+       "title": "Event Origin"
+      },
+      "required": false,
+      "description": "Origem do evento (não obrigatório). Se não informado, retorna todas as origens. Origens disponíveis:\n- BETWEEN_ASSOCIATIONS: Entre associações\n- MACRO: Macro\n- MOBILE: Mobile\n- POSITION: Geolocalização\n- UNKNOWN: Desconhecido\n- WEB: Web\n- SASCAR_RFID: Sascar RFID\n- EVENT_CHANGE_BY_MOBILE: Alteração de evento por mobile\n- FULL_JOURNEY: Jornada completa",
+      "example": "MOBILE"
+     },
+     {
+      "in": "query",
+      "name": "page",
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": 1,
+       "description": "Número da página para paginação",
+       "example": 1,
+       "title": "Page"
+      },
+      "required": false,
+      "description": "Número da página para paginação",
+      "example": 1
+     },
+     {
+      "in": "query",
+      "name": "page_size",
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": 2000,
+       "description": "Quantidade de registros por página (máximo 2000)",
+       "example": 2000,
+       "title": "Page Size"
+      },
+      "required": false,
+      "description": "Quantidade de registros por página (máximo 2000)",
+      "example": 2000
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ExternalApiEventsResponseDto"
+        }
+       }
+      }
+     }
+    },
+    "tags": [
+     "Driver Events"
+    ],
+    "security": [
+     {
+      "GlobalAuth": []
+     }
+    ]
+   }
+  },
+  "/external-api/journey-exceptions/": {
+   "get": {
+    "operationId": "journey_exceptions_external_api_router_get_journey_exceptions",
+    "summary": "Get Journey Exceptions",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "data_inicial",
+      "schema": {
+       "format": "date",
+       "title": "Data Inicial",
+       "type": "string"
+      },
+      "required": true
+     },
+     {
+      "in": "query",
+      "name": "data_final",
+      "schema": {
+       "format": "date",
+       "title": "Data Final",
+       "type": "string"
+      },
+      "required": true
+     },
+     {
+      "in": "query",
+      "name": "motorista",
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Motorista"
+      },
+      "required": false
+     },
+     {
+      "in": "query",
+      "name": "tipo_excecao",
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Tipo Excecao"
+      },
+      "required": false
+     },
+     {
+      "in": "query",
+      "name": "status",
+      "schema": {
+       "anyOf": [
+        {
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Status"
+      },
+      "required": false
+     },
+     {
+      "in": "query",
+      "name": "page",
+      "schema": {
+       "default": 1,
+       "minimum": 1,
+       "title": "Page",
+       "type": "integer"
+      },
+      "required": false
+     },
+     {
+      "in": "query",
+      "name": "page_size",
+      "schema": {
+       "default": 1000,
+       "maximum": 10000,
+       "minimum": 1,
+       "title": "Page Size",
+       "type": "integer"
+      },
+      "required": false
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PaginatedJourneyExceptions"
+        }
+       }
+      }
+     }
+    },
+    "tags": [
+     "Journey Exceptions"
+    ],
+    "security": [
+     {
+      "GlobalAuth": []
+     }
+    ]
+   }
+  },
+  "/external-api/diarias/": {
+   "get": {
+    "operationId": "modules_daily_external_api_router_get_diarias",
+    "summary": "Get Diarias",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "data_inicial",
+      "schema": {
+       "description": "Data e hora inicial do período de consulta (ISO 8601).",
+       "example": "2025-06-01T00:00:00",
+       "format": "date-time",
+       "title": "Data Inicial",
+       "type": "string"
+      },
+      "required": true,
+      "description": "Data e hora inicial do período de consulta (ISO 8601).",
+      "example": "2025-06-01T00:00:00"
+     },
+     {
+      "in": "query",
+      "name": "data_final",
+      "schema": {
+       "description": "Data e hora final do período de consulta (ISO 8601). Máximo de 31 dias após data_inicial.",
+       "example": "2025-06-30T23:59:59",
+       "format": "date-time",
+       "title": "Data Final",
+       "type": "string"
+      },
+      "required": true,
+      "description": "Data e hora final do período de consulta (ISO 8601). Máximo de 31 dias após data_inicial.",
+      "example": "2025-06-30T23:59:59"
+     },
+     {
+      "in": "query",
+      "name": "cpf",
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 11,
+         "minLength": 11,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "CPF do motorista (sem formatação).",
+       "example": "82529331010",
+       "title": "Cpf"
+      },
+      "required": false,
+      "description": "CPF do motorista (sem formatação).",
+      "example": "82529331010"
+     },
+     {
+      "in": "query",
+      "name": "cnpj_filial",
+      "schema": {
+       "anyOf": [
+        {
+         "maxLength": 14,
+         "minLength": 14,
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "CNPJ da filial (sem formatação).",
+       "example": "12345678000199",
+       "title": "Cnpj Filial"
+      },
+      "required": false,
+      "description": "CNPJ da filial (sem formatação).",
+      "example": "12345678000199"
+     },
+     {
+      "in": "query",
+      "name": "codigo_escala",
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Código identificador da escala.",
+       "example": "123",
+       "title": "Codigo Escala"
+      },
+      "required": false,
+      "description": "Código identificador da escala.",
+      "example": "123"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DiariasResponseDto"
+        }
+       }
+      }
+     }
+    },
+    "description": "Consultar diárias registradas no período.\n\nRetorna a lista de motoristas (ativos ou inativos) que tiveram ao menos uma\ndiária no período, com as diárias separadas por tipo e país, quantidade e\nvalores. O período é obrigatório e limitado a 31 dias.",
+    "tags": [
+     "Diárias"
+    ],
+    "security": [
+     {
+      "GlobalAuth": []
+     }
+    ]
+   }
+  }
+ },
+ "components": {
+  "schemas": {
+   "GetJourneyProductivityDTO": {
+    "properties": {
+     "driver_name": {
+      "title": "Driver Name",
+      "type": "string"
+     },
+     "driver_id": {
+      "title": "Driver Id",
+      "type": "integer"
+     },
+     "vehicles": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Vehicles",
+      "type": "array"
+     },
+     "driver_document": {
+      "title": "Driver Document",
+      "type": "string"
+     },
+     "branch_name": {
+      "title": "Branch Name",
+      "type": "string"
+     },
+     "work_schedule_name": {
+      "title": "Work Schedule Name",
+      "type": "string"
+     },
+     "date": {
+      "format": "date",
+      "title": "Date",
+      "type": "string"
+     },
+     "start": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Start"
+     },
+     "end": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "End"
+     },
+     "total_time": {
+      "title": "Total Time",
+      "type": "integer"
+     },
+     "activity_time": {
+      "title": "Activity Time",
+      "type": "integer"
+     },
+     "driving_time": {
+      "title": "Driving Time",
+      "type": "integer"
+     },
+     "stopped_in_journey_time": {
+      "title": "Stopped In Journey Time",
+      "type": "integer"
+     },
+     "over_time": {
+      "title": "Over Time",
+      "type": "integer"
+     },
+     "activity_time_over_max_time": {
+      "title": "Activity Time Over Max Time",
+      "type": "integer"
+     },
+     "missing_time": {
+      "title": "Missing Time",
+      "type": "integer"
+     },
+     "journey_type": {
+      "title": "Journey Type",
+      "type": "string"
+     },
+     "kilometers_driven": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Kilometers Driven"
+     },
+     "repose_time": {
+      "title": "Repose Time",
+      "type": "integer"
+     },
+     "missing_repose_time": {
+      "title": "Missing Repose Time",
+      "type": "integer"
+     },
+     "meal_time": {
+      "title": "Meal Time",
+      "type": "integer"
+     },
+     "rest_time": {
+      "title": "Rest Time",
+      "type": "integer"
+     },
+     "work_schedule_time": {
+      "default": 0,
+      "title": "Work Schedule Time",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "driver_name",
+     "driver_id",
+     "vehicles",
+     "driver_document",
+     "branch_name",
+     "work_schedule_name",
+     "date",
+     "start",
+     "end",
+     "total_time",
+     "activity_time",
+     "driving_time",
+     "stopped_in_journey_time",
+     "over_time",
+     "activity_time_over_max_time",
+     "missing_time",
+     "journey_type",
+     "kilometers_driven",
+     "repose_time",
+     "missing_repose_time",
+     "meal_time",
+     "rest_time"
+    ],
+    "title": "GetJourneyProductivityDTO",
+    "type": "object"
+   },
+   "DateRangeDto": {
+    "properties": {
+     "start": {
+      "format": "date",
+      "title": "Start",
+      "type": "string"
+     },
+     "end": {
+      "format": "date",
+      "title": "End",
+      "type": "string"
+     }
+    },
+    "required": [
+     "start",
+     "end"
+    ],
+    "title": "DateRangeDto",
+    "type": "object"
+   },
+   "ProductivityReportTotalizerDto": {
+    "properties": {
+     "driver_name": {
+      "title": "Driver Name",
+      "type": "string"
+     },
+     "driver_id": {
+      "title": "Driver Id",
+      "type": "integer"
+     },
+     "branch_name": {
+      "title": "Branch Name",
+      "type": "string"
+     },
+     "date_range": {
+      "$ref": "#/components/schemas/DateRangeDto"
+     },
+     "total_activity_time": {
+      "title": "Total Activity Time",
+      "type": "integer"
+     },
+     "total_over_time": {
+      "title": "Total Over Time",
+      "type": "integer"
+     },
+     "total_missing_time": {
+      "title": "Total Missing Time",
+      "type": "integer"
+     },
+     "total_worked_days": {
+      "title": "Total Worked Days",
+      "type": "integer"
+     },
+     "total_overtime_journeys": {
+      "title": "Total Overtime Journeys",
+      "type": "integer"
+     },
+     "total_missing_time_journeys": {
+      "title": "Total Missing Time Journeys",
+      "type": "integer"
+     },
+     "total_dsr_days": {
+      "title": "Total Dsr Days",
+      "type": "integer"
+     },
+     "total_dsr_journeys_days": {
+      "title": "Total Dsr Journeys Days",
+      "type": "integer"
+     },
+     "total_missing_days": {
+      "title": "Total Missing Days",
+      "type": "integer"
+     },
+     "total_kilometers_driven": {
+      "title": "Total Kilometers Driven",
+      "type": "integer"
+     },
+     "total_meal_time": {
+      "title": "Total Meal Time",
+      "type": "integer"
+     },
+     "total_stopped_in_journey": {
+      "title": "Total Stopped In Journey",
+      "type": "integer"
+     },
+     "total_rest_time": {
+      "title": "Total Rest Time",
+      "type": "integer"
+     },
+     "total_driving_time": {
+      "title": "Total Driving Time",
+      "type": "integer"
+     },
+     "total_missing_repose_time": {
+      "title": "Total Missing Repose Time",
+      "type": "integer"
+     },
+     "total_repose_time": {
+      "title": "Total Repose Time",
+      "type": "integer"
+     },
+     "total_activity_time_over_max_time": {
+      "title": "Total Activity Time Over Max Time",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "driver_name",
+     "driver_id",
+     "branch_name",
+     "date_range",
+     "total_activity_time",
+     "total_over_time",
+     "total_missing_time",
+     "total_worked_days",
+     "total_overtime_journeys",
+     "total_missing_time_journeys",
+     "total_dsr_days",
+     "total_dsr_journeys_days",
+     "total_missing_days",
+     "total_kilometers_driven",
+     "total_meal_time",
+     "total_stopped_in_journey",
+     "total_rest_time",
+     "total_driving_time",
+     "total_missing_repose_time",
+     "total_repose_time",
+     "total_activity_time_over_max_time"
+    ],
+    "title": "ProductivityReportTotalizerDto",
+    "type": "object"
+   },
+   "Paginated": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/UnconformityDTO"
+      },
+      "title": "Items",
+      "type": "array"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     },
+     "total_pages": {
+      "title": "Total Pages",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "items",
+     "total",
+     "total_pages"
+    ],
+    "title": "Paginated",
+    "type": "object"
+   },
+   "UnconformityDTO": {
+    "properties": {
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "date": {
+      "format": "date",
+      "title": "Date",
+      "type": "string"
+     },
+     "driver_name": {
+      "title": "Driver Name",
+      "type": "string"
+     },
+     "driver_document": {
+      "title": "Driver Document",
+      "type": "string"
+     },
+     "plate": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Plate"
+     },
+     "unconformity": {
+      "title": "Unconformity",
+      "type": "string"
+     },
+     "start": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Start"
+     },
+     "end": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "End"
+     },
+     "duration_minutes": {
+      "title": "Duration Minutes",
+      "type": "integer"
+     },
+     "speed": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Speed"
+     },
+     "observation": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Observation"
+     },
+     "activity_time": {
+      "title": "Activity Time",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "id",
+     "date",
+     "driver_name",
+     "driver_document",
+     "plate",
+     "unconformity",
+     "start",
+     "end",
+     "duration_minutes",
+     "speed",
+     "observation",
+     "activity_time"
+    ],
+    "title": "UnconformityDTO",
+    "type": "object"
+   },
+   "ExternalApiVehicleDto": {
+    "properties": {
+     "vehicle_plate": {
+      "title": "Vehicle Plate",
+      "type": "string"
+     },
+     "current_associated_driver": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Current Associated Driver"
+     },
+     "last_position": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Position"
+     },
+     "latitude": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Latitude"
+     },
+     "longitude": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Longitude"
+     },
+     "actual_event": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Actual Event"
+     },
+     "actual_event_duration": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Actual Event Duration"
+     }
+    },
+    "required": [
+     "vehicle_plate",
+     "current_associated_driver",
+     "last_position",
+     "latitude",
+     "longitude",
+     "actual_event",
+     "actual_event_duration"
+    ],
+    "title": "ExternalApiVehicleDto",
+    "type": "object"
+   },
+   "AnomalyType": {
+    "enum": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12,
+     13,
+     14,
+     15,
+     16,
+     17,
+     18,
+     19,
+     20,
+     21,
+     22,
+     23,
+     24,
+     25,
+     26
+    ],
+    "title": "AnomalyType",
+    "type": "integer"
+   },
+   "GetAnomaliesQueryDto": {
+    "properties": {
+     "from_date": {
+      "format": "date",
+      "title": "From Date",
+      "type": "string"
+     },
+     "to_date": {
+      "format": "date",
+      "title": "To Date",
+      "type": "string"
+     },
+     "driver_cpf": {
+      "anyOf": [
+       {
+        "maxLength": 11,
+        "minLength": 11,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "example": "82529331010",
+      "title": "Driver Cpf"
+     },
+     "vehicle_plate": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "example": "ABC-123",
+      "title": "Vehicle Plate"
+     },
+     "anomaly_type": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/AnomalyType"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "required": [
+     "from_date",
+     "to_date"
+    ],
+    "title": "GetAnomaliesQueryDto",
+    "type": "object"
+   },
+   "AnomalyDTO": {
+    "properties": {
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "moment": {
+      "format": "date-time",
+      "title": "Moment",
+      "type": "string"
+     },
+     "type": {
+      "$ref": "#/components/schemas/AnomalyType"
+     },
+     "vehicle_plate": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Vehicle Plate"
+     },
+     "driver_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Driver Name"
+     },
+     "driver_document": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Driver Document"
+     },
+     "description": {
+      "title": "Description",
+      "type": "string"
+     },
+     "resolved": {
+      "title": "Resolved",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "id",
+     "created_at",
+     "moment",
+     "type",
+     "vehicle_plate",
+     "driver_name",
+     "driver_document",
+     "description",
+     "resolved"
+    ],
+    "title": "AnomalyDTO",
+    "type": "object"
+   },
+   "CreateAbsenceDto": {
+    "properties": {
+     "external_id": {
+      "description": "ID externo",
+      "title": "External Id",
+      "type": "integer"
+     },
+     "driver_cpf": {
+      "description": "CPF do motorista",
+      "maxLength": 11,
+      "minLength": 11,
+      "title": "Driver Cpf",
+      "type": "string"
+     },
+     "description": {
+      "description": "Descrição",
+      "title": "Description",
+      "type": "string"
+     },
+     "type_id": {
+      "description": "ID do tipo de afastamento",
+      "title": "Type Id",
+      "type": "integer"
+     },
+     "start": {
+      "description": "Data/Hora de início",
+      "format": "date-time",
+      "title": "Start",
+      "type": "string"
+     },
+     "end": {
+      "description": "Data/Hora de fim",
+      "format": "date-time",
+      "title": "End",
+      "type": "string"
+     },
+     "observation": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Observação",
+      "title": "Observation"
+     },
+     "cid": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "CID",
+      "title": "Cid"
+     }
+    },
+    "required": [
+     "external_id",
+     "driver_cpf",
+     "description",
+     "type_id",
+     "start",
+     "end"
+    ],
+    "title": "CreateAbsenceDto",
+    "type": "object"
+   },
+   "AbsenceQueryParams": {
+    "properties": {
+     "start": {
+      "format": "date-time",
+      "title": "Start",
+      "type": "string"
+     },
+     "end": {
+      "format": "date-time",
+      "title": "End",
+      "type": "string"
+     }
+    },
+    "required": [
+     "start",
+     "end"
+    ],
+    "title": "AbsenceQueryParams",
+    "type": "object"
+   },
+   "AbsenceResponseDto": {
+    "properties": {
+     "external_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "External Id"
+     },
+     "cpf": {
+      "title": "Cpf",
+      "type": "string"
+     },
+     "driver_name": {
+      "title": "Driver Name",
+      "type": "string"
+     },
+     "start": {
+      "format": "date-time",
+      "title": "Start",
+      "type": "string"
+     },
+     "end": {
+      "format": "date-time",
+      "title": "End",
+      "type": "string"
+     },
+     "description": {
+      "title": "Description",
+      "type": "string"
+     },
+     "absence_type": {
+      "title": "Absence Type",
+      "type": "string"
+     },
+     "observation": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Observation"
+     },
+     "cid": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cid"
+     }
+    },
+    "required": [
+     "external_id",
+     "cpf",
+     "driver_name",
+     "start",
+     "end",
+     "description",
+     "absence_type",
+     "observation",
+     "cid"
+    ],
+    "title": "AbsenceResponseDto",
+    "type": "object"
+   },
+   "ExternalApiDriverDto": {
+    "properties": {
+     "cpf": {
+      "title": "Cpf",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "active": {
+      "title": "Active",
+      "type": "string"
+     },
+     "branch": {
+      "title": "Branch",
+      "type": "string"
+     },
+     "work_schedule": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Work Schedule"
+     },
+     "admission_date": {
+      "format": "date",
+      "title": "Admission Date",
+      "type": "string"
+     },
+     "mobile": {
+      "title": "Mobile",
+      "type": "string"
+     },
+     "RFID": {
+      "title": "Rfid",
+      "type": "string"
+     },
+     "event_rfid": {
+      "title": "Event Rfid",
+      "type": "string"
+     },
+     "base_city": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Base City"
+     },
+     "timesheet_code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Timesheet Code"
+     },
+     "PIS": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Pis"
+     },
+     "role": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Role"
+     },
+     "phone": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Phone"
+     }
+    },
+    "required": [
+     "cpf",
+     "name",
+     "active",
+     "branch",
+     "work_schedule",
+     "admission_date",
+     "mobile",
+     "RFID",
+     "event_rfid",
+     "base_city",
+     "timesheet_code",
+     "PIS",
+     "role",
+     "phone"
+    ],
+    "title": "ExternalApiDriverDto",
+    "type": "object"
+   },
+   "QueryExternalApiEventsDto": {
+    "properties": {
+     "from_date": {
+      "description": "Data inicial da consulta",
+      "example": "2024-01-01",
+      "format": "date",
+      "title": "From Date",
+      "type": "string"
+     },
+     "to_date": {
+      "description": "Data final da consulta",
+      "example": "2024-01-31",
+      "format": "date",
+      "title": "To Date",
+      "type": "string"
+     },
+     "driver_document": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "CPF do motorista (não obrigatório). Se não informado, retorna eventos de todos os motoristas",
+      "example": "12345678900",
+      "title": "Driver Document"
+     },
+     "event_type": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Código do tipo de evento (não obrigatório). Se não informado, retorna todos os tipos. Códigos disponíveis:\n- 990: DIREÇÃO\n- 991: DESCANSO\n- 992: REFEIÇÃO\n- 993: REPOUSO\n- 994: ESPERA\n- 995: PARADO EM JORNADA\n- 997: INÍCIO DE DIREÇÃO\n- 998: FIM DE DIREÇÃO\n- 1000: SEM POSIÇÃO",
+      "example": 990,
+      "title": "Event Type"
+     },
+     "event_origin": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Origem do evento (não obrigatório). Se não informado, retorna todas as origens. Origens disponíveis:\n- BETWEEN_ASSOCIATIONS: Entre associações\n- MACRO: Macro\n- MOBILE: Mobile\n- POSITION: Geolocalização\n- UNKNOWN: Desconhecido\n- WEB: Web\n- SASCAR_RFID: Sascar RFID\n- EVENT_CHANGE_BY_MOBILE: Alteração de evento por mobile\n- FULL_JOURNEY: Jornada completa",
+      "example": "MOBILE",
+      "title": "Event Origin"
+     },
+     "page": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": 1,
+      "description": "Número da página para paginação",
+      "example": 1,
+      "title": "Page"
+     },
+     "page_size": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": 2000,
+      "description": "Quantidade de registros por página (máximo 2000)",
+      "example": 2000,
+      "title": "Page Size"
+     }
+    },
+    "required": [
+     "from_date",
+     "to_date"
+    ],
+    "title": "QueryExternalApiEventsDto",
+    "type": "object"
+   },
+   "ExternalApiEventsDto": {
+    "properties": {
+     "driver_document": {
+      "description": "CPF do motorista",
+      "example": "12345678900",
+      "title": "Driver Document",
+      "type": "string"
+     },
+     "driver_name": {
+      "description": "Nome do motorista",
+      "example": "João da Silva",
+      "title": "Driver Name",
+      "type": "string"
+     },
+     "branch": {
+      "description": "Nome da filial do motorista",
+      "example": "Filial São Paulo",
+      "title": "Branch",
+      "type": "string"
+     },
+     "work_schedule": {
+      "description": "Nome da escala do motorista",
+      "example": "Escala 5x2",
+      "title": "Work Schedule",
+      "type": "string"
+     },
+     "vehicle_plate": {
+      "description": "Placa do veículo (se houver)",
+      "example": "ABC1234",
+      "title": "Vehicle Plate",
+      "type": "string"
+     },
+     "event_code": {
+      "description": "Código do evento",
+      "example": 990,
+      "title": "Event Code",
+      "type": "integer"
+     },
+     "event_name": {
+      "description": "Nome do evento",
+      "example": "DIREÇÃO",
+      "title": "Event Name",
+      "type": "string"
+     },
+     "event_start": {
+      "description": "Data/hora inicial do evento",
+      "example": "2024-01-01T08:00:00",
+      "format": "date-time",
+      "title": "Event Start",
+      "type": "string"
+     },
+     "event_end": {
+      "description": "Data/hora final do evento",
+      "example": "2024-01-01T12:00:00",
+      "format": "date-time",
+      "title": "Event End",
+      "type": "string"
+     },
+     "event_duration": {
+      "description": "Tempo do evento em minutos",
+      "example": 240,
+      "title": "Event Duration",
+      "type": "integer"
+     },
+     "origin": {
+      "description": "Origem do evento",
+      "example": "MOBILE",
+      "title": "Origin",
+      "type": "string"
+     }
+    },
+    "required": [
+     "driver_document",
+     "driver_name",
+     "branch",
+     "work_schedule",
+     "vehicle_plate",
+     "event_code",
+     "event_name",
+     "event_start",
+     "event_end",
+     "event_duration",
+     "origin"
+    ],
+    "title": "ExternalApiEventsDto",
+    "type": "object"
+   },
+   "ExternalApiEventsResponseDto": {
+    "properties": {
+     "items": {
+      "description": "Lista de eventos da jornada",
+      "items": {
+       "$ref": "#/components/schemas/ExternalApiEventsDto"
+      },
+      "title": "Items",
+      "type": "array"
+     },
+     "total": {
+      "description": "Total de registros encontrados",
+      "example": 150,
+      "title": "Total",
+      "type": "integer"
+     },
+     "total_pages": {
+      "description": "Total de páginas disponíveis",
+      "example": 1,
+      "title": "Total Pages",
+      "type": "integer"
+     },
+     "message": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Mensagem informativa (quando não há dados)",
+      "example": "Não há dados a serem retornados.",
+      "title": "Message"
+     }
+    },
+    "required": [
+     "items",
+     "total",
+     "total_pages"
+    ],
+    "title": "ExternalApiEventsResponseDto",
+    "type": "object"
+   },
+   "JourneyExceptionDTO": {
+    "properties": {
+     "data_geracao": {
+      "format": "date-time",
+      "title": "Data Geracao",
+      "type": "string"
+     },
+     "nome_motorista": {
+      "title": "Nome Motorista",
+      "type": "string"
+     },
+     "nome_veiculo": {
+      "title": "Nome Veiculo",
+      "type": "string"
+     },
+     "codigo_tipo_excecao": {
+      "title": "Codigo Tipo Excecao",
+      "type": "integer"
+     },
+     "nome_excecao": {
+      "title": "Nome Excecao",
+      "type": "string"
+     },
+     "status_excecao": {
+      "title": "Status Excecao",
+      "type": "integer"
+     },
+     "nivel_excecao": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Nivel Excecao"
+     }
+    },
+    "required": [
+     "data_geracao",
+     "nome_motorista",
+     "nome_veiculo",
+     "codigo_tipo_excecao",
+     "nome_excecao",
+     "status_excecao",
+     "nivel_excecao"
+    ],
+    "title": "JourneyExceptionDTO",
+    "type": "object"
+   },
+   "PaginatedJourneyExceptions": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/JourneyExceptionDTO"
+      },
+      "title": "Items",
+      "type": "array"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     },
+     "total_pages": {
+      "title": "Total Pages",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "items",
+     "total",
+     "total_pages"
+    ],
+    "title": "PaginatedJourneyExceptions",
+    "type": "object"
+   },
+   "GetDiariasQueryDto": {
+    "properties": {
+     "data_inicial": {
+      "description": "Data e hora inicial do período de consulta (ISO 8601).",
+      "example": "2025-06-01T00:00:00",
+      "format": "date-time",
+      "title": "Data Inicial",
+      "type": "string"
+     },
+     "data_final": {
+      "description": "Data e hora final do período de consulta (ISO 8601). Máximo de 31 dias após data_inicial.",
+      "example": "2025-06-30T23:59:59",
+      "format": "date-time",
+      "title": "Data Final",
+      "type": "string"
+     },
+     "cpf": {
+      "anyOf": [
+       {
+        "maxLength": 11,
+        "minLength": 11,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "CPF do motorista (sem formatação).",
+      "example": "82529331010",
+      "title": "Cpf"
+     },
+     "cnpj_filial": {
+      "anyOf": [
+       {
+        "maxLength": 14,
+        "minLength": 14,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "CNPJ da filial (sem formatação).",
+      "example": "12345678000199",
+      "title": "Cnpj Filial"
+     },
+     "codigo_escala": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Código identificador da escala.",
+      "example": "123",
+      "title": "Codigo Escala"
+     }
+    },
+    "required": [
+     "data_inicial",
+     "data_final"
+    ],
+    "title": "GetDiariasQueryDto",
+    "type": "object"
+   },
+   "DiariaItemDto": {
+    "properties": {
+     "tipo": {
+      "description": "Tipo da diária (ex.: Inteira, Meia).",
+      "example": "Inteira",
+      "title": "Tipo",
+      "type": "string"
+     },
+     "pais": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Sigla do país (BR, AR, UY, PY etc.). Presente apenas quando o cliente utiliza controle de diárias internacionais.",
+      "example": "BR",
+      "title": "Pais"
+     },
+     "quantidade": {
+      "description": "Quantidade de diárias desse tipo/país no período.",
+      "title": "Quantidade",
+      "type": "integer"
+     },
+     "valor_unitario": {
+      "description": "Valor unitário vigente da diária.",
+      "example": 150.0,
+      "title": "Valor Unitario",
+      "type": "number"
+     },
+     "valor_total": {
+      "description": "Valor total (quantidade × valor vigente no período).",
+      "example": 1500.0,
+      "title": "Valor Total",
+      "type": "number"
+     }
+    },
+    "required": [
+     "tipo",
+     "quantidade",
+     "valor_unitario",
+     "valor_total"
+    ],
+    "title": "DiariaItemDto",
+    "type": "object"
+   },
+   "DiariasResponseDto": {
+    "properties": {
+     "periodo": {
+      "$ref": "#/components/schemas/PeriodoDto"
+     },
+     "motoristas": {
+      "items": {
+       "$ref": "#/components/schemas/MotoristaDiariasDto"
+      },
+      "title": "Motoristas",
+      "type": "array"
+     }
+    },
+    "required": [
+     "periodo",
+     "motoristas"
+    ],
+    "title": "DiariasResponseDto",
+    "type": "object"
+   },
+   "MotoristaDiariasDto": {
+    "properties": {
+     "cpf": {
+      "title": "Cpf",
+      "type": "string"
+     },
+     "nome": {
+      "title": "Nome",
+      "type": "string"
+     },
+     "diarias": {
+      "items": {
+       "$ref": "#/components/schemas/DiariaItemDto"
+      },
+      "title": "Diarias",
+      "type": "array"
+     },
+     "valor_total": {
+      "description": "Soma dos valores totais de todos os tipos/países.",
+      "title": "Valor Total",
+      "type": "number"
+     }
+    },
+    "required": [
+     "cpf",
+     "nome",
+     "diarias",
+     "valor_total"
+    ],
+    "title": "MotoristaDiariasDto",
+    "type": "object"
+   },
+   "PeriodoDto": {
+    "properties": {
+     "data_inicial": {
+      "format": "date-time",
+      "title": "Data Inicial",
+      "type": "string"
+     },
+     "data_final": {
+      "format": "date-time",
+      "title": "Data Final",
+      "type": "string"
+     }
+    },
+    "required": [
+     "data_inicial",
+     "data_final"
+    ],
+    "title": "PeriodoDto",
+    "type": "object"
+   }
+  },
+  "securitySchemes": {
+   "GlobalAuth": {
+    "type": "http",
+    "scheme": "bearer"
+   }
+  }
+ },
+ "servers": []
+}
