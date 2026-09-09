@@ -129,6 +129,7 @@ _FONTES_ROTULO = {
     "ferias": "Férias — Vencimento",
     "ferias_custo": "Férias — Custo e passivo",
     "cnh_motoristas": "CNH dos Motoristas",
+    "frequencia_ponto": "Frequência e Banco de Horas",
     "gestao_acoes": "Planos de Ação",
     "ritual_semanal": "Ritual Semanal — Execução & Resultados",
     "jornada_raster": "Jornada do Motorista",
@@ -618,6 +619,17 @@ def _fontes_do_snapshot() -> dict:
         from api.queries_folha import get_cnh
         return get_cnh()
 
+    def _frequencia():
+        """Ponto e banco de horas do administrativo — escalares.
+
+        O modulo publica `resumo_escalares()` justamente para isto: ele
+        escolhe campo a campo o que pode subir, em vez de deixar o snapshot
+        peneirar um payload que tem nome de gente dentro. E nao dispara
+        coleta: le do mesmo cache das telas.
+        """
+        from api.frequencia import resumo_escalares
+        return resumo_escalares()
+
     def _jornada_raster():
         """Só os KPIs e a defasagem — nunca a lista de motoristas.
 
@@ -980,6 +992,11 @@ def _fontes_do_snapshot() -> dict:
         "ferias": _ferias,
         "ferias_custo": _ferias_custo,
         "cnh_motoristas": _cnh,
+        # FREQUENCIA E BANCO DE HORAS. So ESCALAR: o passivo, a fracao da
+        # hora extra que vira dinheiro e o atraso da apuracao. A lista de
+        # pessoas com saldo NAO sobe -- ela tem nome, chapa e filial, e o
+        # snapshot vai para modelo externo.
+        "frequencia_ponto": _frequencia,
         "gestao_acoes": _gestao,
         "ritual_semanal": _ritual,
         "jornada_raster": _jornada_raster,

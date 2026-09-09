@@ -1926,6 +1926,34 @@ def _servicos() -> list[dict]:
         servicos.append({"nome": "Banco da Folha (Oracle)", "status": "info",
                          "detalhe": "driver indisponível"})
 
+    # PONTO ELETRÔNICO — a importação do AFD. Cartão PRÓPRIO, e não um detalhe
+    # do Oracle: o banco pode estar de pé e a apuração parada, que é o estado
+    # em que a tela de Frequência mostra número velho sem ninguém perceber.
+    #
+    # O LIMIAR É DA CADÊNCIA DELE, não do relógio: a importação é MANUAL, com
+    # mediana de 3 dias entre execuções e máximo histórico de 18. Um alarme
+    # diário aqui acenderia todo dia e ensinaria a ignorar — o que se mede é
+    # "saiu da cadência normal", não "não rodou hoje".
+    try:
+        from . import db_folha
+        if db_folha.configured():
+            from .frequencia import frescor as _frescor_ponto
+            fp = _frescor_ponto()
+            dias = fp.get("dias_atraso") or 0
+            if dias <= 4:
+                st, obs = "ok", "dentro da cadência (importação manual)"
+            elif dias <= 8:
+                st, obs = "alerta", "acima da cadência normal de 3 dias"
+            else:
+                st, obs = "erro", "muito acima do maior intervalo já visto (18 dias)"
+            servicos.append({
+                "nome": "Ponto eletrônico (importação do AFD)", "status": st,
+                "detalhe": f"marcações até {fp.get('ultimo_dia') or '—'} · "
+                           f"{dias} dia(s) atrás · {obs}"})
+    except Exception as exc:  # noqa: BLE001
+        # Falha aqui NÃO derruba a Saúde: o cartão some e o resto continua.
+        log.warning("saude: frescor do ponto: %s", exc)
+
     # BANCO DE ESCRITA DO CÓRTEX (PostgreSQL local). É o destino dos dez SQLite
     # de data/, migrados um por vez. Fica ao lado dos outros dois bancos porque
     # é o terceiro: ERP (réplica de terceiro), Folha (Oracle) e este, o da casa.

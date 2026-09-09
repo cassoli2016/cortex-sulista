@@ -3170,6 +3170,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#cnh" class="sub" data-view="cnh" title="CNH dos Motoristas — vencimento e cobertura do cadastro"><span class="ic" data-ic="cnhic"></span><span>CNH dos Motoristas</span></a>
         <a href="#folha" class="sub" data-view="folha" title="Custo de Folha (GLOBUS)"><span class="ic" data-ic="folhaic"></span><span>Custo de Folha</span></a>
         <a href="#ferias" class="sub" data-view="ferias" title="Férias — vencimento pela CLT, quem está de férias e quem precisa agendar"><span class="ic" data-ic="feriasic"></span><span>Férias — Vencimento</span></a>
+        <a href="#freq" class="sub" data-view="freq" title="Frequência e Banco de Horas — passivo de horas, saldo por pessoa e saúde das batidas"><span class="ic" data-ic="freqic"></span><span>Frequência e Banco de Horas</span></a>
         <a href="#hc" class="sub" data-view="hc" title="Headcount — quadro de funcionários"><span class="ic" data-ic="hcic"></span><span>Headcount</span></a>
         <a href="#he" class="sub" data-view="he" title="Horas Extras — composição por evento, famílias e áreas"><span class="ic" data-ic="heic"></span><span>Horas Extras</span></a>
         <a href="#folhaind" class="sub" data-view="folhaind" title="Indicadores de Folha — férias, CNH, hora extra, banco de horas"><span class="ic" data-ic="folhaindic"></span><span>Indicadores de Folha</span></a>
@@ -7290,6 +7291,71 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
       </section>
+      <!-- FREQUENCIA E BANCO DE HORAS
+           O modulo de frequencia do Globus e do ADMINISTRATIVO: 92 dos 195
+           ativos tem `TEMFREQUENFUNC='S'`, e os 81 motoristas nao batem ponto
+           (jornada deles e a Lei 13.103, e mora na tela `jorn`). Todo
+           denominador aqui e o publico com frequencia, e a tela DIZ isso no
+           cabecalho — sobre 195 o percentual mentiria por um fator de dois. -->
+      <section class="view" id="view-freq">
+        <div id="freq-avisos"></div>
+        <div class="card">
+          <div class="head"><h2>Frequência e Banco de Horas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Ponto eletrônico do ERP GLOBUS (tabelas FRQ_*), somente leitura. O público é quem tem frequência no cadastro (TEMFREQUENFUNC='S') — motorista não bate ponto e não entra em nenhum número desta tela. O saldo de banco de horas é o da competência escolhida, e o padrão é a última FECHADA: a importação do AFD é manual, então o mês em curso não é parcial, é indeterminado. O custo do passivo é uma estimativa a 50% sobre salário base ÷ 220, e a premissa aparece no rodapé do cartão.">i</span></h2>
+            <span class="hint" id="freq-hint">carregando…</span>
+            <div class="cardfilters">
+              <label style="color:var(--n600);font-size:13px;align-self:center">Competência</label>
+              <select id="fFreqComp" onchange="loadFreq()"></select>
+            </div>
+          </div>
+        </div>
+        <div class="subtabs" role="tablist" data-abas="freq" aria-label="Seções desta tela">
+          <button role="tab" id="tabfreq-passivo" data-aba="passivo" aria-controls="aba-freq-passivo" aria-selected="true" onclick="abaTrocar('freq','passivo')">Passivo</button>
+          <button role="tab" id="tabfreq-pessoas" data-aba="pessoas" aria-controls="aba-freq-pessoas" aria-selected="false" onclick="abaTrocar('freq','pessoas')">Por pessoa <span class="aban" id="freqNPess"></span></button>
+          <button role="tab" id="tabfreq-batidas" data-aba="batidas" aria-controls="aba-freq-batidas" aria-selected="false" onclick="abaTrocar('freq','batidas')">Batidas <span class="aban" id="freqNAvisos"></span></button>
+          <button role="tab" id="tabfreq-abs" data-aba="abs" aria-controls="aba-freq-abs" aria-selected="false" onclick="abaTrocar('freq','abs')">Absenteísmo</button>
+        </div>
+        <div class="aba" data-abas="freq" data-aba="passivo" id="aba-freq-passivo" role="tabpanel" aria-labelledby="tabfreq-passivo">
+          <div class="kband"><div class="kpis k4" id="kpis-freq"></div></div>
+          <div class="grid2">
+            <div class="card"><div class="head"><h2>O passivo ao longo do tempo</h2><span class="hint">saldo credor × devedor · 14 meses · mês em curso hachurado</span></div>
+              <div class="chartwrap"><div id="chartFreqSerie" style="width:100%;height:230px" role="img"></div></div></div>
+            <div class="card"><div class="head"><h2>Para onde vai a hora extra</h2><span class="hint" id="freq-destino-hint">12 meses fechados · só quem tem ponto</span></div>
+              <div class="chartwrap"><div id="chartFreqDestino" style="width:100%;height:230px" role="img"></div></div></div>
+          </div>
+          <div class="card"><div class="head"><h2>Concentração do saldo credor</h2><span class="hint" id="freq-faixa-hint">quem deve mais folga · faixa por horas acumuladas</span></div>
+            <div class="tablewrap" id="freq-faixas"></div>
+            <div id="freq-fonte" style="color:var(--n500);font-size:11.5px;margin-top:9px"></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="freq" data-aba="pessoas" id="aba-freq-pessoas" role="tabpanel" aria-labelledby="tabfreq-pessoas" hidden>
+          <div class="card"><div class="head"><h2>Saldo por pessoa</h2><span class="hint" id="freq-pess-hint">credor primeiro · variação contra 6 meses atrás</span></div>
+            <div class="tablewrap tabroll" id="freq-pessoas"></div></div>
+          <div class="card"><div class="head"><h2>Conferir no cadastro <span class="ihelp" tabindex="0" role="img" aria-label="por que estes saem dos KPIs" title="Saldo alto que praticamente não se move não é jornada: é registro que ninguém fechou. O corte é a razão entre o movimento de 6 meses e o próprio saldo (menos de 0,10, com saldo de 100 h ou mais) — medido sobre a distribuição real, que tem degrau claro nesse ponto. Estes saem dos KPIs de propósito: um único saldo congelado de −823,5 h deslocaria o saldo líquido da casa em 23%, para o lado errado e em silêncio.">i</span></h2><span class="hint" id="freq-cad-hint">fora dos KPIs, com a evidência</span></div>
+            <div class="tablewrap" id="freq-cadastro"></div></div>
+        </div>
+        <div class="aba" data-abas="freq" data-aba="batidas" id="aba-freq-batidas" role="tabpanel" aria-labelledby="tabfreq-batidas" hidden data-ao-abrir="loadFreqBatidas">
+          <div class="kband"><div class="kpis k4" id="kpis-freqbat"></div></div>
+          <div class="grid2">
+            <div class="card"><div class="head"><h2>De onde vem a marcação</h2><span class="hint">relógio × digitada pelo DP · % digitada em linha</span></div>
+              <div class="chartwrap"><div id="chartFreqOrigem" style="width:100%;height:220px" role="img"></div></div></div>
+            <div class="card"><div class="head"><h2>Marcação ajustada à mão</h2><span class="hint">% dos dias-pessoa com alteração</span></div>
+              <div class="chartwrap"><div id="chartFreqAjuste" style="width:100%;height:220px" role="img"></div></div></div>
+          </div>
+          <div class="card"><div class="head"><h2>Motivo do ajuste</h2><span class="hint" id="freq-mot-hint">o que o DP declara ao alterar</span></div>
+            <div class="tablewrap" id="freq-motivos"></div></div>
+        </div>
+        <!-- ABSENTEISMO EM ABA PROPRIA, e nao por gosto: com ele junto das
+             batidas a aba dava 933px contra o teto de 900 da regua. Encolher
+             os graficos resolveria o numero e nao o problema — falta e
+             atestado sao pergunta de GESTAO DE PESSOAS, e origem da marcacao e
+             pergunta de APURACAO. Estavam juntos so porque couberam. -->
+        <div class="aba" data-abas="freq" data-aba="abs" id="aba-freq-abs" role="tabpanel" aria-labelledby="tabfreq-abs" hidden>
+          <div class="card"><div class="head"><h2>Faltas e atestados</h2><span class="hint" id="freq-abs-hint">dias-pessoa · sobre os dias efetivamente trabalhados</span></div>
+            <div class="chartwrap"><div id="chartFreqAbs" style="width:100%;height:250px" role="img"></div></div></div>
+          <div class="card"><div class="head"><h2>Mês a mês</h2><span class="hint">o mês em curso sai marcado — a importação do AFD é manual</span></div>
+            <div class="tablewrap tabroll" id="freq-abs-tab"></div></div>
+        </div>
+      </section>
       <section class="view" id="view-custos">
         <div class="card">
           <div class="head"><h2>Painel de Custos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Compras da empresa no período: abastecimentos (notas simplificadas do ERP, frota própria) e itens de ordem de compra, com e sem nota fiscal, classificados pelo agrupador gerencial do plano de contas. Os filtros de origem e filial valem para todos os cartões e tabelas desta tela. Fonte e hora da consulta no rodapé deste card.">i</span></h2><span class="hint">combustível + ordens de compra · por agrupador gerencial · com/sem NF</span></div>
@@ -9317,6 +9383,9 @@ const ICONS = {
   orgp: IC('<rect x="9" y="2.5" width="6" height="5" rx="1"/><rect x="3" y="16.5" width="6" height="5" rx="1"/><rect x="15" y="16.5" width="6" height="5" rx="1"/><path d="M12 7.5v4M6 16.5v-2h12v2M12 14.5v-3"/>'),
   cog: IC('<circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>'),
   heic: IC('<path d="M6 3h12M6 21h12M7.5 3c0 4.5 3.5 6 4.5 8.5C13 9 16.5 7.5 16.5 3M7.5 21c0-4.5 3.5-6 4.5-8.5 1 2.5 4.5 4 4.5 8.5"/>'),
+  // Frequencia: relogio de ponto (mostrador + ponteiros) com a marca do
+  // registro na base — e ponto batido, nao hora que passa.
+  freqic: IC('<circle cx="12" cy="11" r="7.5"/><path d="M12 7v4.2l2.8 1.8M5 20.5h14"/>'),
   home: IC('<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/>'),
   fin:  IC('<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'),
   rec:  IC('<path d="M12 4v12M6 10l6 6 6-6"/><path d="M4 20h16"/>'),
@@ -9445,7 +9514,7 @@ function tvRecarregar(v){
   if(esTv(v) && mapa[v]) mapa[v]();
 }
 
-const VIEWS = { tvcom:'Painel TV — Comunicação', tvjor:'Painel TV — Jornada', home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Central de Documentos', eqp:'Equipamentos', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', gesind:'Ritual — Indicadores e Metas', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { tvcom:'Painel TV — Comunicação', tvjor:'Painel TV — Jornada', home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Central de Documentos', eqp:'Equipamentos', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', freq:'Frequência e Banco de Horas', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', gesind:'Ritual — Indicadores e Metas', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -9590,6 +9659,8 @@ let folhaindSeq = 0;
 let DATAFOLHAIND = null;
 let heSeq = 0;
 let DATAHE = null;
+let freqSeq = 0, freqBatSeq = 0;
+let DATAFREQ = null, DATAFREQBAT = null;
 let custosSeq = 0;
 let DATACUSTOS = null;
 let pecasSeq = 0;
@@ -9722,7 +9793,7 @@ const VIEW_GROUP = {home:'',cop:'',apps:'',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',pecas:'Sup',
   prodveic:'Bi',fat:'Ctr',gr:'Ope',tvcli:'Bi',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',tvcom:'Bi',tvjor:'Bi',
-  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',rhmot:'Rh',people:'Rh',des:'Rh',gestao:'Adm',srv:'Adm',sup:'Spt',supfila:'Spt',doc:'Adm',aud:'Adm',integ:'Adm',mon:'Adm',gesacao:'Ges',gesata:'Ges',gesrit:'Ges',gesind:'Ges',
+  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',freq:'Rh',cnh:'Rh',ferias:'Rh',rhmot:'Rh',people:'Rh',des:'Rh',gestao:'Adm',srv:'Adm',sup:'Spt',supfila:'Spt',doc:'Adm',aud:'Adm',integ:'Adm',mon:'Adm',gesacao:'Ges',gesata:'Ges',gesrit:'Ges',gesind:'Ges',
   // Telemetria e ANTT tinham grupo na barra lateral mas ficaram de fora deste
   // mapa: o acordeao nao abria sozinho ao navegar para elas (agora a busca
   // global navega, entao isso passou a incomodar de verdade).
@@ -9973,7 +10044,7 @@ function semFilterbar(v){
   // como estão porque mexer neles não foi pedido, mas têm o mesmo defeito.)
   return v==='tvjor'||v==='cop'||v==='mon'||v==='aud'||v==='integ'||v==='apps'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='gesind'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='antport'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='rhmot'||v==='pneus'||v==='people'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='eqp';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='freq'||v==='custos'||v==='pecas'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='antport'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='rhmot'||v==='pneus'||v==='people'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='eqp';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','').split('?')[0];   // `#sup?chamado=12` é a tela sup
@@ -10112,8 +10183,8 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,pecas:DATAPECAS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={apps:loadApps,integ:loadInteg,dfe:loadDfe,eqp:loadEqp,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,freq:DATAFREQ,custos:DATACUSTOS,pecas:DATAPECAS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
+  const LOADMAP={apps:loadApps,integ:loadInteg,dfe:loadDfe,eqp:loadEqp,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,freq:loadFreq,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -10177,6 +10248,7 @@ const NAV_KW={
   oc:'compra ordem fornecedor entrada nota', custos:'custo painel despesa', pecas:'peça preço mediana sobrepreço fornecedor cotação oficina manutenção',
   hc:'headcount quadro pessoas colaboradores', folha:'salario folha pagamento custo pessoal',
   folhaind:'indicador folha rh', he:'hora extra sobreaviso adicional',
+  freq:'frequencia ponto batida banco de horas saldo compensacao absenteismo falta atestado ajuste marcacao afd relogio passivo',
   rh:'vaga recrutamento contratacao selecao', home:'inicio visao geral resumo dashboard',
   cop:'copiloto ia chat pergunta assistente', gestao:'usuario perfil acesso permissao auditoria seguranca',
   srv:'servidor saude infra api banco tunel',
@@ -12235,7 +12307,7 @@ function reloadCurrent(){
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,prodveic:loadProdveic,
-    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
+    torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,freq:loadFreq,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
     cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   (M[currentView()]||load)();
 }
@@ -30409,6 +30481,184 @@ function renderHe(d){
   document.getElementById('he-eventos').innerHTML=`<table><thead><tr><th>Evento</th><th>Família</th><th class="num">Colab.</th><th class="num">Valor</th><th class="num">% do total</th></tr></thead><tbody>${ev}</tbody></table>`;
   const hint=document.getElementById('he-ev-hint'); if(hint) hint.textContent=(d.eventos||[]).length+' eventos na competência '+d.competencia+' · '+BRL.format(k.total_mes||0);
 }
+/* ============ Frequência e Banco de Horas (freq) =========================
+   O PÚBLICO É 92, NÃO 195, e a tela diz os dois no cabeçalho. Motorista não
+   bate ponto (jornada dele é a Lei 13.103, tela `jorn`), então percentual
+   sobre o quadro inteiro mentiria por um fator de dois.
+
+   A tela CARIMBA o `#meta`: ela responde "e agora?" — quanto a empresa deve
+   em folga e se a apuração está enxergando os últimos dias. Tela que carimba
+   e não preenche fica em "carregando…" para sempre, que se lê como travada.  */
+async function loadFreq(){
+  const seq=++freqSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading'); skelKpis('kpis-freq',4);
+  try{
+    const sel=document.getElementById('fFreqComp'); const comp=sel&&sel.value?('?comp='+sel.value):'';
+    const r=await fetch('/api/rh/frequencia/banco-horas'+comp,{cache:'no-store'});
+    const rr=await respostaJSON(r); if(seq!==freqSeq) return;
+    if(!rr.ok){ showBanner((rr.dados||{}).mensagem||'Erro ao consultar a frequência.', (rr.dados||{}).detalhe); return; }
+    const d=rr.dados;
+    if(d.configurado===false){ showBanner(d.mensagem||'Banco da folha não configurado.'); return; }
+    hideBanner(); DATAFREQ=d; renderFreq(d); LOADEDQS.freq=qsView('freq');
+    // a aba de batidas carrega sozinha quando abre (data-ao-abrir), mas o
+    // contador de avisos precisa existir ANTES: é ele que chama a atenção
+    // para a aba que ninguém abriria.
+    loadFreqBatidas();
+  }catch(e){ if(seq===freqSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===freqSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+function renderFreq(d){
+  const k=d.kpis||{}, pb=d.publico||{}, fr=d.frescor||{};
+  reconciliarCompetencias(document.getElementById('fFreqComp'), d.competencias, d.competencia);
+  const nf=(v,c)=>Number(v||0).toLocaleString('pt-BR',{maximumFractionDigits:c==null?0:c});
+  const ts=new Date();
+  document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+ts.toLocaleDateString('pt-BR');
+
+  const hint=document.getElementById('freq-hint');
+  if(hint) hint.textContent=pb.com_frequencia+' de '+pb.ativos+' ativos têm ponto · competência '+
+    (d.competencia||'—')+' · última marcação em '+(fr.ultimo_dia?fmtD(fr.ultimo_dia):'—');
+
+  // KPIs. O passivo é o número-rei: é ele que não existia em lugar nenhum.
+  const serie=d.serie||[], fechadas=serie.filter(s=>!s.parcial);
+  const ant=fechadas.length>1?fechadas[fechadas.length-2]:null;
+  const atu=fechadas.length?fechadas[fechadas.length-1]:null;
+  document.getElementById('kpis-freq').innerHTML=[
+    kpi('Passivo de banco de horas', nf(k.passivo_horas,1)+' h', BRL.format(k.passivo_custo||0)+' estimado · '+k.pessoas_credoras+' pessoas',
+        (k.passivo_horas||0)>0?'neg':'', 'Horas que a empresa deve em folga na competência escolhida. O custo é estimativa: '+(d.premissa_custo||''),
+        ant&&atu?trendChip(atu.credor, ant.credor, {invert:true}):''),
+    kpi('Saldo líquido', nf(k.saldo_liquido,1)+' h', 'credor '+nf(k.passivo_horas,0)+' h · devedor '+nf(Math.abs(k.horas_devedoras||0),0)+' h',''),
+    kpi('Saldos que sobem', k.credoras_subindo+' de '+k.pessoas_credoras, 'cresceram nos últimos 6 meses',
+        (k.credoras_subindo||0) > (k.pessoas_credoras||0)/2 ? 'neg':''),
+    kpi('Maior saldo individual', nf(k.maior_saldo,1)+' h', (k.em_cadastro?k.em_cadastro+' fora dos KPIs, a conferir':'nenhum saldo parado'),
+        (k.maior_saldo||0)>=300?'neg':''),
+  ].join('');
+
+  // A série: credor × devedor. O mês em curso vai junto, MARCADO — escondê-lo
+  // faria a série parecer terminada num mês que ainda não fechou.
+  chartCols('chartFreqSerie', serie.map(s=>s.comp.slice(2)+(s.parcial?'*':'')),
+    [{nome:'Credor (a empresa deve)', cor:CC.amarelo, valores:serie.map(s=>s.credor)},
+     {nome:'Devedor', cor:CC.azul, valores:serie.map(s=>s.devedor)}],
+    {fmt:v=>nf(v,0)+' h', axisFmt:v=>nf(v,0)+' h', tipo:'num'});
+
+  // Destino da HE: a pergunta central de um regime de banco de horas.
+  const dh=d.destino_he||{};
+  chartHBars('chartFreqDestino', [
+    {rotulo:'Paga em dinheiro', valor:dh.pago_horas||0},
+    {rotulo:'Creditada no banco', valor:dh.creditado_horas||0},
+    {rotulo:'Compensada em folga', valor:dh.compensado_horas||0},
+  ], {cor:CC.roxo, fmt:v=>nf(v,0)+' h'});
+  const dhint=document.getElementById('freq-destino-hint');
+  if(dhint) dhint.textContent=(dh.janela||'')+' · '+nf(dh.pct_em_dinheiro,1)+'% da hora extra vira dinheiro · '+
+    BRL.format(dh.pago_reais||0)+' pagos';
+
+  // Faixas do saldo credor
+  const fx=(d.faixas||[]).map(f=>`<tr><td>${esc(f.faixa)}</td><td class="num">${f.pessoas}</td><td class="num" style="font-weight:600">${nf(f.horas,1)} h</td><td class="num">${BRL.format(f.custo)}</td></tr>`).join('')
+    ||'<tr><td colspan="4" style="color:var(--n500)">ninguém com saldo credor nesta competência</td></tr>';
+  document.getElementById('freq-faixas').innerHTML=
+    `<table><thead><tr><th>Faixa</th><th class="num">Pessoas</th><th class="num">Horas</th><th class="num">Custo estimado</th></tr></thead><tbody>${fx}</tbody></table>`;
+  const fh=document.getElementById('freq-faixa-hint');
+  if(fh) fh.textContent='custo estimado = '+(d.premissa_custo||'');
+  const ff=document.getElementById('freq-fonte'); if(ff) ff.textContent=d.fonte||'';
+
+  // Por pessoa
+  const ps=d.pessoas||[];
+  abaContador('freqNPess', ps.length);
+  const ph=document.getElementById('freq-pess-hint');
+  if(ph) ph.textContent=ps.length+' pessoas com saldo · credor primeiro · variação contra '+
+    (serie.length>6?serie[serie.length-7].comp:'6 meses atrás');
+  const linhas=ps.map(p=>{
+    const v=p.variacao_6m;
+    const chip = v==null ? '<span style="color:var(--n400)">—</span>'
+      : `<span class="badge ${v>0?'b-warn':(v<0?'b-ok':'')}">${v>0?'+':''}${nf(v,1)} h</span>`;
+    const sit = p.situacao==='A' ? '' : `<span class="badge b-dang" title="não está ativo — saldo devia ter sido acertado">${p.situacao==='F'?'afastado':'desligado'}</span>`;
+    return `<tr><td>${esc(p.chapa)}</td><td>${esc(p.nome)} ${sit}</td><td>${esc(p.filial)}</td><td>${esc(p.funcao)}</td>`+
+      `<td class="num" style="font-weight:600;color:${p.horas>0?'var(--yellow)':'var(--n600)'}">${nf(p.horas,1)} h</td>`+
+      `<td class="num">${p.custo?BRL.format(p.custo):'—'}</td><td class="num">${chip}</td></tr>`;
+  }).join('')||'<tr><td colspan="7" style="color:var(--n500)">ninguém com saldo nesta competência</td></tr>';
+  document.getElementById('freq-pessoas').innerHTML=
+    `<table><thead><tr><th>Chapa</th><th>Nome</th><th>Filial</th><th>Função</th><th class="num">Saldo</th><th class="num">Custo estimado</th><th class="num">6 meses</th></tr></thead><tbody>${linhas}</tbody></table>`;
+
+  // Conferir no cadastro — fora dos KPIs, com a evidência
+  const cad=d.cadastro||[];
+  const ch=document.getElementById('freq-cad-hint');
+  if(ch) ch.textContent=cad.length?(cad.length+' saldo(s) fora dos KPIs'):'nenhum saldo parado nesta competência';
+  document.getElementById('freq-cadastro').innerHTML=cad.length
+    ? `<table><thead><tr><th>Chapa</th><th>Nome</th><th>Filial</th><th class="num">Saldo</th><th class="num">Movimento 6m</th><th>Por que está aqui</th></tr></thead><tbody>`+
+      cad.map(c=>`<tr><td>${esc(c.chapa)}</td><td>${esc(c.nome)}</td><td>${esc(c.filial)}</td>`+
+        `<td class="num" style="font-weight:600">${nf(c.horas,1)} h</td><td class="num">${nf(c.movimento_6m,1)} h</td>`+
+        `<td style="color:var(--n600)">${esc(c.motivo||'')}</td></tr>`).join('')+'</tbody></table>'
+    : '<div style="color:var(--n500);padding:9px 0">Nenhum saldo parado nesta competência — todos se movimentaram nos últimos 6 meses.</div>';
+}
+
+/* A aba de batidas tem consulta PRÓPRIA e carrega sozinha: quem abre a tela
+   para ver o passivo não deve pagar por ela. */
+async function loadFreqBatidas(){
+  const seq=++freqBatSeq;
+  skelKpis('kpis-freqbat',4);
+  try{
+    const r=await fetch('/api/rh/frequencia/batidas?meses=12',{cache:'no-store'});
+    const rr=await respostaJSON(r); if(seq!==freqBatSeq) return;
+    if(!rr.ok) return;                       // o banner já veio do carregamento principal
+    const d=rr.dados;
+    if(d.configurado===false) return;
+    DATAFREQBAT=d; renderFreqBatidas(d);
+  }catch(e){ /* a aba principal já reporta a falha de rede */ }
+}
+function renderFreqBatidas(d){
+  const nf=(v,c)=>Number(v||0).toLocaleString('pt-BR',{maximumFractionDigits:c==null?0:c});
+  const fr=d.frescor||{}, av=d.avisos||[], og=d.origem||[], aj=d.ajustes||[], ab=d.absenteismo||[];
+  const ogF=og.filter(o=>!o.parcial), ajF=aj.filter(a=>!a.parcial), abF=ab.filter(a=>!a.parcial);
+  const uo=ogF[ogF.length-1]||{}, ua=ajF[ajF.length-1]||{}, ux=abF[abF.length-1]||{};
+
+  abaContador('freqNAvisos', av.length);
+  document.getElementById('freq-avisos').innerHTML=av.map(a=>
+    `<div class="avisofaixa">${esc(a.titulo)} — <span style="font-weight:400">${esc(a.detalhe)}</span></div>`).join('');
+
+  document.getElementById('kpis-freqbat').innerHTML=[
+    kpi('A apuração enxerga até', fr.ultimo_dia?fmtD(fr.ultimo_dia):'—',
+        fr.dias_atraso+' dia(s) atrás · importação manual', (fr.dias_atraso||0)>5?'neg':((fr.dias_atraso||0)>2?'warn':'')),
+    kpi('Marcação digitada pelo DP', nf(uo.pct_digitada,1)+'%', 'em '+(uo.mes||'—')+' · não veio do relógio',
+        (uo.pct_digitada||0)>=10?'neg':''),
+    kpi('Dias com ajuste manual', nf(ua.pct,0)+'%', (ua.dias_ajustados||0)+' de '+(ua.dias_total||0)+' dias-pessoa em '+(ua.mes||'—'),
+        (ua.pct||0)>=25?'neg':''),
+    kpi('Absenteísmo', nf(ux.pct_falta,1)+'%', (ux.faltas||0)+' dias de falta e '+(ux.atestados||0)+' de atestado em '+(ux.mes||'—'),
+        (ux.pct_falta||0)>=7?'neg':''),
+  ].join('');
+
+  const rot=s=>s.mes.slice(2)+(s.parcial?'*':'');
+  chartCols('chartFreqOrigem', og.map(rot),
+    [{nome:'Relógio (AFD)', cor:CC.verde, valores:og.map(o=>o.relogio)},
+     {nome:'Digitada pelo DP', cor:CC.amarelo, valores:og.map(o=>o.digitada)}],
+    {stacked:true, fmt:v=>nf(v,0), axisFmt:v=>nf(v,0), tipo:'num'});
+  chartArea('chartFreqAjuste', aj.map(rot),
+    [{nome:'% dos dias com ajuste', cor:CC.roxo, valores:aj.map(a=>a.pct)}],
+    {fmt:v=>nf(v,1)+'%', axisFmt:v=>nf(v,0)+'%', tipo:'num'});
+  chartCols('chartFreqAbs', ab.map(rot),
+    [{nome:'Faltas', cor:CC.vermelho, valores:ab.map(a=>a.faltas)},
+     {nome:'Atestados', cor:CC.azul, valores:ab.map(a=>a.atestados)}],
+    {stacked:true, fmt:v=>nf(v,0)+' dias', axisFmt:v=>nf(v,0), tipo:'num'});
+
+  // A tabela mensal do absenteísmo: o mês em curso sai MARCADO, porque com
+  // importação manual ele não é "mês fraco", é mês que ninguém importou.
+  document.getElementById('freq-abs-tab').innerHTML=
+    `<table><thead><tr><th>Mês</th><th class="num">Faltas</th><th class="num">Atestados</th><th class="num">Dias trabalhados</th><th class="num">% falta</th></tr></thead><tbody>`+
+    (ab.slice().reverse().map(a=>`<tr><td>${esc(a.mes)}${a.parcial?' <span class="badge">parcial</span>':''}</td>`+
+      `<td class="num">${nf(a.faltas,0)}</td><td class="num">${nf(a.atestados,0)}</td>`+
+      `<td class="num">${nf(a.trabalhados,0)}</td><td class="num" style="font-weight:600">${nf(a.pct_falta,1)}%</td></tr>`).join('')
+      ||'<tr><td colspan="5" style="color:var(--n500)">sem dado no período</td></tr>')+'</tbody></table>';
+  const ah=document.getElementById('freq-abs-hint');
+  if(ah) ah.textContent='dias-pessoa · '+(abF.length?('último mês fechado: '+ux.mes+' com '+nf(ux.pct_falta,1)+'% de falta'):'sem mês fechado no período');
+
+  const tot=(d.motivos||[]).reduce((s,m)=>s+m.n,0)||1;
+  document.getElementById('freq-motivos').innerHTML=
+    `<table><thead><tr><th>Motivo declarado</th><th class="num">Ajustes</th><th class="num">%</th></tr></thead><tbody>`+
+    ((d.motivos||[]).map(m=>`<tr><td>${esc(m.motivo)}</td><td class="num">${nf(m.n,0)}</td><td class="num">${nf(100*m.n/tot,1)}%</td></tr>`).join('')
+      ||'<tr><td colspan="3" style="color:var(--n500)">nenhum ajuste no período</td></tr>')+'</tbody></table>';
+  const mh=document.getElementById('freq-mot-hint');
+  if(mh) mh.textContent=nf(tot,0)+' ajustes em '+d.meses+' meses · defasagem da digitação: mediana de '+
+    nf((d.defasagem||{}).mediana_dias,0)+' dias';
+}
+
 // ---------------- Compras da OS (sub-aba de Manutenção) ----------------
 /* Sub-aba, NÃO tela: herda RBAC, ícone e menu de #man. Carrega só quando a aba
    abre (data-ao-abrir), porque a consulta é própria e ninguém deve pagar por
@@ -43085,6 +43335,7 @@ boot();
         <a href="#cnh" onclick="fecharDrawer()"><span class="ic" data-ic="cnhic"></span>CNH dos Motoristas</a>
         <a href="#folha" onclick="fecharDrawer()"><span class="ic" data-ic="folhaic"></span>Custo de Folha</a>
         <a href="#ferias" onclick="fecharDrawer()"><span class="ic" data-ic="feriasic"></span>Férias — Vencimento</a>
+        <a href="#freq" onclick="fecharDrawer()"><span class="ic" data-ic="freqic"></span>Frequência e Banco de Horas</a>
         <a href="#hc" onclick="fecharDrawer()"><span class="ic" data-ic="hcic"></span>Headcount</a>
         <a href="#he" onclick="fecharDrawer()"><span class="ic" data-ic="heic"></span>Horas Extras</a>
         <a href="#folhaind" onclick="fecharDrawer()"><span class="ic" data-ic="gauge"></span>Indicadores de Folha</a>

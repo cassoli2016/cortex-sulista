@@ -1108,8 +1108,9 @@ grupos:
   - pecas
 - nome: Pessoas
   resumo: Vagas e tempo de preenchimento, headcount, custo de folha, indicadores de RH, horas extras,
-    vencimento de CNH dos motoristas, controle de férias pela CLT, a premiação de motoristas por economia,
-    a avaliação de desempenho pela matriz nine box e o canal direto entre o RH e o motorista.
+    frequência e banco de horas do administrativo, vencimento de CNH dos motoristas, controle de férias
+    pela CLT, a premiação de motoristas por economia, a avaliação de desempenho pela matriz nine box e
+    o canal direto entre o RH e o motorista.
   telas:
   - rhmot
   - rh
@@ -1117,6 +1118,7 @@ grupos:
   - folha
   - folhaind
   - he
+  - freq
   - cnh
   - ferias
   - people

@@ -1,3 +1,38 @@
+- versao: "1.30.0"
+  data: "2026-09-09"
+  adicionado:
+    - >-
+      Tela nova em Recursos Humanos: Frequencia e Banco de Horas. Ela mostra o
+      que a empresa deve em folga — hoje 5.838 horas com 60 pessoas, cerca de
+      R$ 123 mil — com o saldo de cada um, quanto ele cresceu nos ultimos seis
+      meses e quem ja passou de 200 e de 300 horas.
+    - >-
+      A tela responde a pergunta que faltava sobre o regime de banco de horas:
+      para onde vai a hora extra. Nos doze meses fechados, 57,5% dela foi paga
+      em dinheiro (R$ 222 mil) em vez de virar folga, e do que entrou no banco
+      so dois tercos voltaram compensados.
+    - >-
+      A aba Batidas mostra se a apuracao esta sa: quanto da marcacao veio do
+      relogio e quanto foi digitado pelo Departamento Pessoal, quantos dias
+      tiveram ajuste manual e com que motivo, e ate que dia a apuracao
+      enxerga. Ela avisa sozinha quando algum desses sai da normalidade.
+    - >-
+      A Saude do Servidor ganhou o cartao "Ponto eletronico": ele diz ate
+      quando as marcacoes foram importadas e acende quando a importacao sai da
+      cadencia normal — o banco da folha pode estar de pe com a apuracao
+      parada, e antes isso nao aparecia em lugar nenhum.
+  corrigido:
+    - >-
+      Saldo de banco de horas que esta congelado ha meses (o caso tipico e o de
+      quem esta afastado) sai dos totais e vai para uma lista propria de
+      conferencia, com o motivo escrito. Antes um unico registro parado de
+      -823,5 horas deslocaria o saldo da casa em 23% sem ninguem perceber.
+    - >-
+      Toda tela do painel passou a ser conferida automaticamente contra os
+      cinco pontos onde ela precisa estar registrada (roteador, grupo do menu,
+      secao, barra lateral e gaveta do celular). Antes a conferencia olhava
+      duas telas escolhidas a mao, e telas novas ja tinham nascido fora do
+      menu do celular sem que nada quebrasse.
 - versao: "1.29.0"
   data: "2026-09-09"
   adicionado:

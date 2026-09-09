@@ -30,8 +30,8 @@ from fastapi.responses import JSONResponse as _JSONResponseBase
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
-from . import (alertas, auth, copiloto, db, documentacao, dre_cliente, lider,
-               push, queries, queries_folha, servidor)
+from . import (alertas, auth, copiloto, db, documentacao, dre_cliente,
+               frequencia, lider, push, queries, queries_folha, servidor)
 
 
 class JSONResponse(_JSONResponseBase):
@@ -5961,6 +5961,42 @@ def rh_folha_custo(comp: str | None = None) -> JSONResponse:
             "erro": "parametro_invalido", "mensagem": "comp inválido: use AAAA-MM."})
     try:
         return JSONResponse(queries_folha.get_custo_folha(comp))
+    except Exception as exc:  # noqa: BLE001
+        return _folha_erro(exc)
+
+
+@app.get("/api/rh/frequencia/banco-horas")
+def rh_frequencia_banco_horas(comp: str | None = None) -> JSONResponse:
+    """Passivo de banco de horas do administrativo, por pessoa.
+
+    O padrão é a última competência FECHADA: a importação do AFD é manual
+    (mediana de 3 dias entre execuções), então o mês em curso não é parcial,
+    é indeterminado.
+    """
+    import re
+    if comp and not re.match(r"^\d{4}-(0[1-9]|1[0-2])$", comp):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "comp inválido: use AAAA-MM."})
+    from api import db_folha as _dbf
+    if not _dbf.configured():
+        return JSONResponse({"configurado": False,
+                             "mensagem": "Banco da folha não configurado."})
+    try:
+        return JSONResponse({"configurado": True, **frequencia.get_banco_horas(comp)})
+    except Exception as exc:  # noqa: BLE001
+        return _folha_erro(exc)
+
+
+@app.get("/api/rh/frequencia/batidas")
+def rh_frequencia_batidas(meses: int = 12) -> JSONResponse:
+    """Saúde da apuração do ponto: origem da marcação, ajuste manual,
+    absenteísmo em dia-pessoa e o frescor da importação."""
+    from api import db_folha as _dbf
+    if not _dbf.configured():
+        return JSONResponse({"configurado": False,
+                             "mensagem": "Banco da folha não configurado."})
+    try:
+        return JSONResponse({"configurado": True, **frequencia.get_batidas(meses)})
     except Exception as exc:  # noqa: BLE001
         return _folha_erro(exc)
 

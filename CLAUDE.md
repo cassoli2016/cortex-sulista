@@ -128,7 +128,7 @@ a ACL em vez de afirmar a proteção.
 ## 3. Telas e módulos
 
 **O registro canônico das telas é `api/auth.py`** (`TELAS`, `ROTA_TELAS`,
-`VIEW_GROUP` no `index.html`). Hoje: **83 telas em `auth.TELAS`** + 3 fora
+`VIEW_GROUP` no `index.html`). Hoje: **87 telas em `auth.TELAS`** + 3 fora
 (`srv`, `gestao`, `jornf`, que não estão em `TELAS`). Duas das 83 — `sup` e
 `apps` — são de TODO usuário logado (`TELAS_TODO_LOGADO`): entram por sessão
 além do perfil. Organizadas assim:
@@ -143,7 +143,7 @@ além do perfil. Organizadas assim:
 | Suprimentos | oc, custos, pecas | AVA (`ordemcompra` × vínculo de NF × `aprovador`, estado em `api/suprimentos_oc.py`; preço de peça pela mediana do produto em `api/suprimentos_pecas.py`) |
 | Frota | comb, man (+ sub-abas Compras da OS e Recompra de peça), veic, mprev, comrast, veicf, mul, pneus | AVA + `smt_*` (Smartec) + `data/pneus/` + `api/manutencao_compras.py` |
 | Telemetria | prem, telcon, telcond, telhod | Gobrax (`api/gobrax/`) + `prem_*` |
-| Recursos Humanos | rh, hc, folha, folhaind, cnh, ferias, people, he | AVA (folha/Globus) |
+| Recursos Humanos | rh, hc, folha, folhaind, cnh, ferias, people, he, freq | AVA (folha/Globus) + ponto (`FRQ_*`) |
 | ANTT | anpiso, anrntrc | `config/antt_coeficientes.yaml`, `config/antt_cargas.yaml`, `rntrc_*` |
 | Business Intelligence | prodveic, tvfat, tvope, tvdir | AVA (tvdir lê a mesma /api/visao-geral da home) |
 | Gestão | gesacao, gesata, gesrit | `ges_*` (banco local) |
@@ -259,6 +259,22 @@ moram em arquivos que não falam do assunto.
   existe porque regra sem escape vira regra contornada por fora (alguém aponta
   verde no vermelho para poder fechar, e aí o painel mente); forçar fica
   gravado em `observacoes` com autor e data.
+- **O MÓDULO DE FREQUÊNCIA DO GLOBUS É DO ADMINISTRATIVO, e o denominador é
+  92 — não 195.** Motorista não bate ponto (a jornada dele é a Lei 13.103, em
+  `jorn`): os 81 motoristas têm ZERO digitação. Percentual sobre o quadro
+  mente por um fator de dois, e `frequencia.publico()` é a fonte única dessa
+  contagem. Três coisas medidas em 09/09/2026 que mudam o que a tela pode
+  afirmar: **a importação do AFD é MANUAL** (mediana de 3 dias entre
+  execuções, máximo de 18, uma única pessoa executando), então o mês em curso
+  não é parcial — é INDETERMINADO, e todo alarme mede mês FECHADO; o campo
+  `ABSENTEISMOCORR` do próprio Globus está `'N'` em TODAS as 33 ocorrências,
+  FALTAS inclusive, então relatório nativo de absenteísmo sai zerado e quem
+  separa falta de trabalho é o `CODOCORR`; e **saldo de banco de horas que não
+  se move não é jornada, é cadastro** — o corte é a razão `movimento de 6
+  meses ÷ |saldo|` (< 0,10, com |saldo| ≥ 100 h), medida sobre a distribuição
+  real, que tem degrau nesse ponto. Sem o corte, um único saldo congelado de
+  −823,5 h desloca o saldo líquido da casa em 23%, calado.
+  Guards: `tests/rh/test_frequencia.py`.
 - Integração é **módulo por fornecedor** em `api/<fornecedor>/` (gobrax,
   smartec, tomtom, whatsapp, monkey, jornada/RasterJOR, pedagio/QualP) — não
   existe hub genérico de conectores.
