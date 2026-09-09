@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.19.1] — 09/09/2026  ·  CX-09/09/2026-v1.19.1
+
+### Adicionado
+- Um painel de mural novo, "Painel TV — Jornada": quem está perto do teto legal de 5h30 de direção contínua, quem parou de reportar e quem está em jornada agora. É a jornada em tempo real na parede da sala, sem ninguém precisar abrir tela.
+- A coleta de jornada passa a trazer diária, evento, exceção e anomalia — as quatro tabelas que a auditoria de diárias pedia e que antes se remontavam a cada consulta.
+
+### Corrigido
+- O painel novo entrava no menu fora de ordem, entre "Cliente" e "Comunicação", na barra lateral e na gaveta do celular. Está no lugar alfabético, entre "Faturamento" e "Operação".
+
 ## [1.19.0] — 09/09/2026  ·  CX-09/09/2026-v1.19.0
 
 ### Adicionado
