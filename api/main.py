@@ -6645,17 +6645,47 @@ def ritual_painel(ciclo_id: int = 0) -> JSONResponse:
 
 @app.get("/api/ritual/cadastro")
 def ritual_cadastro() -> JSONResponse:
-    """Gerencias, indicadores e o CATALOGO de fontes automaticas."""
+    """O que o GERENTE precisa para preencher: acoes em aberto e pessoas.
+
+    ESTA ROTA FOI PARTIDA EM DUAS, e a divisao e por CONTEUDO e nao por
+    comodidade. Ela devolvia tambem gerencias, indicadores e o catalogo de
+    fontes -- ou seja, o cadastro inteiro -- e era chamada pelo modal de
+    preenchimento do gerente.
+
+    Mover a rota inteira para a tela de configuracao teria quebrado exatamente
+    o publico do ritual: sem `acoes` o gerente nao consegue vincular um
+    compromisso, que e o produto da reuniao. E mante-la inteira em `gesrit`
+    entregaria o catalogo de configuracao a quem nao pode configurar.
+
+    Entao cada lado leva o que usa: aqui o de preencher, em
+    `/api/ritual/config` o de configurar.
+    """
+    try:
+        from api.gestao import ritual
+        from api.gestao.comum import usuarios_ativos
+        return JSONResponse({"acoes": ritual.acoes_abertas(),
+                             "usuarios": usuarios_ativos()})
+    except Exception as exc:  # noqa: BLE001
+        return _ges_erro("ritual_cadastro", exc, "Erro ao ler o cadastro.")
+
+
+@app.get("/api/ritual/config")
+def ritual_config() -> JSONResponse:
+    """Gerencias, indicadores e o CATALOGO de fontes. Tela `gesind`.
+
+    Quem preenche o ritual NAO configura os indicadores pelos quais e
+    cobrado -- e por isso esta rota tem tela propria, e nao e uma aba herdando
+    o acesso da outra.
+    """
     try:
         from api.gestao import ritual
         from api.gestao.comum import usuarios_ativos
         return JSONResponse({"gerencias": ritual.gerencias(),
                              "indicadores": ritual.indicadores(),
                              "fontes": ritual.fontes_publicas(),
-                             "acoes": ritual.acoes_abertas(),
                              "usuarios": usuarios_ativos()})
     except Exception as exc:  # noqa: BLE001
-        return _ges_erro("ritual_cadastro", exc, "Erro ao ler o cadastro.")
+        return _ges_erro("ritual_config", exc, "Erro ao ler a configuração.")
 
 
 @app.post("/api/ritual/ciclo")

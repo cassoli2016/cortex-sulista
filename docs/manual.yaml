@@ -1001,6 +1001,7 @@ grupos:
   - gesacao
   - gesata
   - gesrit
+  - gesind
 - nome: Suporte
   resumo: >-
     Os chamados abertos pelo botão Reportar — a conversa com quem atende e os avisos por e-mail e

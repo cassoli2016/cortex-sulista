@@ -152,6 +152,17 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "gesacao": ("Planos de Ação", "Gestão"),
     "gesata":  ("Atas de Reunião", "Gestão"),
     "gesrit":  ("Ritual Semanal", "Gestão"),
+    # O CADASTRO DO RITUAL E UMA TELA, E NAO UMA ABA, POR CAUSA DO RBAC.
+    #
+    # A regra da casa e que sub-aba HERDA o acesso da tela que a contem. Como
+    # quem preenche o ritual (gerente) NAO pode configurar os indicadores pelos
+    # quais e cobrado, herdar era exatamente o que nao podia acontecer -- e a
+    # unica forma de a casa dizer "apenas quem tem permissao" e uma tela.
+    #
+    # A pergunta que separa aba de tela ("o roteador abre por hash?") responde
+    # sim aqui: publico diferente, frequencia diferente (configura-se uma vez,
+    # preenche-se toda semana).
+    "gesind":  ("Ritual — Indicadores e Metas", "Gestão"),
     "doc":     ("Documentação", "Administração"),
     # Auditoria e tela PROPRIA, com RBAC proprio: quem audita nao precisa da
     # Gestao inteira (usuarios, perfis, senhas) para ler a trilha.
@@ -223,6 +234,12 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/fiscal/contrapartida",     frozenset({"ctecp"})),
     # Gestão: o painel de acompanhamento serve as DUAS telas (é o mesmo
     # dado), e /atas vem antes de /acoes só pela convenção do arquivo.
+    # AS ESPECIFICAS VEM ANTES DA GENERICA: o middleware casa por prefixo, e
+    # `/api/ritual` engoliria as tres se viesse primeiro. Sem esta ordem,
+    # qualquer gerente com `gesrit` poderia EXCLUIR indicador.
+    ("/api/ritual/indicador",         frozenset({"gesind"})),
+    ("/api/ritual/gerencia",          frozenset({"gesind"})),
+    ("/api/ritual/config",            frozenset({"gesind"})),
     ("/api/ritual",                   frozenset({"gesrit"})),
     ("/api/gestao/painel",            frozenset({"gesacao", "gesata"})),
     ("/api/gestao/atas",              frozenset({"gesata", "gesacao"})),

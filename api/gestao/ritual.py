@@ -315,6 +315,35 @@ def ciclo_corrente(esquema: str | None = None) -> dict | None:
 
 # ============================================================ o painel
 
+def farol(desvio_pct, tol_verde, tol_vermelho) -> str | None:
+    """A COR, calculada a partir do desvio contra a meta.
+
+    POR QUE ELA E CALCULADA, E NAO ESCOLHIDA
+    ========================================
+    A decisao fundadora do modulo diz que "o realizado vem da FONTE, nao do
+    gerente". Ate 08/09/2026 isso valia so para o VALOR: a cor continuava
+    sendo digitada, e como nenhum dos 12 indicadores tinha meta, ela era
+    escolha inteiramente livre.
+
+    O numero objetivo com veredito subjetivo e o pior dos dois mundos: a
+    reuniao discute a cor, que e o que a regra de fechamento usa, e o rigor do
+    numero nao serve para nada. Calcular o farol e o que faz a pergunta da
+    sala ser "por que desviou" em vez de "por que voce pintou de amarelo".
+
+    `None` quando falta meta ou realizado -- e `None` NAO e verde. Linha sem
+    regua nao e linha sem problema, e pinta-la de verde faria o painel ficar
+    mais bonito exatamente onde ninguem mediu nada.
+    """
+    if desvio_pct is None:
+        return None
+    d = float(desvio_pct)
+    if d >= float(tol_verde if tol_verde is not None else 0):
+        return "verde"
+    if d >= float(tol_vermelho if tol_vermelho is not None else -10):
+        return "amarelo"
+    return "vermelho"
+
+
 def _desvio(meta, realizado, direcao):
     """Desvio percentual COM SINAL, orientado pelo que e bom.
 
@@ -346,11 +375,13 @@ def painel(ciclo_id: int, esquema: str | None = None) -> dict:
     linhas = _q("""
         SELECT i.id AS indicador_id, i.nome, i.unidade, i.direcao, i.fonte,
                i.casas, i.meta_padrao, i.ordem,
+               i.tol_verde, i.tol_vermelho,
                g.id AS gerencia_id, g.chave AS gerencia, g.nome AS gerencia_nome,
                g.ordem AS gerencia_ordem, g.gestor_id,
                u.nome AS gestor_nome,
                a.id AS apont_id, a.meta, a.realizado, a.realizado_auto,
                a.status, a.desvio, a.acao_id, a.prioridade,
+               a.status_calculado, a.status_motivo,
                a.preenchido_por, a.preenchido_em,
                ac.o_que AS acao_o_que, ac.prazo AS acao_prazo,
                ac.status AS acao_status, ac.percentual AS acao_percentual,
@@ -385,7 +416,39 @@ def painel(ciclo_id: int, esquema: str | None = None) -> dict:
         meta = d["meta"] if d["meta"] is not None else d["meta_padrao"]
         d["meta_valor"] = float(meta) if meta is not None else None
         d["desvio_pct"] = _desvio(d["meta_valor"], val, d["direcao"])
-        d["preenchido"] = bool(d["apont_id"] and d["status"])
+
+        # O FAROL E CALCULADO A CADA PINTURA, pelo mesmo motivo que o realizado
+        # automatico: o painel abre varias vezes entre a vespera e a reuniao, e
+        # a fonte pode ter mudado. O que ficou gravado no apontamento responde
+        # "o que estava na tela quando decidimos".
+        d["status_agora"] = farol(d["desvio_pct"], d["tol_verde"],
+                                  d["tol_vermelho"])
+        # O QUE A LINHA VALE, em TRES casos e nao dois:
+        #
+        #   1. discordou com motivo  -> vale a escolha da pessoa;
+        #   2. ha calculo            -> vale o calculo (e uma meta nova
+        #                               reflete na hora, sem depender de
+        #                               alguem reapontar);
+        #   3. NAO ha calculo        -> vale a escolha, que e a unica fonte
+        #                               de cor que a linha tem.
+        #
+        # O caso 3 nasceu de um defeito: sem ele, `status_agora` nulo APAGAVA
+        # a cor escolhida, e como os 12 indicadores da casa estao sem meta, o
+        # painel inteiro ficava sem cor por mais que alguem preenchesse.
+        d["status"] = (d["status"] if d["status_motivo"]
+                       else (d["status_agora"] or d["status"]))
+        d["divergente"] = bool(d["status_motivo"]
+                               and d["status"] != d["status_agora"])
+        # SEM META E SEM REALIZADO SAO COISAS DIFERENTES, e a tela precisa
+        # dizer qual -- uma se conserta no cadastro, a outra na fonte.
+        d["sem_meta"] = d["meta_valor"] is None
+        for k in ("tol_verde", "tol_vermelho"):
+            if d.get(k) is not None:
+                d[k] = float(d[k])
+        # PREENCHIDO deixa de significar "alguem escolheu a cor": com o farol
+        # calculado, a linha ja nasce com cor. O que a reuniao ainda precisa e
+        # que alguem TENHA OLHADO -- e isso e o apontamento existir.
+        d["preenchido"] = bool(d["apont_id"])
         # Atraso da acao: DERIVADO, nunca gravado (mesma regra de ges_acoes).
         d["acao_atrasada"] = bool(
             d["acao_prazo"] and d["acao_status"] in ("aberta", "em_andamento")
@@ -411,10 +474,59 @@ def painel(ciclo_id: int, esquema: str | None = None) -> dict:
         "gerencias": list(ger.values()),
         "resumo": _resumo(fora),
         "pendencias": _pendencias(ger.values()),
+        "pendencias_de_cadastro": pendencias_de_cadastro(fora, ger.values()),
         "bloqueios": bloqueios(fora),
         "prioridades": [d for d in fora if d["prioridade"]],
         "fonte": "banco do CÓRTEX (ges_*) + as telas de cada indicador",
     }
+
+
+def pendencias_de_cadastro(linhas: list[dict], gerencias) -> list[dict]:
+    """O que falta CONFIGURAR para o ritual funcionar de verdade.
+
+    E uma lista diferente de `_pendencias`, e a diferenca decide a quem a tela
+    cobra. `_pendencias` diz quem nao PREENCHEU esta semana -- e trabalho do
+    gerente, toda semana. Esta diz o que nunca foi CONFIGURADO -- e trabalho de
+    quem cuida do cadastro, uma vez.
+
+    Sem ela, o modo de falha e mudo e foi exatamente o encontrado em
+    08/09/2026: os 12 indicadores sem meta e as 4 gerencias sem gestor. O
+    painel abria inteiro, com numero em toda linha, e nada dizia que o farol
+    nao podia funcionar. Um painel que parece completo e nao tem regua e pior
+    que um painel vazio, porque ninguem desconfia dele.
+    """
+    fora: list[dict] = []
+
+    sem_meta = [d["nome"] for d in linhas if d["sem_meta"]]
+    if sem_meta:
+        fora.append({
+            "tipo": "sem_meta", "quantos": len(sem_meta), "de": len(linhas),
+            "itens": sem_meta[:8],
+            "mensagem": "%d de %d indicadores estao SEM META. Sem meta nao ha "
+                        "desvio, e sem desvio o farol nao acende -- a linha "
+                        "aparece com numero e sem cor."
+                        % (len(sem_meta), len(linhas))})
+
+    sem_gestor = [g["nome"] for g in gerencias if not g["gestor"]]
+    if sem_gestor:
+        fora.append({
+            "tipo": "sem_gestor", "quantos": len(sem_gestor),
+            "de": len(list(gerencias)), "itens": sem_gestor,
+            "mensagem": "%d gerencia(s) sem gestor: %s. A lista de quem nao "
+                        "preencheu existe para dizer A QUEM cobrar, e sem "
+                        "gestor ela nao sabe."
+                        % (len(sem_gestor), ", ".join(sem_gestor))})
+
+    orfas = [d["nome"] for d in linhas if d.get("fonte_orfa")]
+    if orfas:
+        fora.append({
+            "tipo": "fonte_orfa", "quantos": len(orfas), "de": len(linhas),
+            "itens": orfas[:8],
+            "mensagem": "%d indicador(es) apontam para uma fonte que nao "
+                        "existe mais no catalogo: %s. Eles ficariam vazios "
+                        "para sempre sem dar erro."
+                        % (len(orfas), ", ".join(orfas[:4]))})
+    return fora
 
 
 def _resumo(linhas: list[dict]) -> dict:
@@ -429,6 +541,11 @@ def _resumo(linhas: list[dict]) -> dict:
         "sem_status": sum(1 for d in linhas if not d["status"]),
         "sem_acao": sum(1 for d in linhas if d["exige_acao"]),
         "automaticos": sum(1 for d in linhas if d["automatico"]),
+        # SEM META e contado a parte de "sem_status" de proposito: os dois
+        # aparecem como linha sem cor, e o conserto de cada um e em lugar
+        # diferente -- um no cadastro, outro na fonte.
+        "sem_meta": sum(1 for d in linhas if d.get("sem_meta")),
+        "divergentes": sum(1 for d in linhas if d.get("divergente")),
     }
 
 
@@ -492,11 +609,65 @@ def apontar(ciclo_id: int, indicador_id: int, dados: dict, usuario: str = "",
                 (ciclo_id, indicador_id), esquema=esquema) or {}
 
     campos: dict = {}
+
+    # O FAROL CALCULADO E GRAVADO SEMPRE, junto do apontamento: e ele que
+    # responde "o que o sistema dizia quando decidimos", e sem isso a
+    # divergencia entre o calculado e o escolhido some no dia em que a meta
+    # mudar.
+    val_auto = ler_fonte(ind["fonte"]) if ind["fonte"] != "manual" else None
+    meta_ef = dados.get("meta") if "meta" in dados else atual.get("meta")
+    if meta_ef in (None, ""):
+        meta_ef = ind["meta_padrao"]
+    val_ef = val_auto if ind["fonte"] != "manual" else (
+        dados.get("realizado") if "realizado" in dados else atual.get("realizado"))
+    campos["status_calculado"] = farol(
+        _desvio(_numero(meta_ef, "meta"), _numero(val_ef, "realizado"),
+                ind["direcao"]),
+        ind.get("tol_verde"), ind.get("tol_vermelho"))
+
     if "status" in dados:
         st = (dados["status"] or "").strip()
         if st and st not in STATUS:
             raise DadoInvalido("Semáforo inválido: use verde, amarelo ou vermelho.")
-        campos["status"] = st
+        # DISCORDAR DO FAROL E UM ATO, e ato tem motivo.
+        #
+        # A saida existe porque as vezes o calculo esta errado mesmo: o mes teve
+        # um evento que a meta nao previa, a fonte contou o que nao devia.
+        # Tirar a saida faria alguem contornar por fora -- mexer na meta ate a
+        # cor sair certa --, e ai o painel mente sem deixar rastro.
+        #
+        # Mas exigir o motivo e o que impede a discordancia de virar o estado
+        # NORMAL. Sem ele, em duas semanas todo mundo pinta a mao de novo e o
+        # farol calculado vira enfeite.
+        motivo = (dados.get("status_motivo") or "").strip()
+        # SO SE HA COR CALCULADA E QUE ESCOLHER OUTRA E DISCORDAR.
+        #
+        # Sem meta nao ha desvio, sem desvio nao ha farol, e a escolha da
+        # pessoa e a UNICA fonte de cor da linha -- exigir que ela justifique
+        # discordar de coisa nenhuma tornaria o indicador impossivel de
+        # preencher. Com os 12 indicadores da casa hoje sem meta, isso
+        # travaria o ritual inteiro.
+        #
+        # A regra existe para impedir que a discordancia vire o estado normal
+        # ONDE HA CALCULO -- e nao para punir quem ainda nao tem regua.
+        if st and campos["status_calculado"] and st != campos["status_calculado"]:
+            if len(motivo) < 10:
+                raise DadoInvalido(
+                    "Para apresentar %s onde o cálculo diz %s, explique por quê "
+                    "(pelo menos 10 caracteres). O motivo fica registrado com o "
+                    "seu nome." % (st, campos["status_calculado"] or "sem cor"))
+            campos["status"] = st
+            campos["status_motivo"] = motivo
+        else:
+            # Concordou (ou limpou): a linha volta a seguir o calculo.
+            # `or ""` porque a coluna e NOT NULL: sem meta o calculo e None, e
+            # gravar None estoura a transacao inteira -- o apontamento que a
+            # pessoa acabou de fazer se perde por causa de um cadastro
+            # incompleto que nao e culpa dela.
+            campos["status"] = st or campos["status_calculado"] or ""
+            campos["status_motivo"] = None
+    elif not atual.get("status_motivo"):
+        campos["status"] = campos["status_calculado"] or atual.get("status") or ""
     if "desvio" in dados:
         campos["desvio"] = comum.texto(dados["desvio"], "desvio", obrigatorio=False)
     if "meta" in dados:
@@ -787,6 +958,11 @@ def indicadores(esquema: str | None = None) -> list[dict]:
         d = dict(r)
         d["meta_padrao"] = (float(d["meta_padrao"])
                             if d["meta_padrao"] is not None else None)
+        # Decimal nao sobrevive ao JSONResponse: converte no LIMITE do modulo,
+        # e nao no render(), onde o estouro cai DEPOIS do try/except da rota.
+        for k in ("tol_verde", "tol_vermelho"):
+            if d.get(k) is not None:
+                d[k] = float(d[k])
         d["automatico"] = d["fonte"] != "manual"
         d["fonte_onde"] = FONTES[d["fonte"]].onde if d["fonte"] in FONTES else ""
         d["fonte_orfa"] = d["automatico"] and d["fonte"] not in FONTES
@@ -816,21 +992,38 @@ def salvar_indicador(dados: dict, esquema: str | None = None) -> dict:
     direcao = (dados.get("direcao") or "maior_melhor").strip()
     if direcao not in ("maior_melhor", "menor_melhor"):
         raise DadoInvalido("Direção inválida: use maior_melhor ou menor_melhor.")
+    # AS FAIXAS DO FAROL. Vazio cai no padrao (0 e -10) em vez de virar NULO:
+    # a coluna e NOT NULL, e um NULO aqui faria `farol()` cair no default de
+    # qualquer jeito -- so que sem ninguem conseguir VER qual e a regra da
+    # linha. Regra invisivel e regra que a proxima pessoa descobre errando.
+    tolv = _numero(dados.get("tol_verde"), "faixa do verde")
+    tolr = _numero(dados.get("tol_vermelho"), "faixa do vermelho")
+    tolv = 0.0 if tolv is None else float(tolv)
+    tolr = -10.0 if tolr is None else float(tolr)
+    if tolr > tolv:
+        raise DadoInvalido(
+            "A faixa do vermelho (%g) tem de ser MENOR que a do verde (%g). "
+            "Como está, não sobra faixa para o amarelo — e o painel só teria "
+            "duas cores." % (tolr, tolv))
+
     campos = (nome, ger, (dados.get("unidade") or "").strip()[:20], direcao,
               fonte, _numero(dados.get("meta_padrao"), "meta"),
+              tolv, tolr,
               max(0, min(4, int(dados.get("casas") or 0))),
               int(dados.get("ordem") or 0),
               1 if dados.get("ativo", 1) else 0)
     if ind_id:
         _exec("""UPDATE ges_indicadores
                     SET nome=%s, gerencia_id=%s, unidade=%s, direcao=%s,
-                        fonte=%s, meta_padrao=%s, casas=%s, ordem=%s, ativo=%s
+                        fonte=%s, meta_padrao=%s, tol_verde=%s, tol_vermelho=%s,
+                        casas=%s, ordem=%s, ativo=%s
                   WHERE id=%s""", (*campos, ind_id), esquema=esquema)
         return {"id": ind_id}
     r = _um("""INSERT INTO ges_indicadores(nome, gerencia_id, unidade, direcao,
-                                           fonte, meta_padrao, casas, ordem,
+                                           fonte, meta_padrao, tol_verde,
+                                           tol_vermelho, casas, ordem,
                                            ativo, criado_em)
-               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+               VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
             (*campos, comum.agora()), esquema=esquema)
     return {"id": r["id"]}
 

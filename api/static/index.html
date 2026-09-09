@@ -3103,6 +3103,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#gesata" class="sub" data-view="gesata" title="Atas de Reunião — pauta, decisões e o plano de ação que saiu delas"><span class="ic" data-ic="doc"></span><span>Atas de Reunião</span></a>
         <a href="#gesacao" class="sub" data-view="gesacao" title="Planos de Ação — 5W2H com responsável, prazo e acompanhamento"><span class="ic" data-ic="fechic"></span><span>Planos de Ação</span></a>
         <a href="#gesrit" class="sub" data-view="gesrit" title="Ritual Semanal — o painel único da semana: meta, realizado, desvio, ação e prazo"><span class="ic" data-ic="gauge"></span><span>Ritual Semanal</span></a>
+        <a href="#gesind" class="sub" data-view="gesind" title="Ritual — Indicadores e Metas: o cadastro da régua pela qual as gerências são cobradas"><span class="ic" data-ic="gesindic"></span><span>Ritual — Indicadores</span></a>
       </div>
       <button class="group" id="grpOpe" aria-expanded="false" aria-controls="subsOpe" onclick="toggleGroup('grpOpe','subsOpe','cs.opeGroup')" title="Operação">
         <span class="ic" data-ic="ope"></span><span>Operação</span><span class="ic chev" data-ic="chev"></span>
@@ -8603,8 +8604,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                   aria-selected="true" onclick="abaTrocar('gesrit','painel')">Painel da semana <span class="aban" id="gesrit-n-painel"></span></button>
           <button role="tab" id="tabgesrit-cobr" data-aba="cobr" aria-controls="aba-gesrit-cobr"
                   aria-selected="false" onclick="abaTrocar('gesrit','cobr')">O que ficou combinado <span class="aban" id="gesrit-n-cobr"></span></button>
-          <button role="tab" id="tabgesrit-cad" data-aba="cad" aria-controls="aba-gesrit-cad"
-                  aria-selected="false" onclick="abaTrocar('gesrit','cad')">Indicadores <span class="aban" id="gesrit-n-cad"></span></button>
         </div>
 
         <div class="aba" data-abas="gesrit" data-aba="painel" id="aba-gesrit-painel" role="tabpanel" aria-labelledby="tabgesrit-painel">
@@ -8645,15 +8644,34 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
 
-        <div class="aba" data-abas="gesrit" data-aba="cad" id="aba-gesrit-cad" role="tabpanel" aria-labelledby="tabgesrit-cad" hidden data-ao-abrir="ritCadastro">
-          <div class="card">
-            <div class="head"><h2>Indicadores de cada gerência <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="CADASTRO, não código: a lista de indicadores muda com o negócio e cada mudança dela não pode custar uma entrega. FONTE diz de onde vem o realizado — &quot;automático&quot; aponta para um número que o CÓRTEX já calcula (e o indicador passa a não aceitar digitação), &quot;manual&quot; é digitado pelo gerente. A fonte é conferida contra o registro do servidor na gravação: chave inválida entraria como automática e ficaria vazia para sempre, sem erro nenhum. DIREÇÃO existe porque sem ela o semáforo erra metade dos indicadores: receita abaixo da meta é ruim, multa abaixo da meta é boa. Indicador que sai de uso é INATIVADO, nunca apagado — os painéis das semanas passadas citam ele.">ⓘ</span></h2>
-              <button class="btn" onclick="ritIndicadorModal(null)">+ Novo indicador</button></div>
-            <div class="tablewrap tabroll"><table><thead><tr>
-              <th>Gerência</th><th>Indicador</th><th>Unidade</th><th>Direção</th>
-              <th>Fonte do realizado</th><th class="num">Meta padrão</th><th></th>
-            </tr></thead><tbody id="rit-inds"></tbody></table></div>
+      </section>
+      <section class="view" id="view-gesind">
+        <div class="kband">
+          <div class="kband-rot">Régua do Ritual</div>
+          <div class="kpis k4" id="gesind-kpis"></div>
+        </div>
+        <div class="card">
+          <div class="head">
+            <h2>Gerências</h2>
+            <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="As quatro gerências do ritual e quem responde por cada uma. O GESTOR não é enfeite: a lista de quem não preencheu existe para dizer A QUEM cobrar, e sem gestor ela não sabe. Gerência que sai de uso é INATIVADA, nunca apagada — os painéis das semanas passadas citam ela.">ⓘ</span>
+            <button class="btn" onclick="ritGerenciaModal(null)">+ Nova gerência</button>
           </div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Gerência</th><th>Gestor responsável</th><th class="num">Indicadores</th><th></th>
+          </tr></thead><tbody id="gesind-gers"></tbody></table></div>
+        </div>
+        <div class="card">
+          <div class="head">
+            <h2>Indicadores e metas</h2>
+            <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="CADASTRO, não código: a lista muda com o negócio e cada mudança dela não pode custar uma entrega. FONTE diz de onde vem o realizado — automático aponta para um número que o CÓRTEX já calcula (e o indicador passa a não aceitar digitação), manual é digitado. A fonte é conferida contra o registro do servidor na gravação: chave inválida entraria como automática e ficaria vazia para sempre, sem erro nenhum. DIREÇÃO existe porque sem ela o semáforo erra metade dos indicadores: receita abaixo da meta é ruim, multa abaixo da meta é boa. A META e as FAIXAS decidem a cor no painel da semana — sem meta a linha aparece com número e sem cor, e o ritual perde a régua. Indicador que sai de uso é INATIVADO, nunca apagado.">ⓘ</span>
+            <button class="btn" onclick="ritIndicadorModal(null)">+ Novo indicador</button>
+          </div>
+          <div class="tablewrap tabroll"><table><thead><tr>
+            <th>Gerência</th><th>Indicador</th><th>Unidade</th><th>Direção</th>
+            <th>Fonte do realizado</th><th class="num">Meta</th>
+            <th class="num">Verde ≥</th><th class="num">Vermelho &lt;</th><th></th>
+          </tr></thead><tbody id="rit-inds"></tbody></table></div>
+          <div class="hint" id="gesind-hint"></div>
         </div>
       </section>
       <section class="view" id="view-integ">
@@ -9079,6 +9097,7 @@ const ICONS = {
   folhaic: IC('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9.5h4M7 13h6"/><circle cx="16.5" cy="11.5" r="2.3"/><path d="M16.5 10v3"/>'),
   qualic: IC('<rect x="4" y="3" width="16" height="13" rx="2"/><path d="M8 7.5h8M8 11h5"/><circle cx="12" cy="17" r="3"/><path d="m10.5 19.5-1 3 2.5-1.3 2.5 1.3-1-3"/>'),
   eqpic: IC('<path d="M3 17h2l1-5h11l1 5h3"/><path d="M6 12V7h7l3 5"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/>'),
+  gesindic: IC('<path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M3 20h18"/><circle cx="20" cy="7" r="2"/>'),
   dfeic: IC('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 14h6"/><path d="M9 17.5h3.5"/>'),
   tmsic: IC('<path d="M3 7h11v8H3z"/><path d="M14 10h4l3 3v2h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>'),
   pecasic: IC('<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-7.2-7.2A2 2 0 0 1 3 12V4a1 1 0 0 1 1-1h8a2 2 0 0 1 1.4.6l7.2 7.2a2 2 0 0 1 0 2.6Z"/><circle cx="7.5" cy="7.5" r="1.5"/>'),
@@ -9194,7 +9213,7 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
-const VIEWS = { tvcom:'Painel TV — Comunicação', home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Central de Documentos', eqp:'Equipamentos', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { tvcom:'Painel TV — Comunicação', home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Central de Documentos', eqp:'Equipamentos', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', gesind:'Ritual — Indicadores e Metas', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -9471,7 +9490,7 @@ const VIEW_GROUP = {home:'',cop:'',apps:'',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',pecas:'Sup',
   prodveic:'Bi',fat:'Ctr',gr:'Ope',tvcli:'Bi',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',tvcom:'Bi',
-  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',rhmot:'Rh',people:'Rh',des:'Rh',gestao:'Adm',srv:'Adm',sup:'Spt',supfila:'Spt',doc:'Adm',aud:'Adm',integ:'Adm',mon:'Adm',gesacao:'Ges',gesata:'Ges',gesrit:'Ges',
+  rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',cnh:'Rh',ferias:'Rh',rhmot:'Rh',people:'Rh',des:'Rh',gestao:'Adm',srv:'Adm',sup:'Spt',supfila:'Spt',doc:'Adm',aud:'Adm',integ:'Adm',mon:'Adm',gesacao:'Ges',gesata:'Ges',gesrit:'Ges',gesind:'Ges',
   // Telemetria e ANTT tinham grupo na barra lateral mas ficaram de fora deste
   // mapa: o acordeao nao abria sozinho ao navegar para elas (agora a busca
   // global navega, entao isso passou a incomodar de verdade).
@@ -9697,7 +9716,7 @@ function semFilterbar(v){
   // guard que existe (tests/antt/test_rntrc_tela_e2e.py) confere UMA tela e
   // não varre; até haver varredura, esta lista se confere à mão a cada tela
   // nova.
-  return v==='cop'||v==='mon'||v==='aud'||v==='integ'||v==='apps'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
+  return v==='cop'||v==='mon'||v==='aud'||v==='integ'||v==='apps'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='gesind'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
          v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='antport'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='rhmot'||v==='pneus'||v==='people'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='eqp';
 }
@@ -9794,7 +9813,7 @@ function router(){
   document.getElementById('grpFluxcon').style.display = fluxcon ? 'flex' : 'none';
   const ges = (v==='gestao');
   const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = semFilterbar(v) ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='prem'||v==='doc'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='apps') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (cop||ges||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='gesind'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='prem'||v==='doc'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='apps') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', semFilterbar(v)); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -9818,7 +9837,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,custos:DATACUSTOS,pecas:DATAPECAS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={apps:loadApps,integ:loadInteg,dfe:loadDfe,eqp:loadEqp,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+  const LOADMAP={apps:loadApps,integ:loadInteg,dfe:loadDfe,eqp:loadEqp,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -9890,6 +9909,7 @@ const NAV_KW={
   supfila:'fila suporte atendimento chamados sla avisos whatsapp email github',
   des:'avaliacao desempenho nine box potencial talento sucessao matriz 9box gestor equipe ciclo',
   aud:'auditoria uso acessos sessao tempo login trilha log seguranca telas',
+  gesind:'indicador meta ritual semanal regua farol semaforo gerencia gestor fonte automatica tolerancia verde amarelo vermelho cadastro configuracao',
   gesrit:'ritual semanal reuniao execucao resultados painel unico semana meta realizado desvio acao compromisso prioridade gerencia gerente indicador semaforo verde amarelo vermelho cobranca combinado 30 minutos',
   integ:'integracoes integracao fornecedor fornecedores conector conectores api token credencial gobrax smartec tomtom qualp rasterjor rasterintegra prolog monkey zapi whatsapp 3s tress smtp coleta parada sem dado status',
   mon:'monitoramento monitoramentos rastreio carga acompanhar aviso whatsapp inscricao inscricoes cliente telefone publica onde esta minha carga',
@@ -11674,7 +11694,7 @@ function reloadCurrent(){
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,prodveic:loadProdveic,
     torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
-    cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+    cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   (M[currentView()]||load)();
 }
 
@@ -39419,9 +39439,21 @@ function ritPainelRender(){
                           : '<div class="rit-auto">manual</div>')
           + (l.fonte_orfa ? '<div class="rit-falta">fonte desconhecida — o número nunca vai chegar</div>' : '')
         + '</td>'
-        + '<td class="num">' + esc(ritNum(l.meta_valor, l.unidade, l.casas)) + '</td>'
+        /* SEM META E DITO, e nao mostrado como travessao: travessao se le como
+           "nao se aplica", e aqui significa "o farol nao vai acender nesta
+           linha". O conserto e no cadastro, e a tela aponta para la. */
+        + '<td class="num">' + (l.sem_meta
+            ? '<span class="rit-falta" title="sem meta o farol nao acende - defina no cadastro de indicadores">sem meta</span>'
+            : esc(ritNum(l.meta_valor, l.unidade, l.casas))) + '</td>'
         + '<td class="num">' + esc(ritNum(l.valor, l.unidade, l.casas)) + '</td>'
-        + '<td>' + (l.status ? esc(l.status) : '<span class="muted">em branco</span>') + '</td>'
+        /* A COR CALCULADA MANDA, e a divergencia aparece com o motivo no
+           title. Mostrar so a cor apresentada esconderia que alguem discordou
+           do calculo -- e a discordancia e a informacao mais interessante da
+           linha, porque e onde o numero e a leitura do numero se separam. */
+        + '<td>' + (l.status ? esc(l.status) : '<span class="muted">em branco</span>')
+          + (l.divergente
+             ? '<div class="rit-falta" title="' + esc(l.status_motivo || '') + '">o cálculo diz '
+               + esc(l.status_agora || 'sem cor') + '</div>' : '') + '</td>'
         + '<td class="num">' + ritDesvio(l.desvio_pct) + '</td>'
         + '<td>' + (l.acao_o_que ? esc(l.acao_o_que)
                    : (l.exige_acao ? '<span class="rit-falta">falta ação</span>' : '<span class="muted">—</span>')) + '</td>'
@@ -39661,6 +39693,12 @@ function ritCobrancaRender(){
 
 /* ---------------------------- cadastro de indicadores --------------------- */
 
+/* DUAS CARGAS, DUAS TELAS, DUAS PERMISSOES.
+   `cadastro` traz o que o GERENTE precisa para preencher (acoes em aberto e
+   pessoas) e vive na tela `gesrit`. `config` traz o catalogo de configuracao
+   e vive na tela `gesind`, que so quem tem permissao enxerga. Uma chamada so
+   entregaria o catalogo a quem nao pode configurar -- e a rota nova recusaria
+   o gerente, quebrando o modal dele. */
 async function ritCarregarCadastro(){
   const r = await fetch('/api/ritual/cadastro', {cache:'no-store'});
   const d = await respostaJSON(r);
@@ -39668,9 +39706,57 @@ async function ritCarregarCadastro(){
   return RIT_CAD;
 }
 
-async function ritCadastro(){
-  await ritCarregarCadastro();
-  const inds = (RIT_CAD && RIT_CAD.indicadores) || [];
+let RIT_CFG = null;      // gerências, indicadores e fontes (tela gesind)
+
+async function ritCarregarConfig(){
+  const r = await fetch('/api/ritual/config', {cache:'no-store'});
+  const d = await respostaJSON(r);
+  if(!r.ok) throw new Error((d.dados && d.dados.mensagem) || ('HTTP ' + r.status));
+  RIT_CFG = d.dados;
+  return RIT_CFG;
+}
+
+async function loadGesind(){
+  try{
+    await ritCarregarConfig();
+  }catch(e){
+    document.getElementById('gesind-hint').textContent =
+      'Não foi possível ler a configuração: ' + (e.message || e);
+    return;
+  }
+  const inds = (RIT_CFG && RIT_CFG.indicadores) || [];
+  const gers = (RIT_CFG && RIT_CFG.gerencias) || [];
+
+  /* OS KPIs DESTA TELA MEDEM O PROPRIO CADASTRO, e nao o negocio: e a unica
+     tela cujo trabalho e deixar OUTRA tela funcionar. Sem meta o farol do
+     painel nao acende, e sem gestor a lista de pendencias nao sabe a quem
+     cobrar -- os dois numeros abaixo sao exatamente essas duas faltas. */
+  const semMeta = inds.filter(i => i.ativo && (i.meta_padrao === null || i.meta_padrao === undefined)).length;
+  const semGestor = gers.filter(g => g.ativa && !g.gestor_id).length;
+  const ativos = inds.filter(i => i.ativo).length;
+  const kpi = (rot, val, sub) =>
+    '<div class="kpi"><div class="klab">' + esc(rot) + '</div>'
+    + '<div class="kval">' + esc(val) + '</div>'
+    + '<div class="ksub">' + esc(sub || '') + '</div></div>';
+  document.getElementById('gesind-kpis').innerHTML =
+    kpi('Indicadores ativos', numBR(ativos), gers.filter(g=>g.ativa).length + ' gerências')
+    + kpi('Sem meta', numBR(semMeta),
+          semMeta ? 'aparecem no painel SEM COR' : 'todos com régua')
+    + kpi('Sem gestor', numBR(semGestor),
+          semGestor ? 'a cobrança não sabe a quem pedir' : 'todas com responsável')
+    + kpi('Automáticos', numBR(inds.filter(i => i.ativo && i.automatico).length),
+          'o resto é digitado pelo gerente');
+
+  document.getElementById('gesind-gers').innerHTML = gers.length
+    ? gers.map(g => '<tr' + (g.ativa ? '' : ' class="muted"') + '>'
+        + '<td>' + esc(g.nome) + (g.ativa ? '' : ' <span class="badge b-info">inativa</span>') + '</td>'
+        + '<td>' + (g.gestor_nome ? esc(g.gestor_nome)
+                    : '<span class="rit-falta">sem gestor</span>') + '</td>'
+        + '<td class="num">' + numBR(inds.filter(i => i.gerencia_id === g.id && i.ativo).length) + '</td>'
+        + '<td><button class="ghost sm" data-id="' + g.id + '" onclick="ritGerenciaModal(this.dataset.id)">Editar</button></td>'
+        + '</tr>').join('')
+    : '<tr><td colspan="4" class="vazio">Nenhuma gerência cadastrada.</td></tr>';
+
   document.getElementById('rit-inds').innerHTML = inds.length
     ? inds.map(i => '<tr' + (i.ativo ? '' : ' class="muted"') + '>'
         + '<td>' + esc(i.gerencia_nome) + '</td>'
@@ -39681,17 +39767,85 @@ async function ritCadastro(){
             ? ('<b>automático</b><div class="rit-auto" title="' + esc(i.fonte_onde) + '">' + esc(i.fonte) + '</div>'
                + (i.fonte_orfa ? '<div class="rit-falta">fonte desconhecida</div>' : ''))
             : 'manual') + '</td>'
-        + '<td class="num">' + esc(ritNum(i.meta_padrao, i.unidade, i.casas)) + '</td>'
+        /* META VAZIA E DITA, e nao mostrada como travessao: travessao se le
+           como "nao se aplica", e aqui significa "o farol nao vai acender". */
+        + '<td class="num">' + (i.meta_padrao === null || i.meta_padrao === undefined
+            ? '<span class="rit-falta">sem meta</span>'
+            : esc(ritNum(i.meta_padrao, i.unidade, i.casas))) + '</td>'
+        + '<td class="num">' + esc(ritPct(i.tol_verde)) + '</td>'
+        + '<td class="num">' + esc(ritPct(i.tol_vermelho)) + '</td>'
         + '<td><button class="ghost sm" data-id="' + i.id + '" onclick="ritIndicadorModal(this.dataset.id)">Editar</button></td>'
         + '</tr>').join('')
-    : '<tr><td colspan="7" class="vazio">Nenhum indicador cadastrado ainda.</td></tr>';
-  abaContador('gesrit-n-cad', inds.filter(i => i.ativo).length);
+    : '<tr><td colspan="9" class="vazio">Nenhum indicador cadastrado ainda.</td></tr>';
+
+  document.getElementById('gesind-hint').textContent = semMeta
+    ? 'As faixas são pontos percentuais de desvio contra a meta, já orientados: '
+      + 'positivo é sempre melhor. ' + semMeta + ' indicador(es) sem meta aparecem '
+      + 'no painel da semana com número e SEM COR.'
+    : 'As faixas são pontos percentuais de desvio contra a meta, já orientados: '
+      + 'positivo é sempre melhor que a meta.';
+}
+
+function ritPct(v){
+  return (v === null || v === undefined) ? '—' : (Number(v) > 0 ? '+' : '') + numBR(Number(v)) + '%';
+}
+
+/* O CADASTRO DE GERENCIA NAO EXISTIA NA TELA -- so a rota. E por isso que as
+   quatro gerencias estavam SEM GESTOR: nunca houve onde definir.
+
+   O gestor nao e enfeite. A lista de pendencias do painel existe para dizer A
+   QUEM cobrar o preenchimento, e sem gestor ela sabe o que falta e nao sabe de
+   quem. */
+async function ritGerenciaModal(id){
+  if(!RIT_CFG) await ritCarregarConfig();
+  const g = id ? (RIT_CFG.gerencias || []).find(x => String(x.id) === String(id)) : null;
+  const us = RIT_CFG.usuarios || [];
+  abrirModal(
+    '<h3>' + (g ? 'Editar gerência' : 'Nova gerência') + '</h3>'
+    + '<div class="ges-form">'
+    + '<div><label>Nome</label><input type="text" id="rit-g-nome" value="' + esc(g ? g.nome : '') + '"></div>'
+    + '<div><label>Chave</label><input type="text" id="rit-g-chave" value="' + esc(g ? g.chave : '') + '"'
+      + (g ? ' disabled' : '') + '>'
+      + '<div class="integ-dica">Identificador curto e sem espaço. Não muda depois de criada: '
+      + 'os painéis das semanas passadas citam ela.</div></div>'
+    + '<div><label>Gestor responsável</label><select id="rit-g-gestor">'
+      + '<option value="">— sem gestor —</option>'
+      + us.map(u => '<option value="' + u.id + '"'
+          + (g && String(g.gestor_id) === String(u.id) ? ' selected' : '') + '>'
+          + esc(u.nome) + '</option>').join('')
+      + '</select><div class="integ-dica">É a quem o painel cobra o preenchimento da semana.</div></div>'
+    + '<div><label>Ordem</label><input type="number" id="rit-g-ordem" value="' + (g ? g.ordem : 0) + '"></div>'
+    + '</div>'
+    + '<div class="m-foot"><span class="m-err" id="rit-g-err"></span>'
+      + '<button class="ghost" onclick="fecharModal()">Fechar</button>'
+      + '<button class="btn" data-id="' + (g ? g.id : '') + '" onclick="ritGerenciaSalvar(this.dataset.id)">Salvar</button></div>');
+}
+
+async function ritGerenciaSalvar(id){
+  const err = document.getElementById('rit-g-err');
+  err.textContent = '';
+  const corpo = {
+    id: id ? Number(id) : null,
+    nome: document.getElementById('rit-g-nome').value,
+    chave: document.getElementById('rit-g-chave').value,
+    gestor_id: document.getElementById('rit-g-gestor').value || null,
+    ordem: document.getElementById('rit-g-ordem').value};
+  let d;
+  try{
+    const r = await fetch('/api/ritual/gerencia', {method:'POST',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify(corpo)});
+    d = await respostaJSON(r);
+  }catch(e){ d = {ok:false, dados:{mensagem:'Sem conexão com a API.'}}; }
+  if(!d.ok){ err.textContent = (d.dados||{}).mensagem || 'Não foi possível salvar.'; return; }
+  RIT_CFG = null;
+  fecharModal();
+  await loadGesind();
 }
 
 async function ritIndicadorModal(id){
-  if(!RIT_CAD) await ritCarregarCadastro();
-  const i = id ? (RIT_CAD.indicadores || []).find(x => String(x.id) === String(id)) : null;
-  const gs = RIT_CAD.gerencias || [], fs = RIT_CAD.fontes || [];
+  if(!RIT_CFG) await ritCarregarConfig();
+  const i = id ? (RIT_CFG.indicadores || []).find(x => String(x.id) === String(id)) : null;
+  const gs = RIT_CFG.gerencias || [], fs = RIT_CFG.fontes || [];
   abrirModal(
     '<h3>' + (i ? 'Editar indicador' : 'Novo indicador') + '</h3>'
     + '<div class="ges-form">'
@@ -39752,6 +39906,8 @@ async function ritIndicadorSalvar(id){
     unidade: document.getElementById('rit-i-unidade').value,
     direcao: document.getElementById('rit-i-direcao').value,
     meta_padrao: document.getElementById('rit-i-meta').value,
+    tol_verde: document.getElementById('rit-i-tolv').value,
+    tol_vermelho: document.getElementById('rit-i-tolr').value,
     casas: document.getElementById('rit-i-casas').value};
   let d;
   try{
@@ -39760,10 +39916,9 @@ async function ritIndicadorSalvar(id){
     d = await respostaJSON(r);
   }catch(e){ d = {ok:false, dados:{mensagem:'Sem conexão com a API.'}}; }
   if(!d.ok){ err.textContent = (d.dados||{}).mensagem || 'Não foi possível salvar.'; return; }
-  RIT_CAD = null;
+  RIT_CFG = null;
   fecharModal();
-  await ritCadastro();
-  await loadGesrit();
+  await loadGesind();
 }
 
 async function ritIndicadorInativar(id){
@@ -39772,10 +39927,9 @@ async function ritIndicadorInativar(id){
   await fetch('/api/ritual/indicador', {method:'POST',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({id: Number(id), excluir: true})});
-  RIT_CAD = null;
+  RIT_CFG = null;
   fecharModal();
-  await ritCadastro();
-  await loadGesrit();
+  await loadGesind();
 }
 
 function dfeLimpar(){
@@ -40898,6 +41052,7 @@ boot();
         <a href="#gesata" onclick="fecharDrawer()"><span class="ic" data-ic="doc"></span>Atas de Reunião</a>
         <a href="#gesacao" onclick="fecharDrawer()"><span class="ic" data-ic="fechic"></span>Planos de Ação</a>
         <a href="#gesrit" onclick="fecharDrawer()"><span class="ic" data-ic="gauge"></span>Ritual Semanal</a>
+        <a href="#gesind" onclick="fecharDrawer()"><span class="ic" data-ic="gesindic"></span>Ritual — Indicadores</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Ope">
