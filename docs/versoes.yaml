@@ -1,3 +1,39 @@
+- versao: "1.25.0"
+  data: "2026-09-09"
+  adicionado:
+    - >-
+      O Plano 12 meses ganhou a composicao de CADA MES, no clique da linha:
+      de um lado o que esta LANCADO, do outro o que esta PROVISIONADO, e a
+      conta que liga os dois. Era o que faltava para a projecao poder ser
+      avaliada em vez de acreditada.
+    - >-
+      O lancado se confere por AMOSTRA, porque e fato: o total e REAL (nao a
+      soma de um top-N, que nao bate com a linha que abriu o detalhe) e a
+      lista traz credor, CNPJ mascarado, natureza, quantos titulos e o
+      intervalo de vencimento -- da para bater contra o ERP.
+    - >-
+      O provisionado se confere pela ORIGEM, porque e modelo: cada natureza
+      abre os seis meses fechados que a sustentam, JA DESSAZONALIZADOS, o
+      nivel que saiu deles e o indice do mes. Em nov/26, por exemplo:
+      Operacional com nivel de R$ 8,99 mi vindo de mar 9.163k, abr 9.355k,
+      mai 8.256k, jun 8.817k, jul 9.691k e ago 8.381k, vezes indice 1,01,
+      menos os R$ 259 mil lancados. A multiplicacao se refaz no papel.
+    - >-
+      E o detalhe diz quantas OBSERVACOES sustentam o indice daquele
+      mes-calendario. A media movel de 12 meses come seis meses de cada ponta
+      da serie, entao 43 meses de historia rendem duas ou tres observacoes por
+      mes -- um indice de tres e um de doze nao merecem a mesma confianca, e
+      quem avalia precisa saber qual dos dois esta olhando.
+    - >-
+      Do provisionado, a parte que ja e boleto registrado no banco aparece
+      separada e marcada como MEDIDA, com beneficiario e documento. E a unica
+      linha do modal que nao e estimativa.
+    - >-
+      O recorte do mes corrente e explicado na propria tela: so entra o que
+      ainda nao venceu, porque o comeco do mes ja esta dentro do saldo de
+      partida. Sem essa frase o total do detalhe parece nao bater com o do
+      mes, e a leitura mais provavel de dois numeros que nao batem e que o
+      sistema esta errado.
 - versao: "1.24.0"
   data: "2026-09-09"
   adicionado:

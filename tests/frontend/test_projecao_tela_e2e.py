@@ -266,3 +266,133 @@ def test_o_buraco_estrutural_diz_que_antecipar_nao_resolve(pagina):
     txt = pg.eval_on_selector("#proj-avisos", "e => e.textContent")
     assert "não se resolve antecipando" in txt, txt
     assert "resultado, prazo com fornecedor ou capital" in txt, txt
+
+
+# ------------------------------------------------ a composicao de um mes
+
+COMPOSICAO = {
+    "mes": "2026-11", "rotulo": "nov/26", "corrente": False,
+    "de": "2026-11-01", "ate": "2026-11-30",
+    "lancado": {
+        "total": 1_896_693.59, "titulos": 178, "credores_total": 39,
+        "por_natureza": [{"natureza": "Divida financeira", "valor": 1_159_000.0,
+                          "titulos": 40}],
+        "credores": [
+            {"credor": "BANCO EXEMPLO FINANCIAMENTOS SA", "natureza": "Divida financeira",
+             "doc": "60••••••••08", "valor": 1_159_000.0, "titulos": 40,
+             "primeiro": "2026-11-07", "ultimo": "2026-11-28",
+             "tipos": ["FINANCIAMENTO"]},
+        ],
+    },
+    "provisionado": {
+        "total": 10_322_188.64, "previsto": 12_218_882.23, "confianca": 0.16,
+        "dda": 69_363.59, "dda_manda": False,
+        "por_natureza": [
+            {"natureza": "Operacional", "lancado": 259_000.0,
+             "previsto": 9_079_000.0, "a_lancar": 8_820_000.0,
+             "completude": 0.09, "dispersao": 0.05, "indice": 1.01,
+             "resto_do_mes": 1.0, "metodo": "nivel", "divergencia": None,
+             "nivel": 8_990_000.0, "indice_n": 3,
+             "base": [{"mes": "2026-03", "rotulo": "mar/26", "valor": 9_163_000.0,
+                       "indice": 0.95, "dessazonalizado": 9_163_000.0},
+                      {"mes": "2026-08", "rotulo": "ago/26", "valor": 8_381_000.0,
+                       "indice": 1.12, "dessazonalizado": 8_381_000.0}]},
+            {"natureza": "Pessoal", "lancado": 0.0, "previsto": 1_089_000.0,
+             "a_lancar": 1_089_000.0, "completude": 0.0, "dispersao": 0.0,
+             "indice": 1.10, "resto_do_mes": 1.0, "metodo": "nivel",
+             "divergencia": None, "nivel": 992_000.0, "indice_n": 3, "base": []},
+        ],
+    },
+    "dda_boletos": [
+        {"beneficiario": "FORNECEDOR EXEMPLO LTDA", "doc": "55••••••••22",
+         "vencimento": "2026-11-10", "valor": 21_205.20,
+         "documento": "998", "tipo": "DM Duplicata Mercantil"},
+    ],
+    "atualizado_em": "2026-09-09T14:00:00", "fonte": "ERP AVA · …",
+}
+
+
+def _abrir_composicao(pagina):
+    pg, base = pagina
+
+    def rota(r):
+        url = r.request.url
+        if "/api/auth/me" in url:
+            body = USUARIO
+        elif "/api/financeiro/projecao/detalhe" in url:
+            body = COMPOSICAO
+        elif "/api/financeiro/projecao" in url:
+            body = PAYLOAD
+        elif "/api/financeiro/dda" in url:
+            body = DDA_DETALHE
+        else:
+            body = {}
+        r.fulfill(status=200, content_type="application/json", body=json.dumps(body))
+
+    pg.route("**/api/**", rota)
+    pg.goto(f"{base}/static/index.html#fluxcon")
+    pg.wait_for_timeout(500)
+    pg.evaluate("() => abaTrocar('fluxcon','planotab')")
+    pg.wait_for_timeout(400)
+    pg.evaluate("() => projComposicao('2026-11')")
+    pg.wait_for_timeout(500)
+    return pg
+
+
+def test_a_composicao_separa_o_lancado_do_provisionado(pagina):
+    """São dois números com naturezas de prova diferentes, e a tela não pode
+    apresentá-los como se fossem a mesma coisa."""
+    pg = _abrir_composicao(pagina)
+    txt = pg.eval_on_selector("#modalBox", "e => e.textContent")
+    assert "Composição de nov/26" in txt
+    assert "BANCO EXEMPLO FINANCIAMENTOS SA" in txt      # o lançado, com credor
+    assert "60••••••••08" in txt, "o documento tem de sair MASCARADO"
+    assert "178 títulos de 39 credores" in txt
+
+
+def test_a_composicao_mostra_a_MEMORIA_do_calculo(pagina):
+    """O que torna a provisão avaliável: os meses fechados que a sustentam, o
+    nível que saiu deles e o índice aplicado — dá para refazer no papel."""
+    pg = _abrir_composicao(pagina)
+    txt = pg.eval_on_selector("#modalBox", "e => e.textContent")
+    assert "mar/26" in txt and "ago/26" in txt, txt[:400]
+    assert "nível" in txt and "índice" in txt
+    # e o número de observações que sustentam o índice: 2 e 12 não valem igual
+    assert "n=3" in txt, txt[:400]
+
+
+def test_a_composicao_marca_o_que_e_MEDIDO(pagina):
+    """O boleto do banco é a única parte do provisionado que não é modelo."""
+    pg = _abrir_composicao(pagina)
+    txt = pg.eval_on_selector("#modalBox", "e => e.textContent")
+    assert "medido, não estimado" in txt
+    assert "FORNECEDOR EXEMPLO LTDA" in txt
+
+
+def test_o_mes_corrente_explica_o_recorte(pagina):
+    """Sem isto o total do detalhe pareceria não bater com o do mês."""
+    pg, base = pagina
+    corrente = json.loads(json.dumps(COMPOSICAO))
+    corrente.update({"corrente": True, "mes": "2026-09", "rotulo": "set/26",
+                     "de": "2026-09-09", "ate": "2026-09-30"})
+
+    def rota(r):
+        url = r.request.url
+        if "/api/auth/me" in url:
+            body = USUARIO
+        elif "/api/financeiro/projecao/detalhe" in url:
+            body = corrente
+        elif "/api/financeiro/projecao" in url:
+            body = PAYLOAD
+        else:
+            body = {}
+        r.fulfill(status=200, content_type="application/json", body=json.dumps(body))
+
+    pg.route("**/api/**", rota)
+    pg.goto(f"{base}/static/index.html#fluxcon")
+    pg.wait_for_timeout(500)
+    pg.evaluate("() => projComposicao('2026-09')")
+    pg.wait_for_timeout(500)
+    txt = pg.eval_on_selector("#modalBox", "e => e.textContent")
+    assert "só o que ainda não venceu" in txt, txt[:300]
+    assert "saldo de partida" in txt

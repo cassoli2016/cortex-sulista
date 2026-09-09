@@ -310,3 +310,43 @@ def test_recebivel_lancado_manda_quando_e_maior():
     assert linhas[0]["previsto"] == 5_000_000.0
     assert linhas[0]["a_faturar"] == 0.0
     assert linhas[0]["confianca"] == 1.0
+
+
+# ------------------------------------------- o detalhe de um mes (parte pura)
+
+def test_fim_do_mes_acerta_fevereiro_e_bissexto():
+    """O detalhe recorta ate o ultimo dia do mes, e somar 30 dias erraria em
+    quatro meses do ano — inclusive fevereiro, que tem a folha inteira."""
+    assert pj._fim_do_mes("2026-02") == date(2026, 2, 28)
+    assert pj._fim_do_mes("2028-02") == date(2028, 2, 29)   # bissexto
+    assert pj._fim_do_mes("2026-11") == date(2026, 11, 30)
+    assert pj._fim_do_mes("2026-12") == date(2026, 12, 31)
+
+
+def test_o_detalhe_reusa_o_motor_da_tabela():
+    """O detalhe NAO pode ter conta propria.
+
+    Duas implementacoes do mesmo numero divergem no primeiro dia em que alguem
+    mexe numa so — e o sintoma seria a tela dizendo R$ 10,3 mi na linha e outro
+    valor no modal que a linha abriu, que e o defeito que mais custa confianca.
+    Este guard le a fonte de `get_detalhe` e cobra a chamada a `projetar_saidas`.
+
+    A FONTE SAI DO DISCO, por `ast`, e nao de `inspect.getsource(pj.get_detalhe)`:
+    o `@cached` da casa nao usa `functools.wraps`, entao o que o `inspect`
+    devolve e o corpo do WRAPPER — tres linhas de cache que nunca conteriam
+    `projetar_saidas`. Escrito assim, o guard ficaria vermelho para sempre; com
+    a assercao invertida, ficaria VERDE para sempre. Pego na bancada.
+    """
+    import ast
+    import pathlib
+    arq = pathlib.Path(pj.__file__)
+    arvore = ast.parse(arq.read_text(encoding="utf-8"))
+    alvo = next((n for n in arvore.body
+                 if isinstance(n, ast.FunctionDef) and n.name == "get_detalhe"), None)
+    assert alvo is not None, "get_detalhe sumiu de projecao.py"
+    fonte = ast.get_source_segment(arq.read_text(encoding="utf-8"), alvo) or ""
+    assert "projetar_saidas(" in fonte, (
+        "o detalhe passou a calcular por conta propria; ele tem de reusar o "
+        "mesmo motor da tabela")
+    # e nao pode ter reimplementado a mediana do nivel por dentro
+    assert "statistics." not in fonte, fonte[:200]

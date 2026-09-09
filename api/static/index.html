@@ -17005,6 +17005,10 @@ function projTabela(d){
                 + Math.round(n.completude * 100) + '% da curva). Vale o nível histórico '
                 + 'dessazonalizado.">nível histórico</span>') + '</td>'
         + '</tr>').join('') + '</tbody></table></div>'
+      + '<div style="padding:6px 0 0"><a href="#" onclick="projComposicao(\'' + l.mes
+          + '\');return false;" style="font-size:12px;color:var(--orange-500,#E85D10);'
+          + 'font-weight:600;text-decoration:none">Ver a composição do mês: o que está '
+          + 'lançado, por credor, e de onde sai cada provisão &rarr;</a></div>'
       + (l.dda > 0
           ? '<div style="padding:6px 0 0"><a href="#" onclick="ddaDetalhe(\'' + l.mes
             + '\');return false;" style="font-size:12px;color:var(--orange-500,#E85D10);'
@@ -17036,6 +17040,108 @@ function projToggle(i){
   const det = document.getElementById('proj-det-' + i); if(!det) return;
   const aberto = det.classList.toggle('open');
   det.previousElementSibling.setAttribute('aria-expanded', String(aberto));
+}
+
+/* A COMPOSICAO DE UM MES — lancado x provisionado, lado a lado.
+
+   Os dois lados NAO se leem do mesmo jeito, e a tela precisa dizer isso:
+
+   - O LANCADO e FATO. Confere-se por AMOSTRA: o total e real (nao a soma de um
+     top-N) e a lista traz credor, quantos titulos e o intervalo de vencimento,
+     para bater contra o ERP.
+   - O PROVISIONADO e MODELO. Confere-se pela ORIGEM: cada natureza abre os
+     seis meses fechados que a sustentam, ja dessazonalizados, o nivel que saiu
+     deles e o indice do mes. Da para refazer a multiplicacao no papel.
+
+   Por isso o provisionado mostra `n=`, o numero de observacoes que sustentam o
+   indice daquele mes-calendario. Um indice de duas observacoes e um de doze
+   nao merecem a mesma confianca, e quem avalia precisa saber qual esta vendo. */
+async function projComposicao(mes){
+  try{
+    const r = await fetch('/api/financeiro/projecao/detalhe?mes=' + encodeURIComponent(mes),
+                          {cache: 'no-store'});
+    const rr = await respostaJSON(r);
+    if(!r.ok){ showBanner((rr.dados || {}).mensagem || 'Não foi possível detalhar o mês.'); return; }
+    const d = rr.dados, L = d.lancado || {}, P = d.provisionado || {};
+    const nats = (P.por_natureza || []).filter(n => n.previsto > 0 || n.lancado > 0);
+
+    const linhaNat = n => {
+      const base = (n.base || []);
+      const memoria = base.length
+        ? '<div class="mono" style="font-size:11px;color:var(--n500);padding:2px 0 0">'
+          + base.map(b => esc(b.rotulo) + ' ' + Math.round(b.dessazonalizado / 1000)
+                          .toLocaleString('pt-BR') + 'k').join(' · ')
+          + ' &nbsp;→&nbsp; nível <b>' + Math.round((n.nivel || 0) / 1000).toLocaleString('pt-BR')
+          + 'k</b> × índice <b>' + NMI.format(n.indice) + '</b>'
+          + (n.indice_n ? ' <span title="observações que sustentam o índice deste mês-calendário">(n=' + n.indice_n + ')</span>' : '')
+          + (n.resto_do_mes < 1 ? ' × resto do mês <b>' + Math.round(n.resto_do_mes * 100) + '%</b>' : '')
+          + '</div>'
+        : '';
+      return '<tr><td>' + esc(n.natureza)
+        + (n.metodo === 'curva'
+            ? ' <span class="badge b-ok" title="Ancorado no próprio mês: ' + Math.round(n.completude * 100)
+              + '% dele já está lançado e a curva medida completa o resto.">curva</span>'
+            : n.metodo === 'parcial'
+              ? ' <span class="badge b-warn" title="Mês corrente: só o que ainda não venceu.">parcial</span>'
+              : '')
+        + memoria + '</td>'
+        + '<td class="num">' + BRL.format(n.lancado) + '</td>'
+        + '<td class="num" style="color:' + (n.a_lancar > 0 ? 'var(--red)' : 'inherit') + '">'
+          + (n.a_lancar > 0 ? BRL.format(n.a_lancar) : '—') + '</td>'
+        + '<td class="num" style="font-weight:600">' + BRL.format(n.previsto) + '</td></tr>';
+    };
+
+    const credores = (L.credores || []).map(c =>
+      '<tr><td>' + esc(c.credor) + '</td>'
+      + '<td class="mono">' + esc(c.doc || '—') + '</td>'
+      + '<td>' + esc(c.natureza) + '</td>'
+      + '<td class="num">' + c.titulos + '</td>'
+      + '<td>' + (c.primeiro === c.ultimo ? fmtD(c.primeiro)
+                  : fmtD(c.primeiro) + '–' + fmtD(c.ultimo)) + '</td>'
+      + '<td class="num" style="font-weight:600">' + BRL.format(c.valor) + '</td></tr>').join('')
+      || '<tr><td colspan="6" style="color:var(--n500)">nenhum título lançado neste recorte</td></tr>';
+
+    const boletos = (d.dda_boletos || []).map(b =>
+      '<tr><td>' + esc(b.beneficiario || '—') + '</td>'
+      + '<td class="mono">' + esc(b.doc || '—') + '</td>'
+      + '<td>' + fmtD(b.vencimento) + '</td>'
+      + '<td class="num" style="font-weight:600">' + BRL.format(b.valor) + '</td></tr>').join('');
+
+    abrirModal('<div class="m-head"><h3>Composição de ' + esc(d.rotulo) + '</h3>'
+      + '<button class="m-x" onclick="fecharModal()" aria-label="Fechar">&times;</button></div>'
+      + '<div class="m-body">'
+      + '<p style="color:var(--n500);font-size:12.5px;margin:0 0 10px">'
+      + 'Recorte de <b>' + fmtD(d.de) + '</b> a <b>' + fmtD(d.ate) + '</b>'
+      + (d.corrente ? ' — mês corrente, então só o que ainda não venceu entra (o começo do mês já está no saldo de partida)' : '')
+      + '. Lançado <b>' + BRL.format(L.total) + '</b> em ' + (L.titulos || 0) + ' títulos de '
+      + (L.credores_total || 0) + ' credores · provisionado <b>' + BRL.format(P.total)
+      + '</b> · previsto <b>' + BRL.format(P.previsto) + '</b> ('
+      + Math.round((P.confianca || 0) * 100) + '% lançado).</p>'
+
+      + '<div class="busca-sec" style="padding-left:0">Por natureza — e de onde sai cada provisão</div>'
+      + '<div class="tablewrap"><table><thead><tr><th>Natureza</th>'
+      + '<th class="num">Lançado</th><th class="num">Provisionado</th>'
+      + '<th class="num">Previsto</th></tr></thead><tbody>'
+      + nats.map(linhaNat).join('') + '</tbody></table></div>'
+
+      + '<div class="busca-sec" style="padding-left:0;margin-top:12px">O que ESTÁ lançado, por credor'
+      + ((L.credores_total || 0) > 60 ? ' <span style="font-weight:400;color:var(--n500)">(os 60 maiores de '
+         + L.credores_total + ')</span>' : '') + '</div>'
+      + '<div class="tablewrap tabroll" style="max-height:34vh"><table><thead><tr>'
+      + '<th>Credor</th><th>CNPJ/CPF</th><th>Natureza</th><th class="num">Títulos</th>'
+      + '<th>Vencimento</th><th class="num">Valor</th></tr></thead><tbody>'
+      + credores + '</tbody></table></div>'
+
+      + (boletos
+          ? '<div class="busca-sec" style="padding-left:0;margin-top:12px">Do provisionado, o que já é '
+            + 'boleto registrado no banco <span style="font-weight:400;color:var(--n500)">(medido, não estimado)</span></div>'
+            + '<div class="tablewrap tabroll" style="max-height:26vh"><table><thead><tr>'
+            + '<th>Beneficiário</th><th>CNPJ/CPF</th><th>Vencimento</th>'
+            + '<th class="num">Valor</th></tr></thead><tbody>' + boletos + '</tbody></table></div>'
+          : '')
+      + '</div>'
+      + '<div class="m-foot"><button class="btn" onclick="fecharModal()">Fechar</button></div>');
+  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
 }
 
 /* ------------------------------- DDA ------------------------------- */

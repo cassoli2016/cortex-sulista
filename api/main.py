@@ -4327,6 +4327,27 @@ def financeiro_projecao(meses: int = 12) -> JSONResponse:
             "erro": "erro_consulta", "mensagem": "Erro ao montar a projeção."})
 
 
+@app.get("/api/financeiro/projecao/detalhe")
+def financeiro_projecao_detalhe(mes: str) -> JSONResponse:
+    """A composicao de UM mes: o lancado (fato, com credor) e o provisionado
+    (modelo, com os meses fechados que o sustentam)."""
+    from api.financeiro import projecao as proj
+    if not re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", mes or ""):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Mes invalido: use AAAA-MM."})
+    try:
+        return JSONResponse(proj.get_detalhe(mes))
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexao com o banco. O tunel SSH esta aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("financeiro_projecao_detalhe falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao detalhar o mes."})
+
+
 @app.get("/api/financeiro/dda")
 def financeiro_dda(mes: str = "") -> JSONResponse:
     """A posição do DDA confrontada com o ERP — a lista com nome e CNPJ.

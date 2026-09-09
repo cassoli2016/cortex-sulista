@@ -102,7 +102,7 @@ import statistics
 from datetime import date, timedelta
 
 from .. import db
-from ..queries import (DSO_SQL, VELHA_ATE, _natureza, cached)
+from ..queries import (DSO_SQL, VELHA_ATE, _mask_doc, _natureza, cached)
 from . import dda as dda_mod
 from . import sazonalidade as saz
 
@@ -845,3 +845,179 @@ def _saldo_atual() -> float:
                     " ORDER BY grupo,empresa,filial,unidade,caixa, dtmovimento DESC) x")
         caixa = (cur.fetchone() or {}).get("caixa") or 0.0
     return float(bancos) + float(caixa)
+
+
+# ============================================================================
+# O DETALHE DE UM MÊS — lançado × provisionado, com a memória de cálculo.
+# ----------------------------------------------------------------------------
+# A tela diz "faltam lançar R$ 10,3 mi em novembro". Esse número não se avalia:
+# ou se acredita nele, ou não. O que se avalia é a CONTA — os seis meses que
+# formaram o nível, o índice do mês, o método escolhido e por quê.
+#
+# Então o detalhe publica os dois lados com naturezas de prova DIFERENTES:
+#
+#   LANÇADO      é FATO, e se confere por AMOSTRA: o total REAL (não a soma de
+#                um top-N) e os credores, com documento mascarado e o intervalo
+#                de vencimento, para bater contra o ERP.
+#   PROVISIONADO é MODELO, e se confere pela ORIGEM: para cada natureza, os
+#                meses fechados que a sustentam, o valor dessazonalizado de
+#                cada um, o nível que saiu deles e o índice aplicado. Quem lê
+#                refaz a multiplicação no papel.
+#
+# É o ⓘ de procedência levado até o fim — número que não diz de onde veio não
+# sustenta decisão de caixa.
+# ============================================================================
+
+# Os títulos lançados do mês, com credor. SEM LIMIT: o corte sai em Python
+# depois de somar, para o total ser real. Um top-N somado vira um total que
+# não bate com a linha da tabela que abriu o detalhe, e duas telas discordando
+# do mesmo número custa mais confiança do que a lista inteira custa de scroll.
+DET_LANCADO_SQL = """
+SELECT coalesce(nullif(trim(t.descricao),''), 'tipo '||a.tipotitulo::text) AS tipo,
+       coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''),
+                '(sem cadastro)') AS credor,
+       a.cnpjcpfcodigo AS doc,
+       a.numerotitulo AS documento,
+       a.dtvencimento::date AS vencimento,
+       a.valorpendente::float8 AS valor
+FROM contaapagar a
+LEFT JOIN cadastro c ON c.codigo = a.cnpjcpfcodigo
+LEFT JOIN tipotitulo t ON t.codigo = a.tipotitulo
+WHERE a.valorpendente > 0
+  AND a.dtvencimento >= %(de)s::date AND a.dtvencimento <= %(ate)s::date
+"""
+
+
+def _fim_do_mes(mes: str) -> date:
+    ini = _primeiro_dia(mes)
+    return (ini.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+
+
+@cached(ttl=300, velha_ate=VELHA_ATE)
+def get_detalhe(mes: str) -> dict:
+    """Composição de UM mês: o que está lançado e o que está provisionado.
+
+    O recorte do lançado é o MESMO da projeção — de HOJE em diante, nunca do
+    início do mês corrente. Somar o mês inteiro daria um detalhe que não bate
+    com a linha que o abriu.
+
+    O que ainda pode diferir são CENTAVOS, e é honesto que difira: as duas
+    leituras têm cache próprio de 5 minutos e um título pago no intervalo sai
+    do `valorpendente` de uma e não da outra (medido: R$ 2 mil em 1.003 títulos
+    de setembro). Isso é o dado se movendo, não as contas divergindo — a regra
+    e o recorte são os mesmos, e é por isso que o detalhe REUSA
+    `projetar_saidas` em vez de refazer a conta com outro código.
+    """
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute("SELECT current_date AS hoje, current_timestamp AS ts")
+        meta = cur.fetchone()
+        hoje: date = meta["hoje"]
+        ini, fim = _primeiro_dia(mes), _fim_do_mes(mes)
+        mes_corrente = f"{hoje.year:04d}-{hoje.month:02d}"
+        de = max(ini, hoje) if mes >= mes_corrente else ini
+        cur.execute(DET_LANCADO_SQL, {"de": de.isoformat(), "ate": fim.isoformat()})
+        titulos = [dict(r) for r in cur.fetchall()]
+        cur.execute(HIST_PAGAR_SQL, {"meses": MESES_CURVA})
+        hist = [dict(r) for r in cur.fetchall()]
+        cur.execute(HIST_PAGAR_MES_SQL)
+        hist_longo = [dict(r) for r in cur.fetchall()]
+
+    # ------------------------------------------------------------ o LANÇADO
+    por_nat: dict[str, dict] = {}
+    for t in titulos:
+        nat = _natureza(t["tipo"])
+        a = por_nat.setdefault(nat, {"natureza": nat, "valor": 0.0, "titulos": 0})
+        a["valor"] += t["valor"]
+        a["titulos"] += 1
+    lancado_total = sum(t["valor"] for t in titulos)
+
+    # Agrupado por CREDOR antes de cortar: um fornecedor com 40 parcelas viraria
+    # a lista inteira, e quem avalia quer saber para QUEM vai o dinheiro.
+    por_credor: dict[tuple, dict] = {}
+    for t in titulos:
+        nat = _natureza(t["tipo"])
+        k = (t["credor"], nat)
+        a = por_credor.setdefault(k, {
+            "credor": t["credor"], "natureza": nat, "doc": _mask_doc(t["doc"]),
+            "valor": 0.0, "titulos": 0,
+            "primeiro": t["vencimento"], "ultimo": t["vencimento"], "tipos": set()})
+        a["valor"] += t["valor"]
+        a["titulos"] += 1
+        a["tipos"].add(t["tipo"])
+        if t["vencimento"] < a["primeiro"]:
+            a["primeiro"] = t["vencimento"]
+        if t["vencimento"] > a["ultimo"]:
+            a["ultimo"] = t["vencimento"]
+    credores = sorted(por_credor.values(), key=lambda x: -x["valor"])
+    for c in credores:
+        c["tipos"] = sorted(c["tipos"])[:3]
+        c["primeiro"] = c["primeiro"].isoformat()
+        c["ultimo"] = c["ultimo"].isoformat()
+        c["valor"] = round(c["valor"], 2)
+
+    # ------------------------------------------------------- o PROVISIONADO
+    lanc_mapa = {mes: {nat: a["valor"] for nat, a in por_nat.items()}}
+    try:
+        conf = dda_mod.confronto()
+        piso = dda_mod.faltantes_por_mes(conf)
+        do_mes = [b for b in conf.get("faltantes", ())
+                  if f"{b['vencimento'].year:04d}-{b['vencimento'].month:02d}" == mes]
+    except Exception as exc:  # noqa: BLE001 - o DDA é acessório aqui
+        log.warning("detalhe sem o DDA: %s", type(exc).__name__)
+        piso, do_mes = {}, []
+
+    # Reusa o MESMO motor da tabela. Recalcular aqui com outra conta seria a
+    # forma mais rápida de o detalhe passar a discordar da linha.
+    linha = projetar_saidas(hist, lanc_mapa, [mes], hoje,
+                            piso_dda=piso, hist_longo=hist_longo)[0]
+
+    # A MEMÓRIA DE CÁLCULO, natureza por natureza.
+    series = _serie_por_natureza(hist_longo)
+    indices = {nat: saz.indice_sazonal(s) for nat, s in series.items()}
+    for det in linha["naturezas"]:
+        nat = det["natureza"]
+        serie = series.get(nat) or []
+        ix = indices.get(nat, {}).get("indice", {})
+        det["base"] = [
+            {"mes": m, "rotulo": _rotulo(m), "valor": round(v, 2),
+             "indice": round(ix.get(int(m[5:7]), 1.0) or 1.0, 4),
+             "dessazonalizado": round(v / (ix.get(int(m[5:7]), 1.0) or 1.0), 2)}
+            for m, v in serie[-MESES_NIVEL:]]
+        det["nivel"] = round(saz.nivel(serie, ix, MESES_NIVEL), 2) if serie else 0.0
+        # Quantas observações sustentam o índice DESTE mês-calendário. Índice de
+        # duas observações e de doze não merecem a mesma confiança, e quem
+        # avalia precisa saber qual dos dois está olhando.
+        det["indice_n"] = (indices.get(nat, {}).get("n", {}) or {}).get(int(mes[5:7]), 0)
+
+    return {
+        "mes": mes, "rotulo": _rotulo(mes),
+        "corrente": mes == mes_corrente,
+        "de": de.isoformat(), "ate": fim.isoformat(),
+        "lancado": {
+            "total": round(lancado_total, 2),
+            "titulos": len(titulos),
+            "por_natureza": sorted(
+                [{**a, "valor": round(a["valor"], 2)} for a in por_nat.values()],
+                key=lambda x: -x["valor"]),
+            "credores": credores[:60],
+            "credores_total": len(credores),
+        },
+        "provisionado": {
+            "total": linha["a_lancar"],
+            "previsto": linha["previsto"],
+            "confianca": linha["confianca"],
+            "dda": linha["dda"], "dda_manda": linha["dda_manda"],
+            "por_natureza": linha["naturezas"],
+        },
+        "dda_boletos": sorted(
+            [{"beneficiario": b["beneficiario"],
+              "doc": _mask_doc(b.get("beneficiario_doc")),
+              "vencimento": b["vencimento"].isoformat(),
+              "valor": float(b["valor"]), "documento": b.get("documento"),
+              "tipo": b.get("tipo")} for b in do_mes],
+            key=lambda x: -x["valor"])[:60],
+        "atualizado_em": meta["ts"].isoformat(),
+        "fonte": ("ERP AVA · contaapagar por vencimento (o LANÇADO, total real e "
+                  "não amostra) + a conta do provisionado com os meses fechados "
+                  "que a sustentam · leitura"),
+    }
