@@ -1,3 +1,32 @@
+- versao: "1.18.0"
+  data: "2026-09-08"
+  adicionado:
+    - >-
+      O cadastro de indicadores do Ritual saiu de dentro da tela do ritual e
+      virou tela própria, "Ritual — Indicadores e Metas", com permissão
+      separada. Quem preenche o ritual não configura mais a régua pela qual é
+      cobrado — e isso não era só a aba: as rotas de criar, editar e EXCLUIR
+      indicador aceitavam qualquer pessoa que tivesse a tela do ritual.
+    - >-
+      O semáforo do painel passou a ser CALCULADO a partir do desvio contra a
+      meta, com faixas definidas em cada indicador (a tolerância da receita não
+      é a do retorno vazio). Antes ele era escolhido à mão, e como nenhum dos
+      12 indicadores tinha meta, a cor era escolha livre — o número vinha da
+      fonte e o veredito não vinha de lugar nenhum.
+    - >-
+      Quem discorda do semáforo calculado continua podendo apresentar outra
+      cor, mas agora explicando por quê: o motivo fica gravado com o nome de
+      quem escreveu, e o painel mostra ao lado o que o cálculo dizia.
+    - >-
+      Cadastro de gerências na tela, com o gestor responsável. Ele nunca
+      existiu — só a rota —, e é por isso que as quatro gerências estavam sem
+      responsável. A lista de quem não preencheu existe para dizer A QUEM
+      cobrar, e sem gestor ela não sabia.
+    - >-
+      O painel da semana passou a apontar o que falta CONFIGURAR: indicadores
+      sem meta e gerências sem gestor aparecem nomeados. Um painel que parece
+      completo e não tem régua é pior que um painel vazio, porque ninguém
+      desconfia dele.
 - versao: "1.17.4"
   data: "2026-09-08"
   adicionado:
