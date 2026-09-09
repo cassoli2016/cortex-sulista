@@ -5,6 +5,13 @@ Uso:
     uv run python scripts/coletar_jornada.py --dias 30
     uv run python scripts/coletar_jornada.py --de 2026-01-01 --ate 2026-01-31
     uv run python scripts/coletar_jornada.py --carga-ava  # histórico, uma vez
+    uv run python scripts/coletar_jornada.py --agora       # só o tempo real
+    uv run python scripts/coletar_jornada.py --de 2026-01-01 --ate 2026-09-07 \
+        --recurso diarias                                 # carga do ano
+
+A CARGA DO ANO é retomável por construção, e não por controle de estado: toda
+gravação é `ON CONFLICT … DO UPDATE`, então repetir um dia é barato e seguro.
+Se ela morrer no meio, roda de novo com um `--de` mais recente.
 
 É este o comando da tarefa agendada do Windows. Rodar duas vezes é seguro e é
 o modo NORMAL de usar: a API devolve o dia inteiro a cada chamada e o dia só
@@ -41,6 +48,8 @@ def main() -> int:
                     help="só este recurso; pode repetir")
     ap.add_argument("--carga-ava", action="store_true",
                     help="carga inicial do histórico de sulista.rasterjor_*")
+    ap.add_argument("--agora", action="store_true",
+                    help="só o recurso de tempo real (painel de TV)")
     args = ap.parse_args()
 
     if not pglocal.configurado():
@@ -48,6 +57,19 @@ def main() -> int:
         return 1
 
     recursos = tuple(args.recurso) if args.recurso else None
+
+    # O TEMPO REAL TEM TAREFA PRÓPRIA, de cinco em cinco minutos: é o único
+    # recurso que responde AGORA, e o painel de TV mede frescor em 30 minutos.
+    # Pela cadência normal (2x/dia) ele mostraria ZERO veículos reportando —
+    # painel de tempo real alimentado duas vezes ao dia não fica desatualizado,
+    # fica vazio.
+    if args.agora:
+        r = coleta.coletar_agora()
+        if r["ok"]:
+            print(f"tempo real: {r['gravados']} veiculo(s) em {r['ms']} ms")
+            return 0
+        print(f"tempo real FALHOU: {r['erro']}")
+        return 1
 
     if args.carga_ava:
         print("carga inicial a partir do AVA (sulista.rasterjor_*)…")

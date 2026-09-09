@@ -30,6 +30,7 @@ from datetime import date, datetime, timedelta
 
 from .. import migracoes, pglocal
 from . import cliente
+from . import normalizar_nome
 
 log = logging.getLogger("cortex.jornada.coleta")
 
@@ -268,8 +269,217 @@ def _grava_ausencias(cur, linhas, ts, origem) -> int:
     return n
 
 
+# ── os cinco recursos que faltavam ──────────────────────────────────────────
+
+
+def _grava_diarias(cur, linhas, ts, origem, dia) -> int:
+    """A diária APURADA de UM dia. O `dia` vem de fora, e é o ponto todo.
+
+    O endpoint devolve `{periodo, motoristas:[{cpf, nome, diarias:[…]}]}` — um
+    AGREGADO do período pedido, sem data por item. Quem chama pede um dia por
+    vez (`_passagem_diarias`), e por isso `dia` é parâmetro e não algo que se
+    procure no payload: procurar ali devolveria `None` para sempre, e a coluna
+    `data` ficaria nula sem erro nenhum.
+    """
+    n = 0
+    for env in linhas:
+        # `chamar()` devolve o envelope inteiro numa lista de um elemento
+        # (é o caminho do dict sem chave de lista em `_uma_pagina`).
+        for m in (env.get("motoristas") or []):
+            doc = _t(m.get("cpf") or m.get("documento"))
+            if not doc:
+                continue
+            for d in (m.get("diarias") or []):
+                tipo = _t(d.get("tipo"))
+                if not tipo:
+                    continue
+                cur.execute("""
+                    INSERT INTO jor_diarias(documento, data, tipo, pais, nome,
+                        quantidade, valor_unitario, valor_total, coletado_em,
+                        origem)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    ON CONFLICT (documento, data, tipo, pais) DO UPDATE SET
+                      nome=EXCLUDED.nome, quantidade=EXCLUDED.quantidade,
+                      valor_unitario=EXCLUDED.valor_unitario,
+                      valor_total=EXCLUDED.valor_total,
+                      coletado_em=EXCLUDED.coletado_em, origem=EXCLUDED.origem
+                """, (doc, dia, tipo, _t(d.get("pais")) or "BR",
+                      _t(m.get("nome")), _i(d.get("quantidade")),
+                      _f(d.get("valor_unitario")), _f(d.get("valor_total")),
+                      ts, origem))
+                n += 1
+    return n
+
+
+def _grava_eventos(cur, linhas, ts, origem) -> int:
+    """As macros. Chave natural (documento, codigo, inicio) — a API não dá id."""
+    n = 0
+    for r in linhas:
+        doc = _t(r.get("driver_document") or r.get("documento"))
+        cod = r.get("event_code")
+        ini = _dt(r.get("event_start") or r.get("inicio"))
+        if not doc or cod is None or not ini:
+            continue                       # sem a chave natural não entra
+        cur.execute("""
+            INSERT INTO jor_eventos(documento, codigo, inicio, nome, evento,
+                fim, duracao_min, origem_evento, placa, filial, escala,
+                coletado_em, origem)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (documento, codigo, inicio) DO UPDATE SET
+              nome=EXCLUDED.nome, evento=EXCLUDED.evento, fim=EXCLUDED.fim,
+              duracao_min=EXCLUDED.duracao_min,
+              origem_evento=EXCLUDED.origem_evento, placa=EXCLUDED.placa,
+              filial=EXCLUDED.filial, escala=EXCLUDED.escala,
+              coletado_em=EXCLUDED.coletado_em, origem=EXCLUDED.origem
+        """, (doc, _i(cod), ini, _t(r.get("driver_name")),
+              _t(r.get("event_name")), _dt(r.get("event_end")),
+              _i(r.get("event_duration")) or None,
+              _t(r.get("origin")), _t(r.get("vehicle_plate")),
+              _t(r.get("branch")), _t(r.get("work_schedule")), ts, origem))
+        n += 1
+    return n
+
+
+def _grava_excecoes(cur, linhas, ts, origem) -> int:
+    """As exceções de jornada — a única família SEM CPF.
+
+    A fonte manda `nome_motorista` e mais nada que identifique a pessoa. O nome
+    normalizado vai numa coluna à parte, gravado UMA vez aqui: se cada consulta
+    normalizasse por conta própria, duas telas acabariam discordando sobre quem
+    é a mesma pessoa — que é exatamente o defeito que a chave por CPF das
+    outras tabelas existe para evitar.
+    """
+    n = 0
+    for r in linhas:
+        ger = _dt(r.get("data_geracao") or r.get("gerada_em"))
+        nome = _t(r.get("nome_motorista") or r.get("nome"))
+        cod = r.get("codigo_tipo_excecao")
+        if not ger or not nome or cod is None:
+            continue
+        cur.execute("""
+            INSERT INTO jor_excecoes(gerada_em, nome, nome_norm, codigo_tipo,
+                tipo, veiculo, status, nivel, coletado_em, origem)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (gerada_em, nome, codigo_tipo) DO UPDATE SET
+              nome_norm=EXCLUDED.nome_norm, tipo=EXCLUDED.tipo,
+              veiculo=EXCLUDED.veiculo, status=EXCLUDED.status,
+              nivel=EXCLUDED.nivel, coletado_em=EXCLUDED.coletado_em,
+              origem=EXCLUDED.origem
+        """, (ger, nome, normalizar_nome(nome), _i(cod),
+              _t(r.get("nome_excecao")), _t(r.get("nome_veiculo")),
+              _i(r.get("status_excecao")) if r.get("status_excecao") is not None else None,
+              _i(r.get("nivel_excecao")) if r.get("nivel_excecao") is not None else None,
+              ts, origem))
+        n += 1
+    return n
+
+
+def _grava_anomalias(cur, linhas, ts, origem) -> int:
+    """A régua do próprio fornecedor. Chave é o id DELE — o único recurso da
+    família em que a RasterJOR dá identidade estável, e é ela que permite ver a
+    mesma anomalia mudar de `resolved` sem duplicar."""
+    n = 0
+    for r in linhas:
+        ident = r.get("id")
+        if ident is None:
+            continue
+        cur.execute("""
+            INSERT INTO jor_anomalias(id_externo, momento, criada_em, tipo,
+                placa, nome, documento, descricao, resolvida, coletado_em,
+                origem)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (id_externo) DO UPDATE SET
+              momento=EXCLUDED.momento, criada_em=EXCLUDED.criada_em,
+              tipo=EXCLUDED.tipo, placa=EXCLUDED.placa, nome=EXCLUDED.nome,
+              documento=EXCLUDED.documento, descricao=EXCLUDED.descricao,
+              resolvida=EXCLUDED.resolvida, coletado_em=EXCLUDED.coletado_em,
+              origem=EXCLUDED.origem
+        """, (_i(ident), _dt(r.get("moment")), _dt(r.get("created_at")),
+              _i(r.get("type")) if r.get("type") is not None else None,
+              _t(r.get("vehicle_plate")), _t(r.get("driver_name")),
+              _t(r.get("driver_document")), _t(r.get("description")),
+              1 if r.get("resolved") else 0, ts, origem))
+        n += 1
+    return n
+
+
+def _grava_veiculos(cur, linhas, ts, origem) -> int:
+    """O estado ATUAL da frota que a RasterJOR enxerga. SNAPSHOT por placa.
+
+    A cópia deste mesmo recurso no ERP guardava CADA leitura e chegou a 124.665
+    linhas para ~175 veículos — um log que ninguém consulta e que só cresce.
+    Aqui a placa é a chave: a linha é sobrescrita e `coletado_em` diz de quando
+    é o estado.
+    """
+    n = 0
+    for r in linhas:
+        placa = _t(r.get("vehicle_plate") or r.get("placa"))
+        if not placa:
+            continue
+        cur.execute("""
+            INSERT INTO jor_veiculos(placa, motorista, ultima_posicao,
+                latitude, longitude, evento_atual, evento_duracao,
+                coletado_em, origem)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (placa) DO UPDATE SET
+              motorista=EXCLUDED.motorista,
+              ultima_posicao=EXCLUDED.ultima_posicao,
+              latitude=EXCLUDED.latitude, longitude=EXCLUDED.longitude,
+              evento_atual=EXCLUDED.evento_atual,
+              evento_duracao=EXCLUDED.evento_duracao,
+              coletado_em=EXCLUDED.coletado_em, origem=EXCLUDED.origem
+        """, (placa, _t(r.get("current_associated_driver")),
+              _t(r.get("last_position")), _f(r.get("latitude")),
+              _f(r.get("longitude")), _t(r.get("actual_event")),
+              _t(r.get("actual_event_duration")), ts, origem))
+        n += 1
+    return n
+
+
+# A DIÁRIA NÃO ESTÁ AQUI de propósito: o gravador dela precisa saber QUE DIA
+# está gravando, e essa informação não vem no payload. Ela tem passagem própria
+# (`_passagem_diarias`), e deixá-la fora deste mapa é o que impede alguém de
+# chamá-la pelo caminho genérico e gravar o dia errado.
 _GRAVA = {"motoristas": _grava_motoristas, "jornadas": _grava_jornadas,
-          "inconformidades": _grava_inconformidades, "ausencias": _grava_ausencias}
+          "inconformidades": _grava_inconformidades,
+          "ausencias": _grava_ausencias, "eventos": _grava_eventos,
+          "excecoes": _grava_excecoes, "anomalias": _grava_anomalias,
+          "veiculos": _grava_veiculos}
+
+
+def _passagem_diarias(cur, p_de: str, p_ate: str, ts: str) -> tuple[int, int, int]:
+    """A diária de cada dia da janela, UMA CHAMADA POR DIA.
+
+    POR QUE UM DIA POR VEZ, e por que isto não é desperdício:
+
+    O endpoint `/diarias/` AGREGA o período pedido. Pedindo 01/01 a 31/01 ele
+    responde "fulano: 12 meias e 4 inteiras" — o total do mês, sem dizer em que
+    dias elas caíram. Uma chamada por semana custaria sete vezes menos e
+    devolveria um número que não dá para pôr em dia nenhum; distribuir o
+    agregado pelos dias seria INVENTAR data, e data inventada vira gráfico.
+
+    A auditoria da diária existe para responder "esta diária, deste dia, está
+    certa?". Sem o dia, ela volta a ser o que era: uma comparação de totais
+    semanais, que é o que a folha já dava.
+
+    Devolve (lidos, gravados, ms) da janela inteira — UMA linha em `jor_carga`
+    por passagem, e não uma por dia: a trilha existe para a Saúde ver a coleta,
+    e 250 linhas por carga histórica esconderiam as outras.
+    """
+    d0 = date.fromisoformat(p_de)
+    d1 = date.fromisoformat(p_ate)
+    lidos = gravados = ms = 0
+    dia = d0
+    while dia <= d1:
+        iso = dia.isoformat()
+        linhas, t = cliente.chamar("diarias", de=iso, ate=iso)
+        ms += t
+        # o envelope traz uma lista de motoristas; "lidos" conta pessoas com
+        # diária no dia, que é o número que faz sentido na trilha
+        lidos += sum(len(e.get("motoristas") or []) for e in linhas)
+        gravados += _grava_diarias(cur, linhas, ts, "api", dia)
+        dia += timedelta(days=1)
+    return lidos, gravados, ms
 
 
 # ─────────────────────────────────────────────────────────── coleta da API
@@ -308,8 +518,25 @@ def coletar(de: str | None = None, ate: str | None = None,
         lidos = gravados = 0
         ok, msg = True, ""
         try:
-            # motorista é cadastro: janela não se aplica
-            janela = {} if recurso == "motoristas" else {"de": p_de, "ate": p_ate}
+            if recurso == "diarias":
+                # UMA CHAMADA POR DIA — ver `_passagem_diarias`. O caminho é
+                # separado porque o gravador precisa saber o dia, e o dia não
+                # está no payload.
+                with pglocal.get_conn(_esq(esquema)) as cx:
+                    cur = cx.cursor()
+                    lidos, gravados, ms = _passagem_diarias(cur, p_de, p_ate, ts)
+                    _trilha(cur, recurso, p_de, p_ate, True, lidos, gravados,
+                            ms, "", "api")
+                    cx.commit()
+                saida["recursos"][recurso] = {"ok": True, "lidos": lidos,
+                                              "gravados": gravados, "erro": ""}
+                continue
+            # QUEM É CADASTRO SAI DO CATÁLOGO, não de uma lista de nomes aqui:
+            # `motoristas` e `veiculos` não aceitam janela, e escrever o nome
+            # deles neste `if` foi o que fez a segunda entrar pedindo data.
+            cfg = cliente.CATALOGO[recurso]
+            janela = ({"de": p_de, "ate": p_ate}
+                      if cfg.get("de") and cfg.get("ate") else {})
             linhas, ms = cliente.chamar(recurso, **janela)
             lidos = len(linhas)
             with pglocal.get_conn(_esq(esquema)) as cx:
@@ -342,6 +569,57 @@ def coletar(de: str | None = None, ate: str | None = None,
         saida["recursos"][recurso] = {"ok": ok, "lidos": lidos,
                                       "gravados": gravados, "erro": msg}
     return saida
+
+
+def coletar_agora(esquema: str | None = None) -> dict:
+    """SÓ o recurso de tempo real. É a rotina que mantém o painel de TV vivo.
+
+    POR QUE ELA EXISTE SEPARADA da coleta normal, que roda duas vezes ao dia:
+
+    `/vehicles/` é o único recurso que responde AGORA — posições de minutos
+    atrás. Todo o resto da API é D-1 por regra do fornecedor, e não ganha nada
+    em ser lido de cinco em cinco minutos: seria bater no fornecedor 288 vezes
+    por dia para reler o mesmo ontem.
+
+    O contrário também é verdade, e é o que motivou esta função: com a cadência
+    de 12 horas o painel de TV mostraria ZERO veículos reportando, porque a
+    régua de frescor dele é de 30 minutos. Um painel de tempo real alimentado
+    duas vezes ao dia não é um painel desatualizado — é um painel vazio.
+
+    Uma chamada, sem janela (é cadastro + estado), e trilha em `jor_carga` como
+    todas as outras: se ela parar, a Saúde vê pelo mesmo caminho.
+    """
+    init_db(esquema)
+    ts = _agora()
+    recurso = cliente.RECURSO_TEMPO_REAL
+    if not cliente.configurado():
+        return {"ok": False, "erro": cliente.o_que_falta(), "gravados": 0}
+    t0 = time.monotonic()
+    try:
+        linhas, ms = cliente.chamar(recurso)
+        with pglocal.get_conn(_esq(esquema)) as cx:
+            cur = cx.cursor()
+            gravados = _GRAVA[recurso](cur, linhas, ts, "api")
+            _trilha(cur, recurso, None, None, True, len(linhas), gravados,
+                    ms, "", "api")
+            cx.commit()
+        return {"ok": True, "erro": "", "lidos": len(linhas),
+                "gravados": gravados, "ms": ms}
+    except Exception as exc:                          # noqa: BLE001
+        msg = (str(exc) if isinstance(exc, (cliente.RasterIndisponivel,
+                                            cliente.RasterRecusou,
+                                            cliente.NaoConfigurado))
+               else f"{type(exc).__name__} ao gravar {recurso}")
+        log.warning("coleta de tempo real falhou: %s", msg)
+        try:
+            with pglocal.get_conn(_esq(esquema)) as cx:
+                cur = cx.cursor()
+                _trilha(cur, recurso, None, None, False, 0, 0,
+                        int((time.monotonic() - t0) * 1000), msg, "api")
+                cx.commit()
+        except Exception:                              # noqa: BLE001
+            pass
+        return {"ok": False, "erro": msg, "gravados": 0}
 
 
 # ──────────────────────────────────────────── carga inicial a partir do AVA

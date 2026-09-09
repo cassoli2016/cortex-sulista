@@ -52,7 +52,7 @@ ALTURA_UTIL = 900
 # metade do que ele existe para mostrar. Entao ele nao cabe em aba nenhuma: o
 # que ele tem de fazer e caber em 1080 inteiros.
 ALTURA_TV = 1050
-E_TV = ("tvope", "tvfat", "tvdir", "tvcom", "tvcli")
+E_TV = ("tvope", "tvfat", "tvdir", "tvcom", "tvcli", "tvjor")
 
 
 def _telas() -> list[str]:

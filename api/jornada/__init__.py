@@ -57,3 +57,33 @@ DUAS COLUNAS QUE PARECEM ÚTEIS E NÃO SÃO, medidas antes de virar cartão:
 `justificativa` está NULA em 262.870 de 262.870. Coluna constante não vira
 tela — só faria o leitor achar que há informação ali.
 """
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# A NORMALIZAÇÃO DE NOME, e por que ela vive AQUI
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# Três módulos precisam decidir se dois nomes são a mesma pessoa: a diária paga
+# (que casa a folha do Globus com a jornada), a auditoria dela, e a coleta das
+# exceções — a ÚNICA tabela da família que a RasterJOR entrega sem CPF.
+#
+# Enquanto eram duas cópias, um teste cobrava que as duas concordassem. Com
+# três, o teste vira vigilância de algo que não devia ser possível: duas
+# normalizações diferentes fariam duas telas discordarem sobre quem é a mesma
+# pessoa, e a reconciliação acusaria a MESMA pessoa dos dois lados — uma sem
+# jornada e outra sem diária.
+#
+# Então há uma só, no topo do pacote, e os três a importam.
+import re as _re
+import unicodedata as _ud
+
+
+def normalizar_nome(nome: str) -> str:
+    """Nome sem acento, em MAIÚSCULA e com espaço simples.
+
+    "José  da Silva " e "JOSE DA SILVA" são a mesma pessoa; as fontes vêm de
+    sistemas e digitações diferentes e só concordam depois disto.
+    """
+    s = _ud.normalize("NFKD", nome or "")
+    s = "".join(c for c in s if not _ud.combining(c))
+    return _re.sub(r"\s+", " ", s).strip().upper()

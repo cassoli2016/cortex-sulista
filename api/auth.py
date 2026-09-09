@@ -149,6 +149,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "tvope":   ("Painel TV — Operação", "Business Intelligence"),
     "tvcom":   ("Painel TV — Comunicação", "Business Intelligence"),
     "tvdir":   ("Painel TV — Diretoria", "Business Intelligence"),
+    "tvjor":   ("Painel TV — Jornada", "Business Intelligence"),
     "gesacao": ("Planos de Ação", "Gestão"),
     "gesata":  ("Atas de Reunião", "Gestão"),
     "gesrit":  ("Ritual Semanal", "Gestão"),
@@ -245,6 +246,9 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/gestao/atas",              frozenset({"gesata", "gesacao"})),
     ("/api/gestao/acoes",             frozenset({"gesacao", "gesata"})),
     # jornada: /raster ANTES da generica /api/jornada
+    # ANTES da genérica /api/jornada: ROTA_TELAS casa por PREFIXO, e
+    # `/api/jornada/tv` é do painel de TV, que é outra tela e outro público.
+    ("/api/jornada/tv",               frozenset({"tvjor"})),
     ("/api/jornada/motorista",        frozenset({"jorn"})),
     ("/api/jornada/raster",           frozenset({"jorn"})),
     ("/api/jornada/coletar",          frozenset({"jorn"})),

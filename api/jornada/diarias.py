@@ -99,6 +99,7 @@ import unicodedata
 from datetime import date
 
 from api import db, pglocal
+from api.jornada import normalizar_nome
 
 log = logging.getLogger(__name__)
 
@@ -171,15 +172,14 @@ SELECT to_char(data,'YYYY-MM')                  AS competencia,
 
 
 def _norm(nome: str) -> str:
-    """Nome sem acento, em MAIÚSCULA e com espaço simples.
+    """A normalização da casa, importada e não copiada.
 
-    As duas fontes vêm de sistemas diferentes e digitação diferente: sem
-    normalizar, "JOSÉ DA SILVA" e "JOSE  DA SILVA" viram duas pessoas, e a
-    reconciliação acusaria as duas — uma sem jornada e outra sem diária.
+    Vive em `api/jornada/normalizar_nome` porque TRÊS módulos
+    dependem de concordar sobre quem é a mesma pessoa. Cópia
+    própria aqui era o que obrigava um teste a vigiar a igualdade
+    entre elas — e teste que vigia cópia é o sintoma, não a cura.
     """
-    s = unicodedata.normalize("NFKD", nome or "")
-    s = "".join(c for c in s if not unicodedata.combining(c))
-    return re.sub(r"\s+", " ", s).strip().upper()
+    return normalizar_nome(nome)
 
 
 def _consolidar(mensal: float, detalhe: float) -> tuple[float, float]:

@@ -4566,6 +4566,34 @@ def jornada_diarias(de: str | None = None, ate: str | None = None) -> JSONRespon
             "mensagem": "Erro ao cruzar diárias com a jornada."})
 
 
+@app.get("/api/jornada/tv")
+def jornada_tv() -> JSONResponse:
+    """O painel de TV da jornada: quem está fazendo o quê AGORA.
+
+    SEM CACHE DE LEITURA VELHA, e isso é requisito e não esquecimento. A tela
+    publica MINUTOS ("há quanto tempo este motorista está dirigindo"), e a
+    regra da casa para essa resolução é a da torre e da portaria: número velho
+    servido com tarja continua sendo número velho, e a decisão tomada sobre ele
+    já foi tomada. Se a leitura falhar, a resposta é erro — tela vazia é
+    honesta, painel mentindo não é. Guard: tests/test_leitura_velha.py.
+
+    Lê o SNAPSHOT que a coleta gravou (`jor_veiculos`), nunca a API direto: um
+    painel numa TV recarrega sozinho a cada minuto, e várias TVs juntas
+    bateriam no fornecedor sem que ninguém percebesse.
+    """
+    from datetime import datetime, timedelta
+    from api.jornada import tempo_real as _tr
+    try:
+        d = _tr.agora()
+        d["excecoes"] = _tr.excecoes_recentes(datetime.now() - timedelta(days=2))
+        return JSONResponse(d)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("jornada_tv: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao ler o estado da frota."})
+
+
 @app.get("/api/jornada/diarias/auditoria")
 def jornada_diarias_auditoria(de: str | None = None,
                               ate: str | None = None) -> JSONResponse:

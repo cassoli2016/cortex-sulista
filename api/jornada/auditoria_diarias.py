@@ -81,6 +81,7 @@ from datetime import date, timedelta
 from math import gcd
 
 from api import db, pglocal
+from api.jornada import normalizar_nome
 
 log = logging.getLogger(__name__)
 
@@ -198,16 +199,14 @@ SELECT upper(trim(nome))                        AS nome,
 
 
 def _norm(nome: str) -> str:
-    """Nome sem acento, em MAIÚSCULA e com espaço simples.
+    """A normalização da casa, importada e não copiada.
 
-    É a mesma chave de `diarias._norm`, e a igualdade entre as duas tem guard:
-    duas normalizações diferentes fariam a tela de diárias e a auditoria dela
-    discordarem sobre quem é a mesma pessoa, que é a pior discordância possível
-    entre duas telas que se citam.
+    Vive em `api/jornada/normalizar_nome` porque TRÊS módulos
+    dependem de concordar sobre quem é a mesma pessoa. Cópia
+    própria aqui era o que obrigava um teste a vigiar a igualdade
+    entre elas — e teste que vigia cópia é o sintoma, não a cura.
     """
-    s = unicodedata.normalize("NFKD", nome or "")
-    s = "".join(c for c in s if not unicodedata.combining(c))
-    return re.sub(r"\s+", " ", s).strip().upper()
+    return normalizar_nome(nome)
 
 
 def _mdc_reais(valores) -> float:

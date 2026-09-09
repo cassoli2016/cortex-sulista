@@ -403,6 +403,24 @@ glossario:
     novo: duas verdades sobre o mesmo lead seria o preco de uma importacao que
     ninguem pediu. O que liga os dois mundos e o grupo economico do ERP,
     informado na ficha da conta - e e por ele que entra a receita real.
+- termo: Painel de TV da jornada — o que e "agora" ali
+  definicao: >-
+    A RasterJOR so entrega jornada APURADA ate ONTEM: consulta que alcance hoje
+    volta HTTP 400, "apenas consultas retroativas (D-1)". Isso e regra do
+    fornecedor e nenhuma cadencia de coleta muda. Entao horas trabalhadas, hora
+    extra e repouso faltante NAO existem em tempo real, e o painel nao os
+    mostra. O que existe agora e o estado por veiculo — evento atual (EM
+    DIRECAO, PARADO EM JORNADA, EM REPOUSO), ha quanto tempo, e onde —, com
+    posicoes de 4 minutos de mediana. A UNICA coisa que vira cor e a direcao
+    continua, porque a Lei 13.103/2015 da teto de 5h30 antes da parada de 30
+    minutos: e infracao se formando AGORA, e a unica sobre a qual ainda da para
+    agir. O amarelo abre uma hora antes, que e o tempo de falar com o
+    motorista. Repouso longo nao e vermelho — num painel ligado o dia inteiro,
+    toda cor que nao significa nada ensina a ignorar as que significam. E o
+    denominador e quem esta REPORTANDO, nao a frota: sao 175 veiculos no
+    cadastro e cerca de 20 reportando, com idade de posicao bimodal (mediana 4
+    min, p90 169 DIAS), entao "12% da frota em direcao" seria um numero falso
+    sobre uma frota que nao esta toda em operacao.
 - termo: Tarifa de diaria derivada (auditoria)
   definicao: >-
     Nao existe cadastro de tarifa de diaria que o CORTEX possa ler - nem no ERP
@@ -988,6 +1006,7 @@ grupos:
   - tvdir
   - tvope
   - tvcom
+  - tvjor
 - nome: Gestão
   resumo: >-
     O ciclo de gestão: o que foi decidido em reunião, o que se comprometeu a

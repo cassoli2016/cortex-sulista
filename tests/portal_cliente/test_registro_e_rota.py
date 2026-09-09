@@ -335,22 +335,33 @@ def test_tv_nos_DOIS_E_TV():
     assert "tvcli" in espacos.E_TV
 
 
-def test_tv_esta_nas_QUATRO_grafias_da_lista_de_telas_de_TV():
-    """O `index.html` repete a disjunção das telas de TV em quatro grafias.
+def test_a_tela_de_TV_do_cliente_passa_pela_lista_UNICA():
+    """A dívida que este teste vigiava foi PAGA — e o teste mudou de alvo.
 
-    Faltar em uma delas não quebra nada visível: a tela abre, só não entra em
-    modo TV, ou não recarrega sozinha, ou não redesenha ao virar tela cheia.
-    Defeito sem sintoma é o que este teste existe para pegar — e a duplicação
-    em si está anotada na crônica como dívida.
+    Ele cobrava a disjunção das telas de TV escrita à mão em quatro grafias, e
+    a quinta cópia (o `else if` de cada relógio de recarga) nem estava aqui. Em
+    08/09/2026 as cinco viraram `TELAS_TV` + `esTv()` + `tvRecarregar()`, e
+    cobrar a grafia antiga passou a REPROVAR a correção — guard que trava a
+    consolidação que ele mesmo pedia.
+
+    O que continua valendo é a propriedade, não o texto: `tvcli` tem de estar
+    na lista única e ter quem a recarregue. Quem varre TODOS os painéis contra
+    o RBAC é `tests/jornada/test_integracao_completa.py`; aqui fica o pedaço
+    que é assunto desta frente.
     """
-    for grafia in (
-        "k==='tvfat' || k==='tvope' || k==='tvdir' || k==='tvcom' || k==='tvcli'",
-        "v==='tvfat' || v==='tvope' || v==='tvdir' || v==='tvcom' || v==='tvcli'",
-        "v === 'tvfat' || v === 'tvope' || v === 'tvdir' || v === 'tvcom' || v === 'tvcli'",
-    ):
-        assert grafia in INDEX, grafia
-    assert "else if(cv==='tvcli') loadTvCli();" in INDEX      # tick de 60s
-    assert "else if(v==='tvcli') loadTvCli();" in INDEX       # reflow
+    assert "const esTv = v => TELAS_TV.has(v);" in INDEX
+    for grafia in ("k==='tvfat'", "v==='tvfat'", "v === 'tvfat'"):
+        assert grafia not in INDEX, (
+            "a lista de telas de TV voltou a ser escrita à mão: %s" % grafia)
+    import re as _re
+    lista = _re.search(r"const TELAS_TV = new Set\(\[([^\]]*)\]\)", INDEX)
+    assert lista and "'tvcli'" in lista.group(1), "tvcli fora de TELAS_TV"
+    i = INDEX.index("function tvRecarregar(v){")
+    # o fim é o LIMITE REAL da função — a chave que fecha na coluna 0 —,
+    # nunca um deslocamento fixo
+    mapa = INDEX[i:INDEX.index(chr(10) + "}", i)]
+    assert "tvcli: loadTvCli" in mapa, (
+        "tvcli sem carregador em tvRecarregar: o painel abre e nunca se atualiza")
 
 
 def test_tv_tem_view_icone_menu_e_carregador():

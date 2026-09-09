@@ -70,7 +70,10 @@ TIMEOUT = 60
 #
 # A ordem importa na coleta: motorista primeiro, porque jornada e
 # inconformidade referenciam o CPF.
-RECURSOS = ("motoristas", "jornadas", "inconformidades", "ausencias")
+# A ORDEM É A DA DEPENDÊNCIA, não a alfabética: motorista primeiro porque
+# jornada, inconformidade, diária e evento referenciam o CPF dele.
+RECURSOS = ("motoristas", "jornadas", "inconformidades", "ausencias",
+            "diarias", "eventos", "excecoes", "anomalias", "veiculos")
 
 CATALOGO = {
     "motoristas": {
@@ -94,7 +97,60 @@ CATALOGO = {
         "pagina": False,
         "datahora": True,
     },
+    # ── os cinco que faltavam, e o terceiro par de nomes de data ────────────
+    #
+    # A DIÁRIA É PEDIDA UM DIA POR VEZ, e quem chama é que garante isso: o
+    # endpoint AGREGA o período pedido e não devolve data por item (pedindo o
+    # mês, ele responde "12 meias e 4 inteiras", sem dizer em que dias). A
+    # granularidade de dia é escolha da coleta; pedir a semana e distribuir
+    # seria inventar data. Ver o laço em `coleta.py` e o comentário da coluna
+    # `data` em `sql/cortex/0075_jornada_completa.sql`.
+    "diarias": {
+        "caminho": "/external-api/diarias/",
+        "de": "data_inicial", "ate": "data_final",
+        "pagina": False,
+    },
+    # As MACROS. Maior volume da família — ~558 por dia — e vem paginado no
+    # envelope {items,total,total_pages}, que `_uma_pagina` já sabe ler.
+    "eventos": {
+        "caminho": "/external-api/driver-events/",
+        "de": "from_date", "ate": "to_date",
+        "pagina": True,
+    },
+    # O TERCEIRO PAR DE NOMES DE DATA da mesma API: aqui é `data_inicial` /
+    # `data_final`, como nas diárias, e não `from_date`/`to_date` como nas
+    # anomalias logo abaixo. Um par único não serviria para nenhum deles.
+    "excecoes": {
+        "caminho": "/external-api/journey-exceptions/",
+        "de": "data_inicial", "ate": "data_final",
+        "pagina": True,
+    },
+    "anomalias": {
+        "caminho": "/external-api/anomalies/",
+        "de": "from_date", "ate": "to_date",
+        "pagina": False,
+    },
+    # Cadastro + estado ATUAL: não aceita janela, e é o ÚNICO recurso da
+    # família que responde "agora" — as posições vêm de minutos atrás. É ele
+    # que sustenta o painel de TV; todo o resto da API é D-1 por regra do
+    # fornecedor, e nenhuma coleta mais frequente muda isso.
+    "veiculos": {
+        "caminho": "/external-api/vehicles/",
+        "de": None, "ate": None,
+        "pagina": False,
+    },
 }
+
+# O RECURSO QUE RESPONDE AGORA. Fica nomeado numa constante porque duas coisas
+# dependem de saber qual é: o painel de TV, que não pode servir leitura velha,
+# e a coleta, que roda este com cadência própria — muito mais curta que a dos
+# outros, que não ganhariam nada com ela.
+RECURSO_TEMPO_REAL = "veiculos"
+
+# Os recursos que a API entrega apenas até ONTEM: todos, menos o de cima.
+# Derivado do CATALOGO em vez de escrito à mão — lista paralela envelhece em
+# silêncio no dia em que alguém acrescentar um recurso.
+RECURSOS_D_MENOS_1 = tuple(r for r in RECURSOS if r != RECURSO_TEMPO_REAL)
 
 # ── DUAS REGRAS DA API, descobertas na primeira chamada real ─────────────
 #
@@ -274,9 +330,32 @@ def _uma_pagina(recurso: str, cfg: dict, de, ate, pagina: int | None):
         with urllib.request.urlopen(req, timeout=TIMEOUT, context=_tls.contexto()) as resp:
             corpo = resp.read().decode("utf-8", "replace")
     except urllib.error.HTTPError as exc:
+        # LER O CORPO, NÃO O STATUS — e aqui isso vale nos DOIS sentidos.
+        #
+        # O módulo já sabia que um HTTP 200 podia ser recusa (o limite de taxa
+        # da produtividade vem assim). Faltava o contrário: `/vehicles/` recusa
+        # com HTTP **400** e `{"mensagem": "Faltam 5 minutos para fazer outra
+        # consulta"}`. Tratar isso como indisponibilidade dizia que o
+        # fornecedor caiu quando ele estava são e só pediu para esperar — e a
+        # diferença aparece na Saúde, que acende alarme de integração parada
+        # por causa de um freio de cinco minutos.
+        #
+        # Recusa com motivo é `RasterRecusou`: quem chamou pode esperar e
+        # repetir. Sem motivo no corpo, é indisponibilidade mesmo.
+        bruto = exc.read()[:300].decode("utf-8", "replace")
+        recado = ""
+        try:
+            corpo = _json.loads(bruto)
+            if isinstance(corpo, dict):
+                recado = next((str(corpo[c]) for c in _CHAVES_RECUSA
+                               if corpo.get(c)), "")
+        except ValueError:
+            recado = ""
+        if recado:
+            raise RasterRecusou(
+                f"{recurso}: {_sanitizar(recado)[:200]}") from None
         raise RasterIndisponivel(
-            f"HTTP {exc.code} em {recurso}: "
-            f"{_sanitizar(exc.read()[:200].decode('utf-8', 'replace'))}") from None
+            f"HTTP {exc.code} em {recurso}: {_sanitizar(bruto[:200])}") from None
     except Exception as exc:  # noqa: BLE001
         raise RasterIndisponivel(
             f"{type(exc).__name__} ao chamar {recurso}: "
@@ -380,6 +459,111 @@ def chamar(recurso: str, *, de: str | None = None,
         tudo.extend(linhas)
         total_ms += ms
     return tudo, total_ms
+
+# ── ESCRITA ─────────────────────────────────────────────────────────────────
+#
+# SEPARADA DE `chamar()` DE PROPÓSITO. O `chamar()` é lido como seguro em todo
+# o módulo, nos testes e nas telas: quem o vê numa linha sabe que aquilo lê.
+# Se ele aceitasse um método, uma chamada de leitura com um argumento errado
+# viraria escrita no sistema do fornecedor — e o erro só apareceria depois, no
+# dado dele. Duas portas, e a de escrita com o nome do que faz.
+#
+# A TELA NUNCA MANDA CAMINHO. Ela manda a AÇÃO ("criar_ausencia"), e o servidor
+# monta a URL a partir do catálogo — a mesma regra do playground de fornecedor:
+# parâmetro que entra em segmento de URL é validado antes.
+
+# O que a API aceita escrever, e o caminho de cada um. Um dicionário fechado é
+# o que impede caminho vindo de fora.
+ESCRITAS = {
+    "criar_ausencia": {"metodo": "POST", "caminho": "/external-api/absences/"},
+    "apagar_ausencia": {"metodo": "DELETE",
+                        "caminho": "/external-api/absences/{external_pk}"},
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# O BLOQUEIO QUE IMPEDE CRIAR AUSÊNCIA HOJE, e por que ele é um dicionário
+# vazio em vez de um palpite.
+#
+# `POST /absences/` exige `type_id` (inteiro). A OpenAPI do fornecedor declara
+# o campo e NÃO traz a tabela de domínio; o `GET` devolve o NOME do tipo
+# ("ATESTADO MEDICO", "FALTA", "FOLGA", "FÉRIAS", "AFASTAMENTO MEDICO"…) e
+# nunca o número. Não há de onde derivar o par.
+#
+# Chutar tem consequência assimétrica: uma ausência criada com o tipo errado
+# entra no sistema de jornada do fornecedor, altera a apuração do motorista e
+# só se desfaz apagando — e apagar exige o `external_id`, que só existe se a
+# criação tiver dado certo. É o tipo de erro que se descobre na folha.
+#
+# Então: o mapa nasce VAZIO e a criação RECUSA dizendo o motivo, em vez de
+# tentar. Quando a RasterJOR mandar a tabela, ela entra aqui e a recusa some
+# sozinha — sem mexer em mais nada.
+TIPOS_AUSENCIA: dict[str, int] = {}
+
+
+class TipoDeAusenciaDesconhecido(RuntimeError):
+    """Falta a tabela de domínio de `type_id`. Não é falha: é dado que a
+    documentação do fornecedor não publica, e adivinhar escreveria errado."""
+
+
+def tipo_de_ausencia(nome: str) -> int:
+    """O `type_id` do nome, ou recusa dizendo o que falta."""
+    codigo = TIPOS_AUSENCIA.get((nome or "").strip().upper())
+    if codigo is None:
+        raise TipoDeAusenciaDesconhecido(
+            "A RasterJOR exige o código numérico do tipo de ausência "
+            "(`type_id`) e não publica a tabela que liga o código ao nome. "
+            "Enquanto ela não for informada, o CÓRTEX não cria ausência — "
+            "criar com o código errado altera a apuração do motorista no "
+            "sistema do fornecedor e só se desfaz apagando.")
+    return codigo
+
+
+def enviar(acao: str, *, corpo: dict | None = None,
+           external_pk: int | None = None) -> int:
+    """Executa uma ESCRITA no fornecedor. Devolve o status HTTP.
+
+    As duas escritas respondem **204 sem corpo**: o sucesso se confere pelo
+    STATUS, e não por um payload de confirmação. Quem chamou grava o que fez do
+    lado de cá; a coleta seguinte reconcilia.
+    """
+    if not configurado():
+        raise NaoConfigurado(o_que_falta())
+    cfg = ESCRITAS.get(acao)
+    if not cfg:
+        raise RasterIndisponivel(f"ação de escrita desconhecida: {acao}")
+
+    caminho = cfg["caminho"]
+    if "{external_pk}" in caminho:
+        # VALIDADO ANTES DE VIRAR SEGMENTO DE URL. Um id que não é inteiro não
+        # chega a montar caminho nenhum.
+        if not isinstance(external_pk, int) or external_pk <= 0:
+            raise RasterIndisponivel(
+                "identificador da ausência inválido para apagar")
+        caminho = caminho.replace("{external_pk}", str(external_pk))
+
+    dados = _json.dumps(corpo or {}).encode("utf-8") if cfg["metodo"] == "POST" else None
+    cab = dict(_cabecalhos())
+    if dados is not None:
+        cab["Content-Type"] = "application/json"
+
+    req = urllib.request.Request(base_url() + caminho, data=dados,
+                                 headers=cab, method=cfg["metodo"])
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT,
+                                    context=_tls.contexto()) as resp:
+            return resp.status
+    except urllib.error.HTTPError as exc:
+        texto = _sanitizar(exc.read()[:200].decode("utf-8", "replace"))
+        # 4xx do fornecedor é RECUSA — ele funcionou e disse não —, e precisa
+        # chegar na tela com o motivo. 5xx é indisponibilidade.
+        if 400 <= exc.code < 500:
+            raise RasterRecusou(f"{acao}: HTTP {exc.code} — {texto}") from None
+        raise RasterIndisponivel(f"{acao}: HTTP {exc.code} — {texto}") from None
+    except Exception as exc:  # noqa: BLE001
+        raise RasterIndisponivel(
+            f"{type(exc).__name__} ao executar {acao}: "
+            f"{_sanitizar(str(exc))[:200]}") from None
+
 
 def diagnostico() -> dict:
     """Para a Saúde e para a tela de Integrações. NÃO chama a API: dizer se a
