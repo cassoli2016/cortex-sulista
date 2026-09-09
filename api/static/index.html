@@ -886,6 +886,10 @@ body.painelfull .content{padding:16px 22px}
    dinheiro: o que decide esta no topo, e o resto rola aqui dentro. */
 #dre-atk-pano .tabroll{max-height:300px}
 #aba-jorn-diaria .tabroll{max-height:320px}
+/* O Plano 12 meses tem banda de KPI PROPRIA alem da banda da tela, e a
+   regua mede a aba inteira: com os 430px padrao ela dava 1037px contra o
+   teto de 900. A tabela e' de 12 linhas e rola dentro do card. */
+#aba-fluxcon-plano .tabroll{max-height:300px}
 /* A auditoria e uma lista longa por natureza: a rolagem fica DENTRO do card,
    nunca na pagina. A tabela de achados ganha mais altura que as duas de
    apoio porque e ela que a pessoa veio ler. */
@@ -5051,13 +5055,17 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                 <div class="subtabs" role="tablist" data-abas="fluxcon" aria-label="Seções da tela">
           <button role="tab" id="tabfluxcon-proj" data-aba="proj" aria-controls="aba-fluxcon-proj"
                   aria-selected="true" onclick="abaTrocar('fluxcon','proj')">Projeção</button>
+          <button role="tab" id="tabfluxcon-plano" data-aba="plano" aria-controls="aba-fluxcon-plano"
+                  aria-selected="false" onclick="abaTrocar('fluxcon','plano')">Plano 12 meses</button>
+          <button role="tab" id="tabfluxcon-planotab" data-aba="planotab" aria-controls="aba-fluxcon-planotab"
+                  aria-selected="false" onclick="abaTrocar('fluxcon','planotab')">Plano — mês a mês</button>
           <button role="tab" id="tabfluxcon-posicao" data-aba="posicao" aria-controls="aba-fluxcon-posicao"
                   aria-selected="false" onclick="abaTrocar('fluxcon','posicao')">Posição</button>
           <button role="tab" id="tabfluxcon-venc" data-aba="venc" aria-controls="aba-fluxcon-venc"
                   aria-selected="false" onclick="abaTrocar('fluxcon','venc')">Vencidos e limites</button>
         </div>
         <div class="aba" data-abas="fluxcon" data-aba="proj" id="aba-fluxcon-proj"
-             role="tabpanel" aria-labelledby="tabfluxcon-proj">
+             role="tabpanel" aria-labelledby="tabfluxcon-proj" data-ao-abrir="fcBandaDaTela">
 <div class="card">
           <div class="head"><h2>Saldo projetado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Saldo encadeado: o final de cada período é o inicial do seguinte, começando no saldo de bancos e caixa de hoje — a mesma cascata da planilha de tesouraria, onde o SALDO ANTERIOR de cada aba vem do dia anterior. Entradas = a receber oficial por vencimento; saídas = contas a pagar por vencimento. Só o que está LANÇADO no ERP.">i</span></h2>
             <span class="hint" id="hintFc"></span></div>
@@ -5066,8 +5074,34 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
         </div>
+        <div class="aba" data-abas="fluxcon" data-aba="plano" id="aba-fluxcon-plano"
+             role="tabpanel" aria-labelledby="tabfluxcon-plano" data-ao-abrir="loadProjecao" hidden>
+          <div id="proj-avisos"></div>
+          <div class="kpis k4" id="kpis-proj"></div>
+          <div class="card">
+            <div class="head"><h2>Entradas, saídas e saldo projetado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O LANÇADO no ERP (barra cheia) mais o que ainda vai ser lançado (barra hachurada), mês a mês. O estimado sai da curva de lançamento medida nos meses fechados e do índice sazonal por natureza — folha de 13º em dezembro, tributo baixo em janeiro. A hachura é a mesma marca que a casa usa para período incompleto: barra cheia num mês que o ERP ainda não conhece mentiria sobre o superávit.">i</span></h2>
+              <span class="hint" id="hintProj"></span>
+              <button class="ghost" id="btnProjDDA" onclick="ddaImportar()">Importar DDA</button></div>
+            <div class="chartwrap" id="wrapProj">
+              <div id="chartProj" style="width:100%;height:220px" role="img"
+                   aria-label="Entradas, saídas e saldo de caixa projetados por mês."></div>
+            </div>
+          </div>
+        </div>
+        <div class="aba" data-abas="fluxcon" data-aba="planotab" id="aba-fluxcon-planotab"
+             role="tabpanel" aria-labelledby="tabfluxcon-planotab" data-ao-abrir="loadProjecao" hidden>
+          <div class="card">
+            <div class="head"><h2>Mês a mês <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O detalhado da projeção. Clique na linha para abrir a decomposição por natureza: quanto já está lançado, quanto o modelo espera e por qual método — curva do próprio mês, nível histórico dessazonalizado ou resto do mês corrente. A coluna Confiança é a fração do mês que já existe no ERP: um mês 90% estimado e um mês 90% lançado não são a mesma informação, e a tela é obrigada a mostrar a diferença.">i</span></h2>
+              <span class="hint" id="hintProjTab">clique na linha para ver a composição por natureza</span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th style="width:30px"></th><th>Mês</th><th class="num">Entradas</th>
+              <th class="num">Saídas</th><th class="num">A lançar</th><th class="num">Resultado</th>
+              <th class="num">Saldo final</th><th class="num">Confiança</th>
+            </tr></thead><tbody id="proj-linhas"></tbody></table></div>
+          </div>
+        </div>
         <div class="aba" data-abas="fluxcon" data-aba="posicao" id="aba-fluxcon-posicao"
-             role="tabpanel" aria-labelledby="tabfluxcon-posicao" hidden>
+             role="tabpanel" aria-labelledby="tabfluxcon-posicao" data-ao-abrir="fcBandaDaTela" hidden>
 <div class="grid2">
           <div class="card">
             <div class="head"><h2>Saldo por banco <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Posição de cada conta ATIVA e marcada como “considerar fluxo de caixa” no ERP — as mesmas que somam o saldo de partida. Contas operacionais (vale-pedágio, cartão) ficam fora porque o próprio ERP as marca assim. A data é a da última posição de cada conta: elas não são todas do mesmo dia.">i</span></h2>
@@ -5093,7 +5127,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         </div>
         <div class="aba" data-abas="fluxcon" data-aba="venc" id="aba-fluxcon-venc"
-             role="tabpanel" aria-labelledby="tabfluxcon-venc" hidden>
+             role="tabpanel" aria-labelledby="tabfluxcon-venc" data-ao-abrir="fcBandaDaTela" hidden>
 <div class="card">
           <div class="head"><h2>Vencidos — o bloco separado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Contas a pagar já vencidas, agrupadas por natureza. Ficam FORA do fluxo acima de propósito, como no rodapé da planilha de tesouraria: somar isso ao dia a dia faria a operação parecer inviável todos os dias. A maior parte é tributo — inclusive parcelamento em curso, que não vence de novo.">i</span></h2>
             <span class="hint" id="hintFcVenc"></span></div>
@@ -16668,6 +16702,380 @@ function renderRec(d){
 // horizonte mínimo por granularidade: 7 baldes de trimestre com 30 dias de
 // horizonte devolveria UM balde — o seletor de período viraria enfeite
 const FC_MINIMO = {dia:30, semana:90, mes:180, trimestre:540, semestre:720};
+/* ============================ PLANO 12 MESES ============================
+   A sub-aba que responde "quanto vou precisar antecipar", e a unica da casa
+   que mostra numero NAO LANCADO no ERP.
+
+   TRES REGRAS DE LEITURA, todas visiveis na tela:
+
+   1. O ESTIMADO E HACHURADO, sempre — a mesma marca do periodo incompleto.
+      Barra cheia num mes que o ERP ainda nao conhece afirma um superavit que
+      e falta de lancamento. Medido em 09/09/2026: o painel do lancado mostrava
+      dez/26 com saldo POSITIVO de R$ 378 mil porque so R$ 1,85 mi de saidas
+      estavam lancadas; o mes vai custar por volta de R$ 12 mi.
+   2. A NECESSIDADE TEM DUAS FORMAS e elas pedem remedios diferentes. A do mes
+      e descasamento de prazo e se resolve antecipando recebivel. A acumulada
+      e queima de caixa: antecipar traz o dinheiro de depois para hoje e deixa
+      o depois vazio.
+   3. O DDA E O UNICO NUMERO MEDIDO desta aba. O resto e modelo. Por isso ele
+      tem card proprio, com nome e CNPJ atras do clique.
+*/
+let DATAPROJ = null, projSeq = 0;
+
+/* A BANDA DA TELA SAI DE CENA NAS DUAS ABAS DO PLANO, e nao e' por altura.
+   `kpis-fluxcon` publica "Necessidade operacional" calculada sobre o LANCADO;
+   o Plano publica "Buraco acumulado" calculado sobre o lancado MAIS o
+   estimado. Sao numeros diferentes com nomes parecidos, e um em cima do outro
+   a leitura mais provavel e' "o sistema esta se contradizendo".
+
+   Quem esconde tambem repoe: as outras tres abas declaram `fcBandaDaTela` no
+   `data-ao-abrir`. Esconder sem repor deixaria a tela sem banda para sempre
+   depois de uma visita ao Plano — defeito que so aparece na volta. */
+function fcBandaDaTela(mostrar){
+  const b = document.getElementById('kpis-fluxcon');
+  if(b) b.style.display = (mostrar === false) ? 'none' : '';
+}
+
+
+async function loadProjecao(){
+  if(DATAPROJ){ renderProjecao(DATAPROJ); return; }
+  const seq = ++projSeq;
+  skelKpis('kpis-proj', 4);
+  try{
+    const r = await fetch('/api/financeiro/projecao?meses=12', {cache:'no-store'});
+    /* `respostaJSON` devolve {ok, dados} — NAO o payload. Ler `d.kpis` direto
+       daqui nao levanta erro nenhum: tudo vira undefined, os KPIs saem R$ 0 e
+       a tabela sai vazia, com cara de "nao ha dado". Pego na bancada com o
+       payload real de 12 meses rendendo zero linha. */
+    const rr = await respostaJSON(r);
+    if(seq !== projSeq) return;
+    if(!r.ok){ showBanner((rr.dados||{}).mensagem || 'Não foi possível montar a projeção.'); return; }
+    DATAPROJ = rr.dados; renderProjecao(rr.dados);
+  }catch(e){ if(seq === projSeq) showBanner('Não foi possível falar com a API.', e.message); }
+}
+
+/* O percentual de confianca vira badge com tres estados, e nao um numero
+   solto: quem le a tabela decide se aquele mes sustenta uma decisao. */
+function projConf(c){
+  const p = Math.round((c || 0) * 100);
+  const cls = p >= 60 ? 'b-ok' : (p >= 25 ? 'b-warn' : 'b-alert');
+  return '<span class="badge ' + cls + '" title="' + p
+    + '% do movimento deste mês já está lançado no ERP; o resto é estimativa.">'
+    + p + '% lançado</span>';
+}
+
+function renderProjecao(d){
+  const k = d.kpis || {}, L = d.lastro || {}, dda = d.dda || {};
+  const cobre = (L.cobertura_mensal != null) ? L.cobertura_mensal : null;
+  /* A lancar dos PROXIMOS 3 MESES, nao do horizonte inteiro: a soma de 12
+     meses da R$ 117 mi, um numero que impressiona e nao se aciona. Tres meses
+     e a janela em que ainda da para lancar, renegociar ou contratar. */
+  const prox3 = (d.linhas || []).slice(0, 3).reduce((a, l) => a + (l.a_lancar || 0), 0);
+  const faltDDA = ((dda.resumo || {}).faltantes_valor) || 0;
+
+  document.getElementById('kpis-proj').innerHTML = [
+    kpi('Precisa antecipar (mês)', BRL.format(k.necessidade_mensal || 0),
+        k.pior_mes_resultado ? ('pior mês: ' + k.pior_mes_resultado
+          + (cobre != null ? ' · lastro cobre ' + NMI.format(cobre) + '×' : ''))
+          : 'sem descasamento no horizonte',
+        (cobre != null && cobre < 1) ? 'neg' : 'warn',
+        'O pior RESULTADO de um mês isolado — o descasamento entre o que entra e o que sai naquele mês. É esta necessidade que a antecipação de recebível resolve: o dinheiro existe, está no prazo errado.'),
+    kpi('Buraco acumulado (12m)', BRL.format(k.necessidade || 0),
+        L.estrutural ? 'antecipação e limite NÃO cobrem'
+                     : (k.primeiro_negativo ? 'primeiro negativo em ' + k.primeiro_negativo
+                                            : 'não fica negativo'),
+        (k.necessidade || 0) > 0 ? 'neg' : 'pos',
+        'O pior saldo da série encadeada: a soma dos déficits que ainda não foram cobertos. Antecipação NÃO resolve esta — antecipar traz para hoje o que entraria depois, e o depois fica sem. Buraco acumulado pede resultado, prazo com fornecedor ou capital.'),
+    kpi('Falta lançar (3 meses)', BRL.format(prox3),
+        'queima média ' + BRL.format(Math.abs(k.queima_media || 0)) + '/mês',
+        'warn',
+        'Quanto o modelo espera que ainda entre no ERP com vencimento nos próximos três meses. Sai da curva de lançamento medida nos meses fechados: no dia 1º do mês o ERP conhece cerca de 45% do que vai vencer nele, e só perto do dia 30 chega a 100%.'),
+    kpi('DDA sem título no ERP', dda.disponivel ? BRL.format(faltDDA) : 'não importado',
+        dda.disponivel ? (((dda.resumo || {}).faltantes || 0) + ' boletos · clique para ver')
+                       : 'clique para importar o extrato do banco',
+        dda.disponivel ? (faltDDA > 0 ? 'warn' : 'pos') : '',
+        'Boletos que fornecedores registraram contra o CNPJ da empresa e que NÃO têm título correspondente no ERP. É o único número MEDIDO desta aba — o resto é modelo. Casado por CNPJ + vencimento + valor, com tolerância para prorrogação.'),
+  ].join('');
+  /* O card do DDA e o unico acionavel por clique: ele abre a LISTA (nome,
+     CNPJ, vencimento) ou o importador quando nao ha carga. Os outros tres
+     nao viram botao porque o que eles explicam ja esta na tabela abaixo, e
+     card que parece clicavel e nao leva a lugar nenhum e pior que card
+     parado. */
+  const cardDDA = document.querySelector('#kpis-proj .kpi:nth-child(4)');
+  if(cardDDA){
+    cardDDA.style.cursor = 'pointer';
+    cardDDA.setAttribute('role', 'button');
+    cardDDA.setAttribute('tabindex', '0');
+    cardDDA.onclick = () => (dda.disponivel ? ddaDetalhe('') : ddaImportar());
+    cardDDA.onkeydown = ev => {
+      if(ev.key === 'Enter' || ev.key === ' '){ ev.preventDefault(); cardDDA.onclick(); }
+    };
+  }
+
+  fcBandaDaTela(false);
+  projAvisos(d);
+  document.getElementById('hintProj').textContent =
+    'saldo de partida ' + BRL.format(k.saldo_inicial || 0)
+    + ' · recebimento deslocado ' + (k.deslocamento_meses || 0) + ' mês(es) pelo DSO de '
+    + NMI.format(k.dso || 0) + ' dias';
+  projGrafico(d);
+  projTabela(d);
+}
+
+/* Os avisos que mudam decisao, na ordem em que mudam. */
+function projAvisos(d){
+  const A = [], k = d.kpis || {}, L = d.lastro || {}, dda = d.dda || {};
+  if(L.estrutural){
+    const ant = (L.antecipacao || {}).total || 0, lim = (L.credito || {}).limite || 0;
+    A.push(['t-dang', 'O buraco de 12 meses não se resolve antecipando',
+      'A projeção acumula ' + BRL.format(k.necessidade) + ' de déficit, e o lastro disponível soma '
+      + BRL.format(ant + lim) + ' (' + BRL.format(ant) + ' de recebível antecipável + '
+      + BRL.format(lim) + ' de limite rotativo). A operação queima '
+      + BRL.format(Math.abs(k.queima_media || 0)) + ' por mês em ' + k.meses_negativos
+      + ' dos ' + (d.linhas || []).length + ' meses projetados: antecipação cobre o '
+      + 'descasamento de prazo, não a queima. O que fecha essa conta é resultado, '
+      + 'prazo com fornecedor ou capital.']);
+  }
+  /* Dezembro e o mes que a projecao existe para achar: receita baixa e folha
+     de 13o na mesma competencia. O aviso nomeia as duas metades, porque
+     separadas nenhuma das duas parece um problema. */
+  const ixFat = ((d.sazonalidade || {}).faturamento || {}).indice || {};
+  (d.linhas || []).forEach(l => {
+    if(+l.mes.slice(5, 7) !== 12) return;
+    const pes = (l.naturezas || []).find(n => n.natureza === 'Pessoal');
+    if(!pes || !(pes.indice > 1.1)) return;
+    A.push(['t-warn', 'Dezembro concentra o 13º com a receita mais baixa do ano',
+      'A folha de dezembro sai por ' + BRL.format(pes.previsto) + ' — índice '
+      + NMI.format(pes.indice) + '× o mês médio, que é o 13º. Do outro lado, o '
+      + 'faturamento de dezembro roda a ' + NMI.format(ixFat[12] || 1) + '× o mês médio, '
+      + 'o menor do ano. As duas coisas caem na mesma competência, e só '
+      + Math.round((l.confianca || 0) * 100) + '% de ' + l.rotulo + ' está lançado hoje.']);
+  });
+  const q = d.quebra_de_nivel;
+  if(q){
+    A.push([q.variacao < 0 ? 't-warn' : 't-ok', 'A base mudou de patamar',
+      'O faturamento dessazonalizado dos últimos 6 meses roda em ' + BRL.format(q.recente)
+      + '/mês contra ' + BRL.format(q.anterior) + ' nos 6 anteriores — '
+      + (q.variacao < 0 ? 'queda' : 'alta') + ' de ' + NMI.format(Math.abs(q.variacao * 100))
+      + '%. A projeção JÁ usa o patamar novo: o nível sai da mediana dos 6 meses '
+      + 'fechados, e o índice sazonal é razão sobre média móvel, que acompanha o degrau '
+      + 'em vez de espalhá-lo pelos meses.']);
+  }
+  const est = dda.estado || {};
+  if(est.configurado && est.velho){
+    A.push(['t-warn', 'O DDA importado tem ' + est.idade_dias + ' dias',
+      'O extrato mais recente é de ' + fmtD((est.extraido_em || '').slice(0, 10))
+      + '. Boleto pago some da extração seguinte e boleto novo não aparece — acima de '
+      + 'uma semana o retrato deixa de descrever a carteira. Exporte de novo pelo portal '
+      + 'do banco e importe.']);
+  }else if(!est.configurado){
+    A.push(['t-info', 'Sem DDA importado — a projeção está só no modelo',
+      'Os boletos registrados no banco são o único piso MEDIDO desta tela: eles dizem, '
+      + 'com nome e CNPJ, o que já é obrigação e ainda não virou título no ERP. Sem eles, '
+      + 'o "falta lançar" é inteiramente estimativa. Use o botão Importar DDA com o '
+      + 'extrato de consulta de boletos do portal.']);
+  }
+  document.getElementById('proj-avisos').innerHTML = A.map(([cl, t, m]) =>
+    '<div class="toast ' + cl + '"><b>' + esc(t) + '</b>' + esc(m) + '</div>').join('');
+}
+
+/* GRAFICO: barras de entrada e saida com a PARTE ESTIMADA hachurada, mais o
+   saldo em eixo secundario com rotulo direto.
+
+   Duas series EMPILHADAS por lado (lancado + a lancar) em vez de uma barra
+   unica: e o empilhamento que deixa ver, no mesmo desenho, o tamanho do mes E
+   quanto dele o ERP ja conhece. Com uma barra so, a hachura seria uma textura
+   sobre o mes inteiro e nao diria proporcao nenhuma. */
+function projGrafico(d){
+  ecDesenhar('chartProj', (d.linhas || []).length && (() => {
+    const L = d.linhas, rot = L.map(l => l.rotulo);
+    const entL = L.map(l => l.entradas_lancadas);
+    const entE = L.map(l => Math.max(0, l.entradas - l.entradas_lancadas));
+    const saiL = L.map(l => l.saidas_lancadas);
+    const saiE = L.map(l => Math.max(0, l.saidas - l.saidas_lancadas));
+    const maxBar = Math.max(1, ...L.map(l => Math.max(l.entradas, l.saidas)));
+    const saldos = L.map(l => l.saldo_final);
+    const o = ecOpcoes(rot, maxBar, {tipo: 'moeda', sombra: true, legenda:
+      ['Entradas lançadas', 'Entradas estimadas', 'Saídas lançadas',
+       'Saídas estimadas', 'Saldo projetado'],
+      eixoY: {name: 'ENTRADAS × SAÍDAS POR MÊS'}});
+    const hach = new Array(L.length).fill(true);
+    o.series = [
+      ecBarras('Entradas lançadas', entL, CC.verde, {empilhar: 'ent', largura: 16, raio: false}),
+      ecBarras('Entradas estimadas', entE, CC.verde, {empilhar: 'ent', largura: 16, parcial: hach}),
+      ecBarras('Saídas lançadas', saiL, CC.vermelho, {empilhar: 'sai', largura: 16, raio: false}),
+      ecBarras('Saídas estimadas', saiE, CC.vermelho, {empilhar: 'sai', largura: 16, parcial: hach}),
+      ecLinha('Saldo projetado', saldos, CC.navy400, {eixo: 1, tamanho: 6,
+        rotulo: v => (Math.abs(v) >= 1e6 ? NMI.format(v / 1e6) + ' mi'
+                                         : Math.round(v / 1e3) + ' mil')}),
+    ];
+    /* O eixo do saldo tem dominio PROPRIO e inclui o zero: o saldo anda em
+       outra ordem de grandeza que as barras e fica negativo em boa parte da
+       serie. Num eixo so, ele vira uma reta colada no fundo. */
+    const lo = Math.min(0, ...saldos), hi = Math.max(0, ...saldos);
+    const amp = (hi - lo) || 1;
+    o.yAxis = [o.yAxis, {type: 'value', show: false,
+      min: lo - amp * 0.12, max: hi + amp * 0.28}];
+    o.tooltip.formatter = p => {
+      const l = L[p[0].dataIndex];
+      return '<b>' + esc(l.rotulo) + '</b> <span style="color:#6B7580">'
+        + Math.round((l.confianca || 0) * 100) + '% lançado</span><br>'
+        + '<span style="color:#1E7F4F">&#9632;</span> Entradas: <b>' + BRL.format(l.entradas) + '</b>'
+        + (l.a_faturar > 0 ? ' <span style="color:#6B7580">(' + BRL.format(l.a_faturar)
+                             + ' a faturar)</span>' : '') + '<br>'
+        + '<span style="color:#C03221">&#9632;</span> Saídas: <b>' + BRL.format(l.saidas) + '</b>'
+        + (l.a_lancar > 0 ? ' <span style="color:#6B7580">(' + BRL.format(l.a_lancar)
+                            + ' a lançar)</span>' : '') + '<br>'
+        + 'Resultado: <b>' + BRL.format(l.resultado) + '</b><br>'
+        + 'Saldo final: <b>' + BRL.format(l.saldo_final) + '</b>'
+        + (l.dda_manda ? '<br><span style="color:#B97709">DDA acima do estimado — '
+                         + 'o piso medido mandou</span>' : '');
+    };
+    return o;
+  }), 'sem projeção no horizonte');
+}
+
+function projTabela(d){
+  document.getElementById('proj-linhas').innerHTML = (d.linhas || []).map((l, i) => {
+    const nats = (l.naturezas || []).filter(n => n.previsto > 0 || n.lancado > 0);
+    const det = '<div class="tablewrap"><table>'
+      + '<thead><tr><th>Natureza</th><th class="num">Lançado</th><th class="num">Previsto</th>'
+      + '<th class="num">A lançar</th><th class="num">Sazonal</th><th>Método</th></tr></thead>'
+      + '<tbody>' + nats.map(n => '<tr>'
+        + '<td>' + esc(n.natureza) + '</td>'
+        + '<td class="num">' + BRL.format(n.lancado) + '</td>'
+        + '<td class="num" style="font-weight:600">' + BRL.format(n.previsto) + '</td>'
+        + '<td class="num" style="color:' + (n.a_lancar > 0 ? 'var(--red)' : 'inherit') + '">'
+          + (n.a_lancar > 0 ? BRL.format(n.a_lancar) : '—') + '</td>'
+        + '<td class="num" title="Índice sazonal do mês para esta natureza: quanto ela '
+          + 'costuma custar neste mês-calendário contra o mês médio.">'
+          + NMI.format(n.indice) + '×</td>'
+        + '<td>' + (n.metodo === 'curva'
+            ? '<span class="badge b-ok" title="Ancorado no próprio mês: '
+              + Math.round(n.completude * 100) + '% dele já está lançado e a curva medida '
+              + 'completa o resto.">curva do mês</span>'
+            : n.metodo === 'parcial'
+              ? '<span class="badge b-warn" title="Mês corrente: só o que ainda não venceu '
+                + 'entra (' + Math.round(n.resto_do_mes * 100) + '% do mês). O começo do mês '
+                + 'já está dentro do saldo de partida.">resto do mês</span>'
+              : '<span class="badge" title="Sem lançamento suficiente deste mês ('
+                + Math.round(n.completude * 100) + '% da curva). Vale o nível histórico '
+                + 'dessazonalizado.">nível histórico</span>') + '</td>'
+        + '</tr>').join('') + '</tbody></table></div>'
+      + (l.dda > 0
+          ? '<div style="padding:6px 0 0"><a href="#" onclick="ddaDetalhe(\'' + l.mes
+            + '\');return false;" style="font-size:12px;color:var(--orange-500,#E85D10);'
+            + 'font-weight:600;text-decoration:none">Ver os ' + BRL.format(l.dda)
+            + ' de boleto já no banco e sem título no ERP →</a></div>'
+          : '');
+    return '<tr class="forn-row" aria-expanded="false" aria-controls="proj-det-' + i + '" '
+      + 'tabindex="0" role="button" onclick="projToggle(' + i + ')" '
+      + 'onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();projToggle('
+      + i + ');}">'
+      + '<td><span class="expander">' + ICONS['chevr2'] + '</span></td>'
+      + '<td style="font-weight:600">' + esc(l.rotulo)
+        + (l.dda_manda ? ' <span class="badge b-warn" title="O DDA mostrou mais boleto sem '
+            + 'título do que o modelo estimou — o piso medido prevaleceu.">piso do DDA</span>'
+          : '') + '</td>'
+      + '<td class="num" style="color:var(--green)">' + BRL.format(l.entradas) + '</td>'
+      + '<td class="num" style="color:var(--red)">' + BRL.format(l.saidas) + '</td>'
+      + '<td class="num">' + (l.a_lancar > 0 ? BRL.format(l.a_lancar) : '—') + '</td>'
+      + '<td class="num" style="color:' + (l.resultado < 0 ? 'var(--red)' : 'var(--green)') + '">'
+        + BRL.format(l.resultado) + '</td>'
+      + '<td class="num" style="font-weight:700;color:'
+        + (l.saldo_final < 0 ? 'var(--red)' : 'inherit') + '">' + BRL.format(l.saldo_final) + '</td>'
+      + '<td class="num">' + projConf(l.confianca) + '</td>'
+      + '</tr><tr class="forn-det" id="proj-det-' + i + '"><td colspan="8">' + det + '</td></tr>';
+  }).join('') || '<tr><td colspan="8" style="color:var(--n500)">sem projeção no horizonte</td></tr>';
+}
+
+function projToggle(i){
+  const det = document.getElementById('proj-det-' + i); if(!det) return;
+  const aberto = det.classList.toggle('open');
+  det.previousElementSibling.setAttribute('aria-expanded', String(aberto));
+}
+
+/* ------------------------------- DDA ------------------------------- */
+
+async function ddaDetalhe(mes){
+  try{
+    const r = await fetch('/api/financeiro/dda' + (mes ? '?mes=' + encodeURIComponent(mes) : ''),
+                          {cache: 'no-store'});
+    const rr = await respostaJSON(r);
+    if(!r.ok){ showBanner((rr.dados||{}).mensagem || 'Não foi possível consultar o DDA.'); return; }
+    const d = rr.dados;
+    if(!d.disponivel){ ddaImportar(); return; }
+    const est = d.estado || {}, res = d.resumo || {};
+    const todos = d.faltantes || [];
+    const linhas = todos.slice(0, 300);
+    const total = todos.reduce((a, x) => a + x.valor, 0);
+    abrirModal('<div class="m-head"><h3>Boletos no banco sem título no ERP'
+      + (mes ? ' · ' + esc(mes) : '') + '</h3>'
+      + '<button class="m-x" onclick="fecharModal()" aria-label="Fechar">&times;</button></div>'
+      + '<div class="m-body">'
+      + '<p style="color:var(--n500);font-size:12.5px;margin:0 0 10px">Extrato de '
+      + (est.extraido_em ? fmtD(est.extraido_em.slice(0, 10)) : '—') + ' ('
+      + (est.idade_dias != null ? est.idade_dias + ' dias' : 'idade desconhecida') + ') · '
+      + (res.boletos || 0) + ' boletos no total, ' + (res.casados || 0)
+      + ' com título correspondente, ' + (res.divergentes || 0) + ' com valor diferente e '
+      + (res.prorrogados || 0) + ' com vencimento prorrogado. Os <b>' + linhas.length
+      + '</b> abaixo somam <b>' + BRL.format(total) + '</b>'
+      + (todos.length > 300 ? ' (mostrando os 300 maiores)' : '') + '.</p>'
+      + (d.erp_indisponivel
+          ? '<div class="t-warn" style="margin-bottom:8px">O ERP não respondeu: não dá '
+            + 'para dizer quais destes já estão lançados.</div>'
+          : '')
+      + '<div class="tablewrap tabroll" style="max-height:52vh"><table><thead><tr>'
+      + '<th>Beneficiário</th><th>CNPJ/CPF</th><th>Vencimento</th>'
+      + '<th class="num">Valor</th><th>Documento</th><th>Tipo</th></tr></thead><tbody>'
+      + (linhas.map(b => '<tr><td>' + esc(b.beneficiario || '—') + '</td>'
+          + '<td class="mono">' + esc(b.beneficiario_doc || '—') + '</td>'
+          + '<td>' + fmtD(b.vencimento) + '</td>'
+          + '<td class="num" style="font-weight:600">' + BRL.format(b.valor) + '</td>'
+          + '<td>' + esc(b.documento || '—') + '</td>'
+          + '<td>' + esc(b.tipo || '—') + '</td></tr>').join('')
+        || '<tr><td colspan="6" style="color:var(--n500)">nenhum boleto sem título no ERP</td></tr>')
+      + '</tbody></table></div></div>'
+      + '<div class="m-foot"><button class="ghost" onclick="ddaImportar()">Importar extrato novo</button>'
+      + '<button class="btn" onclick="fecharModal()">Fechar</button></div>');
+  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
+}
+
+/* O upload vai como CORPO BRUTO, igual ao extrato bancario e a planilha de
+   antecipacao — sem multipart, que exigiria python-multipart e derrubaria so
+   este endpoint se o `uv sync` do AutoDeploy falhasse. */
+function ddaImportar(){
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = '.xlsx,.xls,.csv,.txt';
+  inp.onchange = async () => {
+    const f = inp.files && inp.files[0];
+    if(!f) return;
+    showBanner('Importando ' + f.name + '…');
+    try{
+      const r = await fetch('/api/financeiro/dda/importar?nome=' + encodeURIComponent(f.name),
+        {method: 'POST', body: f, headers: {'Content-Type': 'application/octet-stream'}});
+      const rr = await respostaJSON(r);
+      if(!r.ok){ showBanner((rr.dados||{}).mensagem || 'Não foi possível importar o DDA.'); return; }
+      const d = rr.dados;
+      hideBanner();
+      /* A PROJECAO MUDA COM O DDA (ele e o piso do "a lancar"), entao o cache
+         da aba cai junto. Sem isto a tela mostraria a importacao nova contra a
+         projecao velha — dois numeros certos de momentos diferentes na mesma
+         leitura, que e a pior combinacao possivel. */
+      DATAPROJ = null;
+      showBanner(d.ja_existia
+        ? 'Este arquivo já tinha sido importado em ' + fmtDT(d.importado_em) + ' — nada mudou.'
+        : d.boletos + ' boletos (' + BRL.format(d.valor) + '), ' + d.novos + ' novos e '
+          + d.sumiram + ' que sumiram desde a carga anterior.'
+          + (d.ignoradas ? ' ' + d.ignoradas + ' linha(s) sem chave, vencimento ou valor '
+             + 'foram ignoradas.' : ''));
+      await loadProjecao();
+    }catch(e){ showBanner('Não foi possível enviar o arquivo.', e.message); }
+  };
+  inp.click();
+}
+
 function fcGranChange(){
   const g=document.getElementById('fFcGran').value;
   const sel=document.getElementById('fFcDias');
@@ -16677,6 +17085,11 @@ function fcGranChange(){
 async function loadFluxcon(){
   skelKpis('kpis-fluxcon',4);
   const seq=++fluxconSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  /* A projecao e cache PROPRIO da sub-aba (ela e cara: 4 consultas ao ERP mais
+     o confronto do DDA). Recarregar a tela derruba os dois juntos — senao o
+     Fluxo Consolidado viria fresco ao lado de um Plano de meia hora atras, e
+     nada na tela diria que sao de momentos diferentes. */
+  DATAPROJ = null;
   document.getElementById('content').classList.add('loading');
   try{
     const r=await fetch('/api/financeiro/fluxo-consolidado?'+qsView('fluxcon'),{cache:'no-store'});

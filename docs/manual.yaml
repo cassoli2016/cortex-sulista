@@ -609,6 +609,36 @@ glossario:
     acumulado dos 30 dias) do Gerenciamento de Risco. Contador que o
     fornecedor omite vale zero; viagem que a central nunca finaliza não ganha consolidado — por isso a
     régua é sobre as viagens FINALIZADAS, e a tela diz quantas são.
+- termo: Plano 12 meses (projeção de caixa)
+  definicao: As duas sub-abas do Fluxo Consolidado que mostram o caixa dos próximos 12 meses somando
+    ao que está LANÇADO no ERP o que ainda vai ser lançado. Elas existem porque o ERP não conhece o mês
+    antes de ele acontecer — medido nos 12 meses fechados até agosto de 2026, no dia 1º ele tem cerca
+    de 45% das contas a pagar que vencem naquele mês, e só perto do dia 30 chega a 100%. Um painel que
+    mostre apenas o lançado informa superávit onde há falta de lançamento. O estimado aparece sempre
+    HACHURADO no gráfico, e cada mês traz a Confiança — a fração dele que já existe no ERP. Não é menu
+    próprio; sub-aba herda o acesso da tela que a contém.
+- termo: Curva de lançamento
+  definicao: Quanto de um mês de contas a pagar já está lançado no ERP em cada dia relativo ao
+    vencimento, medida por NATUREZA nos meses fechados. As naturezas se comportam de formas opostas e a
+    média entre elas não descreve nenhuma — a folha de pagamento está 0% lançada no dia 1º do mês e a
+    dívida financeira, 92%. É essa curva que diz quanto falta lançar em cada mês futuro. Onde ela é
+    pequena demais ou instável demais, vale o nível histórico dessazonalizado, e a tela DIZ qual dos
+    dois métodos usou em cada linha.
+- termo: Necessidade do mês × buraco acumulado
+  definicao: Dois números diferentes, e confundi-los leva a decisão errada. A necessidade DO MÊS é o
+    pior resultado de um mês isolado, o descasamento entre o que entra e o que sai naquele mês, e é ela
+    que a antecipação de recebível resolve — o dinheiro existe, está no prazo errado. O buraco
+    ACUMULADO é o pior saldo da série encadeada, a soma dos déficits ainda não cobertos. Antecipação
+    não resolve esse, porque antecipar traz para hoje o que entraria depois e deixa o depois vazio.
+    Buraco acumulado pede resultado, prazo com fornecedor ou capital.
+- termo: DDA (boletos registrados no banco)
+  definicao: A lista dos boletos que fornecedores registraram contra o CNPJ da empresa, exportada à mão
+    do portal do banco e importada no Fluxo Consolidado. É o único número MEDIDO da projeção, porque
+    boleto registrado é obrigação com nome, CNPJ, valor e vencimento, não estimativa. O CÓRTEX casa cada
+    boleto com contaapagar por CNPJ mais vencimento mais valor, com tolerância para prorrogação e para
+    juros, e o que sobra é a fila de lançamento. Quando ela supera o que o modelo estimou, vale o
+    medido. O extrato é um RETRATO — boleto pago some da extração seguinte —, e por isso a Saúde do
+    Servidor mede a idade dele e avisa acima de uma semana.
 - termo: Convênio de antecipação (cliente elegível)
   definicao: Cliente que mantém portal de risco sacado, onde a Sulista pode antecipar os títulos dele.
     Só o recebível desses clientes entra nas Operações de antecipação sugeridas — supor que qualquer recebível

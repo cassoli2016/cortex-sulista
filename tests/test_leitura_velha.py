@@ -23,6 +23,7 @@ import pytest
 from api import queries
 
 
+
 @pytest.fixture(autouse=True)
 def cache_limpo():
     queries._RESP_CACHE.clear()
@@ -170,19 +171,67 @@ def test_a_visao_geral_declara_a_janela_de_duas_horas():
 TEMPO_REAL = ("get_torre", "get_seguranca", "get_portaria", "get_programacao")
 
 
+# ONDE ESTE GUARD PROCURA — E POR QUE A LISTA SAI DO DISCO.
+#
+# Até 09/09/2026 este arquivo varria só `queries`, porque era lá que morava
+# toda leitura cara do ERP. Deixou de ser: a projeção de caixa nasceu em
+# `api/financeiro/projecao.py`, e a varredura do disco mostrou mais TREZE
+# módulos com `@cached` que este guard nunca tinha olhado (faturamento, crm,
+# milkrun, monkey, motorista, rasterintegra, portal_cliente…).
+#
+# Uma lista escrita à mão aqui ia envelhecer do mesmo jeito, e o modo de falha
+# é o pior que existe: o guard aprova por AUSÊNCIA. Ele não olha, não reclama,
+# e uma tela de tempo real nasce com a rede — servindo posição de duas horas
+# atrás para quem precisa saber onde o veículo está agora. É a mesma armadilha
+# do guard do EXISTS, que não varria justamente o módulo que define o
+# `left_join()` (crônica em `docs/LICOES.md`).
+#
+# Então a lista SAI DO DISCO, e o único jeito de um módulo escapar é não ter
+# `@cached` nenhum.
+def _modulos_com_cache():
+    import importlib
+    import pathlib
+    import re
+    raiz = pathlib.Path(__file__).resolve().parent.parent / "api"
+    achados = []
+    for arq in sorted(raiz.rglob("*.py")):
+        txt = arq.read_text(encoding="utf-8", errors="replace")
+        if not re.search(r"^@cached\(", txt, re.M):
+            continue
+        rel = arq.relative_to(raiz.parent).as_posix()[:-3].replace("/", ".")
+        achados.append(importlib.import_module(rel.removesuffix(".__init__")))
+    return tuple(achados)
+
+
+MODULOS = _modulos_com_cache()
+
+
+def test_a_varredura_acha_os_modulos_com_cache():
+    """Varredura que não acha nada passa por vacuidade — e passaria calada no
+    dia em que alguém renomeasse o decorador."""
+    nomes = {m.__name__ for m in MODULOS}
+    assert len(nomes) >= 10, sorted(nomes)
+    # os dois que os testes abaixo nomeiam PRECISAM estar aí, senão os
+    # `_decorador_de` deste arquivo levantariam "não existe mais"
+    assert {"api.queries", "api.financeiro.projecao"} <= nomes, sorted(nomes)
+
+
 def _decorador_de(nome):
     """O `@cached(...)` que está imediatamente acima de `def <nome>`."""
     import inspect
     import re
-    linhas = inspect.getsource(queries).split("\n")
-    for i, l in enumerate(linhas):
-        if re.match(r"def %s\b" % nome, l):
-            for j in range(i - 1, max(i - 4, -1), -1):
-                m = re.match(r"@cached\((.*)\)$", linhas[j].strip())
-                if m:
-                    return m.group(1)
-            return None
-    raise AssertionError("%s não existe mais em queries.py" % nome)
+    for mod in MODULOS:
+        linhas = inspect.getsource(mod).split("\n")
+        for i, l in enumerate(linhas):
+            if re.match(r"def %s\b" % nome, l):
+                for j in range(i - 1, max(i - 4, -1), -1):
+                    m = re.match(r"@cached\((.*)\)$", linhas[j].strip())
+                    if m:
+                        return m.group(1)
+                return None
+    raise AssertionError(
+        "%s não existe mais em nenhum de %s"
+        % (nome, ", ".join(m.__name__ for m in MODULOS)))
 
 
 @pytest.mark.parametrize("nome", TEMPO_REAL)

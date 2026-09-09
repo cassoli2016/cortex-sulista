@@ -4304,6 +4304,124 @@ def fluxo_consolidado(gran: str = "semana", dias: int = 180) -> JSONResponse:
             "erro": "erro_consulta", "mensagem": "Erro ao montar o fluxo consolidado."})
 
 
+@app.get("/api/financeiro/projecao")
+def financeiro_projecao(meses: int = 12) -> JSONResponse:
+    """Projeção de caixa de 6 a 12 meses: o LANÇADO mais o que ainda vai ser
+    lançado, estimado pela curva de lançamento e pela sazonalidade dos meses
+    fechados, com piso medido pelo DDA."""
+    from api.financeiro import projecao as proj
+    if not (3 <= meses <= proj.HORIZONTE_MAX):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": f"Horizonte inválido: use entre 3 e {proj.HORIZONTE_MAX} meses."})
+    try:
+        return JSONResponse(proj.get_projecao(meses=meses))
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("financeiro_projecao falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao montar a projeção."})
+
+
+@app.get("/api/financeiro/dda")
+def financeiro_dda(mes: str = "") -> JSONResponse:
+    """A posição do DDA confrontada com o ERP — a lista com nome e CNPJ.
+
+    `mes` (AAAA-MM) recorta os faltantes de um mês, que é como a tela abre o
+    detalhe a partir do card. Sem ele, vêm todos.
+    """
+    from api.financeiro import dda as dda_mod
+    if mes and not re.fullmatch(r"\d{4}-\d{2}", mes):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Mês inválido: use AAAA-MM."})
+    try:
+        conf = dda_mod.confronto()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("financeiro_dda falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar o DDA."})
+
+    def _fatia(itens):
+        saida = []
+        for b in itens:
+            v = b["vencimento"]
+            if mes and f"{v.year:04d}-{v.month:02d}" != mes:
+                continue
+            saida.append({**b, "vencimento": v.isoformat(),
+                          "visto_em": (b["visto_em"].isoformat()
+                                       if b.get("visto_em") else None),
+                          # O CNPJ do FORNECEDOR não é PII de pessoa física, mas
+                          # o cadastro do ERP mistura CNPJ e CPF na mesma coluna
+                          # — então sai mascarado, como em todo lugar da casa.
+                          "beneficiario_doc": queries._mask_doc(b.get("beneficiario_doc"))})
+        return sorted(saida, key=lambda x: -x["valor"])
+
+    return JSONResponse({
+        "disponivel": conf.get("disponivel", False),
+        "erp_indisponivel": conf.get("erp_indisponivel", False),
+        "estado": conf.get("estado"), "resumo": conf.get("resumo"),
+        "mes": mes or None,
+        "faltantes": _fatia(conf.get("faltantes", ())),
+        "divergentes": _fatia(conf.get("divergentes", ()))[:80],
+        "prorrogados": _fatia(conf.get("prorrogados", ()))[:80],
+        "fonte": ("DDA importado do portal do banco × contaapagar do ERP "
+                  "(CNPJ + vencimento + valor, com tolerância) · leitura"),
+    })
+
+
+_DDA_MAX_BYTES = 12 * 1024 * 1024   # o extrato real tem 1.061 linhas e ~120 KB
+
+
+@app.post("/api/financeiro/dda/importar")
+async def financeiro_dda_importar(req: Request, nome: str = "",
+                                  completa: int = 1) -> JSONResponse:
+    """Recebe o extrato do DDA como CORPO BRUTO — mesmo padrão do extrato
+    bancário e da planilha de antecipação (sem multipart, que exigiria
+    python-multipart e derrubaria só este endpoint se o `uv sync` do
+    AutoDeploy falhasse).
+
+    `completa=0` para extrato PARCIAL (uma conta só, ou filtrado): a carga
+    entra, mas NÃO marca como sumido o que ela não teve chance de trazer.
+    """
+    from api.financeiro import dda as dda_mod
+    if _tamanho_excede(req.headers.get("content-length"), _DDA_MAX_BYTES):
+        return JSONResponse(status_code=413, content={
+            "erro": "arquivo_grande",
+            "mensagem": f"Arquivo acima do limite de {_DDA_MAX_BYTES // (1024 * 1024)} MB."})
+    bruto = await req.body()
+    if not bruto or len(bruto) > _DDA_MAX_BYTES:
+        return JSONResponse(status_code=413 if bruto else 422, content={
+            "erro": "arquivo_invalido",
+            "mensagem": "Nenhum conteúdo recebido." if not bruto
+                        else "Arquivo acima do limite."})
+    usuario = str(getattr(getattr(req, "state", None), "usuario", "") or "")
+    try:
+        r = await sem_travar(dda_mod.importar, bruto, nome or "dda.xlsx",
+                             usuario=usuario, completa=bool(completa))
+    except dda_mod.ArquivoInvalido as exc:
+        # 422 e não 500: o arquivo é que está errado, e a mensagem já diz o que
+        # fazer — a tela mostra ela literalmente.
+        return JSONResponse(status_code=422, content={
+            "erro": "arquivo_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("financeiro_dda_importar falhou: %s", exc)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_importacao", "mensagem": "Erro ao importar o DDA."})
+    # A trilha vai DEPOIS da gravação e não derruba a resposta: importação que
+    # deu certo e trilha que falhou não é importação perdida.
+    try:
+        auth.audit(usuario, "dda_importar", alvo=str(r.get("carga_id") or ""),
+                   detalhe=f"{r.get('boletos', 0)} boletos, "
+                           f"{'reimportacao' if r.get('ja_existia') else 'nova carga'}")
+    except Exception as exc:  # noqa: BLE001
+        log.warning("trilha do dda_importar falhou: %s", type(exc).__name__)
+    return JSONResponse(r)
+
+
 @app.get("/api/financeiro/recorrentes")
 def recorrentes(meses: int = 6, min_meses: int = 5) -> JSONResponse:
     """Contas que entram todo mês e ainda não foram lançadas neste."""

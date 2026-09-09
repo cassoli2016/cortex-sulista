@@ -1226,6 +1226,55 @@ def _servico_smartec() -> dict:
             "detalhe": f"{len(e['recursos'])} recursos coletados{idade}{extra}"}
 
 
+def _servico_dda() -> dict:
+    """O DDA importado ainda descreve a carteira de boletos?
+
+    O QUE ESTE CARTÃO MEDE
+    ----------------------
+
+    A IDADE DO RETRATO, e não a existência de dado. O DDA não é integração
+    automática: alguém exporta a consulta de boletos no portal do banco e sobe
+    o arquivo na tela do Fluxo Consolidado. Um extrato de três semanas atrás
+    continua no banco, inteiro e sem erro nenhum — e já não descreve nada,
+    porque boleto pago some da extração seguinte e boleto novo não aparece.
+
+    E a idade que vale é a do EXTRATO (o carimbo "Data/Hora" que ele traz no
+    cabeçalho), nunca a do upload: planilha de duas semanas atrás importada
+    hoje é dado de duas semanas atrás. Medir o upload deixaria o cartão verde
+    justamente no caso que ele existe para pegar.
+
+    Nunca importado é `info`, não vermelho: é instalação incompleta, igual a
+    integração sem credencial. A projeção funciona sem o DDA — ela só perde o
+    único piso MEDIDO que tem, e passa a ser inteiramente modelo.
+    """
+    nome = "DDA (boletos no banco)"
+    try:
+        from .financeiro import dda
+        e = dda.estado()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: dda: %s", type(exc).__name__)
+        return {"nome": nome, "status": "info", "detalhe": "banco local indisponível"}
+
+    if not e.get("configurado"):
+        return {"nome": nome, "status": "info",
+                "detalhe": "nenhum extrato importado — sem ele o “falta lançar” "
+                           "da projeção de caixa é só estimativa, sem nome nem CNPJ "
+                           "(Financeiro › Fluxo Consolidado › Plano 12 meses)"}
+
+    idade = e.get("idade_dias")
+    quanto = ("há %d dia(s)" % idade) if idade is not None else "em data desconhecida"
+    resumo = ("%d boleto(s) vivo(s), %s" % (e.get("boletos") or 0,
+                                            _brl_mi(e.get("valor") or 0)))
+    if e.get("velho"):
+        return {"nome": nome, "status": "alerta",
+                "detalhe": "extrato de %s (limite: %d dias) · %s — boleto pago já saiu "
+                           "da carteira e boleto novo ainda não entrou"
+                           % (quanto, dda.IDADE_MAX_DIAS, resumo)}
+    return {"nome": nome, "status": "ok",
+            "detalhe": "extrato de %s · %s · %d carga(s) importada(s)"
+                       % (quanto, resumo, e.get("cargas") or 0)}
+
+
 def _servico_xml_email() -> dict:
     """A caixa `xml@sulista.com.br` está sendo lida?
 
@@ -1961,6 +2010,11 @@ def _servicos() -> list[dict]:
     # a falha dela e MUDA -- o remetente manda, ninguem recebe, e a nota que
     # faltava continua faltando sem ninguem saber por que.
     servicos.append(_servico_xml_email())
+
+    # O DDA: a unica fonte MEDIDA da projecao de caixa, e a unica que
+    # depende de alguem se lembrar de exportar. A parada dele nao da erro
+    # em lugar nenhum -- a projecao continua respondendo, so que sem piso.
+    servicos.append(_servico_dda())
 
     # Pedágio do tag: a fatura é BAIXADA e ENVIADA por gente, uma vez por mês.
     # O sensor existe porque a parada se disfarça de aba vazia — e o gasto é

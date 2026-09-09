@@ -299,6 +299,12 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/financeiro/antecipacao",   frozenset({"antec"})),
     ("/api/financeiro/fluxo-consolidado/detalhe", frozenset({"fluxcon"})),
     ("/api/financeiro/fluxo-consolidado", frozenset({"fluxcon"})),
+    # A projeção e o DDA são sub-abas do Fluxo Consolidado — não são tela, e
+    # por isso herdam o RBAC dele. `/dda/importar` ANTES de `/dda`: a genérica
+    # engoliria a de escrita e um leitor poderia subir planilha.
+    ("/api/financeiro/projecao", frozenset({"fluxcon"})),
+    ("/api/financeiro/dda/importar", frozenset({"fluxcon"})),
+    ("/api/financeiro/dda", frozenset({"fluxcon"})),
     # A MAIS ESPECIFICA ANTES: /api/dre/exclusoes/... e escrita e exige
     # `dreexc`; /api/dre/... e leitura e basta ter a DRE. Invertida a
     # ordem, o prefixo generico engoliria o especifico e qualquer um

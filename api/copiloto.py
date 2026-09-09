@@ -136,6 +136,7 @@ _FONTES_ROTULO = {
     "pedagio_tag": "Validação de Pedágio — fatura do tag",
     "desempenho": "Avaliação de Desempenho — nine box",
     "recolha_fiscal": "Central de Documentos — recolha de XML (SEFAZ e e-mail)",
+    "projecao_caixa": "Fluxo Consolidado — projeção de caixa de 12 meses",
 }
 
 
@@ -335,6 +336,34 @@ def _app_motorista() -> dict:
                                             "conversas_paradas": 0,
                                             "comunicados_no_ar": 0,
                                             "ciencias_pendentes": 0})}
+
+
+def _projecao_caixa() -> dict:
+    """Os escalares da projecao de 12 meses. Sem lista, sem nome, sem CNPJ."""
+    from api.financeiro.projecao import get_projecao
+    d = get_projecao(12)
+    k, L = d["kpis"], d.get("lastro") or {}
+    dda = (d.get("dda") or {}).get("resumo") or {}
+    return {
+        "saldo_inicial": k["saldo_inicial"],
+        "necessidade_do_mes": k["necessidade_mensal"],
+        "pior_mes": k.get("pior_mes_resultado"),
+        "necessidade_acumulada_12m": k["necessidade"],
+        "primeiro_mes_negativo": k.get("primeiro_negativo"),
+        "queima_media_mensal": k["queima_media"],
+        "meses_negativos": k["meses_negativos"],
+        "falta_lancar_12m": k["a_lancar"],
+        "coberto_por_antecipacao_e_limite": L.get("cobertura_acumulada"),
+        # A conclusao, nao so os numeros: buraco que antecipacao nao cobre e
+        # de resultado, e o chat precisa saber a diferenca para nao sugerir
+        # antecipar contra uma queima.
+        "buraco_estrutural": L.get("estrutural"),
+        "dda_boletos_sem_titulo": dda.get("faltantes"),
+        "dda_valor_sem_titulo": dda.get("faltantes_valor"),
+        "metodo": ("saidas e entradas por vencimento: o lancado no ERP mais o "
+                   "estimado pela curva de lancamento e pelo indice sazonal por "
+                   "natureza, com piso medido pelos boletos do DDA"),
+    }
 
 
 def _fontes_do_snapshot() -> dict:
@@ -901,6 +930,16 @@ def _fontes_do_snapshot() -> dict:
         # aqui -- e a regra da casa e que integracao nova entre no snapshot no
         # MESMO commit. Fica corrigido junto com a porta do e-mail.
         "recolha_fiscal": _recolha_fiscal,
+        # A PROJECAO DE CAIXA, e ela responde a pergunta que o snapshot do
+        # `financeiro_caixa` nao responde: aquele leva o LANCADO, e o lancado
+        # de tres meses a frente e uma fracao do mes. Sem esta entrada o
+        # Copiloto diria "novembro fecha positivo" com a mesma confianca com
+        # que diz o saldo de hoje.
+        #
+        # So ESCALARES: nenhum nome de fornecedor, nenhum CNPJ. A lista do DDA
+        # tem os dois e fica na tela, atras do RBAC — e e isso, nao um filtro
+        # magico, que permite o fallback externo do chat.
+        "projecao_caixa": _projecao_caixa,
     }
 
 
