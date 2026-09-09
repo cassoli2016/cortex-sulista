@@ -4566,6 +4566,44 @@ def jornada_diarias(de: str | None = None, ate: str | None = None) -> JSONRespon
             "mensagem": "Erro ao cruzar diárias com a jornada."})
 
 
+@app.get("/api/jornada/diarias/auditoria")
+def jornada_diarias_auditoria(de: str | None = None,
+                              ate: str | None = None) -> JSONResponse:
+    """Auditoria das diárias: o que não fecha entre a folha e a jornada.
+
+    NÃO precisa de entrada própria em `ROTA_TELAS`: o mapeamento casa por
+    PREFIXO, e `/api/jornada/diarias` já aponta para a tela `jorn`. Uma entrada
+    a mais aqui seria um prefixo engolido por outro, que é justamente o que a
+    conferência de rotas proíbe.
+
+    `def` e não `async def` pelo mesmo motivo da rota irmã: são quatro consultas
+    pesadas em dois bancos, e num `async def` elas travariam o event loop.
+    """
+    from datetime import date
+    from api.jornada import auditoria_diarias as _aud
+    hoje = date.today()
+    try:
+        # O padrão é O ANO CORRENTE inteiro, e não os últimos 12 meses: a
+        # auditoria é lida contra o exercício, e uma janela deslizante faria o
+        # mesmo achado entrar e sair do relatório conforme o dia da leitura.
+        d_de = date.fromisoformat(de) if de else hoje.replace(month=1, day=1)
+        d_ate = date.fromisoformat(ate) if ate else hoje
+    except ValueError:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Data inválida (AAAA-MM-DD)."})
+    if d_ate < d_de:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "periodo_invalido",
+            "mensagem": "A data final é anterior à inicial."})
+    try:
+        return JSONResponse(_aud.auditar(_aud.levantar(d_de, d_ate)))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("jornada_diarias_auditoria: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao auditar as diárias."})
+
+
 @app.get("/api/operacao/torre/chegadas")
 def torre_chegadas(forcar: int = 0) -> JSONResponse:
     """Chegada estimada com trânsito × prometida no ERP.

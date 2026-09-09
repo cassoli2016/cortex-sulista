@@ -4,6 +4,18 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.17.4] — 08/09/2026  ·  CX-08/09/2026-v1.17.4
+
+### Adicionado
+- A tela de Jornada ganhou a aba Auditoria das diarias: uma lista do que NAO fecha entre o que a folha pagou e o que a jornada registrou, com a evidencia de cada linha. Em 2026 sao 109 achados, 68 deles fato aritmetico, R$ 80.653 em erro sobre R$ 1,14 milhao conferido.
+- O maior achado e uma semana paga duas vezes: a competencia de 31/07 e copia exata da de 07/07 - as MESMAS 78 pessoas com o MESMO valor ao centavo, R$ 32.063,63. E a unica repeticao exata do ano, o que tambem diz que a regua nao e barulhenta: ela nao acusa semanas parecidas, so a identica.
+- A tarifa da diaria nao existe em cadastro nenhum, e mesmo assim da para conferir: a inteira e exatamente o dobro da meia em todas as filiais, entao todo pagamento e multiplo inteiro da meia e a tarifa sai do MDC dos pagamentos da filial no mes. A tabela derivada fica a vista na tela, para quem conhece a tabela real poder discordar.
+- Quando a filial inteira desvia no mesmo dia, isso vira UM achado de lote e nao trinta e um: em 21/07 na matriz o MDC dos desvios deu R$ 5,00, que e exatamente a diferenca entre a tarifa velha e a nova - e o achado diz que parece o retroativo do reajuste, em amarelo, em vez de acusar dez pessoas em vermelho.
+- A aba tambem lista as alimentacoes da RasterJOR que PARARAM, cada uma com a data e com o que a morte dela custa. A que sustentava a auditoria por DIA parou em 12/02/2026, e por isso o que se confere hoje e o pagamento semanal contra a jornada. Integracao parada se disfarca de dado que nao existe, e o sintoma e sempre uma tela vazia.
+
+### Corrigido
+- A auditoria nao julga se o motorista tinha direito a meia ou a inteira, e isso e deliberado: essa regra e da empresa, depende de pernoite e acordo, e foi medido que ela nao se deriva da jornada - meia e inteira nao se separam nem por tempo de direcao nem por km. Uma regua que classificasse isso erraria em silencio e a tela passaria a acusar gente por palpite.
+
 ## [1.17.3] — 08/09/2026  ·  CX-08/09/2026-v1.17.3
 
 ### Corrigido

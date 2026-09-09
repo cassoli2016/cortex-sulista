@@ -403,6 +403,35 @@ glossario:
     novo: duas verdades sobre o mesmo lead seria o preco de uma importacao que
     ninguem pediu. O que liga os dois mundos e o grupo economico do ERP,
     informado na ficha da conta - e e por ele que entra a receita real.
+- termo: Tarifa de diaria derivada (auditoria)
+  definicao: >-
+    Nao existe cadastro de tarifa de diaria que o CORTEX possa ler - nem no ERP
+    nem aqui. O que existe e uma regularidade medida: a diaria INTEIRA e
+    exatamente o dobro da MEIA em todas as filiais, entao todo pagamento e um
+    multiplo inteiro da meia, e a tarifa se descobre pelo MDC (maximo divisor
+    comum) dos pagamentos da filial no mes. Deu R$ 57,48 em CRZ, R$ 42,50 em
+    JOI, R$ 61,02 que virou R$ 66,45 em SBC e R$ 50,00 que virou R$ 55,00 na
+    matriz. Uma taxa so entra no catalogo quando aparece em DOIS meses: assim um
+    reajuste entra sozinho no mes seguinte e o mes da virada, onde as duas
+    tarifas se misturam e o MDC despenca para centavos, nao vira tarifa. A
+    tabela derivada fica a vista na tela para quem conhece a tabela REAL poder
+    conferir e discordar - heuristica escondida vira verdade do sistema. O que a
+    auditoria NAO faz e julgar se o motorista tinha direito a meia ou a inteira:
+    essa regra depende de pernoite, distancia e acordo, e foi medido que ela nao
+    se deriva da jornada.
+- termo: Semana de pagamento repetida (auditoria)
+  definicao: >-
+    Duas competencias de diaria com o MESMO conjunto de pessoas e o MESMO valor
+    ao centavo sao o mesmo lancamento feito duas vezes. A assinatura comparada e
+    o conjunto (pessoa, valor) inteiro, e nao o total: dois totais podem
+    coincidir por acaso, o conjunto nao - numa semana normal cada motorista
+    trabalha dias diferentes e recebe valores diferentes. Achado real de 2026: a
+    competencia 31/07 e copia exata da de 07/07, as mesmas 78 pessoas, R$
+    32.063,63. E a UNICA repeticao exata do ano, o que tambem diz que a regua
+    nao e barulhenta. Nao confundir com a duplicidade que a aba Diarias ja
+    resolve, que e outra: la a mesma diaria vem em duas granularidades (o
+    pagamento semanal e a folha mensal, que e a soma das semanais) e o total
+    valia o maior dos dois lados, nunca a soma.
 - termo: Inconformidade de TEMPO x marcacao (jornada)
   definicao: >-
     A RasterJOR chama de "inconformidade" tudo que foge do padrao, e o tipo mais

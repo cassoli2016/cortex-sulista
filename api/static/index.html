@@ -841,6 +841,11 @@ body.painelfull .content{padding:16px 22px}
    dinheiro: o que decide esta no topo, e o resto rola aqui dentro. */
 #dre-atk-pano .tabroll{max-height:300px}
 #aba-jorn-diaria .tabroll{max-height:320px}
+/* A auditoria e uma lista longa por natureza: a rolagem fica DENTRO do card,
+   nunca na pagina. A tabela de achados ganha mais altura que as duas de
+   apoio porque e ela que a pessoa veio ler. */
+#aba-jorn-audit .tabroll{max-height:300px}
+#aba-jorn-audit .card:first-of-type .tabroll{max-height:430px}
 /* A aba da base do Avacorp rola mais cedo, pelo mesmo motivo: ela herdou a
    tela ANTIGA inteira — banda de KPI, dois gráficos e TRÊS tabelas (leads,
    projetos e repactuações). Com o teto padrão de 430px ela dava 947px, acima
@@ -8357,6 +8362,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <button role="tab" id="tabjorn-custo" data-aba="custo" aria-controls="aba-jorn-custo" aria-selected="false" onclick="abaTrocar('jorn','custo')">Custo do tempo</button>
           <button role="tab" id="tabjorn-pres" data-aba="pres" aria-controls="aba-jorn-pres" aria-selected="false" onclick="abaTrocar('jorn','pres')">Presença</button>
           <button role="tab" id="tabjorn-diaria" data-aba="diaria" aria-controls="aba-jorn-diaria" aria-selected="false" onclick="abaTrocar('jorn','diaria')">Diárias</button>
+          <button role="tab" id="tabjorn-audit" data-aba="audit" aria-controls="aba-jorn-audit" aria-selected="false" onclick="abaTrocar('jorn','audit')" data-ao-abrir="carregarAuditDiarias">Auditoria das diárias <span class="aban" id="jorn-n-audit"></span></button>
         </div>
         <div class="aba" data-abas="jorn" data-aba="oper" id="aba-jorn-oper" role="tabpanel" aria-labelledby="tabjorn-oper">
   <div class="kband">
@@ -8486,6 +8492,33 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                 <th>Motorista</th><th>Competência</th><th class="num">Dias trabalhados</th>
                 <th class="num">Horas</th>
               </tr></thead><tbody id="di-sem"></tbody></table></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="aba" data-abas="jorn" data-aba="audit" id="aba-jorn-audit" role="tabpanel" aria-labelledby="tabjorn-audit" hidden>
+          <div class="banner-inline" id="au-fontes" style="display:none"></div>
+          <div class="kpis k4" id="kpis-au"></div>
+          <div class="card">
+            <div class="head"><h2>O que não fecha <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada linha é uma divergência entre o que a FOLHA pagou (evento DIARIAS PAGAS, pagamento semanal) e o que a JORNADA registrou (RasterJOR, no banco do CÓRTEX). Nenhuma linha julga se o motorista tinha direito a meia ou a inteira: essa regra é da empresa e depende de pernoite, distância e acordo, e nada disso está nestas fontes — foi medido, e meia e inteira não se separam por tempo de direção nem por km. ERRO é fato aritmético (o valor não fecha com tarifa nenhuma, a pessoa estava de atestado). REVISAR é improbabilidade que a defasagem da folha ainda pode explicar — a competência da folha não é a data do trabalho. O dinheiro de um achado individual que cai dentro de um lote não é somado duas vezes.">i</span></h2>
+              <span class="hint" id="hintAuAchados"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Gravidade</th><th>O que é</th><th>Quando</th><th>Quem</th>
+              <th>Filial</th><th class="num">Valor</th>
+            </tr></thead><tbody id="au-lista"></tbody></table></div>
+          </div>
+          <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>Tarifa derivada por filial <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Não existe cadastro de tarifa de diária que a casa possa ler. O que existe é uma regularidade medida: a inteira é exatamente o dobro da meia em todas as filiais, então todo pagamento é múltiplo inteiro da meia — e a tarifa se descobre pelo MDC dos pagamentos da filial no mês. Uma taxa só entra no catálogo quando aparece em DOIS meses ou mais: assim um reajuste entra sozinho no mês seguinte e um mês estranho não vira tarifa. A tabela está aqui para quem conhece a tabela REAL poder conferir — heurística escondida vira verdade do sistema.">i</span></h2></div>
+              <div class="tablewrap tabroll"><table><thead><tr>
+                <th>Filial</th><th>Meia</th><th>Inteira</th><th>Meses em que apareceu</th>
+              </tr></thead><tbody id="au-tarifas"></tbody></table></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Alimentações que pararam <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Integração parada se disfarça de dado que não existe: o sintoma é uma tela vazia, e tela vazia se lê como 'ninguém rodou'. Por isso cada fonte aparece com a DATA em que parou e com o que a morte dela custa — o que separa 'sumiu e não faz falta' de 'sumiu e a auditoria por dia foi junto'.">i</span></h2></div>
+              <div class="tablewrap tabroll"><table><thead><tr>
+                <th>Fonte</th><th>Parou em</th><th>O que se perdeu</th>
+              </tr></thead><tbody id="au-fontes-tab"></tbody></table></div>
             </div>
           </div>
         </div>
@@ -35032,6 +35065,113 @@ function renderDiarias(d){
     <td class="num">${(x.dias||0).toLocaleString('pt-BR')}</td>
     <td class="num" style="color:var(--n500)">${NMI.format(x.horas||0)} h</td>
   </tr>`).join('') || '<tr><td colspan="4" style="color:var(--n500)">ninguém</td></tr>';
+}
+
+/* AUDITORIA DAS DIÁRIAS — o que não fecha entre a folha e a jornada.
+   Carrega SÓ ao abrir a aba (data-ao-abrir): são quatro consultas em dois
+   bancos, e pendurá-las no caminho da tela faria a jornada inteira esperar
+   por elas. Guard de sequência como o resto da casa: resposta lenta que chega
+   depois da próxima não pode repintar por cima da nova. */
+let DATAAU = null, auSeq = 0, auCarregou = false;
+
+async function carregarAuditDiarias(forcar){
+  if(auCarregou && !forcar) return;
+  auCarregou = true;
+  const seq = ++auSeq;
+  const tb = document.getElementById('au-lista');
+  if(tb) tb.innerHTML = '<tr><td colspan="6" style="color:var(--n500)">conferindo…</td></tr>';
+  try{
+    const r = await fetch('/api/jornada/diarias/auditoria', {cache:'no-store'});
+    const rr = await respostaJSON(r); if(seq !== auSeq) return;
+    if(!rr.ok){ auCarregou = false; renderAuditDiarias({erro: rr.dados.mensagem || 'não foi possível conferir'}); return; }
+    DATAAU = rr.dados; renderAuditDiarias(rr.dados);
+  }catch(e){ auCarregou = false; if(seq === auSeq) renderAuditDiarias({erro:'não foi possível falar com a API'}); }
+}
+
+const AU_SEV = {
+  erro:    {rot:'Erro',    cls:'bad'},
+  revisar: {rot:'Revisar', cls:'warn'},
+  info:    {rot:'Info',    cls:''},
+};
+
+function renderAuditDiarias(d){
+  const tb = document.getElementById('au-lista');
+  if(!tb) return;
+  if(d && d.erro){
+    document.getElementById('kpis-au').innerHTML = '';
+    tb.innerHTML = '<tr><td colspan="6" style="color:var(--n500)">'+esc(d.erro)+'</td></tr>';
+    return;
+  }
+  const k = d.resumo || {};
+
+  /* O AVISO É SOBRE O QUE NÃO DÁ PARA AUDITAR, e vem antes de qualquer número:
+     sem a carga por dia, as duas réguas que olham a diária individual não
+     rodam — e régua que some sem dizer nada se lê como régua que passou. */
+  const av = document.getElementById('au-fontes');
+  if(av){
+    const mortas = (d.fontes||[]).filter(f => f.grave);
+    av.style.display = mortas.length ? 'flex' : 'none';
+    av.innerHTML = '<i>'+ICONS['sevWarn']+'</i><span>'
+      + esc('a auditoria por DIA não roda: ' + mortas.map(f =>
+          f.fonte.split('.').pop() + ' parou em ' + fmtD(f.parou)).join(' · ')
+        + ' — o que se confere aqui é o pagamento semanal contra a jornada')
+      + '</span>';
+  }
+
+  document.getElementById('kpis-au').innerHTML = [
+    kpi('Pagamentos conferidos', (k.conferidos||0).toLocaleString('pt-BR'),
+        'de '+(k.pagamentos||0).toLocaleString('pt-BR')+' · '+BRL.format(k.valor||0), '',
+        'Pagamento semanal do evento DIARIAS PAGAS no recorte. Conferido = tem filial na jornada, então a tarifa pode ser checada; os demais viram achado próprio, e não silêncio.'),
+    kpi('Erros', (k.erro||0)+'', BRL.format(k.valor_em_erro||0),
+        (k.erro||0) > 0 ? 'bad' : '',
+        'Fato aritmético, não suspeita: valor que não fecha com tarifa nenhuma, semana repetida por inteiro, diária em semana só de ausência, diária sem nenhum dia de jornada. O valor NÃO soma duas vezes o achado individual que já está dentro de um lote.'),
+    kpi('A revisar', (k.revisar||0)+'', 'improbabilidade, não erro',
+        (k.revisar||0) > 0 ? 'warn' : '',
+        'Coisas que a defasagem da folha ainda pode explicar — a competência da folha não é a data do trabalho. Entram aqui o teto de diárias por dia trabalhado (medido numa janela de 14 dias, porque com 7 a régua acusaria um terço da folha) e quem recebe sem aparecer na jornada.'),
+    kpi('Diária por dia', k.granular_aplicavel ? (k.granular_dias||0)+' dias' : 'não coletada',
+        k.granular_aplicavel ? 'de '+(k.granular_de?fmtD(k.granular_de):'')+' a '+(k.granular_ate?fmtD(k.granular_ate):'') : 'sem ela não há auditoria por dia',
+        k.granular_aplicavel ? '' : 'warn',
+        'A carga com a diária de cada DIA, com meia/inteira. É a única fonte que permitiria auditar a diária individual — duplicidade no mesmo dia e valor zero. Quando ela não cobre o recorte, essas duas réguas não rodam, e isso é dito em vez de virar "nada encontrado".'),
+  ].join('');
+
+  const ach = d.achados || [];
+  abaContador('jorn-n-audit', ach.length);
+  const h = document.getElementById('hintAuAchados');
+  if(h) h.textContent = ach.length + ' achado(s) · '
+    + (d.de?fmtD(d.de):'') + ' a ' + (d.ate?fmtD(d.ate):'')
+    + ' · mais grave primeiro, maior valor primeiro';
+
+  tb.innerHTML = ach.map(a => `<tr>
+    <td><span class="chip ${AU_SEV[a.severidade]?AU_SEV[a.severidade].cls:''}">${esc(AU_SEV[a.severidade]?AU_SEV[a.severidade].rot:a.severidade)}</span></td>
+    <td>${esc(a.titulo||'—')}<div class="sub" style="color:var(--n500);font-size:12px">${esc(a.detalhe||'')}</div></td>
+    <td class="mono">${a.quando?fmtD(a.quando):'—'}</td>
+    <td>${esc(a.nome || (a.pessoas ? a.pessoas+' pessoas' : '—'))}${a.cargo?'<div class="sub" style="color:var(--n500);font-size:12px">'+esc(a.cargo)+'</div>':''}</td>
+    <td style="color:var(--n500)">${esc(a.filial||'—')}</td>
+    <td class="num" style="font-weight:600">${a.valor!=null?BRL.format(a.valor):'—'}</td>
+  </tr>`).join('') || '<tr><td colspan="6" style="color:var(--n500)">nada fora do lugar no período</td></tr>';
+
+  /* A TARIFA DERIVADA FICA À VISTA porque ela é uma inferência, não um
+     cadastro: quem conhece a tabela real precisa poder olhar e discordar. */
+  const tt = document.getElementById('au-tarifas');
+  if(tt){
+    const fs = Object.keys(d.tarifas||{}).sort();
+    tt.innerHTML = fs.map(f => {
+      const t = d.tarifas[f];
+      return (t.taxas||[]).map(x => `<tr>
+        <td>${esc(f)}</td>
+        <td class="mono">${BRL.format(x)}</td>
+        <td class="mono" style="color:var(--n500)">${BRL.format(x*2)}</td>
+        <td style="color:var(--n500)">${esc(((t.meses||{})[x.toFixed(2)]||[]).join(', '))}</td>
+      </tr>`).join('') || `<tr><td>${esc(f)}</td><td colspan="3" style="color:var(--n500)">nenhuma tarifa estável derivada</td></tr>`;
+    }).join('') || '<tr><td colspan="4" style="color:var(--n500)">—</td></tr>';
+  }
+
+  const tf = document.getElementById('au-fontes-tab');
+  if(tf) tf.innerHTML = (d.fontes||[]).map(f => `<tr>
+    <td class="mono" style="font-size:12px">${esc(f.fonte)}</td>
+    <td class="mono">${fmtD(f.parou)}</td>
+    <td style="color:var(--n500)">${esc(f.custo)}</td>
+  </tr>`).join('') || '<tr><td colspan="3" style="color:var(--n500)">—</td></tr>';
 }
 
 function renderJorraster(d){

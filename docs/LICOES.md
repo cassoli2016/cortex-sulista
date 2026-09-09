@@ -2584,6 +2584,80 @@ só no ERP ...... 177 placas      união ....... 275
   do sistema: quem confere contra a folha precisa achar a diferença, não
   desconfiar do total.
 
+**AUDITORIA DAS DIÁRIAS: a semana repetida, a tarifa que ninguém cadastrou e as
+alimentações mortas (08/09/2026):**
+- Pedido de quem opera, no mesmo dia em que a duplicidade da folha foi
+  corrigida: "achar divergências, macros erradas, apontamentos divergentes,
+  enfim fazer uma auditoria nas diárias". O que a auditoria achou em 2026:
+  **109 achados, 68 deles fato aritmético, R$ 80.653 em erro** sobre R$ 1,14
+  milhão de pagamento semanal conferido.
+- **O maior deles é uma semana paga duas vezes.** A competência **2026-07-31 é
+  cópia exata da de 2026-07-07**: as MESMAS 78 pessoas com o MESMO valor ao
+  centavo, **R$ 32.063,63**. É a ÚNICA repetição exata do ano — o que também
+  diz que a régua não é barulhenta. A assinatura comparada é o CONJUNTO
+  (pessoa, valor) inteiro e não o total: dois totais coincidem por acaso, o
+  conjunto de 78 pessoas não, porque numa semana normal cada motorista trabalha
+  dias diferentes e recebe valores diferentes.
+- **A tarifa não existe em cadastro nenhum, e mesmo assim dá para conferir.**
+  Nem o ERP nem a casa têm tabela de diária. O que há é uma regularidade
+  medida: a INTEIRA é exatamente o dobro da MEIA em todas as filiais, então
+  todo pagamento é múltiplo inteiro da meia — e a tarifa sai do **MDC dos
+  pagamentos da filial no mês**: R$ 57,48 (CRZ), R$ 42,50 (JOI), R$ 61,02 →
+  66,45 (SBC), R$ 50,00 → 55,00 (MTZ). Derivar em vez de fixar tem motivo: a
+  tarifa mudou DUAS vezes só em 2026, e tabela escrita à mão acusaria a filial
+  inteira no mês do reajuste. Uma taxa só entra no catálogo com **dois meses**,
+  e a filial-mês precisa de **cinco pagamentos** — o MDC de um valor é o
+  próprio valor, e sem esse piso a régua se inocentaria pelo dado que devia
+  julgar. O catálogo derivado VAI NA TELA, para quem conhece a tabela real
+  discordar.
+- **Repetição do mesmo fato não é recorrência, terceira vez que a casa aprende
+  isso.** 31 pessoas da SBC fora da tarifa em 09/06 são UM evento de folha, não
+  31 achados; 267 pagamentos sem filial são 12 PESSOAS. Sem agrupar, essas duas
+  réguas somam 298 linhas e enterram as outras seis. E o agrupamento é o que
+  permite RECONHECER o evento: em 21/07 na MTZ o MDC dos desvios deu **R$ 5,00,
+  que é exatamente 55,00 − 50,00** — é o retroativo do reajuste, e o achado sai
+  em amarelo dizendo isso, porque a pergunta para a folha deixa de ser "o que é
+  isto?" e passa a ser "confirma que é o retroativo?".
+- **A JANELA CURTA ACUSA A PESSOA ERRADA.** O teto físico (ninguém recebe mais
+  de duas meias por dia trabalhado) medido contra a semana do pagamento reprova
+  **33,5%** da folha; com 8 dias, 16,7%; com 10, 8,0%; com **14, 3,7%**.
+  Deslocar o início (1, 2, 3 e 7 dias) não conserta — a semana da folha e a
+  semana do trabalho simplesmente não são a mesma semana. Um terço não é
+  achado, é a régua errada, e uma auditoria que acusa um terço da folha é
+  ignorada na primeira leitura. A régua ficou em 14 dias, conservadora de
+  propósito.
+- **O QUE A AUDITORIA SE RECUSA A FAZER, e é o mais importante:** ela **não
+  julga meia contra inteira**. A regra é da empresa e depende de pernoite,
+  distância e acordo. Foi medido antes de desistir: nos 2.526 dias em que a
+  carga granular e a jornada coexistem, meia e inteira NÃO se separam por tempo
+  de direção (mediana 13 min × 336 min, mas p05 zero nas duas e faixas
+  sobrepostas em todo o miolo) nem por km (p50 de 0 × 173). Um classificador
+  ali erraria em silêncio e a tela passaria a acusar gente por palpite. Há um
+  teste que cobra esse limite, porque a tentação de "melhorar" a auditoria com
+  um classificador é exatamente o que a estragaria.
+- **AS ALIMENTAÇÕES DA RASTERJOR NO ERP ESTÃO QUASE TODAS MORTAS**, e a
+  auditoria por DIA morreu junto: `integracao_diarias_rasterjor` parou em
+  **12/02/2026** (era a diária por dia, com meia/inteira),
+  `rasterjor_anomalies` em **27/05/2025** (a régua do próprio fornecedor),
+  `unconformities` e `productivity_report` em **15/04/2026**, `produtividade`
+  em **18/05/2026**. As três últimas não custam nada porque o CÓRTEX coleta as
+  suas (`jor_jornadas`, `jor_inconformidades`, `jor_ausencias`, vivas e
+  completas até 07/09). As duas primeiras custam. A tela mostra cada uma com a
+  DATA em que parou e com o que a morte dela CUSTA — que é o que separa "sumiu
+  e não faz falta" de "sumiu e a auditoria por dia foi junto".
+- **O relatório de auditoria não pode cometer o erro que ele acha.** Os achados
+  individuais que caem dentro de uma semana repetida ou de um lote de filial
+  continuam na lista (é o que nomeia a pessoa), mas NÃO entram no total — senão
+  os R$ 32 mil da semana de 31/07 seriam somados de novo, um a um, exatamente
+  como a folha somava a diária semanal com a mensal.
+- **E o guard desse total era VERDE-PARA-SEMPRE.** Os dois testes chamavam
+  `_dinheiro_sem_repetir` DIRETO; sabotar o lugar que a usa — trocar a chamada
+  em `_resumo` por um `sum` cru — deixava os dois verdes, porque a função
+  continuava certa e só tinha parado de ser usada. Foi preciso um teste que
+  passa por `auditar()` e cobra o número PUBLICADO. Vale a regra geral: guard
+  de função pura não prova que a função está no caminho; a sabotagem que ele
+  precisa resistir é a REMOÇÃO DA CHAMADA, não a quebra da lógica.
+
 **Teste que recorta HTML por DESLOCAMENTO FIXO mente nas duas direções:**
 - O helper de `test_abas_bi.py` pegava o corpo de uma aba do `<div class="aba">`
   até a próxima — e, quando a aba era a ÚLTIMA do grupo, caía num
