@@ -261,10 +261,22 @@ main{flex:1;min-width:0;display:flex;flex-direction:column}
 .spacer{flex:1}
 .meta{font-size:12px;color:var(--n500);text-align:right;line-height:1.3}
 .meta b{color:var(--n700)}
-button.btn{font-family:var(--font);font-size:13px;font-weight:600;color:var(--on-accent);background:var(--navy-700);border:0;border-radius:var(--radius-md);padding:9px 16px;cursor:pointer;display:inline-flex;gap:7px;align-items:center}
+/* `a.btn` ENTRA JUNTO, e isso conserta cinco lugares de uma vez.
+   A regra nasceu como `button.btn` -- qualificada por ELEMENTO --, e um
+   `<a class="btn">` nao casa com ela: sai como link azul sublinhado no meio de
+   uma fileira de botoes. Ha cinco na casa (exportar orcamento, boleto, XML e
+   DANFE da Central, abrir aplicativo) e um deles ja tinha `style=` em linha
+   remendando a cor -- o sintoma de quem bateu no defeito e tratou o efeito.
+   `text-decoration:none` porque link tem sublinhado por padrao do navegador. */
+button.btn,a.btn{font-family:var(--font);font-size:13px;font-weight:600;color:var(--on-accent);background:var(--navy-700);border:0;border-radius:var(--radius-md);padding:9px 16px;cursor:pointer;display:inline-flex;gap:7px;align-items:center;text-decoration:none}
 button.btn:hover{background:var(--navy-600)}
 button.btn:disabled{opacity:.6;cursor:progress}
-button.ghost{background:transparent;color:var(--navy-700);border:1px solid var(--n300);font-weight:600;font-size:12px;padding:6px 12px;border-radius:var(--radius-md);cursor:pointer;font-family:var(--font)}
+/* `a.ghost` JUNTO, pelo mesmo motivo do `a.btn` logo acima: a regra nasceu
+   qualificada por ELEMENTO e um link com a classe nao recebia nada. E botao de
+   contorno e o que se usa DENTRO de tabela -- solido ali vira uma parede de
+   retangulos escuros e ainda empurra a coluna para fora do cartao. */
+button.ghost,a.ghost{background:transparent;color:var(--navy-700);border:1px solid var(--n300);font-weight:600;font-size:12px;padding:6px 12px;border-radius:var(--radius-md);cursor:pointer;font-family:var(--font);text-decoration:none;display:inline-flex;align-items:center}
+button.ghost:hover,a.ghost:hover{background:var(--navy-50)}
 button.ghost:hover{background:var(--navy-50)}
 button.ghost[aria-pressed="true"]{background:var(--navy-700);color:var(--on-accent);border-color:var(--navy-700)}
 .avatar{width:34px;height:34px;border-radius:50%;background:var(--navy-200);color:var(--navy-800);display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:13px}
@@ -2856,7 +2868,15 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 .dfe-cancelada td{opacity:.62}
 .dfe-cancelada td:first-child{position:relative}
 .dfe-evs{font-size:11.5px;color:var(--n500);margin-top:2px}
-.dfe-filtros{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:9px}
+/* O MESMO RECUO DO TITULO. Medido: o `.head` do cartao tem `padding:14px 18px`
+   e estes blocos tinham ZERO -- o campo de busca encostava na borda esquerda e
+   o botao "Limpar" na direita, enquanto o titulo acima respirava. Alinhamento
+   nao e enfeite: e o que faz o olho ler o cartao como UM bloco. */
+.dfe-filtros{display:flex;gap:9px;align-items:center;flex-wrap:wrap;
+  padding:12px 18px 0}
+.dfe-linha{display:flex;gap:9px;align-items:center;flex-wrap:wrap;
+  padding:9px 18px 0}
+.dfe-linha:last-of-type{padding-bottom:12px}
 .dfe-filtros input[type=search],.dfe-filtros select,.dfe-filtros input[type=date]{
   font:inherit;font-size:13px;padding:6px 9px;border:1px solid var(--n300);
   border-radius:6px;background:var(--n0);color:var(--n900);min-width:0}
@@ -2869,10 +2889,52 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
   font-size:13px;padding:6px 9px;border:1px solid var(--n300);border-radius:6px;
   background:var(--n0);color:var(--n900);min-width:0;flex:1 1 180px}
 .dfe-cert-aviso{font-size:12.5px;color:var(--n700);line-height:1.5}
-.dfe-paginacao{display:flex;gap:9px;align-items:center;flex-wrap:wrap;
-  margin-top:9px;font-size:12.5px;color:var(--n600)}
-.dfe-paginacao .btn{min-width:34px}
-.dfe-paginacao .quantos{font-family:var(--mono);font-size:12px;color:var(--n700)}
+/* AS COLUNAS QUE NAO PODEM QUEBRAR. Medido na tela: "NF-e" saia em duas linhas
+   ("NF-" / "e") porque a coluna Tipo espremia, enquanto o Emitente -- que e o
+   unico texto de tamanho variavel -- brigava pelo mesmo espaco. O resultado
+   eram linhas de 63px de altura cheias de quebra no meio de palavra.
+   Cada coluna curta declara o que e; o Emitente fica com o que sobrar. */
+/* 12px de folga lateral, e nao 14: com NOVE colunas, cada pixel a mais vira
+   18 na largura total. Medido no navegador do teste (1280px): com 14px a
+   tabela passava 33px do cartao; com 12 ela cabe. */
+.dfe-tab .tab th,.dfe-tab .tab td{padding:11px 12px;vertical-align:middle}
+.dfe-tab .tab th:first-child,.dfe-tab .tab td:first-child{padding-left:18px}
+.dfe-tab .tab th:last-child,.dfe-tab .tab td:last-child{padding-right:18px}
+/* tipo, valor, situacao, estado, ERP e acoes: largura do conteudo.
+   A EMISSAO FICA DE FORA de proposito: "01/09/2026 14:32:00" em uma linha so
+   custa ~70px que a tabela nao tem num notebook de 1280px -- em duas linhas
+   (data em cima, hora embaixo) ela nao esconde nada e devolve o espaco. */
+.dfe-tab .tab th:nth-child(3),.dfe-tab .tab td:nth-child(3),
+.dfe-tab .tab th:nth-child(4),.dfe-tab .tab td:nth-child(4),
+.dfe-tab .tab th:nth-child(5),.dfe-tab .tab td:nth-child(5),
+.dfe-tab .tab th:nth-child(6),.dfe-tab .tab td:nth-child(6),
+.dfe-tab .tab th:nth-child(7),.dfe-tab .tab td:nth-child(7),
+.dfe-tab .tab th:nth-child(9),.dfe-tab .tab td:nth-child(9){white-space:nowrap;width:1%}
+/* O EMITENTE ABSORVE A SOBRA -- E CEDE QUANDO FALTA. `min-width:200px` era
+   um piso que ninguem podia baixar: com as sete colunas curtas no conteudo, a
+   soma passava do cartao e sobravam 7px de rolagem horizontal. 140px ainda
+   cabe "FORNECEDOR EXEMPLO" em duas linhas, que e o formato real de razao
+   social. */
+.dfe-tab .tab th:nth-child(2),.dfe-tab .tab td:nth-child(2){width:auto;min-width:120px}
+/* A ORIGEM nao quebra, e o REMETENTE e o que pode ser comprido (um e-mail de
+   cliente, o nome da tabela do ERP). O corte tem de ir no elemento que tem o
+   texto -- `overflow` numa celula de tabela nao recorta o filho. */
+.dfe-tab .tab td:nth-child(8){white-space:nowrap;max-width:150px}
+.dfe-tab .tab td:nth-child(8) .dfe-nsu{overflow:hidden;text-overflow:ellipsis;
+  max-width:150px}
+.dfe-tab .dfe-nsu{font-family:var(--mono);font-size:11px;color:var(--n500)}
+/* A CELULA DAS ACOES: os dois botoes lado a lado e sem quebrar. `gap` e nao
+   espaco entre os `<a>`, senao o espaco em branco do HTML vira largura
+   variavel conforme a fonte. */
+.dfe-tab .tab td:last-child{display:table-cell;white-space:nowrap}
+.dfe-tab .tab td:last-child a+a{margin-left:6px}
+/* O RODAPE E O `.cp-pager`, QUE JA EXISTIA. Ele nasceu na tela de
+   contrapartida e e componente: grade de tres colunas, contagem a esquerda e
+   os botoes no CENTRO DO CARTAO (com flex eles escorregam conforme o texto da
+   contagem cresce). Eu tinha escrito um terceiro paginador do zero antes de
+   procurar -- e reusar aqui deixa as duas telas com o mesmo rodape, que e o
+   que faz alguem reconhecer o controle sem ler. */
+.dfe-paginacao .quantos{font-family:var(--mono)}
 
 /* Equipamentos (eqp) — a barra de filtros PROPRIA da tela.
    `.eqpfil input/select` nasce QUALIFICADA de proposito: regra de componente
@@ -7188,7 +7250,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <button class="btn sm" onclick="loadDfe()">Filtrar</button>
             <button class="btn sm" onclick="dfeLimpar()">Limpar</button>
           </div>
-          <div class="linha" style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:9px">
+          <div class="dfe-linha">
             <label style="font-size:12.5px;color:var(--n600)">Recebeu um XML por fora?</label>
             <!-- O `input` fica escondido porque o controle nativo do navegador
                  nao aceita estilo, e um botao com cara de botao ao lado de
@@ -7198,7 +7260,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <button class="btn sm" onclick="document.getElementById('dfe-arq').click()">Enviar XML ou .zip</button>
             <span class="hint" id="dfe-env-msg">entra na mesma lista, com a mesma busca e o mesmo pacote</span>
           </div>
-          <div class="linha" style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:9px">
+          <div class="dfe-linha">
             <!-- O ROTULO DIZIA "Baixar os XML de", e o campo sempre filtrou a
                  LISTA tambem. Quem lia aquilo entendia "isto e do .zip" e
                  procurava o filtro de periodo em outro lugar -- um campo que
@@ -7209,14 +7271,23 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <span style="color:var(--n500)">até</span>
             <input type="date" id="dfe-ate" aria-label="Emitidos até" onchange="loadDfe()">
             <span class="hint">filtra a lista abaixo</span>
-            <button class="btn sm" onclick="dfeBaixarPacote()">Baixar .zip do período</button>
-            <span class="hint" id="dfe-pac-msg">um arquivo por documento, nomeado pela chave de acesso</span>
+            <button class="btn sm" onclick="dfeBaixarPacote()"
+                    title="um arquivo por documento, nomeado pela chave de acesso — que é o nome que todo sistema fiscal espera">Baixar .zip do período</button>
+            <!-- O `span` continua, VAZIO: e nele que a mensagem do pacote
+                 aparece (o que foi baixado, ou por que nao deu). O texto fixo
+                 que morava aqui gastava uma LINHA INTEIRA do cartao para dizer
+                 uma coisa que so importa antes do primeiro clique -- foi para
+                 o `title` do botao, que e onde se procura o que um botao faz. -->
+            <span class="hint" id="dfe-pac-msg"></span>
           </div>
-          <div class="tabroll" style="max-height:400px"><table class="tab"><thead><tr>
+          <!-- A JANELA CRESCEU de 400 para 520px junto com a pagina de 50: com
+               100 linhas numa fresta de 400px, o rodape ficava a vinte rolagens
+               de distancia e a pessoa perdia de vista onde estava. -->
+          <div class="tabroll dfe-tab" style="max-height:520px"><table class="tab"><thead><tr>
             <th>Emissão</th><th>Emitente</th><th class="num">Valor</th>
             <th>Tipo</th><th>Situação</th><th>Estado</th><th>No ERP</th><th>Origem</th><th></th>
           </tr></thead><tbody id="dfe-docs"></tbody></table></div>
-          <div class="dfe-paginacao" id="dfe-pag"></div></div>
+          <div class="cp-pager dfe-paginacao" id="dfe-pag" hidden></div></div>
         </div>
       </section>
       <section class="view" id="view-pecas">
@@ -38913,6 +38984,11 @@ async function loadDfe(soDocs){
     if(de) q.set('de',de); if(ate) q.set('ate',ate);
     if(orig_) q.set('origem',orig_);
     q.set('pagina', DFE_PAG);
+  /* 50 POR PAGINA, e nao 100: a janela da tabela tem 520px e mostra ~11 linhas
+     de uma vez. Com 100, o rodape ficava a nove rolagens do topo -- e um
+     rodape que nao se ve nao diz onde a pessoa esta, que e a unica coisa que
+     ele existe para dizer. */
+  q.set("limite", 50);
     if(soDocs) q.set('so_docs','1');
     const r = await fetch('/api/dfe?'+q.toString(),{cache:'no-store'});
     const d = await respostaJSON(r);
@@ -39031,12 +39107,12 @@ async function loadDfe(soDocs){
             : '<span class="hint">—</span>'}</td>
         <td>${dfeOrigem(x)}</td>
         <td style="white-space:nowrap">${x.completo
-          ? `<a class="btn sm" href="/api/dfe/xml?${dfeEndereco(x)}" download="${esc(x.chave||x.nsu||x.sha256)}.xml" title="baixar o XML autorizado">XML</a>`
+          ? `<a class="ghost gbtn" href="/api/dfe/xml?${dfeEndereco(x)}" download="${esc(x.chave||x.nsu||x.sha256)}.xml" title="baixar o XML autorizado">XML</a>`
             /* A FOLHA SO APARECE ONDE EXISTE. Evento (cancelamento, passagem)
                nao tem representacao grafica propria -- ele se le NA nota que
                alterou. Oferecer um botao que sempre recusa ensina a ignorar
                botao. */
-            + (DFE_TEM_FOLHA[x.tipo] ? ` <a class="btn sm" href="/api/dfe/pdf?${dfeEndereco(x)}" target="_blank" rel="noopener" title="abrir o ${esc(DFE_TEM_FOLHA[x.tipo])}">${esc(DFE_TEM_FOLHA[x.tipo])}</a>` : '')
+            + (DFE_TEM_FOLHA[x.tipo] ? ` <a class="ghost gbtn" href="/api/dfe/pdf?${dfeEndereco(x)}" target="_blank" rel="noopener" title="abrir o ${esc(DFE_TEM_FOLHA[x.tipo])}">${esc(DFE_TEM_FOLHA[x.tipo])}</a>` : '')
           /* O MOTIVO DEPENDE DA PORTA. Da SEFAZ falta a manifestacao de
              ciencia; do e-mail, falta o protocolo no arquivo que a pessoa
              mandou -- e mandar alguem procurar uma manifestacao que nao existe
@@ -39730,22 +39806,38 @@ function dfePaginacao(p){
   if(!el) return;
   if(!p || !p.total){
     el.innerHTML = '';
+    el.hidden = true;
     if(hint) hint.textContent = '';
     return;
   }
   const de = (p.pagina-1)*p.por_pagina + 1;
   const ate = Math.min(p.pagina*p.por_pagina, p.total);
   if(hint) hint.textContent = fmtIntBR(p.total)+' no filtro atual';
+  /* CABE NUMA PAGINA SO: nada a paginar, e uma barra que so tem botoes
+     desligados e ruido no rodape. O `.cp-pager` da casa esconde do mesmo
+     jeito, e por isso o elemento nasce `hidden` na marcacao. */
+  el.hidden = p.paginas <= 1;
+  if(el.hidden){ el.innerHTML = ''; return; }
+  /* `.gbtn` E NAO `.btn sm`: e a classe que a casa usa em botao DENTRO de
+     tabela e de rodape (o `.cp-pager` da contrapartida usa a mesma), e o
+     `.btn sm` sozinho nem existe como regra -- `sm` nao e classe de nada. */
   const bt = (rot, alvo, ligado, titulo) =>
-    '<button class="btn sm" '+(ligado?'':'disabled ')+'title="'+esc(titulo)+'" '
+    '<button class="gbtn" '+(ligado?'':'disabled ')+'title="'+esc(titulo)+'" '
     + (ligado?'onclick="dfeIrPara('+alvo+')"':'')+'>'+rot+'</button>';
+  /* A GRADE DO `.cp-pager` E DE TRES COLUNAS: contagem, botoes, vazio. E ela
+     que poe os botoes no centro do CARTAO em vez de no centro do espaco que
+     sobrou da contagem. */
   el.innerHTML =
-      bt('«', 1, p.pagina>1, 'primeira página')
-    + bt('‹', p.pagina-1, p.pagina>1, 'página anterior')
-    + '<span class="quantos">'+fmtIntBR(de)+'–'+fmtIntBR(ate)+' de '+fmtIntBR(p.total)+'</span>'
-    + '<span>página '+fmtIntBR(p.pagina)+' de '+fmtIntBR(p.paginas)+'</span>'
-    + bt('›', p.pagina+1, p.pagina<p.paginas, 'próxima página')
-    + bt('»', p.paginas, p.pagina<p.paginas, 'última página');
+      '<span class="hint quantos">'+fmtIntBR(de)+'–'+fmtIntBR(ate)
+    +   ' de '+fmtIntBR(p.total)+'</span>'
+    + '<span class="botoes">'
+    +   bt('«', 1, p.pagina>1, 'primeira página')
+    +   bt('‹ anterior', p.pagina-1, p.pagina>1, 'página anterior')
+    +   '<span class="hint quantos">'+fmtIntBR(p.pagina)+' / '+fmtIntBR(p.paginas)+'</span>'
+    +   bt('próxima ›', p.pagina+1, p.pagina<p.paginas, 'próxima página')
+    +   bt('»', p.paginas, p.pagina<p.paginas, 'última página')
+    + '</span>'
+    + '<span></span>';
 }
 
 function dfeOrigem(x){

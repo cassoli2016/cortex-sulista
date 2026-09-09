@@ -98,8 +98,8 @@ def _abrir(pg, base_url, enviado=None, resposta=None, pedidos=None,
             pag = int((q.get("pagina") or ["1"])[0])
             corpo = {**CAIXAS,
                      "paginacao": {"total": total, "pagina": pag,
-                                   "paginas": max(1, -(-total // 100)),
-                                   "por_pagina": 100}}
+                                   "paginas": max(1, -(-total // 50)),
+                                   "por_pagina": 50}}
             status = 200
         else:
             corpo, status = {}, 200
@@ -240,8 +240,8 @@ def test_o_rodape_diz_QUANTOS_existem_e_onde_se_esta(pagina):
     _abrir(pg, base, total=201369)
     rodape = pg.inner_text("#dfe-pag")
     assert "201.369" in rodape, rodape
-    assert "página 1 de 2.014" in rodape, rodape
-    assert "1–100 de 201.369" in rodape, rodape
+    assert "1 / 4.028" in rodape, rodape
+    assert "1–50 de 201.369" in rodape, rodape
 
 
 def test_o_VALOR_da_nota_sai_em_dinheiro_BRASILEIRO(pagina):
@@ -281,7 +281,7 @@ def test_virar_a_pagina_pede_SO_A_LISTA(pagina):
     pedidos.clear()
     pg.click("#dfe-pag button:nth-of-type(3)")     # proxima
     pg.wait_for_function(
-        "() => document.getElementById('dfe-pag').textContent.includes('página 2')",
+        "() => document.getElementById('dfe-pag').textContent.includes('2 / ')",
         timeout=10000)
     assert len(pedidos) == 1, pedidos
     assert "pagina=2" in pedidos[0] and "so_docs=1" in pedidos[0], pedidos[0]
@@ -295,16 +295,91 @@ def test_FILTRAR_devolve_para_a_primeira_pagina(pagina):
     _abrir(pg, base, pedidos=pedidos, total=201369)
     pg.click("#dfe-pag button:nth-of-type(4)")     # ultima
     pg.wait_for_function(
-        "() => document.getElementById('dfe-pag').textContent.includes('página 2.014')",
+        "() => document.getElementById('dfe-pag').textContent.includes('4.028 / 4.028')",
         timeout=10000)
     pedidos.clear()
     pg.select_option("#dfe-tipo", "cte")
     pg.wait_for_function(
-        "() => document.getElementById('dfe-pag').textContent.includes('página 1 ')",
+        "() => document.getElementById('dfe-pag').textContent.includes('1 / ')",
         timeout=10000)
     assert "pagina=1" in pedidos[-1], pedidos[-1]
     # e a carga com filtro NAO e so-lista: os KPIs e as caixas mudam junto
     assert "so_docs=1" not in pedidos[-1], pedidos[-1]
+
+
+def test_o_conteudo_do_cartao_ALINHA_com_o_titulo(pagina):
+    """MEDIDO NO NAVEGADOR, e foi assim que o defeito apareceu: o `.head` do
+    cartao tem `padding:14px 18px` e os filtros, a tabela e o rodape tinham
+    ZERO. O campo de busca encostava na borda esquerda e o "Limpar" na direita,
+    enquanto o titulo acima respirava.
+
+    Alinhamento nao e enfeite: e o que faz o olho ler o cartao como UM bloco.
+    """
+    pg, base = pagina
+    _abrir(pg, base, total=201369)
+    # MEDE O PRIMEIRO FILHO DE CADA BLOCO, e nao o bloco: `padding` empurra o
+    # CONTEUDO e nao move o container um pixel. A primeira versao deste guard
+    # media o container e ficou VERDE com o recuo removido -- media a coisa
+    # errada com toda a confianca do mundo.
+    m = pg.evaluate("""() => {
+      const card = document.querySelector('#view-dfe .aba[data-aba=\"docs\"] .card');
+      const x = s => { const el = card.querySelector(s);
+                       return el ? Math.round(el.getBoundingClientRect().x) : null; };
+      return {card: Math.round(card.getBoundingClientRect().x),
+              head: x('.head h2'),
+              filtros: x('.dfe-filtros input'),
+              linha: x('.dfe-linha label'),
+              pager: x('#dfe-pag .hint')};
+    }""")
+    # o titulo tem 18px de recuo; os outros blocos tem de ter o mesmo
+    recuo = m["head"] - m["card"]
+    for bloco in ("filtros", "linha", "pager"):
+        assert abs((m[bloco] - m["card"]) - recuo) <= 1, (
+            "%s desalinhado do titulo: %s" % (bloco, m))
+
+
+def test_a_tabela_NAO_passa_da_borda_do_cartao(pagina):
+    """A regua da casa mede LARGURA tambem, e exige zero.
+
+    Aconteceu duas vezes ao arrumar esta tabela: primeiro os botoes solidos
+    empurraram 18px para fora, depois um `min-width` no Emitente segurou 7px.
+    Rolagem horizontal dentro de um cartao nao da erro nenhum -- a coluna da
+    direita simplesmente nasce fora da tela.
+    """
+    pg, base = pagina
+    _abrir(pg, base, total=201369)
+    m = pg.evaluate("""() => {
+      const rolo = document.querySelector('#view-dfe .aba[data-aba="docs"] .tabroll');
+      const tab = document.querySelector('#dfe-docs').closest('table');
+      return {rolo: Math.round(rolo.getBoundingClientRect().width),
+              tabela: Math.round(tab.getBoundingClientRect().width),
+              rolagem: rolo.scrollWidth - rolo.clientWidth};
+    }""")
+    assert m["rolagem"] == 0, "a tabela rola para o lado: %s" % m
+    assert m["tabela"] <= m["rolo"], m
+
+
+def test_os_botoes_da_tabela_sao_BOTOES_e_nao_links_azuis(pagina):
+    """`button.btn` e `button.ghost` nasceram QUALIFICADAS POR ELEMENTO, e um
+    `<a class="btn">` nao casa com nenhuma das duas: XML e DANFE saiam como
+    link azul sublinhado no meio da tabela.
+
+    Ha cinco `<a class="btn">` na casa e todos estavam assim -- um ja tinha
+    `style=` em linha remendando a cor, que e o sintoma de quem bateu no
+    defeito e tratou o efeito. O teste le o que o NAVEGADOR calculou, nunca o
+    texto do CSS.
+    """
+    pg, base = pagina
+    _abrir(pg, base)
+    estilo = pg.evaluate("""() => {
+      const a = document.querySelector('#dfe-docs a[href*="/api/dfe/xml"]');
+      const c = getComputedStyle(a);
+      return {borda: c.borderTopWidth, sublinhado: c.textDecorationLine,
+              cursor: c.cursor, raio: c.borderRadius};
+    }""")
+    assert estilo["sublinhado"] == "none", estilo
+    assert estilo["borda"] != "0px", estilo
+    assert estilo["raio"] != "0px", estilo
 
 
 def test_o_filtro_de_DATA_diz_que_filtra_a_lista(pagina):

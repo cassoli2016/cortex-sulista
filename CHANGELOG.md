@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.17.2] — 08/09/2026  ·  CX-08/09/2026-v1.17.2
+
+### Corrigido
+- A tabela de documentos da Central estava desalinhada do próprio cartão: o título tinha recuo e os filtros, a tabela e o rodapé encostavam nas bordas — o campo de busca tocava a lateral esquerda e o botão Limpar a direita. Tudo passou a ter o mesmo recuo do título.
+- As colunas paravam de caber e o texto quebrava no meio: "NF-e" saía em duas linhas. Cada coluna curta agora tem a largura do que mostra, o emitente fica com o espaço que sobra e o remetente longo é cortado com reticências. Em telas de notebook a tabela chegava a passar 130px da borda, com rolagem para o lado; agora cabe.
+- Os botões XML e DANFE apareciam como link azul sublinhado no meio da tabela. A regra de estilo dos botões valia só para <button>, e esses dois são links — o mesmo acontecia em outros três lugares do sistema (exportar orçamento, boleto, abrir aplicativo), e todos foram corrigidos de uma vez.
+- O rodapé da paginação passou a ser o mesmo componente já usado na tela de CT-e de Contrapartida, e some quando tudo cabe numa página só. A página passou de 100 para 50 documentos: com 100, o rodapé ficava a nove rolagens do topo, e um rodapé que não se vê não diz onde a pessoa está.
+
 ## [1.17.1] — 08/09/2026  ·  CX-08/09/2026-v1.17.1
 
 ### Corrigido

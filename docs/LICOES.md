@@ -5775,3 +5775,88 @@ sem desempate quanto com o desempate errado.
 - **Nome de funcao e contrato**: `numBR` parece formatador e e parser, e
   aceitar um argumento a mais em silencio fecha a armadilha.
 - **Campo que faz duas coisas anuncia as duas.**
+
+---
+
+## A regra que valia so para `<button>`, e o guard que media o container (2026-09-08, v1.17.2)
+
+Pedido de quem opera, em duas mensagens: *"ajuste as bordas dos documentos
+recolhidos"* e *"tambem o espacamento das colunas. De uma melhorada nessa
+tabela".*
+
+### Medir antes de mexer
+
+"As bordas estao erradas" podia ser o cartao, a rolagem da tabela, o rodape
+novo ou uma regra de CSS que existe e nao vale. Uma sonda de Playwright
+respondeu em trinta segundos:
+
+    .head      padding 14px 18px     <- o TITULO tem recuo
+    filtros    x=253, padding 0      <- o resto NAO tem
+    .tabroll   x=253, padding 0
+    paginacao  x=253, padding 0
+
+O titulo respirava 18px e todo o resto do cartao encostava na borda.
+**Alinhamento nao e enfeite: e o que faz o olho ler o cartao como UM bloco.**
+
+### Dois componentes que a casa ja tinha, e eu reinventei
+
+`.cardfilters` (filtros dentro de cartao, com o recuo certo) e `.cp-pager` (a
+barra de paginacao, em grade de tres colunas, com os botoes no CENTRO DO CARTAO
+-- com flex eles escorregam conforme o texto da contagem cresce). O segundo eu
+tinha reescrito do zero uma hora antes, sem procurar.
+
+### A regra que valia so para `<button>`
+
+Os botoes XML e DANFE saiam como link azul sublinhado. A causa:
+
+    button.btn{...}      <- QUALIFICADA POR ELEMENTO
+    button.ghost{...}
+
+`<a class="btn">` nao casa com nenhuma das duas. Ha **cinco** links-botao no
+arquivo (exportar orcamento, boleto, XML, DANFE, abrir aplicativo) e todos
+estavam crus -- **um deles ja tinha `style=` em linha remendando a cor**, que e
+o sintoma classico de quem bateu no defeito e tratou o efeito sem procurar a
+causa.
+
+A casa ja tinha a licao escrita ao contrario (`css-regra-que-perde-a-briga`:
+regra de componente dentro de bloco estilizado nasce QUALIFICADA). Aqui foi o
+outro lado da mesma moeda: qualificada DEMAIS, e o seletor deixou de alcancar
+metade dos casos.
+
+**E `sm` nao estiliza nada.** Nao existe `.sm` no arquivo; todo
+`class="btn sm"` da casa e um botao de tamanho normal com uma classe morta
+junto.
+
+### A regua nao mede a tela de quem trabalha
+
+`medir_paineis` diz "0 telas acima de 900px" e mediu a largura como zero. Na
+viewport do teste (1280px, que e um notebook) a tabela passava **130px** do
+cartao. A regua mede numa tela larga, e a tela que quebra e a outra.
+
+Foram tres rodadas ate zerar: os botoes solidos empurrando 18px, um
+`min-width:200px` no Emitente segurando 7, e o padding de 14px em NOVE colunas
+custando 36. **Com nove colunas, cada pixel a mais de padding vira dezoito na
+largura total.**
+
+### O guard que media o container
+
+Escrevi o guard do alinhamento medindo `getBoundingClientRect().x` do
+`.dfe-filtros`. Sabotei o `padding` e o teste ficou VERDE.
+
+**`padding` empurra o CONTEUDO e nao move o container um pixel.** O guard media
+a coisa errada com toda a confianca do mundo -- e so a sabotagem contou. Agora
+ele mede o primeiro filho de cada bloco.
+
+Segunda sabotagem verde do dia, e as duas pela mesma razao de fundo: o teste
+media algo que o defeito nao mexia.
+
+### O que fica como regra
+
+- **Seletor qualificado por elemento e uma decisao, nao um detalhe.** Se a
+  regra vale para uma classe, escreva a classe; se so vale para um elemento,
+  diga por que.
+- **A regua de altura nao substitui medir na LARGURA de quem trabalha.**
+- **Guard de layout mede o que o CSS move.** `padding` move o conteudo,
+  `margin` move o elemento -- medir o errado passa em qualquer sabotagem.
+- **Antes de escrever um componente, procure o nome dele na casa.** Filtro em
+  cartao e barra de paginacao ja existiam.
