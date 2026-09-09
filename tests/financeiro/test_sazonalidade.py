@@ -172,3 +172,89 @@ def test_indice_nao_multiplica_o_ano_inteiro():
     ix = saz.indice_sazonal(serie)["indice"]
     observados = [ix[m] for m in range(1, 13)]
     assert abs(statistics.mean(observados) - 1.0) < 0.02, observados
+
+
+# =========================================================================
+# A TELA `fluxo` — `queries._previsao_sazonal` delega para este módulo desde
+# 09/09/2026. Os testes abaixo guardam a troca pelo COMPORTAMENTO, não pela
+# implementação: o que se afirma é o que o método antigo errava.
+# =========================================================================
+
+def _hist(serie):
+    """No formato de `SAZONAL_SQL`: mes, mnum, valor."""
+    return [{"mes": m, "mnum": int(m[5:7]), "valor": v} for m, v in serie]
+
+
+def test_o_mes_de_IMPLANTACAO_nao_derruba_o_indice_do_mes_calendario():
+    """O defeito mais caro que o método antigo tinha, e o mais invisível.
+
+    Janeiro de 2023 — o primeiro mês do sistema — faturou R$ 5 mil, contra
+    R$ 9,9 mi, R$ 12,4 mi e R$ 10,8 mi dos três janeiros seguintes. O método
+    antigo tirava a MÉDIA dos quatro e derrubava o índice de janeiro de 0,906
+    para 0,728: vinte por cento a menos, todo ano, no mês seguinte ao aperto de
+    dezembro.
+
+    Não foi preciso tratar esse mês como caso especial. Ele fica de fora
+    sozinho, porque a razão sobre média móvel exige doze meses centrados e o
+    quarto mês de uma série não tem janela — o método recusa opinar sobre o
+    que não consegue medir.
+    """
+    from api import queries as q
+    serie = []
+    ano, mes = 2022, 10
+    for i in range(47):
+        if (ano, mes) == (2023, 1):
+            v = 4_765.0                      # a implantação
+        else:
+            v = 11_000_000.0 * SAZONAL_REAL[mes]
+        serie.append((f"{ano:04d}-{mes:02d}", v))
+        mes += 1
+        if mes > 12:
+            ano, mes = ano + 1, 1
+
+    prever, metodo = q._previsao_sazonal(_hist(serie), fallback=1.0)
+    assert metodo == "sazonal"
+    # O índice de janeiro tem de descrever os janeiros NORMAIS. A banda é de
+    # 8%: medido neste cenário, o método novo acerta a razão jan/ago em +0,0%
+    # e o antigo erra −25,0%. A primeira versão deste teste usava ±25% e
+    # passava com o método ANTIGO por dois décimos de milésimo — verde que
+    # nunca ficaria vermelho, pego ao sabotar.
+    razao = (prever(1) / prever(8)) / (SAZONAL_REAL[1] / SAZONAL_REAL[8])
+    assert 0.92 < razao < 1.08, razao
+
+    # e o método antigo, na mesma série, erra feio — é o que justifica a troca
+    geral = sum(v for _, v in serie) / len(serie)
+    por_mes: dict[int, list[float]] = {}
+    for m, v in serie:
+        por_mes.setdefault(int(m[5:7]), []).append(v)
+    velho = {m: (sum(v) / len(v)) / geral for m, v in por_mes.items()}
+    esperado = SAZONAL_REAL[1] / (sum(SAZONAL_REAL.values()) / 12)
+    assert velho[1] < esperado * 0.85, (velho[1], esperado)
+
+
+def test_serie_curta_cai_no_runrate_e_DIZ_que_caiu():
+    """Rótulo "sazonal" sobre um índice neutro seria um run-rate se passando
+    por outra coisa — e a tela mostra esse rótulo para quem lê o número."""
+    from api import queries as q
+    curta = [(f"2026-{m:02d}", 10_000_000.0) for m in range(1, 7)]
+    prever, metodo = q._previsao_sazonal(_hist(curta), fallback=9_000_000.0)
+    assert metodo == "runrate"
+    assert prever(1) == 9_000_000.0
+
+
+def test_a_previsao_da_tela_fluxo_usa_a_MEDIANA_do_nivel():
+    """Um mês atípico não pode mover a previsão do ano inteiro. O método antigo
+    usava média — e média com um mês fora da curva entra inteira."""
+    from api import queries as q
+    serie = []
+    ano, mes = 2022, 10
+    for _ in range(47):
+        serie.append((f"{ano:04d}-{mes:02d}", 10_000_000.0 * SAZONAL_REAL[mes]))
+        mes += 1
+        if mes > 12:
+            ano, mes = ano + 1, 1
+    normal, _ = q._previsao_sazonal(_hist(serie), 1.0)
+    # o último mês fechado triplica (venda de ativo, acordo, lote de tributo)
+    com_outlier = serie[:-1] + [(serie[-1][0], serie[-1][1] * 3)]
+    outlier, _ = q._previsao_sazonal(_hist(com_outlier), 1.0)
+    assert abs(outlier(5) - normal(5)) / normal(5) < 0.05, (outlier(5), normal(5))

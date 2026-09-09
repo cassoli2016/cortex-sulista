@@ -80,16 +80,43 @@ def test_ponto_equilibrio_sem_receita():
 
 
 # ---------------- _previsao_sazonal ----------------
+#
+# O DUBLÊ TEM A FORMA DA CONSULTA REAL. Estes dois testes nasceram com
+# `{"mnum", "valor"}` só, porque era tudo que o método antigo lia — e o
+# `SAZONAL_SQL` sempre devolveu `mes` também. Quando o cálculo passou a
+# delegar para `financeiro/sazonalidade.py` (09/09/2026), que precisa da
+# ordem cronológica para a média móvel, os dois quebraram com `KeyError:
+# 'mes'`: falha de FIXTURE, não de comportamento.
+#
+# Dublê que carrega menos campos que a fonte real não testa contra a fonte
+# real — ele testa contra o que o código de hoje por acaso usa.
+def _hist(serie):
+    """No formato exato de `SAZONAL_SQL`: mes, mnum, valor."""
+    return [{"mes": m, "mnum": int(m[5:7]), "valor": v} for m, v in serie]
+
+
 def test_previsao_sazonal_poucos_meses_runrate():
-    hist = [{"mnum": m, "valor": 100.0} for m in range(1, 6)]  # 5 meses
+    hist = _hist([(f"2026-{m:02d}", 100.0) for m in range(1, 6)])   # 5 meses
     fn, metodo = q._previsao_sazonal(hist, fallback=123.0)
     assert metodo == "runrate"
     assert fn(3) == 123.0
 
 
 def test_previsao_sazonal_serie_estavel():
-    hist = [{"mnum": (i % 12) + 1, "valor": 100.0} for i in range(24)]  # 24 meses uniformes
-    fn, metodo = q._previsao_sazonal(hist, fallback=0.0)
+    """Série sem estação nenhuma: o índice tem de sair 1,0 e o nível, 100.
+
+    Vinte e quatro meses uniformes rendem UMA observação por mês-calendário
+    depois da média móvel — e uma observação não mede dispersão, então o
+    amortecimento leva todo índice a 1,0. O resultado certo é o mesmo do
+    método antigo por um caminho diferente, e é isso que este teste guarda.
+    """
+    ano, mes, serie = 2024, 1, []
+    for _ in range(24):
+        serie.append((f"{ano:04d}-{mes:02d}", 100.0))
+        mes += 1
+        if mes > 12:
+            ano, mes = ano + 1, 1
+    fn, metodo = q._previsao_sazonal(_hist(serie), fallback=0.0)
     assert metodo == "sazonal"
     assert abs(fn(7) - 100.0) < 1e-6   # índice 1.0, nível 100
 

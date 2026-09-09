@@ -396,36 +396,71 @@ WHERE dtpagamento IS NOT NULL AND valorpago > 0
 GROUP BY 1 ORDER BY 1
 """
 
-# Histórico mensal de faturamento desde 2023 (meses fechados) — base do
-# índice sazonal que substitui o run-rate constante na linha "realista".
+# Histórico mensal de faturamento (meses fechados) — base do índice sazonal
+# que substitui o run-rate constante na linha "realista".
+#
+# JANELA MÓVEL DE 48 MESES, e não uma data fixa. `date '2023-01-01'` era um
+# marco que envelhecia: em 2030 a base carregaria sete anos, e os primeiros
+# descreveriam uma empresa que não existe mais. Quarenta e oito meses são
+# quatro observações por mês-calendário, que é o que o método precisa, e é a
+# MESMA janela de `financeiro/projecao.HIST_FATURAR_SQL` — as duas telas não
+# podem discordar sobre quanto a empresa fatura por mês.
 SAZONAL_SQL = f"""
 SELECT to_char(date_trunc('month', dtemissao),'YYYY-MM') AS mes,
        extract(month FROM dtemissao)::int AS mnum,
        sum(valortitulo)::float8 AS valor
 FROM fatura
 WHERE dtcancelamento IS NULL {FIL} {CLI_FAT}
-  AND dtemissao >= date '2023-01-01'
+  AND dtemissao >= date_trunc('month', {DREF}) - interval '48 months'
   AND dtemissao < date_trunc('month', {DREF})
 GROUP BY 1, 2 ORDER BY 1
 """
 
 
 def _previsao_sazonal(hist: list[dict], fallback: float):
-    """Índice sazonal por mês-calendário (média do mês ÷ média geral) e nível
-    recente dessazonalizado (últimos 6 meses ÷ índice). Previsão do mês m =
-    nivel × índice[m]. Com menos de 15 meses de história, cai no run-rate."""
-    if len(hist) < 15:
+    """Previsão de faturamento do mês m = nível × índice sazonal.
+
+    O CÁLCULO SAIU DAQUI e virou `api/financeiro/sazonalidade.py`, por um
+    motivo medido em 09/09/2026: o método antigo confundia NÍVEL com ESTAÇÃO.
+
+    Ele calculava o índice como "média do mês-calendário ÷ média geral" da
+    série bruta — e aí cada mês carrega quantos anos altos e quantos baixos
+    caíram nele, e o índice passa a medir QUANDO o mês foi observado. Com um
+    degrau de nível na base isso vira sazonalidade falsa, e a casa teve um
+    degrau real: a saída, em 2026, de um cliente que respondia por 15 a 17% do
+    faturamento.
+
+    O estrago, medido sobre a série real de 43 meses:
+
+        índice     out +10,3%   nov +8,6%   dez +10,2%
+        previsão   R$ 14,00 mi para outubro contra R$ 11,85 mi do nível medido
+                   — 18%, porque o nível TAMBÉM saía inflado (média dos seis
+                   últimos divididos por um índice que já estava alto, e média,
+                   não mediana, então um mês atípico entra inteiro)
+
+    O método novo é razão sobre média móvel de 12 meses (a média móvel
+    acompanha o degrau em vez de espalhá-lo), com o índice de cada mês
+    amortecido pela própria dispersão, e o nível é a MEDIANA dos seis meses
+    fechados dessazonalizados. `sazonalidade.py` tem a conta e a crônica.
+
+    A assinatura fica igual de propósito: quem chama continua recebendo
+    `(prever, metodo)`, e a troca não obriga `get_overview` a mudar de forma.
+    """
+    from api.financeiro import sazonalidade as _saz
+    serie = [(r["mes"], r["valor"]) for r in hist]
+    if len(serie) < _saz.MINIMO_MESES:
         return (lambda mnum: fallback), "runrate"
-    media_geral = sum(r["valor"] for r in hist) / len(hist)
-    por_mes: dict[int, list[float]] = {}
-    for r in hist:
-        por_mes.setdefault(r["mnum"], []).append(r["valor"])
-    indice = {m: (sum(v) / len(v)) / media_geral if media_geral else 1.0
-              for m, v in por_mes.items()}
-    niveis = [r["valor"] / indice[r["mnum"]]
-              for r in hist[-6:] if indice.get(r["mnum"])]
-    nivel = sum(niveis) / len(niveis) if niveis else fallback
-    return (lambda mnum: nivel * indice.get(mnum, 1.0)), "sazonal"
+    ix = _saz.indice_sazonal(serie)
+    if ix["metodo"] == "neutro":
+        # Sem observação suficiente para afirmar estação, o índice sai 1,0 em
+        # todo mês — e aí "sazonal" seria um rótulo mentindo sobre um run-rate.
+        # Diz-se run-rate, que é o que de fato está sendo feito.
+        nivel = _saz.nivel(serie, ix["indice"], 6) or fallback
+        return (lambda mnum: nivel), "runrate"
+    nivel = _saz.nivel(serie, ix["indice"], 6)
+    if nivel <= 0:
+        return (lambda mnum: fallback), "runrate"
+    return (lambda mnum: nivel * ix["indice"].get(mnum, 1.0)), "sazonal"
 
 
 # O fluxo respeita o range de vencimento (filtro de período) quando informado.

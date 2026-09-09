@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.27.0] — 09/09/2026  ·  CX-09/09/2026-v1.27.0
+
+### Adicionado
+- A tarja do cenario realista deixou de so desaconselhar. Ela avisava que a linha sobe indefinidamente — porque soma receita prevista contra despesa que ainda nao foi lancada — e mandava usar o saldo projetado, que enxerga so o lancado e a partir do segundo mes tambem esta errado, para menos. Quem olha aquela linha quer saber do semestre, entao agora a tarja aponta o Plano 12 meses, onde OS DOIS lados sao projetados e cada mes diz quanto de si ja esta lancado.
+
+### Corrigido
+- A previsao de faturamento da tela Fluxo de Caixa e Bancos passou a usar o mesmo metodo do Plano 12 meses, e a diferenca nao era pequena: ela previa R$ 14,00 milhoes para outubro onde o nivel medido da R$ 11,85 milhoes. Quinze por cento de dinheiro que nao vem, na linha que a tesouraria usa para decidir se antecipa.
+- A causa de janeiro tem nome: janeiro de 2023 faturou R$ 5 mil, porque foi o mes de implantacao do sistema. O metodo antigo tirava a MEDIA dos quatro janeiros da base e esse quase-zero derrubava o indice de janeiro de 0,906 para 0,728 — vinte por cento a menos, todo ano, no mes seguinte ao aperto de dezembro. Nao foi preciso tratar esse mes como excecao: o metodo novo exige doze meses centrados para gerar razao, e o quarto mes de uma serie nao tem janela. Ele recusa opinar sobre o que nao consegue medir.
+- A base do indice deixou de comecar numa data fixa. Eram todos os meses desde 2023-01-01, um marco que envelhece — em 2030 a conta carregaria sete anos, e os primeiros descreveriam uma empresa que nao existe mais. Agora sao 48 meses moveis, a MESMA janela da projecao: as duas telas nao podem discordar sobre quanto a empresa fatura por mes.
+- O nivel passou a ser MEDIANA dos seis meses fechados, e nao media. Um mes com venda de ativo, acordo ou lote de tributo entrava inteiro na media e movia a previsao do ano.
+
 ## [1.26.0] — 09/09/2026  ·  CX-09/09/2026-v1.26.0
 
 ### Corrigido

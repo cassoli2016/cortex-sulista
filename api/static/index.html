@@ -11860,9 +11860,18 @@ function toggleCenario(){
     if(fluxoCenario){
       const i=fluxoExtrapola(fluxo);
       av.style.display='flex';
+      /* A ULTIMA FRASE MUDOU EM 09/09/2026, e a diferenca importa: ate aqui o
+         aviso mandava "use o saldo projetado", que e' honesto e nao responde a
+         pergunta — o projetado so enxerga o lancado, e a partir do segundo mes
+         ele tambem esta errado, so que para menos. Quem olha esta linha quer
+         saber do semestre, e agora existe uma tela onde OS DOIS lados sao
+         projetados. Aviso que aponta um lugar vale mais que aviso que so
+         desaconselha. */
       av.innerHTML=`<i>${ICONS['sevWarn']}</i><span>O <b>saldo realista</b> soma faturamento previsto, mas os <b>pagáveis futuros ainda não estão lançados</b> no ERP — por isso ele sobe indefinidamente.`
         +(i>=0&&i<fluxo.length?` A partir de <b>${periodoLabel(fluxo[i].periodo)}</b> os títulos a pagar caem abaixo de 40% da média e a linha vira extrapolação otimista.`:'')
-        +` Para decidir caixa, use o saldo projetado.</span>`;
+        +` Para o dia a dia, use o saldo projetado. Para 6 a 12 meses, o `
+        +`<a href="#fluxcon" style="color:inherit;font-weight:700">Plano 12 meses</a>`
+        +` projeta os <b>dois</b> lados — receita e despesa — e diz quanto de cada mês já está lançado.</span>`;
     } else { av.style.display='none'; av.innerHTML=''; }
   }
   if(fluxo.length) chartFluxo(fluxo);
