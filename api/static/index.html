@@ -171,15 +171,29 @@ aside{position:sticky;top:0;height:100vh;overflow-y:auto;overflow-x:hidden;width
    isso vira uma lista corrida). Puramente visual — não é foco nem alvo de
    clique, então não entra na navegação por teclado. */
 .subsec{font:600 9.5px/1 var(--font);letter-spacing:1.2px;text-transform:uppercase;
-  color:rgba(255,255,255,.38);padding:10px 12px 4px 34px;user-select:none}
+  color:rgba(255,255,255,.38);padding:10px 12px 4px 8px;user-select:none}
 .subs .subsec:first-child{padding-top:4px}
 nav{display:flex;flex-direction:column;gap:1px}
 nav .group{width:100%;background:none;border:0;cursor:pointer;color:#fff;font-family:var(--font);
   font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:10px;padding:5px 12px;border-radius:var(--radius-md);text-align:left}
+nav .group{border-left:3px solid transparent}
 nav .group:hover{background:var(--navy-800)}
+/* O GRUPO DIZ QUE VOCE ESTA DENTRO DELE, com a mesma linguagem do item
+   ativo (barra da marca a esquerda). Vale ABERTO e FECHADO: fechado e
+   justamente quando o item some da tela e o sinal fica sendo o unico. */
+nav .group.tem-ativa{background:var(--navy-800);border-left-color:var(--brand-claro)}
+nav .group.tem-ativa .ic:first-child{color:var(--brand-claro)}
 nav .group .chev{margin-left:auto;transition:transform .15s;width:14px;height:14px}
 nav .group[aria-expanded="false"] .chev{transform:rotate(-90deg)}
-.subs{display:flex;flex-direction:column;gap:1px}
+/* A ESCADA DO MENU E UMA GUIA, NAO UM RECUO GRANDE.
+   A barra tem 228px de largura e 12 rotulos passam de 20 caracteres
+   ("Permanencia na Planta - Tupy"). Empurrar o texto 24px por nivel
+   comeria a largura e quebraria linha; a guia diz a mesma hierarquia
+   ocupando 1px, e sobra espaco para o rotulo inteiro.
+   MEDIDO antes: grupo 12px -> item 22px, um degrau de 10px que quase
+   nao se le -- e o terceiro nivel com o MESMO recuo do segundo. */
+.subs{display:flex;flex-direction:column;gap:1px;
+  margin-left:11px;border-left:1px solid rgba(255,255,255,.11)}
 .subs.closed{display:none}
 /* TERCEIRO NÍVEL do menu (Business Intelligence > Painéis TV > painel).
    Existe só onde há uma FAMÍLIA de telas dentro de uma área — não para
@@ -188,7 +202,7 @@ nav .group[aria-expanded="false"] .chev{transform:rotate(-90deg)}
    para a hierarquia se ler sem precisar de linha guia. */
 nav .subgrupo{width:100%;background:none;border:0;cursor:pointer;color:var(--n400);
   font-family:var(--font);font-size:13px;display:flex;align-items:center;gap:9px;
-  padding:6px 12px 6px 22px;border-radius:var(--radius-md);text-align:left;
+  padding:6px 12px 6px 8px;border-radius:var(--radius-md);text-align:left;
   border-left:3px solid transparent}
 nav .subgrupo:hover{color:#fff;background:var(--navy-800)}
 nav .subgrupo .chev{margin-left:auto;transition:transform .15s;width:13px;height:13px}
@@ -198,17 +212,31 @@ nav .subgrupo[aria-expanded="false"] .chev{transform:rotate(-90deg)}
 nav .subgrupo.tem-ativa{color:#fff;font-weight:600}
 .subs2{display:flex;flex-direction:column;gap:1px}
 .subs2.closed{display:none}
-nav a.sub2{padding-left:46px}
+/* `nav a.sub.sub2`, e NAO `nav a.sub2`.
+   As duas regras tinham especificidade (0,2,1) e a de `.sub` vinha
+   DEPOIS no arquivo -- vencia, e o terceiro nivel ficava com o recuo do
+   segundo. Medido no navegador: 22px onde o CSS dizia 46px. O comentario
+   original ate explicava o salto de 12px que nunca aconteceu.
+   So o navegador diz quem venceu a especificidade. */
+nav a.sub.sub2{padding-left:8px}
+.subs2{margin-left:10px;border-left:1px solid rgba(255,255,255,.09)}
 /* COMPACTO POR ALTURA, NAO POR TEXTO. Sao 70 telas em 13 grupos: com o menu
    todo aberto a barra rolava. O que encolheu foi o respiro vertical (6px -> 4px
    por item, 2px -> 1px de gap) e o separador; o tamanho da fonte e a area de
    clique horizontal ficam onde estavam, senao compactar vira ilegivel. */
 nav a{display:flex;align-items:center;gap:9px;padding:4px 12px;border-radius:var(--radius-md);text-decoration:none;
   font-size:13px;color:var(--n400);border-left:3px solid transparent}
-nav a.sub{padding-left:22px}
+nav a.sub{padding-left:8px}
 nav a.active{color:#fff;background:var(--navy-700);border-left-color:var(--brand-claro);font-weight:600}
 aside nav a:hover:not(.active){color:#fff;background:var(--navy-800)}
 nav a.mod{opacity:.7}
+/* A TRILHA DO CABECALHO. Com 86 telas em 14 grupos, o nome da tela
+   sozinho nao situa: "Premiacao de Motoristas" nao diz que voce esta em
+   Telemetria. O grupo vem menor e mais claro para nao competir com o
+   nome da tela, que continua sendo o titulo. */
+#viewTitle .trilha{font-weight:500;font-size:.72em;color:var(--n500);
+  letter-spacing:.02em}
+#viewTitle .trilha::after{content:' › ';color:var(--n400)}
 /* SEPARADOR DO MENU. A barra tem tres coisas de naturezas diferentes
    empilhadas sem pausa: os dois ATALHOS de topo (Visão Geral e Copiloto, que
    são destino direto), os GRUPOS de área, e a Administração, que é de outra
@@ -9511,6 +9539,13 @@ function syncGroups(v){
     const open = (k===ativo);
     btn.setAttribute('aria-expanded', String(open));
     subs.classList.toggle('closed', !open);
+    /* ONDE VOCE ESTA, no grupo e nao so no item.
+       Antes, o botao do grupo que continha a tela ativa era IDENTICO ao de
+       qualquer outro -- mesma cor, mesmo fundo, mesmo peso. Com 14 grupos e 86
+       itens, o unico sinal de posicao era o item destacado DENTRO do grupo
+       aberto: bastava rolar a barra e a tela parava de dizer onde voce esta.
+       A marca vale fechado tambem, que e quando ela mais importa. */
+    btn.classList.toggle('tem-ativa', !!subs.querySelector('[data-view="'+v+'"]'));
   });
   /* Terceiro nível: abre também o SUBMENU que contém a tela ativa, senão
      navegar para um painel de TV abriria o grupo BI e a tela ficaria escondida
@@ -9764,7 +9799,21 @@ function router(){
     const at=a.dataset.view===v; a.classList.toggle('active', at);
     if(at) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current');
   });
-  document.getElementById('viewTitle').textContent = VIEWS[v];
+  /* A TRILHA SAI DO DOM, e nao de um segundo mapa escrito a mao.
+     Ja existe VIEW_GROUP (view -> chave curta) e o rotulo humano so existe no
+     botao do grupo. Uma terceira lista com os nomes bonitos envelheceria
+     calada no dia em que alguem renomeasse um grupo -- e renomear grupo e
+     exatamente o tipo de coisa que se faz sem pensar no menu. */
+  (function trilha(){
+    const h = document.getElementById('viewTitle');
+    if(!h) return;
+    const link = document.querySelector('aside nav a[data-view="'+v+'"]');
+    const subs = link ? link.closest('.subs') : null;
+    const btn = subs ? document.querySelector('[aria-controls="'+subs.id+'"]') : null;
+    const grupo = btn ? (btn.querySelector('span:not(.ic)')||{}).textContent : '';
+    h.innerHTML = (grupo ? '<span class="trilha">'+esc(grupo.trim())+'</span>' : '')
+                  + esc(VIEWS[v] || v);
+  })();
   navRegistraUso(v);
   syncGroups(v);
   const anpiso = (v==='anpiso');
