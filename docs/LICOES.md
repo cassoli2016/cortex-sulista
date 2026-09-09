@@ -2522,21 +2522,67 @@ só no ERP ...... 177 placas      união ....... 275
   rasterjor`, com tipo (Meia R$ 52,64 / Inteira R$ 102,58) e cidade-base —
   **parou em 12/02/2026**. Seis meses e meio, o mesmo formato da RasterJOR que
   ficou 136 dias fora. A tela diz a DATA, não "faz tempo".
-- **A competência da FOLHA não é a data do TRABALHO.** A mediana de R$/dia dá
-  R$ 132 contra uma inteira de R$ 102,58, e deslocar um ou dois meses não
-  conserta (R$ 137 e R$ 123) — não é defasagem limpa que dê para corrigir.
-  Então a razão é **ordem de grandeza**, útil para comparar motoristas ENTRE SI
-  na mesma janela, onde a distorção é a mesma para todos. Isso está no ⓘ.
-- **O total sozinho engana:** caiu 80% (R$ 466 mil → R$ 91 mil) enquanto os
-  motoristas com jornada caíam de 127 para 79. O que compara é por pessoa.
-- **O achado que não depende de razão nenhuma é a reconciliação:** 24 pessoas
-  com diária e ZERO dia de jornada (R$ 238.847), **todas com cargo de
-  motorista** — carreteiro, truck, instrutor, não é escritório viajando. E 83
+- **A competência da FOLHA não é a data do TRABALHO** — janeiro paga trabalho
+  do fim de dezembro. Então a razão é **ordem de grandeza**, útil para comparar
+  motoristas ENTRE SI na mesma janela, onde a defasagem é a mesma para todos.
+  Isso está no ⓘ. (O parágrafo que ficava aqui dizia que a mediana dava R$ 132
+  contra uma inteira de R$ 102,58 e que "deslocar um ou dois meses não
+  conserta". Estava certo sobre o sintoma e errado sobre a causa — ver a
+  crônica seguinte.)
+- **O achado que não depende de razão nenhuma é a reconciliação:** 26 pessoas
+  com diária e ZERO dia de jornada (R$ 189.530), **todas com cargo de
+  motorista** — carreteiro, truck, instrutor, não é escritório viajando. E 18
   com jornada e sem diária. São perguntas para quem opera, não veredito.
 - **O cruzamento é em PYTHON**: a folha está no AVA e a jornada no Postgres
   local, então não há `JOIN`. A chave é o NOME normalizado (sem acento,
   maiúscula, espaço simples) porque matrícula e documento não conversam —
   120 dos 134 casam.
+
+**A MESMA DIÁRIA VEM DUAS VEZES NA FOLHA, e a razão impossível estava à vista
+(08/09/2026):**
+- Quem opera achou os valores de diária estranhos, "parece que estão
+  duplicando". Estavam. O evento 428 (DIARIAS PAGAS) é gravado em DUAS
+  granularidades: o pagamento **semanal** (`tipo_folha = 3`, uma linha por
+  semana) e a folha **mensal** (`tipo_folha = 1`, uma linha no último dia do
+  mês) cujo valor é a SOMA das semanais daquela pessoa no mês. A aba somava os
+  dois lados: **R$ 868.421 a mais em doze meses (31,3%)**, R$ 3,46 milhões na
+  história inteira.
+- **O que a duplicidade envenenava era a LEITURA, não só o total.** A folha
+  mensal parou de ser carregada em 02/2026, então set/25–jan/26 vinham
+  DOBRADOS e mar/26 em diante vinham certos. O gráfico desenhava uma queda de
+  80% que era, na maior parte, o fim da duplicidade — e o parágrafo acima
+  explicava essa queda com frota menor, que é verdade e não era a metade
+  grande. A queda real é de 32%.
+- **A razão impossível estava publicada na tela e ninguém a leu como defeito.**
+  O R$/dia trabalhado marcava **R$ 214 a R$ 267** nos meses dobrados, contra
+  uma diária INTEIRA de R$ 107,44: o DOBRO do teto físico. Chamamos aquilo de
+  "ordem de grandeza por defasagem de competência" e escrevemos isso em três
+  lugares — docstring, teste e ⓘ. Defasagem de competência desloca dinheiro
+  entre meses; **ela não cria dinheiro**, e por isso não podia produzir mais
+  que uma inteira por dia em NENHUM mês. A lição: quando um indicador tem TETO
+  FÍSICO conhecido, ultrapassá-lo é defeito, nunca imprecisão — e explicação
+  plausível que convive com o impossível é explicação errada. Corrigido, dá
+  R$ 99,92, entre a meia (R$ 53,72) e a inteira (R$ 107,44).
+- **A regra é o MAIOR dos dois lados, nunca a soma** (`_consolidar()`), e ela se
+  sustenta pelo dado em vez de por lista de meses escrita à mão — o ERP já
+  mudou de regime três vezes desde 2020 (só mensal até 07/2024; as duas de
+  08/2024 a 01/2026; só semanal de 02/2026 em diante), e lista envelheceria em
+  silêncio na quarta. O que ela sacrifica é o complemento: 07/2026 tem 29
+  linhas mensais de R$ 32 a R$ 65 ao lado de semanais de milhares, dinheiro de
+  verdade e indistinguível de consolidação carregada pela metade. Fica-se
+  R$ 1.216 abaixo (0,8% do mês) em vez de arriscar contar em dobro.
+- **Três provas independentes, porque uma não bastava.** (1) Em **549 de 566**
+  pares pessoa×mês da janela em que as duas réguas convivem, mensal e soma das
+  semanais são iguais ao centavo — um caso de 02/2026: semanais 600 + 500 +
+  400 e a mensal 1.500,00. (2) O R$/dia impossível acima. (3) Uma TERCEIRA fonte
+  arbitrando: a carga granular por dia mede 01/2026 em 1.717 diárias,
+  R$ 132.874; a soma crua da folha dava R$ 217.844 — R$ 85 mil a mais do que
+  existe de diária no mês — e a régua devolve R$ 109.249, abaixo e do lado
+  certo, que é o da defasagem.
+- **A régua se DECLARA na tela**, embaixo do gráfico e no balão de cada mês
+  ("R$ 868.421 não somados"). Escolha de régua que não se mostra vira verdade
+  do sistema: quem confere contra a folha precisa achar a diferença, não
+  desconfiar do total.
 
 **Teste que recorta HTML por DESLOCAMENTO FIXO mente nas duas direções:**
 - O helper de `test_abas_bi.py` pegava o corpo de uma aba do `<div class="aba">`

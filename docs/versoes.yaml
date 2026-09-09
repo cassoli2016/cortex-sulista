@@ -1,3 +1,30 @@
+- versao: "1.17.1"
+  data: "2026-09-08"
+  corrigido:
+    - >-
+      A diaria de motorista estava contada DUAS VEZES. A folha grava o mesmo
+      pagamento em duas granularidades — o adiantamento semanal e a folha
+      mensal, que e a soma das semanais daquela pessoa no mes — e a aba somava
+      os dois lados. Eram R$ 868.421 a mais em doze meses, 31,3% do total.
+      Agora vale a maior das duas reguas, nunca a soma.
+    - >-
+      E o que aquilo estragava era a LEITURA, nao so o total. A folha mensal
+      parou de ser carregada em fevereiro, entao os meses ate janeiro vinham
+      dobrados e os de marco em diante vinham certos: o grafico desenhava uma
+      queda de 80% que era, na maior parte, o fim da duplicidade. A queda real
+      de setembro a julho e de 32%, e boa parte dela e frota menor — 121
+      motoristas com jornada contra 80.
+    - >-
+      O R$ por dia trabalhado marcava de R$ 214 a R$ 267 nos meses dobrados,
+      contra uma diaria INTEIRA de R$ 107,44: o dobro do teto fisico, que
+      nenhuma defasagem de competencia produz. Corrigido, ele da R$ 99,92 e
+      fica entre a meia e a inteira em todos os treze meses.
+    - >-
+      A tela DIZ o que a regua tirou da conta, embaixo do grafico e no balao de
+      cada mes. Escolha de regua que nao se mostra vira verdade do sistema:
+      quem conferir contra a folha precisa achar a diferenca, e nao desconfiar
+      do total.
+
 - versao: "1.17.0"
   data: "2026-09-08"
   adicionado:
