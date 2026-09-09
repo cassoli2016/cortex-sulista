@@ -1528,7 +1528,7 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
      guard -- quem segura de verdade e o `flex:1 1 0` acima, e foi ele que a
      medicao apontou. Isto aqui e cinto e suspensorio, e fica escrito assim
      para o proximo nao "descobrir" que a linha era o conserto. */
-  grid-template-rows:repeat(2,minmax(0,1.06fr)) minmax(0,0.8fr)}
+  grid-template-rows:minmax(0,1fr) minmax(0,1fr) minmax(0,1.35fr)}
 /* `1fr` E `minmax(auto,1fr)`: a trilha nao encolhe abaixo do min-content, e uma
    tabela `nowrap` de quatro colunas empurrou o card para FORA da tela -- sem
    erro nenhum, exatamente como a casa ja documentou para as grades de cards. A
@@ -1556,15 +1556,18 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
    rota -- que e a mais longa -- saia cortada no meio do nome da cidade
    enquanto "Coleta" sobrava largura. As proporcoes vem do conteudo real:
    rota e o dobro de qualquer outra. */
-/* AS PROPORCOES VEM DO CONTEUDO REAL, medido na operacao de 07/09/2026: a
-   rota chega a 43 caracteres ("QUATRO BARRAS/PR -> SAO BERNARDO DO CAMPO/SP")
-   e era a unica coluna que cortava sempre. Coleta cede -- e numero de 5
-   digitos e nunca vai crescer. */
-#view-tvcli .tv-tab th:nth-child(1){width:10%}
-#view-tvcli .tv-tab th:nth-child(2){width:44%}
-#view-tvcli .tv-tab th:nth-child(3){width:13%}
+/* AS PROPORCOES VEM DO CONTEUDO REAL, e foram refeitas em 09/09/2026 quando a
+   tabela passou de meia largura para a FAIXA INTEIRA e ganhou a sexta coluna.
+   O que manda agora nao e mais a rota (que saiu) e sim o DESTINATARIO, que no
+   cadastro do ERP vem no formato "NOME - CIDADE/UF" e chega a 30 caracteres.
+   Coleta e Veiculo sao de tamanho fixo e conhecido (5 digitos, 7 caracteres) e
+   por isso cedem; Situacao carrega o rotulo curto do estado. */
+#view-tvcli .tv-tab th:nth-child(1){width:8%}
+#view-tvcli .tv-tab th:nth-child(2){width:34%}
+#view-tvcli .tv-tab th:nth-child(3){width:11%}
 #view-tvcli .tv-tab th:nth-child(4){width:19%}
 #view-tvcli .tv-tab th:nth-child(5){width:14%}
+#view-tvcli .tv-tab th:nth-child(6){width:14%}
 /* A tabela desta tela ocupa METADE da largura, com quatro colunas: na fonte
    de 21px do padrao de TV o proprio numero da coleta saia com reticencias.
    Ela e a unica coisa aqui que se le de perto (quem precisa de linha a linha
@@ -1596,8 +1599,8 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
 /* O HEROI MENOR, para os cartoes de um quarto de largura. Mesma familia -- o
    numero continua sendo a coisa maior do cartao --, so nao compete com o
    numero-rei da faixa de cima. */
-.tvc-hero.s{gap:1.1vw}
-.tvc-hero.s .n{font-size:clamp(40px,4.6vw,92px)}
+.tvc-hero.s{gap:1.1vw;flex:0 0 auto}
+.tvc-hero.s .n{font-size:clamp(38px,4vw,80px)}
 /* PROXIMAS CHEGADAS: hora em mono, destino cortando com reticencias. A hora e
    o que se le de longe, entao ela vem primeiro e em tabular -- lista de horas
    desalinhadas obriga o olho a reler cada linha. */
@@ -1609,7 +1612,8 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
    desconfia do numero ao lado. */
 .tvc-prox{display:flex;flex-direction:column;gap:.28vw;margin-top:.55vw;
   flex:1 1 auto;min-height:0;overflow:hidden}
-.tvc-prox div{display:flex;align-items:baseline;gap:.6vw;font-size:clamp(12px,1vw,20px);
+.tvc-prox div{display:flex;align-items:baseline;gap:.6vw;
+  font-size:clamp(11px,.86vw,17px);line-height:1.35;flex:none;
   color:#C6D4E2;white-space:nowrap;overflow:hidden}
 .tvc-prox b{font-variant-numeric:tabular-nums;font-weight:800;color:#fff;flex:none}
 .tvc-prox span{overflow:hidden;text-overflow:ellipsis}
@@ -1647,23 +1651,6 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
 .tvc-barras .bar.ult{background:#4ADE80}
 .tvc-barras .bar.ult.par{background:repeating-linear-gradient(135deg,#4ADE80 0 .3vw,
   #2A6E45 .3vw .6vw)}
-/* ROTAS: barra proporcional DENTRO da linha, com o rotulo por cima. Numa
-   parede, uma tabela de duas colunas obriga o olho a ir e voltar; a barra
-   responde "qual e a maior" antes de ler numero nenhum. */
-.tvc-rotas{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;
-  justify-content:center;gap:.36vw}
-/* CABECALHO DE COLUNA, pedido por quem le a parede: sem ele o numero da
-   direita era um numero solto -- podia ser carga, tonelada ou real. */
-.tvc-rotas-h{display:flex;justify-content:space-between;padding:0 .6vw .1vw;
-  font-size:clamp(9px,.66vw,13px);letter-spacing:.07em;text-transform:uppercase;
-  color:#8FA6BC;font-weight:700;flex:none}
-.tvc-rota{position:relative;border-radius:.22vw;background:#0F2135;overflow:hidden;
-  padding:.28vw .6vw;display:flex;align-items:center;gap:.7vw;
-  font-size:clamp(10px,.82vw,17px);color:#E5EDF4;white-space:nowrap}
-.tvc-rota .fill{position:absolute;inset:0 auto 0 0;background:#23486B;z-index:0}
-.tvc-rota span,.tvc-rota b{position:relative;z-index:1}
-.tvc-rota span{overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;min-width:0}
-.tvc-rota b{font-variant-numeric:tabular-nums;font-weight:800;flex:none}
 /* BARRA EMPILHADA DAS ETAPAS. Rotulo DIRETO dentro do segmento quando ele
    couber, e nunca legenda em outro lugar: sem tooltip numa parede, cor sozinha
    nao diz nada -- e os chips ao lado do numero ja carregam o par cor/rotulo. */
@@ -4453,7 +4440,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                  quase tudo em viagem. Aqui ela tambem paga o alugue do espaco
                  -- o cartao do numero-rei tinha meia altura vazia. -->
             <div class="tvc-empilha" id="tvcli-empilha"></div>
-            <div class="tv-sub" id="tvcli-hero-sub"></div>
           </div>
           <div class="tv-card tvc-mapa" style="grid-column:span 2">
             <div id="tvCliMapa"></div>
@@ -4490,24 +4476,27 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="tv-sub" id="tvcli-parados-sub"></div>
           </div>
 
-          <!-- A lista fica MENOR de proposito: numa parede ela e referencia,
-               nao leitura -- quem precisa de linha a linha abre a tela. -->
-          <div class="tv-card tv-wide" style="grid-column:span 2">
-            <div class="tv-label">Cargas em curso — onde estão agora</div>
-            <table class="tv-tab"><thead><tr><th>Coleta</th><th>Destinatário</th><th>Veículo</th><th>Situação</th><th>Entrega</th></tr></thead>
-            <tbody id="tvcli-cargas"></tbody></table>
-            <div class="tv-sub" id="tvcli-cargas-sub"></div>
-          </div>
-
           <div class="tv-card" id="tvcli-card-vol" style="grid-column:span 2">
             <div class="tv-label">Volume — 12 meses</div>
             <div class="tvc-barras" id="tvcli-barras"></div>
             <div class="tv-sub" id="tvcli-vol-sub"></div>
           </div>
-          <div class="tv-card" style="grid-column:span 2">
-            <div class="tv-label">Rotas mais usadas — 12 meses</div>
-            <div class="tvc-rotas" id="tvcli-rotas"></div>
-            <div class="tv-sub" id="tvcli-rotas-sub"></div>
+
+          <!-- A LISTA PASSA A OCUPAR A FAIXA INTEIRA (09/09/2026), no lugar de
+               "Rotas mais usadas". Duas razoes, e a segunda e a que decide:
+               1) as rotas eram CONTEXTO de 12 meses num mural de operacao do
+                  dia -- respondiam "como tem sido", que ninguem pergunta de pe
+                  na porta da sala, e o volume ao lado ja da esse contexto;
+               2) a lista mostrava 5 de 31 cargas em meia largura. Com a faixa
+                  inteira ela cabe quase dobrada e as colunas param de cortar,
+                  que e o que faz alguem de longe ler o destino errado.
+               Ela continua sendo REFERENCIA, nao leitura linha a linha -- para
+               isso existe a tela. -->
+          <div class="tv-card tv-wide" style="grid-column:span 4">
+            <div class="tv-label">Cargas em curso — onde estão agora</div>
+            <table class="tv-tab"><thead><tr><th>Coleta</th><th>Destinatário</th><th>Veículo</th><th>Situação</th><th>Janela</th><th>Chegada</th></tr></thead>
+            <tbody id="tvcli-cargas"></tbody></table>
+            <div class="tv-sub" id="tvcli-cargas-sub"></div>
           </div>
         </div>
 
@@ -14368,7 +14357,7 @@ async function loadTvFat(){
    e desastroso ao mesmo tempo, e a marca vai onde a pessoa está olhando). */
 let tvDirSeq=0, tvDirOk=false;
 let tvCliSeq = 0, tvCliOk = false;
-let tvCliMap = null, tvCliLayer = null;
+let tvCliMap = null, tvCliLayer = null, tvCliEnquadrou = false;
 
 /* O MAPA DA TV DO CLIENTE. So as cargas EM CURSO dele -- nunca a frota, nunca
    outro cliente. O recorte vem do servidor; aqui so se desenha o que chegou.
@@ -14383,11 +14372,12 @@ async function tvCliMapa(cargas, resumo){
   if(!el) return;
   if(!tvCliMap){
     tvCliMap = L.map('tvCliMapa', {scrollWheelZoom:false, zoomControl:false,
-                                   attributionControl:false}).setView([-24.8,-47.5], 6);
+                                   attributionControl:false}).setView([-22.5,-45.5], 7);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(tvCliMap);
     tvCliLayer = L.layerGroup().addTo(tvCliMap);
-    setTimeout(function(){ tvCliMap.invalidateSize(); }, 500);
-  } else { tvCliMap.invalidateSize(); }
+  }
+  /* SEMPRE, e ANTES de enquadrar: e a medida do container que decide o zoom. */
+  tvCliMap.invalidateSize();
   tvCliLayer.clearLayers();
 
   /* UMA MARCA POR VEICULO, nao por carga: um caminhao leva varios CT-es (66
@@ -14400,25 +14390,81 @@ async function tvCliMapa(cargas, resumo){
     porPlaca[c.placa].cargas += 1;
   });
 
-  /* AGRUPA O QUE ESTA NO MESMO PATIO. Numa operacao de planta a planta os
-     veiculos ficam parados no MESMO ponto e se empilham -- o render mostrou
-     seis etiquetas ilegiveis uma por cima da outra. ~1,1 km de grade (0,01 grau) e o suficiente para separar patios
-     vizinhos e juntar o que esta no mesmo. Grupo de um continua mostrando a
-     PLACA; grupo maior mostra a contagem, porque seis placas num ponto so nao
-     se leem de longe de jeito nenhum. */
+  /* O ENQUADRAMENTO VEM ANTES DO AGRUPAMENTO, e a ordem e o conserto.
+     A versao anterior agrupava por GRADE DE GRAUS (0,01 grau, ~1,1 km) e as
+     etiquetas continuavam emboladas: o que decide se duas marcas se sobrepoem
+     nao e a distancia no chao, e a distancia em PIXEL na tela. No zoom 9 desta
+     parede, 1,1 km sao ~3 px -- dois patios a 2 km um do outro caem a 6 px e
+     viram um borrao de duas etiquetas. E o mesmo erro de unidade que faria um
+     eixo de grafico dizer "MIL KM x1000".
+     Entao: enquadra primeiro (sem marca nenhuma), le o zoom que o mapa
+     escolheu, projeta cada veiculo em pixel e junta o que fica a menos de
+     RAIO_PX. `animate:false` porque o zoom precisa valer JA -- com animacao o
+     `project()` abaixo leria o zoom antigo e agruparia pela escala errada. */
+  const todos = Object.keys(porPlaca).map(function(pl){ return porPlaca[pl]; });
+  if(todos.length){
+    const cx = L.latLngBounds(todos.map(function(v){ return [v.pos.lat, v.pos.lon]; }));
+    /* PISO DE AREA. Sem ele, um dia em que a frota inteira esta no mesmo patio
+       daria zoom de rua -- a parede mostraria telhados e nenhuma referencia
+       geografica, e quem olha perde a nocao de onde a operacao esta. ~0,9 grau
+       (~100 km) e o suficiente para sempre aparecer mais de uma cidade. */
+    const MIN_GRAU = 0.28;
+    const c = cx.getCenter();
+    if(cx.getNorth() - cx.getSouth() < MIN_GRAU * 2){
+      cx.extend([c.lat - MIN_GRAU, c.lng]).extend([c.lat + MIN_GRAU, c.lng]);
+    }
+    if(cx.getEast() - cx.getWest() < MIN_GRAU * 2){
+      cx.extend([c.lat, c.lng - MIN_GRAU]).extend([c.lat, c.lng + MIN_GRAU]);
+    }
+    /* `animate:false` porque o zoom precisa valer JA: o `project()` do
+       agrupamento le o zoom logo abaixo, e com animacao ele leria o antigo e
+       agruparia pela escala errada. */
+    try{ tvCliMap.fitBounds(cx, {paddingTopLeft:[46,44], paddingBottomRight:[46,14],
+                                maxZoom:11, animate:false}); }catch(e){}
+    /* O SEGUNDO ENQUADRAMENTO nao e paranoia: na primeira pintura o cartao
+       ainda esta ganhando altura no grid, e o zoom sai de um container menor
+       do que o final. Um quadro depois ele ja tem a altura de verdade. */
+    if(!tvCliEnquadrou){
+      tvCliEnquadrou = true;
+      setTimeout(function(){
+        try{
+          tvCliMap.invalidateSize();
+          tvCliMap.fitBounds(cx, {paddingTopLeft:[46,44], paddingBottomRight:[46,14],
+                                  maxZoom:11, animate:false});
+        }catch(e){}
+      }, 700);
+    }
+  }
+
+  /* RAIO em pixels: a etiqueta mede ~36x18 px e o ancoradouro fica no centro,
+     entao duas marcas precisam de ~46 px entre si para nao encostar. 52 da a
+     folga de um respiro sem juntar patios que a operacao trata como
+     diferentes. */
+  const RAIO_PX = 52;
   const grupos = {};
-  Object.keys(porPlaca).forEach(function(pl){
-    const v = porPlaca[pl], p = v.pos;
-    const k = p.lat.toFixed(2) + ',' + p.lon.toFixed(2);
-    if(!grupos[k]) grupos[k] = {lat:p.lat, lon:p.lon, veics:[], paradas:0, velhas:0, cargas:0};
-    const g = grupos[k];
-    g.veics.push(pl);
-    g.cargas += v.cargas;
-    if(p.velha) g.velhas += 1;
-    if(!(p.velocidade > 0)) g.paradas += 1;
+  const zoom = tvCliMap.getZoom();
+  todos.forEach(function(v){
+    const p = v.pos;
+    const pt = tvCliMap.project([p.lat, p.lon], zoom);
+    /* Junta no PRIMEIRO grupo que estiver perto o bastante -- agrupamento
+       guloso, que e o que um mural precisa: estavel entre recargas (a ordem
+       das placas nao muda) e sem custo de clusterizacao de verdade para as
+       dezenas de pontos que cabem aqui. */
+    let alvo = null;
+    for(const k in grupos){
+      const g = grupos[k];
+      if(Math.abs(g.px - pt.x) < RAIO_PX && Math.abs(g.py - pt.y) < RAIO_PX){ alvo = g; break; }
+    }
+    if(!alvo){
+      alvo = grupos[v.placa] = {lat:p.lat, lon:p.lon, px:pt.x, py:pt.y,
+                                veics:[], paradas:0, velhas:0, cargas:0};
+    }
+    alvo.veics.push(v.placa);
+    alvo.cargas += v.cargas;
+    if(p.velha) alvo.velhas += 1;
+    if(!(p.velocidade > 0)) alvo.paradas += 1;
   });
 
-  const pts = [];
   Object.keys(grupos).forEach(function(k){
     const g = grupos[k], n = g.veics.length;
     /* POSICAO VELHA NAO SOME DO MAPA, aparece marcada: sumir com ela faria o
@@ -14433,11 +14479,7 @@ async function tvCliMapa(cargas, resumo){
              + '" style="background:' + cor + '">' + rot + '</div>'}),
       zIndexOffset: n > 1 ? 500 : 0,
     }).addTo(tvCliLayer);
-    pts.push([g.lat, g.lon]);
   });
-  if(pts.length){
-    try{ tvCliMap.fitBounds(L.latLngBounds(pts), {padding:[40,40], maxZoom:9}); }catch(e){}
-  }
   /* A COBERTURA vai no rodape do mapa. "33 de 33 veiculos" impede alguem de
      olhar os pontos e concluir que aquilo e a operacao inteira; e a idade da
      leitura impede tomar posicao de ontem por posicao de agora. */
@@ -14448,7 +14490,7 @@ async function tvCliMapa(cargas, resumo){
        nosso; para quem le a parede o que importa e quantos veiculos tem
        posicao e que idade ela tem. A procedencia por fornecedor continua no
        payload, para a Saude e o diagnostico interno. */
-    sub.textContent = pts.length
+    sub.textContent = todos.length
       ? (r.com_posicao + ' de ' + r.veiculos + ' veículos · ' + r.frescas
          + ' com posição de até ' + (r.fresca_ate_min || 120) + ' min')
       : 'sem posição para as cargas em curso';
@@ -14550,19 +14592,6 @@ function tvCliBarras(meses){
    de ser respondido antes de ler numero nenhum. O cabecalho nomeia as duas
    colunas -- sem ele o numero da direita era um numero solto, que podia ser
    carga, tonelada ou real. */
-function tvCliRotas(rotas){
-  if(!rotas || !rotas.length){
-    return '<div class="tv-sub" style="margin:auto">sem rota no período</div>';
-  }
-  const alvo = rotas[0].cargas || 1;
-  return '<div class="tvc-rotas-h"><span>Rota</span><span>Cargas</span></div>'
-    + rotas.slice(0, 5).map(function(r){
-        const w = Math.max(3, 100 * (r.cargas || 0) / alvo);
-        return '<div class="tvc-rota"><i class="fill" style="width:' + w.toFixed(1) + '%"></i>'
-          + '<span>' + esc(r.rota) + '</span><b>' + (r.cargas || 0) + '</b></div>';
-      }).join('');
-}
-
 /* "HA QUANTO TEMPO", em horas e minutos. Acima do teto fisico de 24h a casa
    nao mede: e apontamento atravessando dias, nao veiculo parado, e a mesma
    regua do SAC/Freetime e do portal. Dizer "ha 73h" seria numero inventado. */
@@ -14603,7 +14632,73 @@ function tvCliChip(rotulo, n, cor){
 
 /* QUANTAS LINHAS A PAREDE MOSTRA. Constante, e nao numero solto no meio do
    renderizador: quem mexer na altura da faixa precisa achar isto. */
-const TVCLI_LINHAS = 5;
+/* A LISTA CRESCEU COM A FAIXA (09/09/2026). Eram 5 numa meia largura, e a
+   operacao de um dia tem ~30 cargas -- "5 de 31" e uma amostra, nao uma
+   referencia. Com a faixa inteira cabem 9, e o numero mora AQUI e nao no CSS
+   porque rolagem dentro do cartao e inutil numa parede que ninguem toca: quem
+   corta e o renderizador, e o rodape diz quantas ficaram de fora. */
+const TVCLI_LINHAS = 6;
+
+/* A COR DE CADA ETAPA, e ela e a MESMA dos chips e da barra empilhada do
+   heroi. Repetir o par cor/etapa em tres lugares da parede e o que dispensa
+   legenda: quem leu "No destino" em ambar no cartao de cima reconhece a linha
+   ambar da lista sem procurar o rotulo. Duas paletas para o mesmo conceito
+   obrigariam a reaprender a tela a cada cartao. */
+/* PODA O QUE NAO CABE INTEIRO. `overflow:hidden` corta o ultimo item AO MEIO,
+   e meia linha de texto numa parede se le como defeito de tela -- nao como
+   "a lista continua". Foi o que apareceu quando os cartoes encolheram: o
+   rodape quebrou em tres linhas, comeu a area da lista e sobrou um item
+   partido no meio.
+   Calibrar o texto do rodape resolve a ocorrencia, nao a CLASSE: a folga
+   depende da proporcao da TV, da fonte que o `clamp` escolher e do tamanho do
+   proprio rodape, que muda com o dado do dia. Entao a lista se poda depois de
+   pintada, medindo o que o navegador de fato renderizou -- que e a unica
+   autoridade sobre quanto coube.
+   Roda DEPOIS do innerHTML dos dois cartoes; e barato (tres elementos) e nao
+   depende de nenhuma constante nova. */
+function tvCliPodar(id){
+  const l = document.getElementById(id);
+  if(!l) return;
+  const limite = l.getBoundingClientRect().bottom;
+  Array.prototype.slice.call(l.children).forEach(function(d){
+    if(d.getBoundingClientRect().bottom > limite + 1) d.remove();
+  });
+}
+
+function tvCliCorEtapa(cod){
+  if(cod === 0) return TVCLI_CINZA;                    // programada: nao comecou
+  if(cod === 400) return '#4ADE80';                    // em viagem: na estrada
+  if(cod === 396 || cod === 399 || cod === 397) return TVCLI_AMBAR;  // no destino
+  return TVCLI_TINTA;                                  // na origem, carregando
+}
+
+/* "E AGORA?" em uma coluna, e ela NUNCA fica vazia -- que e a diferenca entre
+   uma tabela de referencia e uma que se le de longe.
+   Tres respostas, e cada uma pede uma coisa diferente de quem olha:
+     - chegou           -> a hora, e o desvio contra a janela quando atrasou;
+     - passou da janela -> ha quanto tempo, em ambar (e o unico que cobra acao);
+     - ainda no prazo   -> quanto falta, em cinza.
+   AMBAR E NAO VERMELHO, mesmo aqui onde a regua e o COMBINADO e nao mais a
+   nossa mediana: vermelho numa parede de cliente e a cor de sinistro, e uma
+   entrega atrasada duas horas nao e sinistro. */
+function tvCliEAgora(c){
+  if(c.chegada){
+    const d = c.desvio_h;
+    const atrasou = d != null && d > 0.25;
+    return '<span style="color:#E5EDF4">' + c.chegada.slice(11) + '</span>'
+      + (atrasou ? ' <span style="color:' + TVCLI_AMBAR + '">+'
+                   + d.toLocaleString('pt-BR', {maximumFractionDigits:1}) + 'h</span>'
+                 : '');
+  }
+  if(!c.janela_entrega) return '<span style="color:#8FA6BC">\u2014</span>';
+  const h = (new Date(c.janela_entrega.replace(' ', 'T')) - Date.now()) / 3600000;
+  const txt = Math.abs(h) >= 1
+    ? Math.round(Math.abs(h)) + 'h'
+    : Math.max(1, Math.round(Math.abs(h) * 60)) + ' min';
+  return h < 0
+    ? '<span style="color:' + TVCLI_AMBAR + '">' + txt + ' atrasada</span>'
+    : '<span style="color:#8FA6BC">em ' + txt + '</span>';
+}
 
 const TVCLI_MARCO_CURTO = {
   'Programada':                'Programada',
@@ -14635,14 +14730,13 @@ async function loadTvCli(){
       document.getElementById('tvcli-etapas').innerHTML =
         '<div class="tv-sub">Abra <b>Minha Operação</b> neste navegador, escolha '
         + 'o cliente, e volte a esta tela — a escolha fica lembrada.</div>';
-      document.getElementById('tvcli-hero-sub').textContent = 'nenhum cliente escolhido';
       /* LIMPA TUDO, e a lista e explicita: um `id` esquecido aqui deixa o
          numero do cliente ANTERIOR na parede depois da troca, com o titulo
          novo em cima -- e ninguem desconfia de um numero que continua ali. */
       ['tvcli-chegam','tvcli-chegam-fx','tvcli-chegam-sub','tvcli-prox',
        'tvcli-parados','tvcli-parados-fx','tvcli-parados-sub',
-       'tvcli-parados-lista','tvcli-barras','tvcli-vol-sub','tvcli-rotas',
-       'tvcli-rotas-sub','tvcli-cargas'].forEach(function(id){
+       'tvcli-parados-lista','tvcli-barras','tvcli-vol-sub',
+       'tvcli-cargas'].forEach(function(id){
         const el = document.getElementById(id); if(el) el.innerHTML = '';
       });
       document.getElementById('tvcli-tick').hidden = true;
@@ -14722,10 +14816,6 @@ async function loadTvCli(){
               + (e[1] / total >= 0.14 ? esc(e[0]) + ' ' + e[1] : '') + '</i>';
           }).join('')
       : '';
-    document.getElementById('tvcli-hero-sub').textContent =
-      'manifesto ainda não encerrado · últimos ' + (dA.janela_dias || 45) + ' dias · '
-      + (dA.concluidas_na_janela || 0) + ' concluídas no período';
-
     /* ---------------------------------------------------------- CHEGAM HOJE
        A PREVISAO E ESTIMATIVA, e o cartao diz isso no rodape. Ela sai da
        mediana historica da propria rota (`_eta_por_rota` no servidor), contada
@@ -14736,43 +14826,76 @@ async function loadTvCli(){
     const d0 = new Date();
     const agoraTxt = hojeISO + ' ' + String(d0.getHours()).padStart(2, '0')
                              + ':' + String(d0.getMinutes()).padStart(2, '0');
-    const aCaminho = cargas.filter(function(c){ return c.marco_cod === 395 || c.marco_cod === 400; });
-    const comEta = aCaminho.filter(function(c){ return !!c.eta; });
-    const chegamHoje = comEta.filter(function(c){ return c.eta.slice(0, 10) === hojeISO; });
-    const venceram = chegamHoje.filter(function(c){ return c.eta < agoraTxt; });
-    const manha = chegamHoje.filter(function(c){ return c.eta.slice(11) < '12:00'; }).length;
-    const tarde = chegamHoje.length - manha;
+
+    /* A JANELA COMBINADA NO LUGAR DA ESTIMATIVA (09/09/2026), e a troca nao e
+       de gosto: e de COBERTURA, e o numero antigo estava errado na parede.
+       Medido na operacao do dia, 31 cargas em curso:
+
+           com estimativa de chegada (mediana da rota) ...  3  (10%)
+           com JANELA de entrega combinada ............... 31  (100%)
+           "chegam hoje" pela estimativa .................  3
+           "chegam hoje" pela janela ..................... 24
+
+       O cartao dizia 3 onde a resposta e 24. A causa e que a estimativa so
+       existe para quem JA SAIU e cuja rota tem historico bastante -- e desde
+       que a carga passou a ficar na tela depois de chegar, a maior parte das
+       cargas em curso esta justamente no estado que nao tem estimativa. A
+       correcao anterior encolheu a cobertura desta, e o cartao nao acompanhou.
+
+       A janela tambem responde melhor a pergunta do mural: quem espera na doca
+       quer saber o que foi COMBINADO, nao a nossa mediana. */
+    const comJanela = cargas.filter(function(c){ return !!c.janela_entrega; });
+    const chegamHoje = comJanela.filter(function(c){ return c.janela_entrega.slice(0, 10) === hojeISO; });
+    const jaChegou = chegamHoje.filter(function(c){ return !!c.chegada; });
+    const faltam = chegamHoje.filter(function(c){ return !c.chegada; });
+    /* ATRASADA e quem tinha janela ATE AGORA e nao chegou. Contra o COMBINADO,
+       nao contra a nossa mediana -- e por isso este ambar quer dizer alguma
+       coisa, ao contrario do anterior, que acendia quando a viagem passava de
+       uma mediana que metade das viagens passa por definicao. */
+    const atrasadas = faltam.filter(function(c){ return c.janela_entrega < agoraTxt; });
 
     document.getElementById('tvcli-chegam').textContent = chegamHoje.length;
+    /* OS CHIPS VIRARAM O PROGRESSO DO DIA. "ate as 12h / a tarde" repartia por
+       um relogio que ninguem consulta de pe; "ja chegaram / faltam" e o que a
+       sala pergunta -- e as duas metades somam o numero grande, que e o que
+       torna um chip legivel numa parede. */
     document.getElementById('tvcli-chegam-fx').innerHTML =
-      tvCliChip('até as 12h', manha, TVCLI_CINZA)
-      + tvCliChip('à tarde', tarde, TVCLI_CINZA);
+      tvCliChip('já chegaram', jaChegou.length, TVCLI_CINZA)
+      + tvCliChip('faltam', faltam.length, faltam.length ? TVCLI_AMBAR : TVCLI_CINZA);
 
-    /* AS TRES PROXIMAS, e nao a lista inteira: a lista inteira ja esta no
-       cartao ao lado. Aqui vale a pergunta "o que encosta na doca agora". */
-    const prox = comEta.slice().sort(function(a, b){ return a.eta < b.eta ? -1 : 1; })
-                  .filter(function(c){ return c.eta >= agoraTxt; }).slice(0, 3);
+    /* AS PROXIMAS QUE AINDA NAO CHEGARAM, por janela. Pede TRES e mostra as
+       que couberem -- `tvCliPodar` decide, medindo o que o navegador
+       renderizou. Numero fixo aqui seria um chute sobre a altura do cartao,
+       que muda com a proporcao da TV e com o tamanho do proprio rodape.
+       A lista inteira esta no cartao de baixo; aqui vale "o que encosta na
+       doca agora".
+       O DESTINATARIO no lugar da cidade: numa parede do cliente, "RESENDE/RJ"
+       nao distingue a montadora da planta dele mesmo. */
+    const prox = faltam.slice().sort(function(a, b){
+      return a.janela_entrega < b.janela_entrega ? -1 : 1; }).slice(0, 3);
     document.getElementById('tvcli-prox').innerHTML = prox.map(function(c){
-      const dia = c.eta.slice(0, 10) === hojeISO
-        ? '' : '<i>' + c.eta.slice(8, 10) + '/' + c.eta.slice(5, 7) + '</i>';
-      return '<div><b>' + c.eta.slice(11) + '</b>' + dia
-        + '<span>' + esc(c.destino + '/' + c.uf_destino) + '</span></div>';
+      const atrasou = c.janela_entrega < agoraTxt;
+      return '<div><b' + (atrasou ? ' style="color:#FBBF24"' : '') + '>'
+        + c.janela_entrega.slice(11) + '</b>'
+        + '<span>' + esc(c.destinatario || (c.destino + '/' + c.uf_destino)) + '</span></div>';
     }).join('');
+    tvCliPodar('tvcli-prox');
 
-    /* SEMAFORO SO ONDE HA REGUA A BATER. Ambar quando alguma passou da
-       estimativa; fora disso o cartao fica no azul neutro da casa -- verde
-       sem regua e verde inventado, e a mediana nao e promessa: metade das
-       viagens passa dela por definicao. */
+    /* SEMAFORO SO ONDE HA REGUA A BATER, e agora ha: passou da janela
+       combinada e nao chegou. Verde continua fora -- cumprir a janela e o
+       esperado, nao uma conquista a anunciar na parede. */
     const cardCh = document.getElementById('tvcli-card-chegam');
     if(cardCh){
-      cardCh.className = 'tv-card tvc-glow' + (venceram.length ? '' : ' tvc-neutro');
-      cardCh.style.color = venceram.length ? '#FBBF24' : '';
+      cardCh.className = 'tv-card tvc-glow' + (atrasadas.length ? '' : ' tvc-neutro');
+      cardCh.style.color = atrasadas.length ? '#FBBF24' : '';
     }
-    document.getElementById('tvcli-chegam-sub').textContent = aCaminho.length
-      ? (comEta.length + ' de ' + aCaminho.length + ' a caminho com estimativa'
-         + (venceram.length ? ' · ' + venceram.length + ' passou da hora prevista' : '')
-         + ' · estimativa pela mediana da rota')
-      : 'nenhuma carga a caminho neste momento';
+    document.getElementById('tvcli-chegam-sub').textContent = chegamHoje.length
+      ? (atrasadas.length
+           ? jaChegou.length + ' de ' + chegamHoje.length + ' · '
+             + atrasadas.length + ' passou da janela combinada'
+           : jaChegou.length + ' de ' + chegamHoje.length
+             + ' já chegaram · janela combinada')
+      : 'nenhuma entrega com janela para hoje';
 
     /* --------------------------------------------------------- PARADOS AGORA
        Parado e quem chegou e nao saiu: os marcos de CHEGADA e de AGUARDANDO,
@@ -14789,12 +14912,19 @@ async function loadTvCli(){
     document.getElementById('tvcli-parados-fx').innerHTML =
       tvCliChip('na origem', naOrig, TVCLI_CINZA)
       + tvCliChip('no destino', parados.length - naOrig, TVCLI_AMBAR);
+    /* O DESTINATARIO no lugar da cidade, pela mesma razao do cartao ao lado:
+       "RESENDE/RJ" reune a montadora e a planta do proprio cliente, e numa
+       parede sem tooltip nao ha como desfazer o engano. Na origem o rotulo
+       continua sendo a cidade -- ali o destinatario ainda nao e o assunto,
+       o veiculo esta carregando. */
     document.getElementById('tvcli-parados-lista').innerHTML =
       parados.slice(0, 3).map(function(x){
-        return '<div><b>' + x.d.txt + '</b><span>'
-          + esc((x.c.marco_cod < 396 ? x.c.origem + '/' + x.c.uf_origem
-                                     : x.c.destino + '/' + x.c.uf_destino)) + '</span></div>';
+        const onde = x.c.marco_cod < 396
+          ? x.c.origem + '/' + x.c.uf_origem
+          : (x.c.destinatario || (x.c.destino + '/' + x.c.uf_destino));
+        return '<div><b>' + x.d.txt + '</b><span>' + esc(onde) + '</span></div>';
       }).join('');
+    tvCliPodar('tvcli-parados-lista');
     /* O CARTAO NAO ACENDE POR TEMPO DE PATIO, e a omissao e deliberada: a
        unica regua contratual para isso e o freetime, que saiu desta parede de
        proposito. Inventar aqui um limite de horas seria criar uma regra da
@@ -14807,8 +14937,8 @@ async function loadTvCli(){
       cardPa.style.color = acima24 ? '#FBBF24' : '';
     }
     document.getElementById('tvcli-parados-sub').textContent = parados.length
-      ? ('maior espera ' + parados[0].d.txt + ' · desde o último apontamento'
-         + (acima24 ? ' · ' + acima24 + ' acima de 24h' : ''))
+      ? ('maior espera ' + parados[0].d.txt
+         + (acima24 ? ' · ' + acima24 + ' acima de 24h' : ' · desde o apontamento'))
       : 'nenhuma carga parada em pátio agora';
 
     /* ------------------------------------------------------- VOLUME E ROTAS
@@ -14825,14 +14955,6 @@ async function loadTvCli(){
          + ' · ' + (dH.cargas_total || 0) + ' em 12 meses')
       : '';
 
-    document.getElementById('tvcli-rotas').innerHTML = tvCliRotas(dH.rotas);
-    /* TOP-N LEVA CONTADOR, senao vira total falso: quem soma as cinco barras
-       tem de saber que nao somou a operacao. */
-    document.getElementById('tvcli-rotas-sub').textContent = (dH.rotas || []).length
-      ? (Math.min(5, dH.rotas_mostradas || 0) + ' de ' + (dH.rotas_total || 0)
-         + ' rotas · ' + (dH.cargas_nas_rotas_mostradas || 0) + ' das '
-         + (dH.cargas_total || 0) + ' cargas')
-      : '';
 
     /* TABELA: CINCO linhas, e o numero e do RENDERIZADOR, nao do CSS --
        rolagem dentro do card e inutil numa parede que ninguem toca. Eram seis,
@@ -14868,46 +14990,34 @@ async function loadTvCli(){
             return (a.janela_entrega || '') < (b.janela_entrega || '') ? -1 : 1;
           });
           return fila.slice(0, TVCLI_LINHAS).map(function(c){
-            /* A PREVISAO so existe para quem ja saiu: antes disso nao ha de
-               onde contar, e travessao e mais honesto que hora inventada.
-               O DIA vem junto da hora -- numa parede, "09:45" sozinho e lido
-               como hoje, e a rota de 14h chega amanha. */
-            /* PREVISAO JA VENCIDA acende. A hora que passou e o unico
-               estado desta coluna que pede alguma coisa de quem olha: o
-               veiculo devia ter chegado e nao chegou. Mostrada igual a todas
-               as outras, ela some no meio da lista -- que foi o que o primeiro
-               desenho fez.
-               Ambar, e nao vermelho: a mediana e ESTIMATIVA de historico, e
-               uma em cada duas viagens passa dela por definicao. Vermelho aqui
-               chamaria de problema o que muitas vezes e so a metade de cima da
-               distribuicao. */
-            const venceu = c.eta && c.eta < agora;
-            const eta = c.eta
-              ? '<span style="color:' + (venceu ? '#FBBF24' : '#E5EDF4') + '">'
-                + c.eta.slice(11) + '</span> <span style="color:#8FA6BC">'
-                + (c.eta.slice(0,10) === hoje ? 'hoje' : fmtD(c.eta.slice(0,10)))
-                + '</span>'
-              : '<span style="color:#8FA6BC">\u2014</span>';
-            /* A JANELA DE ENTREGA no lugar da previsao estimada, quando ela
-               existe. As duas respondem "quando chega", e a janela ganha por
-               ser COMBINADA: a estimativa e a mediana do nosso historico, e
-               metade das viagens passa dela por definicao -- numa parede isso
-               vira promessa. A estimativa fica de reserva para a carga sem
-               janela. `venceu` continua acendendo pelo mesmo criterio. */
+            /* A JANELA, com o DIA junto quando nao e hoje: numa parede
+               "06:00" sozinho se le como hoje de manha, e a carga que entrega
+               amanha as 6h apareceria como se estivesse muito atrasada.
+               A janela nao acende sozinha -- quem acende e a coluna ao lado,
+               que e a que diz o que fazer. Duas colunas em ambar na mesma
+               linha dobram o alarme sem dobrar a informacao. */
             const jan = c.janela_entrega;
             const quando = jan
-              ? '<span style="color:' + (jan < agora && !c.chegada ? '#FBBF24' : '#E5EDF4') + '">'
-                + jan.slice(11) + '</span> <span style="color:#8FA6BC">'
+              ? '<span style="color:#E5EDF4">' + jan.slice(11) + '</span>'
+                + ' <span style="color:#8FA6BC">'
                 + (jan.slice(0,10) === hoje ? 'hoje' : fmtD(jan.slice(0,10))) + '</span>'
-              : eta;
+              : '<span style="color:#8FA6BC">\u2014</span>';
+            /* O ESTADO GANHA A COR DA ETAPA, a mesma do heroi. Sem tooltip
+               numa parede, uma coluna de texto cinza uniforme obriga a LER as
+               nove linhas para achar as que estao no destino; com a cor, o
+               olho separa antes de ler. O rotulo continua junto -- cor sozinha
+               nao diz nada, e e por isso que ela nao substitui o texto. */
+            const cor = tvCliCorEtapa(c.marco_cod);
             return '<tr><td>' + esc(String(c.coleta)) + '</td>'
               + '<td>' + esc(c.destinatario || (c.destino + '/' + c.uf_destino)) + '</td>'
               + '<td>' + esc(c.placa || '\u2014') + '</td>'
-              + '<td>' + esc(TVCLI_MARCO_CURTO[c.marco] || c.marco) + '</td>'
-              + '<td>' + quando + '</td></tr>';
+              + '<td style="color:' + cor + '">'
+              + esc(TVCLI_MARCO_CURTO[c.marco] || c.marco) + '</td>'
+              + '<td>' + quando + '</td>'
+              + '<td>' + tvCliEAgora(c) + '</td></tr>';
           }).join('');
         })()
-      : '<tr><td colspan="5">nenhuma carga em curso</td></tr>';
+      : '<tr><td colspan="6">nenhuma carga em curso</td></tr>';
     document.getElementById('tvcli-cargas-sub').textContent = cargas.length
       ? (Math.min(TVCLI_LINHAS, cargas.length) + ' de ' + cargas.length
          + ' cargas · a lista completa está em Minha Operação')
@@ -14944,16 +15054,68 @@ function tvCliTicker(dA, dP, n){
   if(velhas > 0){
     itens.push(['#FBBF24', velhas + ' com posição de mais de ' + (pos.fresca_ate_min || 120) + ' min']);
   }
+  const d0t = new Date();
+  const agoraT = _iso(d0t) + ' ' + String(d0t.getHours()).padStart(2,'0')
+                           + ':' + String(d0t.getMinutes()).padStart(2,'0');
+  /* PASSOU DA JANELA COMBINADA e nao chegou -- a mesma regua do cartao, e a
+     unica que cobra alguma coisa de quem le. Carga que ja chegou fica de fora
+     por definicao: o atraso dela e historia, e o ticker e sobre o agora. */
   const vencidas = (dA.cargas || []).filter(function(c){
-    if(!c.eta) return false;
-    const d0 = new Date();
-    const agora = _iso(d0) + ' ' + String(d0.getHours()).padStart(2,'0')
-                           + ':' + String(d0.getMinutes()).padStart(2,'0');
-    return c.eta < agora;
+    return c.janela_entrega && !c.chegada && c.janela_entrega < agoraT;
   }).length;
   if(vencidas > 0){
-    itens.push(['#FBBF24', vencidas + ' carga(s) passaram da estimativa de chegada']);
+    /* ONDE, e nao so QUANTAS. "3 cargas passaram da janela" manda quem le
+       procurar na tabela quais sao; nomear o destino que concentra o atraso
+       responde a pergunta seguinte na mesma linha -- e numa parede a linha
+       seguinte so volta depois de a faixa dar a volta inteira. */
+    const porDest = {};
+    (dA.cargas || []).forEach(function(c){
+      if(c.janela_entrega && !c.chegada && c.janela_entrega < agoraT){
+        const k = c.destinatario || (c.destino + '/' + c.uf_destino);
+        porDest[k] = (porDest[k] || 0) + 1;
+      }
+    });
+    const pior = Object.keys(porDest).sort(function(a, b){ return porDest[b] - porDest[a]; })[0];
+    itens.push(['#FBBF24', vencidas + ' carga(s) passaram da janela combinada'
+                + (pior && porDest[pior] > 1 ? ' · ' + porDest[pior] + ' em ' + pior : '')]);
   }
+
+  /* PARADO HA MUITO TEMPO NO CLIENTE, com o destino nomeado. E o achado mais
+     acionavel desta parede e faltava: o veiculo que chegou e nao descarrega e
+     o que custa dinheiro dos dois lados, e ele nao aparecia em lugar nenhum
+     alem do numero do cartao.
+     O PISO E 6 h e ele NAO e regra de negocio: e o p75 da propria operacao
+     (medido, o fim de descarga vem 3h10 depois da chegada em mediana e 5h41 no
+     p75), isto e, "acima do que costuma acontecer aqui". A unica regua
+     contratual seria o freetime, que saiu desta parede de proposito -- ele e
+     conversa de cobranca. Por isso o texto diz "parado ha", que e fato, e nao
+     "excedido", que seria acusacao. */
+  const PISO_PATIO_H = 6;
+  const patio = (dA.cargas || []).filter(function(c){
+    return c.marco_cod === 396 || c.marco_cod === 399;
+  }).map(function(c){
+    return {c: c, d: tvCliDesde(c.marco_em)};
+  }).filter(function(x){
+    return x.d && !x.d.acima && x.d.h >= PISO_PATIO_H;
+  }).sort(function(a, b){ return b.d.h - a.d.h; });
+  if(patio.length){
+    const p0 = patio[0];
+    itens.push(['#FBBF24', patio.length + ' veículo(s) no cliente há mais de '
+                + PISO_PATIO_H + 'h · maior: ' + p0.d.txt + ' em '
+                + (p0.c.destinatario || (p0.c.destino + '/' + p0.c.uf_destino))]);
+  }
+
+  /* A JANELA DE CARREGAMENTO QUE PASSOU. A parede inteira olhava para a ponta
+     da entrega; esta e a outra ponta, e ela e a mais barata de corrigir --
+     carga que nao carregou no horario combinado ainda da tempo de resolver,
+     enquanto a que ja saiu atrasada nao da. */
+  const naoCarregou = (dA.cargas || []).filter(function(c){
+    return c.marco_cod === 0 && c.janela_carga && c.janela_carga < agoraT;
+  }).length;
+  if(naoCarregou > 0){
+    itens.push(['#8FA6BC', naoCarregou + ' carga(s) programada(s) ainda sem carregamento']);
+  }
+
   if(de.fora_da_regua){
     itens.push(['#8FA6BC', de.fora_da_regua + ' permanência(s) acima de 24h não medida(s) — '
                 + 'apontamento atravessando dias']);

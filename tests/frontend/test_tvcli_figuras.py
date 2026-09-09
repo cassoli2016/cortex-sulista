@@ -122,41 +122,35 @@ def test_sem_mes_fechado_nao_ha_linha_media(pagina):
     assert "tvc-media" not in html, html
 
 
-def test_as_rotas_tem_titulo_de_coluna(pagina):
-    """Pedido de quem lê a parede: sem cabeçalho o número da direita era um
-    número solto — podia ser carga, tonelada ou real."""
-    pg, base = pagina
-    html = _monta(pg, base, "tvCliRotas([{rota:'A → B', cargas:10}])")
-    assert "tvc-rotas-h" in html and ">Rota<" in html and ">Cargas<" in html
-
-
 def test_sem_historico_a_figura_DIZ_isso(pagina):
     """Cartão vazio numa parede se lê como tela quebrada."""
     pg, base = pagina
     assert "sem histórico" in _monta(pg, base, "tvCliBarras([])")
 
 
-# ---------------------------------------------------------------- as rotas
+# --------------------------------------------- o cartao de rotas SAIU (09/09)
 
-def test_a_rota_maior_enche_a_barra_e_as_outras_sao_proporcionais(pagina):
+def test_as_ROTAS_nao_voltam_para_a_parede(pagina):
+    """"Rotas mais usadas — 12 meses" saiu do mural em 09/09/2026, e o guard
+    existe porque a remocao tem duas metades que somem em silencio.
+
+    Ela era CONTEXTO de 12 meses num painel de operacao do dia: respondia
+    "como tem sido", que ninguem pergunta de pe na porta da sala, e o cartao de
+    volume ao lado ja da esse contexto. O espaco foi para a lista de cargas,
+    que mostrava 5 de 31 em meia largura.
+
+    O guard olha o RENDERIZADO e o construtor: um cartao devolvido sem a funcao
+    (ou o contrario) e um dos dois lados morto, que e o defeito que a casa ja
+    conhece -- existe, esta declarado e nunca aparece.
+    """
     pg, base = pagina
-    html = _monta(pg, base, """tvCliRotas([
-        {rota:'A → B', cargas:1000}, {rota:'C → D', cargas:500},
-        {rota:'E → F', cargas:250}])""")
-    larguras = [float(w) for w in re.findall(r'width:([\d.]+)%', html)]
-    assert larguras == [100.0, 50.0, 25.0], larguras
-
-
-def test_a_lista_de_rotas_para_em_CINCO(pagina):
-    """Numa parede a lista é referência. O contador de "5 de N" é do cartão,
-    e o guard dele está no teste de parede."""
-    pg, base = pagina
-    html = _monta(pg, base, "tvCliRotas(" + json.dumps(
-        [{"rota": "R%d" % i, "cargas": 100 - i} for i in range(9)]) + ")")
-    # `class="tvc-rota"` com as aspas: `tvc-rota` cru casa tambem com o
-    # `tvc-rotas-h` do cabecalho, e o guard contaria seis achando que conta
-    # cinco -- um verde que passaria com SEIS rotas na parede.
-    assert html.count('class="tvc-rota"') == 5, html
+    _parede(pg, base)
+    txt = pg.inner_text("#view-tvcli").lower()
+    assert "rotas mais usadas" not in txt, "o cartao de rotas voltou"
+    assert pg.evaluate("() => typeof tvCliRotas") == "undefined", (
+        "o construtor ficou orfao: ninguem o chama e ele continua no arquivo")
+    for id_ in ("tvcli-rotas", "tvcli-rotas-sub"):
+        assert pg.evaluate("(i) => !!document.getElementById(i)", id_) is False, id_
 
 
 # ------------------------------------------------------- há quanto tempo
@@ -196,28 +190,68 @@ def _dt(h):
     return (_AGORA + timedelta(hours=h)).strftime("%Y-%m-%d %H:%M")
 
 
+# A AMOSTRA CARREGA OS CAMPOS QUE O PAYLOAD CARREGA, inclusive os que este
+# arquivo nao consulta. Dubles enxutos escondem a coluna nova: quando a janela
+# de entrega e a chegada entraram, os cartoes que passaram a le-las acharam
+# `undefined` aqui e o guard ficou verde descrevendo uma parede que nao existe
+# mais. `janela_entrega` e RELATIVA ao relogio pela mesma razao de sempre --
+# literal de setembro vira "chegou ha meses" no dia seguinte ao commit.
 _CARGAS = [
     {"coleta": 19900 + i, "emissao": "2026-09-07", "origem": "JOINVILLE",
      "uf_origem": "SC", "destino": "SAO JOSE DOS PINHAIS", "uf_destino": "PR",
+     "destinatario": "MONTADORA - SAO JOSE DOS PINHAIS/PR",
      "placa": "APJ6E4%d" % i, "marco": "Em viagem", "marco_cod": 400,
-     "marco_em": _dt(-6), "eta": _dt(h), "eta_amostras": 40}
+     "marco_em": _dt(-6), "marco_fonte": "apontamento",
+     "janela_carga": _dt(-8), "janela_entrega": _dt(h),
+     "chegada": None, "chegada_fonte": None, "desvio_h": None,
+     # TRES SITUACOES DE POSICAO, e a do meio e a que pega o defeito real.
+     #   i<3  -> tres no MESMO patio (o caso obvio de empilhamento)
+     #   i==3 -> um patio VIZINHO, a ~40 km: longe demais para a grade de graus
+     #           juntar (ela separa acima de ~1 km) e perto demais para caber
+     #           sem encostar na tela. Era exatamente esse o embolamento que a
+     #           parede mostrava, e um duble so com "mesmo ponto" e "800 km"
+     #           passa verde sem tocar nele.
+     #   i>=4 -> outro estado, a ~800 km: tem de continuar SEPARADO.
+     "pos": {"lat": (-25.53 if i < 3 else -25.19 if i == 3 else -19.97),
+             "lon": (-49.20 if i < 3 else -49.05 if i == 3 else -44.20),
+             "velocidade": 0 if i < 4 else 62, "fonte": "erp",
+             "idade_min": 5.0, "velha": False},
+     "eta": _dt(h), "eta_amostras": 40}
     for i, h in enumerate([-1.4, 0.6, 2.1, 4.8, 7.2, 26.0])
 ] + [
-    # A CAMINHO E SEM ESTIMATIVA: rota sem histórico não tem mediana, e é ela
-    # que faz a cobertura do cartão valer alguma coisa ("6 de 7").
+    # A CAMINHO E SEM ESTIMATIVA: rota sem histórico não tem mediana. Ela
+    # continua na amostra porque a JANELA existe mesmo onde a estimativa não
+    # existe — que é exatamente a diferença de cobertura que motivou a troca.
     {"coleta": 19950, "emissao": "2026-09-07", "origem": "CASCAVEL",
      "uf_origem": "PR", "destino": "GOIANIA", "uf_destino": "GO",
+     "destinatario": "CLIENTE DUBLÊ - GOIANIA/GO",
      "placa": "MIP1G96", "marco": "Saída do carregamento", "marco_cod": 395,
-     "marco_em": _dt(-3), "eta": None, "eta_amostras": None},
+     "marco_em": _dt(-3), "marco_fonte": "apontamento",
+     "janela_carga": _dt(-5), "janela_entrega": _dt(3.5),
+     "chegada": None, "chegada_fonte": None, "desvio_h": None,
+     "eta": None, "eta_amostras": None},
 ] + [
     {"coleta": 16020 + i, "emissao": "2026-09-07", "origem": "CURITIBA",
      "uf_origem": "PR", "destino": "BETIM", "uf_destino": "MG",
+     "destinatario": "PLANTA DUBLÊ - BETIM/MG",
      "placa": "BQR7C1%d" % i, "marco": rot, "marco_cod": cod,
-     "marco_em": _dt(h), "eta": None, "eta_amostras": None}
+     "marco_em": _dt(h), "marco_fonte": "apontamento",
+     "janela_carga": _dt(h - 2), "janela_entrega": _dt(h + 1),
+     # as duas que JA CHEGARAM levam a hora real e o desvio, que e o par que a
+     # coluna "Chegada" e os chips "ja chegaram / faltam" consomem
+     "chegada": _dt(h) if cod in (396, 399) else None,
+     "chegada_fonte": "apontamento" if cod in (396, 399) else None,
+     "desvio_h": 1.2 if cod in (396, 399) else None,
+     "eta": None, "eta_amostras": None}
     for i, (cod, rot, h) in enumerate([
         (394, "Chegada para carregamento", -2.4),
         (398, "Aguardando carregamento", -5.7),
         (396, "Chegada para descarga", -0.6),
+        # PARADO NO CLIENTE HA HORAS, e dentro da regua fisica de 24h: e o
+        # estado que o ticker existe para cobrar, e a amostra nao o tinha --
+        # entre uma chegada de 36 min e uma de 30h (que e artefato de
+        # apontamento) faltava justamente a faixa do meio, que e a real.
+        (396, "Chegada para descarga", -8.3),
         (399, "Aguardando descarga", -30.0)])
 ]
 
@@ -339,12 +373,17 @@ def test_nenhuma_linha_da_tabela_sai_CORTADA_do_cartao(pagina):
 
 
 def test_a_lista_da_parede_DIZ_quantas_ficaram_de_fora(pagina):
-    """Top-N sem contador é total falso — a mesma regra que o cartão de rotas
-    já cumpria do outro lado da tela. Cinco linhas de onze, dito na tela."""
+    """Top-N sem contador é total falso. O NUMERO DE LINHAS vem do
+    renderizador (`TVCLI_LINHAS`), e o guard le ele em vez de repetir a
+    constante: escrito a mao, ele viraria uma segunda fonte da verdade que
+    passa a discordar da primeira no dia em que alguem mexer numa so."""
     pg, base = pagina
     _parede(pg, base)
+    n = pg.evaluate("() => TVCLI_LINHAS")
+    assert n < len(_CARGAS), "a amostra precisa ter mais cargas que as linhas"
     txt = pg.inner_text("#tvcli-cargas-sub")
-    assert "5 de %d" % len(_CARGAS) in txt, txt
+    assert "%d de %d" % (n, len(_CARGAS)) in txt, txt
+    assert len(pg.query_selector_all("#tvcli-cargas tr")) == n
 
 
 def test_a_lista_do_cartao_CORTA_em_vez_de_empurrar_o_rodape(pagina):
@@ -400,19 +439,167 @@ def test_o_FREETIME_nao_volta_para_a_parede_do_cliente(pagina):
     assert "freetime" not in txt, "o freetime voltou para a parede do cliente"
 
 
-def test_a_previsao_e_apresentada_como_ESTIMATIVA(pagina):
-    """"Chegam hoje" sai de mediana histórica da rota, e metade das viagens
-    passa da mediana por definição. Um mural que promete hora de chegada sem
-    dizer que estima vira cobrança na reunião seguinte."""
+def test_chegam_hoje_conta_pela_JANELA_e_nao_pela_estimativa(pagina):
+    """A troca de 09/09/2026, e ela e de COBERTURA — o numero antigo estava
+    errado na parede.
+
+    Medido na operacao do dia, 31 cargas em curso: 3 tinham estimativa de
+    chegada (10%) e 31 tinham janela de entrega (100%). "Chegam hoje" dizia
+    3 onde a resposta era 24. A estimativa so existe para quem JA SAIU e cuja
+    rota tem historico bastante, e desde que a carga passou a ficar na tela
+    depois de chegar, a maioria das cargas em curso esta justamente no estado
+    que nao tem estimativa: a correcao anterior encolheu a cobertura desta, e
+    o cartao nao acompanhou.
+
+    A janela tambem responde melhor a pergunta do mural — quem espera na doca
+    quer o que foi COMBINADO, nao a nossa mediana.
+    """
     pg, base = pagina
     _parede(pg, base)
-    assert "estimativa" in pg.inner_text("#tvcli-chegam-sub").lower()
+    hoje = pg.evaluate("() => _iso(new Date())")
+    esperado = len([c for c in _CARGAS
+                    if (c.get("janela_entrega") or "").startswith(hoje)])
+    assert esperado, "a amostra precisa ter carga com janela para hoje"
+    assert pg.inner_text("#tvcli-chegam").strip() == str(esperado)
+    # e a procedencia continua dita: regua nossa publicada sem nome vira promessa
+    assert "janela combinada" in pg.inner_text("#tvcli-chegam-sub").lower()
 
 
-def test_a_cobertura_da_previsao_vai_junto(pagina):
-    """6 das 7 a caminho têm estimativa (uma rota sem histórico não tem). Sem
-    a cobertura, "chegam 5" se lê como "só há 5 no ar"."""
+def test_chegam_hoje_reparte_entre_JA_CHEGARAM_e_FALTAM(pagina):
+    """Os chips viraram o progresso do dia. "ate as 12h / a tarde" repartia por
+    um relogio que ninguem consulta de pe; estes dois somam o numero grande,
+    que e o que torna um chip legivel numa parede."""
     pg, base = pagina
     _parede(pg, base)
-    txt = pg.inner_text("#tvcli-chegam-sub")
-    assert "de 7 a caminho" in txt, txt
+    txt = pg.inner_text("#tvcli-chegam-fx").lower()
+    assert "já chegaram" in txt and "faltam" in txt, txt
+
+
+# ======================================= a lista da parede, depois de 09/09/2026
+
+
+def test_a_lista_da_parede_diz_QUEM_RECEBE_e_nao_so_a_cidade(pagina):
+    """Duas docas na mesma cidade nao se distinguem por "CIDADE/UF".
+
+    A tabela mostrava a rota; numa parede do cliente isso reune a montadora e
+    a planta dele mesmo numa linha so. O destinatario DETERMINA a cidade, e
+    nao o contrario.
+    """
+    pg, base = pagina
+    _parede(pg, base)
+    txt = pg.inner_text("#tvcli-cargas")
+    assert "MONTADORA - SAO JOSE DOS PINHAIS/PR" in txt, txt
+    assert "→" not in txt, "a rota voltou para a lista"
+
+
+def test_a_coluna_de_chegada_NUNCA_fica_vazia(pagina):
+    """A diferenca entre uma tabela de referencia e uma que se le de longe.
+
+    Tres respostas, e cada uma pede coisa diferente de quem olha: chegou (a
+    hora), passou da janela (ha quanto tempo, em ambar) e ainda no prazo
+    (quanto falta). Celula vazia numa parede se le como dado faltando.
+    """
+    pg, base = pagina
+    _parede(pg, base)
+    linhas = pg.query_selector_all("#tvcli-cargas tr")
+    assert linhas, "a tabela nao renderizou"
+    for tr in linhas:
+        celulas = tr.query_selector_all("td")
+        ultima = celulas[-1].inner_text().strip()
+        assert ultima and ultima != "—", (
+            "coluna de chegada vazia em: " + tr.inner_text())
+
+
+def test_a_situacao_ganha_a_COR_da_etapa_e_o_rotulo_junto(pagina):
+    """Cor sozinha nao diz nada numa TV sem tooltip -- por isso ela nao
+    substitui o texto, acompanha. E a paleta e a MESMA dos chips do heroi:
+    repetir o par cor/etapa nos dois lugares e o que dispensa legenda."""
+    pg, base = pagina
+    _parede(pg, base)
+    cores = pg.evaluate("""() => [...document.querySelectorAll('#tvcli-cargas tr')]
+        .map(tr => { const td = tr.children[3];
+                     return {txt: td.textContent.trim(),
+                             cor: getComputedStyle(td).color}; })""")
+    assert cores, "sem linhas"
+    for c in cores:
+        assert c["txt"], "situacao sem rotulo: a cor teria de responder sozinha"
+    assert len({c["cor"] for c in cores}) > 1, (
+        "todas as situacoes na mesma cor: a coluna nao separa nada " + str(cores))
+
+
+def test_o_ticker_cobra_a_JANELA_e_nao_a_estimativa(pagina):
+    """Ele ficou para tras quando o cartao trocou de regua e passou a dizer
+    "passaram da estimativa de chegada" para um painel que nao mostra
+    estimativa nenhuma. Alarme que nomeia uma regua que saiu da tela e pior
+    que alarme nenhum: quem le vai procurar o numero e nao acha."""
+    pg, base = pagina
+    _parede(pg, base)
+    txt = pg.inner_text("#tvcli-tick").lower()
+    assert "estimativa" not in txt, txt
+    assert "janela combinada" in txt, txt
+
+
+def test_o_ticker_NOMEIA_onde_o_veiculo_esta_parado(pagina):
+    """"7 veiculos parados" manda quem le procurar onde. Numa parede a linha
+    seguinte so volta depois de a faixa dar a volta inteira, entao o ONDE tem
+    de vir na mesma linha do QUANTOS."""
+    pg, base = pagina
+    _parede(pg, base)
+    txt = pg.inner_text("#tvcli-tick")
+    assert "no cliente há mais de" in txt, txt
+    assert "PLANTA DUBLÊ - BETIM/MG" in txt, txt
+
+
+# ================================================================ o mapa
+
+
+def test_o_mapa_SEPARA_veiculos_de_patios_diferentes(pagina):
+    """O COMPORTAMENTO, medido na tela — e não a ordem das linhas no arquivo.
+
+    Este guard nasceu porque a versão de texto-fonte dele ficou CEGA: ela
+    afirmava que `fitBounds` aparecia antes de `project()`, e há dois
+    `fitBounds` antes do agrupamento — apagar o primeiro (que é justamente o
+    que define o zoom lido) deixava o segundo satisfazendo a comparação, e a
+    sabotagem passou verde. Ordem de texto não é ordem de execução.
+
+    O que importa é observável: marcas de pátios distantes não podem encostar
+    umas nas outras. Se o agrupamento medir a distância no chão (a grade de
+    graus antiga) ou projetar num zoom que não é o da tela, elas encostam.
+
+    O QUE ESTE GUARD NÃO ALCANÇA, e fica dito em vez de fingido: apagar o
+    `fitBounds` SÍNCRONO não o faz falhar. Na primeira pintura o
+    reenquadramento (um quadro depois) corrige o zoom sozinho, e a diferença
+    de um nível não muda o agrupamento desta amostra. O síncrono existe para
+    as RECARGAS — o reenquadramento roda uma vez só, e sem ele o mapa deixaria
+    de acompanhar a operação que se move ao longo do dia. Cobrir isso exigiria
+    o painel recarregar dentro do teste (60 s), e um caso calibrado só para
+    acender seria calibrar o teste para o teste.
+    """
+    pg, base = pagina
+    _parede(pg, base)
+    pg.wait_for_timeout(1400)      # o reenquadramento roda um quadro depois
+    marcas = pg.evaluate("""() => [...document.querySelectorAll('#tvCliMapa .tv-vmk')]
+        .map(d => { const r = d.getBoundingClientRect();
+                    return {txt: d.textContent, x: r.x, y: r.y,
+                            w: r.width, h: r.height}; })""")
+    assert len(marcas) >= 2, (
+        "os dois pátios viraram uma marca só: o agrupamento juntou o que está "
+        "a centenas de km " + str(marcas))
+    for i, a in enumerate(marcas):
+        for b in marcas[i + 1:]:
+            encosta = (abs(a["x"] - b["x"]) < max(a["w"], b["w"])
+                       and abs(a["y"] - b["y"]) < max(a["h"], b["h"]))
+            assert not encosta, ("marcas sobrepostas: %r e %r" % (a["txt"], b["txt"]))
+
+
+def test_o_mapa_JUNTA_quem_esta_no_mesmo_patio(pagina):
+    """A outra metade da mesma regra. Quatro veículos no mesmo pátio viram UMA
+    marca com a contagem — seis placas empilhadas no mesmo pixel não se leem
+    de jeito nenhum numa parede."""
+    pg, base = pagina
+    _parede(pg, base)
+    pg.wait_for_timeout(1400)
+    txts = pg.evaluate("""() => [...document.querySelectorAll('#tvCliMapa .tv-vmk')]
+        .map(d => d.textContent)""")
+    assert any("veíc." in t for t in txts), (
+        "nenhum grupo: os quatro do mesmo pátio viraram quatro etiquetas " + str(txts))

@@ -74,9 +74,25 @@ glossario:
   definicao: >-
     A versão de parede da tela Minha Operação, para a sala de operação ou para
     a planta do cliente: cargas em curso repartidas em quatro etapas
-    (programada, na origem, em viagem, no destino), a lista por DESTINATÁRIO
-    com a janela de entrega de cada uma, permanência contra o freetime e as
-    cargas por destino. Sem aba e sem tooltip — ninguém
+    (programada, na origem, em viagem, no destino), o mapa dos veículos, o que
+    chega hoje, o que está parado agora, o volume de 12 meses e — na faixa
+    inteira de baixo — a lista das cargas por DESTINATÁRIO.
+
+    A LISTA responde "e agora?" em toda linha: a janela combinada, e ao lado a
+    hora real de quem já chegou, quanto falta para quem está no prazo ou há
+    quanto tempo passou de quem atrasou. A situação vem colorida pela etapa,
+    na mesma paleta dos indicadores do topo — numa TV não há como passar o
+    mouse, então cor e rótulo andam sempre juntos.
+
+    "CHEGAM HOJE" conta pela JANELA COMBINADA, não por estimativa de viagem, e
+    reparte entre o que já chegou e o que falta. A diferença não é de gosto: a
+    estimativa só existe para quem já saiu e em rota com histórico, e cobria
+    um décimo das cargas — o cartão chegou a mostrar 3 onde a resposta era 24.
+
+    A FAIXA DE BAIXO só aparece quando há o que dizer, e diz ONDE: o destino
+    que concentra os atrasos, o veículo parado no cliente há mais tempo e com
+    qual destinatário, a carga que passou da janela de carregamento e ainda
+    não saiu, e o veículo sem posição no rastreamento. Sem aba e sem tooltip — ninguém
     clica nem passa o mouse numa TV, então cada número se explica no rótulo —
     e com tela cheia pelo botão ⛶. Mostra o MESMO número da tela: lê as mesmas
     rotas, para a parede e o painel nunca discordarem numa reunião. Quem tem

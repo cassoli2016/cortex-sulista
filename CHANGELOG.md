@@ -4,6 +4,24 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.28.0] — 09/09/2026  ·  CX-09/09/2026-v1.28.0
+
+### Adicionado
+- No painel de TV do cliente, a lista de cargas passou a ocupar a faixa inteira e ganhou a coluna CHEGADA, que nunca fica vazia: mostra a hora real de quem ja chegou, quanto falta para quem esta no prazo e ha quanto tempo passou de quem atrasou.
+- A situacao de cada carga ganhou COR, a mesma dos indicadores do topo -- o olho separa o que esta no destino do que esta na estrada antes de ler linha por linha.
+- A barra do rodape passou a dizer ONDE, e nao so quantas: o destino que concentra os atrasos aparece junto do numero. E ganhou dois avisos que faltavam -- veiculo parado no cliente ha mais de seis horas (com o destino e a maior espera) e carga que passou da janela de carregamento e ainda nao saiu, que e a que da tempo de resolver.
+
+### Corrigido
+- "Chegam hoje" contava pela nossa estimativa de viagem e mostrava 3 onde a resposta era 24. A estimativa so existe para quem ja saiu e em rota com historico; a janela combinada existe para todas as cargas. O cartao passou a contar por ela e a repartir entre "ja chegaram" e "faltam".
+- Os cartoes "Chegam hoje" e "Parados agora" cortavam a ultima linha ao meio -- o texto tinha caixa menor que a propria letra, e o rodape em tres linhas comia o espaco da lista. Agora a lista mostra o que cabe inteiro, medido na hora, em vez de cortar.
+- O rodape da lista de cargas ("6 de 31 cargas") ficava cortado pela borda do cartao. Sem ele a lista vira total falso.
+- O mapa abria com o pais inteiro e os veiculos empilhados num canto. Ele passou a enquadrar a operacao de verdade, e agrupa o que esta perto NA TELA -- antes agrupava por distancia no chao, que em mapa aberto nao separa nada.
+- A barra do rodape ainda falava em "estimativa de chegada" depois de a tela ter trocado de referencia, cobrando um numero que nao esta mais em lugar nenhum do painel.
+
+### Removido
+- O cartao "Rotas mais usadas -- 12 meses" saiu do painel de TV. Era contexto de um ano num mural de operacao do dia, e o cartao de volume ao lado ja responde "como tem sido". O espaco foi para a lista de cargas.
+- O rodape "manifesto ainda nao encerrado - ultimos 45 dias" saiu do indicador principal: alem de ocupar espaco, descrevia uma regra que deixou de valer na entrega anterior -- a carga sai da tela quando a descarga termina, nao quando o manifesto encerra.
+
 ## [1.27.0] — 09/09/2026  ·  CX-09/09/2026-v1.27.0
 
 ### Adicionado

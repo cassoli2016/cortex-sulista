@@ -423,15 +423,36 @@ def test_o_mapa_usa_leaflet_da_casa_e_nao_CDN():
     assert "await ensureLeaflet()" in INDEX.split("async function tvCliMapa")[1][:400]
 
 
-def test_o_mapa_agrupa_o_que_esta_no_mesmo_patio():
-    """Numa operação planta a planta os veículos param no MESMO ponto.
+def test_o_mapa_agrupa_por_PIXEL_e_nao_por_distancia_no_chao():
+    """Numa operação planta a planta os veículos param no MESMO ponto, e sem
+    agrupar o render mostra etiquetas ilegíveis empilhadas.
 
-    Sem agrupar, o render mostrou seis etiquetas ilegíveis empilhadas em
-    Cruzeiro. Grupo de um mostra a PLACA; grupo maior mostra a contagem.
+    A GRADE DE GRAUS NÃO RESOLVIA, e a correção de 09/09/2026 é de UNIDADE: o
+    que decide se duas marcas se sobrepõem não é a distância no chão, é a
+    distância em PIXEL na tela. A grade antiga era de 0,01 grau (~1,1 km) —
+    que no zoom desta parede vale ~3 px, de modo que dois pátios a 2 km caíam
+    a 6 px um do outro e viravam um borrão. É o mesmo erro de unidade que faz
+    um eixo dizer "MIL KM ×1000".
+
+    E a ORDEM faz parte da regra: enquadrar primeiro, ler o zoom, e só então
+    projetar. Agrupar antes do `fitBounds` mediria pixels de um zoom que não é
+    o que vai para a tela.
     """
-    corpo = INDEX.split("async function tvCliMapa")[1].split("\n}")[0]
-    assert "toFixed(2)" in corpo, "a grade de agrupamento sumiu"
+    corpo = INDEX.split("async function tvCliMapa")[1].split("\n}\n")[0]
+    assert "toFixed(2)" not in corpo, "a grade de graus voltou"
+    assert "RAIO_PX" in corpo and ".project(" in corpo
     assert "veíc." in corpo
+    assert "animate:false" in corpo, (
+        "com animação o zoom lido pelo project() é o antigo")
+    # A ORDEM (enquadrar -> ler zoom -> projetar) NAO se confere aqui, e a
+    # tentativa fica registrada porque ela ensina: um `index("fitBounds") <
+    # index(".project(")` parecia cobrar a ordem e nao cobrava nada -- ha DOIS
+    # `fitBounds` antes do agrupamento (o sincrono e o do reenquadramento), e
+    # apagar o primeiro deixava o segundo satisfazendo a comparacao. Sabotado,
+    # o guard ficou VERDE.
+    # Quem cobra a ordem e o comportamento, em
+    # `tests/frontend/test_tvcli_figuras.py::test_o_mapa_SEPARA_veiculos_de_patios_diferentes`:
+    # com o zoom errado as marcas se sobrepoem, e isso se mede na tela.
 
 
 def test_posicao_velha_NAO_some_do_mapa():
@@ -507,7 +528,24 @@ def test_a_grade_da_TV_e_minmax_0_nas_duas_direcoes():
     esticaria a faixa inteira.
     """
     assert "grid-template-columns:repeat(4,minmax(0,1fr));" in INDEX
-    assert "grid-template-rows:repeat(2,minmax(0,1.06fr)) minmax(0,0.8fr)}" in INDEX
+    # AS TRILHAS SÃO CONFERIDAS PELA FORMA, não pelo número: a proporção mudou
+    # em 09/09/2026 (a faixa da lista passou a ser a maior, porque a tabela foi
+    # para a largura inteira) e vai mudar de novo. O que não pode mudar é o
+    # `minmax(0,…)` em TODAS elas — é ele que impede a trilha de crescer com o
+    # conteúdo. Fixar o número aqui faria o guard reprovar todo ajuste de
+    # layout sem nunca proteger a propriedade que ele existe para proteger.
+    import re as _re
+    # ANCORADO NO `.tvc-wall`: `grid-template-rows` aparece em varias telas, e a
+    # primeira ocorrencia do arquivo e de outra. Guard que casa com o bloco
+    # errado nao protege nada e ainda reprova por engano -- foi o que aconteceu
+    # na primeira escrita deste.
+    bloco = INDEX.split(".tvc-wall{")[1].split("}")[0]
+    m = _re.search(r"grid-template-rows:(.+)", bloco)
+    assert m, "as trilhas da parede sumiram"
+    trilhas = m.group(1)
+    assert "minmax(0," in trilhas, trilhas
+    assert not _re.search(r"(?<!minmax\(0,)\s\d+(\.\d+)?fr", trilhas), (
+        "trilha sem minmax(0,…): ela não encolhe abaixo do min-content — " + trilhas)
     assert "#view-tvcli .tv-tab{table-layout:fixed}" in INDEX
 
 
