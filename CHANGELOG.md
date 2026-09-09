@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.19.0] — 09/09/2026  ·  CX-09/09/2026-v1.19.0
+
+### Adicionado
+- O menu passou a dizer ONDE VOCÊ ESTÁ. O grupo que contém a tela aberta fica marcado com a barra da marca, e a marca continua lá mesmo com o grupo fechado — que é justamente quando o item some da tela. Com 86 telas em 14 grupos, o item destacado sozinho não bastava: bastava rolar a barra e o menu parava de situar.
+- O cabeçalho da tela ganhou a trilha do grupo: "Telemetria › Premiação de Motoristas" no lugar de só o nome da tela.
+- A hierarquia do menu ficou visível por uma linha-guia vertical, em vez de recuo. A barra tem 228px e vários rótulos são longos: empurrar o texto a cada nível comeria a largura e quebraria linha. Com a guia, os itens que quebram em duas linhas caíram de 8 para 7.
+
+### Corrigido
+- O terceiro nível do menu (os painéis de TV dentro de Business Intelligence) aparecia com o mesmo recuo do segundo nível, embora o estilo pedisse o contrário — duas regras de igual peso brigavam e vencia a errada. Agora ele recua de verdade.
+
 ## [1.18.0] — 08/09/2026  ·  CX-08/09/2026-v1.18.0
 
 ### Adicionado
