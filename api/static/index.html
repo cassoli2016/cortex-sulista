@@ -6067,6 +6067,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="subtabs" role="tablist" data-abas="antport" aria-label="Seções desta tela">
           <button role="tab" id="tabantport-tupy" data-aba="tupy" aria-controls="aba-antport-tupy" aria-selected="true" onclick="abaTrocar('antport','tupy')">Portal Tupy</button>
           <button role="tab" id="tabantport-tupycus" data-aba="tupycus" aria-controls="aba-antport-tupycus" aria-selected="false" onclick="abaTrocar('antport','tupycus')">Custo e concentração</button>
+          <button role="tab" id="tabantport-eleg" data-aba="eleg" aria-controls="aba-antport-eleg" aria-selected="false" onclick="abaTrocar('antport','eleg')">Elegíveis fora de portal <span class="aban" id="elegN"></span></button>
           <button role="tab" id="tabantport-tupyfil" data-aba="tupyfil" aria-controls="aba-antport-tupyfil" aria-selected="false" onclick="abaTrocar('antport','tupyfil')">Filiais e investidores <span class="aban" id="tupyNFil"></span></button>
           <button role="tab" id="tabantport-tupytit" data-aba="tupytit" aria-controls="aba-antport-tupytit" aria-selected="false" onclick="abaTrocar('antport','tupytit')">Títulos da Tupy <span class="aban" id="tupyNTit"></span></button>
           <button role="tab" id="tabantport-tupyval" data-aba="tupyval" aria-controls="aba-antport-tupyval" aria-selected="false" onclick="abaTrocar('antport','tupyval')">Validação do espelho <span class="aban" id="tupyNVal"></span></button>
@@ -6099,6 +6100,17 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <div class="tabroll"><table><thead><tr><th>Faixa</th><th class="num">Títulos</th><th class="num">Nominal</th><th class="num">Taxa a.m.</th>
               </tr></thead><tbody id="tupy-faixa"></tbody></table></div>
             </div>
+          </div>
+        </div>
+        <div class="aba" data-abas="antport" data-aba="eleg" id="aba-antport-eleg" role="tabpanel" aria-labelledby="tabantport-eleg" data-ao-abrir="loadElegiveis" hidden>
+          <div class="kband">
+            <h3>Em aberto no contas a receber, de sacado com convênio, e fora de qualquer portal</h3>
+            <div class="kpis k4" id="kpis-eleg"></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Por sacado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A fonte é o CONTAS A RECEBER DO ERP (fatura × fatura_composicao em aberto), não o portal — só a Tupy tem integração, e uma posição de portal desatualizada não pode se disfarçar de 'não há nada a antecipar'. De cada título em aberto subtrai-se o que já está em portal, casando pela nota NORMALIZADA (a Monkey grava 000051366-1 e o ERP grava 51366; cruzando cru, nenhum dos 288 casa) e ESCOPADO por sacado, porque número de nota se repete entre emitentes. Títulos com menos de 15 dias até o vencimento aparecem na contagem mas ficam fora do total: antecipar três dias de caixa não é operação. O deságio é ESTIMADO pela curva de taxa medida no portal da Tupy nos últimos 30 dias — para a Tupy é boa aproximação; para os demais é referência, porque são outras mesas e nenhuma publica taxa antes da operação.">i</span></h2><span class="hint" id="eleg-hint"></span></div>
+            <div class="tabroll"><table><thead><tr><th>Sacado</th><th>Cadastro</th><th class="num">Antecipáveis</th><th class="num">Valor</th><th class="num">Deságio est.</th><th class="num">Líquido est.</th><th class="num">Já no portal</th><th class="num">Curto prazo</th>
+            </tr></thead><tbody id="eleg-tab"></tbody></table></div>
           </div>
         </div>
         <div class="aba" data-abas="antport" data-aba="tupyfil" id="aba-antport-tupyfil" role="tabpanel" aria-labelledby="tabantport-tupyfil" hidden>
@@ -25103,6 +25115,76 @@ function tupyCustoDesenhar(){
   }), 'nenhum título antecipado na janela');
   document.getElementById('tupy-ant-hint').textContent=
     '13 meses pela data de antecipação · '+(mc.mes||'')+' em curso, hachurado';
+}
+
+/* Elegíveis fora de portal — rota PRÓPRIA (bate no ERP), carregada só quando
+   a aba abre. Não entra no loadTupy porque não depende do espelho: a fonte
+   aqui é o contas a receber, e ela tem de responder mesmo com o portal
+   parado — que é justamente o caso que a tela existe para revelar. */
+let elegSeq = 0;
+async function loadElegiveis(){
+  const seq = ++elegSeq;
+  const alvo = document.getElementById('eleg-tab');
+  alvo.innerHTML = '<tr><td colspan="8" class="hint">consultando o contas a receber…</td></tr>';
+  skelKpis('kpis-eleg', 4);
+  try{
+    const r = await fetch('/api/financeiro/antecipacao/elegiveis', {cache:'no-store'});
+    const {ok, dados:d} = await respostaJSON(r); if(seq !== elegSeq) return;
+    if(!ok){
+      document.getElementById('kpis-eleg').innerHTML = '';
+      alvo.innerHTML = '<tr><td colspan="8" class="hint">'+esc(d.mensagem||'Erro ao consultar.')+'</td></tr>';
+      return;
+    }
+    renderElegiveis(d);
+  }catch(e){
+    if(seq === elegSeq){
+      document.getElementById('kpis-eleg').innerHTML = '';
+      alvo.innerHTML = '<tr><td colspan="8" class="hint">Não foi possível falar com a API.</td></tr>';
+    }
+  }
+}
+
+function renderElegiveis(d){
+  const alvo = document.getElementById('eleg-tab');
+  if(!d.disponivel){
+    document.getElementById('kpis-eleg').innerHTML = '';
+    alvo.innerHTML = '<tr><td colspan="8" class="hint">'+esc(d.motivo||'sem dados')+'</td></tr>';
+    return;
+  }
+  const c = d.cadastrados||{}, r = d.mesma_raiz||{};
+  document.getElementById('kpis-eleg').innerHTML = [
+    kpi('Disponível para antecipar', brlAbbr(c.valor||0),
+      (c.titulos||0).toLocaleString('pt-BR')+' títulos de '+(c.sacados||0)+' sacado(s) cadastrado(s)', '',
+      'Títulos em aberto no contas a receber do ERP, de sacado com convênio CADASTRADO, que não estão em portal nenhum e vencem em mais de '+(d.prazo_minimo||15)+' dias. A fonte é o ERP e não o portal, porque só a Tupy tem integração — posição de portal desatualizada não pode parecer "não há nada a antecipar".'),
+    kpi('Custo estimado', brlAbbr(c.desagio||0),
+      c.desagio_pct!=null?(c.desagio_pct.toFixed(2).replace('.',',')+'% do nominal'):'sem base', '',
+      'ESTIMADO, não cotado: sai da curva de taxa por prazo medida no portal da Tupy nos últimos 30 dias (1,14% a 1,19% a.m.). Para títulos da Tupy é boa aproximação; para os demais é REFERÊNCIA, porque são outras mesas e nenhuma publica taxa antes da operação.'),
+    kpi('Caixa líquido', brlAbbr(c.liquido||0),
+      'o que entraria antecipando tudo que é elegível', '',
+      'Nominal menos o deságio estimado. É o teto do que essa carteira geraria hoje — não uma projeção de caixa: cada título ainda depende de o portal aceitá-lo.'),
+    kpi('Mesma raiz, sem cadastro', brlAbbr(r.valor||0),
+      (r.sacados||0)+' filial(is) do mesmo grupo · '+(r.titulos||0).toLocaleString('pt-BR')+' títulos',
+      (r.valor||0)>0?'warn':'',
+      'Filiais que compartilham a raiz do CNPJ de um sacado elegível mas NÃO estão cadastradas em Antecipação › sacados. Não estão somadas ao total ao lado, de propósito: o cadastro é a autoridade sobre elegibilidade, e presumir que a raiz vale criaria uma oportunidade que pode não existir. Se o convênio cobre o grupo, cadastre a filial e o valor migra para o total.'),
+  ].join('');
+
+  alvo.innerHTML = (d.linhas||[]).map(g=>`<tr>
+    <td>${esc(g.sacado)} <span class="hint" style="font-family:var(--mono);font-size:11px">${esc(g.cnpj||'')}</span></td>
+    <td>${g.cadastrado?'<span class="badge b-ok">cadastrado'+(g.portal?' · '+esc(g.portal):'')+'</span>'
+                      :'<span class="badge b-warn">mesma raiz</span>'}</td>
+    <td class="num">${(g.antecipavel||0).toLocaleString('pt-BR')}</td>
+    <td class="num" style="font-weight:600">${brlAbbr(g.valor_antecipavel||0)}</td>
+    <td class="num">${brlAbbr(g.desagio||0)}${g.desagio_pct!=null?' <span class="hint">('+g.desagio_pct.toFixed(2).replace('.',',')+'%)</span>':''}</td>
+    <td class="num">${brlAbbr(g.liquido||0)}</td>
+    <td class="num" style="color:var(--n500)">${(g.valor_no_portal||0)>0?brlAbbr(g.valor_no_portal):'—'}</td>
+    <td class="num" style="color:var(--n500)">${(g.curto||0)>0?((g.curto)+' · '+brlAbbr(g.valor_curto||0)):'—'}</td></tr>`).join('')
+    || '<tr><td colspan="8" class="hint">nenhum título elegível fora de portal — tudo que está em aberto já foi oferecido</td></tr>';
+
+  const nCad = (d.linhas||[]).filter(g=>g.cadastrado).length;
+  document.getElementById('eleg-hint').textContent =
+    'posição de '+esc(d.hoje||'')+' · vencimento em mais de '+(d.prazo_minimo||15)+' dias'
+    + (d.integrado?'' : ' · ESPELHO DA MONKEY INDISPONÍVEL: o que está no portal da Tupy pode estar contado como fora');
+  abaContador('elegN', (d.linhas||[]).reduce((s,g)=>s+(g.antecipavel||0),0));
 }
 
 // ---------------- Faturamento Detalhado ----------------

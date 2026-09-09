@@ -292,6 +292,10 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/financeiro/credito", frozenset({"fluxo", "fluxcon", "antec"})),
     ("/api/orcamento/plano", frozenset({"orc"})),
     ("/api/financeiro/antecipacoes", frozenset({"antport", "antec"})),
+    # ANTES da genérica logo abaixo, senão o prefixo `/antecipacao` a engole
+    # e a tela `antport` perde acesso à própria aba.
+    ("/api/financeiro/antecipacao/elegiveis",
+                                      frozenset({"antport", "antec"})),
     ("/api/financeiro/antecipacao",   frozenset({"antec"})),
     ("/api/financeiro/fluxo-consolidado/detalhe", frozenset({"fluxcon"})),
     ("/api/financeiro/fluxo-consolidado", frozenset({"fluxcon"})),

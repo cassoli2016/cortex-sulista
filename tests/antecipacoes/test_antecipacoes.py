@@ -361,3 +361,59 @@ def test_reimportar_um_portal_nao_derruba_os_outros(_base):
     assert vig["maxion"]["arquivo"] == "maxion-novo.xls"
     assert vig["adient"]["arquivo"] == "adient.xls", "o outro portal fica intacto"
     assert len(reg.titulos_vigentes()) == 7   # 5 da maxion + 2 do adient
+
+
+# --------------------------------------------------------------------------
+# A CHAVE DA CONCILIACAO
+#
+# Medido em 09/09/2026 contra a posicao vigente da Tupy: casando cru, 0 de 288
+# titulos casavam e os 288 saiam como "so no portal" -- divergencia de 100%
+# que era da chave, nao do dado. O caminho so era exercitado pela planilha da
+# Maxion, cujo numero ja vinha limpo, entao o defeito nunca apareceu; estava
+# armado para o dia em que alguem importasse um arquivo da Tupy.
+def test_conciliacao_casa_a_nota_com_zeros_e_sufixo_de_parcela(monkeypatch):
+    from datetime import date as _date
+    from api.antecipacoes import conciliacao
+
+    # LITERAL dos dois lados, copiado do real: a Monkey grava '000051366-1',
+    # o ERP grava '51366'. Duble derivado do normalizador nao testaria nada.
+    erp = [{"documento": "51366", "vencimento": _date(2026, 11, 26),
+            "valor": 739.80, "partes": 1, "cliente": "TUPY - JOINVILE/SC"}]
+
+    class _Cur:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def execute(self, sql, params): self.p = params
+        def fetchall(self): return erp
+
+    class _Conn:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def cursor(self): return _Cur()
+
+    monkeypatch.setattr(conciliacao.db, "get_conn", lambda: _Conn())
+    r = conciliacao.conciliar([{
+        "documento": "000051366-1", "titulo": "000051366-1",
+        "vencimento": _date(2026, 11, 26), "valor_saldo": 739.80}])
+    assert r["casados"] == 1, "a nota do portal tem de casar com a do ERP"
+    assert r["so_no_portal"] == 0
+    assert r["cobertura_pct"] == 100.0
+
+
+def test_rota_de_elegiveis_cai_em_antport_e_nao_e_engolida_pela_generica():
+    """`/api/financeiro/antecipacao/elegiveis` tem de ser mapeada ANTES de
+    `/api/financeiro/antecipacao`, que so libera a tela `antec`.
+
+    Sem a ordem, a aba nasceria 403 para quem tem `antport` e nao `antec` --
+    e o middleware e fail-closed, entao o sintoma seria a aba vazia sem erro
+    nenhum na tela.
+    """
+    from api import auth
+    import api.main as main
+
+    rota = "/api/financeiro/antecipacao/elegiveis"
+    assert rota in {getattr(r, "path", "") for r in main.app.routes}
+    telas = [t for p, t in auth.ROTA_TELAS if rota.startswith(p)]
+    assert telas, "rota fora de ROTA_TELAS (403 para nao-admin)"
+    assert "antport" in telas[0], (
+        "a primeira correspondencia e a que vale, e ela tem de liberar antport")

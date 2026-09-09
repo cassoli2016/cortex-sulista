@@ -7349,6 +7349,26 @@ async def orcamento_plano_importar(req: Request, nome: str = "", ano: int = 0,
             pass
 
 
+@app.get("/api/financeiro/antecipacao/elegiveis")
+async def antecipacao_elegiveis() -> JSONResponse:
+    """O que está em aberto no ERP, é de sacado com convênio e não chegou a
+    portal nenhum — a direção que a conciliação não olha.
+
+    `async` + `sem_travar` porque a consulta bate no AVA, que é réplica de
+    terceiro e tem dias ruins: numa rota síncrona ela seguraria o servidor
+    inteiro pelo tempo da resposta.
+    """
+    from api.antecipacoes import elegiveis
+    try:
+        return JSONResponse(await sem_travar(elegiveis.get_elegiveis))
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_indisponivel",
+            "mensagem": "O ERP não respondeu. A lista depende do contas a "
+                        "receber e não é servida sem ele."})
+
+
 @app.get("/api/financeiro/antecipacoes")
 def antecipacoes_listar() -> JSONResponse:
     """Envios importados, último por portal e sacados com convênio."""

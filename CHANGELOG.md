@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.22.0] — 09/09/2026  ·  CX-09/09/2026-v1.22.0
+
+### Adicionado
+- Antecipacao ganhou a aba "Elegiveis fora de portal", que responde a pergunta que faltava: o que esta em aberto no contas a receber, e de cliente com convenio, e nunca chegou a portal nenhum. A conferencia que existia so olhava o contrario -- se o que o portal listou confere com o ERP -- entao um portal desatualizado se parecia com "nao ha nada a antecipar".
+- A fonte da aba e o ERP, nao o portal, e isso e deliberado: so a Tupy tem integracao automatica. Os demais convenios entram por planilha, e uma planilha antiga nao pode esconder titulo antecipavel.
+- Filial do mesmo grupo que NAO esta cadastrada como cliente elegivel aparece em bloco separado, marcada. Ela nao entra no total: o cadastro e quem diz quem tem convenio, e presumir pelo CNPJ criaria uma oportunidade que pode nao existir. Se o convenio cobre o grupo, basta cadastrar a filial e o valor migra sozinho.
+- O desagio de cada titulo vem estimado pela taxa que o portal da Tupy esta praticando nos ultimos 30 dias, medida na hora. Faixa de prazo com poucos titulos nao vira preco proprio -- usa a taxa media da janela --, e para os outros portais o numero e referencia, nao cotacao, porque sao outras mesas.
+
+### Corrigido
+- A conferencia entre portal e contas a receber casava a nota fiscal do jeito que cada lado escreve, e eles escrevem diferente: o portal manda com zeros na frente e o numero da parcela no fim, o ERP guarda so o numero. Numa importacao da Tupy, os 288 titulos apareceriam como divergentes -- todos eles. Passa a casar pelo numero limpo dos dois lados.
+
 ## [1.21.0] — 09/09/2026  ·  CX-09/09/2026-v1.21.0
 
 ### Adicionado

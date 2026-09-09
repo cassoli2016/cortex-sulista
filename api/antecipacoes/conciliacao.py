@@ -18,12 +18,22 @@ Três divergências que importam, em ordem de gravidade:
 O casamento é por NÚMERO DO DOCUMENTO (nota fiscal), que é o que os dois
 sistemas compartilham. O número do título do portal ("BRIM2026510013258...")
 é interno dele e não existe no nosso lado.
+
+E é por número NORMALIZADO, desde 09/09/2026 — os portais escrevem a nota com
+zeros à esquerda e sufixo de parcela (`000051366-1`) e o ERP grava o inteiro
+puro (`51366`). Cru, nenhum dos 288 títulos da Tupy casava, e os 288 saíam
+como "só no portal": divergência de 100% que era da chave, não do dado.
+
+A DIREÇÃO INVERSA — o que está em aberto no ERP e NUNCA chegou a portal
+nenhum — não é respondida aqui: vive em `api/antecipacoes/elegiveis.py`, e é
+lá que mora a definição única de `normalizar_documento`.
 """
 from __future__ import annotations
 
 from datetime import date
 
 from api import db
+from api.antecipacoes.elegiveis import normalizar_documento
 
 # Diferença de valor abaixo disto é arredondamento, não divergência.
 TOL_VALOR = 0.05
@@ -59,8 +69,25 @@ def conciliar(titulos: list[dict]) -> dict:
         return {"disponivel": False,
                 "motivo": "o arquivo não traz número de documento"}
 
+    # A CHAVE PRECISA SER NORMALIZADA DOS DOIS LADOS, e isto é conserto, não
+    # refinamento. Os portais escrevem a nota com zeros à esquerda e sufixo de
+    # parcela (`000051366-1`); o ERP grava o inteiro puro (`51366`). Medido em
+    # 09/09/2026 contra a posição vigente da Tupy: casando cru, **0 de 288**
+    # títulos casavam e os 288 eram classificados como "só no portal" — uma
+    # divergência de 100% que é da chave, não do dado.
+    #
+    # Este caminho só era exercitado pela planilha da Maxion, cujo número já
+    # vinha limpo, então o defeito nunca apareceu. Ele estava armado para o
+    # dia em que alguém importasse um arquivo da Tupy.
+    #
+    # O `ANY` continua recebendo a forma CRUA junto com a normalizada: assim a
+    # comparação no ERP segue na coluna indexada (normalizar dentro do SQL
+    # descartaria o índice numa tabela grande), e o casamento fino acontece
+    # aqui, por chave normalizada dos dois lados.
+    busca = sorted(set(docs) | {n for n in (normalizar_documento(d)
+                                            for d in docs) if n})
     with db.get_conn() as conn, conn.cursor() as cur:
-        cur.execute(CONC_SQL, {"docs": docs})
+        cur.execute(CONC_SQL, {"docs": busca})
         linhas = cur.fetchall()
 
     # Um documento pode aparecer com mais de um vencimento (parcelas). Guarda
@@ -68,13 +95,15 @@ def conciliar(titulos: list[dict]) -> dict:
     # marcaria a parcela 2 como divergente sempre.
     erp: dict = {}
     for l in linhas:
-        erp.setdefault(l["documento"], []).append(l)
+        chave = normalizar_documento(l["documento"])
+        if chave:
+            erp.setdefault(chave, []).append(l)
 
     casados, so_portal = [], []
     div_venc, div_valor = [], []
 
     for t in titulos:
-        cands = erp.get(t["documento"] or "")
+        cands = erp.get(normalizar_documento(t["documento"]) or "")
         if not cands:
             so_portal.append(t)
             continue
