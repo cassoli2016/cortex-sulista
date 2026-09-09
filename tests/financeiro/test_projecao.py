@@ -350,3 +350,37 @@ def test_o_detalhe_reusa_o_motor_da_tabela():
         "mesmo motor da tabela")
     # e nao pode ter reimplementado a mediana do nivel por dentro
     assert "statistics." not in fonte, fonte[:200]
+
+
+def test_todo_duble_cobre_as_colunas_da_consulta_real():
+    """Duble com MENOS campos que a fonte nao testa contra a fonte.
+
+    Ele testa contra o que o codigo de hoje por acaso usa — e no dia em que
+    alguem passa a ler uma coluna nova, o caminho novo nunca e exercitado.
+    O sintoma e mudo, porque `.get()` e `row["x"]` sobre um dict de teste
+    completo nunca levantam: a tela mostra "—" e nenhum teste acende.
+
+    Esta armadilha foi encontrada em 09/09/2026 numa frente vizinha (um duble
+    do ERP sem a coluna `emissao`, que a consulta tinha ganhado); a varredura
+    abaixo e a generalizacao dela. Ela sai da CONSULTA, nao de uma lista
+    escrita a mao — consulta que ganha coluna cobra o duble sozinha.
+    """
+    import re
+    from api.financeiro import dda as dda_mod
+
+    from tests.financeiro import test_dda as td
+
+    casos = [
+        ("HIST_PAGAR_SQL", pj.HIST_PAGAR_SQL,
+         _hist(["2026-01"], T_OPER, 100.0, [(0, 1.0)])[0]),
+        ("ERP_TITULOS_SQL", dda_mod.ERP_TITULOS_SQL,
+         td._titulo("111", date(2026, 1, 1), 10.0)),
+    ]
+    assert casos, "varredura vazia"
+    for nome, sql, duble in casos:
+        colunas = set(re.findall(r"AS (\w+)", sql))
+        assert colunas, f"{nome}: nenhuma coluna encontrada — o padrao parou de casar"
+        falta = colunas - set(duble)
+        assert not falta, (
+            f"{nome} devolve {sorted(colunas)} e o duble do teste nao tem "
+            f"{sorted(falta)} — o caminho dessas colunas nunca e exercitado")
