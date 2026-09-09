@@ -4,6 +4,22 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.24.0] — 09/09/2026  ·  CX-09/09/2026-v1.24.0
+
+### Adicionado
+- Minha Operacao e o painel de TV do cliente passam a listar as cargas por DESTINATARIO, e nao por cidade. Uma rota "ORIGEM -> CIDADE" juntava numa linha so a montadora e a planta do proprio cliente na mesma cidade, que sao docas, janelas e contatos diferentes -- e por isso nao havia como acompanhar um destino especifico.
+- Cada carga mostra agora as DUAS JANELAS combinadas com a operacao, a de carregamento e a de entrega, a hora real da chegada e o desvio entre elas, em horas. Sao as mesmas colunas que a torre mantinha a mao numa planilha.
+- A carga ainda nao carregada voltou a aparecer, com a janela de carregamento e o destinatario. Ela tinha saido da tela porque o portal so sabia dizer "nao sabemos por onde anda"; agora diz para quando ela e e para quem vai, que e compromisso com quem espera a carga.
+- A lista vem na ordem da janela de entrega -- a ordem do dia --, e nao na do ultimo apontamento, que mudava a cada recarga.
+- Cada linha diz DE ONDE veio o estado dela: apontamento da operacao, documento fiscal ou apenas a programacao. As tres respostas tem precisoes diferentes, e quem le passa a poder separa-las.
+
+### Corrigido
+- A carga sumia do painel no instante em que CHEGAVA ao destino, e nao quando era entregue. O painel usava o encerramento do manifesto como fim da viagem, e ele e emitido na chegada: medido em 45 dias, o fim da descarga vem em media mais de tres horas depois. Na pratica o cliente deixava de ver justamente as horas em que o veiculo estava parado no patio dele -- que e o assunto da aba Permanencia. Agora a carga fica na tela ate a descarga terminar.
+- Os estados "aguardando carregamento" e "aguardando descarga" existiam no sistema e nunca chegavam a aparecer: a consulta nao os lia. Eram dois estados mudos, e um deles e o que mais importa a um cliente industrial.
+- Carga com o manifesto ja autorizado pela SEFAZ e sem apontamento nenhum aparecia como se nao existisse. Ela esta na estrada -- o manifesto autorizado e a prova disso -- e agora consta como em viagem.
+- A contagem por etapa era feita pelo TEXTO do estado, e por isso precisava listar o mesmo rotulo duas vezes, com e sem acento. Passou a usar o codigo, e um rotulo reescrito no sistema de gestao deixa de poder zerar um numero da tela em silencio.
+- No painel de TV, "na origem" e a etapa nova usavam a mesma cor: duas faixas identicas na barra empilhada se leem como uma faixa so, e numa parede nao ha como desfazer o engano.
+
 ## [1.23.0] — 09/09/2026  ·  CX-09/09/2026-v1.23.0
 
 ### Adicionado

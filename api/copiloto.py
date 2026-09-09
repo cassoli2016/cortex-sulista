@@ -454,10 +454,22 @@ def _fontes_do_snapshot() -> dict:
                              "por gente da casa escolhendo o cliente")}
 
         em_curso = 0
-        acima_desc = []
+        # AS ETAPAS SEPARADAS, porque "42 cargas em curso" não distingue o dia
+        # cheio do dia parado. As três que decidem uma conversa são: quantas
+        # ainda não carregaram, quantas estão na estrada e quantas estão
+        # PARADAS no cliente — esta última é a que vira pergunta.
+        no_destino = programadas = 0
+        acima_desc, desvios = [], []
         for raiz in raizes:
             try:
-                em_curso += pc.get_agora(raiz, 45).get("em_curso") or 0
+                ag = pc.get_agora(raiz, 45)
+                em_curso += ag.get("em_curso") or 0
+                programadas += ag.get("sem_apontamento") or 0
+                for c in ag.get("cargas") or []:
+                    if c.get("marco_cod") in (396, 399, 397):
+                        no_destino += 1
+                    if c.get("desvio_h") is not None:
+                        desvios.append(c["desvio_h"])
                 perm = pc.get_permanencia(
                     raiz, hoje.replace(day=1).isoformat(), fim)
                 d = perm.get("descarga") or {}
@@ -465,14 +477,28 @@ def _fontes_do_snapshot() -> dict:
                     acima_desc.append(d["fora_pct"])
             except Exception:  # noqa: BLE001
                 continue
+        desvios.sort()
         return {
             "clientes_com_portal": len(raizes),
             "cargas_em_curso": em_curso,
+            "cargas_no_destino": no_destino,
+            "cargas_programadas": programadas,
+            # MEDIANA, e não média: um desvio de 80 h (carga que ficou dias no
+            # pátio) move a média o bastante para descrever um dia que não
+            # aconteceu. É a mesma régua do resto da casa.
+            "desvio_mediano_da_janela_h": (
+                desvios[len(desvios) // 2] if desvios else None),
+            "cargas_com_janela_e_chegada": len(desvios),
             "descarga_acima_do_freetime_pct": (
                 round(sum(acima_desc) / len(acima_desc), 1) if acima_desc else None),
             "nota": ("percentual sobre as descargas medidas no mês corrente, "
                      "contra o MAIOR freetime do contrato (o contrato distingue "
-                     "por mercadoria e o apontamento não diz qual era)"),
+                     "por mercadoria e o apontamento não diz qual era). O desvio "
+                     "da janela é a chegada real menos a janela de entrega "
+                     "programada, em horas — positivo é atraso; a janela é "
+                     "digitada pela nossa programação, não é prazo contratado. "
+                     "SEM nome de destinatário aqui de propósito: o snapshot "
+                     "pode cair no modelo externo, e só escalar permite isso."),
         }
 
     def _premiacao():

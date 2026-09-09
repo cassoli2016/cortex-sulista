@@ -45,8 +45,22 @@ glossario:
 - termo: Minha Operação (portal do cliente)
   definicao: >-
     A tela que o CLIENTE abre para ver a operação dele — cargas em curso,
-    permanência do veículo e histórico de volume e rotas. É a única tela cujo
-    usuário não é da casa, e por isso a única com DOIS níveis de acesso: o
+    permanência do veículo e histórico de volume e rotas.
+
+    A LISTA É POR DESTINATÁRIO, na ordem da janela de entrega, e traz as duas
+    janelas combinadas (carregamento e entrega), a hora real da chegada e o
+    desvio entre elas. Destinatário, e não cidade: uma rota "ORIGEM → CIDADE"
+    junta numa linha só a montadora e a planta do próprio cliente na mesma
+    cidade, que são docas e janelas diferentes.
+
+    A CARGA NÃO SAI DA LISTA QUANDO CHEGA. Ela fica enquanto estiver no
+    destino e sai quando o fim de descarga é apontado — porque o tempo parado
+    no pátio é parte da operação, e é o que a aba Permanência mede. Até
+    09/09/2026 a carga sumia no instante da chegada, que é justamente quando
+    essa conta começa.
+
+    É a única tela cujo usuário não é da casa, e por isso a única com DOIS
+    níveis de acesso: o
     perfil diz que ela abre, e o vínculo `cliente_cnpj_raiz` do usuário diz
     QUAIS LINHAS aparecem. Quem TEM vínculo é gente do cliente: vê a operação
     dele e não escolhe — se mandar outro cliente na requisição, o servidor
@@ -59,8 +73,10 @@ glossario:
 - termo: Painel TV — Operação do Cliente
   definicao: >-
     A versão de parede da tela Minha Operação, para a sala de operação ou para
-    a planta do cliente: cargas em curso, onde cada uma está, permanência
-    contra o freetime e as cargas por destino. Sem aba e sem tooltip — ninguém
+    a planta do cliente: cargas em curso repartidas em quatro etapas
+    (programada, na origem, em viagem, no destino), a lista por DESTINATÁRIO
+    com a janela de entrega de cada uma, permanência contra o freetime e as
+    cargas por destino. Sem aba e sem tooltip — ninguém
     clica nem passa o mouse numa TV, então cada número se explica no rótulo —
     e com tela cheia pelo botão ⛶. Mostra o MESMO número da tela: lê as mesmas
     rotas, para a parede e o painel nunca discordarem numa reunião. Quem tem
@@ -120,6 +136,42 @@ glossario:
     Carga recém-emitida, ainda sem nenhum apontamento, aparece como "sem
     apontamento" em vez de sumir — antes ela não existia para a tela, e era
     justamente a operação do dia.
+- termo: Estado da carga (apontamento, manifesto, programação)
+  definicao: >-
+    Em que pé a carga está, e DE ONDE veio essa resposta — a tela mostra as
+    duas coisas, porque elas têm confiabilidades diferentes.
+
+    APONTAMENTO é a operação que registrou a passagem (chegou para carregar,
+    saiu, em viagem, chegou para descarga, fim de descarga). É o registro mais
+    fino, e onde ele existe é ele que vale.
+
+    MANIFESTO é o documento fiscal, e responde nas duas pontas em que alguém é
+    OBRIGADO a registrar: autorizado na saída ("em viagem") e encerrado na
+    chegada ("chegou"). Vale quando ninguém apontou. Encerrar o MDF-e é
+    obrigação com prazo que a SEFAZ cobra; apontar o trajeto é rotina que
+    ninguém multa — por isso, entre os dois, o estado vem do obrigatório.
+    Atenção ao que ele NÃO diz: o manifesto encerra quando o veículo CHEGA
+    (medido: 2,4 minutos depois da chegada apontada), não quando a carga é
+    entregue — o fim da descarga vem, em mediana, mais de três horas depois.
+
+    PROGRAMAÇÃO é a carga que ainda não teve confirmação nenhuma: aparece pela
+    janela de carregamento combinada, dizendo para quando ela é. É intenção,
+    não fato, e a tela diz isso.
+- termo: Janela de entrega e desvio
+  definicao: >-
+    A JANELA é a hora combinada para o veículo chegar ao destinatário, como a
+    programação a registrou. A CHEGADA é a hora real. O DESVIO é a diferença
+    entre as duas, em horas, com sinal — positivo é atraso, negativo é chegada
+    antes da janela. Só o atraso ganha cor: chegar antes nem sempre é bom, já
+    que o veículo pode ficar parado esperando doca, que é o que a Permanência
+    mede.
+
+    NÃO EXISTE UM PERCENTUAL DE "NO PRAZO" nesta tela, e a ausência é
+    deliberada. A régua cobre a quase totalidade das cargas e discrimina bem
+    entre destinos, mas a janela é digitada pela NOSSA programação, não é
+    prazo contratado — publicar um percentual num painel que o cliente lê
+    transformaria a nossa própria previsão em compromisso comercial. A tela
+    mostra os dois fatos lado a lado e quem lê tira a conclusão.
 - termo: Permanência (carregamento e descarga)
   definicao: >-
     Tempo entre a chegada e a saída do veículo, medido pelos apontamentos da

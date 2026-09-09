@@ -12,6 +12,199 @@
 
 ---
 
+## A planilha que a torre mantinha à mão era a especificação (2026-09-09)
+
+Quem opera mandou a planilha do controle diário de um cliente e uma frase
+curta: "para ajustar o painel que foi construído, e tem que acrescentar um
+destino — hoje são 3 cargas, e mais 3 veículos atendendo outro destino."
+
+O painel mostrava **4 cargas em curso**. O dia real tinha **36**. E nenhuma das
+três causas era a que o pedido nomeava.
+
+Vale por si o método: **quando existe uma planilha que alguém mantém à mão
+todo dia, ela é a especificação mais confiável que o projeto vai receber.** Ela
+já passou pelo filtro de servir a alguém, já tem as colunas que a operação de
+fato consulta, e — o que mais importa — ela é um ORÁCULO: dá para comparar,
+linha a linha, o que o painel diz com o que a operação sabe. Foi essa
+comparação, e não a leitura do código, que achou os três defeitos.
+
+### 1. A carga sumia ao CHEGAR, não ao ser entregue
+
+Quatro dias antes, esta mesma tela trocou o marco terminal: o encerramento do
+MDF-e passou a fechar a viagem no lugar do apontamento de fim de descarga. A
+medição que sustentou a troca continua verdadeira:
+
+| 45 dias | cobertura |
+|---|---|
+| fim de descarga (SAC 397) | 86,7% |
+| **MDF-e encerrado** | **98,7%** |
+
+e nenhuma carga com 397 tinha manifesto aberto. O encerramento é superconjunto
+estrito do apontamento. Tudo certo — **e a conclusão estava errada**, porque a
+pergunta que decidia não era "quantas?", era "**quando?**". Medida agora, sobre
+724 cargas encerradas:
+
+| | mediana |
+|---|---|
+| encerramento − chegada apontada (396) | **+0,04 h** (2 min 24 s) |
+| fim de descarga (397) − encerramento | **+3,10 h** (p90: +9,33 h) |
+| e o 397 veio DEPOIS do encerramento em | 588 de 641 — **91,7%** |
+
+O manifesto não é encerrado quando a carga é entregue. É encerrado quando o
+veículo **CHEGA**. É um marco de chegada vestido de marco de conclusão — e faz
+sentido que seja assim, porque encerrar o MDF-e é o que se faz ao terminar o
+PERCURSO, e o percurso termina no portão, não na doca.
+
+O efeito no painel era exatamente o inverso do que ele existe para fazer: a
+carga desaparecia da tela do cliente no instante em que encostava na fábrica
+dele, apagando as ~3 horas seguintes de veículo parado esperando doca. Ou
+seja, o portal escondia justamente o assunto que a aba ao lado — Permanência,
+freetime — foi construída para medir. E dizia "concluída" para o caminhão que
+estava dentro do pátio de quem lia a tela.
+
+**A lição, e ela generaliza para além desta tela: cobertura e tempo são duas
+perguntas, e comparar cobertura não licencia uma conclusão sobre ordem.**
+"Fecha tudo que o outro fecha, e mais" responde QUANTAS. Uma pergunta a mais na
+mesma consulta — "e quanto tempo depois?" — teria mostrado isto quatro dias
+antes, sem nenhum dado novo. Quando um registro vai substituir outro como
+gatilho de estado, medir as DUAS coisas: se ele cobre, e se ele acontece no
+mesmo momento.
+
+O conserto não foi voltar ao 397. O encerramento continua sendo a melhor
+resposta para **quando a carga chegou** — só deixou de ser resposta para
+"acabou". A carga sai da tela quando a descarga é apontada, ou depois de uma
+folga de 12 h contada da chegada, para as 11,5% que nunca recebem o
+apontamento. O teto veio da distribuição: 12 h deixam 93% dos apontamentos que
+ainda viriam chegarem a tempo de fechar a carga pelo EVENTO, e só o resto fecha
+pelo relógio.
+
+### 2. Dois estados existiam em dois lugares e eram inalcançáveis em dois outros
+
+`MARCOS` e `ORDEM`, no módulo, declaravam oito marcos — inclusive **398
+(aguardando carregamento)** e **399 (aguardando descarga)**. O `AGORA_SQL` lia
+`IN (394,395,396,397,400,401)`, e a função que escolhe o marco não tinha coluna
+para eles. Dois estados declarados em dois lugares, ausentes em dois outros.
+
+Não havia sintoma. A tela funcionava, os outros seis estados apareciam, e o
+único jeito de perceber era ler as quatro listas lado a lado. E um deles era
+"aguardando descarga" — o estado que mais dói num cliente industrial, e que a
+planilha da torre registra o dia inteiro ("aguardando no gate", "aguardando
+descarga na linha final").
+
+**Declarar não é ler.** Uma constante em Python não traz linha do banco, e a
+divergência entre a declaração e a consulta não levanta erro: produz estado que
+nunca aparece. É a mesma família das listas escritas à mão que a casa já
+conhece, com um agravante — aqui a lista estava CERTA, e quem estava errado era
+o consumidor dela. Agora há `COLUNA` (o terceiro registro, que diz de que
+coluna cada marco sai) e guards que cobram as três listas uma contra a outra,
+que o `IN` do SQL contenha todos os códigos declarados, que cada coluna
+declarada exista no SELECT, e que cada marco seja ALCANÇÁVEL a partir da linha
+crua — este último parametrizado sobre a lista inteira, porque sabotar um
+parâmetro prova o mecanismo e não prova os outros.
+
+### 3. O manifesto AUTORIZADO põe na estrada a carga que ninguém apontou
+
+Uma das três cargas do pedido não tinha apontamento de trajeto nenhum — só uma
+ocorrência de "vale pedágio", que é administrativa. Para o painel ela era
+"sem apontamento". Para a planilha da torre ela estava em viagem, com cidade e
+tudo. Quem tinha razão era a planilha, e a prova estava no ERP: o MDF-e dela
+estava **autorizado**.
+
+`situacaomdfe` não tem tabela de domínio, então foi medido (75 dias):
+
+| valor | n | o que é |
+|---|---|---|
+| 7 | 7.060 | encerrado — todos com `dtencerramento` |
+| 6 | 241 | cancelado — todos com `dtcancelamento` |
+| **3** | **52** | **autorizado** — todos com protocolo, idade média 26 h |
+| 2 | 19 | sem protocolo — idade média 1.164 h, lixo antigo |
+
+O 3 é a fila do que está na estrada: nenhum cancelado, todos com protocolo da
+SEFAZ, e idade média de um dia, que é a duração de uma viagem desta operação.
+
+É a **mesma regra que já estava escrita no módulo**, aplicada à outra ponta:
+autorizar o MDF-e é ato fiscal obrigatório na saída; apontar o trajeto é rotina
+que ninguém multa. A regra "entre um registro obrigatório e um desejável, o
+estado vem do obrigatório" já valia para o fim da viagem e ninguém tinha
+pensado no começo. **Regra boa costuma valer no espelho — quando uma delas
+resolve uma ponta, perguntar o que ela diz da outra.**
+
+### 4. A régua de pontualidade tinha medido a coluna vazia
+
+Esta é a que mais incomoda, porque a crônica de 05/09 (logo abaixo desta) é uma
+peça de método sobre não publicar indicador falso, e a decisão dela estava
+certa — sobre a coluna errada.
+
+`dtprevisaoentrega` foi medida e reprovada: igual à emissão em 80,3% das
+cargas, régua de verdade cobrindo 8,7% da operação. Conclusão: pontualidade não
+se publica. Só que, nesta operação, **`dtprevisaoentrega` está NULL em 100% das
+742 cargas de 45 dias**. Ela nunca foi preenchida. Uma régua medida sobre uma
+coluna vazia mede o vazio.
+
+A janela de verdade estava em `dtprevisaochegadaviagem`, que ninguém tinha
+olhado, e ela passa em todos os testes que a outra reprovou:
+
+| teste | resultado |
+|---|---|
+| preenchida | 742 de 742 |
+| igual à previsão de saída (seria cópia) | 1 — **0,1%** |
+| valores distintos de folga sobre a saída | **93** — não é constante |
+| mediana da folga | 3,00 h (p10 2 h, p90 13 h) |
+| com chegada também registrada (a régua cobre isto) | **89,6%** |
+
+E a prova que decidiu não veio do banco: veio da planilha. A coluna do ERP
+bateu **no minuto** com a "janela de entrega" que a torre anota à mão, em todos
+os pedidos conferidos. É a mesma janela que a operação combina por telefone.
+
+**A lição: antes de concluir que um indicador não é medível, conferir se a
+coluna está PREENCHIDA — e procurar as vizinhas.** "Cobre 8,7%" e "está vazia"
+levam à mesma decisão e são diagnósticos completamente diferentes: o primeiro
+diz que o dado é ruim, o segundo diz que se olhou no lugar errado. Um campo com
+o nome óbvio (`dtprevisaoentrega`) estava morto ao lado de um com o nome menos
+óbvio (`dtprevisaochegadaviagem`) que a operação usa todo dia.
+
+**E mesmo com a régua boa, o KPI não entrou.** Decisão de quem opera, tomada
+com o número na mesa: ela cobre 89,6% e discrimina de verdade entre destinos
+(de 99,3% num deles a 54,1% em outro). O que segurou não foi a cobertura — foi
+a **procedência**: a janela é digitada pelo nosso próprio programador. Publicar
+"94% no prazo" num painel que o cliente lê transforma a nossa previsão em
+compromisso contratual, e ele fecha conta em cima de uma régua que nós mesmos
+escrevemos. A tela mostra os dois FATOS lado a lado — a janela e a hora real da
+chegada, com o desvio calculado — e quem lê tira a conclusão. **Régua nossa
+publicada como nota vira promessa; publicada como fato continua sendo fato.**
+
+### 5. "Acrescentar um destino" não era expressável
+
+O pedido literal — acrescentar um destinatário ao painel — era o único dos
+quatro achados que não era um defeito, e era o mais simples: **a tela não tinha
+destinatário**. Ela mostrava a rota por CIDADE, e uma rota "ORIGEM → CIDADE"
+junta numa linha só a montadora e a planta do próprio cliente na mesma cidade —
+duas docas, duas janelas, dois contatos. Não havia como pedir "me mostre este
+destino" porque a tela não sabia o que era um destino.
+
+Destinatário **determina** a cidade, e não o contrário: trocar o agrupamento
+por ele é estritamente mais informativo, nunca menos. A barra do painel passou
+a ser uma pilha por destinatário com as etapas do trajeto, que é a planilha da
+torre desenhada.
+
+### 6. E a decisão de esconder, revertida três dias depois
+
+Em 06/09 a carga sem apontamento saiu do painel do cliente, por decisão de quem
+opera, com o custo escrito na crônica abaixo. Em 09/09 ela voltou, pela mesma
+pessoa — e **o que mudou não foi a opinião sobre esconder, foi o que a tela
+tinha a dizer**. Antes ela só sabia dizer "não sabemos por onde anda", que é
+processo nosso. Agora a linha diz "carrega às 18h, para tal destino": a janela e
+o destinatário são compromisso assumido com quem espera a carga, e escondê-los
+fazia o painel mostrar menos que a planilha que a torre mantinha à mão.
+
+**Decisão de produto tem premissa, e a premissa envelhece.** "Esconder o que
+não sabemos explicar" continua certo; o que mudou é que passamos a saber
+explicar. Vale reabrir uma decisão quando o que a sustentava deixa de valer — e
+vale escrever a premissa junto da decisão, que foi o que permitiu reabri-la sem
+discussão.
+
+---
+
 ## O portal do cliente e o indicador que não existia (2026-09-05)
 
 A tela `cliop` ("Minha Operação") nasceu de um pedido curto — "um painel para

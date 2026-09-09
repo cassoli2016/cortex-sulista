@@ -4494,7 +4494,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                nao leitura -- quem precisa de linha a linha abre a tela. -->
           <div class="tv-card tv-wide" style="grid-column:span 2">
             <div class="tv-label">Cargas em curso — onde estão agora</div>
-            <table class="tv-tab"><thead><tr><th>Coleta</th><th>Rota</th><th>Veículo</th><th>Situação</th><th>Previsão</th></tr></thead>
+            <table class="tv-tab"><thead><tr><th>Coleta</th><th>Destinatário</th><th>Veículo</th><th>Situação</th><th>Entrega</th></tr></thead>
             <tbody id="tvcli-cargas"></tbody></table>
             <div class="tv-sub" id="tvcli-cargas-sub"></div>
           </div>
@@ -6541,9 +6541,9 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </div>
           </div>
           <div class="card">
-            <div class="head"><h2>Cargas em curso <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="As cargas da sua operação que ainda não tiveram FIM DE DESCARGA registrado, na janela dos últimos 45 dias. O estado vem do evento que a operação registrou (chegada para carregamento, saída, em viagem, chegada para descarga), nunca da falta de uma data. Carga sem nenhum evento registrado não aparece aqui — ela não some, ela ainda não foi apontada.">i</span></h2><span class="hint" id="cliop-agora-hint"></span></div>
+            <div class="head"><h2>Cargas em curso <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="As cargas da sua operação que ainda não tiveram FIM DE DESCARGA registrado, na janela dos últimos 45 dias, na ordem da janela de entrega. O estado vem do que foi REGISTRADO, nunca da falta de uma data, e cada linha diz de onde ele veio: 'apontamento' é a operação que registrou a passagem; 'manifesto' é o documento fiscal (autorizado na saída, encerrado na chegada), que vale quando ninguém apontou; 'programação' é a carga que ainda não teve confirmação nenhuma e aparece pela janela combinada. A carga NÃO sai da lista quando chega: ela fica enquanto estiver no destino, porque o tempo parado no pátio é parte da operação — sai quando o fim de descarga é apontado. As duas janelas são as combinadas com a operação; a chegada é a hora real, e o desvio é a diferença entre as duas.">i</span></h2><span class="hint" id="cliop-agora-hint"></span></div>
             <div class="tablewrap tabroll" style="max-height:520px"><table><thead><tr>
-              <th>Coleta</th><th>Rota</th><th>Veículo</th><th>Situação</th><th>Desde</th>
+              <th>Coleta</th><th>Destinatário</th><th>Veículo</th><th>Carregamento</th><th>Entrega</th><th>Chegada</th><th>Situação</th>
             </tr></thead><tbody id="cliop-agora"></tbody></table></div>
           </div>
         </div>
@@ -14597,12 +14597,15 @@ function tvCliChip(rotulo, n, cor){
 const TVCLI_LINHAS = 5;
 
 const TVCLI_MARCO_CURTO = {
+  'Programada':                'Programada',
   'Chegada para carregamento': 'Na origem',
   'Aguardando carregamento':   'Aguard. carga',
   'Saída do carregamento':     'Saiu da origem',
   'Em viagem':                 'Em viagem',
   'Chegada para descarga':     'No destino',
   'Aguardando descarga':       'Aguard. descarga',
+  'Fim de descarga':           'Descarregada',
+  'Viagem finalizada':         'Finalizada',
 };
 
 async function loadTvCli(){
@@ -14658,13 +14661,17 @@ async function loadTvCli(){
     tvCliOk = true;
 
     const cargas = dA.cargas || [];
-    const por = {};
-    cargas.forEach(function(c){ por[c.marco] = (por[c.marco] || 0) + 1; });
-    const emViagem   = por['Em viagem'] || 0;
-    const naDescarga = (por['Chegada para descarga'] || 0) + (por['Aguardando descarga'] || 0);
-    const naOrigem   = (por['Chegada para carregamento'] || 0)
-                     + (por['Aguardando carregamento'] || 0)
-                     + (por['Sa\u00edda do carregamento'] || 0);
+    /* POR CODIGO, e nao pelo rotulo: contar por `c.marco` obrigava a listar
+       'Saida do carregamento' com e sem acento para nao perder a etapa, e um
+       rotulo reescrito no ERP zeraria um numero da parede em silencio. */
+    const conta = function(){
+      const ids = Array.prototype.slice.call(arguments);
+      return cargas.filter(function(c){ return ids.indexOf(c.marco_cod) >= 0; }).length;
+    };
+    const programadas = conta(0);
+    const emViagem    = conta(400);
+    const naDescarga  = conta(396, 399, 397);
+    const naOrigem    = conta(394, 398, 395);
     const total = dA.em_curso || 0;
 
     /* O TITULO nomeia o cliente. Painel de cliente que nao diz QUAL cliente e
@@ -14675,14 +14682,23 @@ async function loadTvCli(){
     /* HEROI: o total grande, e as etapas ao lado como chips. Cada chip leva o
        NUMERO junto da cor -- sem tooltip numa TV, cor sozinha nao diz nada. */
     document.getElementById('tvcli-hero').textContent = total.toLocaleString('pt-BR');
-    /* CARGA SEM APONTAMENTO NAO APARECE no painel do cliente (06/09/2026):
-       o que o portal teria a dizer sobre ela e "nao sabemos por onde anda", e
-       isso e processo nosso, nao informacao do cliente. O servidor tambem ja
-       a tira da lista; aqui as etapas sao so as tres do trajeto. */
+    /* QUATRO ETAPAS desde 09/09/2026. A carga PROGRAMADA voltou ao painel: ela
+       saiu em 06/09 porque o portal so sabia dizer "nao sabemos por onde
+       anda", e voltou porque passou a dizer outra coisa -- a janela de
+       carregamento combinada, que e compromisso com quem espera a carga.
+       O CINZA E DE PROPOSITO, e nao um lugar no semaforo: programada nao e
+       boa nem ruim, e ainda nao aconteceu. Verde/ambar seguem valendo so para
+       as etapas que ja estao acontecendo. */
     const etapas = [
-      ['Em viagem',  emViagem,   '#4ADE80'],
-      ['No destino', naDescarga, '#FBBF24'],
-      ['Na origem',  naOrigem,   '#8FA6BC'],
+      ['Em viagem',   emViagem,    '#4ADE80'],
+      ['No destino',  naDescarga,  '#FBBF24'],
+      /* AS DUAS ETAPAS FRIAS TROCAM DE TOM, e nao podem repetir: "na origem"
+         usava o mesmo #8FA6BC que agora cabe melhor em "programada", e duas
+         faixas da barra empilhada com a cor identica se leem como uma faixa
+         so. Numa parede, sem tooltip, cor repetida nao tem como ser desfeita
+         por quem olha. O mais APAGADO fica com o que ainda nao aconteceu. */
+      ['Na origem',   naOrigem,    TVCLI_TINTA],
+      ['Programadas', programadas, TVCLI_CINZA],
     ];
     document.getElementById('tvcli-etapas').innerHTML = etapas.map(function(e){
       return tvCliChip(e[0], e[1], e[2]);
@@ -14827,7 +14843,22 @@ async function loadTvCli(){
           const d0 = new Date();
           const agora = hoje + ' ' + String(d0.getHours()).padStart(2,'0')
                              + ':' + String(d0.getMinutes()).padStart(2,'0');
-          return cargas.slice(0, TVCLI_LINHAS).map(function(c){
+          /* A PAREDE PERGUNTA "O QUE ENCOSTA NA DOCA AGORA", e a ordem do
+             servidor nao responde isso. Ele entrega a operacao em ordem
+             CRONOLOGICA da janela de entrega -- que e a ordem certa para a
+             tela, onde a lista rola inteira, e a errada para cinco linhas
+             numa parede: as cinco primeiras seriam as de janela mais ANTIGA,
+             isto e, as que ja chegaram e as que ficaram para tras.
+             Aqui as que ainda NAO chegaram vem primeiro, na ordem em que se
+             espera cada uma; as que ja estao no destino vao para o fim, onde
+             continuam visiveis, e o cartao de parados ao lado ja e dedicado a
+             elas. Dentro de cada grupo, a janela decide. */
+          const fila = cargas.slice().sort(function(a, b){
+            const ca = a.chegada ? 1 : 0, cb = b.chegada ? 1 : 0;
+            if(ca !== cb) return ca - cb;
+            return (a.janela_entrega || '') < (b.janela_entrega || '') ? -1 : 1;
+          });
+          return fila.slice(0, TVCLI_LINHAS).map(function(c){
             /* A PREVISAO so existe para quem ja saiu: antes disso nao ha de
                onde contar, e travessao e mais honesto que hora inventada.
                O DIA vem junto da hora -- numa parede, "09:45" sozinho e lido
@@ -14848,11 +14879,23 @@ async function loadTvCli(){
                 + (c.eta.slice(0,10) === hoje ? 'hoje' : fmtD(c.eta.slice(0,10)))
                 + '</span>'
               : '<span style="color:#8FA6BC">\u2014</span>';
+            /* A JANELA DE ENTREGA no lugar da previsao estimada, quando ela
+               existe. As duas respondem "quando chega", e a janela ganha por
+               ser COMBINADA: a estimativa e a mediana do nosso historico, e
+               metade das viagens passa dela por definicao -- numa parede isso
+               vira promessa. A estimativa fica de reserva para a carga sem
+               janela. `venceu` continua acendendo pelo mesmo criterio. */
+            const jan = c.janela_entrega;
+            const quando = jan
+              ? '<span style="color:' + (jan < agora && !c.chegada ? '#FBBF24' : '#E5EDF4') + '">'
+                + jan.slice(11) + '</span> <span style="color:#8FA6BC">'
+                + (jan.slice(0,10) === hoje ? 'hoje' : fmtD(jan.slice(0,10))) + '</span>'
+              : eta;
             return '<tr><td>' + esc(String(c.coleta)) + '</td>'
-              + '<td>' + esc(c.origem + '/' + c.uf_origem + ' \u2192 ' + c.destino + '/' + c.uf_destino) + '</td>'
+              + '<td>' + esc(c.destinatario || (c.destino + '/' + c.uf_destino)) + '</td>'
               + '<td>' + esc(c.placa || '\u2014') + '</td>'
               + '<td>' + esc(TVCLI_MARCO_CURTO[c.marco] || c.marco) + '</td>'
-              + '<td>' + eta + '</td></tr>';
+              + '<td>' + quando + '</td></tr>';
           }).join('');
         })()
       : '<tr><td colspan="5">nenhuma carga em curso</td></tr>';
@@ -24450,59 +24493,96 @@ async function loadCliop(){
        em que a lista falhasse. */
     document.getElementById('cliop-seletor').hidden = !!d.travado;
     const cargas = d.cargas || [];
-    /* Contagem por marco, para a banda de KPI. O nome do marco vem do
-       SERVIDOR, que o leu da tabela de dominio do ERP -- a tela nao traduz
-       codigo nenhum, justamente para nao inventar rotulo. */
-    const por = {};
-    cargas.forEach(function(c){ por[c.marco] = (por[c.marco] || 0) + 1; });
-    const emViagem = por['Em viagem'] || 0;
-    const naDescarga = (por['Chegada para descarga'] || 0) + (por['Aguardando descarga'] || 0);
-    const noCarreg = (por['Chegada para carregamento'] || 0)
-                   + (por['Aguardando carregamento'] || 0)
-                   + (por['Saida do carregamento'] || 0)
-                   + (por['Sa\u00edda do carregamento'] || 0);
+    /* AS ETAPAS SAEM DO CODIGO, E NAO DO ROTULO. A versao anterior contava por
+       `c.marco`, que e o TEXTO da tabela de dominio do ERP -- e por isso
+       precisava listar 'Saida do carregamento' duas vezes, com e sem acento,
+       para nao perder a etapa. Contar por `marco_cod` acaba com a classe
+       inteira: o codigo e o mesmo em qualquer grafia, e um rotulo reescrito
+       no ERP deixa de poder zerar um KPI em silencio. */
+    const conta = function(){
+      const ids = Array.prototype.slice.call(arguments);
+      return cargas.filter(function(c){ return ids.indexOf(c.marco_cod) >= 0; }).length;
+    };
+    const programadas = conta(0);
+    const noCarreg    = conta(394, 398, 395);
+    const emViagem    = conta(400);
+    const naDescarga  = conta(396, 399, 397);
     document.getElementById('kpis-cliop').innerHTML = [
       kpi('Cargas em curso', (d.em_curso || 0).toLocaleString('pt-BR'),
-          'manifesto ainda não encerrado', ''),
+          'até o fim da descarga', ''),
       kpi('Em viagem', emViagem.toLocaleString('pt-BR'), 'a caminho do destino', ''),
       kpi('No destino', naDescarga.toLocaleString('pt-BR'),
-          'chegou e aguarda ou esta em descarga', ''),
-      kpi('Na origem', noCarreg.toLocaleString('pt-BR'), 'carregando ou pronto para sair', ''),
+          'chegou e aguarda ou está em descarga', ''),
+      /* PROGRAMADAS no lugar de "na origem", que nesta operacao e quase sempre
+         zero -- a passagem de chegada para saida do carregamento leva minutos,
+         e um KPI que marca zero o dia inteiro nao informa nada. O que decide
+         o dia de quem espera a carga e o que AINDA VAI carregar, que tem
+         janela combinada. Quem esta na origem continua na tabela e na barra
+         por destino, e o rodape do proprio cartao diz quantos sao. */
+      kpi('Programadas', programadas.toLocaleString('pt-BR'),
+          noCarreg ? (noCarreg + ' já na origem') : 'ainda não carregaram', ''),
     ].join('');
     abaContador('abancliopAgora', d.em_curso || 0);
     document.getElementById('cliop-agora-hint').innerHTML =
       esc('janela de ' + (d.janela_dias || 45) + ' dias \u00b7 '
           + (d.concluidas_na_janela || 0) + ' concluidas no periodo') + cliopTarja(d);
     document.getElementById('cliop-agora').innerHTML = cargas.length ? cargas.map(function(c){
+      /* A CIDADE VAI DEBAIXO DO DESTINATARIO, e nao no lugar dele. O nome
+         responde "para quem", que e o que a operacao pergunta; a cidade
+         desempata destinos homonimos e continua acessivel sem ocupar coluna. */
+      const dest = '<b>' + esc(c.destinatario || '\u2014') + '</b>'
+        + '<div class="hint">' + esc(c.destino + '/' + c.uf_destino) + '</div>';
+      /* A FONTE DO ESTADO fica visivel, em cinza, embaixo do rotulo. Um
+         estado vindo do manifesto e grosso (chegou, sem hora de doca) e um
+         vindo da programacao e INTENCAO, nao fato -- e quem le tem de poder
+         separar os tres sem abrir a documentacao. */
+      const sit = esc(c.marco)
+        + '<div class="hint">' + esc(c.marco_fonte || '')
+        + (c.marco_em ? ' \u00b7 ' + esc(_cliopQuando(c.marco_em)) : '') + '</div>';
       return '<tr><td class="num">' + esc(String(c.coleta)) + '</td>'
-        + '<td>' + esc(c.origem + '/' + c.uf_origem + ' \u2192 ' + c.destino + '/' + c.uf_destino) + '</td>'
+        + '<td>' + dest + '</td>'
         + '<td>' + esc(c.placa || '\u2014') + '</td>'
-        + '<td>' + esc(c.marco) + '</td>'
-        + '<td>' + esc(c.marco_em || '\u2014') + '</td></tr>';
+        + '<td>' + _cliopJanela(c.janela_carga) + '</td>'
+        + '<td>' + _cliopJanela(c.janela_entrega) + '</td>'
+        + '<td>' + _cliopChegada(c) + '</td>'
+        + '<td>' + sit + '</td></tr>';
     }).join('')
-      : '<tr><td colspan="5" style="color:var(--n500)">nenhuma carga em curso na janela</td></tr>';
+      : '<tr><td colspan="7" style="color:var(--n500)">nenhuma carga em curso na janela</td></tr>';
 
-    /* Cargas em curso POR ROTA. Barras ordenadas do maior para o menor, sem
-       top-N: numa operacao concentrada (25 rotas no ano, a maior com 41% do
-       volume) o que esta no ar agora sao poucas rotas, e cortar a cauda
-       esconderia justamente a carga solta que ninguem esta olhando. */
-    const porRota = {};
-    cargas.forEach(function(c){
-      const k = c.origem + '/' + c.uf_origem + ' \u2192 ' + c.destino + '/' + c.uf_destino;
-      porRota[k] = (porRota[k] || 0) + 1;
-    });
-    const pares = Object.keys(porRota).map(function(k){ return [k, porRota[k]]; })
-                        .sort(function(a, b){ return b[1] - a[1]; });
-    const maxR = Math.max.apply(null, [1].concat(pares.map(function(x){ return x[1]; })));
+    /* CARGAS EM CURSO POR DESTINATARIO, empilhadas pela etapa do trajeto.
+       Substitui o agrupamento por ROTA, que era ambiguo por construcao: uma
+       rota "ORIGEM -> CIDADE" reune numa barra so a montadora e a planta do
+       proprio cliente na mesma cidade, que tem docas e janelas diferentes.
+       Destinatario DETERMINA a cidade, e nao o contrario.
+       O agrupado vem do SERVIDOR (`por_destinatario`): e ele que ja sabe qual
+       codigo pertence a qual etapa, e refazer a classificacao aqui criaria
+       duas reguas para a mesma pergunta.
+       Sem top-N: numa operacao de linha sao poucos destinos no ar ao mesmo
+       tempo, e cortar a cauda esconderia o destino com uma carga so -- que e
+       justamente o que ninguem esta olhando. */
+    const dests = d.por_destinatario || [];
+    const maxR = Math.max.apply(null, [1].concat(dests.map(function(x){ return x.cargas; })));
     document.getElementById('cliop-agora-rotas-hint').textContent =
-      pares.length ? pares.length + ' rota(s) com carga em curso' : '';
-    ecDesenhar('chartCliopAgora', pares.length ? function(){
-      const o = ecOpcoes(pares.map(function(x){ return x[0]; }), maxR,
+      dests.length ? dests.length + ' destino(s) com carga em curso' : '';
+    ecDesenhar('chartCliopAgora', dests.length ? function(){
+      const o = ecOpcoes(dests.map(function(x){ return x.destinatario; }), maxR,
                          {sombra:true, left:56, bottom:56});
       o.xAxis.axisLabel = Object.assign({}, o.xAxis.axisLabel || {},
-        {interval:0, rotate: pares.length > 4 ? 22 : 0, fontSize:10});
-      o.series = [ecBarras('Cargas', pares.map(function(x){ return x[1]; }),
-                           CC.navy400, {largura:38})];
+        {interval:0, rotate: dests.length > 4 ? 22 : 0, fontSize:10,
+         formatter: function(v){ return v.length > 18 ? v.slice(0, 17) + '\u2026' : v; }});
+      /* A ORDEM DAS SERIES E A DO TRAJETO, de baixo para cima: o que ainda
+         nao saiu fica na base e o que ja chegou no topo, para a barra se ler
+         como a viagem. Serie zerada continua na legenda de proposito -- some
+         da barra sozinha, e tirar da legenda faria a cor mudar de significado
+         entre um destino e outro. */
+      const etapas = [['programadas', 'Programadas', CC.n300],
+                      ['na_origem',   'Na origem',   CC.navy700],
+                      ['em_viagem',   'Em viagem',   CC.navy400],
+                      ['no_destino',  'No destino',  CC.laranja]];
+      o.series = etapas.map(function(e){
+        return ecBarras(e[1], dests.map(function(x){ return x[e[0]] || 0; }),
+                        e[2], {empilhar: 'etapa', largura: 46, raio: false});
+      });
       o.yAxis = ecEixoValor(maxR, 'contagem');
       return o;
     } : null, 'nenhuma carga em curso na janela');
@@ -24520,6 +24600,46 @@ function _cliopV(id){ const e = document.getElementById(id); return e ? e.value 
 
 function _cliopCel(v, suf){
   return v != null ? (v + (suf || '')) : '<span style="color:var(--n500)">n/d</span>';
+}
+
+/* "AAAA-MM-DD HH:MM" -> "DD/MM HH:MM", e so "HH:MM" quando e HOJE.
+   O DIA VAI JUNTO quando nao e hoje, e isso nao e enfeite: numa lista que
+   atravessa a madrugada, "06:00" sozinho se le como hoje de manha, e a carga
+   que carrega amanha as 6h aparece como se ja estivesse atrasada. */
+function _cliopQuando(iso){
+  if(!iso) return '';
+  const hoje = _iso(new Date());
+  return iso.slice(0, 10) === hoje ? iso.slice(11)
+       : iso.slice(8, 10) + '/' + iso.slice(5, 7) + ' ' + iso.slice(11);
+}
+
+/* Uma janela combinada. Travessao quando nao ha -- nunca zero nem vazio, que
+   numa coluna de hora se leem como meia-noite e como erro de tela. */
+function _cliopJanela(iso){
+  return iso ? esc(_cliopQuando(iso))
+             : '<span style="color:var(--n500)">\u2014</span>';
+}
+
+/* A CHEGADA REAL, com o desvio contra a janela embaixo.
+   SO O FATO: sai a hora e a diferenca em horas, com sinal. Nao sai "no prazo"
+   nem percentual -- decisao de quem opera (09/09/2026), e a razao nao e a
+   cobertura da regua (que e boa) e sim a PROCEDENCIA dela: a janela e digitada
+   pelo nosso proprio programador, e publicar um percentual num painel que o
+   cliente le transforma a nossa previsao em compromisso contratual.
+   A COR marca so o ATRASO. Adiantado nao ganha verde: chegar antes da janela
+   nem sempre e bom (o veiculo pode ficar parado no patio esperando doca, que e
+   o que a aba de Permanencia mede), e pintar de verde diria o contrario. */
+function _cliopChegada(c){
+  if(!c.chegada) return '<span style="color:var(--n500)">\u2014</span>';
+  const d = c.desvio_h;
+  let sub = esc(c.chegada_fonte || '');
+  if(d != null){
+    const atrasou = d > 0.25;
+    const txt = (d > 0 ? '+' : '') + d.toLocaleString('pt-BR', {maximumFractionDigits:1}) + 'h';
+    sub = '<b style="color:' + (atrasou ? 'var(--red)' : 'var(--n500)') + '">'
+        + esc(txt) + '</b> \u00b7 ' + sub;
+  }
+  return esc(_cliopQuando(c.chegada)) + '<div class="hint">' + sub + '</div>';
 }
 
 async function cliopPermanencia(){

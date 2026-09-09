@@ -125,6 +125,40 @@ MARCOS = {
 #: operação, nunca de "não tem data de entrega".
 ORDEM = [394, 398, 395, 400, 396, 399, 397, 401]
 
+#: A COLUNA de cada marco na linha crua. É esta lista, e não `MARCOS`, que diz
+#: o que o SQL precisa trazer — e é ela que denuncia código morto: até
+#: 09/09/2026 o 398 e o 399 estavam em `MARCOS` e em `ORDEM`, o `AGORA_SQL`
+#: lia `IN (394,395,396,397,400,401)` e `_marco()` não tinha coluna para eles.
+#: Dois estados que a tela nunca mostrou, sem erro nenhum: "aguardando
+#: descarga" — o estado que mais dói no cliente — era letra morta em três
+#: lugares ao mesmo tempo. `tests/test_portal_cliente.py` agora cobra as três
+#: listas uma contra a outra, que é o que impede a quarta.
+COLUNA = {394: "t_cheg_carga", 398: "t_aguard_carga", 395: "t_saiu_carga",
+          400: "t_viagem", 396: "t_cheg_desc", 399: "t_aguard_desc",
+          397: "t_fim_desc", 401: "t_finalizada"}
+
+#: PROGRAMADA — a carga que existe e ainda não teve marco nenhum. Não é uma
+#: ocorrência do ERP e por isso não está em `MARCOS`: é a ausência de todas
+#: elas, com a janela de carregamento ao lado dizendo para quando ela é.
+#:
+#: Ela some da tela em 06/09/2026 e volta em 09/09/2026, e a diferença entre
+#: as duas decisões é o que a tela tinha a dizer. Antes: "não sabemos por onde
+#: anda" — processo nosso, não informação do cliente. Agora, com a janela de
+#: carregamento e o destinatário na linha, ela diz "carrega às 18h, para a
+#: destino X", que é exatamente o que a planilha da operação registra à mão.
+PROGRAMADA = 0
+
+#: Quanto tempo a carga fica na tela depois de CHEGAR, esperando o apontamento
+#: de fim de descarga que pode nunca vir.
+#:
+#: MEDIDO em 45 dias de uma operação de linha (742 cargas): o fim de descarga
+#: (397) chega em mediana 3h21 depois do encerramento do MDF-e, p90 9h20; e
+#: 11,5% das cargas com manifesto encerrado NUNCA recebem o 397. Sem teto,
+#: essas ficariam no painel para sempre; com teto de 12h, 93% dos apontamentos
+#: que ainda viriam chegam a tempo de fechar a carga pelo evento, e o resto
+#: fecha pelo relógio.
+FOLGA_DESCARGA_H = 12.0
+
 
 class SemEscopo(Exception):
     """Usuário sem vínculo de cliente pediu dado do portal.
@@ -303,13 +337,15 @@ AGORA_SQL = """
 WITH ev AS (
   SELECT grupo,empresa,filial,unidade,diferenciadornumero,serie,numero,
     min(CASE WHEN ocorrencia=394 THEN dtocorrencia END) AS cc,
+    min(CASE WHEN ocorrencia=398 THEN dtocorrencia END) AS ac,
     max(CASE WHEN ocorrencia=395 THEN dtocorrencia END) AS sc,
     max(CASE WHEN ocorrencia=400 THEN dtocorrencia END) AS ev,
     min(CASE WHEN ocorrencia=396 THEN dtocorrencia END) AS cd,
+    min(CASE WHEN ocorrencia=399 THEN dtocorrencia END) AS ad,
     max(CASE WHEN ocorrencia=397 THEN dtocorrencia END) AS fd,
     max(CASE WHEN ocorrencia=401 THEN dtocorrencia END) AS vf
   FROM coleta_ocorrencia
-  WHERE ocorrencia IN (394,395,396,397,400,401)
+  WHERE ocorrencia IN (394,395,396,397,398,399,400,401)
     AND dtocorrencia >= current_date - %(dias)s
   GROUP BY 1,2,3,4,5,6,7),
 -- O MANIFESTO, agregado de UMA vez em vez de consultado por carga.
@@ -332,6 +368,8 @@ mdf AS (
          cc.seriedocumento               AS serie,
          cc.numerodocumento              AS numero,
          max(CASE WHEN me.situacaomdfe = 7 THEN 1 ELSE 0 END) AS encerrado,
+         -- SITUAÇÃO 3 = AUTORIZADO EM CURSO. Ver SITUACAO_MDFE, abaixo.
+         max(CASE WHEN me.situacaomdfe = 3 THEN 1 ELSE 0 END) AS autorizado,
          max(me.dtencerramento)                               AS encerrado_em
   FROM manifestoeletronico me
   JOIN manifestoeletronico_composicao mec
@@ -352,13 +390,31 @@ SELECT c.numero AS coleta,
        upper(trim(coalesce(c.destino,''))) AS destino,
        coalesce(c.ufdestino,'')                  AS uf_destino,
        trim(coalesce(c.veiculo,''))              AS placa,
+       -- QUEM RECEBE A CARGA, e não só a cidade. "CRUZEIRO → RESENDE/RJ" é a
+       -- montadora E a planta do próprio cliente na mesma cidade: dois
+       -- destinatários, duas docas, duas janelas, uma linha só na tela. É por
+       -- isso que "acrescentar um destino" não era sequer expressável antes —
+       -- ele aparecia como a CIDADE, junto com quem mais fosse para lá.
+       -- O NOME sai do `nomefantasia` PRIMEIRO, ao contrário do seletor de
+       -- clientes: lá a raiz é a empresa e o fantasia traria a filial no nome;
+       -- aqui a filial é justamente o que se quer, e é como quem opera chama
+       -- cada destino.
+       coalesce(nullif(trim(cdd.nomefantasia),''),
+                nullif(trim(cdd.razaosocial),''), '')     AS destinatario_nome,
+       -- As duas janelas. Por que `dtprevisaochegadaviagem` e não
+       -- `dtprevisaoentrega`: ver JANELA_DE_ENTREGA, logo abaixo da consulta.
+       to_char(c.dtcoletar,'YYYY-MM-DD HH24:MI')               AS janela_carga,
+       to_char(c.dtprevisaochegadaviagem,'YYYY-MM-DD HH24:MI') AS janela_entrega,
        to_char(ev.cc,'YYYY-MM-DD HH24:MI') AS t_cheg_carga,
+       to_char(ev.ac,'YYYY-MM-DD HH24:MI') AS t_aguard_carga,
        to_char(ev.sc,'YYYY-MM-DD HH24:MI') AS t_saiu_carga,
        to_char(ev.ev,'YYYY-MM-DD HH24:MI') AS t_viagem,
        to_char(ev.cd,'YYYY-MM-DD HH24:MI') AS t_cheg_desc,
+       to_char(ev.ad,'YYYY-MM-DD HH24:MI') AS t_aguard_desc,
        to_char(ev.fd,'YYYY-MM-DD HH24:MI') AS t_fim_desc,
        to_char(ev.vf,'YYYY-MM-DD HH24:MI') AS t_finalizada,
        coalesce(mdf.encerrado, 0)                     AS mdfe_encerrado,
+       coalesce(mdf.autorizado, 0)                    AS mdfe_autorizado,
        to_char(mdf.encerrado_em,'YYYY-MM-DD HH24:MI') AS mdfe_em
 FROM coleta c
 LEFT JOIN ev ON ev.grupo=c.grupo AND ev.empresa=c.empresa AND ev.filial=c.filial
@@ -377,13 +433,69 @@ LEFT JOIN mdf ON mdf.grupo=c.grupo AND mdf.empresa=c.empresa
   AND mdf.filial=c.filial AND mdf.unidade=c.unidade
   AND mdf.dif=c.diferenciadornumero AND mdf.serie=c.serie
   AND mdf.numero=c.numero
+-- O NOME do destinatário. `LEFT JOIN` e não `JOIN`: destinatário fora do
+-- cadastro (ou em branco) não pode fazer a carga sumir da operação — ela
+-- aparece com o rótulo vazio, que a tela mostra como travessão.
+LEFT JOIN cadastro cdd ON cdd.codigo = c.destinatario
 WHERE c.dtcancelamento IS NULL
   AND c.dtemissao >= current_date - %(dias)s
   AND """ + FILTRO_CLIENTE + """
-ORDER BY coalesce(mdf.encerrado_em, ev.vf, ev.fd, ev.cd, ev.ev, ev.sc, ev.cc,
-                  c.dtemissao) DESC
+-- ORDEM DA OPERAÇÃO, não da emissão: a linha do tempo do dia, que é como a
+-- planilha da torre é lida e como as docas se organizam. Ordenar pelo último
+-- evento (o que estava aqui antes) põe no topo quem acabou de ser apontado,
+-- que é uma ordem sem significado para quem espera a carga.
+ORDER BY coalesce(c.dtprevisaochegadaviagem, c.dtcoletar, c.dtemissao) ASC,
+         c.numero ASC
 """
 
+
+#: O QUE CADA `situacaomdfe` SIGNIFICA. Não há tabela de domínio para ele no
+#: ERP, então a leitura foi medida — 75 dias, 09/09/2026:
+#:
+#:     7 = ENCERRADO   7.060  todos com `dtencerramento`
+#:     6 = CANCELADO     241  todos com `dtcancelamento`, nenhum encerrado
+#:     3 = AUTORIZADO     52  todos com protocolo, idade média 26 h
+#:     2 = SEM PROTOCOLO  19  idade média 1.164 h — nunca chegou a ser autorizado
+#:
+#: O 3 é a fila do que está NA ESTRADA: nenhum cancelado, todos com protocolo
+#: da SEFAZ, e a idade média de um dia é a duração de uma viagem desta
+#: operação. É o que permite dizer "em viagem" da carga que ninguém apontou —
+#: autorizar o MDF-e é ato fiscal OBRIGATÓRIO na saída, e apontar o trajeto é
+#: rotina que ninguém multa. Mesma regra que já fazia o encerramento mandar
+#: sobre o 397, aplicada à outra ponta da viagem.
+#:
+#: (Este comentário mora AQUI, e não dentro do SQL, porque os números têm
+#: `%` — que dentro de uma string de consulta o psycopg lê como placeholder.
+#: A regra da casa, e ela custou uma exceção nesta mesma entrega.)
+SITUACAO_MDFE = {2: "sem protocolo", 3: "autorizado", 6: "cancelado", 7: "encerrado"}
+
+#: POR QUE `dtprevisaochegadaviagem` É A JANELA, e `dtprevisaoentrega` não.
+#:
+#: Em 05/09/2026 mediu-se a pontualidade sobre `dtprevisaoentrega` e concluiu-se
+#: que não dava para publicar: igual à emissão em 80,3% das cargas (default de
+#: ERP, como as OCs de suprimentos) e uma régua de verdade cobrindo só 8,7% da
+#: operação. A conclusão estava certa — sobre a coluna errada. Nesta operação
+#: `dtprevisaoentrega` está NULL em 100% das 742 cargas de 45 dias: ela nunca
+#: foi preenchida, e uma régua medida sobre uma coluna vazia mede o vazio.
+#:
+#: A janela de verdade é `dtprevisaochegadaviagem`, e ela passa nos testes que
+#: a outra reprovou (medido em 09/09/2026, 45 dias, 742 cargas):
+#:
+#:     preenchida ......................... 742 de 742
+#:     igual à previsão de saída .............. 1 (0,1%) — não é cópia
+#:     valores distintos de folga sobre a saída  93     — não é constante
+#:     mediana da folga ..................... 3,00 h; p10 2 h, p90 13 h
+#:     com chegada também registrada ........ 665 (89,6%) — a régua cobre isso
+#:
+#: E a prova de fora, que é a que decidiu: conferida contra a planilha que a
+#: torre mantém à mão para um dos destinos, a coluna bateu NO MINUTO em todos
+#: os pedidos conferidos. É a mesma janela que a operação combina por telefone
+#: e anota na planilha — digitada por gente, não default de sistema.
+#:
+#: O que ela NÃO é: compromisso do cliente. Quem digita é o nosso programador.
+#: Por isso a tela publica o FATO (janela × chegada) e não um percentual —
+#: ver `_chegada()`.
+JANELA_DE_ENTREGA = "dtprevisaochegadaviagem"
 
 #: Quanto tempo a rota leva, pelo NOSSO historico. Chave: "ORIGEM/UF|DESTINO/UF".
 #:
@@ -450,21 +562,140 @@ def _eta(r: dict, cod: int, rotas: dict) -> dict:
             "eta_amostras": med[1]}
 
 
+def _chegada(r: dict) -> dict:
+    """A chegada REAL ao destino, contra a janela de entrega. Só o fato.
+
+    NÃO SAI DAQUI UM PERCENTUAL DE PONTUALIDADE, e é decisão de quem opera
+    (09/09/2026), tomada com o número na mesa: a régua cobre 89,6% das cargas
+    e discrimina de verdade (99,3% num destino, 54,1% em outro). O que segura
+    o KPI não é a cobertura, é a PROCEDÊNCIA da régua — a janela é digitada
+    pelo nosso próprio programador. Publicar "94% no prazo" num painel que o
+    cliente lê transforma a nossa previsão em compromisso contratual, e ele
+    fecha conta em cima de uma régua que nós mesmos escrevemos.
+
+    Então a tela mostra os dois fatos lado a lado — a janela e a hora em que o
+    veículo chegou — e quem lê tira a conclusão. O desvio vai calculado porque
+    subtrair duas horas na cabeça, linha a linha, é onde o leitor erra; a
+    CONTA é aritmética, não julgamento.
+
+    A hora da chegada vem do apontamento se houver e do encerramento do
+    manifesto se não houver (medido: 2,4 min de diferença entre os dois), e a
+    `chegada_fonte` diz qual foi — um horário de manifesto é da portaria
+    fiscal, não da doca.
+    """
+    vazio = {"chegada": None, "chegada_fonte": None, "desvio_h": None}
+    quando = r.get("t_cheg_desc")
+    fonte = "apontamento"
+    if not quando and r.get("mdfe_encerrado") and r.get("mdfe_em"):
+        quando, fonte = r["mdfe_em"], "manifesto"
+    if not quando:
+        return vazio
+    janela = r.get("janela_entrega")
+    desvio = None
+    if janela:
+        try:
+            desvio = round((datetime.strptime(quando, "%Y-%m-%d %H:%M")
+                            - datetime.strptime(janela, "%Y-%m-%d %H:%M"))
+                           .total_seconds() / 3600.0, 2)
+        except (TypeError, ValueError):
+            desvio = None
+    return {"chegada": quando, "chegada_fonte": fonte, "desvio_h": desvio}
+
+
+def _por_destinatario(cargas: list[dict]) -> list[dict]:
+    """As cargas em curso agrupadas por QUEM RECEBE, da maior para a menor.
+
+    Substitui o agrupamento por ROTA, que nesta operação era ambíguo por
+    construção: uma rota "ORIGEM → CIDADE" reúne numa barra só a montadora e
+    a planta do próprio cliente na mesma cidade, que são duas docas com
+    janelas diferentes. Destinatário é estritamente mais informativo que a
+    cidade — ele DETERMINA a cidade, e não o contrário.
+
+    Sem top-N: numa operação de linha são poucos destinos no ar ao mesmo
+    tempo, e cortar a cauda esconderia justamente o destino com uma carga só,
+    que é o que ninguém está olhando.
+    """
+    por: dict[str, dict] = {}
+    for c in cargas:
+        nome = c.get("destinatario") or "(sem destinatário)"
+        d = por.setdefault(nome, {"destinatario": nome, "cargas": 0,
+                                  "em_viagem": 0, "no_destino": 0, "na_origem": 0,
+                                  "programadas": 0})
+        d["cargas"] += 1
+        cod = c.get("marco_cod")
+        if cod == PROGRAMADA:
+            d["programadas"] += 1
+        elif cod in (396, 399, 397):
+            d["no_destino"] += 1
+        elif cod == 400:
+            d["em_viagem"] += 1
+        else:
+            d["na_origem"] += 1
+    return sorted(por.values(), key=lambda d: (-d["cargas"], d["destinatario"]))
+
+
 def _marco(r: dict) -> tuple[int, str, str]:
-    """O marco mais avançado que a carga alcançou: (código, rótulo, horário).
+    """O marco APONTADO mais avançado: (código, rótulo, horário).
 
     Percorre ORDEM de trás para frente e para no primeiro evento com horário.
     Sem inferência: se o ERP não registrou 396, a carga não "chegou para
-    descarga" — ela está no último marco que ALGUÉM registrou, e é isso que a
-    tela diz. Carga sem evento nenhum não chega aqui (o `ev` não teria linha).
+    descarga" — ela está no último marco que ALGUÉM registrou.
+
+    Só olha APONTAMENTO. O que o manifesto tem a dizer entra em `_estado()`,
+    e a separação é de propósito: são duas fontes com confiabilidades
+    diferentes, e a tela mostra qual delas respondeu.
     """
-    campos = {394: "t_cheg_carga", 395: "t_saiu_carga", 400: "t_viagem",
-              396: "t_cheg_desc", 397: "t_fim_desc", 401: "t_finalizada"}
     for cod in reversed(ORDEM):
-        col = campos.get(cod)
+        col = COLUNA.get(cod)
         if col and r.get(col):
             return cod, MARCOS[cod], r[col]
-    return 0, "Sem apontamento", ""
+    return PROGRAMADA, "Programada", ""
+
+
+def _estado(r: dict) -> tuple[int, str, str, str]:
+    """Em que pé a carga está: (código, rótulo, horário, fonte).
+
+    DUAS TESTEMUNHAS, E A FISCAL GANHA NAS PONTAS. O apontamento SAC descreve
+    o trajeto em detalhe e é feito por quem opera; o MDF-e tem duas transições
+    que alguém é OBRIGADO a registrar — autorizar na saída e encerrar na
+    chegada. Onde as duas falam, vale o apontamento, que é mais fino. Onde só
+    a fiscal falou, ela responde, e a `fonte` diz isso na tela.
+
+    As duas pontas que o manifesto cobre:
+
+    - **saída** — MDF-e autorizado e nenhum marco: a carga está na estrada com
+      chancela da SEFAZ e ninguém apontou. Antes isto era "sem apontamento" e
+      a carga não aparecia. Aconteceu em 09/09/2026: a planilha da torre dava
+      a carga como em viagem, com cidade e tudo, e o portal não a tinha.
+    - **chegada** — MDF-e encerrado sem o 396: chegou. O encerramento vem em
+      mediana 2,4 min depois da chegada apontada, quando ela existe.
+
+    E A CHEGADA NÃO É O FIM. Esta é a inversão que mais muda o painel: antes,
+    manifesto encerrado significava carga concluída, e ela sumia da tela no
+    instante em que encostava na doca — perdendo justamente as ~3h de pátio
+    que são o assunto do cliente. Agora "chegou" é um ESTADO, não uma saída:
+    a carga segue na tela, dizendo que está no destino aguardando descarga,
+    até o fim de descarga ser apontado ou `FOLGA_DESCARGA_H` passar.
+    """
+    cod, rotulo, quando = _marco(r)
+    # A ponta da CHEGADA. Vale mesmo sobre o 395/400 apontados: quem saiu e
+    # teve o manifesto encerrado chegou, e o encerramento é o horário disso.
+    # O RÓTULO É O DA TABELA DE DOMÍNIO, venha o horário de onde vier. Um
+    # segundo rótulo nosso para o mesmo estado ("Chegou ao destino" ao lado de
+    # "Chegada para descarga") faria a tela parecer ter dois estados onde há
+    # um — e o leitor procuraria a diferença entre eles. Quem varia é a
+    # `fonte`, que é justamente o que difere.
+    if (r.get("mdfe_encerrado") and r.get("mdfe_em")
+            and (cod == PROGRAMADA or ORDEM.index(cod) < ORDEM.index(396))):
+        return 396, MARCOS[396], r["mdfe_em"], "manifesto"
+    if cod != PROGRAMADA:
+        return cod, rotulo, quando, "apontamento"
+    # A ponta da SAÍDA. Sem horário: o que o manifesto autoriza é a viagem,
+    # não o instante em que o veículo cruzou o portão — e inventar a hora da
+    # autorização como "desde" diria uma precisão que não existe.
+    if r.get("mdfe_autorizado"):
+        return 400, MARCOS[400], "", "manifesto"
+    return PROGRAMADA, "Programada", r.get("janela_carga") or "", "programação"
 
 
 #: QUEM FECHA A VIAGEM É O MANIFESTO; o evento operacional é a reserva.
@@ -488,31 +719,65 @@ def _marco(r: dict) -> tuple[int, str, str]:
 #: rotina operacional que ninguém multa. Entre um registro que alguém é
 #: OBRIGADO a fazer e outro que seria bom fazer, o estado vem do primeiro.
 #:
-#: O 397 fica como RESERVA para o 1,2% sem manifesto — descartá-lo deixaria
-#: essas cargas em curso para sempre, que é o defeito que esta regra existe
-#: para não ter.
+#: E AQUI ESTÁ A LIÇÃO, escrita em 09/09/2026 por cima do parágrafo acima, que
+#: continua verdadeiro: **a medição comparou COBERTURA e a regra precisava de
+#: TEMPO**. "Fecha tudo que o 397 fecha, e mais 93" responde QUANTAS; não
+#: responde QUANDO, e era o quando que decidia. O encerramento chega 2,4 min
+#: depois da CHEGADA e 3h10 antes do FIM DE DESCARGA — é marco de chegada
+#: vestido de marco de conclusão. Uma pergunta a mais na mesma consulta
+#: ("e quanto tempo depois?") teria mostrado isso em 05/09.
+#:
+#: O 397 continua sendo o terminal, agora sozinho: quem decide se a carga
+#: saiu da tela é `em_curso()`, que usa o encerramento apenas para saber
+#: QUANDO ela chegou, e conta a folga a partir dali.
 TERMINAL = 397
 
 
-def em_curso(r: dict) -> bool:
-    """A carga ainda está no ar?
+def em_curso(r: dict, agora: datetime | None = None) -> bool:
+    """A carga ainda está no ar? O que a fecha é a DESCARGA, não a chegada.
 
-    O MANIFESTO MANDA. Encerrado, a viagem acabou — não importa o que a
-    operação apontou ou deixou de apontar. Só na ausência de manifesto é que o
-    evento de fim de descarga decide.
+    A REGRA ANTERIOR ESTAVA UM EVENTO ADIANTADA, e a medição que a sustentava
+    era verdadeira e incompleta. Ela comparou COBERTURA — MDF-e encerrado em
+    98,7% das cargas contra 86,7% do fim de descarga, e nenhuma carga com 397
+    e manifesto aberto — e concluiu, corretamente, que o encerramento é
+    superconjunto do apontamento. O que ela não mediu foi QUANDO.
 
-    CARGA SEM APONTAMENTO NENHUM CONTA COMO EM CURSO, e essa é a inversão que
-    mais muda o painel: antes ela nem aparecia. A coleta existe e o manifesto
-    não fechou — isso é uma carga no ar cujo trajeto ninguém apontou ainda, não
-    uma carga que não existe. Some da tela quando o manifesto encerrar, que é
-    o registro que alguém é obrigado a fazer.
+    Medido em 09/09/2026, 45 dias, 724 cargas com manifesto encerrado:
+
+        encerramento − chegada apontada (396) ... mediana +0,04 h  (2,4 min)
+        fim de descarga (397) − encerramento ... mediana +3,10 h
+        e o 397 veio DEPOIS do encerramento em 588 de 641 (91,7%)
+
+    O manifesto não fecha quando a carga é entregue: fecha quando o veículo
+    CHEGA. Fechar a carga por ele apagava do painel exatamente as três horas
+    de pátio — o veículo parado esperando doca, que é o que dói num cliente
+    industrial, o que a planilha da torre registra minuto a minuto
+    ("aguardando no gate", "aguardando descarga na linha final") e o que esta
+    tela mede na aba ao lado. O painel dizia "concluída" para o caminhão que
+    estava dentro da fábrica do cliente.
+
+    Então a saída é o FIM DE DESCARGA, com um teto de relógio para as que
+    nunca o recebem (11,5% das encerradas): passadas `FOLGA_DESCARGA_H` da
+    chegada, a carga sai. Sem o teto elas ficariam no painel para sempre; com
+    ele, 93% dos apontamentos que ainda viriam chegam a tempo de fechar a
+    carga pelo EVENTO, e só o resto fecha pelo relógio.
     """
-    if r.get("mdfe_encerrado"):
+    if r.get("t_fim_desc") or r.get("t_finalizada"):
         return False
-    cod, _, _ = _marco(r)
-    if cod == 0:
+    # QUANDO CHEGOU: o apontamento se existir, senão o encerramento do
+    # manifesto. A ordem é a de sempre — o registro mais fino primeiro.
+    chegou = r.get("t_cheg_desc") or (r.get("mdfe_em") if r.get("mdfe_encerrado") else None)
+    if not chegou:
+        # Manifesto encerrado sem hora nenhuma não deveria existir (situação 7
+        # sempre traz `dtencerramento`, medido em 7.060 de 7.060). Se existir,
+        # a viagem acabou e não há de onde contar a folga: fecha, que é o
+        # comportamento antigo — o desconhecido não vira carga eterna.
+        return not r.get("mdfe_encerrado")
+    try:
+        q = datetime.strptime(chegou, "%Y-%m-%d %H:%M")
+    except (TypeError, ValueError):
         return True
-    return ORDEM.index(cod) < ORDEM.index(TERMINAL)
+    return (agora or datetime.now()) - q <= timedelta(hours=FOLGA_DESCARGA_H)
 
 
 # ============================================================================
@@ -674,10 +939,11 @@ def get_agora(raiz: str, dias: int = 45) -> dict:
     """
     linhas = db.query(AGORA_SQL, {"raiz": raiz, "dias": int(dias)})
     rotas = _eta_por_rota() if linhas else {}
+    agora = datetime.now()
     cargas, concluidas = [], 0
     for r in linhas:
-        cod, rotulo, quando = _marco(r)
-        if not em_curso(r):
+        cod, rotulo, quando, fonte = _estado(r)
+        if not em_curso(r, agora):
             concluidas += 1
             continue
         # Lista EXPLÍCITA, campo a campo — nunca `dict(r)`. É o padrão que o
@@ -688,23 +954,32 @@ def get_agora(raiz: str, dias: int = 45) -> dict:
             "coleta": r["coleta"], "emissao": r["emissao"],
             "origem": r["origem"], "uf_origem": r["uf_origem"],
             "destino": r["destino"], "uf_destino": r["uf_destino"],
+            "destinatario": r["destinatario_nome"],
             "placa": r["placa"],
             "marco": rotulo, "marco_cod": cod, "marco_em": quando,
+            # DE ONDE VEIO O ESTADO. "apontamento" é a operação que registrou;
+            # "manifesto" é a SEFAZ; "programação" é só a janela, ninguém
+            # confirmou nada ainda. O leitor precisa distinguir — um estado
+            # vindo do manifesto é grosso (chegou, sem hora de doca) e um
+            # vindo da programação é uma INTENÇÃO, não um fato.
+            "marco_fonte": fonte,
+            "janela_carga": r["janela_carga"],
+            "janela_entrega": r["janela_entrega"],
+            **_chegada(r),
             **_eta(r, cod, rotas),
         })
-    # CARGA SEM NENHUM APONTAMENTO NÃO VAI PARA O PAINEL DO CLIENTE, por
-    # decisão de quem opera (06/09/2026). Ela EXISTE — a coleta foi emitida e o
-    # manifesto não fechou — mas o que o portal teria a dizer sobre ela é
-    # "não sabemos por onde anda", e isso é processo nosso, não informação do
-    # cliente. Ela volta à tela no instante em que a operação apontar o
-    # primeiro marco.
+    # A CARGA PROGRAMADA VOLTOU À TELA (09/09/2026), e o que mudou não foi a
+    # opinião sobre ela — foi o que a tela tem a dizer. Ela saiu em 06/09
+    # porque o portal só sabia dizer "não sabemos por onde anda", que é
+    # processo nosso e não informação do cliente. Agora a linha diz "carrega
+    # às 18h, para o destino X": a janela e o destinatário são compromisso
+    # assumido com quem espera a carga, e escondê-los faz o painel mostrar
+    # menos que a planilha que a torre mantém à mão.
     #
-    # O QUE ISSO CUSTA, e fica dito: a carga emitida hoje some do painel até o
-    # primeiro apontamento, que chega com cerca de um dia de atraso. O número
-    # `sem_apontamento` continua saindo na resposta para quem precise medir
-    # esse buraco por dentro — some da TELA, não da conta.
-    sem_apontamento = [c for c in cargas if not c["marco_cod"]]
-    cargas = [c for c in cargas if c["marco_cod"]]
+    # O contador segue saindo à parte, porque a diferença continua importando:
+    # `programadas` é o que ainda não teve confirmação NENHUMA — nem
+    # apontamento, nem manifesto.
+    programadas = [c for c in cargas if c["marco_cod"] == PROGRAMADA]
     # POSIÇÃO das cargas que ainda estão no ar. Só as placas DESTAS cargas —
     # `atuais()` devolve a frota inteira (278 placas em 05/09/2026) e o que
     # sai daqui é o recorte do cliente. Fatiar depois de ler é de propósito:
@@ -750,7 +1025,12 @@ def get_agora(raiz: str, dias: int = 45) -> dict:
     return {
         "cargas": cargas,
         "em_curso": len(cargas),
-        "sem_apontamento": len(sem_apontamento),
+        # `sem_apontamento` mantém o NOME por compatibilidade com a tela e a
+        # parede, que já o leem; o que ele conta agora são as PROGRAMADAS —
+        # que passaram a aparecer, em vez de sumir. O número continua servindo
+        # para medir o buraco de apontamento por dentro.
+        "sem_apontamento": len(programadas),
+        "por_destinatario": _por_destinatario(cargas),
         "concluidas_na_janela": concluidas,
         "janela_dias": int(dias),
         # A COBERTURA do mapa vai junto: "12 de 66 com posição" é o que impede
