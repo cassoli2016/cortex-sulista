@@ -158,3 +158,28 @@ def test_toda_tela_esta_no_MESMO_grupo_nos_dois_menus(html):
     divergem = [f"{v}: barra={barra[v]} gaveta={gaveta[v]}"
                 for v in sorted(barra) if v in gaveta and barra[v] != gaveta[v]]
     assert not divergem, "telas em grupos diferentes -> " + " | ".join(divergem)
+
+
+def test_nenhuma_tela_aparece_DUAS_VEZES_no_mesmo_menu(html):
+    """O buraco que deixou o CT-e de Contrapartida em dois grupos da gaveta.
+
+    O guard acima (`test_toda_tela_esta_no_MESMO_grupo_nos_dois_menus`) existia
+    e passava: ele monta a gaveta com uma COMPREENSAO DE DICIONARIO, e a
+    segunda ocorrencia de `ctecp` sobrescrevia a primeira. Sobrava o par
+    Tms/Tms, que confere -- e a entrada duplicada em Controladoria ficava
+    invisivel para o teste e visivel para quem abre o celular.
+
+    A tela mudou de grupo em algum momento: foi acrescentada no destino e nao
+    foi tirada da origem. Contar em vez de indexar e o que separa "esta no
+    grupo certo" de "esta SO no grupo certo".
+    """
+    from collections import Counter
+    for rotulo, grupos in (("barra", _grupos(html)), ("gaveta", _grupos_gaveta(html))):
+        vistas = Counter(v for _nome, corpo in grupos
+                         for v in re.findall(r'href="#(\w+)"', corpo))
+        assert vistas, f"{rotulo}: nenhum item lido — a varredura passaria por vacuidade"
+        repetidas = {v: n for v, n in vistas.items() if n > 1}
+        assert not repetidas, (
+            f"{rotulo}: tela em mais de um lugar -> " + ", ".join(
+                f"{v} ({n}x, em {[nome for nome, corpo in grupos if f'href=\"#{v}\"' in corpo]})"
+                for v, n in sorted(repetidas.items())))

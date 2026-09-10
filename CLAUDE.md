@@ -139,7 +139,7 @@ além do perfil. Organizadas assim:
 | Financeiro | fluxo, receber, cob, banc, extb, lanc, antec, antport, rec, fluxcon, pagar | AVA + locais `ext_*`, `ant_*`, `prev_*` |
 | Operação | milkrun, agr, mvb, km, prog, torre, jorn, cex, sac, port, pedagio, poli | AVA + `jor_*`, `ped_*`, `tt_*`, posições Gobrax+ERP |
 | Comercial | com, clif, crm, drecli | AVA + `crm_*` (banco local) |
-| Controladoria | dre, bal, cont, qual, orc, fech, ctecp | AVA + `orc_*`, `prev_*`, contrapartida |
+| Controladoria | dre, bal, cont, qual, orc, fech, fat | AVA + `orc_*`, `prev_*` |
 | Suprimentos | oc, custos, pecas | AVA (`ordemcompra` × vínculo de NF × `aprovador`, estado em `api/suprimentos_oc.py`; preço de peça pela mediana do produto em `api/suprimentos_pecas.py`) |
 | Frota | comb, man (+ sub-abas Compras da OS e Recompra de peça), veic, mprev, comrast, veicf, mul, pneus | AVA + `smt_*` (Smartec) + `data/pneus/` + `api/manutencao_compras.py` |
 | Telemetria | prem, telcon, telcond, telhod | Gobrax (`api/gobrax/`) + `prem_*` |

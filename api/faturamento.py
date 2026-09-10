@@ -127,6 +127,31 @@ WHERE {_CTE_W} AND c.dtemissao >= %(de13)s::date AND c.dtemissao < %(ate)s::date
 GROUP BY 1, 2
 """
 
+# O CADASTRO DE AGRUPAMENTO DE CLIENTES é quem nomeia o cliente — e não as
+# linhas de meta.
+#
+# O nome saía de `FAT_META_CLI_SQL`, que só devolve agrupamento COM meta
+# lançada (`HAVING sum(m.valor) > 0`). Quem faturou e não tem meta caía no
+# `or cod` do montador e aparecia na tela como "AG48". Medido em 10/09/2026:
+# um cliente, R$ 31.583,36, 1,0% do faturamento do mês — e "AG48" é CAHDAM,
+# nome que estava na tabela o tempo inteiro, a um join de distância.
+#
+# É a regra da casa sobre código sem rótulo, com um agravante: aqui a tabela
+# de domínio EXISTE. Não era código sem tradução, era tradução não consultada.
+# E o efeito não é só feio: numa tela de faturamento por cliente, a linha que
+# ninguém reconhece é a linha que ninguém confere.
+#
+# `grupo`/`empresa` fixos em 1 como no resto do módulo (`_CTE_W`). Medido: a
+# tabela tem 35 agrupamentos, um único par (1,1), nenhum código repetido e
+# nenhuma descrição vazia — por isso o `LEFT JOIN` por `codigo` sozinho que já
+# existia não multiplica linha.
+FAT_CLIENTES_SQL = """
+SELECT 'AG'||codigo::text AS codigo,
+       coalesce(nullif(btrim(descricao), ''), '(sem nome)') AS cliente
+FROM agrupamentocliente
+WHERE grupo = 1 AND empresa = 1
+"""
+
 # COM_META_SQL parametrizada — a original está presa em current_date.
 FAT_META_CLI_SQL = """
 SELECT 'AG'||m.agrupamentocliente::text AS codigo,
@@ -273,6 +298,8 @@ def get_detalhado(mes: str | None = None) -> dict:
         cur.execute(FAT_MODAL_MENSAL_SQL, p13)
         mm_rows = [dict(r) for r in cur.fetchall()]
 
+        cur.execute(FAT_CLIENTES_SQL)
+        nomes_cli = {r["codigo"]: r["cliente"] for r in cur.fetchall()}
         cur.execute(FAT_META_CLI_SQL, {**p0, "corte": j["corte"].isoformat()})
         metas_cli = {r["codigo"]: dict(r) for r in cur.fetchall()}
         cur.execute(COM_REAL_MES_SQL, {"dt_de": p0["de"],
@@ -371,7 +398,12 @@ def get_detalhado(mes: str | None = None) -> dict:
         mm = float(mrow.get("meta_mtd") or 0)
         clientes.append({
             "codigo": cod,
-            "cliente": mrow.get("cliente") or cod,
+            # O CADASTRO MANDA. A linha de meta traz o nome também, mas só
+            # existe para quem TEM meta — e era esse `or cod` que punha "AG48"
+            # na tela. O código só sobra quando o agrupamento não está no
+            # cadastro, e aí ele é a resposta honesta: não há nome para dar.
+            "cliente": nomes_cli.get(cod) or mrow.get("cliente") or cod,
+            "sem_cadastro": cod not in nomes_cli,
             "meta_mes": float(mrow.get("meta_mes") or 0),
             "meta_mtd": mm,
             "realizado": r0,

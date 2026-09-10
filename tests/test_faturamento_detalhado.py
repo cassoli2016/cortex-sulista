@@ -137,8 +137,13 @@ def _payload_stub(monkeypatch, hoje, rows):
 
 def _rows_dubie(dias_fechados=20):
     """As respostas na ordem: fontes×3, diário, sazonal(se corrente), modal,
-    mensal, modal_mensal, meta_cli, real_cli, real_cli_a1, dias, cancel14,
-    cancel_mes, filiais, emissores."""
+    mensal, modal_mensal, NOMES_CLI, meta_cli, real_cli, real_cli_a1, dias,
+    cancel14, cancel_mes, filiais, emissores.
+
+    `nomes_cli` e o CADASTRO de agrupamento de clientes, e vem ANTES da meta
+    de proposito: e dele que sai o nome, inclusive de quem faturou sem meta.
+    Ele traz AG9 — que nao esta na meta — porque e exatamente esse o caso que
+    antes caia para o codigo cru na tela."""
     fontes = [{"fonte": "CT-e", "docs": 5511, "valor": 11194962.0},
               {"fonte": "KMM", "docs": 0, "valor": 0.0},
               {"fonte": "NFS-e", "docs": 113, "valor": 715057.0}]
@@ -158,8 +163,11 @@ def _rows_dubie(dias_fechados=20):
                  "meta_mes": 1000000.0}]
     real_cli = [{"codigo": "AG1", "realizado": 2410000.0},
                 {"codigo": "AG9", "realizado": 122000.0}]   # AG9 SEM meta
+    nomes_cli = [{"codigo": "AG1", "cliente": "TUPY"},
+                 {"codigo": "AG2", "cliente": "FORVIA"},
+                 {"codigo": "AG9", "cliente": "LEAR"}]
     return [fontes, fontes, fontes, diario, [],   # sazonal vazio -> fonte erp
-            modal, mensal, [], meta_cli, real_cli, [],
+            modal, mensal, [], nomes_cli, meta_cli, real_cli, [],
             [], [], [], [], []]
 
 
@@ -219,3 +227,41 @@ def test_atingimento_fechado_ignora_o_dia_em_curso(monkeypatch):
     k = d["kpis"]
     assert k["atingimento_fechado"] == \
         pytest.approx((20 * 560000.0) / (20 * 600000.0))
+
+
+def test_o_nome_do_cliente_vem_do_AGRUPAMENTO_e_nao_da_meta(monkeypatch):
+    """O defeito, relatado por quem opera em 10/09/2026.
+
+    O nome saia das linhas de META, e a meta so existe para quem TEM meta
+    lancada. Quem faturou sem meta caia no `or cod` e aparecia na tela como
+    "AG48" -- que e CAHDAM, nome que estava na tabela `agrupamentocliente` o
+    tempo inteiro, a um join de distancia. Medido em producao: um cliente,
+    R$ 31.583,36, 1,0% do faturamento do mes.
+
+    Nao era codigo sem tabela de dominio: era tabela de dominio nao
+    consultada. E numa tela de faturamento POR CLIENTE, a linha que ninguem
+    reconhece e a linha que ninguem confere.
+    """
+    _payload_stub(monkeypatch, date(2026, 8, 21), _rows_dubie())
+    d = fat.get_detalhado("2026-08")
+    por_cod = {c["codigo"]: c for c in d["clientes"]}
+    # AG9 faturou e NAO tem meta -- o nome tem de vir do cadastro
+    assert por_cod["AG9"]["cliente"] == "LEAR"
+    assert por_cod["AG9"]["meta_mes"] == 0.0
+    assert por_cod["AG9"]["sem_cadastro"] is False
+
+
+def test_agrupamento_fora_do_cadastro_mostra_o_CODIGO_e_se_declara(monkeypatch):
+    """Quando o cadastro nao tem o agrupamento, o codigo e a resposta honesta
+    -- nao ha nome para dar. Mas a tela nao pode fingir que aquilo e um nome:
+    `sem_cadastro` e o que separa "cliente chamado AG77" de "agrupamento que
+    ninguem cadastrou"."""
+    rows = _rows_dubie()
+    rows[8] = [{"codigo": "AG1", "cliente": "TUPY"}]      # cadastro sem AG9
+    _payload_stub(monkeypatch, date(2026, 8, 21), rows)
+    d = fat.get_detalhado("2026-08")
+    por_cod = {c["codigo"]: c for c in d["clientes"]}
+    assert por_cod["AG9"]["cliente"] == "AG9"
+    assert por_cod["AG9"]["sem_cadastro"] is True
+    # e quem TEM meta continua nomeado, pela meta, quando falta no cadastro
+    assert por_cod["AG2"]["cliente"] == "FORVIA"

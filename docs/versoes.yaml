@@ -1,3 +1,28 @@
+- versao: "1.35.1"
+  data: "2026-09-10"
+  corrigido:
+    - >-
+      No Faturamento Detalhado, cliente que faturou e nao tem meta lancada
+      aparecia como um CODIGO -- "AG48" -- em vez do nome. O nome saia das
+      linhas de meta, e a meta so existe para quem tem meta; o cadastro de
+      AGRUPAMENTO DE CLIENTES, que tem o nome de todos, nao era consultado.
+      Medido em 10/09/2026: um cliente, R$ 31.583,36, 1,0% do faturamento do
+      mes -- e "AG48" e CAHDAM, nome que estava na tabela o tempo inteiro.
+      Numa tela de faturamento POR CLIENTE, a linha que ninguem reconhece e a
+      linha que ninguem confere.
+    - >-
+      Agora o nome vem do cadastro, e o codigo so aparece quando o agrupamento
+      nao esta cadastrado -- caso em que a tela marca a linha, para nao fazer
+      passar por nome o que e ausencia de cadastro.
+    - >-
+      O CT-e de Contrapartida aparecia em DOIS grupos na gaveta do celular:
+      Controladoria e TMS. A tela mudou de grupo em algum momento, foi
+      acrescentada no destino e nao foi tirada da origem. Ficou so no TMS.
+    - >-
+      O guard que devia ter pego isso existia e passava: ele monta a gaveta
+      como dicionario, entao a segunda entrada sobrescrevia a primeira e a
+      duplicata ficava invisivel para o teste e visivel para quem abre o
+      celular. Agora ha um que CONTA em vez de indexar, nos dois menus.
 - versao: "1.35.0"
   data: "2026-09-10"
   alterado:
