@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.32.0] — 09/09/2026  ·  CX-09/09/2026-v1.32.0
+
+### Adicionado
+- A coleta das batidas passou a ser automatica, de 10 em 10 minutos. Ate aqui o ponto so entrava quando alguem rodava a importacao no ERP — mediana de tres dias, maximo de dezoito, e sempre a mesma pessoa. A primeira carga ja entrou: 1.427 marcacoes dos ultimos sete dias e as 30 cercas cadastradas.
+- Os dez minutos nao sao para "tempo real": a batida chega ao fornecedor em 12 segundos, e para o instante existe o webhook, que a API oferece e ainda nao foi ligado. A cadencia existe para que uma queda de uma hora custe seis passagens perdidas, e nao um dia de apuracao.
+
 ## [1.31.0] — 09/09/2026  ·  CX-09/09/2026-v1.31.0
 
 ### Adicionado
