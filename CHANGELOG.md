@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.34.1] — 10/09/2026  ·  CX-10/09/2026-v1.34.1
+
+### Corrigido
+- O codigo mestre do app do motorista voltou a ter onde ser gerado. O botao existia, a rota existia e o registro na auditoria existia -- mas nao havia como chegar ate ele. A tela de Integracoes so monta cartao para FORNECEDOR externo, e o codigo mestre nao e fornecedor: ele e um segredo da casa. Quando a aba Gestao > Integracoes foi aposentada (v1.6.0) e a configuracao passou a morar no modal do cartao, ele ficou sem porta de entrada nenhuma. Defeito sem sintoma: nada dava erro, o botao so nao aparecia em lugar nenhum -- e o que ele gera e o codigo que abre o app de QUALQUER motorista, ou seja, o dado pessoal de cerca de 300 pessoas.
+- Eles agora saem em "Segredos da casa", uma lista propria na tela de Integracoes, com cartao e formulario proprios. Sao dois: o codigo mestre do app do motorista e o endereco do proprio painel.
+- A lista fica SEPARADA da dos fornecedores de proposito. Nao ha ninguem do outro lado para o dado chegar, entao eles nao tem semaforo de chegada e nao entram na conta dos indicadores do topo, que falam de fornecedores externos. O cartao deles diz NATUREZA no lugar de CHEGADA, e o estado responde uma coisa so: esta configurado ou nao. Pendurar neles um cinza permanente de "sem medicao" seria um alarme que ninguem pode apagar, e e assim que se ensina a ignorar alarme cinza.
+- E entrou o guard que faltava, o que teria pego isto: ele varre o CATALOGO de credenciais e cobra que TODO servico do cofre apareca em algum lugar da tela. Servico novo que ninguem lembre de exibir passa a reprovar a suite sozinho, em vez de sumir em silencio.
+
 ## [1.34.0] — 10/09/2026  ·  CX-10/09/2026-v1.34.0
 
 ### Adicionado

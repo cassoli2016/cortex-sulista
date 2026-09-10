@@ -125,12 +125,73 @@ def test_fornecedor_sob_demanda_nao_acende_alarme():
         assert linha["estado"] != "erro"
 
 
-def test_o_que_nao_e_fornecedor_fica_de_fora():
+def test_o_que_nao_e_fornecedor_fica_de_fora_DO_SEMAFORO():
     """`cortex` e o endereco do proprio painel e `motorista_mestre` e um
     segredo NOSSO. Os dois moram no cofre porque e la que a tela de
-    configuracao le -- aqui virariam integracoes que nunca respondem."""
+    configuracao le -- na lista de fornecedores virariam integracoes que nunca
+    respondem."""
     chaves = {i["chave"] for i in it.panorama([])["integracoes"]}
     assert not (chaves & it.NAO_SAO_FORNECEDOR)
+
+
+def test_mas_eles_SAEM_no_painel_em_lista_propria():
+    """FICAR DE FORA DO SEMAFORO NAO E SUMIR, e a diferenca custou caro.
+
+    De 07/09 a 10/09/2026 o `panorama` fazia `continue` nestes dois. A tela
+    `integ` so monta cartao a partir desta lista, e o modal so abre a partir de
+    um cartao -- entao, quando a aba Gestao > Integracoes foi aposentada
+    (0260501, v1.6.0) e a configuracao migrou para o modal, os dois ficaram sem
+    porta de entrada NENHUMA. O gerador do codigo mestre do app do motorista,
+    que abre a PII de ~300 pessoas, existia e ninguem conseguia alcancar.
+
+    Defeito sem sintoma: nada levanta erro, o botao so nao aparece.
+    """
+    p = it.panorama([])
+    proprios = {i["chave"] for i in p["proprios"]}
+    assert proprios == set(it.NAO_SAO_FORNECEDOR), (
+        f"os segredos da casa sumiram do painel: {proprios}")
+
+
+def test_TODO_servico_do_cofre_e_ALCANCAVEL_no_painel():
+    """O guard que teria pegado o defeito -- e que nenhuma lista escrita a mao
+    pega.
+
+    A varredura sai do CATALOGO (`credenciais.panorama()`), nao de uma lista
+    daqui: servico novo no cofre que ninguem lembre de exibir reprova sozinho.
+    Sem isto, esconder um servico continua sendo uma linha de codigo que nao
+    quebra nada.
+    """
+    p = it.panorama([])
+    exibidos = {i["chave"] for i in p["integracoes"]} | {i["chave"] for i in p["proprios"]}
+    do_cofre = {s["chave"] for s in credenciais.panorama()}
+    assert do_cofre, "o catalogo veio vazio — a varredura passaria por vacuidade"
+    orfaos = do_cofre - exibidos
+    assert not orfaos, (
+        f"servico(s) no cofre que a tela `integ` nao mostra em lugar nenhum: "
+        f"{sorted(orfaos)}. Sem cartao nao ha modal, e sem modal o formulario "
+        f"deles e inalcancavel.")
+
+
+def test_o_segredo_da_casa_nao_e_rebaixado_pela_metade_que_nao_tem():
+    """`_pior('ok', 'info')` da 'info' -- `info` pesa menos que `ok`. Se o
+    estado dos proprios passasse pelo `_pior` junto com a chegada, um cofre
+    preenchido apareceria CINZA para sempre por causa de uma metade que nao
+    existe, e ninguem saberia que esta configurado."""
+    assert it._pior("ok", "info") == "info"          # o motivo, medido
+    for i in it.panorama([])["proprios"]:
+        assert i["estado"] == i["configuracao"]["status"], (
+            f"{i['chave']}: o estado deixou de ser so o da configuracao")
+        assert i["chegada"]["regime"] == "nao_se_aplica"
+        assert i["proprio"] is True
+
+
+def test_os_proprios_NAO_entram_na_conta_de_fornecedores():
+    """Os KPIs da tela dizem "fornecedores externos que a casa usa". Somar ali
+    um codigo que ninguem do lado de fora conhece faria a conta responder outra
+    pergunta."""
+    p = it.panorama([])
+    assert p["resumo"]["total"] == len(p["integracoes"])
+    assert p["proprios"], "sem proprios o teste passaria por vacuidade"
 
 
 # ============================================== nao vaza segredo, nunca

@@ -8950,6 +8950,18 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="kband"><div class="kpis k4" id="integ-kpis"></div></div>
         <div class="card"><div class="head"><h2>Integrações da casa</h2><span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: duas, casadas por fornecedor em api/integracoes.py. A CONFIGURAÇÃO vem do cofre de credenciais (api/credenciais.py) — o mesmo que a tela de Gestão edita; a CHEGADA DE DADO vem dos cartões da Saúde do Servidor (api/servidor.py), que leem a última coleta gravada. Esta tela não dispara coleta nenhuma e não mostra valor de credencial: ela diz que falta um token, nunca qual é. Fornecedor consultado sob demanda (TomTom, QualP) não tem &quot;última coleta&quot; para envelhecer, e o cartão diz isso em vez de acender alarme todo dia.">ⓘ</span></div>
           <div class="int-grid" id="integ-lista"></div></div>
+        <!-- SEGREDOS DA CASA — lista separada, e a separação é o ponto.
+             Eles não têm fornecedor do outro lado: não há coleta que possa
+             parar, então não têm semáforo de chegada e não entram nos KPIs
+             ("fornecedores externos que a casa usa"). Ficaram SEM PORTA
+             NENHUMA entre a v1.6.0 e 10/09/2026, quando a aba Gestão ›
+             Integrações foi aposentada e a configuração migrou para o modal
+             do cartão — e eles eram justamente os dois que não tinham cartão.
+             O gerador do código mestre do app do motorista estava aqui
+             dentro. -->
+        <div class="card" id="integ-proprios-card" hidden>
+          <div class="head"><h2>Segredos da casa <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O que está no mesmo cofre de credenciais mas NÃO é fornecedor externo: o código mestre do app do motorista e o endereço do próprio painel. Eles aparecem em lista separada porque não têm a segunda metade da pergunta — não há ninguém do outro lado para o dado &quot;chegar&quot;, então não há coleta que possa parar e não faria sentido pendurar neles um semáforo cinza permanente. Pela mesma razão eles não entram na conta dos indicadores acima, que fala de fornecedores. O que se lê aqui é só uma coisa: está configurado ou não. Só administrador vê o formulário e o valor nunca volta para a tela.">ⓘ</span></div>
+          <div class="int-grid" id="integ-proprios"></div></div>
       </section>
       <section class="view" id="view-mon">
         <div class="subtabs" role="tablist" data-abas="mon" aria-label="Seções desta tela">
@@ -42612,8 +42624,20 @@ async function loadInteg(){
       kpi('Precisam de atenção', res.atencao ?? '—', 'falta credencial ou a coleta parou')+
       kpi('Sem medição', res.sem_medicao ?? '—', 'ainda não têm cartão de chegada na Saúde');
     if(!lista.length){ el.innerHTML = '<div class="vazio">Nenhuma integração registrada.</div>'; return; }
-    INTEGP = {}; lista.forEach(i => { INTEGP[i.chave] = i; });
+    /* OS PROPRIOS ENTRAM NO MESMO `INTEGP`, e tem de ser assim: e dele que o
+       modal se monta (`integModalAbrir` faz `INTEGP[chave]`). Guardar os dois
+       em objetos separados faria o cartao existir e o clique nao abrir nada —
+       exatamente a metade do defeito que esta correcao veio consertar. */
+    const proprios = dd.proprios || [];
+    INTEGP = {}; lista.concat(proprios).forEach(i => { INTEGP[i.chave] = i; });
     el.innerHTML = lista.map(integCartao).join('');
+    const pel = document.getElementById('integ-proprios');
+    const pcard = document.getElementById('integ-proprios-card');
+    if(pel) pel.innerHTML = proprios.map(integCartao).join('');
+    /* O CARTAO SOME QUANDO NAO HA NENHUM, em vez de ficar um titulo sobre o
+       vazio. `hidden` e nao `style.display`: o CSS da casa usa `!important`
+       no display em mais de um lugar. */
+    if(pcard) pcard.hidden = !proprios.length;
     /* O CARIMBO E A HORA DA LEITURA, e nao a de uma coleta: esta tela nao
        coleta nada, ela junta duas fontes que ja tinham acontecido. A idade de
        cada coleta esta no cartao do fornecedor, que e onde ela significa
@@ -42665,7 +42689,7 @@ function integCartao(i){
       <div class="int-linha"><span class="rot">Alimenta</span><span class="val">${esc(i.alimenta)}</span></div>
       <div class="int-linha"><span class="rot">Configuração</span><span class="val">${integCfgFrase(i.configuracao)}</span></div>
       ${regime}
-      <div class="int-linha"><span class="rot">Chegada</span><span class="val">${esc(i.chegada.detalhe)}</span></div>
+      <div class="int-linha"><span class="rot">${i.proprio ? 'Natureza' : 'Chegada'}</span><span class="val">${esc(i.chegada.detalhe)}</span></div>
     </div>
   </div>`;
 }
@@ -42726,6 +42750,11 @@ function integMetade(rot, status, val, fonte){
    mais uma que pede confianca -- e "sob demanda" e "sem medicao" sao coisas
    diferentes que ficariam no mesmo cinza sem esta frase. */
 function integFonteChegada(i){
+  /* `nao_se_aplica` NAO E o mesmo que `sem_medicao`, e a diferenca importa:
+     "sem medicao" e uma lacuna nossa que alguem pode fechar criando o cartao
+     na Saude; "nao se aplica" e um fato — nao ha fornecedor do outro lado.
+     Tratar os dois igual poria uma pendencia eterna na fila de alguem. */
+  if(i.chegada.regime==='nao_se_aplica') return 'segredo da casa — não há fornecedor do outro lado';
   if(i.chegada.regime==='sob_demanda') return 'consultado na hora — não há coleta';
   if(i.chegada.regime==='sem_medicao') return 'sem cartão na Saúde do Servidor';
   return i.cartao_saude ? 'Saúde do Servidor · '+i.cartao_saude : '';
@@ -42742,7 +42771,8 @@ function integModalHTML(i){
     +'<p class="intm-resumo">'+esc(i.resumo)+'</p>'
     +'<div class="intm-metades">'
       + integMetade('Configuração', c.status, integCfgFrase(c)+modo, c.regime||'')
-      + integMetade('Chegada de dado', i.chegada.status, esc(i.chegada.detalhe), integFonteChegada(i))
+      + integMetade(i.proprio ? 'Natureza' : 'Chegada de dado', i.chegada.status,
+                     esc(i.chegada.detalhe), integFonteChegada(i))
     +'</div>'
     +'<div class="intm-sec"><div class="intm-rot">Alimenta</div>'
       +'<div style="font-size:12.5px;color:var(--n700)">'+esc(i.alimenta)+'</div></div>'

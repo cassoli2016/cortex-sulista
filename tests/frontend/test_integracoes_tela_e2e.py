@@ -452,3 +452,104 @@ def test_quem_nao_e_admin_ainda_ve_o_que_falta(pagina):
     assert "sem coleta há 5 dias" in texto
     # os campos aparecem por NOME, com marca de preenchido — nunca com valor
     assert "Filiais" in texto and "Token de API" in texto
+
+
+# ================================== os segredos da casa (nao sao fornecedor)
+#
+# O DEFEITO QUE ESTE BLOCO GUARDA nao tem sintoma nenhum. De 07/09 a
+# 10/09/2026 o `panorama` do servidor DESCARTAVA `motorista_mestre` e `cortex`.
+# Como esta tela so monta cartao a partir daquela lista, e o modal so abre a
+# partir de um cartao, o formulario dos dois ficou sem porta de entrada quando
+# a aba Gestao > Integracoes foi aposentada. O gerador do codigo mestre do app
+# do motorista -- que abre a PII de ~300 pessoas -- existia, respondia, estava
+# auditado, e ninguem conseguia clicar nele.
+#
+# Nada dava erro. O botao so nao aparecia em lugar nenhum.
+
+MESTRE_COFRE = {
+    "chave": "motorista_mestre",
+    "nome": "App do motorista — acesso da administração",
+    "resumo": "Código que abre o app de QUALQUER motorista para conferência.",
+    "alimenta": "App do motorista", "aba": None,
+    "estado": "desligada", "modo_ativo": "codigo", "falta": ["código mestre"],
+    "modos": [{"chave": "codigo", "rotulo": "Código mestre", "completo": False,
+               "campos": [campo("MOTORISTA_CODIGO_MESTRE", "Código mestre")]}],
+    "ajustes": [],
+}
+
+MESTRE_PUB = {
+    "chave": "motorista_mestre",
+    "nome": "App do motorista — acesso da administração",
+    "resumo": "Código que abre o app de QUALQUER motorista para conferência.",
+    "alimenta": "App do motorista", "estado": "info", "proprio": True,
+    "configuracao": {"estado": "desligada", "status": "info",
+                     "falta": ["código mestre"], "modo": "codigo",
+                     "modo_rotulo": "Código mestre", "regime": None,
+                     "modos": [{"chave": "codigo", "rotulo": "Código mestre",
+                                "completo": False,
+                                "campos": [publico("Código mestre",
+                                                   configurado=False)]}],
+                     "ajustes": []},
+    "chegada": {"regime": "nao_se_aplica", "status": "info",
+                "detalhe": "segredo da casa — não há coleta"},
+    "cartao_saude": None, "aba": None,
+}
+
+
+def _com_proprios():
+    pan = json.loads(json.dumps(PANORAMA))
+    pan["proprios"] = [MESTRE_PUB]
+    cof = json.loads(json.dumps(CREDENCIAIS))
+    cof["servicos"] = cof["servicos"] + [MESTRE_COFRE]
+    return pan, cof
+
+
+def test_o_segredo_da_casa_GANHA_CARTAO_em_lista_propria(pagina):
+    pg, base = pagina
+    pan, cof = _com_proprios()
+    _abrir(pg, base, panorama=pan, cofre=cof)
+    pg.wait_for_selector("#integ-proprios .intcard", timeout=10000)
+    # esta na lista propria...
+    assert pg.eval_on_selector_all(
+        '#integ-proprios .intcard-alvo[data-chave="motorista_mestre"]',
+        "es => es.length") == 1
+    # ...e NAO na dos fornecedores, que e onde ele viraria alarme eterno
+    assert pg.eval_on_selector_all(
+        '#integ-lista .intcard-alvo[data-chave="motorista_mestre"]',
+        "es => es.length") == 0
+
+
+def test_o_cartao_dele_ABRE_o_formulario_com_o_botao_de_gerar(pagina):
+    """O guard que teria pegado o defeito: nao basta o cartao existir, o
+    caminho ate o botao tem de estar inteiro."""
+    pg, base = pagina
+    pan, cof = _com_proprios()
+    _abrir(pg, base, panorama=pan, cofre=cof)
+    pg.wait_for_selector("#integ-proprios .intcard", timeout=10000)
+    texto = _modal(pg, "motorista_mestre").inner_text()
+    assert "Código mestre" in texto
+    # o botao de gerar existe e chama a rota certa
+    assert pg.eval_on_selector_all(
+        '#modalBox button[onclick*="gerarCodigoMestre"]', "es => es.length") == 1
+
+
+def test_o_cartao_dele_NAO_fala_em_chegada_de_dado(pagina):
+    """"Chegada" pressupoe alguem do outro lado. Um cinza permanente ali seria
+    alarme que ninguem pode apagar -- e e assim que se ensina a ignorar
+    cinza."""
+    pg, base = pagina
+    pan, cof = _com_proprios()
+    _abrir(pg, base, panorama=pan, cofre=cof)
+    pg.wait_for_selector("#integ-proprios .intcard", timeout=10000)
+    # `inner_text` devolve o texto RENDERIZADO, e o CSS da casa poe os rotulos
+    # em maiuscula — comparar sem baixar a caixa mede o CSS, nao o rotulo.
+    cartao = pg.inner_text('#integ-proprios .intcard').lower()
+    assert "natureza" in cartao, cartao
+    assert "chegada" not in cartao, cartao
+
+
+def test_sem_segredos_da_casa_o_cartao_SOME(pagina):
+    """Titulo sobre o vazio e pior que ausencia: ele promete uma lista."""
+    pg, base = pagina
+    _abrir(pg, base)                      # PANORAMA sem `proprios`
+    assert pg.eval_on_selector("#integ-proprios-card", "e => e.hidden") is True

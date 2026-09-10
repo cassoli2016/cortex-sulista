@@ -85,8 +85,30 @@ CARTAO_DA_SAUDE: dict[str, str] = {
 #: O que está no cofre de credenciais mas NÃO é fornecedor externo.
 #: `cortex` é o endereço do próprio painel; `motorista_mestre` é um segredo
 #: NOSSO. Os dois estão lá porque é lá que a tela de configuração lê — e sem
-#: esta lista eles apareceriam aqui como integrações que nunca respondem.
+#: esta lista eles entrariam no semáforo como integrações que nunca respondem.
+#:
+#: ELES NÃO SÃO DESCARTADOS, e essa é a correção de 10/09/2026: até aqui o
+#: `panorama` fazia `continue` neles, e como a tela `integ` só monta cartão a
+#: partir desta lista — e o modal só abre a partir de um cartão —, o
+#: formulário dos dois ficou SEM PORTA DE ENTRADA quando a aba Gestão ›
+#: Integrações foi aposentada (0260501, v1.6.0). O gerador do código mestre do
+#: app do motorista, que abre a PII de ~300 pessoas, existia e não era
+#: alcançável por ninguém. Defeito sem sintoma: nada dá erro, o botão
+#: simplesmente não aparece. Agora eles saem em `proprios`, com cartão e modal
+#: próprios, e fora do semáforo e das contas do resumo.
 NAO_SAO_FORNECEDOR = frozenset({"cortex", "motorista_mestre"})
+
+#: Por que estes não têm metade de CHEGADA — e por que isso não é "sem
+#: medição". Não há fornecedor do outro lado: não existe coleta que possa
+#: parar, então um cinza permanente ali seria alarme que ninguém pode apagar,
+#: que é como se ensina a ignorar cinza.
+SEM_CHEGADA = {
+    "motorista_mestre": ("segredo da casa — não há coleta. Ele só é usado "
+                         "quando alguém abre o app de um motorista para "
+                         "conferência, e esse uso fica na auditoria"),
+    "cortex": ("endereço do próprio painel — não há fornecedor do outro lado "
+               "para responder"),
+}
 
 #: Fornecedor sem coleta periódica: não há "última coleta" para envelhecer.
 #: Dizer "sem dado" deles seria alarme falso todo dia.
@@ -210,12 +232,12 @@ def panorama(cartoes: list[dict] | None = None) -> dict:
     por_nome = _cartoes_por_nome(cartoes)
 
     linhas: list[dict] = []
+    proprios: list[dict] = []
     for svc in credenciais.panorama():
         chave = svc["chave"]
-        if chave in NAO_SAO_FORNECEDOR:
-            continue
+        proprio = chave in NAO_SAO_FORNECEDOR
 
-        nome_cartao = CARTAO_DA_SAUDE.get(chave)
+        nome_cartao = None if proprio else CARTAO_DA_SAUDE.get(chave)
         cartao = por_nome.get(nome_cartao) if nome_cartao else None
 
         # A CHEGADA TEM QUATRO RESPOSTAS, e "não sei" é uma delas.
@@ -223,7 +245,11 @@ def panorama(cartoes: list[dict] | None = None) -> dict:
         # Sem esta separação, fornecedor sob demanda e fornecedor com coleta
         # parada cairiam no mesmo cinza — e é a diferença entre "está certo
         # assim" e "alguém precisa olhar hoje".
-        if chave in SOB_DEMANDA:
+        if proprio:
+            chegada = {"regime": "nao_se_aplica", "status": "info",
+                       "detalhe": SEM_CHEGADA.get(
+                           chave, "não é fornecedor externo")}
+        elif chave in SOB_DEMANDA:
             chegada = {"regime": "sob_demanda", "status": "info",
                        "detalhe": SOB_DEMANDA[chave]}
         elif cartao is not None:
@@ -246,12 +272,17 @@ def panorama(cartoes: list[dict] | None = None) -> dict:
         modos = _modos_publicos(svc)
         ativo = next((m for m in modos if m["chave"] == svc["modo_ativo"]), None)
 
-        linhas.append({
+        (proprios if proprio else linhas).append({
             "chave": chave,
             "nome": svc["nome"],
             "resumo": svc["resumo"],
             "alimenta": svc["alimenta"],
-            "estado": _pior(conf, chegada["status"]),
+            # O ESTADO DE UM SEGREDO DA CASA É SÓ O DA CONFIGURAÇÃO. Passar
+            # pelo `_pior` junto com a chegada rebaixaria "ok" para "info",
+            # porque `info` pesa menos que `ok` — um cofre preenchido apareceria
+            # cinza para sempre por causa de uma metade que não existe.
+            "proprio": proprio,
+            "estado": conf if proprio else _pior(conf, chegada["status"]),
             "configuracao": {"estado": svc["estado"], "status": conf,
                              "falta": svc["falta"], "modo": svc["modo_ativo"],
                              "modo_rotulo": (ativo or {}).get("rotulo"),
@@ -270,11 +301,18 @@ def panorama(cartoes: list[dict] | None = None) -> dict:
         })
 
     for extra in _extras():
+        extra.setdefault("proprio", False)
         linhas.append(extra)
 
     linhas.sort(key=lambda l: (_PESO.get(l["estado"], 9), l["nome"].lower()))
+    proprios.sort(key=lambda l: (_PESO.get(l["estado"], 9), l["nome"].lower()))
     return {
         "integracoes": linhas,
+        # SEGREDOS DA CASA, em lista separada de propósito. Eles não entram no
+        # `resumo` porque os KPIs da tela dizem "fornecedores externos que a
+        # casa usa" — somar aqui um código que ninguém do lado de fora conhece
+        # faria a conta responder outra pergunta.
+        "proprios": proprios,
         "resumo": {
             "total": len(linhas),
             "ok": sum(1 for l in linhas if l["estado"] == "ok"),
