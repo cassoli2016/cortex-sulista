@@ -260,6 +260,20 @@ def situacao(m: dict) -> str:
     return FORA if local == ROTULO_FORA or not local else DENTRO
 
 
+#: A chapa do ERP tem 6 dígitos. `zfill` não trunca: matrícula maior passa
+#: inteira, e é isso que se quer — o dia em que o cadastro crescer, o
+#: casamento continua valendo.
+TAMANHO_MATRICULA = 6
+
+
+def _matricula(bruto) -> str | None:
+    """Zeros à esquerda, para casar com a `chapafunc` do ERP."""
+    t = (bruto or "").strip()
+    if not t:
+        return None
+    return t.zfill(TAMANHO_MATRICULA) if t.isdigit() else t
+
+
 def normalizar(m: dict) -> dict:
     """O corpo do fornecedor no formato da casa, com a situação já decidida."""
     lat, lon = (m.get("GPSLatitude") or "").strip(), (m.get("GPSLongitude") or "").strip()
@@ -271,7 +285,12 @@ def normalizar(m: dict) -> dict:
         "nsr": int(m.get("NSR") or 0),
         "cpf": (m.get("CPF") or "").strip() or None,
         "pis": (m.get("PIS") or "").strip() or None,
-        "matricula": (m.get("MatriculaFuncionario") or "").strip() or None,
+        # MATRICULA NORMALIZADA COM ZEROS A ESQUERDA. O fornecedor devolve os
+        # dois formatos: medido em 09/09/2026, 54 pessoas vinham como "003792"
+        # e 31 como "3878" — 36% do quadro. A chapa do ERP tem 6 dígitos, e sem
+        # o `zfill` o casamento falha JUSTAMENTE para essas 31: a batida entra,
+        # o nome não aparece, e a tela mostra "(não encontrado)" sem erro nenhum.
+        "matricula": _matricula(m.get("MatriculaFuncionario")),
         "trabalhador_id": m.get("TrabalhadorId"),
         "marcada_em": marcada.isoformat() if marcada else None,
         "inserida_em": inserida.isoformat() if inserida else None,

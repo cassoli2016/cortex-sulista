@@ -7311,18 +7311,12 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="subtabs" role="tablist" data-abas="freq" aria-label="Seções desta tela">
           <button role="tab" id="tabfreq-passivo" data-aba="passivo" aria-controls="aba-freq-passivo" aria-selected="true" onclick="abaTrocar('freq','passivo')">Passivo</button>
           <button role="tab" id="tabfreq-pessoas" data-aba="pessoas" aria-controls="aba-freq-pessoas" aria-selected="false" onclick="abaTrocar('freq','pessoas')">Por pessoa <span class="aban" id="freqNPess"></span></button>
-          <button role="tab" id="tabfreq-batidas" data-aba="batidas" aria-controls="aba-freq-batidas" aria-selected="false" onclick="abaTrocar('freq','batidas')">Batidas <span class="aban" id="freqNAvisos"></span></button>
-          <button role="tab" id="tabfreq-abs" data-aba="abs" aria-controls="aba-freq-abs" aria-selected="false" onclick="abaTrocar('freq','abs')">Absenteísmo</button>
-          <button role="tab" id="tabfreq-cercas" data-aba="cercas" aria-controls="aba-freq-cercas" aria-selected="false" onclick="abaTrocar('freq','cercas')">Cercas e batidas <span class="aban" id="freqNCercas"></span></button>
+          <button role="tab" id="tabfreq-batidas" data-aba="batidas" aria-controls="aba-freq-batidas" aria-selected="false" onclick="abaTrocar('freq','batidas')">Batidas <span class="aban" id="freqNBat"></span></button>
         </div>
         <div class="aba" data-abas="freq" data-aba="passivo" id="aba-freq-passivo" role="tabpanel" aria-labelledby="tabfreq-passivo">
           <div class="kband"><div class="kpis k4" id="kpis-freq"></div></div>
-          <div class="grid2">
-            <div class="card"><div class="head"><h2>O passivo ao longo do tempo</h2><span class="hint">saldo credor × devedor · 14 meses · mês em curso hachurado</span></div>
-              <div class="chartwrap"><div id="chartFreqSerie" style="width:100%;height:230px" role="img"></div></div></div>
-            <div class="card"><div class="head"><h2>Para onde vai a hora extra</h2><span class="hint" id="freq-destino-hint">12 meses fechados · só quem tem ponto</span></div>
-              <div class="chartwrap"><div id="chartFreqDestino" style="width:100%;height:230px" role="img"></div></div></div>
-          </div>
+          <div class="card"><div class="head"><h2>O saldo ao longo do tempo</h2><span class="hint">credor × devedor · 14 meses · mês em curso hachurado</span></div>
+            <div class="chartwrap"><div id="chartFreqSerie" style="width:100%;height:230px" role="img"></div></div></div>
           <div class="card"><div class="head"><h2>O saldo registrado x o que foi pago <span class="ihelp" tabindex="0" role="img" aria-label="por que os dois nao batem" title="A casa paga hora extra todo mes, com picos a cada seis meses. Nada disso baixa o saldo do banco de horas no ERP: o evento que daria a baixa quase nao e usado. Sao duas contabilidades que rodam em paralelo e nao se encontram — por isso o saldo do cartao acima nao pode ser lido como divida.">i</span></h2>
             <span class="hint">as duas contabilidades, na mesma linha do tempo</span></div>
             <div id="freq-conf-aviso"></div>
@@ -7338,45 +7332,27 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card"><div class="head"><h2>Conferir no cadastro <span class="ihelp" tabindex="0" role="img" aria-label="por que estes saem dos KPIs" title="Saldo alto que praticamente não se move não é jornada: é registro que ninguém fechou. O corte é a razão entre o movimento de 6 meses e o próprio saldo (menos de 0,10, com saldo de 100 h ou mais) — medido sobre a distribuição real, que tem degrau claro nesse ponto. Estes saem dos KPIs de propósito: um único saldo congelado de −823,5 h deslocaria o saldo líquido da casa em 23%, para o lado errado e em silêncio.">i</span></h2><span class="hint" id="freq-cad-hint">fora dos KPIs, com a evidência</span></div>
             <div class="tablewrap" id="freq-cadastro"></div></div>
         </div>
+        <!-- BATIDAS: uma aba so, com as DUAS fontes.
+             O ERP (`FRQ_*`) diz de onde veio a marcacao e quantos dias foram
+             ajustados a mao; o Ponto Certificado diz onde a batida caiu e ha
+             quantos minutos ela chegou. Estavam em abas separadas por ordem de
+             construcao, nao por assunto — e o assunto e um so: a batida.
+             O absenteismo saiu daqui: Indicadores de Folha ja o publica. -->
         <div class="aba" data-abas="freq" data-aba="batidas" id="aba-freq-batidas" role="tabpanel" aria-labelledby="tabfreq-batidas" hidden data-ao-abrir="loadFreqBatidas">
           <div class="kband"><div class="kpis k4" id="kpis-freqbat"></div></div>
           <div class="grid2">
-            <div class="card"><div class="head"><h2>De onde vem a marcação</h2><span class="hint">relógio × digitada pelo DP · % digitada em linha</span></div>
-              <div class="chartwrap"><div id="chartFreqOrigem" style="width:100%;height:220px" role="img"></div></div></div>
-            <div class="card"><div class="head"><h2>Marcação ajustada à mão</h2><span class="hint">% dos dias-pessoa com alteração</span></div>
-              <div class="chartwrap"><div id="chartFreqAjuste" style="width:100%;height:220px" role="img"></div></div></div>
+            <div class="card"><div class="head"><h2>De onde vem a marcação</h2><span class="hint">relógio × digitada pelo DP · ERP</span></div>
+              <div class="chartwrap"><div id="chartFreqOrigem" style="width:100%;height:210px" role="img"></div></div></div>
+            <div class="card"><div class="head"><h2>Onde a batida caiu</h2><span class="hint">dentro · fora · sem coordenada — hoje sai marcado</span></div>
+              <div class="chartwrap"><div id="chartFreqCercas" style="width:100%;height:210px" role="img"></div></div></div>
           </div>
-          <div class="card"><div class="head"><h2>Motivo do ajuste</h2><span class="hint" id="freq-mot-hint">o que o DP declara ao alterar</span></div>
-            <div class="tablewrap" id="freq-motivos"></div></div>
-        </div>
-        <!-- ABSENTEISMO EM ABA PROPRIA, e nao por gosto: com ele junto das
-             batidas a aba dava 933px contra o teto de 900 da regua. Encolher
-             os graficos resolveria o numero e nao o problema — falta e
-             atestado sao pergunta de GESTAO DE PESSOAS, e origem da marcacao e
-             pergunta de APURACAO. Estavam juntos so porque couberam. -->
-        <div class="aba" data-abas="freq" data-aba="abs" id="aba-freq-abs" role="tabpanel" aria-labelledby="tabfreq-abs" hidden>
-          <div class="card"><div class="head"><h2>Faltas e atestados</h2><span class="hint" id="freq-abs-hint">dias-pessoa · sobre os dias efetivamente trabalhados</span></div>
-            <div class="chartwrap"><div id="chartFreqAbs" style="width:100%;height:250px" role="img"></div></div></div>
-          <div class="card"><div class="head"><h2>Mês a mês</h2><span class="hint">o mês em curso sai marcado — a importação do AFD é manual</span></div>
-            <div class="tablewrap tabroll" id="freq-abs-tab"></div></div>
-        </div>
-        <!-- CERCAS E BATIDAS: a unica aba da tela que NAO le o ERP.
-             Ela le `pc_marcacao`, que a coleta do Ponto Certificado enche de
-             10 em 10 minutos — a batida chega ao fornecedor em 11 s (mediana),
-             contra os 3 a 18 dias da importacao manual do AFD.
-             A tela NAO sabe onde a pessoa estava: a coordenada e descartada na
-             coleta e o que fica e a distancia ate a cerca mais proxima. -->
-        <div class="aba" data-abas="freq" data-aba="cercas" id="aba-freq-cercas" role="tabpanel" aria-labelledby="tabfreq-cercas" hidden data-ao-abrir="loadFreqCercas">
-          <div class="kband"><div class="kpis k4" id="kpis-freqcercas"></div></div>
           <div class="grid2">
-            <div class="card"><div class="head"><h2>Batidas por dia</h2><span class="hint">dentro · fora · sem coordenada — hoje sai marcado</span></div>
-              <div class="chartwrap"><div id="chartFreqCercas" style="width:100%;height:220px" role="img"></div></div></div>
-            <div class="card"><div class="head"><h2>As cercas, e o que elas reprovam <span class="ihelp" tabindex="0" role="img" aria-label="como se le esta tabela" title="Reprovada a poucos metros do centro e problema de RAIO; reprovada a quilometros e outra conversa, e nao se resolve mexendo no raio. Area desenhada por vertices nao tem raio: ali a distancia e medida ate o vertice mais proximo, nao ate a borda, e serve para ordenar e nao para decidir.">i</span></h2><span class="hint" id="freq-cerc-hint">raio cadastrado no fornecedor × o que foi reprovado perto</span></div>
+            <div class="card"><div class="head"><h2>As cercas, e o que elas reprovam <span class="ihelp" tabindex="0" role="img" aria-label="como se le esta tabela" title="Reprovada a poucos metros do centro e problema de RAIO; reprovada a quilometros e outra conversa, e nao se resolve mexendo no raio. Area desenhada por vertices nao tem raio: ali a distancia e medida ate o vertice mais proximo, nao ate a borda.">i</span></h2><span class="hint" id="freq-cerc-hint">raio cadastrado × o que foi reprovado perto</span></div>
               <div class="tablewrap tabroll" id="freq-cercas-tab"></div></div>
+            <div class="card"><div class="head"><h2>Quem bate fora</h2><span class="hint" id="freq-pess-fora-hint">por matrícula · ordenado por batidas reprovadas</span></div>
+              <div class="tablewrap tabroll" id="freq-pessoas-fora"></div></div>
           </div>
-          <div class="card"><div class="head"><h2>Quem bate fora</h2><span class="hint" id="freq-pess-fora-hint">por matrícula · ordenado por batidas reprovadas</span></div>
-            <div class="tablewrap tabroll" id="freq-pessoas-fora"></div>
-            <div id="freq-cercas-fonte" style="color:var(--n500);font-size:11.5px;margin-top:9px"></div></div>
+          <div id="freq-cercas-fonte" style="color:var(--n500);font-size:11.5px;margin-top:9px"></div>
         </div>
       </section>
       <section class="view" id="view-custos">
@@ -9682,8 +9658,8 @@ let folhaindSeq = 0;
 let DATAFOLHAIND = null;
 let heSeq = 0;
 let DATAHE = null;
-let freqSeq = 0, freqBatSeq = 0;
-let DATAFREQ = null, DATAFREQBAT = null;
+let freqSeq = 0, freqBatSeq = 0, freqCercSeq = 0;
+let DATAFREQ = null, DATAFREQBAT = null, DATAFREQCERC = null;
 let custosSeq = 0;
 let DATACUSTOS = null;
 let pecasSeq = 0;
@@ -30564,17 +30540,6 @@ function renderFreq(d){
      {nome:'Devedor', cor:CC.azul, valores:serie.map(s=>s.devedor)}],
     {fmt:v=>nf(v,0)+' h', axisFmt:v=>nf(v,0)+' h', tipo:'num'});
 
-  // Destino da HE: a pergunta central de um regime de banco de horas.
-  const dh=d.destino_he||{};
-  chartHBars('chartFreqDestino', [
-    {rotulo:'Paga em dinheiro', valor:dh.pago_horas||0},
-    {rotulo:'Creditada no banco', valor:dh.creditado_horas||0},
-    {rotulo:'Compensada em folga', valor:dh.compensado_horas||0},
-  ], {cor:CC.roxo, fmt:v=>nf(v,0)+' h'});
-  const dhint=document.getElementById('freq-destino-hint');
-  if(dhint) dhint.textContent=(dh.janela||'')+' · '+nf(dh.pct_em_dinheiro,1)+'% da hora extra vira dinheiro · '+
-    BRL.format(dh.pago_reais||0)+' pagos';
-
   /* O CONFRONTO: o que se paga x o que o saldo faz. E o cartao que impede a
      tela de publicar um acumulador como divida — foi o defeito que subiu em
      09/09/2026 e que quem opera pegou lendo a tela. */
@@ -30640,97 +30605,77 @@ function renderFreq(d){
     : '<div style="color:var(--n500);padding:9px 0">Nenhum saldo parado nesta competência — todos se movimentaram nos últimos 6 meses.</div>';
 }
 
-/* A aba de batidas tem consulta PRÓPRIA e carrega sozinha: quem abre a tela
-   para ver o passivo não deve pagar por ela. */
+/* A aba Batidas: UMA aba, DUAS fontes, duas chamadas.
+   O ERP diz de onde veio a marcacao e quantos dias foram ajustados a mao; o
+   Ponto Certificado diz onde a batida caiu e ha quantos minutos ela chegou.
+   Estavam em abas separadas por ordem de construcao, nao por assunto.
+   As duas carregam sozinhas (data-ao-abrir): quem abre a tela para ver o saldo
+   nao deve pagar por elas. */
+/* A banda de KPI e montada por DUAS fontes assincronas. Guardar os pedacos e
+   repintar e o que impede a que responder primeiro de ficar sozinha na tela —
+   e o que impede a segunda de APAGAR a primeira ao reescrever o innerHTML. */
+const KPIBAT = {ultima:'', fora:'', dp:'', aj:''};
+function pintarKpisBat(){
+  const el=document.getElementById('kpis-freqbat'); if(!el) return;
+  const partes=[KPIBAT.ultima, KPIBAT.fora, KPIBAT.dp, KPIBAT.aj].filter(Boolean);
+  if(partes.length) el.innerHTML=partes.join('');
+}
+
 async function loadFreqBatidas(){
   const seq=++freqBatSeq;
   skelKpis('kpis-freqbat',4);
+  loadFreqCercas();                    // a outra metade da mesma aba
   try{
     const r=await fetch('/api/rh/frequencia/batidas?meses=12',{cache:'no-store'});
     const rr=await respostaJSON(r); if(seq!==freqBatSeq) return;
-    if(!rr.ok) return;                       // o banner já veio do carregamento principal
+    if(!rr.ok) return;                 // o banner ja veio do carregamento principal
     const d=rr.dados;
     if(d.configurado===false) return;
     DATAFREQBAT=d; renderFreqBatidas(d);
-  }catch(e){ /* a aba principal já reporta a falha de rede */ }
+  }catch(e){ /* a aba principal ja reporta a falha de rede */ }
 }
+
+async function loadFreqCercas(){
+  const seq=++freqCercSeq;
+  try{
+    const r=await fetch('/api/rh/frequencia/cercas?dias=14',{cache:'no-store'});
+    const rr=await respostaJSON(r); if(seq!==freqCercSeq) return;
+    if(!rr.ok) return;
+    DATAFREQCERC=rr.dados; renderFreqCercas(rr.dados);
+  }catch(e){ /* idem */ }
+}
+
 function renderFreqBatidas(d){
   const nf=(v,c)=>Number(v||0).toLocaleString('pt-BR',{maximumFractionDigits:c==null?0:c});
-  const fr=d.frescor||{}, av=d.avisos||[], og=d.origem||[], aj=d.ajustes||[], ab=d.absenteismo||[];
-  const ogF=og.filter(o=>!o.parcial), ajF=aj.filter(a=>!a.parcial), abF=ab.filter(a=>!a.parcial);
-  const uo=ogF[ogF.length-1]||{}, ua=ajF[ajF.length-1]||{}, ux=abF[abF.length-1]||{};
+  const av=d.avisos||[], og=d.origem||[], aj=d.ajustes||[];
+  const ogF=og.filter(o=>!o.parcial), ajF=aj.filter(a=>!a.parcial);
+  const uo=ogF[ogF.length-1]||{}, ua=ajF[ajF.length-1]||{};
 
-  abaContador('freqNAvisos', av.length);
+  abaContador('freqNBat', av.length);
   document.getElementById('freq-avisos').innerHTML=av.map(a=>
-    `<div class="avisofaixa">${esc(a.titulo)} — <span style="font-weight:400">${esc(a.detalhe)}</span></div>`).join('');
+    '<div class="avisofaixa">'+esc(a.titulo)+' — <span style="font-weight:400">'+esc(a.detalhe)+'</span></div>').join('');
 
-  document.getElementById('kpis-freqbat').innerHTML=[
-    kpi('A apuração enxerga até', fr.ultimo_dia?fmtD(fr.ultimo_dia):'—',
-        fr.dias_atraso+' dia(s) atrás · importação manual', (fr.dias_atraso||0)>5?'neg':((fr.dias_atraso||0)>2?'warn':'')),
-    kpi('Marcação digitada pelo DP', nf(uo.pct_digitada,1)+'%', 'em '+(uo.mes||'—')+' · não veio do relógio',
-        (uo.pct_digitada||0)>=10?'neg':''),
-    kpi('Dias com ajuste manual', nf(ua.pct,0)+'%', (ua.dias_ajustados||0)+' de '+(ua.dias_total||0)+' dias-pessoa em '+(ua.mes||'—'),
-        (ua.pct||0)>=25?'neg':''),
-    kpi('Absenteísmo', nf(ux.pct_falta,1)+'%', (ux.faltas||0)+' dias de falta e '+(ux.atestados||0)+' de atestado em '+(ux.mes||'—'),
-        (ux.pct_falta||0)>=7?'neg':''),
-  ].join('');
+  KPIBAT.dp = kpi('Marcação digitada pelo DP', nf(uo.pct_digitada,1)+'%',
+      'em '+(uo.mes||'—')+' · não veio do relógio', (uo.pct_digitada||0)>=10?'neg':'');
+  KPIBAT.aj = kpi('Dias com ajuste manual', nf(ua.pct,0)+'%',
+      (ua.dias_ajustados||0)+' de '+(ua.dias_total||0)+' dias-pessoa em '+(ua.mes||'—'),
+      (ua.pct||0)>=25?'neg':'');
+  pintarKpisBat();
 
   const rot=s=>s.mes.slice(2)+(s.parcial?'*':'');
   chartCols('chartFreqOrigem', og.map(rot),
     [{nome:'Relógio (AFD)', cor:CC.verde, valores:og.map(o=>o.relogio)},
      {nome:'Digitada pelo DP', cor:CC.amarelo, valores:og.map(o=>o.digitada)}],
     {stacked:true, fmt:v=>nf(v,0), axisFmt:v=>nf(v,0), tipo:'num'});
-  chartArea('chartFreqAjuste', aj.map(rot),
-    [{nome:'% dos dias com ajuste', cor:CC.roxo, valores:aj.map(a=>a.pct)}],
-    {fmt:v=>nf(v,1)+'%', axisFmt:v=>nf(v,0)+'%', tipo:'num'});
-  chartCols('chartFreqAbs', ab.map(rot),
-    [{nome:'Faltas', cor:CC.vermelho, valores:ab.map(a=>a.faltas)},
-     {nome:'Atestados', cor:CC.azul, valores:ab.map(a=>a.atestados)}],
-    {stacked:true, fmt:v=>nf(v,0)+' dias', axisFmt:v=>nf(v,0), tipo:'num'});
-
-  // A tabela mensal do absenteísmo: o mês em curso sai MARCADO, porque com
-  // importação manual ele não é "mês fraco", é mês que ninguém importou.
-  document.getElementById('freq-abs-tab').innerHTML=
-    `<table><thead><tr><th>Mês</th><th class="num">Faltas</th><th class="num">Atestados</th><th class="num">Dias trabalhados</th><th class="num">% falta</th></tr></thead><tbody>`+
-    (ab.slice().reverse().map(a=>`<tr><td>${esc(a.mes)}${a.parcial?' <span class="badge">parcial</span>':''}</td>`+
-      `<td class="num">${nf(a.faltas,0)}</td><td class="num">${nf(a.atestados,0)}</td>`+
-      `<td class="num">${nf(a.trabalhados,0)}</td><td class="num" style="font-weight:600">${nf(a.pct_falta,1)}%</td></tr>`).join('')
-      ||'<tr><td colspan="5" style="color:var(--n500)">sem dado no período</td></tr>')+'</tbody></table>';
-  const ah=document.getElementById('freq-abs-hint');
-  if(ah) ah.textContent='dias-pessoa · '+(abF.length?('último mês fechado: '+ux.mes+' com '+nf(ux.pct_falta,1)+'% de falta'):'sem mês fechado no período');
-
-  const tot=(d.motivos||[]).reduce((s,m)=>s+m.n,0)||1;
-  document.getElementById('freq-motivos').innerHTML=
-    `<table><thead><tr><th>Motivo declarado</th><th class="num">Ajustes</th><th class="num">%</th></tr></thead><tbody>`+
-    ((d.motivos||[]).map(m=>`<tr><td>${esc(m.motivo)}</td><td class="num">${nf(m.n,0)}</td><td class="num">${nf(100*m.n/tot,1)}%</td></tr>`).join('')
-      ||'<tr><td colspan="3" style="color:var(--n500)">nenhum ajuste no período</td></tr>')+'</tbody></table>';
-  const mh=document.getElementById('freq-mot-hint');
-  if(mh) mh.textContent=nf(tot,0)+' ajustes em '+d.meses+' meses · defasagem da digitação: mediana de '+
-    nf((d.defasagem||{}).mediana_dias,0)+' dias';
 }
 
-/* A aba Cercas e batidas: a unica da tela que NAO le o ERP.
-   Carrega sozinha (data-ao-abrir) porque a consulta e propria e quem abre a
-   tela para ver o passivo nao deve pagar por ela. */
-let freqCercSeq = 0;
-let DATAFREQCERC = null;
-async function loadFreqCercas(){
-  const seq=++freqCercSeq;
-  skelKpis('kpis-freqcercas',4);
-  try{
-    const r=await fetch('/api/rh/frequencia/cercas?dias=14',{cache:'no-store'});
-    const rr=await respostaJSON(r); if(seq!==freqCercSeq) return;
-    if(!rr.ok){ showBanner((rr.dados||{}).mensagem||'Erro ao ler as batidas coletadas.'); return; }
-    DATAFREQCERC=rr.dados; renderFreqCercas(rr.dados);
-  }catch(e){ if(seq===freqCercSeq) showBanner('Não foi possível falar com a API.', e.message); }
-}
 function renderFreqCercas(d){
   const k=d.kpis||{}, nf=(v,c)=>Number(v||0).toLocaleString('pt-BR',{maximumFractionDigits:c==null?0:c});
   const ser=d.serie||[], cal=d.calibracao||[], pes=d.por_pessoa||[];
 
   /* "HA QUANTO TEMPO" e o numero que prova que isto e outra fonte: o ERP
-     mostra 3 dias atras, aqui sao minutos. Calculado no CLIENTE contra o
-     relogio dele, e nao no servidor, porque quem le esta olhando agora. */
+     mostra dias atras, aqui sao minutos. Calculado no CLIENTE, contra o
+     relogio de quem le, porque quem le esta olhando agora. */
   let idade='—', idadeCls='';
   if(k.ultima_batida){
     const min=Math.round((Date.now()-new Date(k.ultima_batida).getTime())/60000);
@@ -30738,17 +30683,14 @@ function renderFreqCercas(d){
           : min<1440?(Math.round(min/60)+' h atrás') : (Math.round(min/1440)+' dias atrás');
     idadeCls = min>180?'neg':(min>60?'warn':'');
   }
-  abaContador('freqNCercas', k.fora||0);
-  document.getElementById('kpis-freqcercas').innerHTML=[
-    kpi('Última batida', idade, k.ultima_batida?fmtDT(k.ultima_batida):'sem batida coletada', idadeCls,
-        'Vem do Ponto Certificado, não do ERP: a batida chega ao fornecedor em segundos, e a coleta roda de 10 em 10 minutos.'),
-    kpi('Batidas em '+d.dias+' dias', nf(k.batidas), nf(k.pessoas)+' pessoas · chegam em '+nf(k.latencia_s)+'s',''),
-    kpi('Fora de cerca', nf(k.fora)+' ('+nf(k.pct_fora,1)+'%)', 'com coordenada, fora de qualquer unidade',
-        (k.pct_fora||0)>=30?'neg':''),
-    kpi('Sem coordenada', nf(k.sem_coordenada)+' ('+nf(k.pct_sem_coordenada,1)+'%)',
-        'o aparelho não informou — não é infração', (k.pct_sem_coordenada||0)>=40?'warn':'',
-        'Metade das batidas não traz GPS. É esta fração que decide se a cerca pode virar regra: uma regra que reprove essa metade é uma regra que ninguém consegue cumprir.'),
-  ].join('');
+  KPIBAT.ultima = kpi('Última batida', idade,
+      k.ultima_batida?fmtDT(k.ultima_batida):'sem batida coletada', idadeCls,
+      'Vem do Ponto Certificado, não do ERP: a batida chega ao fornecedor em segundos e a coleta roda de 10 em 10 minutos.');
+  KPIBAT.fora = kpi('Fora de cerca', nf(k.fora)+' ('+nf(k.pct_fora,1)+'%)',
+      nf(k.sem_coordenada)+' sem coordenada ('+nf(k.pct_sem_coordenada,1)+'%) — não é infração',
+      (k.pct_fora||0)>=30?'neg':'',
+      'Metade das batidas não traz GPS. É essa fração que decide se a cerca pode virar regra: uma regra que reprove essa metade é uma regra que ninguém consegue cumprir.');
+  pintarKpisBat();
 
   chartCols('chartFreqCercas', ser.map(x=>x.dia.slice(8)+'/'+x.dia.slice(5,7)+(x.parcial?'*':'')),
     [{nome:'Dentro', cor:CC.verde, valores:ser.map(x=>x.dentro)},
@@ -30758,33 +30700,30 @@ function renderFreqCercas(d){
 
   const bad={apertado:'b-warn', ok:'b-ok'};
   document.getElementById('freq-cercas-tab').innerHTML=
-    '<table><thead><tr><th>Cerca</th><th>Forma</th><th class="num">Raio</th><th class="num">Aceitas</th>'
+    '<table><thead><tr><th>Cerca</th><th class="num">Raio</th><th class="num">Aceitas</th>'
     +'<th class="num">Reprovadas perto</th><th>Veredito</th></tr></thead><tbody>'
-    +(cal.map(c=>`<tr><td>${esc(c.nome)}${c.ativa?'':' <span class="badge b-dang">desligada</span>'}</td>`
-      +`<td style="color:var(--n600)">${esc(c.forma)}</td>`
-      +`<td class="num">${c.raio_m!=null?nf(c.raio_m)+' m':'—'}</td>`
-      +`<td class="num">${nf(c.aceitas)}</td>`
-      +`<td class="num">${c.ate250?('<b>'+nf(c.ate250)+'</b> a ≤250 m'):(c.longe?nf(c.longe)+' longe':'—')}</td>`
-      +`<td><span class="badge ${bad[c.veredito]||''}" title="${esc(c.motivo)}">${esc(c.veredito)}</span></td></tr>`).join('')
-      ||'<tr><td colspan="6" style="color:var(--n500)">nenhuma cerca coletada ainda</td></tr>')
+    +((cal.map(c=>'<tr><td>'+esc(c.nome)+(c.ativa?'':' <span class="badge b-dang">desligada</span>')+'</td>'
+      +'<td class="num">'+(c.raio_m!=null?nf(c.raio_m)+' m':'área')+'</td>'
+      +'<td class="num">'+nf(c.aceitas)+'</td>'
+      +'<td class="num">'+(c.ate250?('<b>'+nf(c.ate250)+'</b> a ≤250 m'):(c.longe?nf(c.longe)+' longe':'—'))+'</td>'
+      +'<td><span class="badge '+(bad[c.veredito]||'')+'" title="'+esc(c.motivo)+'">'+esc(c.veredito)+'</span></td></tr>').join(''))
+      ||'<tr><td colspan="5" style="color:var(--n500)">nenhuma cerca coletada ainda</td></tr>')
     +'</tbody></table>';
   const ch=document.getElementById('freq-cerc-hint');
   if(ch) ch.textContent=cal.length+' cerca(s) · '+cal.filter(c=>c.veredito==='apertado').length+' com reprovação a menos de 250 m';
 
   document.getElementById('freq-pessoas-fora').innerHTML=
     '<table><thead><tr><th>Matrícula</th><th class="num">Batidas</th><th class="num">Fora</th>'
-    +'<th class="num">% fora</th><th class="num">Distância média</th><th class="num">Última</th></tr></thead><tbody>'
-    +(pes.map(x=>`<tr><td>${esc(x.matricula)}</td><td class="num">${nf(x.batidas)}</td>`
-      +`<td class="num" style="font-weight:600">${nf(x.fora)}</td>`
-      +`<td class="num"><span class="badge ${x.pct_fora>=80?'b-warn':''}">${nf(x.pct_fora,1)}%</span></td>`
-      +`<td class="num">${x.distancia_media!=null?nf(x.distancia_media)+' m':'—'}</td>`
-      +`<td class="num">${x.ultima?fmtDT(x.ultima):'—'}</td></tr>`).join('')
-      ||'<tr><td colspan="6" style="color:var(--n500)">ninguém bateu fora no período</td></tr>')
+    +'<th class="num">% fora</th><th class="num">Dist. média</th></tr></thead><tbody>'
+    +((pes.map(x=>'<tr><td>'+esc(x.matricula)+'</td><td class="num">'+nf(x.batidas)+'</td>'
+      +'<td class="num" style="font-weight:600">'+nf(x.fora)+'</td>'
+      +'<td class="num"><span class="badge '+(x.pct_fora>=80?'b-warn':'')+'">'+nf(x.pct_fora,1)+'%</span></td>'
+      +'<td class="num">'+(x.distancia_media!=null?nf(x.distancia_media)+' m':'—')+'</td></tr>').join(''))
+      ||'<tr><td colspan="5" style="color:var(--n500)">ninguém bateu fora no período</td></tr>')
     +'</tbody></table>';
   const ph=document.getElementById('freq-pess-fora-hint');
   if(ph) ph.textContent=pes.length+' pessoa(s) com batida fora em '+d.dias+' dias';
-  const cf=document.getElementById('freq-cercas-fonte');
-  const cur=d.cursor||{};
+  const cur=d.cursor||{}, cf=document.getElementById('freq-cercas-fonte');
   if(cf) cf.textContent=(d.fonte||'')+(cur.ultima_coleta_em?(' · última coleta '+fmtDT(cur.ultima_coleta_em)):'')
     +(cur.ultimo_erro?(' · último erro: '+cur.ultimo_erro):'');
 }

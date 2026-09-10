@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.34.0] — 10/09/2026  ·  CX-10/09/2026-v1.34.0
+
+### Adicionado
+- Para o time de desenvolvimento: o JavaScript do painel passou a ser conferido a cada rodada de testes. Um erro de sintaxe em qualquer linha derruba o arquivo inteiro — o painel simplesmente nao abre — e ate agora isso so aparecia como um erro obscuro na regua de altura, minutos depois. Agora falha em um segundo, dizendo a linha.
+
+### Alterado
+- A tela de Frequencia enxugou: o absenteismo saiu (Indicadores de Folha ja publica) e o grafico de destino da hora extra tambem (a tela Horas Extras cobre). As duas abas de batida viraram UMA: o ERP diz de onde veio a marcacao e quantos dias foram ajustados a mao, o Ponto Certificado diz onde a batida caiu e ha quantos minutos chegou — e as duas coisas sao a mesma pergunta. Ficaram tres abas: Passivo, Por pessoa e Batidas.
+
+### Corrigido
+- As batidas de 36% das pessoas nao casavam com o cadastro do ERP. O Ponto Certificado devolve a matricula nos dois formatos — "003792" para umas, "3878" para outras — e sem os zeros a esquerda a tela mostrava "(nao encontrado)" no lugar do nome, sem erro nenhum. Corrigido na coleta e nas 518 batidas ja gravadas.
+
 ## [1.33.0] — 09/09/2026  ·  CX-09/09/2026-v1.33.0
 
 ### Adicionado
