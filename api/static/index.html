@@ -30532,7 +30532,7 @@ async function loadFreq(){
   finally{ if(seq===freqSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
 function renderFreq(d){
-  const k=d.kpis||{}, pb=d.publico||{}, fr=d.frescor||{};
+  const k=d.kpis||{}, pb=d.publico||{}, fr=d.frescor||{}, df=d.desde_fechamento||{};
   reconciliarCompetencias(document.getElementById('fFreqComp'), d.competencias, d.competencia);
   const nf=(v,c)=>Number(v||0).toLocaleString('pt-BR',{maximumFractionDigits:c==null?0:c});
   const ts=new Date();
@@ -30547,15 +30547,18 @@ function renderFreq(d){
   const ant=fechadas.length>1?fechadas[fechadas.length-2]:null;
   const atu=fechadas.length?fechadas[fechadas.length-1]:null;
   document.getElementById('kpis-freq').innerHTML=[
-    kpi('Saldo registrado no ERP', nf(k.passivo_horas,1)+' h', BRL.format(k.passivo_custo||0)+' · '+k.pessoas_credoras+' pessoas',
-        (k.passivo_horas||0)>0?'neg':'',
-        'NAO e o passivo: e o que esta registrado no banco de horas do ERP. Os pagamentos de hora extra nao baixam este saldo — veja o cartao logo abaixo. O valor e estimativa: '+(d.premissa_custo||''),
+    kpi('Saldo desde o fechamento', nf(df.credor_h,1)+' h', BRL.format(df.credor_rs||0)+' · '+(df.credores||0)+' pessoas · desde '+(df.desde||'—'),
+        (df.credor_h||0)>200?'neg':'',
+        'O saldo que existe DE VERDADE: só o movimento posterior ao último fechamento semestral. É este o número de hoje — o do ERP acumula desde 2023 e nunca baixa o que foi pago.'),
+    kpi('Líquido desde o fechamento', nf(df.liquido_h,1)+' h',
+        'credor '+nf(df.credor_h,0)+' h · devedor '+nf(Math.abs(df.devedor_h||0),0)+' h em '+(df.devedores||0)+' pessoas',
+        (df.liquido_h||0)>0?'':'good'),
+    kpi('Maior saldo individual', nf(df.maior,1)+' h', 'desde o fechamento de '+(df.desde||'—'),
+        (df.maior||0)>=100?'neg':''),
+    kpi('Acumulado no ERP', nf(k.passivo_horas,1)+' h', BRL.format(k.passivo_custo||0)+' · não é dívida',
+        'warn',
+        'O que o banco de horas do ERP registra desde 2023. Os pagamentos de hora extra não baixam este saldo, então ele NÃO é o passivo — está aqui para comparação, e some quando o ERP passar a dar a baixa.',
         ant&&atu?trendChip(atu.credor, ant.credor, {invert:true}):''),
-    kpi('Saldo líquido', nf(k.saldo_liquido,1)+' h', 'credor '+nf(k.passivo_horas,0)+' h · devedor '+nf(Math.abs(k.horas_devedoras||0),0)+' h',''),
-    kpi('Saldos que sobem', k.credoras_subindo+' de '+k.pessoas_credoras, 'cresceram nos últimos 6 meses',
-        (k.credoras_subindo||0) > (k.pessoas_credoras||0)/2 ? 'neg':''),
-    kpi('Maior saldo individual', nf(k.maior_saldo,1)+' h', (k.em_cadastro?k.em_cadastro+' fora dos KPIs, a conferir':'nenhum saldo parado'),
-        (k.maior_saldo||0)>=300?'neg':''),
   ].join('');
 
   // A série: credor × devedor. O mês em curso vai junto, MARCADO — escondê-lo
@@ -30602,21 +30605,26 @@ function renderFreq(d){
 
   // Por pessoa
   const ps=d.pessoas||[];
-  abaContador('freqNPess', ps.length);
+  abaContador('freqNPess', (df.pessoas||[]).length);
   const ph=document.getElementById('freq-pess-hint');
-  if(ph) ph.textContent=ps.length+' pessoas com saldo · credor primeiro · variação contra '+
-    (serie.length>6?serie[serie.length-7].comp:'6 meses atrás');
-  const linhas=ps.map(p=>{
-    const v=p.variacao_6m;
-    const chip = v==null ? '<span style="color:var(--n400)">—</span>'
-      : `<span class="badge ${v>0?'b-warn':(v<0?'b-ok':'')}">${v>0?'+':''}${nf(v,1)} h</span>`;
+  if(ph) ph.textContent=(df.pessoas||[]).length+' pessoa(s) com movimento desde o fechamento de '+
+    (df.desde||'—')+' · a última coluna é o acumulado do ERP, que não baixa o que foi pago';
+  /* A TABELA MOSTRA O SALDO DESDE O FECHAMENTO — o que existe de verdade —
+     e o acumulado do ERP ao lado, para quem for conciliar. Publicar so o do
+     ERP era o defeito: ele nunca baixa o que foi pago. */
+  const acum={}; ps.forEach(p=>{ acum[p.chapa]=p; });
+  const linhas=(df.pessoas||[]).map(p=>{
+    const a=acum[p.chapa]||{};
     const sit = p.situacao==='A' ? '' : `<span class="badge b-dang" title="não está ativo — saldo devia ter sido acertado">${p.situacao==='F'?'afastado':'desligado'}</span>`;
     return `<tr><td>${esc(p.chapa)}</td><td>${esc(p.nome)} ${sit}</td><td>${esc(p.filial)}</td><td>${esc(p.funcao)}</td>`+
       `<td class="num" style="font-weight:600;color:${p.horas>0?'var(--yellow)':'var(--n600)'}">${nf(p.horas,1)} h</td>`+
-      `<td class="num">${p.custo?BRL.format(p.custo):'—'}</td><td class="num">${chip}</td></tr>`;
-  }).join('')||'<tr><td colspan="7" style="color:var(--n500)">ninguém com saldo nesta competência</td></tr>';
+      `<td class="num">${p.credito?nf(p.credito,1)+' h':'—'}</td>`+
+      `<td class="num">${p.debito?nf(p.debito,1)+' h':'—'}</td>`+
+      `<td class="num">${p.custo?BRL.format(p.custo):'—'}</td>`+
+      `<td class="num" style="color:var(--n500)">${a.horas!=null?nf(a.horas,1)+' h':'—'}</td></tr>`;
+  }).join('')||'<tr><td colspan="9" style="color:var(--n500)">ninguém com saldo desde o fechamento</td></tr>';
   document.getElementById('freq-pessoas').innerHTML=
-    `<table><thead><tr><th>Chapa</th><th>Nome</th><th>Filial</th><th>Função</th><th class="num">Saldo</th><th class="num">Custo estimado</th><th class="num">6 meses</th></tr></thead><tbody>${linhas}</tbody></table>`;
+    `<table><thead><tr><th>Chapa</th><th>Nome</th><th>Filial</th><th>Função</th><th class="num">Saldo</th><th class="num">Crédito</th><th class="num">Débito</th><th class="num">Custo estimado</th><th class="num">Acum. ERP</th></tr></thead><tbody>${linhas}</tbody></table>`;
 
   // Conferir no cadastro — fora dos KPIs, com a evidência
   const cad=d.cadastro||[];
@@ -30738,13 +30746,16 @@ function renderFreqCercas(d){
   if(ch) ch.textContent=cal.length+' cerca(s) · '+cal.filter(c=>c.veredito==='apertado').length+' com reprovação a menos de 250 m';
 
   document.getElementById('freq-pessoas-fora').innerHTML=
-    '<table><thead><tr><th>Matrícula</th><th class="num">Batidas</th><th class="num">Fora</th>'
-    +'<th class="num">% fora</th><th class="num">Dist. média</th></tr></thead><tbody>'
-    +((pes.map(x=>'<tr><td>'+esc(x.matricula)+'</td><td class="num">'+nf(x.batidas)+'</td>'
+    '<table><thead><tr><th>Chapa</th><th>Nome</th><th>Filial</th><th class="num">Batidas</th>'
+    +'<th class="num">Fora</th><th class="num">% fora</th><th class="num">Dist. média</th></tr></thead><tbody>'
+    +((pes.map(x=>'<tr><td>'+esc(x.matricula)+'</td>'
+      +'<td>'+esc(x.nome || '(não encontrado no ERP)')+'</td>'
+      +'<td>'+esc(x.filial || '—')+'</td>'
+      +'<td class="num">'+nf(x.batidas)+'</td>'
       +'<td class="num" style="font-weight:600">'+nf(x.fora)+'</td>'
       +'<td class="num"><span class="badge '+(x.pct_fora>=80?'b-warn':'')+'">'+nf(x.pct_fora,1)+'%</span></td>'
       +'<td class="num">'+(x.distancia_media!=null?nf(x.distancia_media)+' m':'—')+'</td></tr>').join(''))
-      ||'<tr><td colspan="5" style="color:var(--n500)">ninguém bateu fora no período</td></tr>')
+      ||'<tr><td colspan="7" style="color:var(--n500)">ninguém bateu fora no período</td></tr>')
     +'</tbody></table>';
   const ph=document.getElementById('freq-pess-fora-hint');
   if(ph) ph.textContent=pes.length+' pessoa(s) com batida fora em '+d.dias+' dias';

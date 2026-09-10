@@ -105,6 +105,24 @@ EV_DEB_BH, EV_CRED_BH = 1016, 1017
 # ago/2026: um afastamento com −823,5 h congeladas desde ago/2025 e um crédito
 # de 322,4 h com 9,2 h de movimento em seis meses. Sem isso, o primeiro sozinho
 # desloca o saldo líquido da casa em 23% — para o lado errado, e calado.
+#: A competência do ÚLTIMO FECHAMENTO SEMESTRAL, informada por quem opera.
+#:
+#: ISTO NÃO SAI DO SISTEMA, e é a razão de estar escrito aqui em vez de
+#: calculado: a casa fecha o semestre e paga como `H.E 50%`, mas o ERP não
+#: registra o fechamento — nem baixa o saldo, nem grava a data. O sistema não
+#: sabe que zerou; quem sabe é o RH.
+#:
+#: Enquanto for assim, o saldo ÚTIL é o movimento a partir daqui: em set/2026
+#: são 221 h credoras em 36 pessoas, contra as 6.137 h que o ERP acumula desde
+#: 2023. A tela publica o primeiro e mostra o segundo ao lado, porque os dois
+#: são verdadeiros sobre coisas diferentes.
+#:
+#: QUANDO O ERP PASSAR A BAIXAR (o ajuste que o RH vai pedir), esta constante
+#: SAI: o saldo do próprio banco volta a ser o número, e manter um zeramento
+#: escrito à mão em cima de um sistema que já zera é a receita para descontar
+#: duas vezes.
+FECHAMENTO_CONHECIDO = "2026-08"
+
 CADASTRO_MESES_PARADO = 6
 CADASTRO_HORAS_MIN = 100.0
 CADASTRO_RAZAO_MAX = 0.10
@@ -316,6 +334,9 @@ def get_banco_horas(comp: str | None = None) -> dict:
         # AS DUAS CONTABILIDADES, sempre juntas. O saldo sozinho parece dívida;
         # ao lado do que foi pago, vira o que é.
         "confronto": confronto(),
+        # O SALDO QUE VALE: só o movimento após o último fechamento. O do ERP
+        # acumula desde 2023 e nunca baixa o que foi pago.
+        "desde_fechamento": saldo_desde_fechamento(),
         "publico": publico(),
         "frescor": frescor(),
         "premissa_custo": "saldo credor × (salário base ÷ 220) × 1,5",
@@ -325,6 +346,56 @@ def get_banco_horas(comp: str | None = None) -> dict:
                            "pagamentos de hora extra não baixam este saldo no ERP."),
         "fonte": ("GLOBUS · FRQ_BANCOHORAS × VW_FUNCIONARIOS · "
                   "competência fechada · leitura"),
+    }
+
+
+@cached(ttl=600, velha_ate=7200)
+def saldo_desde_fechamento(desde: str | None = None) -> dict:
+    """O saldo que existe DE VERDADE: só o movimento após o último fechamento.
+
+    O ERP acumula desde 2023 e nunca baixa o que é pago (ver a nota no topo do
+    módulo). Contar do fechamento para cá é o que responde "quanto a empresa
+    deve HOJE" — e o número é outra ordem de grandeza: 221 h contra 6.137 h.
+    """
+    desde = desde or FECHAMENTO_CONHECIDO
+    linhas = _q("""
+        SELECT vf.chapafunc chapa, vf.nomefunc nome, vf.descsecao filial,
+               vf.descfuncao funcao, vf.situacaofunc situacao, vf.salbase salbase,
+               ROUND(NVL(m.credito,0),1) credito, ROUND(NVL(m.debito,0),1) debito,
+               ROUND(NVL(m.credito,0) - NVL(m.debito,0),1) saldo
+          FROM (SELECT codintfunc, SUM(NVL(credito,0)) credito,
+                       SUM(NVL(debito,0)) debito
+                  FROM globus729.frq_bancohoras
+                 WHERE competencia > TO_DATE(:d,'YYYY-MM')
+                 GROUP BY codintfunc) m
+          JOIN vw_funcionarios vf ON vf.codintfunc = m.codintfunc
+                                 AND vf.codigoempresa = :emp
+         WHERE NVL(m.credito,0) - NVL(m.debito,0) <> 0
+         ORDER BY 9 DESC""", {"d": desde, "emp": EMPRESA})
+
+    pessoas = [{
+        "chapa": str(r["chapa"] or "").strip(), "nome": r["nome"],
+        "filial": r["filial"] or "—", "funcao": r["funcao"] or "—",
+        "situacao": r["situacao"],
+        "horas": round(float(r["saldo"]), 1),
+        "credito": round(float(r["credito"]), 1),
+        "debito": round(float(r["debito"]), 1),
+        "custo": _f(float(r["saldo"]) * (float(r["salbase"] or 0) / 220) * 1.5)
+                 if float(r["saldo"]) > 0 else 0.0,
+    } for r in linhas]
+
+    cred = [p for p in pessoas if p["horas"] > 0]
+    dev = [p for p in pessoas if p["horas"] < 0]
+    return {
+        "desde": desde,
+        "credor_h": round(sum(p["horas"] for p in cred), 1),
+        "credor_rs": _f(sum(p["custo"] for p in cred)),
+        "credores": len(cred),
+        "devedor_h": round(sum(p["horas"] for p in dev), 1),
+        "devedores": len(dev),
+        "liquido_h": round(sum(p["horas"] for p in pessoas), 1),
+        "pessoas": pessoas,
+        "maior": round(max([p["horas"] for p in cred], default=0.0), 1),
     }
 
 

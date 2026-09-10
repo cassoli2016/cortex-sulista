@@ -212,6 +212,39 @@ def calibracao(dias: int = 30) -> list[dict]:
     return saida
 
 
+@cached(ttl=900, velha_ate=7200)
+def _nomes() -> dict:
+    """Matrícula -> (nome, filial), do ERP.
+
+    O NOME NÃO É GRAVADO NA COLETA, de propósito: `pc_marcacao` guarda a
+    matrícula e mais nada de identidade. Um espelho de nomes no banco da casa
+    envelhece — a pessoa muda de filial, casa, é desligada — e passa a mostrar
+    um cadastro que já não existe. Resolver na LEITURA custa uma consulta com
+    TTL de 15 min e sempre diz o que o ERP diz hoje.
+
+    A chave é a chapa de 6 dígitos, e é por isso que `cliente._matricula()`
+    normaliza com zeros à esquerda: o fornecedor devolve "3878" para 36% das
+    pessoas, e sem o `zfill` o nome não aparece — sem erro nenhum.
+    """
+    try:
+        from api import db_folha
+        if not db_folha.configured():
+            return {}
+        linhas = db_folha.query(
+            """SELECT chapafunc chapa, nomefunc nome, descsecao filial,
+                      descfuncao funcao, situacaofunc situacao
+                 FROM vw_funcionarios WHERE codigoempresa = 1""")
+    except Exception as exc:  # noqa: BLE001
+        # Sem o ERP a tela continua: ela mostra a matrícula, que é o que ela
+        # tinha antes. Nome ausente não pode derrubar o resto do painel.
+        log.warning("painel: nomes indisponiveis: %s", type(exc).__name__)
+        return {}
+    return {(r["chapa"] or "").strip(): {
+                "nome": r["nome"], "filial": r["filial"],
+                "funcao": r["funcao"], "situacao": r["situacao"]}
+            for r in linhas if (r["chapa"] or "").strip()}
+
+
 @cached(ttl=120, velha_ate=3600)
 def por_pessoa(dias: int = DIAS, limite: int = 40) -> list[dict]:
     """Quem bate fora, e quanto. PII — a tela é de RBAC de RH.
@@ -220,8 +253,15 @@ def por_pessoa(dias: int = DIAS, limite: int = 40) -> list[dict]:
     mais que quem tem 5 de 200.
     """
     dias = max(1, min(int(dias or DIAS), 90))
+    nomes = _nomes()
     return [{
-        "matricula": r["matricula"], "batidas": int(r["n"]),
+        "matricula": r["matricula"],
+        # O nome vem do ERP na hora. Quando ele não responde, a matrícula
+        # continua ali: melhor a chave crua do que uma linha sem identidade.
+        "nome": (nomes.get(r["matricula"]) or {}).get("nome"),
+        "filial": (nomes.get(r["matricula"]) or {}).get("filial"),
+        "funcao": (nomes.get(r["matricula"]) or {}).get("funcao"),
+        "batidas": int(r["n"]),
         "fora": int(r["fora"]), "dentro": int(r["dentro"]),
         "sem_coordenada": int(r["sem"]),
         "pct_fora": round(100 * int(r["fora"]) / int(r["n"]), 1) if r["n"] else 0.0,

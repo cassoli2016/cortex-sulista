@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.35.0] — 10/09/2026  ·  CX-10/09/2026-v1.35.0
+
+### Alterado
+- O cartao de banco de horas passou a mostrar o saldo QUE EXISTE HOJE: so o movimento posterior ao ultimo fechamento semestral. Sao 221 horas credoras em 36 pessoas (cerca de R$ 3,7 mil) — e nao as 6.137 horas que o ERP acumula desde 2023 e nunca baixa quando a hora e paga. O acumulado continua na tela, ao lado, porque e ele que se concilia; mas quem responde "quanto se deve agora" e o primeiro.
+- A data do fechamento e informada por quem opera, e nao sai do sistema: o ERP nao registra que fechou. Quando ele passar a dar a baixa, esse ajuste manual sai — manter um zeramento escrito a mao em cima de um sistema que ja zera e a receita para descontar duas vezes.
+- A tabela de saldo por pessoa passou a mostrar credito e debito ao lado do saldo, com o acumulado do ERP na ultima coluna, para quem for conciliar.
+- As tabelas de batida passaram a mostrar NOME e filial, e nao so a matricula. O nome e buscado no ERP na hora da leitura: guardar um espelho de nomes no banco da casa envelhece — a pessoa muda de filial, e desligada — e passaria a mostrar um cadastro que ja nao existe.
+
 ## [1.34.3] — 10/09/2026  ·  CX-10/09/2026-v1.34.3
 
 ### Corrigido

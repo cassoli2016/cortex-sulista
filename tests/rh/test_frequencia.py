@@ -109,6 +109,23 @@ _CORRENTE = [{"m": "2026-09"}]
 # hora extra (ago/2026, 1.506,7 h), o saldo do banco SUBIU 245,7 h e a baixa
 # pela folha foi de 86,4 h. É por isso que o saldo não pode ser lido como
 # dívida — e é o defeito que subiu em produção em 09/09/2026.
+# ── o saldo DESDE O FECHAMENTO: o unico que vale ────────────────────────────
+#
+# O ERP acumula desde 2023 e nunca baixa o que e pago. Contar do fechamento
+# para ca da outra ordem de grandeza — 221 h contra 6.137 h. Estes tres cobrem
+# credor, devedor e o caso que zera (que NAO deve aparecer na lista).
+_DESDE_FECH = [
+    {"chapa": "003648", "nome": "MAYCON D C", "filial": "FILIAL CURITIBA",
+     "funcao": "ASSISTENTE OPERA", "situacao": "A", "salbase": 2500.0,
+     "credito": 26.0, "debito": 0.0, "saldo": 26.0},
+    {"chapa": "003812", "nome": "ISABELLE A F", "filial": "FILIAL SBC",
+     "funcao": "ASSISTENTE OPERA", "situacao": "A", "salbase": 2200.0,
+     "credito": 22.6, "debito": 7.6, "saldo": 15.0},
+    {"chapa": "003668", "nome": "VINICIUS M C", "filial": "FILIAL CURITIBA",
+     "funcao": "ANALISTA OP JR", "situacao": "A", "salbase": 2800.0,
+     "credito": 0.0, "debito": 56.0, "saldo": -56.0},
+]
+
 _PAGOS_CONF = [
     {"comp": "2026-07", "pessoas": 34, "horas": 650.2, "reais": 13278.34},
     {"comp": "2026-08", "pessoas": 60, "horas": 1506.7, "reais": 27945.42},
@@ -145,6 +162,8 @@ def _roteador(sql, p=None):
         # consultas saem — roteador por ordem quebra calado quando alguem
         # acrescenta uma query no meio.
         return _SERIE if "DEVEDOR" in s else _SALDOS_CONF
+    if "SUM(NVL(CREDITO,0)) CREDITO" in s and "VW_FUNCIONARIOS VF" in s:
+        return _DESDE_FECH
     if "CODEVENTO = 1016" in s:
         return _BAIXAS_CONF
     if "FLP_FICHAEVENTOS" in s and "COUNT(DISTINCT FF.CODINTFUNC) PESSOAS" in s:
