@@ -131,13 +131,34 @@ def coletar_licenciamento(esquema: str | None = None) -> dict:
         raise
 
 
-def coletar_antt(dias: int = 180, esquema: str | None = None) -> dict:
+def coletar_antt(dias: int = 3650, esquema: str | None = None) -> dict:
     """Autuações da ANTT.
 
     O endpoint filtra por DATA DE EMISSÃO DO PDF, não por data da infração —
     a doc do fornecedor diz isso com todas as letras ("é o dia que o PDF foi
     gerado"). Confundir os dois faria a janela parecer errada: uma autuação de
     abril pode ser emitida em agosto, e é pela emissão que ela aparece.
+
+    E A JANELA NÃO É HONRADA PELO FORNECEDOR. Medido em 10/09/2026, pedindo
+    três larguras diferentes na mesma tarde:
+
+        DataEmissao >= 2026-08-11  (  30 dias)  ->  209 itens
+        DataEmissao >= 2026-03-14  ( 180 dias)  ->  209 itens
+        DataEmissao >= 2023-12-15  (1000 dias)  ->  209 itens
+
+    Sempre o conjunto ABERTO inteiro. O parâmetro vai junto porque é o que a
+    doc manda mandar, mas ele hoje não recorta nada — e o `dias` padrão subiu
+    de 180 para 3650 POR SEGURANÇA, não por necessidade: se a Smartec passar a
+    honrar o filtro sem avisar, uma janela curta silenciosamente pararia de
+    devolver as autuações antigas ainda em aberto. Como o `gravar_antt` é
+    `ON CONFLICT DO UPDATE` e nunca apaga, elas não sumiriam da tabela —
+    apenas parariam de ser atualizadas, e a situação de cada uma congelaria no
+    último dia em que veio. Defeito que ninguém veria acontecer.
+
+    Não há teste automático disto: seria um teste contra a API do fornecedor,
+    que falha por motivo alheio e ensina a ignorar vermelho. O que fica é a
+    medição datada aqui — e a próxima pessoa que desconfiar refaz as três
+    chamadas em um minuto.
     """
     carga = arm.carga_abrir("antt", esquema)
     try:

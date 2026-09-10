@@ -263,3 +263,92 @@ def test_a_trilha_registra_ate_a_coleta_VAZIA(esq):
     arm.carga_fechar(cid, "vazio", 0, 1, "nenhum veículo com pendência", esq)
     r = _uma(esq, "SELECT status, itens FROM smt_carga")
     assert r["status"] == "vazio" and r["itens"] == 0
+
+
+# ══════════════════════════════════════════════════════════ AUTUAÇÕES DA ANTT
+#
+# Corpo REAL de uma autuação, copiado da resposta do fornecedor em 10/09/2026 —
+# LITERAL, e não montado a partir do que `gravar_antt` lê. Dublê derivado do
+# código testado não testa o código: ele concorda com ele por construção, e foi
+# exatamente assim que a chave errada sobreviveu.
+#
+# Repare em `BOLETO_VENCIMENTO`: NÃO existe chave `VENCIMENTO` neste payload.
+# O coletor lia `VENCIMENTO`, `.get()` devolvia None sem levantar, e a coluna
+# ficou 100% vazia — 0 de 209 em produção, com o dado presente em 199.
+ANTT = {
+    "UF": "SP", "AIT": "FELVP00450622026", "CNPJ": "76104397000123",
+    "TIPO": "Vale Pedágio", "LOCAL": "Rodovia BR116 Km 182, SANTA ISABEL/SP",
+    "PLACA": "BAB9I77", "VALOR": 3000.0, "CODIGO": "231",
+    "PROCESSO": "50501.384851/2026-79",
+    "SITUACAO": "Notificação de penalidade emitida",
+    "DESCRICAO": "Vale Pedágio", "MUNICIPIO": "SANTA ISABEL",
+    "IMPEDITIVA": 0, "DATA_EMISSAO": "11/07/2026",
+    "DATA_INFRACAO": "10/04/2026", "DATA_NOTIFICACAO": "",
+    "VALOR_ATUALIZADO": 3182.55,
+    "BOLETO_VENCIMENTO": "25/08/2026", "BOLETO_VALOR": 3000.0,
+    "BOLETO_CEDENTE": "ANTT", "BOLETO_LINHA_DIGITAVEL": "856100000012",
+    "BOLETO": "https://x/BOLETO.pdf", "NOTIFICACAO": "https://x/NOT.pdf",
+    "PMF_ORIGEM": "", "PMF_DESTINO": "", "PMF_DATA_EMISSAO": "",
+    "PMF_NUMERO_DOCUMENTO": "", "PMF_TIPO_CONTRATO": "",
+    "PMF_TIPO_DOCUMENTO": "", "PMF_TIPO_SERVICO": "",
+    "PMF_VALOR_FRETE": "", "PMF_VALOR_MINIMO": "",
+}
+
+
+def test_a_autuacao_da_ANTT_grava_TODO_campo_que_o_payload_traz(esq):
+    """O guard que teria pegado a chave errada.
+
+    Ele nao confere a grafia de `VENCIMENTO` no codigo — conferir texto-fonte
+    protege contra apagar, nao contra escrever errado. Ele GRAVA o payload real
+    e cobra que nenhuma coluna saia vazia tendo dado na origem. Chave com nome
+    errado nao levanta: `.get()` devolve None, a coluna fica nula, e o unico
+    sintoma e uma coluna vazia que ninguem olha.
+    """
+    arm.gravar_antt([ANTT], esq)
+    r = _uma(esq, "SELECT * FROM smt_antt WHERE ait = 'FELVP00450622026'")
+    assert r is not None, "a autuacao nao foi gravada"
+    vazias = [c for c in ("processo", "data_infracao", "codigo", "tipo",
+                          "descricao", "placa", "situacao", "local_infracao",
+                          "valor", "vencimento", "data_emissao",
+                          "valor_atualizado")
+              if r[c] in (None, "")]
+    assert not vazias, (
+        f"coluna(s) vazia(s) com dado no payload: {vazias} — chave lida com "
+        f"nome que nao existe na resposta do fornecedor")
+
+
+def test_o_vencimento_vem_de_BOLETO_VENCIMENTO(esq):
+    """A chave `VENCIMENTO` nao existe na resposta. Este teste morre se alguem
+    voltar a le-la: 0 de 209 em producao, com o dado presente em 199."""
+    assert "VENCIMENTO" not in ANTT, (
+        "o payload real nao tem esta chave — se ganhou, refaca a medicao")
+    arm.gravar_antt([ANTT], esq)
+    r = _uma(esq, "SELECT vencimento FROM smt_antt WHERE ait = 'FELVP00450622026'")
+    assert str(r["vencimento"]) == "2026-08-25"
+
+
+def test_a_EMISSAO_e_a_INFRACAO_sao_colunas_DIFERENTES(esq):
+    """Trocar as duas foi o que fez a casa concluir que a coleta tinha parado.
+
+    A ANTT emite o PDF meses depois do fato — nesta autuacao, 92 dias. A tela
+    media o frescor do feed por `data_infracao` e mostrava "ultima: 02/05" no
+    dia em que o ultimo lote havia sido emitido em 11/07, com 54 autuacoes.
+    """
+    arm.gravar_antt([ANTT], esq)
+    r = _uma(esq, "SELECT data_emissao, data_infracao FROM smt_antt"
+                  " WHERE ait = 'FELVP00450622026'")
+    assert str(r["data_emissao"]) == "2026-07-11"
+    assert str(r["data_infracao"]) == "2026-04-10"
+    assert r["data_emissao"] > r["data_infracao"], (
+        "a emissao vem DEPOIS da infracao — se inverteu, os campos trocaram")
+
+
+def test_o_valor_ORIGINAL_e_o_ATUALIZADO_convivem(esq):
+    """Guardar so um obrigava a tela a escolher em silencio. Medido em
+    producao: R$ 713.256,77 de original contra R$ 740.670,72 de atualizado,
+    88 das 209 ja valendo mais. Quem paga deve o atualizado."""
+    arm.gravar_antt([ANTT], esq)
+    r = _uma(esq, "SELECT valor, valor_atualizado FROM smt_antt"
+                  " WHERE ait = 'FELVP00450622026'")
+    assert float(r["valor"]) == 3000.0
+    assert float(r["valor_atualizado"]) == 3182.55

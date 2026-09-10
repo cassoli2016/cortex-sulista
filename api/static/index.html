@@ -24224,23 +24224,35 @@ function renderSmt(d){
 
   /* ── KPIs: ANTT ────────────────────────────────────────────────────────*/
   document.getElementById('kpis-smtantt').innerHTML =
-      kpi('Autuações da ANTT', ni(an.n||0), (an.veiculos||0)+' placas', (an.n?'warn':'good'),
-          'Autuações da ANTT contra a TRANSPORTADORA (vale-pedágio, RNTRC, excesso de peso). Não geram pontos em CNH e não se somam às multas de trânsito.')
+      kpi('Autuações da ANTT', ni(an.n||0),
+          (an.veiculos||0)+' placas · '+BRL.format(an.valor_atualizado||0), (an.n?'warn':'good'),
+          'Autuações da ANTT contra a TRANSPORTADORA (vale-pedágio, RNTRC, excesso de peso). Não geram pontos em CNH e não se somam às multas de trânsito. O valor mostrado é o ATUALIZADO, que é o que se paga: '
+          + BRL.format(an.valor_atualizado||0) + ' contra ' + BRL.format(an.valor||0)
+          + ' de valor original das autuações. Os dois ficam gravados justamente porque são números diferentes — somar o original e chamar de dívida subestima.')
     + kpi('Impeditivas', ni(an.impeditivas||0), 'bloqueiam regularização', (an.impeditivas?'bad':'good'),
           'Autuações marcadas como impeditivas pela ANTT — travam a regularização do RNTRC enquanto não resolvidas.')
     + kpi('Em defesa', ni((d.antt_situacao||[]).filter(x=>/defesa|congelad/i.test(x.situacao||'')).reduce((a,x)=>a+(x.n||0),0)),
           'congeladas por defesa tempestiva', '',
           'Autuações com defesa protocolada no prazo — o processo fica congelado até o julgamento.')
     + (function(){
-        /* Última autuação: é O número de "parou de chegar?". Mais de 60 dias
-           sem autuação nova tanto pode ser a operação melhorando quanto a
-           importação parada — o gráfico mensal ao lado desempata. */
+        /* O NÚMERO DE "PAROU DE CHEGAR?" É A EMISSÃO, NÃO A INFRAÇÃO.
+           A ANTT emite o PDF meses depois do fato, e o endpoint filtra pela
+           emissão. Medido em 10/09/2026: última infração em 02/05 e último
+           lote emitido em 11/07, com 54 autuações — o maior mês da série. Este
+           cartão dizia "02/05, há 131 dias" e a casa concluiu que a integração
+           tinha morrido; ela respondia em um segundo.
+           A data da infração continua à vista, ao lado, porque ela responde
+           OUTRA pergunta — quando a operação errou pela última vez. */
         const ult=an.ultima||null;
         const dias=ult? Math.round((new Date()-new Date(ult+'T00:00:00'))/86400000) : null;
-        return kpi('Última autuação', ult? fmtD(ult) : '—',
-          dias!=null? ('há '+ni(dias)+' dia'+(dias===1?'':'s')) : 'sem autuação registrada',
-          dias!=null&&dias>60?'warn':'',
-          'max(data_infracao) de smt_antt. Muito tempo sem autuação nova pode ser bom sinal OU importação parada — confira o gráfico mensal e a linha antt em Cobertura e coleta antes de comemorar.');
+        const inf=an.ultima_infracao||null;
+        return kpi('Último lote da ANTT', ult? fmtD(ult) : '—',
+          (dias!=null? ('emitido há '+ni(dias)+' dia'+(dias===1?'':'s')) : 'nada emitido ainda')
+            + (inf? (' · infração mais recente '+fmtD(inf)) : ''),
+          dias!=null&&dias>90?'warn':'',
+          'Data de EMISSÃO do PDF mais recente (max(data_emissao) de smt_antt) — é por ela que o endpoint filtra, e é ela que diz se o feed está vivo. NÃO confunda com a data da infração: a ANTT emite meses depois do fato'
+            + (an.atrasada_dias!=null? (' (hoje a distância entre as duas é de '+ni(an.atrasada_dias)+' dias)') : '')
+            + '. Lacunas de um a dois meses são normais nesta fonte — o gráfico mensal ao lado mostra o padrão, e a linha antt em Cobertura e coleta diz quando a coleta rodou pela última vez.');
       })();
 
   /* ── KPIs: COBERTURA ───────────────────────────────────────────────────*/

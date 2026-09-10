@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.36.0] — 10/09/2026  ·  CX-10/09/2026-v1.36.0
+
+### Corrigido
+- A tela de Multas dizia "ultima autuacao da ANTT: 02/05/2026" e a casa concluiu que a integracao tinha morrido. Nao tinha: forcada na hora, a API respondeu em 1 segundo com as 209 autuacoes, e o ultimo lote havia sido EMITIDO em 11/07/2026 com 54 autuacoes -- o maior mes da serie. O cartao media a data da INFRACAO, e a ANTT emite o documento meses depois do fato. Agora ele mede a EMISSAO, que e por onde o proprio endpoint filtra, e mostra a data da infracao ao lado, porque ela responde outra pergunta: quando a operacao errou pela ultima vez.
+- O vencimento das autuacoes da ANTT estava vazio em TODAS as 209, e o dado existia em 199 delas. O coletor lia uma chave com nome que nao existe na resposta do fornecedor -- e chave errada nao da erro, so devolve vazio. As 199 foram preenchidas retroativamente, sem precisar de nova coleta: o payload cru sempre foi guardado inteiro.
+- As autuacoes passam a guardar tambem o VALOR ATUALIZADO, que e o que se paga. So o valor original era gravado, e 88 das 209 ja valem mais hoje: R$ 713.256,77 de autuacao contra R$ 740.670,72 a pagar, R$ 27.413,95 de diferenca. A tela mostra o atualizado e diz os dois, porque somar o original e chamar de divida subestima.
+- Fica registrado, com medicao, que o filtro de data da API da ANTT NAO funciona: pedindo 30, 180 e 1000 dias na mesma tarde, ela devolveu 209 itens nas tres. A janela do coletor subiu de 180 para 3650 dias por seguranca -- se o fornecedor passar a honrar o parametro sem avisar, uma janela curta pararia de atualizar as autuacoes antigas ainda em aberto, e a situacao de cada uma congelaria sem ninguem ver.
+
 ## [1.35.1] — 10/09/2026  ·  CX-10/09/2026-v1.35.1
 
 ### Corrigido

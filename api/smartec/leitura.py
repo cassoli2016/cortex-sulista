@@ -117,11 +117,29 @@ def kpis(esquema: str | None = None) -> dict:
           FROM smt_licencas
     """, esquema=esq) or {}
 
+    # "ÚLTIMA" É A EMISSÃO, NÃO A INFRAÇÃO — e trocar as duas foi o que fez a
+    # casa concluir que a coleta tinha parado.
+    #
+    # A ANTT emite o PDF meses depois do fato: medido em 10/09/2026, a última
+    # INFRAÇÃO era de 02/05 e a última EMISSÃO de 11/07, com 54 autuações no
+    # lote — o maior mês da série. Quem lê "última: 02/05" quatro meses depois
+    # conclui que a integração morreu, e vai procurar defeito numa coleta que
+    # responde em um segundo.
+    #
+    # As duas continuam publicadas, com nomes que não se confundem: `ultima` é
+    # o que mede o FEED, `ultima_infracao` é o que mede a OPERAÇÃO. E o
+    # `atrasada_dias` é a distância entre elas — a maturação desta fonte, que
+    # é a razão de a segunda nunca alcançar a primeira.
     antt = pglocal.um("""
         SELECT count(*)::int AS n,
                coalesce(sum(impeditiva), 0)::int AS impeditivas,
                count(DISTINCT placa)::int AS veiculos,
-               max(data_infracao)::text AS ultima
+               max(data_emissao)::text AS ultima,
+               max(data_infracao)::text AS ultima_infracao,
+               (max(data_emissao) - max(data_infracao))::int AS atrasada_dias,
+               coalesce(sum(valor), 0)::float8 AS valor,
+               coalesce(sum(coalesce(valor_atualizado, valor)), 0)::float8
+                   AS valor_atualizado
           FROM smt_antt
     """, esquema=esq) or {}
 

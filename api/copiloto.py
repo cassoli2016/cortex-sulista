@@ -258,6 +258,17 @@ def _smartec_snapshot() -> dict:
         "cronotacografo_vence_90d": lic.get("crono_90d"),
         "autuacoes_antt": (k.get("antt") or {}).get("n"),
         "antt_impeditivas": (k.get("antt") or {}).get("impeditivas"),
+        # O VALOR ATUALIZADO, que e o que se paga -- e nao o original da
+        # autuacao. Os dois vao juntos porque perguntar "quanto devemos de
+        # ANTT" e "quanto foi autuado" sao perguntas diferentes, e o chat
+        # responderia a segunda achando que respondeu a primeira.
+        "antt_valor_a_pagar": (k.get("antt") or {}).get("valor_atualizado"),
+        "antt_valor_original": (k.get("antt") or {}).get("valor"),
+        # FRESCOR DO FEED e' a EMISSAO do PDF, nao a data da infracao: a ANTT
+        # emite meses depois do fato, e confundir as duas ja fez a casa
+        # concluir que a coleta tinha parado quando ela respondia em 1s.
+        "antt_ultimo_lote_emitido": (k.get("antt") or {}).get("ultima"),
+        "antt_ultima_infracao": (k.get("antt") or {}).get("ultima_infracao"),
         "veiculos_na_smartec": (k.get("frota") or {}).get("cadastrados"),
         "acesso_sne_dias_para_vencer": (min(a["dias"] for a in acessos)
                                         if acessos else None),

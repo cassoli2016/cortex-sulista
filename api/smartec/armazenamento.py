@@ -565,6 +565,29 @@ def gravar_acessos(itens: list[dict], servico: str,
 
 # ───────────────────────────────────────────────────────── ANTT
 def gravar_antt(itens: list[dict], esquema: str | None = None) -> int:
+    """As autuações da ANTT.
+
+    TRÊS CAMPOS QUE ESTAVAM SAINDO ERRADOS OU NÃO SAINDO, achados ao validar a
+    tela a pedido de quem opera (10/09/2026):
+
+    `vencimento` lia a chave `VENCIMENTO`, que NÃO EXISTE no payload — lá ela
+    se chama `BOLETO_VENCIMENTO`. Chave com nome errado não levanta: `.get()`
+    devolve `None` e a coluna fica vazia para sempre. Estava 0 de 209, com o
+    dado presente em 199 delas. É o modo de falha mais silencioso que existe
+    numa integração, e o único jeito de pegar é contar a coluna contra o
+    payload — que é o que o guard novo faz.
+
+    `data_emissao` não era gravada em coluna nenhuma, só ia dentro do
+    `detalhe`. Ela é a data por onde o ENDPOINT filtra e a única que mede o
+    frescor do feed: a tela media por `data_infracao` e, como as duas são
+    separadas por meses, mostrava "última: 02/05/2026" no dia em que o último
+    lote tinha sido emitido em 11/07/2026. Foi isso que fez a casa registrar
+    "ANTT parada" sobre uma coleta que respondia em 1,0 s.
+
+    `valor_atualizado` idem. `valor` é o ORIGINAL da autuação; 88 das 209 já
+    valem mais hoje (R$ 713.256,77 contra R$ 740.670,72). Nenhum é errado, e
+    por isso os DOIS ficam gravados: quem soma escolhe, e a tela diz qual.
+    """
     n = 0
     with pglocal.get_conn(_esq(esquema)) as cx:
         for a in itens or []:
@@ -575,21 +598,24 @@ def gravar_antt(itens: list[dict], esquema: str | None = None) -> int:
                 INSERT INTO smt_antt(ait, processo, data_infracao, codigo,
                        tipo, descricao, placa, situacao, impeditiva,
                        data_notificacao, local_infracao, valor, vencimento,
-                       detalhe, visto_em)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, now())
+                       data_emissao, valor_atualizado, detalhe, visto_em)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, now())
                 ON CONFLICT (ait) DO UPDATE SET
                     processo = EXCLUDED.processo,
                     situacao = EXCLUDED.situacao,
                     impeditiva = EXCLUDED.impeditiva,
                     data_notificacao = EXCLUDED.data_notificacao,
                     valor = EXCLUDED.valor, vencimento = EXCLUDED.vencimento,
+                    data_emissao = EXCLUDED.data_emissao,
+                    valor_atualizado = EXCLUDED.valor_atualizado,
                     detalhe = EXCLUDED.detalhe, visto_em = now()
             """, (ait, s(a.get("PROCESSO")), d(a.get("DATA_INFRACAO")),
                   s(a.get("CODIGO")), s(a.get("TIPO")), s(a.get("DESCRICAO")),
                   s(a.get("PLACA")).upper(), s(a.get("SITUACAO")),
                   i(a.get("IMPEDITIVA")), d(a.get("DATA_NOTIFICACAO")),
                   s(a.get("LOCAL")), f(a.get("VALOR")),
-                  d(a.get("VENCIMENTO")),
+                  d(a.get("BOLETO_VENCIMENTO")),
+                  d(a.get("DATA_EMISSAO")), f(a.get("VALOR_ATUALIZADO")),
                   _json.dumps(a, ensure_ascii=False)))
             n += 1
     return n
