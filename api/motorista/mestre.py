@@ -143,14 +143,44 @@ def configurado() -> bool:
 
 
 def _freado(ip: str, esquema: str | None) -> bool:
+    """O freio conta só o que ERROU, e essa palavra é a correção de 10/09/2026.
+
+    Ele contava TODA tentativa, acerto junto. Medido no dia: seis conferências
+    seguidas do mesmo endereço, as seis ACEITAS — e a sétima recusada, com a
+    mensagem "Código mestre inválido". O código estava certo o tempo inteiro;
+    quem administra foi procurar defeito no código, no cofre e no gerador,
+    porque a tela dizia exatamente isso.
+
+    O teto existe contra ADIVINHAÇÃO, e adivinhação produz ERRO. Contar acerto
+    junto não protege de nada: quem acertou já entrou. O que ele fazia era
+    punir o uso legítimo — e a intenção estava escrita duas linhas acima do
+    próprio contador ("meia dúzia por hora cobre erro de digitação"), só não
+    estava no SQL.
+
+    E O ACERTO ZERA O CONTADOR, contando só o que errou DEPOIS do último
+    acerto daquele endereço. É a mesma regra do `senha_reset`: quem provou
+    saber o segredo não é quem estava adivinhando, e carregar os erros
+    anteriores faria a pessoa certa pagar por eles no fim da hora.
+
+    Zera-se pela CONSULTA, nunca reescrevendo linha: marcar as tentativas
+    antigas como aceitas apagaria o registro de que elas erraram, e a trilha
+    de uso deste segredo é a única coisa que responde "quem abriu a conta de
+    quem, e quando". Contador se recalcula; histórico, não.
+    """
     r = pglocal.um(
         """SELECT count(*) AS n FROM mot_mestre_tentativas
-            WHERE ip = %(ip)s AND ip <> '' AND quando > now() - interval '1 hour'""",
+            WHERE ip = %(ip)s AND ip <> '' AND NOT aceita
+              AND quando > now() - interval '1 hour'
+              AND quando > coalesce((SELECT max(quando)
+                                       FROM mot_mestre_tentativas
+                                      WHERE ip = %(ip)s AND aceita),
+                                    '-infinity'::timestamptz)""",
         {"ip": (ip or "")[:64]}, esquema)
     return int((r or {}).get("n") or 0) >= MAX_TENTATIVAS_HORA
 
 
 def _registrar(ip: str, aceita: bool, esquema: str | None) -> None:
+    """A tentativa entra sempre, certa ou errada: é a trilha de uso."""
     pglocal.executar(
         "INSERT INTO mot_mestre_tentativas(ip, aceita) VALUES (%(ip)s, %(ok)s)",
         {"ip": (ip or "")[:64], "ok": bool(aceita)}, esquema)

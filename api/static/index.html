@@ -8947,21 +8947,34 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
       </section>
       <section class="view" id="view-integ">
-        <div class="kband"><div class="kpis k4" id="integ-kpis"></div></div>
-        <div class="card"><div class="head"><h2>Integrações da casa</h2><span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: duas, casadas por fornecedor em api/integracoes.py. A CONFIGURAÇÃO vem do cofre de credenciais (api/credenciais.py) — o mesmo que a tela de Gestão edita; a CHEGADA DE DADO vem dos cartões da Saúde do Servidor (api/servidor.py), que leem a última coleta gravada. Esta tela não dispara coleta nenhuma e não mostra valor de credencial: ela diz que falta um token, nunca qual é. Fornecedor consultado sob demanda (TomTom, QualP) não tem &quot;última coleta&quot; para envelhecer, e o cartão diz isso em vez de acender alarme todo dia.">ⓘ</span></div>
-          <div class="int-grid" id="integ-lista"></div></div>
-        <!-- SEGREDOS DA CASA — lista separada, e a separação é o ponto.
-             Eles não têm fornecedor do outro lado: não há coleta que possa
-             parar, então não têm semáforo de chegada e não entram nos KPIs
-             ("fornecedores externos que a casa usa"). Ficaram SEM PORTA
-             NENHUMA entre a v1.6.0 e 10/09/2026, quando a aba Gestão ›
-             Integrações foi aposentada e a configuração migrou para o modal
-             do cartão — e eles eram justamente os dois que não tinham cartão.
-             O gerador do código mestre do app do motorista estava aqui
-             dentro. -->
-        <div class="card" id="integ-proprios-card" hidden>
-          <div class="head"><h2>Segredos da casa <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O que está no mesmo cofre de credenciais mas NÃO é fornecedor externo: o código mestre do app do motorista e o endereço do próprio painel. Eles aparecem em lista separada porque não têm a segunda metade da pergunta — não há ninguém do outro lado para o dado &quot;chegar&quot;, então não há coleta que possa parar e não faria sentido pendurar neles um semáforo cinza permanente. Pela mesma razão eles não entram na conta dos indicadores acima, que fala de fornecedores. O que se lê aqui é só uma coisa: está configurado ou não. Só administrador vê o formulário e o valor nunca volta para a tela.">ⓘ</span></div>
-          <div class="int-grid" id="integ-proprios"></div></div>
+        <!-- DUAS SUB-ABAS, e a razão é medida: com 14 fornecedores a tela dava
+             1.586px de altura contra os 900 da régua da casa, e a seção dos
+             segredos começava no pixel 1.419 — fora da primeira tela. Quem foi
+             procurar o gerador do código mestre não achou, e tinha razão.
+             A régua não pegou porque `medir_paineis.py` mede com a API dublada
+             em `{}`: sem cartão nenhum a tela reporta 244px. É a mesma lição
+             que o `CLAUDE.md` já registra — o dublê mede o esqueleto. -->
+        <div class="subtabs" role="tablist" data-abas="integ" aria-label="Seções desta tela">
+          <button role="tab" id="tabinteg-forn" data-aba="forn" aria-controls="aba-integ-forn"
+                  aria-selected="true" onclick="abaTrocar('integ','forn')">Fornecedores <span class="aban" id="integ-n-forn"></span></button>
+          <button role="tab" id="tabinteg-casa" data-aba="casa" aria-controls="aba-integ-casa"
+                  aria-selected="false" onclick="abaTrocar('integ','casa')">Segredos da casa <span class="aban" id="integ-n-casa"></span></button>
+        </div>
+        <div class="aba" data-abas="integ" data-aba="forn" id="aba-integ-forn"
+             role="tabpanel" aria-labelledby="tabinteg-forn">
+          <!-- A BANDA VAI PARA DENTRO DA ABA A QUE PERTENCE: ela conta
+               fornecedores ("configuradas e com dado chegando"), e sobre a aba
+               dos segredos da casa ela responderia outra pergunta. -->
+          <div class="kband"><div class="kpis k4" id="integ-kpis"></div></div>
+          <div class="card"><div class="head"><h2>Integrações da casa</h2><span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: duas, casadas por fornecedor em api/integracoes.py. A CONFIGURAÇÃO vem do cofre de credenciais (api/credenciais.py); a CHEGADA DE DADO vem dos cartões da Saúde do Servidor (api/servidor.py), que leem a última coleta gravada. Esta tela não dispara coleta nenhuma e não mostra valor de credencial: ela diz que falta um token, nunca qual é. Fornecedor consultado sob demanda (TomTom, QualP) não tem &quot;última coleta&quot; para envelhecer, e o cartão diz isso em vez de acender alarme todo dia.">ⓘ</span></div>
+            <div class="int-grid" id="integ-lista"></div></div>
+        </div>
+        <div class="aba" data-abas="integ" data-aba="casa" id="aba-integ-casa"
+             role="tabpanel" aria-labelledby="tabinteg-casa" hidden>
+          <div class="card">
+            <div class="head"><h2>Segredos da casa <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O que está no mesmo cofre de credenciais mas NÃO é fornecedor externo: o código mestre do app do motorista e o endereço do próprio painel. Eles ficam em aba separada porque não têm a segunda metade da pergunta — não há ninguém do outro lado para o dado &quot;chegar&quot;, então não há coleta que possa parar e não faria sentido pendurar neles um semáforo cinza permanente. Pela mesma razão não entram na conta dos indicadores da aba Fornecedores. O que se lê aqui é uma coisa só: está configurado ou não. Só administrador vê o formulário, e o valor nunca volta para a tela.">ⓘ</span></h2></div>
+            <div class="int-grid" id="integ-proprios"></div></div>
+        </div>
       </section>
       <section class="view" id="view-mon">
         <div class="subtabs" role="tablist" data-abas="mon" aria-label="Seções desta tela">
@@ -42632,12 +42645,16 @@ async function loadInteg(){
     INTEGP = {}; lista.concat(proprios).forEach(i => { INTEGP[i.chave] = i; });
     el.innerHTML = lista.map(integCartao).join('');
     const pel = document.getElementById('integ-proprios');
-    const pcard = document.getElementById('integ-proprios-card');
-    if(pel) pel.innerHTML = proprios.map(integCartao).join('');
-    /* O CARTAO SOME QUANDO NAO HA NENHUM, em vez de ficar um titulo sobre o
-       vazio. `hidden` e nao `style.display`: o CSS da casa usa `!important`
-       no display em mais de um lugar. */
-    if(pcard) pcard.hidden = !proprios.length;
+    if(pel) pel.innerHTML = proprios.length
+      ? proprios.map(integCartao).join('')
+      : '<div class="vazio">Nenhum segredo da casa no cofre.</div>';
+    /* CONTADOR EXPLICITO, e nao o automatico: `abaContadoresAuto` so conta
+       painel que tem `<tbody>`, e aqui sao cartoes numa grade. Sem isto as
+       duas abas ficariam sem numero -- e o numero e o que diz o que ha do
+       outro lado SEM precisar entrar. Recebe o id do `<span class="aban">`,
+       nunca o do botao: no botao ele apagaria o rotulo. */
+    abaContador('integ-n-forn', lista.length);
+    abaContador('integ-n-casa', proprios.length);
     /* O CARIMBO E A HORA DA LEITURA, e nao a de uma coleta: esta tela nao
        coleta nada, ela junta duas fontes que ja tinham acontecido. A idade de
        cada coleta esta no cartao do fornecedor, que e onde ela significa

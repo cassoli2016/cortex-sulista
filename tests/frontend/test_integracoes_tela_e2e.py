@@ -504,12 +504,23 @@ def _com_proprios():
     return pan, cof
 
 
-def test_o_segredo_da_casa_GANHA_CARTAO_em_lista_propria(pagina):
+def _aba_casa(pg):
+    """Abre a aba dos segredos da casa e espera ela ficar VISIVEL.
+
+    `wait_for_selector` espera visibilidade: sem a troca de aba o seletor
+    existe no DOM e nunca aparece, e o teste morreria no timeout medindo a
+    aba errada.
+    """
+    pg.click("#tabinteg-casa")
+    pg.wait_for_selector("#aba-integ-casa", state="visible", timeout=10000)
+
+
+def test_o_segredo_da_casa_GANHA_CARTAO_em_aba_propria(pagina):
     pg, base = pagina
     pan, cof = _com_proprios()
     _abrir(pg, base, panorama=pan, cofre=cof)
-    pg.wait_for_selector("#integ-proprios .intcard", timeout=10000)
-    # esta na lista propria...
+    _aba_casa(pg)
+    # esta na aba propria...
     assert pg.eval_on_selector_all(
         '#integ-proprios .intcard-alvo[data-chave="motorista_mestre"]',
         "es => es.length") == 1
@@ -525,7 +536,7 @@ def test_o_cartao_dele_ABRE_o_formulario_com_o_botao_de_gerar(pagina):
     pg, base = pagina
     pan, cof = _com_proprios()
     _abrir(pg, base, panorama=pan, cofre=cof)
-    pg.wait_for_selector("#integ-proprios .intcard", timeout=10000)
+    _aba_casa(pg)
     texto = _modal(pg, "motorista_mestre").inner_text()
     assert "Código mestre" in texto
     # o botao de gerar existe e chama a rota certa
@@ -540,7 +551,7 @@ def test_o_cartao_dele_NAO_fala_em_chegada_de_dado(pagina):
     pg, base = pagina
     pan, cof = _com_proprios()
     _abrir(pg, base, panorama=pan, cofre=cof)
-    pg.wait_for_selector("#integ-proprios .intcard", timeout=10000)
+    _aba_casa(pg)
     # `inner_text` devolve o texto RENDERIZADO, e o CSS da casa poe os rotulos
     # em maiuscula — comparar sem baixar a caixa mede o CSS, nao o rotulo.
     cartao = pg.inner_text('#integ-proprios .intcard').lower()
@@ -548,8 +559,22 @@ def test_o_cartao_dele_NAO_fala_em_chegada_de_dado(pagina):
     assert "chegada" not in cartao, cartao
 
 
-def test_sem_segredos_da_casa_o_cartao_SOME(pagina):
-    """Titulo sobre o vazio e pior que ausencia: ele promete uma lista."""
+def test_as_abas_dizem_QUANTOS_tem_de_cada_lado(pagina):
+    """O contador e o que responde "tem alguma coisa la?" sem obrigar a
+    entrar. Ele e explicito porque o automatico so conta painel com `tbody`, e
+    aqui sao cartoes numa grade -- sem isto as duas abas ficariam mudas."""
+    pg, base = pagina
+    pan, cof = _com_proprios()
+    _abrir(pg, base, panorama=pan, cofre=cof)
+    assert pg.inner_text("#integ-n-forn").strip() == str(len(pan["integracoes"]))
+    assert pg.inner_text("#integ-n-casa").strip() == "1"
+
+
+def test_sem_segredos_da_casa_a_aba_DIZ_que_esta_vazia(pagina):
+    """Aba vazia sem frase e tela quebrada aos olhos de quem abre. E o
+    contador fica em branco, nao em zero: "0" é ruído em toda aba vazia."""
     pg, base = pagina
     _abrir(pg, base)                      # PANORAMA sem `proprios`
-    assert pg.eval_on_selector("#integ-proprios-card", "e => e.hidden") is True
+    assert pg.inner_text("#integ-n-casa").strip() == ""
+    _aba_casa(pg)
+    assert "Nenhum segredo" in pg.inner_text("#integ-proprios")

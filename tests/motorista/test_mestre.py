@@ -233,3 +233,62 @@ def test_a_sessao_mestre_le_a_operacao_de_UM_motorista_so(com_codigo):
     assert d["mestre"] is True and d["nome"] == "FULANO"
     # e ela continua sendo uma sessão de motorista: o painel segue fechado
     assert c.get("/api/auth/me").status_code in (401, 403)
+
+
+# ------------------------------------------- o freio conta ERRO, nao uso
+#
+# O DEFEITO, medido em produção em 10/09/2026: seis conferências seguidas do
+# mesmo endereço, as SEIS aceitas, e a sétima recusada com "Código mestre
+# inválido". O código estava certo o tempo inteiro. Quem administra foi
+# procurar defeito no gerador, no cofre e no próprio código -- porque era isso
+# que a tela dizia.
+#
+# O teto existe contra ADIVINHAÇÃO, e adivinhação produz ERRO. Contar acerto
+# junto não protege de nada (quem acertou já entrou): só pune o uso legítimo.
+
+def test_uso_LEGITIMO_nao_estoura_o_teto(com_codigo):
+    """Conferir a conta de sete motoristas numa hora é o trabalho, não um
+    ataque. Antes desta correção o sétimo era recusado."""
+    for _ in range(mm.MAX_TENTATIVAS_HORA + 3):
+        mm.conferir(CODIGO, ip="9.9.9.9", esquema=com_codigo)   # não levanta
+
+
+def test_o_ACERTO_zera_os_erros_anteriores(com_codigo):
+    """Mesma regra do `senha_reset`: quem provou saber o segredo não é quem
+    estava adivinhando. Sem isto, cinco erros de digitação de manhã deixariam
+    a pessoa a UMA tentativa do bloqueio pelo resto da hora."""
+    for _ in range(mm.MAX_TENTATIVAS_HORA - 1):
+        with pytest.raises(mm.Recusa):
+            mm.conferir("errado", ip="7.7.7.7", esquema=com_codigo)
+    mm.conferir(CODIGO, ip="7.7.7.7", esquema=com_codigo)       # zera aqui
+    # e o orçamento de erro volta inteiro
+    for _ in range(mm.MAX_TENTATIVAS_HORA - 1):
+        with pytest.raises(mm.Recusa):
+            mm.conferir("errado", ip="7.7.7.7", esquema=com_codigo)
+    mm.conferir(CODIGO, ip="7.7.7.7", esquema=com_codigo)
+
+
+def test_o_acerto_NAO_reescreve_a_trilha(com_codigo):
+    """Zerar o contador marcando as tentativas antigas como aceitas seria
+    apagar o registro de que elas erraram. A trilha deste segredo é a única
+    coisa que responde "quem abriu a conta de quem, e quando" -- contador se
+    recalcula, histórico não."""
+    for _ in range(3):
+        with pytest.raises(mm.Recusa):
+            mm.conferir("errado", ip="6.6.6.6", esquema=com_codigo)
+    mm.conferir(CODIGO, ip="6.6.6.6", esquema=com_codigo)
+    linhas = pglocal.query(
+        "SELECT aceita FROM mot_mestre_tentativas WHERE ip = '6.6.6.6'"
+        " ORDER BY quando", {}, com_codigo)
+    assert [l["aceita"] for l in linhas] == [False, False, False, True], (
+        "a trilha foi reescrita — as tentativas erradas viraram aceitas")
+
+
+def test_o_teto_continua_barrando_quem_ADIVINHA(com_codigo):
+    """A proteção não pode ter ido junto com o defeito: erro seguido de erro
+    fecha o endereço, e fecha inclusive para o código certo."""
+    for _ in range(mm.MAX_TENTATIVAS_HORA):
+        with pytest.raises(mm.Recusa):
+            mm.conferir("errado", ip="5.5.5.5", esquema=com_codigo)
+    with pytest.raises(mm.Recusa):
+        mm.conferir(CODIGO, ip="5.5.5.5", esquema=com_codigo)

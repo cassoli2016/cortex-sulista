@@ -1,3 +1,41 @@
+- versao: "1.34.2"
+  data: "2026-09-10"
+  corrigido:
+    - >-
+      O acesso de conferencia do app do motorista voltava "Codigo mestre
+      invalido" com o codigo CERTO. O teto de tentativas por endereco contava
+      TODA conferencia, acerto junto -- e ele existe contra adivinhacao, que
+      produz ERRO. Medido em producao: seis conferencias seguidas do mesmo
+      endereco, as SEIS aceitas, e a setima recusada. O codigo estava certo o
+      tempo inteiro, e a mensagem mandava procurar defeito no lugar errado --
+      no gerador, no cofre, no proprio codigo.
+    - >-
+      Pior que parecia: listar os motoristas e entrar na conta conferem o
+      codigo SEPARADAMENTE, entao cada conferencia real gastava duas
+      tentativas. Na pratica o bloqueio chegava na TERCEIRA conta aberta, nao
+      na sexta.
+    - >-
+      Agora o freio conta so o que errou, e um acerto zera o contador daquele
+      endereco -- a mesma regra que a redefinicao de senha ja usa: quem provou
+      saber o segredo nao e quem estava adivinhando. A protecao contra
+      adivinhacao continua inteira: erro seguido de erro fecha o endereco, e
+      fecha inclusive para o codigo certo. E o contador zera pela CONSULTA,
+      sem reescrever linha nenhuma: marcar as tentativas antigas como aceitas
+      apagaria o registro de que elas erraram, e a trilha e a unica coisa que
+      responde quem abriu a conta de quem.
+    - >-
+      A tela de Integracoes ganhou duas abas -- Fornecedores e Segredos da
+      casa -- e o motivo e que a secao nova da versao anterior ficou onde
+      ninguem acharia. Medido: com 14 fornecedores a tela dava 1.586 px de
+      altura, e "Segredos da casa" comecava no pixel 1.419, fora da primeira
+      tela. Quem foi procurar o gerador do codigo mestre do app do motorista
+      nao encontrou, e tinha razao. Agora a aba dos segredos abre em 303 px, e
+      cada aba diz quantos itens tem sem obrigar a entrar.
+    - >-
+      A regua de altura nao pegou isso porque ela mede com a API dublada em
+      vazio: sem cartao nenhum a tela de Integracoes reporta 244 px. E a mesma
+      licao que a casa ja tinha escrito -- o duble mede o esqueleto, nao a tela
+      que a pessoa abre.
 - versao: "1.34.1"
   data: "2026-09-10"
   corrigido:
