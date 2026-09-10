@@ -287,6 +287,27 @@ def _corpo(url: str) -> dict:
     return {"kpis": {}, "resumo": {}}
 
 
+def _estavel(pg, seletor, timeout=8000):
+    """O texto de um numero DEPOIS que a contagem crescente termina.
+
+    Os numeros da parede animam desde 10/09/2026 (`tvAnimarNums`): quem le no
+    meio ve um valor intermediario, verdadeiro no instante e falso como
+    afirmacao -- o teste que quebrou por isso lia "9" a caminho de "10".
+
+    ESPERAR ESTABILIDADE POR AMOSTRAGEM NAO SERVE, e a tentativa fica
+    registrada porque ela ensina: a curva de easing tem um patamar de ~400 ms
+    perto do fim (a 60% do caminho o valor ja arredonda para o penultimo
+    inteiro), e duas leituras espacadas de 250 ms caem as duas dentro dele. O
+    teste "esperou a estabilidade" e leu 9 com toda a confianca.
+
+    Quem sabe que acabou e a animacao: ela marca o elemento com `.contando` e
+    tira a marca no ultimo quadro. Esperar por isso nao amarra o teste a
+    nenhuma duracao.
+    """
+    pg.wait_for_selector(seletor + ":not(.contando)", timeout=timeout)
+    return pg.inner_text(seletor).strip()
+
+
 def _parede(pg, base, largura=1920, altura=1080):
     pg.route("**/api/**", lambda r: r.fulfill(
         status=200, content_type="application/json",
@@ -460,7 +481,7 @@ def test_chegam_hoje_conta_pela_JANELA_e_nao_pela_estimativa(pagina):
     esperado = len([c for c in _CARGAS
                     if (c.get("janela_entrega") or "").startswith(hoje)])
     assert esperado, "a amostra precisa ter carga com janela para hoje"
-    assert pg.inner_text("#tvcli-chegam").strip() == str(esperado)
+    assert _estavel(pg, "#tvcli-chegam") == str(esperado)
     # e a procedencia continua dita: regua nossa publicada sem nome vira promessa
     assert "janela combinada" in pg.inner_text("#tvcli-chegam-sub").lower()
 
@@ -592,14 +613,104 @@ def test_o_mapa_SEPARA_veiculos_de_patios_diferentes(pagina):
             assert not encosta, ("marcas sobrepostas: %r e %r" % (a["txt"], b["txt"]))
 
 
-def test_o_mapa_JUNTA_quem_esta_no_mesmo_patio(pagina):
-    """A outra metade da mesma regra. Quatro veículos no mesmo pátio viram UMA
-    marca com a contagem — seis placas empilhadas no mesmo pixel não se leem
-    de jeito nenhum numa parede."""
+def test_o_mapa_NAO_JUNTA_os_veiculos_do_mesmo_patio(pagina):
+    """A REGRA MUDOU EM 10/09/2026, a pedido de quem opera: não junte.
+
+    Antes, veículos a menos de 52 px viravam UMA marca escrita "3 veíc." — e
+    isso apagava exatamente o que se vai olhar numa parede de operação: qual
+    caminhão está onde. O agrupamento resolvia colisão de etiqueta, e o preço
+    era alto demais para o problema.
+
+    Agora cada veículo tem a SUA marca, com a SUA placa, e quem resolve a
+    colisão é o degrau: a etiqueta sobe até achar lugar livre, ancorada na
+    coordenada real. Ninguém é movido de lugar — deslocar o ponto para
+    desempilhar mentiria sobre onde o caminhão está, e no zoom desta parede
+    30 px são dezenas de quilômetros.
+    """
     pg, base = pagina
     _parede(pg, base)
     pg.wait_for_timeout(1400)
     txts = pg.evaluate("""() => [...document.querySelectorAll('#tvCliMapa .tv-vmk')]
         .map(d => d.textContent)""")
-    assert any("veíc." in t for t in txts), (
-        "nenhum grupo: os quatro do mesmo pátio viraram quatro etiquetas " + str(txts))
+    assert not any("veíc." in t for t in txts), (
+        "o agrupamento voltou: alguma marca virou contagem " + str(txts))
+    # uma marca por veículo, cada uma com a placa
+    assert len(txts) == 6, ("sumiu ou sobrou marca: " + str(txts))
+    assert len(set(txts)) == 6, ("placa repetida na parede: " + str(txts))
+    for t in txts:
+        assert re.fullmatch(r"[A-Z]{3}\d[A-Z0-9]\d{2}", t), (
+            "etiqueta que não é placa: %r" % t)
+
+
+# ═══════════════════ o passeio por regiao e a contagem crescente ═══════════
+#
+# As duas coisas que quem opera pediu em 10/09/2026, e que substituem o
+# agrupamento de marcas: como nao se junta mais, quem resolve a legibilidade e
+# a ESCALA -- o mapa passeia e cada regiao aparece grande.
+
+def test_o_mapa_PASSEIA_pelas_regioes(pagina):
+    """A regiao e distancia NO CHAO, e nao em pixel, e a diferenca importa:
+    pixel depende do zoom, e o zoom e justamente o que o passeio muda. Uma
+    regiao tem de ser a mesma no panorama e no close, senao o roteiro mudaria
+    a cada passo.
+
+    A amostra tem dois estados (~800 km), entao sao duas regioes. O passo e
+    disparado a mao: esperar os 11 s do panorama faria o teste medir o
+    relogio, nao a regra.
+    """
+    pg, base = pagina
+    _parede(pg, base)
+    pg.wait_for_timeout(1400)
+    assert pg.evaluate("() => (tvCliRegs || []).length") == 2, (
+        "as duas pracas da amostra tinham de virar duas regioes")
+    z0 = pg.evaluate("() => tvCliMap.getZoom()")
+    pg.evaluate("() => tvCliTourPasso()")
+    pg.wait_for_timeout(2400)                      # o flyToBounds dura 1,6 s
+    z1 = pg.evaluate("() => tvCliMap.getZoom()")
+    assert z1 > z0, (
+        "o passeio nao aproximou: panorama em %s, regiao em %s" % (z0, z1))
+    leg = pg.inner_text("#tvcli-mapa-sub").lower()
+    assert "regiao" in leg or "região" in leg, (
+        "a legenda nao diz em que regiao o mapa esta: " + leg)
+    # A COBERTURA NAO SOME quando a legenda ganha a regiao: sem ela, quem le a
+    # parede acha que os pontos sao a operacao inteira.
+    assert "ve" in leg and "culos" in leg, (
+        "a cobertura sumiu do rodape do mapa: " + leg)
+
+
+def test_o_passeio_PARA_ao_sair_da_parede(pagina):
+    """Ele reagenda a si mesmo. Sem desligar, continuaria dando `flyToBounds`
+    num mapa que ninguem esta vendo -- e a parede voltaria com o roteiro no
+    meio, o que numa TV se le como travada."""
+    pg, base = pagina
+    _parede(pg, base)
+    pg.wait_for_timeout(1400)
+    assert pg.evaluate("() => tvCliTour !== null"), "o passeio nem comecou"
+    pg.evaluate("() => { location.hash = '#home'; }")
+    pg.wait_for_timeout(900)
+    assert pg.evaluate("() => tvCliTour === null"), (
+        "o passeio continuou rodando fora da parede")
+
+
+def test_os_numeros_da_parede_CONTAM_e_param_no_valor_certo(pagina):
+    """O efeito pedido -- e a parte que importa e a segunda metade.
+
+    Contar e enfeite; parar no numero certo e o dado. A animacao REESCREVE o
+    texto do elemento quadro a quadro, entao um erro no ultimo quadro deixaria
+    a parede exibindo um valor intermediario para sempre, sem erro nenhum no
+    console.
+
+    A marca `.contando` e o que torna o fim observavel: sem ela, so restaria
+    esperar um tempo fixo, e a curva tem um patamar de ~400 ms perto do fim
+    que faz duas leituras espacadas parecerem estaveis no valor ERRADO.
+    """
+    pg, base = pagina
+    _parede(pg, base)
+    pg.wait_for_timeout(1400)
+    pg.evaluate("""() => { document.getElementById('tvcli-hero').textContent = '42';
+                           tvAnimarNums('view-tvcli'); }""")
+    assert pg.eval_on_selector("#tvcli-hero", "e => e.classList.contains('contando')"), (
+        "o numero nao esta animando")
+    pg.wait_for_selector("#tvcli-hero:not(.contando)", timeout=8000)
+    assert pg.inner_text("#tvcli-hero").strip() == "42", (
+        "a contagem parou num valor intermediario")

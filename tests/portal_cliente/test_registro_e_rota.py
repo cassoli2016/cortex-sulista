@@ -438,12 +438,16 @@ def test_o_mapa_agrupa_por_PIXEL_e_nao_por_distancia_no_chao():
     projetar. Agrupar antes do `fitBounds` mediria pixels de um zoom que não é
     o que vai para a tela.
     """
-    corpo = INDEX.split("async function tvCliMapa")[1].split("\n}\n")[0]
+    corpo = INDEX.split("function tvCliMarcas()")[1].split("\n}\n")[0]
     assert "toFixed(2)" not in corpo, "a grade de graus voltou"
-    assert "RAIO_PX" in corpo and ".project(" in corpo
-    assert "veíc." in corpo
-    assert "animate:false" in corpo, (
-        "com animação o zoom lido pelo project() é o antigo")
+    assert ".project(" in corpo, "a colisao voltou a ser medida no chao"
+    assert "getZoom()" in corpo, (
+        "a projecao precisa do zoom da TELA, nao de um zoom fixo")
+    # E A MARCA NAO VIRA CONTAGEM. O agrupamento saiu em 10/09/2026 a pedido
+    # de quem opera: juntar apagava a placa, que e o que se olha numa parede.
+    # A unidade da regra nao mudou -- colisao continua sendo PIXEL --, mudou o
+    # que se faz com a resposta: a etiqueta sobe um degrau em vez de sumir.
+    assert "vei" + "c." not in corpo, "o agrupamento voltou"
     # A ORDEM (enquadrar -> ler zoom -> projetar) NAO se confere aqui, e a
     # tentativa fica registrada porque ela ensina: um `index("fitBounds") <
     # index(".project(")` parecia cobrar a ordem e nao cobrava nada -- ha DOIS
@@ -456,9 +460,19 @@ def test_o_mapa_agrupa_por_PIXEL_e_nao_por_distancia_no_chao():
 
 
 def test_posicao_velha_NAO_some_do_mapa():
-    corpo = INDEX.split("async function tvCliMapa")[1].split("\n}")[0]
-    assert "todasVelhas" in corpo
-    assert "#6E7883" in corpo, "a cor de posição velha sumiu"
+    """Ela aparece MARCADA, e some do mapa nunca: sumir faria o veiculo
+    desaparecer, que e pior que mostra-lo com a idade a mostra.
+
+    Este guard afirmava `"todasVelhas" in corpo` -- o nome de uma variavel do
+    agrupamento. Quando o agrupamento saiu (10/09/2026) ele quebrou sem que a
+    regra tivesse mudado: a posicao velha continuava no mapa, cinza. Teste de
+    texto-fonte protege contra APAGAR e cobra pelo NOME; este cobra o que a
+    regra promete -- a cor existe e quem a decide e a idade da posicao.
+    """
+    corpo = INDEX.split("function tvCliMarcas()")[1].split("\n}\n")[0]
+    assert "#6E7883" in corpo, "a cor de posicao velha sumiu"
+    assert "p.velha" in corpo, (
+        "a cor deixou de ser decidida pela idade da posicao")
 
 
 def test_a_cobertura_do_mapa_vai_na_tela_SEM_nomear_fornecedor():

@@ -10154,6 +10154,11 @@ function router(){
   // cronômetro da emissão automática: só vive enquanto a tela está aberta
   if(cpCronTimer){ clearInterval(cpCronTimer); cpCronTimer=null; }
   if(cpAutoTimer){ clearInterval(cpAutoTimer); cpAutoTimer=null; }
+  /* O PASSEIO DO MAPA MORRE AO SAIR DA PAREDE. Ele reagenda a si mesmo, então
+     sem isto continuaria dando `flyToBounds` num mapa que ninguém está vendo —
+     e voltaria com o roteiro no meio. Quem entra na tela rearma pelo
+     `tvCliMapa`, que é onde o roteiro é recalculado. */
+  if(v !== 'tvcli' && typeof tvCliTourParar === 'function') tvCliTourParar();
   if(v==='ctecp'){
     let ab='despacho'; try{ ab=localStorage.getItem('cp_aba')||'despacho'; }catch(e){}
     cpAba(ab);
@@ -14428,8 +14433,23 @@ function tvFull(){
   setTimeout(()=>{ if(tvMap) tvMap.invalidateSize(); }, 400);
 }
 const TV_PREV={};
+/* CONTAGEM CRESCENTE DOS NUMEROS DA PAREDE.
+
+   `.tvc-hero .n` entrou em 10/09/2026, a pedido de quem opera: o painel do
+   cliente era o unico dos cinco que nao animava, porque os numeros dele nao
+   usam `.tv-num` — o heroi e o `.n` dentro do `.tvc-hero`. O seletor e a lista
+   de onde ha numero, e ela so cresce quando alguem repara na falta.
+
+   E RESPEITA `prefers-reduced-motion`: quem pediu menos movimento recebe o
+   numero FINAL, na hora, e nao uma tela parada. O `anel.js` ja faz isso (um
+   quadro so) e aqui a regra e a mesma — a animacao e enfeite, o numero e o
+   dado. Uma parede nao tem quem configure isso, mas o mesmo painel abre no
+   navegador de quem configurou. */
 function tvAnimarNums(rootId){
-  document.querySelectorAll('#'+rootId+' .tv-num, #'+rootId+' .knum').forEach((el,idx)=>{
+  const quieto = window.matchMedia
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.querySelectorAll('#'+rootId+' .tv-num, #'+rootId+' .knum, '
+                            +'#'+rootId+' .tvc-hero .n').forEach((el,idx)=>{
     const alvoTxt=el.textContent;
     const m=alvoTxt.match(/-?[\d.,]+/);
     if(!m) return;
@@ -14447,13 +14467,44 @@ function tvAnimarNums(rootId){
       de=alvo*0.88;              // valor não mudou: reconta suave para dar vida
     }
     const pre=alvoTxt.slice(0,m.index), pos=alvoTxt.slice(m.index+m[0].length);
+    if(quieto) return;              // o numero final ja esta na tela
+    /* ENQUANTO CONTA, O ELEMENTO DIZ QUE ESTA CONTANDO.
+
+       Sem isso, quem le o numero no meio do caminho ve um valor intermediario
+       que e verdadeiro no instante e falso como afirmacao — foi assim que um
+       teste passou a ler "9" a caminho de "10". Esperar um TEMPO nao resolve:
+       a curva de easing tem um patamar de ~400 ms perto do fim, e duas
+       leituras espacadas caem dentro dele e parecem estaveis.
+       A marca torna o fim OBSERVAVEL: o teste espera `:not(.contando)`, e
+       quem escrever animacao nova nao precisa saber a duracao de nada. */
+    /* UMA CONTAGEM POR ELEMENTO, e a anterior MORRE.
+
+       Sem isto duas animacoes escrevem no mesmo `textContent` ao mesmo tempo,
+       e quem termina por ultimo manda -- inclusive a VELHA, que estava indo
+       para o numero anterior. O painel fica exibindo o valor antigo para
+       sempre, sem erro nenhum no console: a tela nao esta travada, ela foi
+       sobrescrita.
+
+       A janela e pequena (a contagem dura 2,6 s) e por isso ninguem tinha
+       visto -- mas a parede recarrega sozinha, e `tvRecarregar` dispara em
+       resize e ao entrar em tela cheia, que e quando duas passadas se cruzam.
+       Pego pelo guard que manda contar de novo enquanto a primeira corria.
+
+       Geracao em vez de `cancelAnimationFrame`: o id do quadro nao sobrevive
+       a uma segunda chamada sem outra estrutura para guarda-lo, e o contador
+       no proprio elemento morre junto com ele. */
+    el._tvGen = (el._tvGen || 0) + 1;
+    const gen = el._tvGen;
+    el.classList.add('contando');
     const t0=performance.now(), dur=2600;
     function passo(t){
+      if(el._tvGen !== gen) return;      // outra contagem comecou: esta morre
       const k=Math.min(1,(t-t0)/dur);
       const e=1-Math.pow(1-k,3);
       const v=de+(alvo-de)*e;
       el.textContent=pre+v.toLocaleString('pt-BR',{minimumFractionDigits:dec,maximumFractionDigits:dec})+pos;
-      if(k<1) requestAnimationFrame(passo);
+      if(k<1){ requestAnimationFrame(passo); }
+      else{ el.classList.remove('contando'); }
     }
     requestAnimationFrame(passo);
   });
@@ -14524,6 +14575,76 @@ let tvDirSeq=0, tvDirOk=false;
 let tvCliSeq = 0, tvCliOk = false;
 let tvCliMap = null, tvCliLayer = null, tvCliEnquadrou = false;
 
+/* AS MARCAS SE REDESENHAM A CADA MUDANCA DE ZOOM, e isso nao e detalhe.
+
+   O desempilhamento e calculado em PIXEL, no zoom do momento. O mapa muda de
+   zoom em tres ocasioes DEPOIS de desenhar: o reenquadramento de 700 ms da
+   primeira pintura, o `flyToBounds` de cada parada do tour, e o
+   `invalidateSize` quando a parede entra em tela cheia. Em todas elas um
+   layout calculado no zoom anterior fica errado — duas etiquetas que estavam
+   separadas passam a encostar, e nada aparece no console.
+
+   Por isso o desenho e uma FUNCAO ligada ao `zoomend`, e nao um trecho no meio
+   da pintura. Foi um teste de sobreposicao que cobrou isto: ele mede a caixa
+   de cada etiqueta NA TELA, e media depois do reenquadramento. */
+let tvCliVeics = [];
+
+/* A CAIXA DA ETIQUETA SE MEDE, nao se estima.
+
+   A primeira versao chutou 42x20 px. A etiqueta tem 68x24 -- e com degrau de
+   20 px duas consecutivas se encavalavam 4 px, exatamente o borrao que o
+   desempilhamento existe para evitar. Constante escrita a olho envelhece na
+   primeira mudanca de fonte ou de padding do `.tv-vmk`, e o sintoma seria
+   este de novo: etiquetas quase certas.
+
+   Mede-se uma vez por pintura, com uma placa de largura tipica, e guarda-se.
+   O `+6/+2` e a folga que separa "encostadas" de "coladas". */
+let tvCliCaixa = null;
+function tvCliCaixaEtiqueta(){
+  if(tvCliCaixa) return tvCliCaixa;
+  const d = document.createElement('div');
+  d.className = 'tv-vmk';
+  d.style.cssText = 'position:absolute;visibility:hidden;left:-9999px;top:0';
+  d.textContent = 'AAA0A00';
+  document.body.appendChild(d);
+  const r = d.getBoundingClientRect();
+  d.remove();
+  tvCliCaixa = {w: Math.ceil(r.width) + 6, h: Math.ceil(r.height) + 2};
+  return tvCliCaixa;
+}
+
+function tvCliMarcas(){
+  if(!tvCliMap || !tvCliLayer) return;
+  tvCliLayer.clearLayers();
+  const todos = tvCliVeics;
+  const cx = tvCliCaixaEtiqueta();
+  const ET_W = cx.w, ET_H = cx.h, ET_MAX = 12;
+  const zoom = tvCliMap.getZoom();
+  const ocupadas = [];
+  /* Ordem estavel entre recargas: sem isto a pilha embaralha a cada pintura e
+     a parede pisca sozinha sem nada ter mudado. */
+  todos.sort(function(a, b){ return a.placa < b.placa ? -1 : 1; });
+  todos.forEach(function(v){
+    const p = v.pos;
+    const pt = tvCliMap.project([p.lat, p.lon], zoom);
+    let degrau = 0;
+    while(degrau < ET_MAX * ET_H && ocupadas.some(function(q){
+      return Math.abs(q.x - pt.x) < ET_W && Math.abs(q.y - (pt.y - degrau)) < ET_H;
+    })) degrau += ET_H;
+    ocupadas.push({x:pt.x, y:pt.y - degrau});
+    /* POSICAO VELHA NAO SOME DO MAPA, aparece marcada: sumir com ela faria o
+       veiculo desaparecer, que e pior que mostra-lo com a idade a mostra. */
+    const cor = p.velha ? '#6E7883' : ((p.velocidade > 0) ? '#4ADE80' : '#FBBF24');
+    L.marker([p.lat, p.lon], {
+      icon: L.divIcon({className:'', iconSize:null,
+        iconAnchor:[18, 9 + degrau],
+        html:'<div class="tv-vmk' + (!p.velha && p.velocidade > 0 ? ' mov' : '')
+             + '" style="background:' + cor + '">' + esc(v.placa) + '</div>'}),
+      zIndexOffset: degrau,
+    }).addTo(tvCliLayer);
+  });
+}
+
 /* O MAPA DA TV DO CLIENTE. So as cargas EM CURSO dele -- nunca a frota, nunca
    outro cliente. O recorte vem do servidor; aqui so se desenha o que chegou.
 
@@ -14540,6 +14661,7 @@ async function tvCliMapa(cargas, resumo){
                                    attributionControl:false}).setView([-22.5,-45.5], 7);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(tvCliMap);
     tvCliLayer = L.layerGroup().addTo(tvCliMap);
+    tvCliMap.on('zoomend', tvCliMarcas);
   }
   /* SEMPRE, e ANTES de enquadrar: e a medida do container que decide o zoom. */
   tvCliMap.invalidateSize();
@@ -14567,8 +14689,13 @@ async function tvCliMapa(cargas, resumo){
      RAIO_PX. `animate:false` porque o zoom precisa valer JA -- com animacao o
      `project()` abaixo leria o zoom antigo e agruparia pela escala errada. */
   const todos = Object.keys(porPlaca).map(function(pl){ return porPlaca[pl]; });
+  /* Os limites do PANORAMA ficam guardados: e para eles que o tour volta
+     entre uma regiao e outra, e recalcula-los a cada passo daria enquadramento
+     diferente conforme a posicao tivesse mudado no meio do roteiro. */
+  let cxGuardado = null;
   if(todos.length){
     const cx = L.latLngBounds(todos.map(function(v){ return [v.pos.lat, v.pos.lon]; }));
+    cxGuardado = cx;
     /* PISO DE AREA. Sem ele, um dia em que a frota inteira esta no mesmo patio
        daria zoom de rua -- a parede mostraria telhados e nenhuma referencia
        geografica, e quem olha perde a nocao de onde a operacao esta. ~0,9 grau
@@ -14601,65 +14728,149 @@ async function tvCliMapa(cargas, resumo){
     }
   }
 
-  /* RAIO em pixels: a etiqueta mede ~36x18 px e o ancoradouro fica no centro,
-     entao duas marcas precisam de ~46 px entre si para nao encostar. 52 da a
-     folga de um respiro sem juntar patios que a operacao trata como
-     diferentes. */
-  const RAIO_PX = 52;
-  const grupos = {};
-  const zoom = tvCliMap.getZoom();
-  todos.forEach(function(v){
-    const p = v.pos;
-    const pt = tvCliMap.project([p.lat, p.lon], zoom);
-    /* Junta no PRIMEIRO grupo que estiver perto o bastante -- agrupamento
-       guloso, que e o que um mural precisa: estavel entre recargas (a ordem
-       das placas nao muda) e sem custo de clusterizacao de verdade para as
-       dezenas de pontos que cabem aqui. */
-    let alvo = null;
-    for(const k in grupos){
-      const g = grupos[k];
-      if(Math.abs(g.px - pt.x) < RAIO_PX && Math.abs(g.py - pt.y) < RAIO_PX){ alvo = g; break; }
-    }
-    if(!alvo){
-      alvo = grupos[v.placa] = {lat:p.lat, lon:p.lon, px:pt.x, py:pt.y,
-                                veics:[], paradas:0, velhas:0, cargas:0};
-    }
-    alvo.veics.push(v.placa);
-    alvo.cargas += v.cargas;
-    if(p.velha) alvo.velhas += 1;
-    if(!(p.velocidade > 0)) alvo.paradas += 1;
-  });
+  /* UMA MARCA POR VEICULO, SEM AGRUPAR — pedido de quem opera em 10/09/2026.
+     A versao anterior juntava o que ficava a menos de 52 px e trocava as
+     placas por "3 veic.". Numa parede isso apaga justamente o que se vai
+     olhar: qual caminhao esta onde. O agrupamento resolvia colisao de
+     etiqueta, e o preco era alto demais para o problema.
+     Quem resolve a colisao agora e o ZOOM: o mapa passeia pelas regioes, e
+     dentro de cada uma as marcas se separam sozinhas. Ver `tvCliTourPasso`. */
+  tvCliVeics = todos;
+  tvCliMarcas();
 
-  Object.keys(grupos).forEach(function(k){
-    const g = grupos[k], n = g.veics.length;
-    /* POSICAO VELHA NAO SOME DO MAPA, aparece marcada: sumir com ela faria o
-       veiculo desaparecer, que e pior que mostra-lo com a idade a mostra. */
-    const todasVelhas = g.velhas === n;
-    const andando = g.paradas < n;
-    const cor = todasVelhas ? '#6E7883' : (andando ? '#4ADE80' : '#FBBF24');
-    const rot = n === 1 ? esc(g.veics[0]) : (n + ' veíc.');
-    L.marker([g.lat, g.lon], {
-      icon: L.divIcon({className:'', iconSize:null, iconAnchor:[18,9],
-        html:'<div class="tv-vmk' + (!todasVelhas && andando ? ' mov' : '')
-             + '" style="background:' + cor + '">' + rot + '</div>'}),
-      zIndexOffset: n > 1 ? 500 : 0,
-    }).addTo(tvCliLayer);
-  });
   /* A COBERTURA vai no rodape do mapa. "33 de 33 veiculos" impede alguem de
      olhar os pontos e concluir que aquilo e a operacao inteira; e a idade da
-     leitura impede tomar posicao de ontem por posicao de agora. */
+     leitura impede tomar posicao de ontem por posicao de agora.
+     O RODAPE NAO NOMEIA FORNECEDOR. Quem nos vende rastreamento e assunto
+     nosso; para quem le a parede o que importa e quantos veiculos tem posicao
+     e que idade ela tem. A procedencia por fornecedor continua no payload,
+     para a Saude e o diagnostico interno. */
   const r = resumo || {};
+  tvCliCobertura = todos.length
+    ? (r.com_posicao + ' de ' + r.veiculos + ' veículos · ' + r.frescas
+       + ' com posição de até ' + (r.fresca_ate_min || 120) + ' min')
+    : 'sem posição para as cargas em curso';
+
+  /* O TOUR RECOMECA A CADA PINTURA. A parede recarrega sozinha, e um tour
+     antigo sobreviveria apontando para regioes que ja mudaram de tamanho. */
+  tvCliTourParar();
+  tvCliTodos = todos.length ? cxGuardado : null;
+  tvCliRegs = tvCliRegioes(todos, TV_CLI_RAIO_KM);
+  tvCliTourIdx = 0;
+  tvCliLegenda();
+  /* So passeia se houver o que passear: com uma regiao so, o panorama JA e
+     ela, e ficar dando zoom no mesmo lugar e movimento sem informacao. */
+  if(tvCliRegs.length > 1) tvCliTour = setTimeout(tvCliTourPasso, TV_CLI_PANORAMA_MS);
+}
+
+/* ── O PASSEIO POR REGIAO ──────────────────────────────────────────────────
+   Substitui o agrupamento de marcas. A pergunta que o agrupamento respondia
+   ("como caber 33 etiquetas sem borrao") tem duas respostas: encolher a
+   informacao ou aumentar a escala. Numa parede que ninguem opera, aumentar a
+   escala e de graca — ela tem tempo, que e o recurso que um mapa interativo
+   nao tem.
+
+   REGIAO E DISTANCIA NO CHAO, e nao em pixel, e a diferenca importa: pixel
+   depende do zoom, e o zoom e justamente o que este codigo muda. Uma regiao
+   tem de ser a MESMA no panorama e no close, senao o tour mudaria de roteiro
+   a cada passo. (O agrupamento de etiquetas era em pixel com razao — la o
+   problema ERA a tela. Aqui o problema e o mapa.) */
+
+const TV_CLI_RAIO_KM = 130;     // ~1h15 de estrada: o que uma sala trata como "a mesma praca"
+const TV_CLI_PANORAMA_MS = 11000;
+const TV_CLI_REGIAO_MS = 8000;
+let tvCliTour = null, tvCliRegs = [], tvCliTourIdx = 0;
+let tvCliTodos = null, tvCliCobertura = '';
+
+function tvCliTourParar(){
+  if(tvCliTour){ clearTimeout(tvCliTour); tvCliTour = null; }
+}
+
+function tvCliKm(a, b){
+  const rad = function(x){ return x * Math.PI / 180; };
+  const dLat = rad(b.lat - a.lat), dLon = rad(b.lon - a.lon);
+  const s = Math.sin(dLat/2)*Math.sin(dLat/2)
+          + Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLon/2)*Math.sin(dLon/2);
+  return 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(s)));
+}
+
+/* Agrupamento guloso por distancia, com o centro andando junto. Guloso basta:
+   sao dezenas de pontos, e o que uma parede precisa e ESTABILIDADE entre
+   recargas, nao o particionamento otimo. A ordenacao final (mais veiculos
+   primeiro, empate pelo norte) e o que faz o roteiro nao trocar de ordem
+   quando um caminhao muda de praca. */
+function tvCliRegioes(veics, raioKm){
+  const regs = [];
+  (veics || []).forEach(function(v){
+    const p = {lat:v.pos.lat, lon:v.pos.lon};
+    let alvo = null;
+    for(let i = 0; i < regs.length; i++){
+      if(tvCliKm(regs[i].centro, p) <= raioKm){ alvo = regs[i]; break; }
+    }
+    if(!alvo){ alvo = {centro:{lat:p.lat, lon:p.lon}, veics:[]}; regs.push(alvo); }
+    alvo.veics.push(v);
+    const n = alvo.veics.length;
+    alvo.centro.lat += (p.lat - alvo.centro.lat) / n;
+    alvo.centro.lon += (p.lon - alvo.centro.lon) / n;
+  });
+  regs.sort(function(a, b){
+    return (b.veics.length - a.veics.length) || (b.centro.lat - a.centro.lat);
+  });
+  return regs;
+}
+
+/* A LEGENDA DIZ ONDE O MAPA ESTA, e nunca substitui a cobertura: quem le a
+   parede precisa saber que aquilo nao e a operacao inteira, e essa frase some
+   se o rodape virar so "Região 2 de 4". As duas convivem. */
+function tvCliLegenda(reg, i){
   const sub = document.getElementById('tvcli-mapa-sub');
-  if(sub){
-    /* O RODAPE NAO NOMEIA FORNECEDOR. Quem nos vende rastreamento e assunto
-       nosso; para quem le a parede o que importa e quantos veiculos tem
-       posicao e que idade ela tem. A procedencia por fornecedor continua no
-       payload, para a Saude e o diagnostico interno. */
-    sub.textContent = todos.length
-      ? (r.com_posicao + ' de ' + r.veiculos + ' veículos · ' + r.frescas
-         + ' com posição de até ' + (r.fresca_ate_min || 120) + ' min')
-      : 'sem posição para as cargas em curso';
-  }
+  if(!sub) return;
+  const n = tvCliRegs.length;
+  sub.textContent = tvCliCobertura + (
+    (n > 1 && reg)
+      ? ' · região ' + i + ' de ' + n + ' · ' + reg.veics.length + ' veículo'
+        + (reg.veics.length === 1 ? '' : 's')
+      : (n > 1 ? ' · ' + n + ' regiões' : ''));
+}
+
+function tvCliTourPasso(){
+  if(!tvCliMap || tvCliRegs.length < 2){ tvCliTour = null; return; }
+  /* NAO GIRA COM A ABA ESCONDIDA — a mesma regra do "Girar" das sub-abas.
+     Animar o que ninguem ve gasta CPU de uma maquina que fica ligada o dia
+     inteiro, e a parede voltaria no meio do roteiro. */
+  if(document.hidden){ tvCliTour = setTimeout(tvCliTourPasso, 4000); return; }
+
+  const passos = tvCliRegs.length + 1;          // panorama + uma parada por regiao
+  tvCliTourIdx = (tvCliTourIdx + 1) % passos;
+  const ehPanorama = tvCliTourIdx === 0;
+  let prox = TV_CLI_REGIAO_MS;
+  try{
+    if(ehPanorama){
+      if(tvCliTodos) tvCliMap.flyToBounds(tvCliTodos, {
+        paddingTopLeft:[46,44], paddingBottomRight:[46,14], maxZoom:11, duration:1.6});
+      tvCliLegenda();
+      prox = TV_CLI_PANORAMA_MS;
+    }else{
+      const reg = tvCliRegs[tvCliTourIdx - 1];
+      const cx = L.latLngBounds(reg.veics.map(function(v){
+        return [v.pos.lat, v.pos.lon]; }));
+      /* PISO DE AREA TAMBEM AQUI, e pelo mesmo motivo do panorama: uma regiao
+         com um veiculo so daria zoom de telhado — a parede mostraria uma rua
+         sem nenhuma referencia geografica, e quem olha de longe nao saberia
+         que pedaco do pais e aquele. 0,12 grau sao ~13 km. */
+      const MIN = 0.12, c = cx.getCenter();
+      if(cx.getNorth() - cx.getSouth() < MIN * 2){
+        cx.extend([c.lat - MIN, c.lng]).extend([c.lat + MIN, c.lng]);
+      }
+      if(cx.getEast() - cx.getWest() < MIN * 2){
+        cx.extend([c.lat, c.lng - MIN]).extend([c.lat, c.lng + MIN]);
+      }
+      tvCliMap.flyToBounds(cx, {paddingTopLeft:[46,44], paddingBottomRight:[46,14],
+                                maxZoom:13, duration:1.6});
+      tvCliLegenda(reg, tvCliTourIdx);
+    }
+  }catch(e){ /* mapa em transicao: o proximo passo reenquadra */ }
+  tvCliTour = setTimeout(tvCliTourPasso, prox);
 }
 
 /* PAINEL DE TV DA OPERACAO DO CLIENTE.
@@ -15190,6 +15401,10 @@ async function loadTvCli(){
 
     tvCliMapa(cargas, dA.posicao);
     tvCliTicker(dA, dP, {emViagem: emViagem, total: total});
+    /* A CONTAGEM VEM DEPOIS DE TODOS OS NUMEROS ESTAREM NA TELA: ela LE o
+       texto do elemento para saber o alvo, entao rodar antes pegaria o "—" do
+       esqueleto e animaria de zero a zero. */
+    tvAnimarNums('view-tvcli');
   }catch(e){
     if(seq === tvCliSeq) tvErro('tvcli-etapas', tvCliOk);
   }

@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.37.0] — 10/09/2026  ·  CX-10/09/2026-v1.37.0
+
+### Alterado
+- O mapa do painel de TV do cliente parou de JUNTAR os veiculos. Antes, quem estava a menos de 52 pixels virava uma marca so escrita "3 veic." -- e isso apagava exatamente o que se olha numa parede de operacao: qual caminhao esta onde. Agora cada veiculo tem a sua marca com a sua placa.
+- Quem resolve a legibilidade agora e a ESCALA: o mapa PASSEIA pelas regioes. Ele mostra o panorama, depois aproxima uma praca de cada vez, e volta -- e a legenda diz em qual esta ("regiao 2 de 4 - 5 veiculos"), sem largar a cobertura, que e o que impede alguem de olhar os pontos e concluir que aquilo e a operacao inteira. Regiao e distancia no chao (130 km), nunca em pixel: pixel depende do zoom, e o zoom e justamente o que o passeio muda.
+- E quando duas etiquetas caem no mesmo lugar elas SOBEM um degrau, sem sair do ponto: deslocar a marca para desempilhar mentiria sobre onde o caminhao esta -- no zoom de uma parede, 30 pixels sao dezenas de quilometros. O tamanho da etiqueta passou a ser MEDIDO na tela em vez de estimado: a primeira versao chutou 42x20 pixels, a etiqueta tem 68x24, e com o degrau errado duas consecutivas se encavalavam por 4 pixels.
+- Os numeros do painel do cliente passaram a CONTAR ate o valor, como os outros quatro paineis de TV ja faziam. Ele era o unico de fora, porque os numeros dele nao usam a mesma classe. Quem pediu menos movimento no sistema operacional recebe o numero final direto, sem animacao.
+
+### Corrigido
+- A contagem crescente dos paineis de TV podia parar num valor INTERMEDIARIO e ficar assim. Duas contagens no mesmo numero escreviam ao mesmo tempo, e quem terminava por ultimo mandava -- inclusive a antiga, que estava indo para o valor anterior. A parede exibia o numero velho para sempre, sem erro nenhum no console: a tela nao travava, ela era sobrescrita. A janela e curta (2,6 s), mas a parede recarrega sozinha e cruza passadas ao entrar em tela cheia. Agora a contagem anterior morre quando outra comeca.
+
 ## [1.36.0] — 10/09/2026  ·  CX-10/09/2026-v1.36.0
 
 ### Corrigido
