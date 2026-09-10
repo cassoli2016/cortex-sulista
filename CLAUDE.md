@@ -275,6 +275,35 @@ moram em arquivos que não falam do assunto.
   real, que tem degrau nesse ponto. Sem o corte, um único saldo congelado de
   −823,5 h desloca o saldo líquido da casa em 23%, calado.
   Guards: `tests/rh/test_frequencia.py`.
+- **A BATIDA NASCE NO PONTO CERTIFICADO, NÃO NO GLOBUS** (`api/pontocertificado/`,
+  09/09/2026). O ERP lê o MESMO fornecedor, mas só pelo AFD — formato da
+  Portaria 671, que não tem coordenada por desenho — e por importação MANUAL
+  (mediana de 3 dias entre execuções, máximo de 18, uma única pessoa). Pela
+  API a batida chega em **12 s**, com GPS, local e cerca: medido no mesmo dia,
+  o ERP enxergava até 06/09 e o fornecedor já tinha a batida das 20h42.
+  Seis armadilhas, todas vistas no corpo real: **`FlagForaCerca` é `false` em
+  100% das marcações**, inclusive nas que o próprio fornecedor rotula
+  "FORA DE CERCA" — quem responde é o TEXTO de `DescricaoLocal`, e ler o
+  booleano daria "nenhuma fora" para sempre; **sem GPS o fornecedor rotula
+  "FORA DE CERCA"**, e isso é ausência (44% das batidas), não infração — daí
+  os TRÊS estados; a data vem em `/Date(epoch±hhmm)/` do .NET e o offset NÃO
+  se soma ao epoch; **o cursor não aceita zero** (`ultIdImportado=0` devolve
+  VAZIO, não o histórico — a primeira carga é por período); a página tem teto
+  de 1.000; e a senha viaja no CORPO, então todo erro passa por `_limpar()`.
+  Cerca `Tipo` 2 é POLÍGONO com `Raio` "0" e uma linha por vértice — tratá-la
+  como círculo de raio zero reprova a unidade inteira. Guards:
+  `tests/pontocertificado/`.
+- **A COORDENADA DA BATIDA ENTRA E NÃO FICA** (`api/pontocertificado/coleta.py`,
+  `sql/cortex/0077_*.sql`). A cerca precisa responder "caiu na unidade?", e
+  para isso bastam o VEREDITO e a DISTÂNCIA — um escalar. A coordenada crua
+  responderia por onde a pessoa andou, a que horas, em que dias, e isso é
+  histórico de deslocamento de trabalhador que a empresa não precisa manter
+  para operar a cerca. Então `pc_marcacao` guarda `situacao` e `distancia_m`,
+  e **não tem coluna de latitude, longitude, CPF ou PIS** — a matrícula
+  identifica as mesmas 77 pessoas e casa com a chapa do ERP. Não se perde o
+  que originou a frente: com a distância ainda se recalibra raio. O guard é
+  ESTRUTURAL e lê o `information_schema`, não o texto do SQL — guard que lê
+  texto-fonte protege contra apagar, não contra acrescentar a coluna.
 - Integração é **módulo por fornecedor** em `api/<fornecedor>/` (gobrax,
   smartec, tomtom, whatsapp, monkey, jornada/RasterJOR, pedagio/QualP) — não
   existe hub genérico de conectores.

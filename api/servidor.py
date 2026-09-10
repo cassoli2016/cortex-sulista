@@ -1954,6 +1954,38 @@ def _servicos() -> list[dict]:
         # Falha aqui NÃO derruba a Saúde: o cartão some e o resto continua.
         log.warning("saude: frescor do ponto: %s", exc)
 
+    # PONTO CERTIFICADO — a PORTA por onde a batida chega com coordenada.
+    # Cartão separado do de cima de propósito: aquele mede a IMPORTAÇÃO do AFD
+    # pelo Globus (manual, dias de atraso); este mede o fornecedor, que tem a
+    # mesma batida em segundos. Os dois podem discordar, e é justamente a
+    # discordância que interessa — ERP parado com fornecedor em dia é problema
+    # nosso, não dele.
+    try:
+        from .pontocertificado import cliente as _pc
+        if not _pc.configurado():
+            servicos.append({"nome": "Ponto Certificado (batidas)", "status": "info",
+                             "detalhe": "não configurado nesta instalação"})
+        else:
+            d = _pc.diagnostico()
+            emprestada = d.get("origem_credencial") == "globus"
+            if d.get("versao_api"):
+                servicos.append({
+                    "nome": "Ponto Certificado (batidas)",
+                    # Credencial emprestada não é falha, mas também não é
+                    # "tudo certo": ela é do ERP, está em texto claro lá, e
+                    # some no dia em que alguém a trocar. Fica em `info` para
+                    # aparecer sem virar alarme.
+                    "status": "info" if emprestada else "ok",
+                    "detalhe": f"API {d['versao_api']} respondendo · credencial "
+                               + ("EMPRESTADA do ERP — cadastrar a própria em "
+                                  "Integrações" if emprestada else "própria")})
+            else:
+                servicos.append({"nome": "Ponto Certificado (batidas)",
+                                 "status": "erro",
+                                 "detalhe": "fornecedor não respondeu ao ping"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: ponto certificado: %s", type(exc).__name__)
+
     # BANCO DE ESCRITA DO CÓRTEX (PostgreSQL local). É o destino dos dez SQLite
     # de data/, migrados um por vez. Fica ao lado dos outros dois bancos porque
     # é o terceiro: ERP (réplica de terceiro), Folha (Oracle) e este, o da casa.

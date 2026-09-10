@@ -69,6 +69,7 @@ log = logging.getLogger("cortex.integracoes")
 #: consultado sob demanda (não há coleta que possa "parar"), e o SMTP só se
 #: prova no envio. O cartão diz isso em vez de fingir um semáforo.
 CARTAO_DA_SAUDE: dict[str, str] = {
+    "pontocertificado": "Ponto Certificado (batidas)",
     "gobrax": "Gobrax (telemetria)",
     "smartec": "Smartec (infrações e licenças)",
     "rasterjor": "Jornada (RasterJOR)",

@@ -4,6 +4,18 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.31.0] — 09/09/2026  ·  CX-09/09/2026-v1.31.0
+
+### Adicionado
+- O CORTEX passou a falar direto com o Ponto Certificado, o sistema onde a batida de ponto nasce. Ate aqui a casa so via o ponto pelo ERP, que le o MESMO fornecedor por um arquivo legal sem coordenada e por uma importacao MANUAL — mediana de tres dias de atraso, maximo de dezoito. Pelo caminho novo a batida chega em 12 segundos, com a coordenada de onde foi feita e a cerca em que caiu.
+- Medido no dia da entrega: o ERP enxergava ate 06/09, e o fornecedor ja tinha a batida das 20h42 do mesmo dia.
+- A leitura das cercas cadastradas tambem entrou. Sao 30 hoje: 16 circulos e 14 vertices de area, com quatro desligadas. E a tela de Integracoes ganhou o Ponto Certificado, com cadastro de credencial propria.
+- A Saude do Servidor ganhou o cartao "Ponto Certificado (batidas)", ao lado do que ja media a importacao do ERP. Os dois medem coisas diferentes de proposito: se o fornecedor esta em dia e o ERP nao, o problema e nosso.
+- As batidas passam a ser guardadas na casa, com coleta a cada 10 minutos, e a guarda foi desenhada para NAO manter o rastro de ninguem: a coordenada de cada batida e usada para calcular a distancia ate a cerca mais proxima e depois DESCARTADA. Fica o veredito (dentro, fora, sem coordenada) e a distancia em metros. Com isso ainda se recalibra o raio de uma cerca — que e o motivo de tudo isto existir — sem que a empresa passe a ter um historico de deslocamento de trabalhador. Pelo mesmo motivo nao entram CPF nem PIS: a matricula identifica as mesmas pessoas.
+
+### Corrigido
+- A batida sem coordenada deixou de ser tratada como batida fora do lugar. O fornecedor rotula "fora de cerca" tudo que chega sem GPS, e isso e quase metade das marcacoes (44% no dia da medicao) — o que enchia o alarme antigo de gente que nao tinha feito nada de errado. Agora sao tres respostas: dentro, fora, e sem coordenada.
+
 ## [1.30.0] — 09/09/2026  ·  CX-09/09/2026-v1.30.0
 
 ### Adicionado

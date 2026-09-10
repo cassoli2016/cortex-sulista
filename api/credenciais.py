@@ -48,6 +48,22 @@ CAMPOS: dict[str, dict] = {
         "rotulo": "Token de API",
         "descricao": "Token da API Gobrax (telemetria e premiação)"},
 
+    # PONTO CERTIFICADO — o REP-P em nuvem, onde a batida nasce.
+    # O Globus lê o MESMO fornecedor, mas só pelo AFD (formato legal, sem
+    # coordenada) e por importação manual. Aqui a batida chega em 10 s, com
+    # GPS e cerca. Enquanto estes campos estiverem vazios o módulo usa a
+    # credencial que o Globus já tem — e a tela DIZ que está emprestada.
+    "PONTOCERT_CHAVE_EMPRESA": {
+        "rotulo": "Chave da empresa",
+        "descricao": "Identificador da empresa no Ponto Certificado (GUID)"},
+    "PONTOCERT_USUARIO": {
+        "rotulo": "Usuário",
+        "descricao": "E-mail de acesso à API do Ponto Certificado"},
+    "PONTOCERT_SENHA": {
+        "rotulo": "Senha",
+        "descricao": "Senha do usuário de API do Ponto Certificado",
+        "segredo": True},
+
     # App do motorista — o acesso de conferência. NÃO é credencial de
     # fornecedor: é um segredo NOSSO, e o único da casa que abre a PII de ~300
     # pessoas. Por isso o módulo aplica um piso PRÓPRIO de 16 caracteres
@@ -424,6 +440,20 @@ SERVICOS: list[dict] = [
                            "da conta"
                            if (ler("QUALP_USUARIO") and ler("QUALP_SENHA"))
                            else "sem conta: três consultas por dia, por IP"),
+    },
+    {
+        "chave": "pontocertificado",
+        "nome": "Ponto Certificado",
+        "resumo": "Ponto eletrônico (REP-P em nuvem): a batida com coordenada, "
+                  "local e cerca, em segundos. O ERP lê o mesmo fornecedor só "
+                  "pelo AFD — formato legal, sem coordenada — e por importação "
+                  "manual, com dias de atraso.",
+        "alimenta": "Frequência e Banco de Horas",
+        "modos": [{"chave": "usuario", "rotulo": "Chave, usuário e senha",
+                   "dica": "os mesmos do portal do Ponto Certificado",
+                   "campos": ["PONTOCERT_CHAVE_EMPRESA", "PONTOCERT_USUARIO",
+                              "PONTOCERT_SENHA"]}],
+        "ajustes": [],
     },
     {
         "chave": "gobrax",
