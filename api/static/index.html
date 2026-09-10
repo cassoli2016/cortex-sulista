@@ -7313,6 +7313,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <button role="tab" id="tabfreq-pessoas" data-aba="pessoas" aria-controls="aba-freq-pessoas" aria-selected="false" onclick="abaTrocar('freq','pessoas')">Por pessoa <span class="aban" id="freqNPess"></span></button>
           <button role="tab" id="tabfreq-batidas" data-aba="batidas" aria-controls="aba-freq-batidas" aria-selected="false" onclick="abaTrocar('freq','batidas')">Batidas <span class="aban" id="freqNAvisos"></span></button>
           <button role="tab" id="tabfreq-abs" data-aba="abs" aria-controls="aba-freq-abs" aria-selected="false" onclick="abaTrocar('freq','abs')">Absenteísmo</button>
+          <button role="tab" id="tabfreq-cercas" data-aba="cercas" aria-controls="aba-freq-cercas" aria-selected="false" onclick="abaTrocar('freq','cercas')">Cercas e batidas <span class="aban" id="freqNCercas"></span></button>
         </div>
         <div class="aba" data-abas="freq" data-aba="passivo" id="aba-freq-passivo" role="tabpanel" aria-labelledby="tabfreq-passivo">
           <div class="kband"><div class="kpis k4" id="kpis-freq"></div></div>
@@ -7322,12 +7323,16 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="card"><div class="head"><h2>Para onde vai a hora extra</h2><span class="hint" id="freq-destino-hint">12 meses fechados · só quem tem ponto</span></div>
               <div class="chartwrap"><div id="chartFreqDestino" style="width:100%;height:230px" role="img"></div></div></div>
           </div>
+          <div class="card"><div class="head"><h2>O saldo registrado x o que foi pago <span class="ihelp" tabindex="0" role="img" aria-label="por que os dois nao batem" title="A casa paga hora extra todo mes, com picos a cada seis meses. Nada disso baixa o saldo do banco de horas no ERP: o evento que daria a baixa quase nao e usado. Sao duas contabilidades que rodam em paralelo e nao se encontram — por isso o saldo do cartao acima nao pode ser lido como divida.">i</span></h2>
+            <span class="hint">as duas contabilidades, na mesma linha do tempo</span></div>
+            <div id="freq-conf-aviso"></div>
+            <div class="tablewrap tabroll" id="freq-confronto"></div></div>
+          </div>
+        <div class="aba" data-abas="freq" data-aba="pessoas" id="aba-freq-pessoas" role="tabpanel" aria-labelledby="tabfreq-pessoas" hidden>
           <div class="card"><div class="head"><h2>Concentração do saldo credor</h2><span class="hint" id="freq-faixa-hint">quem deve mais folga · faixa por horas acumuladas</span></div>
             <div class="tablewrap" id="freq-faixas"></div>
             <div id="freq-fonte" style="color:var(--n500);font-size:11.5px;margin-top:9px"></div>
           </div>
-        </div>
-        <div class="aba" data-abas="freq" data-aba="pessoas" id="aba-freq-pessoas" role="tabpanel" aria-labelledby="tabfreq-pessoas" hidden>
           <div class="card"><div class="head"><h2>Saldo por pessoa</h2><span class="hint" id="freq-pess-hint">credor primeiro · variação contra 6 meses atrás</span></div>
             <div class="tablewrap tabroll" id="freq-pessoas"></div></div>
           <div class="card"><div class="head"><h2>Conferir no cadastro <span class="ihelp" tabindex="0" role="img" aria-label="por que estes saem dos KPIs" title="Saldo alto que praticamente não se move não é jornada: é registro que ninguém fechou. O corte é a razão entre o movimento de 6 meses e o próprio saldo (menos de 0,10, com saldo de 100 h ou mais) — medido sobre a distribuição real, que tem degrau claro nesse ponto. Estes saem dos KPIs de propósito: um único saldo congelado de −823,5 h deslocaria o saldo líquido da casa em 23%, para o lado errado e em silêncio.">i</span></h2><span class="hint" id="freq-cad-hint">fora dos KPIs, com a evidência</span></div>
@@ -7354,6 +7359,24 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="chartwrap"><div id="chartFreqAbs" style="width:100%;height:250px" role="img"></div></div></div>
           <div class="card"><div class="head"><h2>Mês a mês</h2><span class="hint">o mês em curso sai marcado — a importação do AFD é manual</span></div>
             <div class="tablewrap tabroll" id="freq-abs-tab"></div></div>
+        </div>
+        <!-- CERCAS E BATIDAS: a unica aba da tela que NAO le o ERP.
+             Ela le `pc_marcacao`, que a coleta do Ponto Certificado enche de
+             10 em 10 minutos — a batida chega ao fornecedor em 11 s (mediana),
+             contra os 3 a 18 dias da importacao manual do AFD.
+             A tela NAO sabe onde a pessoa estava: a coordenada e descartada na
+             coleta e o que fica e a distancia ate a cerca mais proxima. -->
+        <div class="aba" data-abas="freq" data-aba="cercas" id="aba-freq-cercas" role="tabpanel" aria-labelledby="tabfreq-cercas" hidden data-ao-abrir="loadFreqCercas">
+          <div class="kband"><div class="kpis k4" id="kpis-freqcercas"></div></div>
+          <div class="grid2">
+            <div class="card"><div class="head"><h2>Batidas por dia</h2><span class="hint">dentro · fora · sem coordenada — hoje sai marcado</span></div>
+              <div class="chartwrap"><div id="chartFreqCercas" style="width:100%;height:220px" role="img"></div></div></div>
+            <div class="card"><div class="head"><h2>As cercas, e o que elas reprovam <span class="ihelp" tabindex="0" role="img" aria-label="como se le esta tabela" title="Reprovada a poucos metros do centro e problema de RAIO; reprovada a quilometros e outra conversa, e nao se resolve mexendo no raio. Area desenhada por vertices nao tem raio: ali a distancia e medida ate o vertice mais proximo, nao ate a borda, e serve para ordenar e nao para decidir.">i</span></h2><span class="hint" id="freq-cerc-hint">raio cadastrado no fornecedor × o que foi reprovado perto</span></div>
+              <div class="tablewrap tabroll" id="freq-cercas-tab"></div></div>
+          </div>
+          <div class="card"><div class="head"><h2>Quem bate fora</h2><span class="hint" id="freq-pess-fora-hint">por matrícula · ordenado por batidas reprovadas</span></div>
+            <div class="tablewrap tabroll" id="freq-pessoas-fora"></div>
+            <div id="freq-cercas-fonte" style="color:var(--n500);font-size:11.5px;margin-top:9px"></div></div>
         </div>
       </section>
       <section class="view" id="view-custos">
@@ -30523,8 +30546,9 @@ function renderFreq(d){
   const ant=fechadas.length>1?fechadas[fechadas.length-2]:null;
   const atu=fechadas.length?fechadas[fechadas.length-1]:null;
   document.getElementById('kpis-freq').innerHTML=[
-    kpi('Passivo de banco de horas', nf(k.passivo_horas,1)+' h', BRL.format(k.passivo_custo||0)+' estimado · '+k.pessoas_credoras+' pessoas',
-        (k.passivo_horas||0)>0?'neg':'', 'Horas que a empresa deve em folga na competência escolhida. O custo é estimativa: '+(d.premissa_custo||''),
+    kpi('Saldo registrado no ERP', nf(k.passivo_horas,1)+' h', BRL.format(k.passivo_custo||0)+' · '+k.pessoas_credoras+' pessoas',
+        (k.passivo_horas||0)>0?'neg':'',
+        'NAO e o passivo: e o que esta registrado no banco de horas do ERP. Os pagamentos de hora extra nao baixam este saldo — veja o cartao logo abaixo. O valor e estimativa: '+(d.premissa_custo||''),
         ant&&atu?trendChip(atu.credor, ant.credor, {invert:true}):''),
     kpi('Saldo líquido', nf(k.saldo_liquido,1)+' h', 'credor '+nf(k.passivo_horas,0)+' h · devedor '+nf(Math.abs(k.horas_devedoras||0),0)+' h',''),
     kpi('Saldos que sobem', k.credoras_subindo+' de '+k.pessoas_credoras, 'cresceram nos últimos 6 meses',
@@ -30550,6 +30574,32 @@ function renderFreq(d){
   const dhint=document.getElementById('freq-destino-hint');
   if(dhint) dhint.textContent=(dh.janela||'')+' · '+nf(dh.pct_em_dinheiro,1)+'% da hora extra vira dinheiro · '+
     BRL.format(dh.pago_reais||0)+' pagos';
+
+  /* O CONFRONTO: o que se paga x o que o saldo faz. E o cartao que impede a
+     tela de publicar um acumulador como divida — foi o defeito que subiu em
+     09/09/2026 e que quem opera pegou lendo a tela. */
+  const cf=d.confronto||{}, cs=cf.serie||[];
+  const av=document.getElementById('freq-conf-aviso');
+  if(av && cf.pago_h){
+    const cresceu=(cf.saldo_no_fim||0)-(cf.saldo_no_inicio||0);
+    av.innerHTML='<div class="avisofaixa">Em '+cf.meses+' meses a casa pagou '
+      +nf(cf.pago_h,0)+' h de hora extra ('+BRL.format(cf.pago_rs||0)+') e o ERP baixou do banco apenas '
+      +nf(cf.baixa_pela_folha_h,1)+' h. <span style="font-weight:400">No mesmo periodo o saldo registrado '
+      +(cresceu>=0?'SUBIU ':'caiu ')+nf(Math.abs(cresceu),0)+' h. Os dois numeros nao se encontram: '
+      +'o saldo acima e um registro, nao uma divida apurada.</span></div>';
+  }
+  const linhasConf=cs.slice().reverse().map(x=>{
+    const v=x.variacao;
+    return '<tr><td>'+esc(x.comp)+'</td><td class="num">'+nf(x.pago_h,1)+' h</td>'
+      +'<td class="num">'+BRL.format(x.pago_rs||0)+'</td>'
+      +'<td class="num">'+(x.saldo!=null?nf(x.saldo,1)+' h':'—')+'</td>'
+      +'<td class="num">'+(v!=null?('<span class="badge '+(v>0?'b-warn':'')+'">'+(v>0?'+':'')+nf(v,1)+' h</span>'):'—')+'</td>'
+      +'<td class="num">'+nf(x.baixa_pela_folha,1)+' h</td></tr>';
+  }).join('')||'<tr><td colspan="6" style="color:var(--n500)">sem historico</td></tr>';
+  document.getElementById('freq-confronto').innerHTML=
+    '<table><thead><tr><th>Competência</th><th class="num">HE paga</th><th class="num">Valor</th>'
+    +'<th class="num">Saldo do banco</th><th class="num">Variação</th><th class="num">Baixa no banco</th>'
+    +'</tr></thead><tbody>'+linhasConf+'</tbody></table>';
 
   // Faixas do saldo credor
   const fx=(d.faixas||[]).map(f=>`<tr><td>${esc(f.faixa)}</td><td class="num">${f.pessoas}</td><td class="num" style="font-weight:600">${nf(f.horas,1)} h</td><td class="num">${BRL.format(f.custo)}</td></tr>`).join('')
@@ -30657,6 +30707,86 @@ function renderFreqBatidas(d){
   const mh=document.getElementById('freq-mot-hint');
   if(mh) mh.textContent=nf(tot,0)+' ajustes em '+d.meses+' meses · defasagem da digitação: mediana de '+
     nf((d.defasagem||{}).mediana_dias,0)+' dias';
+}
+
+/* A aba Cercas e batidas: a unica da tela que NAO le o ERP.
+   Carrega sozinha (data-ao-abrir) porque a consulta e propria e quem abre a
+   tela para ver o passivo nao deve pagar por ela. */
+let freqCercSeq = 0;
+let DATAFREQCERC = null;
+async function loadFreqCercas(){
+  const seq=++freqCercSeq;
+  skelKpis('kpis-freqcercas',4);
+  try{
+    const r=await fetch('/api/rh/frequencia/cercas?dias=14',{cache:'no-store'});
+    const rr=await respostaJSON(r); if(seq!==freqCercSeq) return;
+    if(!rr.ok){ showBanner((rr.dados||{}).mensagem||'Erro ao ler as batidas coletadas.'); return; }
+    DATAFREQCERC=rr.dados; renderFreqCercas(rr.dados);
+  }catch(e){ if(seq===freqCercSeq) showBanner('Não foi possível falar com a API.', e.message); }
+}
+function renderFreqCercas(d){
+  const k=d.kpis||{}, nf=(v,c)=>Number(v||0).toLocaleString('pt-BR',{maximumFractionDigits:c==null?0:c});
+  const ser=d.serie||[], cal=d.calibracao||[], pes=d.por_pessoa||[];
+
+  /* "HA QUANTO TEMPO" e o numero que prova que isto e outra fonte: o ERP
+     mostra 3 dias atras, aqui sao minutos. Calculado no CLIENTE contra o
+     relogio dele, e nao no servidor, porque quem le esta olhando agora. */
+  let idade='—', idadeCls='';
+  if(k.ultima_batida){
+    const min=Math.round((Date.now()-new Date(k.ultima_batida).getTime())/60000);
+    idade = min<1?'agora há pouco' : min<60?(min+' min atrás')
+          : min<1440?(Math.round(min/60)+' h atrás') : (Math.round(min/1440)+' dias atrás');
+    idadeCls = min>180?'neg':(min>60?'warn':'');
+  }
+  abaContador('freqNCercas', k.fora||0);
+  document.getElementById('kpis-freqcercas').innerHTML=[
+    kpi('Última batida', idade, k.ultima_batida?fmtDT(k.ultima_batida):'sem batida coletada', idadeCls,
+        'Vem do Ponto Certificado, não do ERP: a batida chega ao fornecedor em segundos, e a coleta roda de 10 em 10 minutos.'),
+    kpi('Batidas em '+d.dias+' dias', nf(k.batidas), nf(k.pessoas)+' pessoas · chegam em '+nf(k.latencia_s)+'s',''),
+    kpi('Fora de cerca', nf(k.fora)+' ('+nf(k.pct_fora,1)+'%)', 'com coordenada, fora de qualquer unidade',
+        (k.pct_fora||0)>=30?'neg':''),
+    kpi('Sem coordenada', nf(k.sem_coordenada)+' ('+nf(k.pct_sem_coordenada,1)+'%)',
+        'o aparelho não informou — não é infração', (k.pct_sem_coordenada||0)>=40?'warn':'',
+        'Metade das batidas não traz GPS. É esta fração que decide se a cerca pode virar regra: uma regra que reprove essa metade é uma regra que ninguém consegue cumprir.'),
+  ].join('');
+
+  chartCols('chartFreqCercas', ser.map(x=>x.dia.slice(8)+'/'+x.dia.slice(5,7)+(x.parcial?'*':'')),
+    [{nome:'Dentro', cor:CC.verde, valores:ser.map(x=>x.dentro)},
+     {nome:'Fora', cor:CC.vermelho, valores:ser.map(x=>x.fora)},
+     {nome:'Sem coordenada', cor:CC.n400, valores:ser.map(x=>x.sem_coordenada)}],
+    {stacked:true, fmt:v=>nf(v)+' batidas', axisFmt:v=>nf(v), tipo:'num'});
+
+  const bad={apertado:'b-warn', ok:'b-ok'};
+  document.getElementById('freq-cercas-tab').innerHTML=
+    '<table><thead><tr><th>Cerca</th><th>Forma</th><th class="num">Raio</th><th class="num">Aceitas</th>'
+    +'<th class="num">Reprovadas perto</th><th>Veredito</th></tr></thead><tbody>'
+    +(cal.map(c=>`<tr><td>${esc(c.nome)}${c.ativa?'':' <span class="badge b-dang">desligada</span>'}</td>`
+      +`<td style="color:var(--n600)">${esc(c.forma)}</td>`
+      +`<td class="num">${c.raio_m!=null?nf(c.raio_m)+' m':'—'}</td>`
+      +`<td class="num">${nf(c.aceitas)}</td>`
+      +`<td class="num">${c.ate250?('<b>'+nf(c.ate250)+'</b> a ≤250 m'):(c.longe?nf(c.longe)+' longe':'—')}</td>`
+      +`<td><span class="badge ${bad[c.veredito]||''}" title="${esc(c.motivo)}">${esc(c.veredito)}</span></td></tr>`).join('')
+      ||'<tr><td colspan="6" style="color:var(--n500)">nenhuma cerca coletada ainda</td></tr>')
+    +'</tbody></table>';
+  const ch=document.getElementById('freq-cerc-hint');
+  if(ch) ch.textContent=cal.length+' cerca(s) · '+cal.filter(c=>c.veredito==='apertado').length+' com reprovação a menos de 250 m';
+
+  document.getElementById('freq-pessoas-fora').innerHTML=
+    '<table><thead><tr><th>Matrícula</th><th class="num">Batidas</th><th class="num">Fora</th>'
+    +'<th class="num">% fora</th><th class="num">Distância média</th><th class="num">Última</th></tr></thead><tbody>'
+    +(pes.map(x=>`<tr><td>${esc(x.matricula)}</td><td class="num">${nf(x.batidas)}</td>`
+      +`<td class="num" style="font-weight:600">${nf(x.fora)}</td>`
+      +`<td class="num"><span class="badge ${x.pct_fora>=80?'b-warn':''}">${nf(x.pct_fora,1)}%</span></td>`
+      +`<td class="num">${x.distancia_media!=null?nf(x.distancia_media)+' m':'—'}</td>`
+      +`<td class="num">${x.ultima?fmtDT(x.ultima):'—'}</td></tr>`).join('')
+      ||'<tr><td colspan="6" style="color:var(--n500)">ninguém bateu fora no período</td></tr>')
+    +'</tbody></table>';
+  const ph=document.getElementById('freq-pess-fora-hint');
+  if(ph) ph.textContent=pes.length+' pessoa(s) com batida fora em '+d.dias+' dias';
+  const cf=document.getElementById('freq-cercas-fonte');
+  const cur=d.cursor||{};
+  if(cf) cf.textContent=(d.fonte||'')+(cur.ultima_coleta_em?(' · última coleta '+fmtDT(cur.ultima_coleta_em)):'')
+    +(cur.ultimo_erro?(' · último erro: '+cur.ultimo_erro):'');
 }
 
 // ---------------- Compras da OS (sub-aba de Manutenção) ----------------

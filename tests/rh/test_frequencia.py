@@ -103,6 +103,22 @@ _ABSENT = [
 _DEFAS = [{"mediana": 6.0, "media": 7.5, "maximo": 35}]
 _CORRENTE = [{"m": "2026-09"}]
 
+# ── o CONFRONTO: as duas contabilidades que não se encontram ────────────────
+#
+# Estes três dublês carregam o fato inteiro: no mês em que a casa mais pagou
+# hora extra (ago/2026, 1.506,7 h), o saldo do banco SUBIU 245,7 h e a baixa
+# pela folha foi de 86,4 h. É por isso que o saldo não pode ser lido como
+# dívida — e é o defeito que subiu em produção em 09/09/2026.
+_PAGOS_CONF = [
+    {"comp": "2026-07", "pessoas": 34, "horas": 650.2, "reais": 13278.34},
+    {"comp": "2026-08", "pessoas": 60, "horas": 1506.7, "reais": 27945.42},
+]
+_SALDOS_CONF = [
+    {"comp": "2026-07", "saldo": 5915.2, "debito": 277.5},
+    {"comp": "2026-08", "saldo": 6160.9, "debito": 358.9},
+]
+_BAIXAS_CONF = [{"comp": "2026-08", "horas": 86.4}]
+
 
 def _roteador(sql, p=None):
     """Devolve o dublê pela ASSINATURA da consulta, não pela ordem de chamada.
@@ -124,9 +140,18 @@ def _roteador(sql, p=None):
     if "VW_FUNCIONARIOS VF" in s and "FRQ_BANCOHORAS B" in s:
         return _PESSOAS
     if "SUM(CASE WHEN SALDONACOMPET > 0" in s:
-        return _SERIE
+        # A serie da tela pede CREDOR e DEVEDOR; o confronto pede SALDO e
+        # DEBITO. Discriminar pelo texto do SELECT, e nao pela ordem em que as
+        # consultas saem — roteador por ordem quebra calado quando alguem
+        # acrescenta uma query no meio.
+        return _SERIE if "DEVEDOR" in s else _SALDOS_CONF
+    if "CODEVENTO = 1016" in s:
+        return _BAIXAS_CONF
+    if "FLP_FICHAEVENTOS" in s and "COUNT(DISTINCT FF.CODINTFUNC) PESSOAS" in s:
+        return _PAGOS_CONF
     if "FLP_FICHAEVENTOS" in s:
         return _HE_PAGA
+
     if "SUM(CREDITO)" in s:
         return _BH_12M
     if "GERADORDIGIT='RL'" in s:

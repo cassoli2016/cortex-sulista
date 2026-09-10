@@ -6001,6 +6001,24 @@ def rh_frequencia_batidas(meses: int = 12) -> JSONResponse:
         return _folha_erro(exc)
 
 
+@app.get("/api/rh/frequencia/cercas")
+def rh_frequencia_cercas(dias: int = 14) -> JSONResponse:
+    """As batidas coletadas do Ponto Certificado: onde caíram e quão perto.
+
+    Lê o banco da CASA (`pc_marcacao`), não o fornecedor: a coleta enche a cada
+    10 minutos, e tela que chama fornecedor a cada pintura fica refém do dia
+    ruim dele.
+    """
+    try:
+        from api.pontocertificado import painel
+        return JSONResponse({"configurado": True, **painel.painel(dias)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("frequencia/cercas falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Não foi possível ler as batidas coletadas."})
+
+
 @app.get("/api/rh/horas-extras")
 def rh_horas_extras(comp: str | None = None) -> JSONResponse:
     import re

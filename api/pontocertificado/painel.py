@@ -1,0 +1,247 @@
+# -*- coding: utf-8 -*-
+"""O que a tela mostra das batidas — agregado, do banco da casa.
+
+NÃO FALA COM O FORNECEDOR. Tudo aqui sai de `pc_marcacao` e `pc_cerca`, que a
+coleta enche a cada 10 minutos. Tela que chama fornecedor a cada pintura fica
+refém do dia ruim dele, e esta responde "e agora?" — precisa abrir.
+
+O QUE ESTA TELA PODE E NÃO PODE DIZER
+=====================================
+Pode dizer que uma batida caiu fora, a que distância, e de quem foi. NÃO pode
+dizer ONDE a pessoa estava: a coordenada é descartada na coleta, e o que fica é
+um escalar até a cerca mais próxima. Isso é decisão de projeto, não limitação
+— ver `coleta.py`.
+
+A CALIBRAÇÃO DO RAIO É O NÚMERO QUE ESTA TELA EXISTE PARA DAR
+=============================================================
+Cerca apertada reprova quem está dentro da unidade — e foi isso, mais a
+ausência de GPS, que produziu os 63% de "fora de cerca" que fizeram o ponto por
+aplicativo ser desligado em jan/2025.
+
+A tabela mostra, por cerca, quantas batidas o fornecedor REPROVOU que estão a
+poucos passos do centro. Reprovada a 60 m de um raio de 40 m é problema de
+raio; reprovada a 2 km é outra conversa, e não se resolve com raio. Quem decide
+o raio novo é o RH, com o número na frente — ver `calibracao()` para por que
+não se mede isso pela dispersão de todas as batidas.
+"""
+from __future__ import annotations
+
+import logging
+
+from api import pglocal
+from api.queries import cached
+
+log = logging.getLogger(__name__)
+
+ESQUEMA: str | None = None
+
+#: Janela padrão da tela. 14 dias cobre duas semanas de escala sem pesar.
+DIAS = 14
+
+
+def _esq() -> str | None:
+    return ESQUEMA
+
+
+def _q(sql: str, params=None) -> list[dict]:
+    try:
+        return pglocal.query(sql, params, esquema=_esq())
+    except Exception as exc:  # noqa: BLE001
+        if pglocal.sem_tabela(exc):
+            return []
+        raise
+
+
+@cached(ttl=60, velha_ate=3600)
+def resumo(dias: int = DIAS) -> dict:
+    """KPIs, série diária e o frescor da coleta.
+
+    TTL de 60 s: a coleta roda de 10 em 10 minutos, então cache maior só
+    atrasaria o que já chegou. A tela pergunta "e agora?".
+    """
+    dias = max(1, min(int(dias or DIAS), 90))
+    p = {"d": dias}
+
+    tot = _q("""SELECT COUNT(*) n,
+                       COUNT(DISTINCT matricula) pessoas,
+                       MAX(marcada_em) ultima,
+                       ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY latencia_s)) latencia,
+                       SUM(CASE WHEN situacao='dentro' THEN 1 ELSE 0 END) dentro,
+                       SUM(CASE WHEN situacao='fora' THEN 1 ELSE 0 END) fora,
+                       SUM(CASE WHEN situacao='sem_coordenada' THEN 1 ELSE 0 END) sem
+                  FROM pc_marcacao
+                 WHERE marcada_em >= now() - make_interval(days => %(d)s)""", p)
+    t = tot[0] if tot else {}
+    n = int(t.get("n") or 0)
+
+    # A série é POR DIA e o dia de hoje sai marcado: ele está em curso, e uma
+    # coluna baixa às 9h da manhã não é queda de movimento.
+    serie = [{
+        "dia": r["dia"].isoformat() if hasattr(r["dia"], "isoformat") else str(r["dia"]),
+        "dentro": int(r["dentro"]), "fora": int(r["fora"]),
+        "sem_coordenada": int(r["sem"]), "total": int(r["total"]),
+        "parcial": bool(r["hoje"]),
+    } for r in _q("""SELECT date_trunc('day', marcada_em)::date dia,
+                            SUM(CASE WHEN situacao='dentro' THEN 1 ELSE 0 END) dentro,
+                            SUM(CASE WHEN situacao='fora' THEN 1 ELSE 0 END) fora,
+                            SUM(CASE WHEN situacao='sem_coordenada' THEN 1 ELSE 0 END) sem,
+                            COUNT(*) total,
+                            (date_trunc('day', marcada_em)::date = current_date) hoje
+                       FROM pc_marcacao
+                      WHERE marcada_em >= now() - make_interval(days => %(d)s)
+                      GROUP BY 1, 6 ORDER BY 1""", p)]
+
+    cursor = {}
+    c = _q("SELECT * FROM pc_cursor WHERE chave = 'marcacoes'")
+    if c:
+        cursor = {"ultimo_id": int(c[0]["ultimo_id"]),
+                  "marcacoes": int(c[0]["marcacoes"]),
+                  "ultima_coleta_em": c[0]["ultima_coleta_em"].isoformat()
+                                      if c[0]["ultima_coleta_em"] else None,
+                  "ultimo_erro": c[0]["ultimo_erro"]}
+
+    return {
+        "dias": dias,
+        "kpis": {
+            "batidas": n,
+            "pessoas": int(t.get("pessoas") or 0),
+            "ultima_batida": t["ultima"].isoformat() if t.get("ultima") else None,
+            "latencia_s": int(t["latencia"]) if t.get("latencia") is not None else None,
+            "dentro": int(t.get("dentro") or 0),
+            "fora": int(t.get("fora") or 0),
+            "sem_coordenada": int(t.get("sem") or 0),
+            # A fração SEM COORDENADA é o número que decide se a cerca pode
+            # virar regra: metade das batidas não traz GPS, e uma regra que
+            # reprove essa metade é uma regra que ninguém consegue cumprir.
+            "pct_sem_coordenada": round(100 * (t.get("sem") or 0) / n, 1) if n else 0.0,
+            "pct_fora": round(100 * (t.get("fora") or 0) / n, 1) if n else 0.0,
+        },
+        "serie": serie,
+        "cursor": cursor,
+        "fonte": "CÓRTEX · pc_marcacao (coleta do Ponto Certificado, 10 em 10 min)",
+    }
+
+
+@cached(ttl=300, velha_ate=3600)
+def calibracao(dias: int = 30) -> list[dict]:
+    """Quanto o raio atual REPROVA de quem está logo ali.
+
+    A PRIMEIRA VERSÃO DISTO ESTAVA ERRADA, e a lição fica escrita porque o
+    número parecia certo: eu tomava o p95 de TODAS as batidas atribuídas à
+    cerca — inclusive as que caíram a 12 km e só tinham aquela como a mais
+    próxima — e chamava de "dispersão real". Dava p95 de 12.285 m para
+    PIRAQUARA e o veredito "apertado" para tudo, sempre. Média de quem está
+    dentro com quem está longe não descreve nenhum dos dois.
+
+    E o outro lado também não serve: as batidas ACEITAS estão, por construção,
+    dentro do raio — o p95 delas nunca acusaria raio apertado.
+
+    O que responde a pergunta é a FAIXA LOGO FORA: quantas batidas o fornecedor
+    reprovou que estão a poucos passos do centro. Se há gente reprovada a 60 m
+    de um raio de 40 m, o raio é o problema — não a pessoa. Acima de ~500 m a
+    conversa é outra (trabalho externo, home office), e não se resolve com
+    raio.
+    """
+    dias = max(7, min(int(dias or 30), 180))
+    linhas = _q("""
+        WITH fora AS (
+            SELECT cerca_proxima nome, distancia_m dist
+              FROM pc_marcacao
+             WHERE situacao = 'fora' AND distancia_m IS NOT NULL
+               AND cerca_proxima IS NOT NULL
+               AND marcada_em >= now() - make_interval(days => %(d)s)
+        ), dentro AS (
+            SELECT cerca_proxima nome, COUNT(*) n
+              FROM pc_marcacao
+             WHERE situacao = 'dentro'
+               AND marcada_em >= now() - make_interval(days => %(d)s)
+             GROUP BY 1
+        ), perto AS (
+            SELECT nome,
+                   COUNT(*) FILTER (WHERE dist <= 100) ate100,
+                   COUNT(*) FILTER (WHERE dist <= 250) ate250,
+                   COUNT(*) FILTER (WHERE dist <= 500) ate500,
+                   COUNT(*) FILTER (WHERE dist > 500)  longe,
+                   ROUND(MIN(dist)) mais_perto
+              FROM fora GROUP BY 1
+        )
+        SELECT c.nome, MIN(c.forma) forma, MAX(c.raio_m) raio_m,
+               BOOL_OR(c.ativa) ativa, COUNT(*) pontos,
+               COALESCE(MAX(d.n), 0) aceitas,
+               COALESCE(MAX(p.ate100), 0) ate100,
+               COALESCE(MAX(p.ate250), 0) ate250,
+               COALESCE(MAX(p.ate500), 0) ate500,
+               COALESCE(MAX(p.longe), 0) longe,
+               MAX(p.mais_perto) mais_perto
+          FROM pc_cerca c
+          LEFT JOIN dentro d ON d.nome = c.nome
+          LEFT JOIN perto  p ON p.nome = c.nome
+         GROUP BY c.nome ORDER BY 6 DESC, 9 DESC, c.nome""", {"d": dias})
+
+    saida = []
+    for r in linhas:
+        raio = float(r["raio_m"] or 0)
+        poligono = r["forma"] == "poligono"
+        ate250 = int(r["ate250"])
+        perto = int(r["mais_perto"]) if r["mais_perto"] is not None else None
+        if poligono:
+            veredito = "n/d"
+            motivo = ("área desenhada por vértices, sem raio — a distância aqui "
+                      "é medida até o vértice, não até a borda")
+        elif ate250:
+            veredito = "apertado"
+            motivo = (f"{ate250} batida(s) reprovada(s) a menos de 250 m do centro"
+                      + (f", a mais próxima a {perto} m" if perto is not None else ""))
+        elif int(r["longe"]):
+            veredito = "ok"
+            motivo = (f"as {int(r['longe'])} reprovadas estão todas acima de 500 m — "
+                      "não é raio, é lugar")
+        elif int(r["aceitas"]):
+            veredito = "ok"
+            motivo = "nenhuma batida reprovada perto"
+        else:
+            veredito, motivo = "n/d", "sem batida atribuída no período"
+        saida.append({
+            "nome": r["nome"], "forma": r["forma"], "pontos": int(r["pontos"]),
+            "raio_m": raio if not poligono else None, "ativa": bool(r["ativa"]),
+            "aceitas": int(r["aceitas"]),
+            "ate100": int(r["ate100"]), "ate250": ate250, "ate500": int(r["ate500"]),
+            "longe": int(r["longe"]), "mais_perto": perto,
+            "veredito": veredito, "motivo": motivo,
+        })
+    return saida
+
+
+@cached(ttl=120, velha_ate=3600)
+def por_pessoa(dias: int = DIAS, limite: int = 40) -> list[dict]:
+    """Quem bate fora, e quanto. PII — a tela é de RBAC de RH.
+
+    A ordem é por batidas FORA, não por total: quem tem 3 de 3 fora importa
+    mais que quem tem 5 de 200.
+    """
+    dias = max(1, min(int(dias or DIAS), 90))
+    return [{
+        "matricula": r["matricula"], "batidas": int(r["n"]),
+        "fora": int(r["fora"]), "dentro": int(r["dentro"]),
+        "sem_coordenada": int(r["sem"]),
+        "pct_fora": round(100 * int(r["fora"]) / int(r["n"]), 1) if r["n"] else 0.0,
+        "distancia_media": int(r["dist"]) if r["dist"] is not None else None,
+        "ultima": r["ultima"].isoformat() if r["ultima"] else None,
+    } for r in _q("""
+        SELECT matricula, COUNT(*) n,
+               SUM(CASE WHEN situacao='fora' THEN 1 ELSE 0 END) fora,
+               SUM(CASE WHEN situacao='dentro' THEN 1 ELSE 0 END) dentro,
+               SUM(CASE WHEN situacao='sem_coordenada' THEN 1 ELSE 0 END) sem,
+               ROUND(AVG(distancia_m) FILTER (WHERE situacao='fora')) dist,
+               MAX(marcada_em) ultima
+          FROM pc_marcacao
+         WHERE marcada_em >= now() - make_interval(days => %(d)s)
+         GROUP BY matricula
+        HAVING SUM(CASE WHEN situacao='fora' THEN 1 ELSE 0 END) > 0
+         ORDER BY 3 DESC, 2 DESC LIMIT %(l)s""", {"d": dias, "l": max(5, min(limite, 200))})]
+
+
+def painel(dias: int = DIAS) -> dict:
+    """O payload da aba. Nunca levanta por tabela ausente."""
+    d = resumo(dias)
+    return {**d, "calibracao": calibracao(), "por_pessoa": por_pessoa(dias)}

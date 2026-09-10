@@ -17,6 +17,48 @@ import uuid
 import pytest
 
 
+# ── o marcador `e2e`, aplicado SOZINHO ──────────────────────────────────────
+#
+# POR QUE ELE EXISTE
+# ==================
+# A suíte leva ~50 min e cada teste que pede a fixture `pagina` sobe um
+# Chromium. MEDIDO em 09/09/2026, e o número corrigiu a minha suposição:
+#
+#     suíte completa ...... 5.081 testes ... 49m24s
+#     sem e2e ............. 4.492 testes ... 34m52s
+#     logo, os 586 e2e ......................~14m30s
+#
+# Eu tinha afirmado que o browser era "a esmagadora maioria do relógio". É
+# 30%. Os outros 35 minutos estão nos testes que criam SCHEMA no Postgres
+# (`esquema_pg` aplica as 77 migrations por teste) e nos que sobem uvicorn de
+# verdade. Fica escrito porque a suposição parecia óbvia e estava errada: 15%
+# da contagem custando 30% do tempo não é o gargalo, é uma parte dele.
+#
+# O marcador vale mesmo assim — 15 minutos por rodada é dinheiro —, mas quem
+# quiser a rodada de 3 minutos vai precisar separar TAMBÉM o que usa banco.
+#
+# A MARCAÇÃO É AUTOMÁTICA, e isso não é conveniência: marcador escrito à mão
+# em cada arquivo é lista à mão, e lista à mão envelhece calada — o teste e2e
+# novo nasce sem a marca, entra na rodada "rápida" e ninguém repara, exceto
+# pelo relógio. Aqui quem decide é o FATO de o teste pedir a fixture que sobe
+# o browser.
+#
+#     uv run pytest -m "not e2e"   # o que roda em minutos
+#     uv run pytest -m e2e         # o que sobe browser
+#     uv run pytest                # tudo, como sempre
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "e2e: sobe um navegador de verdade (Playwright) — lento")
+
+
+def pytest_collection_modifyitems(items):
+    for item in items:
+        # `pagina` é a fixture que abre o Chromium, nos dois conftest que a
+        # definem (frontend e smartec). Quem a pede é e2e por construção.
+        if "pagina" in getattr(item, "fixturenames", ()):
+            item.add_marker("e2e")
+
+
 @pytest.fixture(scope="session")
 def pg_disponivel():
     """Diagnóstico UMA vez por sessão: sem isto, cada teste pagaria uma

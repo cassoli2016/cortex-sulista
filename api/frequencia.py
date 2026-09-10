@@ -28,6 +28,29 @@ e ele não aparecia em lugar nenhum do CÓRTEX.
 `FRQ_BANCOHORAS_PARAMETRO` tem `meses_compensar = 0` e `pgsaldomes = 'S'`: não
 há prazo de compensação configurado. A regra vive fora do sistema.
 
+O SALDO REGISTRADO NÃO É O PASSIVO — E ISSO CUSTOU UM NÚMERO ERRADO EM TELA
+===========================================================================
+A casa FECHA o semestre e paga: há pico de `H.E 50%` em ago/2025 (2.233 h),
+fev/2026 (1.003 h) e ago/2026 (1.352 h) — de seis em seis meses, contra ~400 h
+dos meses comuns. **R$ 105.533 em 5.256,7 h nos três fechamentos.**
+
+Só que o pagamento **não baixa o saldo** do `FRQ_BANCOHORAS`. Medido nos três:
+
+    jul/2025 5.177,6 h -> ago/2025 5.219,6 h   pagou 2.233 h e o saldo SUBIU
+    jan/2026 5.417,8 h -> fev/2026 5.273,3 h   pagou 1.003 h e caiu 144 h
+    jul/2026 5.915,2 h -> ago/2026 6.160,9 h   pagou 1.352 h e o saldo SUBIU
+
+O evento que daria a baixa (`DEBITO BANCO DE HORAS`, 1016) movimentou 86,4 h
+para 7 pessoas em agosto. O resto saiu como hora extra comum. E 6 das 44
+pessoas que receberam no fechamento levaram MAIS horas do que o próprio saldo
+registrado — não há relação entre os dois números.
+
+**Então `saldonacompet` é um ACUMULADOR que ninguém zera, não um saldo devedor.**
+Publicá-lo como "passivo" foi erro meu em 09/09/2026: a tela subiu dizendo
+R$ 123 mil de dívida sobre horas que em boa parte já tinham sido pagas. O
+módulo agora chama o número pelo que ele é e mostra o outro lado ao lado,
+porque duas contabilidades que não conversam só se leem juntas.
+
 TRÊS ARMADILHAS QUE JÁ CUSTARAM NÚMERO ERRADO AQUI
 ===================================================
 1. **`FRQ_DIGITACAOMOVIMENTO` é MOVIMENTO, não dia** — 1,3 a 2,7 linhas por
@@ -290,11 +313,100 @@ def get_banco_horas(comp: str | None = None) -> dict:
         "faixas": faixas,
         "serie": serie,
         "destino_he": destino,
+        # AS DUAS CONTABILIDADES, sempre juntas. O saldo sozinho parece dívida;
+        # ao lado do que foi pago, vira o que é.
+        "confronto": confronto(),
         "publico": publico(),
         "frescor": frescor(),
         "premissa_custo": "saldo credor × (salário base ÷ 220) × 1,5",
+        # A RESSALVA VIAJA COM O NÚMERO. Sem ela o valor se lê como dívida — e
+        # ele não é: o pagamento de hora extra não baixa este saldo.
+        "ressalva_custo": ("Valor do saldo REGISTRADO, não do que se deve: os "
+                           "pagamentos de hora extra não baixam este saldo no ERP."),
         "fonte": ("GLOBUS · FRQ_BANCOHORAS × VW_FUNCIONARIOS · "
                   "competência fechada · leitura"),
+    }
+
+
+@cached(ttl=900, velha_ate=7200)
+def confronto(meses: int = 24) -> dict:
+    """As DUAS contabilidades na mesma linha do tempo: o que se paga × o saldo.
+
+    NÃO CLASSIFICA MÊS COMO "FECHAMENTO", e a tentativa fica registrada porque
+    quase virou rótulo: um corte por múltiplo da mediana separava ago/2025,
+    fev/2026 e ago/2026 — mas levava out/2025 junto, que não é fechamento. A
+    régua não separava os dois grupos, e heurística que não separa não vira
+    etiqueta: vira número errado com cara de certo.
+
+    O que a tela mostra é o FATO, que dispensa classificação: nos meses em que
+    a casa paga várias vezes o normal de hora extra, o saldo do banco NÃO cai.
+    Quem olha a série vê isso sem que ninguém precise rotular nada.
+    """
+    meses = max(12, min(int(meses or 24), 48))
+    pagos = {r["comp"]: r for r in _q("""
+        SELECT TO_CHAR(ff.competficha,'YYYY-MM') comp,
+               COUNT(DISTINCT ff.codintfunc) pessoas,
+               ROUND(SUM(ff.referencia),1) horas,
+               ROUND(SUM(ff.valorficha),2) reais
+          FROM flp_fichaeventos ff
+          JOIN vw_funcionarios vf ON vf.codintfunc = ff.codintfunc
+                                 AND vf.codigoempresa = :emp
+                                 AND vf.temfrequenfunc = 'S'
+         WHERE ff.codevento IN (15,19,268,454)
+           AND ff.competficha >= ADD_MONTHS(TRUNC(SYSDATE,'MM'), -:m)
+           AND ff.competficha <  TRUNC(SYSDATE,'MM')
+         GROUP BY TO_CHAR(ff.competficha,'YYYY-MM')""",
+        {"emp": EMPRESA, "m": meses})}
+
+    saldos = {r["comp"]: r for r in _q("""
+        SELECT TO_CHAR(competencia,'YYYY-MM') comp,
+               ROUND(SUM(CASE WHEN saldonacompet > 0 THEN saldonacompet ELSE 0 END),1) saldo,
+               ROUND(SUM(NVL(debito,0)),1) debito
+          FROM globus729.frq_bancohoras
+         WHERE competencia >= ADD_MONTHS(TRUNC(SYSDATE,'MM'), -:m)
+           AND competencia <  TRUNC(SYSDATE,'MM')
+         GROUP BY TO_CHAR(competencia,'YYYY-MM')""", {"m": meses})}
+
+    #: O evento que DARIA a baixa no banco. Ele existe e quase não é usado —
+    #: 86,4 h para 7 pessoas no maior mês de pagamento do ano.
+    baixas = {r["comp"]: float(r["horas"] or 0) for r in _q("""
+        SELECT TO_CHAR(competficha,'YYYY-MM') comp, ROUND(SUM(referencia),1) horas
+          FROM flp_fichaeventos
+         WHERE codevento = 1016
+           AND competficha >= ADD_MONTHS(TRUNC(SYSDATE,'MM'), -:m)
+         GROUP BY TO_CHAR(competficha,'YYYY-MM')""", {"m": meses})}
+
+    serie, anterior = [], None
+    for comp in sorted(set(pagos) | set(saldos)):
+        pg, sd = pagos.get(comp, {}), saldos.get(comp, {})
+        saldo = float(sd.get("saldo") or 0) if sd else None
+        serie.append({
+            "comp": comp,
+            "pago_h": float(pg.get("horas") or 0),
+            "pago_rs": _f(pg.get("reais")),
+            "pessoas": int(pg.get("pessoas") or 0),
+            "saldo": saldo,
+            "variacao": round(saldo - anterior, 1)
+                        if (saldo is not None and anterior is not None) else None,
+            "debito_banco": float(sd.get("debito") or 0) if sd else None,
+            "baixa_pela_folha": baixas.get(comp, 0.0),
+        })
+        if saldo is not None:
+            anterior = saldo
+
+    pago_total = round(sum(x["pago_h"] for x in serie), 1)
+    baixa_total = round(sum(x["baixa_pela_folha"] for x in serie), 1)
+    com_saldo = [x for x in serie if x["saldo"] is not None]
+    return {
+        "serie": serie,
+        "pago_h": pago_total,
+        "pago_rs": _f(sum(x["pago_rs"] for x in serie)),
+        "baixa_pela_folha_h": baixa_total,
+        # A frase inteira em um número: pagou-se isso tudo e o saldo andou
+        # para o outro lado.
+        "saldo_no_inicio": com_saldo[0]["saldo"] if com_saldo else None,
+        "saldo_no_fim": com_saldo[-1]["saldo"] if com_saldo else None,
+        "meses": meses,
     }
 
 

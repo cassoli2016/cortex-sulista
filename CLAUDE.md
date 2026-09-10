@@ -293,6 +293,24 @@ moram em arquivos que não falam do assunto.
   Cerca `Tipo` 2 é POLÍGONO com `Raio` "0" e uma linha por vértice — tratá-la
   como círculo de raio zero reprova a unidade inteira. Guards:
   `tests/pontocertificado/`.
+- **O SALDO DE `FRQ_BANCOHORAS` NÃO É PASSIVO — É UM ACUMULADOR QUE NINGUÉM
+  ZERA.** A casa FECHA o semestre e paga como `H.E 50%` (picos em ago/2025,
+  fev/2026 e ago/2026, contra ~400 h dos meses comuns), e **esse pagamento não
+  baixa o saldo no ERP**: em 24 meses foram pagas 27.516 h (R$ 573.134) e o
+  evento `DEBITO BANCO DE HORAS` movimentou 156,4 h — 0,6%. Nos três
+  fechamentos o saldo subiu 42 h, caiu 144 h e subiu 245 h. **O erro está na
+  BAIXA, não no crédito**: seis pessoas que partiram do zero receberam 944,8 h
+  em dinheiro e o banco lançou 950,7 h de crédito contra 85,8 h de débito —
+  razão pagamento/saldo de **1,00** em quatro delas. `meses_compensar = 0`, e
+  o fechamento não gera o débito.
+  A tela publicou isso como "Passivo — R$ 123 mil" em 09/09/2026, e **quem
+  pegou foi quem opera, lendo a tela e perguntando "o banco não zera a cada 6
+  meses?"**. A lição de método é a que dói: eu validei o número contra si
+  mesmo — a série batia, o cálculo batia — e não contra a realidade que ele
+  afirma descrever. **Número coerente não é número verdadeiro.** Agora o saldo
+  não viaja sozinho: `confronto()` põe as duas contabilidades na mesma linha do
+  tempo, e o custo em reais carrega `ressalva_custo`. Guards:
+  `tests/rh/test_frequencia_confronto.py`.
 - **A COORDENADA DA BATIDA ENTRA E NÃO FICA** (`api/pontocertificado/coleta.py`,
   `sql/cortex/0077_*.sql`). A cerca precisa responder "caiu na unidade?", e
   para isso bastam o VEREDITO e a DISTÂNCIA — um escalar. A coordenada crua

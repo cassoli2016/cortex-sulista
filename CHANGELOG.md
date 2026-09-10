@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.33.0] — 09/09/2026  ·  CX-09/09/2026-v1.33.0
+
+### Adicionado
+- A tela de Frequencia ganhou a aba CERCAS E BATIDAS, e ela e a unica da casa que nao le o ERP: mostra a batida como ela chega do Ponto Certificado, com atraso medido em minutos em vez de dias. O cartao de cima diz ha quanto tempo foi a ultima — "2 min atras" onde o ERP diria "3 dias".
+- A aba responde onde cada batida caiu: dentro da cerca, fora dela, ou sem coordenada — que e metade delas, e nao e infracao: e o aparelho que nao informou. Tem a lista de quem bate fora, por matricula, com a distancia media.
+- E a tabela das cercas mostra, para cada uma, quanto o raio atual reprova de quem esta logo ali. Reprovada a 60 metros de um raio de 40 e problema de raio; reprovada a dois quilometros e outra conversa, e nao se resolve mexendo no raio. Medido nos primeiros sete dias: nenhuma cerca da casa esta reprovando gente que estava perto.
+- A tela sabe se a batida caiu fora e a que distancia, mas NAO sabe onde a pessoa estava: a coordenada e usada no calculo e descartada.
+- Para o time de desenvolvimento: `scripts/testes_afetados.py` monta, a partir do diff, a lista de testes que a mudanca exige — por pasta e pelos guards que citam os nomes alterados. Os testes que sobem navegador ganharam o marcador `e2e`, aplicado automaticamente a quem pede a fixture do navegador: `pytest -m "not e2e"` fecha em 35 min contra os 49 da suite inteira. E toda rota da API passou a ter conferencia automatica de dono no controle de acesso: antes, uma rota sem mapeamento so aparecia como "acesso negado" para quem nao e administrador, em producao, no dia seguinte.
+
 ## [1.32.0] — 09/09/2026  ·  CX-09/09/2026-v1.32.0
 
 ### Adicionado
@@ -20,6 +29,7 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 - As batidas passam a ser guardadas na casa, com coleta a cada 10 minutos, e a guarda foi desenhada para NAO manter o rastro de ninguem: a coordenada de cada batida e usada para calcular a distancia ate a cerca mais proxima e depois DESCARTADA. Fica o veredito (dentro, fora, sem coordenada) e a distancia em metros. Com isso ainda se recalibra o raio de uma cerca — que e o motivo de tudo isto existir — sem que a empresa passe a ter um historico de deslocamento de trabalhador. Pelo mesmo motivo nao entram CPF nem PIS: a matricula identifica as mesmas pessoas.
 
 ### Corrigido
+- O cartao de banco de horas parou de chamar o saldo do ERP de "passivo". Ele nao e: a casa fecha o semestre e paga como hora extra — houve pico em ago/2025, fev/2026 e ago/2026 — mas esse pagamento NAO baixa o saldo no ERP. Em 24 meses foram pagas 27.516 horas (R$ 573 mil) e o sistema baixou 156. O numero que a tela publicava como divida era, em boa parte, hora ja paga. Agora ele se chama "saldo registrado no ERP", vem com a ressalva junto, e ao lado dele ha um cartao novo com as duas contabilidades na mesma linha do tempo.
 - A batida sem coordenada deixou de ser tratada como batida fora do lugar. O fornecedor rotula "fora de cerca" tudo que chega sem GPS, e isso e quase metade das marcacoes (44% no dia da medicao) — o que enchia o alarme antigo de gente que nao tinha feito nada de errado. Agora sao tres respostas: dentro, fora, e sem coordenada.
 
 ## [1.30.0] — 09/09/2026  ·  CX-09/09/2026-v1.30.0
