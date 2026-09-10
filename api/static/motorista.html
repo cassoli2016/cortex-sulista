@@ -6,7 +6,16 @@
 <meta name="theme-color" content="#0B1926">
 <title>CÓRTEX · Motorista</title>
 <link rel="icon" href="/static/favicon.png">
-<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+<!-- O `apple-touch-icon` acima cobria o iPhone; o ANDROID ficava de fora, e
+     sem manifesto o Chrome estica o favicon de 32px num atalho borrado. O
+     manifesto é próprio e não o do painel: aquele abre em `/`, e o motorista
+     nao tem conta no painel -- o atalho o levaria a uma tela de login que ele
+     nao consegue passar. -->
+<link rel="manifest" href="/static/manifest-motorista.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Motorista">
 <!--
   A FONTE DA CASA, SEM BLOQUEAR O PRIMEIRO PIXEL. O painel importa a Saira com
   `@import` dentro do <style>, que segura a renderizacao ate a folha chegar —

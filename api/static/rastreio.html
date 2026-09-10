@@ -12,6 +12,20 @@
 <meta name="theme-color" content="#0B1926">
 <title>Onde está minha carga? · Transportadora Sulista</title>
 <link rel="icon" href="/static/favicon.png">
+<!-- ADICIONAR À TELA DE INÍCIO precisa das DUAS declarações, e faltavam as
+     duas: sem `apple-touch-icon` o Safari põe uma CAPTURA DA PÁGINA no lugar
+     do ícone, e sem manifesto o Chrome estica o favicon de 32px. Nos dois
+     casos o resultado é um atalho sem a marca da Sulista — que é o que quem
+     espera a carga vê na tela do celular dele.
+     O manifesto é PRÓPRIO e não o do painel: aquele se chama "Córtex" e abre
+     em `/`, então o atalho levaria o cliente para a tela de login do sistema.
+     `apple-mobile-web-app-title` existe porque o `<title>` desta página tem
+     43 caracteres e o iOS o cortaria no meio da pergunta. -->
+<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+<link rel="manifest" href="/static/manifest-rastreio.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Rastreio">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 

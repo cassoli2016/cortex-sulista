@@ -1,3 +1,28 @@
+- versao: "1.34.3"
+  data: "2026-09-10"
+  corrigido:
+    - >-
+      O rastreio de carga adicionado a tela de inicio do celular saia SEM A
+      LOGO DA SULISTA. A pagina declarava so o favicon, e sao dois mecanismos
+      diferentes que nenhum cobre o outro: sem `apple-touch-icon` o Safari poe
+      uma CAPTURA DA PAGINA no lugar do icone, e sem manifesto o Chrome estica
+      o favicon de 32 pixels. Nos dois casos o atalho perde a marca -- e no
+      rastreio quem ve isso e o cliente que esta esperando a carga.
+    - >-
+      O app do motorista tinha metade do problema: o icone do iPhone estava
+      declarado, o do Android nao. Foi corrigido junto.
+    - >-
+      Cada aplicativo ganhou manifesto PROPRIO, e nao o do painel. O do painel
+      se chama "Cortex" e abre em "/", entao o atalho levaria o cliente do
+      rastreio -- e o motorista, que nao tem conta no painel -- para uma tela
+      de login. Agora o atalho do rastreio abre no rastreio e o do motorista
+      no app dele, cada um com o nome curto sob o icone.
+    - >-
+      E entrou o guard que faltava, tirado do REGISTRO de aplicativos e nao de
+      uma lista escrita a mao: todo aplicativo tem de declarar os dois icones,
+      ter manifesto proprio que abra na propria rota, e todo icone declarado
+      tem de existir no disco. Aplicativo novo ja nasce cobrado -- este defeito
+      nao levanta erro nenhum, a pagina funciona e so o icone nao existe.
 - versao: "1.34.2"
   data: "2026-09-10"
   corrigido:

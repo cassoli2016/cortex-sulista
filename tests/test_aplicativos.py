@@ -156,3 +156,89 @@ def test_a_rota_da_lista_exige_sessao():
     """Diretorio de links nao e segredo, mas tambem nao e pagina publica: quem
     nao entrou nao precisa saber o que a casa tem no ar."""
     assert cliente.get("/api/aplicativos").status_code == 401
+
+
+# ------------------------------------------ o atalho na tela de inicio do celular
+#
+# O DEFEITO, relatado por quem opera em 10/09/2026: o rastreio adicionado a
+# tela de inicio saia SEM A LOGO DA SULISTA. A pagina declarava so o `favicon`.
+#
+# Sao DOIS mecanismos e nenhum cai no outro: sem `apple-touch-icon` o Safari
+# poe uma CAPTURA DA PAGINA no lugar do icone, e sem `manifest` o Chrome
+# estica o favicon de 32px. Nos dois casos o atalho perde a marca -- e no
+# rastreio quem ve isso e o cliente que espera a carga.
+#
+# Nada disso levanta erro: a pagina funciona, o icone e que nao existe. Por
+# isso o guard sai do REGISTRO, e nao de uma lista escrita a mao aqui: o
+# aplicativo que entrar amanha ja nasce cobrado.
+
+def _cabeca(app) -> str:
+    html = (STATIC / app["arquivo"]).read_text(encoding="utf-8")
+    return html[:html.index("</head>")] if "</head>" in html else html
+
+
+@pytest.mark.parametrize("app", aplicativos.APLICATIVOS, ids=lambda a: a["id"])
+def test_o_aplicativo_tem_icone_para_a_tela_de_inicio(app):
+    """As duas declaracoes, porque sao dois sistemas operacionais."""
+    cab = _cabeca(app)
+    assert 'rel="apple-touch-icon"' in cab, (
+        f"{app['id']}: sem apple-touch-icon o iPhone usa uma captura da tela "
+        f"como icone")
+    assert 'rel="manifest"' in cab, (
+        f"{app['id']}: sem manifesto o Android estica o favicon de 32px")
+
+
+@pytest.mark.parametrize("app", aplicativos.APLICATIVOS, ids=lambda a: a["id"])
+def test_o_manifesto_do_aplicativo_e_PROPRIO_e_abre_nele_mesmo(app):
+    """Reusar o manifesto do painel poria o atalho para abrir em `/` com o
+    nome "Cortex" -- o cliente do rastreio cairia numa tela de login, e o
+    motorista tambem, porque ele nao tem conta no painel."""
+    import json
+    import re
+    cab = _cabeca(app)
+    m = re.search(r'rel="manifest"\s+href="([^"]+)"', cab)
+    assert m, f"{app['id']}: manifesto sem href"
+    href = m.group(1)
+    assert href != "/static/manifest.json", (
+        f"{app['id']}: esta usando o manifesto do PAINEL, que abre em `/`")
+    arq = STATIC / href.removeprefix("/static/")
+    assert arq.exists(), f"{app['id']}: manifesto declarado e inexistente: {href}"
+    dados = json.loads(arq.read_text(encoding="utf-8"))
+    assert dados.get("start_url") == app["rota"], (
+        f"{app['id']}: o atalho abriria em {dados.get('start_url')!r} e a rota "
+        f"do aplicativo e {app['rota']!r}")
+    # o start_url tem de caber no scope, senao o navegador RECUSA o manifesto
+    # inteiro -- e a recusa e silenciosa, que e como este defeito voltaria
+    assert dados.get("start_url", "").startswith(dados.get("scope", "\0")), (
+        f"{app['id']}: start_url fora do scope — o navegador ignora o manifesto")
+
+
+@pytest.mark.parametrize("app", aplicativos.APLICATIVOS, ids=lambda a: a["id"])
+def test_todo_icone_declarado_EXISTE_no_disco(app):
+    """A varredura sai do arquivo e confere o DISCO. Icone que aponta para
+    nada nao levanta erro nenhum: o celular so mostra um quadrado cinza."""
+    import json
+    import re
+    cab = _cabeca(app)
+    alvos = set(re.findall(r'rel="(?:icon|apple-touch-icon)"[^>]*href="([^"]+)"', cab))
+    href = re.search(r'rel="manifest"\s+href="([^"]+)"', cab).group(1)
+    manif = json.loads((STATIC / href.removeprefix("/static/")).read_text(encoding="utf-8"))
+    alvos |= {i["src"] for i in manif.get("icons", [])}
+    assert alvos, "nenhum icone declarado — a varredura passaria por vacuidade"
+    for src in sorted(alvos):
+        assert (STATIC / src.removeprefix("/static/")).exists(), (
+            f"{app['id']}: icone declarado e inexistente: {src}")
+
+
+@pytest.mark.parametrize("app", aplicativos.APLICATIVOS, ids=lambda a: a["id"])
+def test_o_manifesto_do_aplicativo_e_SERVIDO(app):
+    """Declarar nao e servir. O manifesto mora sob `/static`, que e publico —
+    mas o rastreio e a unica pagina da casa aberta a quem nao tem conta, e um
+    manifesto atras de sessao seria ignorado em silencio no celular do
+    cliente."""
+    import re
+    href = re.search(r'rel="manifest"\s+href="([^"]+)"', _cabeca(app)).group(1)
+    c = TestClient(main.app)
+    r = c.get(href)
+    assert r.status_code == 200, f"{app['id']}: manifesto responde {r.status_code}"
+    assert r.json().get("icons"), f"{app['id']}: manifesto servido sem icones"

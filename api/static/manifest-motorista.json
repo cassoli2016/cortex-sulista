@@ -1,0 +1,17 @@
+{
+  "name": "Motorista Sulista",
+  "short_name": "Motorista",
+  "description": "Jornada, viagens, documentos e o canal com o RH.",
+  "start_url": "/motorista",
+  "scope": "/motorista",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B1926",
+  "theme_color": "#0B1926",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
