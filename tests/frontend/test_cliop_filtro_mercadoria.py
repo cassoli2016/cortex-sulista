@@ -119,7 +119,7 @@ def _abrir(pg, base_url):
     return pedidos, erros
 
 
-def _abrir_com(pg, base_url, perm):
+def _abrir_com(pg, base_url, perm, agora=None):
     """Abre a parede com um payload de permanência SOB MEDIDA.
 
     Os casos de contrato (preço que varia, cláusula com prazo, cadastro
@@ -131,7 +131,7 @@ def _abrir_com(pg, base_url, perm):
         if "/api/auth/me" in u:
             corpo = CASA
         elif "/api/portal/cliente" in u:
-            corpo = perm if "aba=permanencia" in u else AGORA
+            corpo = perm if "aba=permanencia" in u else (agora or AGORA)
         else:
             corpo = {}
         route.fulfill(status=200, content_type="application/json",
@@ -546,3 +546,105 @@ def test_a_mercadoria_que_o_cliente_NAO_TEM_sai_da_escolha(pagina):
     pg.wait_for_timeout(400)
     assert pg.evaluate("CLIOP_MERC.size") == 0, (
         "o filtro ficou apontando para mercadoria que este cliente não tem")
+
+
+# ═════════════ a régua, com payload CHEIO (a do script mede o esqueleto) ════
+
+def test_as_abas_NOVAS_cabem_na_tela_com_dado_de_verdade(pagina):
+    """`scripts/medir_paineis.py` dubla a API com `{}` e mede o ESQUELETO.
+
+    Tabela vazia, aviso mudo: aba que só enche com dado passa lá e estoura na
+    tela de quem usa. A aba Decidir do fluxcon passava com 854px e ia a
+    1.303px com os doze meses reais; a aba "O dia" da frequência deu 381px na
+    régua e 1.060px com o payload real (outra sessão, 11/09/2026). Por isso a
+    regra da casa manda medir aba NOVA no e2e, com dado.
+
+    As duas que esta entrega criou são a Permanência (que ganhou um segundo
+    card) e a Freetime contratado. O payload aqui é o da IOCHPE MAXION lido do
+    ERP: 4 cláusulas de contrato com vigência, preço, filial e autoria.
+
+    O QUE ESTE GUARD NÃO AFIRMA: que as OUTRAS abas da tela cabem. Medido em
+    11/09/2026, Agora dá 1.156px e Histórico 1.096px com dado real — as duas
+    acima do limite, as duas ASSIM DESDE ANTES desta entrega (conferido
+    medindo o mesmo payload contra o index.html de c9a9255). São dívida
+    anterior, e entram aqui como registro para quem for mexer nelas, não como
+    verde emprestado.
+    """
+    pg, base = pagina
+    _abrir(pg, base)
+    alt = ("() => { const c = document.getElementById('content');"
+           " const b = c.querySelector('#banner');"
+           " const fora = (b && b.offsetParent !== null)"
+           "   ? Math.round(b.getBoundingClientRect().height) + 14 : 0;"
+           " return Math.round(c.scrollHeight) - fora; }")
+    larg = ("() => Math.max(0, document.documentElement.scrollWidth"
+            " - document.documentElement.clientWidth)")
+    pg.set_viewport_size({"width": 1500, "height": 1000})
+    for aba, rot in (("perm", "Permanência"), ("ft", "Freetime contratado")):
+        pg.evaluate("(q) => abaTrocar('cliop', q)", aba)
+        pg.wait_for_timeout(600)
+        a, w = pg.evaluate(alt), pg.evaluate(larg)
+        assert a <= 900, "a aba %s foi a %d px com dado real (limite 900)" % (rot, a)
+        assert w == 0, "a aba %s empurrou a página %d px para o lado" % (rot, w)
+
+
+def test_a_lista_de_mercadorias_rola_DENTRO_do_seletor(pagina):
+    """Com MUITAS mercadorias — que é quando o mecanismo importa.
+
+    A Maxion tem doze tipos e eles cabem folgados: com esse payload, tirar o
+    `max-height` do `.pk-lista` não mudava um pixel e este guard aprovava a
+    remoção. Payload que não exercita o limite não prova limite nenhum.
+
+    Aqui são 40, dentro do que a base comporta (80 valores distintos de
+    mercadoria em 180 dias). Se a lista crescesse a página, o modal viraria
+    uma tela de rolagem e o botão Aplicar sairia de vista.
+    """
+    pg, base = pagina
+    muitas = {**AGORA, "mercadorias": [
+        {"chave": "MERCADORIA DE TESTE %02d" % i,
+         "rotulo": "MERCADORIA DE TESTE %02d" % i, "cargas": 500 - i}
+        for i in range(40)]}
+    _abrir_com(pg, base, PERM, agora=muitas)
+    pg.click("#cliop-merc-chips .chip")
+    pg.wait_for_selector("#cm-lista label", state="visible", timeout=20000)
+    caixa = pg.eval_on_selector(
+        "#cm-lista", "e => [Math.round(e.getBoundingClientRect().height),"
+        " e.scrollHeight > e.clientHeight + 4]")
+    assert caixa[1], (
+        "com 40 mercadorias a lista NÃO rola por dentro — ela cresceu a página")
+    assert caixa[0] <= 360, "a lista do seletor tem %d px de altura" % caixa[0]
+    assert pg.is_visible("button.btn:has-text('Aplicar')"), (
+        "o botão Aplicar saiu de vista")
+
+
+def test_a_tabela_do_contrato_rola_DENTRO_do_card(pagina):
+    """Os contratos de hoje têm no máximo 4 cláusulas, e 4 cabem sem
+    mecanismo nenhum — foi assim que a sabotagem que tirava o `.tabroll`
+    passou verde aqui.
+
+    Um contrato pode crescer: a tabela do ERP tem 24 linhas vigentes hoje e
+    nada impede um cliente de ter vinte. Com vinte, sem `.tabroll`, a aba
+    passa do limite da tela. O payload deste guard tem vinte.
+    """
+    pg, base = pagina
+    muitas = {**PERM, "freetime": {**PERM["freetime"], "linhas": [
+        _cl("MERCADORIA %02d" % i, 3.0, 6.5) for i in range(20)]}}
+    _abrir_com(pg, base, muitas)
+    pg.click("#tabcliop-ft")
+    pg.wait_for_selector("#cliop-ft-linhas tr", state="visible", timeout=20000)
+    pg.set_viewport_size({"width": 1500, "height": 1000})
+    pg.wait_for_timeout(400)
+    rola = pg.eval_on_selector(
+        "#cliop-ft-linhas", "e => { const w = e.closest('.tablewrap');"
+        " return [w ? w.className : '', w ? (w.scrollHeight > w.clientHeight + 4) : false]; }")
+    assert "tabroll" in rola[0], (
+        "a tabela do contrato perdeu o .tabroll: %r" % rola[0])
+    alt = pg.evaluate(
+        "() => { const c = document.getElementById('content');"
+        " const b = c.querySelector('#banner');"
+        " const fora = (b && b.offsetParent !== null)"
+        "   ? Math.round(b.getBoundingClientRect().height) + 14 : 0;"
+        " return Math.round(c.scrollHeight) - fora; }")
+    assert alt <= 900, (
+        "com 20 cláusulas a aba foi a %d px — a tabela não está rolando por "
+        "dentro do card" % alt)
