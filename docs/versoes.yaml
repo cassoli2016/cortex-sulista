@@ -1,3 +1,21 @@
+- versao: "1.39.0"
+  data: "2026-09-11"
+  adicionado:
+    - >-
+      A tela de Frequencia passa a dizer ATE QUANDO vale o saldo que ela
+      mostra. O banco de horas se compensa em SEIS MESES, entao a janela
+      aberta no fechamento de agosto fecha em fevereiro de 2027 -- e agora
+      isso esta no cartao ("janela 2026-08 -> 2027-02") e nos meses que faltam
+      para compensar.
+  corrigido:
+    - >-
+      E passada a janela, a tela AVISA em vez de continuar somando. A data do
+      ultimo fechamento e escrita a mao porque o ERP nao a registra (nao baixa
+      o saldo nem grava a data): sem o aviso, em marco de 2027 o cartao
+      continuaria contando desde agosto de 2026, com o semestre ja pago dentro
+      do numero, e ninguem veria diferenca nenhuma na tela. E o mesmo defeito
+      que essa tela ja teve uma vez, so que de volta pelo relogio.
+
 - versao: "1.38.0"
   data: "2026-09-11"
   adicionado:

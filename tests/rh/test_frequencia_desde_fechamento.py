@@ -94,3 +94,52 @@ def test_o_snapshot_do_copiloto_continua_sem_PESSOA():
     for proibido in ("MAYCON", "ISABELLE", "VINICIUS", "003648", "CURITIBA"):
         assert proibido not in bruto, f"{proibido} vazou para o snapshot"
     assert all(not isinstance(v, (list, dict)) for v in r.values())
+
+
+# =====================================================================
+# A JANELA DE COMPENSAÇÃO — seis meses, informado por quem opera em
+# 11/09/2026. O ERP não guarda nem a data nem o período
+# (`meses_compensar = 0`), então os dois são constantes escritas à mão —
+# e constante escrita à mão envelhece CALADA. Estes testes existem para
+# que ela envelheça em voz alta.
+# =====================================================================
+from datetime import date  # noqa: E402
+
+
+def test_a_janela_fecha_seis_meses_depois():
+    j = F.janela_do_fechamento("2026-08", hoje=date(2026, 9, 11))
+    assert j["ate"] == "2027-02"
+    assert j["periodo_meses"] == 6
+    assert j["meses_restantes"] == 5
+
+
+def test_a_janela_atravessa_a_virada_do_ano():
+    """Somar 6 ao mês e esquecer o ano dá `2026-13`. Aqui não passa."""
+    assert F.janela_do_fechamento("2026-11", hoje=date(2026, 9, 1))["ate"] == "2027-05"
+    assert F.janela_do_fechamento("2026-12", hoje=date(2026, 9, 1))["ate"] == "2027-06"
+    assert F.janela_do_fechamento("2027-07", hoje=date(2027, 8, 1))["ate"] == "2028-01"
+
+
+def test_o_mes_do_fechamento_ainda_esta_dentro():
+    """Fev/2027 é o mês em que se fecha, não o mês seguinte ao fim: a janela
+    ainda vale enquanto ele corre."""
+    j = F.janela_do_fechamento("2026-08", hoje=date(2027, 2, 28))
+    assert not j["vencida"] and j["aviso"] == ""
+
+
+def test_passada_a_janela_ela_GRITA():
+    """O defeito que isto impede: em mar/2027 o saldo continuaria somando
+    desde ago/2026 — incluindo o semestre pago em fev — e a tela mostraria
+    o mesmo número de sempre, sem nada indicando que virou outra coisa."""
+    j = F.janela_do_fechamento("2026-08", hoje=date(2027, 3, 1))
+    assert j["vencida"]
+    assert "2027-02" in j["aviso"] and "já foi pago" in j["aviso"]
+
+
+def test_o_saldo_leva_a_janela_junto():
+    """Se sumir do payload, a tela perde o único alarme que ela tem contra
+    uma constante vencida."""
+    j = F.saldo_desde_fechamento()["janela"]
+    assert j["desde"] == F.FECHAMENTO_CONHECIDO
+    assert j["periodo_meses"] == F.PERIODO_COMPENSACAO_MESES
+    assert j["ate"] > j["desde"]

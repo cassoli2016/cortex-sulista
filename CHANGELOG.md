@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.39.0] — 11/09/2026  ·  CX-11/09/2026-v1.39.0
+
+### Adicionado
+- A tela de Frequencia passa a dizer ATE QUANDO vale o saldo que ela mostra. O banco de horas se compensa em SEIS MESES, entao a janela aberta no fechamento de agosto fecha em fevereiro de 2027 -- e agora isso esta no cartao ("janela 2026-08 -> 2027-02") e nos meses que faltam para compensar.
+
+### Corrigido
+- E passada a janela, a tela AVISA em vez de continuar somando. A data do ultimo fechamento e escrita a mao porque o ERP nao a registra (nao baixa o saldo nem grava a data): sem o aviso, em marco de 2027 o cartao continuaria contando desde agosto de 2026, com o semestre ja pago dentro do numero, e ninguem veria diferenca nenhuma na tela. E o mesmo defeito que essa tela ja teve uma vez, so que de volta pelo relogio.
+
 ## [1.38.0] — 11/09/2026  ·  CX-11/09/2026-v1.38.0
 
 ### Adicionado

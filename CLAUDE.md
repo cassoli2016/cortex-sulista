@@ -311,6 +311,18 @@ moram em arquivos que não falam do assunto.
   não viaja sozinho: `confronto()` põe as duas contabilidades na mesma linha do
   tempo, e o custo em reais carrega `ressalva_custo`. Guards:
   `tests/rh/test_frequencia_confronto.py`.
+  **O PERÍODO DE COMPENSAÇÃO É DE SEIS MESES** (quem opera, 11/09/2026 — a CLT
+  admite até doze com acordo coletivo, e a casa pratica seis), então a janela
+  aberta em ago/2026 fecha em **fev/2027**. Isso também não está no ERP, e as
+  duas pontas são constantes escritas à mão: `FECHAMENTO_CONHECIDO` e
+  `PERIODO_COMPENSACAO_MESES`. **Constante escrita à mão envelhece CALADA** — e
+  aqui o envelhecimento reconstrói o defeito original: passado fev/2027 sem que
+  alguém atualize a data, `saldo_desde_fechamento()` segue somando desde
+  ago/2026, o semestre já pago volta para dentro do número, e a tela mostra o
+  mesmo cartão de sempre. Por isso `janela_do_fechamento()` viaja no payload e
+  a tela ABRE COM FAIXA DE AVISO quando a janela vence. Guards:
+  `tests/rh/test_frequencia_desde_fechamento.py` (cada constante sabotada em
+  separado).
 - **A COLETA DO PONTO É POR CURSOR, DE 10 EM 10 MINUTOS, E O WEBHOOK FICOU DE
   FORA POR DECISÃO** (quem opera, 11/09/2026). A API do fornecedor expõe
   `WebhookSubscription`, e quem reencontrar isso vai propor a troca achando que

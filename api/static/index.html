@@ -7340,6 +7340,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <button role="tab" id="tabfreq-batidas" data-aba="batidas" aria-controls="aba-freq-batidas" aria-selected="false" onclick="abaTrocar('freq','batidas')">Batidas <span class="aban" id="freqNBat"></span></button>
         </div>
         <div class="aba" data-abas="freq" data-aba="passivo" id="aba-freq-passivo" role="tabpanel" aria-labelledby="tabfreq-passivo">
+          <div id="freq-janela-aviso"></div>
           <div class="kband"><div class="kpis k4" id="kpis-freq"></div></div>
           <div class="card"><div class="head"><h2>O saldo ao longo do tempo</h2><span class="hint">credor × devedor · 14 meses · mês em curso hachurado</span></div>
             <div class="chartwrap"><div id="chartFreqSerie" style="width:100%;height:230px" role="img"></div></div></div>
@@ -30954,18 +30955,30 @@ function renderFreq(d){
   if(hint) hint.textContent=pb.com_frequencia+' de '+pb.ativos+' ativos têm ponto · competência '+
     (d.competencia||'—')+' · última marcação em '+(fr.ultimo_dia?fmtD(fr.ultimo_dia):'—');
 
+  /* A JANELA DE COMPENSACAO, E O AVISO DE QUE ELA VENCEU. A data do ultimo
+     fechamento e escrita a mao (o ERP nao a registra); passada a janela sem
+     que alguem a atualize, o saldo volta a somar periodo JA PAGO — o defeito
+     que originou esta tela, de volta em silencio. Vencida, ela diz. */
+  const jn=df.janela||{};
+  const jan=jn.ate?('janela '+jn.desde+' → '+jn.ate):('desde '+(df.desde||'—'));
+  const ja=document.getElementById('freq-janela-aviso');
+  if(ja) ja.innerHTML = jn.vencida
+    ? '<div class="avisofaixa">'+esc(jn.aviso||'')+'</div>'
+    : '';
+
   // KPIs. O passivo é o número-rei: é ele que não existia em lugar nenhum.
   const serie=d.serie||[], fechadas=serie.filter(s=>!s.parcial);
   const ant=fechadas.length>1?fechadas[fechadas.length-2]:null;
   const atu=fechadas.length?fechadas[fechadas.length-1]:null;
   document.getElementById('kpis-freq').innerHTML=[
-    kpi('Saldo desde o fechamento', nf(df.credor_h,1)+' h', BRL.format(df.credor_rs||0)+' · '+(df.credores||0)+' pessoas · desde '+(df.desde||'—'),
+    kpi('Saldo desde o fechamento', nf(df.credor_h,1)+' h', BRL.format(df.credor_rs||0)+' · '+(df.credores||0)+' pessoas · '+jan,
         (df.credor_h||0)>200?'neg':'',
         'O saldo que existe DE VERDADE: só o movimento posterior ao último fechamento semestral. É este o número de hoje — o do ERP acumula desde 2023 e nunca baixa o que foi pago.'),
     kpi('Líquido desde o fechamento', nf(df.liquido_h,1)+' h',
         'credor '+nf(df.credor_h,0)+' h · devedor '+nf(Math.abs(df.devedor_h||0),0)+' h em '+(df.devedores||0)+' pessoas',
         (df.liquido_h||0)>0?'':'good'),
-    kpi('Maior saldo individual', nf(df.maior,1)+' h', 'desde o fechamento de '+(df.desde||'—'),
+    kpi('Maior saldo individual', nf(df.maior,1)+' h', 'desde o fechamento de '+(df.desde||'—')+
+        (jn.meses_restantes>0?(' · compensar em '+jn.meses_restantes+' mes'+(jn.meses_restantes>1?'es':'')):''),
         (df.maior||0)>=100?'neg':''),
     kpi('Acumulado no ERP', nf(k.passivo_horas,1)+' h', BRL.format(k.passivo_custo||0)+' · não é dívida',
         'warn',

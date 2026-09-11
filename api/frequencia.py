@@ -77,6 +77,8 @@ o passivo.
 """
 from __future__ import annotations
 
+from datetime import date
+
 from api import db_folha as db
 from api.queries import cached
 
@@ -122,6 +124,17 @@ EV_DEB_BH, EV_CRED_BH = 1016, 1017
 #: escrito à mão em cima de um sistema que já zera é a receita para descontar
 #: duas vezes.
 FECHAMENTO_CONHECIDO = "2026-08"
+
+#: O PERÍODO DE COMPENSAÇÃO, EM MESES — informado por quem opera (11/09/2026).
+#:
+#: A CLT (art. 59, §2º) admite até UM ANO quando há acordo coletivo, e a casa
+#: pratica SEIS. A escolha também não está no ERP: `FRQ_BANCOHORAS_PARAMETRO`
+#: tem `meses_compensar = 0` — é esse zero que faz o fechamento não gerar o
+#: débito, e é ele que o RH vai ajustar.
+#:
+#: Com os dois números, o fim da janela deixa de ser adivinhação: ago/2026 + 6
+#: fecha em fev/2027.
+PERIODO_COMPENSACAO_MESES = 6
 
 CADASTRO_MESES_PARADO = 6
 CADASTRO_HORAS_MIN = 100.0
@@ -349,6 +362,42 @@ def get_banco_horas(comp: str | None = None) -> dict:
     }
 
 
+def janela_do_fechamento(desde: str | None = None, hoje: date | None = None) -> dict:
+    """De quando até quando vale o saldo que a tela publica — e se ainda vale.
+
+    A CONSTANTE ENVELHECE, E ESSE É O PONTO. `FECHAMENTO_CONHECIDO` é escrito
+    à mão porque o ERP não registra o fechamento (não baixa o saldo, não grava
+    a data). Passada a janela sem que alguém a atualize, `saldo_desde_fechamento`
+    continua somando desde ago/2026 e o número volta a incluir período JÁ PAGO
+    — que é exatamente o defeito que originou esta frente, renascido em
+    silêncio e com outra cara.
+
+    Por isso a janela viaja junto do saldo, e vencida ela DIZ que venceu. Não
+    há como o sistema descobrir sozinho que fechou: o alarme é a única defesa.
+    """
+    desde = desde or FECHAMENTO_CONHECIDO
+    ano, mes = (int(x) for x in desde.split("-"))
+    fim = mes + PERIODO_COMPENSACAO_MESES
+    ate = f"{ano + (fim - 1) // 12:04d}-{(fim - 1) % 12 + 1:02d}"
+    h = hoje or date.today()
+    atual = f"{h.year:04d}-{h.month:02d}"
+    faltam = ((int(ate[:4]) - h.year) * 12) + (int(ate[5:]) - h.month)
+    return {
+        "desde": desde,
+        "ate": ate,
+        "periodo_meses": PERIODO_COMPENSACAO_MESES,
+        "competencia_atual": atual,
+        "meses_restantes": faltam,
+        "vencida": atual > ate,
+        "aviso": (
+            f"A janela de compensação fechou em {ate} e ninguém atualizou a "
+            f"data do último fechamento. O saldo abaixo está somando desde "
+            f"{desde} — inclusive o período que já foi pago no fechamento de "
+            f"{ate}. Confirme a data com o RH antes de usar este número."
+        ) if atual > ate else "",
+    }
+
+
 @cached(ttl=600, velha_ate=7200)
 def saldo_desde_fechamento(desde: str | None = None) -> dict:
     """O saldo que existe DE VERDADE: só o movimento após o último fechamento.
@@ -388,6 +437,7 @@ def saldo_desde_fechamento(desde: str | None = None) -> dict:
     dev = [p for p in pessoas if p["horas"] < 0]
     return {
         "desde": desde,
+        "janela": janela_do_fechamento(desde),
         "credor_h": round(sum(p["horas"] for p in cred), 1),
         "credor_rs": _f(sum(p["custo"] for p in cred)),
         "credores": len(cred),
