@@ -77,27 +77,57 @@ def test_carga_rapida_nao_pisca_a_barra(pagina):
     assert True not in pg.evaluate("window.__barraLog"), "barra apareceu numa carga de 30ms"
 
 
+# A BARRA DO BOOT SE OBSERVA DE DENTRO DA PAGINA, e nao com `wait_for_selector`
+# depois do `goto` -- que e a "corrida perdida" que o cabecalho deste arquivo ja
+# descreve, e que tres testes daqui continuavam correndo.
+#
+# O `time.sleep` do dublê roda na MESMA thread do Playwright sincrono, entao o
+# `goto` so devolve o controle quando a fila de rotas esvazia (~6 s com 800 ms
+# por chamada), e o boot inteiro ja aconteceu quando o teste comeca a olhar.
+# Medido em 11/09/2026, dentro da pagina: a barra acendia aos ~0,5 s e apagava
+# aos 6,0 s; o `goto` voltava aos 5,98 s. O teste so passava enquanto a tela de
+# chegada era a Visao Geral, cujo boot fazia UMA consulta a mais
+# (`financeiro/overview`) e segurava a barra acesa alem do retorno do `goto` --
+# quando a pagina inicial passou a ser o Radar, mais leve, a barra ja tinha
+# feito o trabalho dela e o teste acusava a barra. O comportamento era o mesmo
+# nos dois estados; mudou quantas consultas o boot faz.
+#
+# `window.__barraLog` (o `ESPIA` do conftest) registra toda transicao desde
+# antes do documento, entao a afirmacao vale para qualquer tela de chegada.
+ESPIA_TEMPO = """
+window.__tempoLog = [];
+(function liga(){
+  if (!document.documentElement) { document.addEventListener('readystatechange', liga, {once:true}); return; }
+  new MutationObserver(function(ms){
+    for (var i=0;i<ms.length;i++){
+      var t = ms[i].target;
+      if (t && t.id === 'loadtempo') window.__tempoLog.push([!t.hidden, t.textContent]);
+    }
+  }).observe(document.documentElement, {subtree:true, attributes:true, attributeFilter:['hidden']});
+})();
+"""
+
+
 def test_carga_lenta_mostra_a_barra(pagina):
     pg, base = pagina
     _mockar(pg, 800)
     pg.goto(f"{base}/static/index.html")
-    pg.wait_for_selector("#loadbar:not([hidden])", timeout=5000)
+    pg.wait_for_function("window.__barraLog.includes(true)", timeout=15000)
 
 
 def test_barra_some_ao_terminar(pagina):
     pg, base = pagina
     _mockar(pg, 800)
     pg.goto(f"{base}/static/index.html")
-    pg.wait_for_selector("#loadbar:not([hidden])", timeout=5000)
-    # state="hidden" e obrigatorio: wait_for_selector espera VISIBILIDADE por
-    # padrao, e "#loadbar[hidden]" tem display:none -- a condicao seria
-    # impossivel de satisfazer e o teste so daria timeout.
-    pg.wait_for_selector("#loadbar", state="hidden", timeout=30000)
-    # wait_for_function e nao um assert instantaneo: o boot carrega em FASES, e
-    # entre a barra sumir e o evaluate rodar a fase seguinte ja podia ter
-    # comecado -- ativas() valia 1 sem que houvesse vazamento nenhum. Se o
-    # contador de fato nao zerar, isto da timeout e o teste falha do mesmo jeito.
-    pg.wait_for_function("CARGA.ativas() === 0", timeout=30000)
+    pg.wait_for_function("window.__barraLog.includes(true)", timeout=15000)
+    # A ULTIMA transicao e "apagou" E o contador zerou -- as duas juntas, e com
+    # espera: o boot carrega em FASES, e entre a barra sumir e a leitura a fase
+    # seguinte ja podia ter comecado. Se o contador de fato vazar, isto da
+    # timeout e o teste falha do mesmo jeito.
+    pg.wait_for_function(
+        "window.__barraLog.length > 0"
+        " && window.__barraLog[window.__barraLog.length - 1] === false"
+        " && CARGA.ativas() === 0", timeout=30000)
 
 
 def test_erro_de_rede_tambem_apaga_a_barra(pagina):
@@ -116,11 +146,15 @@ def test_erro_de_rede_tambem_apaga_a_barra(pagina):
 
 
 def test_contador_de_tempo_aparece_aos_3s(pagina):
+    """O texto e o lido NA MUTACAO: `mostraTempo` escreve o rotulo e os
+    segundos ANTES de tirar o `hidden`, entao e exatamente o que aparece."""
     pg, base = pagina
+    pg.add_init_script(ESPIA_TEMPO)
     _mockar(pg, 6000)
     pg.goto(f"{base}/static/index.html")
-    pg.wait_for_selector("#loadtempo:not([hidden])", timeout=8000)
-    texto = pg.inner_text("#loadtempo")
+    pg.wait_for_function("window.__tempoLog.some(function(x){ return x[0]; })",
+                         timeout=15000)
+    texto = pg.evaluate("window.__tempoLog.find(function(x){ return x[0]; })[1]")
     assert texto.startswith("consultando o banco… "), texto
     assert texto.endswith("s"), texto
 
