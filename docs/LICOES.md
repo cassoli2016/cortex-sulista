@@ -29,7 +29,7 @@ deles **todas com o mesmo `dtinicio`** (medido em 10/09/2026):
 |---|---|---|---|
 | IOCHPE MAXION | 4 | **iguais** | genérica 3h · CONJUNTOS/RODAS/ESCADAS 6,5h |
 | LEAR | 4 | **iguais** | PEÇAS e EMBALAGENS 3h · ESPUMA 5h |
-| VOLVO | 2 | diferentes | 1h → 2h (revisão de contrato — aí a nova manda mesmo) |
+| VOLVO | 2 | diferentes | 1h e 2h — **e não é revisão**: são duas FILIAIS, e a de 1h está VENCIDA (`dtfim` 31/08/2024) com `ativoinativo = 1` |
 
 Duas telas leem esse contrato, e cada uma tinha inventado a própria saída para
 o empate:

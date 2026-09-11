@@ -7,8 +7,9 @@ mesmo `dtinicio`. Medido em 10/09/2026:
     IOCHPE MAXION   4 linhas, mesma data: genérica 3h · CONJUNTOS/RODAS/
                     ESCADAS 6,5h
     LEAR            4 linhas, mesma data: PEÇAS e EMBALAGENS 3h · ESPUMA 5h
-    VOLVO           2 linhas, datas DIFERENTES (1h -> 2h) — isso é revisão de
-                    contrato, e aí a mais nova manda mesmo
+    VOLVO           2 linhas em duas FILIAIS: a viva dá 2h e a outra, de 1h,
+                    está VENCIDA (`dtfim` 31/08/2024) e continua marcada como
+                    ativa — ver `vigente()` logo abaixo
 
 Duas telas leem esse contrato e cada uma tinha inventado a própria saída:
 
@@ -85,6 +86,94 @@ def normalizar(texto: str | None) -> str:
     t = " ".join((texto or "").upper().split())
     t = t.translate(str.maketrans(DE, PARA))
     return " ".join(p[:-1] if p.endswith("S") else p for p in t.split())
+
+
+# A VIGÊNCIA, e por que ela não é o mesmo que `ativoinativo`.
+#
+# `ativoinativo` é um campo GRAVADO: alguém tem de entrar no ERP e desligar a
+# cláusula. `dtinicio`/`dtfim` são a vigência COMBINADA, e ela vira sozinha.
+# A regra da casa é que estado que envelhece sozinho não se grava, se calcula —
+# e aqui a diferença tem nome e sobrenome: a VOLVO tem uma cláusula genérica de
+# 1h com `dtfim = 31/08/2024` e `ativoinativo = 1` até hoje (medido em
+# 11/09/2026). Ninguém a inativou; ela simplesmente acabou.
+#
+# Filtrar só por `ativoinativo` aplica contrato encerrado. Hoje isso não move
+# um centavo (a VOLVO teve UMA coleta em 180 dias, e a cláusula vencida é de
+# outra filial), e é exatamente por isso que precisa de guard: o defeito está
+# armado e o dia em que ele disparar é o dia em que alguém encerrar a cláusula
+# de um cliente com volume.
+def sql_vigente(alias: str = "") -> str:
+    """O filtro de vigência, com o prefixo da tabela quando houver alias.
+
+    Função e não constante porque uma das consultas usa `ft.` e as outras não:
+    encadear `.replace("dtinicio", "ft.dtinicio")` por fora funciona até o dia
+    em que uma coluna nova contiver o nome de outra, e aí a substituição acerta
+    no meio de uma palavra sem ninguém ver.
+    """
+    p = (alias + ".") if alias else ""
+    return ("{p}ativoinativo = 1\n"
+            "    AND ({p}dtinicio IS NULL OR {p}dtinicio::date <= current_date)\n"
+            "    AND ({p}dtfim IS NULL OR {p}dtfim::date >= current_date)"
+            ).format(p=p)
+
+
+def vigente(linha: dict, hoje=None) -> bool:
+    """A mesma vigência, em Python, para quem já tem a linha na mão."""
+    import datetime
+    hoje = hoje or datetime.date.today()
+
+    def _d(v):
+        if v is None:
+            return None
+        return v.date() if hasattr(v, "date") else v
+
+    ini, fim = _d(linha.get("dtinicio")), _d(linha.get("dtfim"))
+    if linha.get("ativoinativo") not in (None, 1):
+        return False
+    return not ((ini and ini > hoje) or (fim and fim < hoje))
+
+
+# O `distingueoperacao` do ERP É UMA SEGUNDA FONTE para "esta cláusula é
+# genérica?", e ela concorda com a `observacao` em 24 de 24 linhas ativas
+# (medido em 11/09/2026): 1 ⇔ tem mercadoria, 2 ⇔ genérica. Não se usa como
+# PRIMÁRIA — a observação é o texto que casa com a coleta —, mas divergência
+# entre as duas é cadastro furado, e a tela diz em vez de escolher em silêncio.
+DISTINGUE_MERCADORIA = 1
+DISTINGUE_GENERICA = 2
+
+
+def confere_distingue(linha: dict) -> bool:
+    """As duas fontes concordam sobre esta linha ser genérica?"""
+    d = linha.get("distingueoperacao")
+    if d is None:
+        return True                     # o ERP não disse nada: nada a conferir
+    tem_merc = bool((linha.get("mercadoria") or "").strip())
+    return (int(d) == DISTINGUE_MERCADORIA) == tem_merc
+
+
+def canonizar(mercs) -> tuple:
+    """A escolha de mercadorias numa forma ÚNICA: normalizada, sem repetida,
+    em ordem.
+
+    Ela existe por causa do CACHE. A chave do `cached` da casa é `repr(args)`,
+    então ["RODAS","ESCADAS"] e ["ESCADAS","RODAS"] seriam DUAS entradas para
+    a mesma pergunta — duas idas ao ERP e duas cópias do mesmo número
+    envelhecendo em ritmos diferentes. Ordenar antes de entrar resolve os dois.
+
+    Normaliza pela mesma régua do casamento com o contrato: quem escolhe
+    "PEÇAS" na lista está escolhendo também as coletas escritas "PECAS", e o
+    filtro tem de concordar com a lista que ele mesmo ofereceu.
+
+    Aceita string solta (uma só) ou lista; devolve tupla, que é hashável e
+    imutável — lista como argumento de função cacheada é a porta para alguém
+    mutá-la depois da chamada e o cache passar a mentir.
+    """
+    if mercs is None:
+        return ()
+    if isinstance(mercs, str):
+        mercs = [mercs]
+    vistos = {normalizar(m) for m in mercs if (m or "").strip()}
+    return tuple(sorted(v for v in vistos if v))
 
 
 # A ORDEM DE RESOLUÇÃO, que é a regra propriamente dita.

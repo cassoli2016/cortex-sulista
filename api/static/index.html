@@ -4457,8 +4457,18 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="tvc-empilha" id="tvcli-empilha"></div>
           </div>
           <div class="tv-card tvc-mapa" style="grid-column:span 2">
+            <!-- SEM TARJA SOBRE O MAPA (11/09/2026, decisao de quem e dono
+                 da parede). Ela dizia a cobertura ("15 de 15 veiculos · 15 com
+                 posicao de ate 120 min") e o passo do roteiro ("regiao 3 de
+                 3"). A cobertura e regra da casa -- contador impede ler a
+                 amostra como o todo --, e por isso ela sai DECLARADA aqui em
+                 vez de sumir: numa parede de cliente a leitura acontece de
+                 longe e de passagem, e o proprio mapa ja e um recorte obvio
+                 das cargas EM CURSO, que os cartoes ao lado contam. Se um dia
+                 a frota passar a ter veiculo sem posicao com frequencia, o
+                 lugar de dizer isso e um cartao, nao uma tarja por cima do
+                 mapa. -->
             <div id="tvCliMapa"></div>
-            <div class="tv-regiao" id="tvcli-mapa-sub">Cargas em curso</div>
           </div>
 
           <!-- CHEGAM HOJE substituiu o medidor de freetime (07/09/2026).
@@ -6597,8 +6607,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="cardfilters" id="cliop-seletor" hidden>
           <label for="fCliopCliente" style="color:var(--n500)">Cliente</label>
           <select id="fCliopCliente" onchange="cliopTrocarCliente()" style="min-width:280px"></select>
-          <label for="fCliopMerc" style="color:var(--n500)">Mercadoria</label>
-          <select id="fCliopMerc" onchange="cliopTrocarMerc()" style="min-width:220px"><option value="">Todas</option></select>
+          <label style="color:var(--n500)">Mercadoria</label>
+          <span class="chips" id="cliop-merc-chips"></span>
           <span class="hint" id="cliop-seletor-hint"></span>
         </div>
         <div class="kpis k4" id="kpis-cliop"></div>
@@ -6649,7 +6659,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card">
             <div class="head"><h2>Freetime contratado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="As cláusulas de freetime ativas do seu contrato, uma por tipo de mercadoria. A linha sem mercadoria é a cláusula genérica, que vale para o que não tem cláusula própria. Cada permanência da aba anterior é comparada com a cláusula do tipo de carga que aquela coleta transportou — e é esta tabela que mostra a régua que produziu aqueles números. Mercadoria que não aparece aqui e cujo contrato não tem cláusula genérica não tem régua exata: ela é medida contra o maior freetime do contrato, que é o que se pode afirmar sem saber.">i</span></h2><span class="hint" id="cliop-ftlinhas-hint"></span></div>
             <div class="tablewrap tabroll"><table><thead><tr>
-              <th>Cláusula do contrato</th><th class="num">Carregamento</th><th class="num">Descarga</th>
+              <th>Cláusula do contrato</th><th class="num">Carregamento</th><th class="num">Descarga</th><th class="num" id="cliop-ft-th-rh" hidden>R$/hora</th><th>Vigência</th><th class="num">Filial</th><th>Última alteração</th>
             </tr></thead><tbody id="cliop-ft-linhas"></tbody></table></div>
           </div>
         </div>
@@ -14765,26 +14775,12 @@ async function tvCliMapa(cargas, resumo){
   tvCliVeics = todos;
   tvCliMarcas();
 
-  /* A COBERTURA vai no rodape do mapa. "33 de 33 veiculos" impede alguem de
-     olhar os pontos e concluir que aquilo e a operacao inteira; e a idade da
-     leitura impede tomar posicao de ontem por posicao de agora.
-     O RODAPE NAO NOMEIA FORNECEDOR. Quem nos vende rastreamento e assunto
-     nosso; para quem le a parede o que importa e quantos veiculos tem posicao
-     e que idade ela tem. A procedencia por fornecedor continua no payload,
-     para a Saude e o diagnostico interno. */
-  const r = resumo || {};
-  tvCliCobertura = todos.length
-    ? (r.com_posicao + ' de ' + r.veiculos + ' veículos · ' + r.frescas
-       + ' com posição de até ' + (r.fresca_ate_min || 120) + ' min')
-    : 'sem posição para as cargas em curso';
-
   /* O TOUR RECOMECA A CADA PINTURA. A parede recarrega sozinha, e um tour
      antigo sobreviveria apontando para regioes que ja mudaram de tamanho. */
   tvCliTourParar();
   tvCliTodos = todos.length ? cxGuardado : null;
   tvCliRegs = tvCliRegioes(todos, TV_CLI_RAIO_KM);
   tvCliTourIdx = 0;
-  tvCliLegenda();
   /* So passeia se houver o que passear: com uma regiao so, o panorama JA e
      ela, e ficar dando zoom no mesmo lugar e movimento sem informacao. */
   if(tvCliRegs.length > 1) tvCliTour = setTimeout(tvCliTourPasso, TV_CLI_PANORAMA_MS);
@@ -14807,7 +14803,7 @@ const TV_CLI_RAIO_KM = 130;     // ~1h15 de estrada: o que uma sala trata como "
 const TV_CLI_PANORAMA_MS = 11000;
 const TV_CLI_REGIAO_MS = 8000;
 let tvCliTour = null, tvCliRegs = [], tvCliTourIdx = 0;
-let tvCliTodos = null, tvCliCobertura = '';
+let tvCliTodos = null;
 
 function tvCliTourParar(){
   if(tvCliTour){ clearTimeout(tvCliTour); tvCliTour = null; }
@@ -14846,20 +14842,6 @@ function tvCliRegioes(veics, raioKm){
   return regs;
 }
 
-/* A LEGENDA DIZ ONDE O MAPA ESTA, e nunca substitui a cobertura: quem le a
-   parede precisa saber que aquilo nao e a operacao inteira, e essa frase some
-   se o rodape virar so "Região 2 de 4". As duas convivem. */
-function tvCliLegenda(reg, i){
-  const sub = document.getElementById('tvcli-mapa-sub');
-  if(!sub) return;
-  const n = tvCliRegs.length;
-  sub.textContent = tvCliCobertura + (
-    (n > 1 && reg)
-      ? ' · região ' + i + ' de ' + n + ' · ' + reg.veics.length + ' veículo'
-        + (reg.veics.length === 1 ? '' : 's')
-      : (n > 1 ? ' · ' + n + ' regiões' : ''));
-}
-
 function tvCliTourPasso(){
   if(!tvCliMap || tvCliRegs.length < 2){ tvCliTour = null; return; }
   /* NAO GIRA COM A ABA ESCONDIDA — a mesma regra do "Girar" das sub-abas.
@@ -14875,7 +14857,6 @@ function tvCliTourPasso(){
     if(ehPanorama){
       if(tvCliTodos) tvCliMap.flyToBounds(tvCliTodos, {
         paddingTopLeft:[46,44], paddingBottomRight:[46,14], maxZoom:11, duration:1.6});
-      tvCliLegenda();
       prox = TV_CLI_PANORAMA_MS;
     }else{
       const reg = tvCliRegs[tvCliTourIdx - 1];
@@ -14894,7 +14875,6 @@ function tvCliTourPasso(){
       }
       tvCliMap.flyToBounds(cx, {paddingTopLeft:[46,44], paddingBottomRight:[46,14],
                                 maxZoom:13, duration:1.6});
-      tvCliLegenda(reg, tvCliTourIdx);
     }
   }catch(e){ /* mapa em transicao: o proximo passo reenquadra */ }
   tvCliTour = setTimeout(tvCliTourPasso, prox);
@@ -15120,7 +15100,19 @@ async function loadTvCli(){
   try{
     let raiz = '';
     try{ raiz = localStorage.getItem('cliop.raiz') || ''; }catch(e){}
-    const q = new URLSearchParams({aba:'agora', dias:'45'});
+    /* A PAREDE HERDA O FILTRO DE MERCADORIA da Minha Operacao, pela mesma
+       chave do navegador que ja carrega o cliente. Numa TV ninguem clica --
+       e por isso ela nao ganha um seletor proprio; ela reflete a escolha de
+       quem preparou o mural, e DIZ qual e (ver o titulo, mais abaixo).
+       Sem esse aviso a parede mostraria um recorte com cara de operacao
+       inteira, que e a forma mais silenciosa de um mural mentir. */
+    let mercs = [];
+    try{
+      const v = JSON.parse(localStorage.getItem('cliop.merc') || '[]');
+      if(Array.isArray(v)) mercs = v;
+    }catch(e){}
+    const _pm = function(p){ mercs.forEach(function(m){ p.append('merc', m); }); return p; };
+    const q = _pm(new URLSearchParams({aba:'agora', dias:'45'}));
     if(raiz) q.set('raiz', raiz);
     const rA = await fetch('/api/portal/cliente?' + q.toString(), {cache:'no-store'});
     const dA = await rA.json();
@@ -15144,8 +15136,6 @@ async function loadTvCli(){
       });
       document.getElementById('tvcli-tick').hidden = true;
       if(tvCliLayer) tvCliLayer.clearLayers();
-      const sub = document.getElementById('tvcli-mapa-sub');
-      if(sub) sub.textContent = 'nenhum cliente escolhido';
       return;
     }
 
@@ -15153,9 +15143,9 @@ async function loadTvCli(){
        parede recarrega de minuto em minuto: em serie, o painel esperava duas
        viagens ao ERP para pintar. `permanencia` continua vindo porque o
        ticker mede a permanencia acima de 24h por ela. */
-    const q2 = new URLSearchParams({aba:'permanencia'});
+    const q2 = _pm(new URLSearchParams({aba:'permanencia'}));
     if(raiz) q2.set('raiz', raiz);
-    const q3 = new URLSearchParams({aba:'historico', meses:'12'});
+    const q3 = _pm(new URLSearchParams({aba:'historico', meses:'12'}));
     if(raiz) q3.set('raiz', raiz);
     const [rP, rH] = await Promise.all([
       fetch('/api/portal/cliente?' + q2.toString(), {cache:'no-store'}),
@@ -15183,7 +15173,26 @@ async function loadTvCli(){
     /* O TITULO nomeia o cliente. Painel de cliente que nao diz QUAL cliente e
        o jeito de alguem na sala de operacao ler a conta errada e agir. */
     const tit = document.getElementById('tvcli-titulo');
-    if(tit) tit.textContent = 'OPERAÇÃO — ' + (dA.cliente_nome || dA.cliente_raiz || 'CLIENTE');
+    /* E DIZ O RECORTE, quando ha um. A parede filtrada sem aviso mostra parte
+       da operacao com cara de todo -- e quem le de longe nao tem como
+       desconfiar. O nome do cliente continua primeiro: e ele que impede
+       alguem na sala de ler a conta de outro. */
+    if(tit){
+      /* O RECORTE SAI DA RESPOSTA, e nao do que a parede mandou: e o servidor
+         que sabe contra o que aquele numero foi somado. Mas o que a resposta
+         devolve e a chave NORMALIZADA ("RODA"), e normalizada e um texto que
+         ninguem escreveu -- entao ela volta pelo catalogo ao rotulo de
+         verdade ("RODAS"). Sem catalogo, mostra a chave: dizer o recorte
+         torto e melhor que nao dizer. */
+      const cat = dA.mercadorias || [];
+      const filtro = (dA.mercadorias_filtro || []).map(function(k){
+        const m = cat.find(function(x){ return x.chave === k; });
+        return m ? m.rotulo : k;
+      });
+      tit.textContent = 'OPERAÇÃO — '
+        + (dA.cliente_nome || dA.cliente_raiz || 'CLIENTE')
+        + (filtro.length ? '  ·  ' + filtro.join(', ') : '');
+    }
 
     /* HEROI: o total grande, e as etapas ao lado como chips. Cada chip leva o
        NUMERO junto da cor -- sem tooltip numa TV, cor sozinha nao diz nada. */
@@ -25544,12 +25553,29 @@ let CLIOP_RAIZ = '';
    por isso vive aqui, ao lado do cliente, e nao dentro de uma aba: a regra da
    casa e que todo KPI obedece a TODOS os filtros, e o servidor aplica este em
    Agora, Permanencia e Historico. */
-let CLIOP_MERC = '';
+let CLIOP_MERC = new Set();
+
+/* A ESCOLHA FICA LEMBRADA NO NAVEGADOR, na mesma chave que o painel de TV le.
+   E o que faz a parede refletir o filtro sem ter onde clicar: numa TV ninguem
+   opera, entao ela HERDA a escolha feita na Minha Operacao -- exatamente como
+   ja faz com o cliente. */
+function cliopMercGravar(){
+  try{ localStorage.setItem('cliop.merc', JSON.stringify([...CLIOP_MERC])); }catch(e){}
+}
+function cliopMercLer(){
+  try{
+    const v = JSON.parse(localStorage.getItem('cliop.merc') || '[]');
+    return new Set(Array.isArray(v) ? v : []);
+  }catch(e){ return new Set(); }
+}
 
 async function cliopBuscar(aba, extra){
   const p = new URLSearchParams(Object.assign({aba}, extra || {}));
   if(CLIOP_RAIZ) p.set('raiz', CLIOP_RAIZ);
-  if(CLIOP_MERC) p.set('merc', CLIOP_MERC);
+  /* UMA CHAVE POR MERCADORIA (`?merc=A&merc=B`), e nao uma string separada por
+     virgula: mercadoria com virgula no nome quebraria a separacao em silencio,
+     e o proprio cadastro do ERP e texto livre. */
+  CLIOP_MERC.forEach(function(m){ p.append('merc', m); });
   const r = await fetch('/api/portal/cliente?' + p.toString(), {cache:'no-store'});
   const resp = await respostaJSON(r);
   const dados = resp.dados;
@@ -25606,8 +25632,14 @@ function cliopTrocarCliente(){
      existe na Maxion, e o filtro que sobrevive a troca faria a tela nascer
      vazia com um seletor apontando para algo que aquela operacao nao tem --
      que se le como cliente sem carga, nao como filtro errado. */
-  CLIOP_MERC = '';
-  const sm = document.getElementById('fCliopMerc'); if(sm) sm.value = '';
+  CLIOP_MERC = new Set();
+  cliopMercGravar();
+  /* OS CHIPS REPINTAM AQUI, e nao so no proximo carregamento: sem cliente
+     escolhido (`CLIOP_RAIZ` vazio) nao ha `loadCliop`, e a barra ficaria
+     mostrando as mercadorias do cliente ANTERIOR sobre uma tela sem numero
+     nenhum. Barra que descreve um recorte que a tela nao tem e o mesmo
+     defeito do filtro que a consulta ignora, do lado de fora. */
+  cliopMercChips();
   if(CLIOP_RAIZ) loadCliop();
 }
 
@@ -25615,7 +25647,8 @@ function cliopTrocarCliente(){
    filtro, mas recarregar as tres faria duas idas ao ERP para telas que ninguem
    esta olhando. A aba que abrir depois busca com o filtro ja em `CLIOP_MERC`. */
 function cliopTrocarMerc(){
-  CLIOP_MERC = document.getElementById('fCliopMerc').value || '';
+  cliopMercGravar();
+  cliopMercChips();
   const aberta = document.querySelector('.subtabs[data-abas="cliop"] button[aria-selected="true"]');
   const qual = aberta ? aberta.getAttribute('data-aba') : 'agora';
   if(qual === 'perm') cliopPermanencia();
@@ -25623,25 +25656,136 @@ function cliopTrocarMerc(){
   else loadCliop();
 }
 
+/* OS CHIPS DIZEM O QUE ESTA ESCOLHIDO e o modal faz a escolha -- o mesmo par
+   que as telas de recebiveis usam, e pelo mesmo motivo: uma operacao tem
+   dezenas de tipos de carga, e uma barra com todos eles vira a barra ocupando
+   a tela. Nenhum chip = todas, que e o estado inicial e o mais comum.
+   Cada chip SAI no clique: tirar uma da lista e o ajuste mais frequente, e
+   obrigar a reabrir o modal para isso e atrito em cima do caminho curto. */
+function cliopMercChips(){
+  const el = document.getElementById('cliop-merc-chips'); if(!el) return;
+  const TETO = 4;                 // acima disso a barra quebra em duas linhas
+  const esco = [...CLIOP_MERC];
+  const sobra = Math.max(0, esco.length - TETO);
+  el.innerHTML = (esco.length
+    ? esco.slice(0, TETO).map(function(m){
+        return '<button class="chip active" data-m="' + esc(m) + '"'
+          + ' onclick="cliopMercTirar(this.dataset.m)"'
+          + ' title="' + esc(m) + ' — clique para tirar do filtro.">'
+          + esc(m) + '<span class="cv">\u00d7</span></button>';
+      }).join('')
+    : '<button class="chip" onclick="cliopMercModal()"'
+      + ' title="Nenhuma escolhida: a tela mostra todas as mercadorias.">'
+      + 'Todas as mercadorias</button>')
+    + (sobra
+        ? '<button class="chip active" onclick="cliopMercModal()" title="'
+          + sobra + ' mercadoria(s) a mais no filtro. Clique para ver a lista '
+          + 'inteira.">+' + sobra + '</button>'
+        : '')
+    + (esco.length
+        ? '<button class="chip" onclick="cliopMercModal()"'
+          + ' title="Escolher uma ou mais mercadorias, com busca.">+ Escolher\u2026</button>'
+        : '');
+}
+
+function cliopMercTirar(m){
+  if(!CLIOP_MERC.delete(m)) return;
+  cliopTrocarMerc();
+}
+
+/* O modal trabalha numa COPIA da escolha: mexer no conjunto direto faria
+   "Cancelar" deixar a selecao pela metade -- os chips ja teriam mudado e os
+   numeros nao, e a barra passaria a descrever um recorte que a tela nao tem. */
+let _cmSel = null;
+function cliopMercModal(){
+  _cmSel = new Set(CLIOP_MERC);
+  abrirModal(
+    '<h3>Escolher mercadorias</h3>'
+  + '<div class="hint" style="margin-bottom:9px">Os tipos de carga que esta '
+  + 'opera\u00e7\u00e3o movimentou nos \u00faltimos 12 meses, do maior volume '
+  + 'para o menor. Nenhuma marcada = todas.</div>'
+  + '<div class="pk-topo">'
+  + '<input type="search" id="cm-busca" placeholder="buscar mercadoria\u2026"'
+  + ' oninput="cliopMercPintar()" autocomplete="off">'
+  + '<button class="ghost" onclick="cliopMercVisiveis(true)">Marcar os vis\u00edveis</button>'
+  + '<button class="ghost" onclick="cliopMercVisiveis(false)">Desmarcar</button>'
+  + '<span class="pk-cont" id="cm-cont"></span>'
+  + '</div>'
+  + '<div class="pk-lista" id="cm-lista"></div>'
+  + '<div class="m-err" id="m-err"></div>'
+  + '<div class="m-foot"><button class="ghost" onclick="fecharModal()">Cancelar</button>'
+  + '<button class="btn" onclick="cliopMercAplicar()">Aplicar</button></div>');
+  const cx = document.getElementById('modalBox'); if(cx) cx.classList.add('larga');
+  cliopMercPintar();
+}
+
+function _cmFiltradas(){
+  const t = ((document.getElementById('cm-busca') || {}).value || '')
+    .trim().toLowerCase();
+  return t ? CLIOP_MERCS.filter(function(m){
+               return (m.rotulo || '').toLowerCase().includes(t); })
+           : CLIOP_MERCS;
+}
+
+function cliopMercPintar(){
+  const lista = document.getElementById('cm-lista'); if(!lista) return;
+  const vis = _cmFiltradas();
+  lista.innerHTML = vis.length
+    ? vis.map(function(m){
+        return '<label title="' + esc(m.rotulo) + ' \u00b7 ' + m.cargas
+          + ' carga(s) em 12 meses">'
+          + '<input type="checkbox" value="' + esc(m.rotulo) + '"'
+          + (_cmSel.has(m.rotulo) ? ' checked' : '')
+          + ' onchange="cliopMercMarcar(this)">'
+          + '<span class="pkn">' + esc(m.rotulo) + '</span>'
+          + '<span class="pkv">' + m.cargas.toLocaleString('pt-BR') + '</span></label>';
+      }).join('')
+    : '<div class="pk-vazio">Nenhuma mercadoria com esse nome.</div>';
+  _cmContar();
+}
+function _cmContar(){
+  const c = document.getElementById('cm-cont'); if(!c) return;
+  c.textContent = (_cmSel.size ? _cmSel.size + ' marcada(s)' : 'nenhuma marcada = todas')
+    + ' \u00b7 ' + _cmFiltradas().length + ' de ' + CLIOP_MERCS.length + ' na lista';
+}
+function cliopMercMarcar(el){
+  if(el.checked) _cmSel.add(el.value); else _cmSel.delete(el.value);
+  /* SO O CONTADOR: repintar a lista a cada clique perderia a posicao da
+     rolagem, e marcar cinco viraria procurar cinco vezes. */
+  _cmContar();
+}
+/* "Marcar os visiveis" opera sobre o RESULTADO DA BUSCA, nunca sobre a lista
+   inteira -- e o jeito de pegar "tudo que e ESPUMA" sem clicar um a um. */
+function cliopMercVisiveis(ligar){
+  _cmFiltradas().forEach(function(m){
+    if(ligar) _cmSel.add(m.rotulo); else _cmSel.delete(m.rotulo);
+  });
+  cliopMercPintar();
+}
+function cliopMercAplicar(){
+  const antes = [...CLIOP_MERC].sort().join('\u0001');
+  const depois = [...(_cmSel || [])].sort().join('\u0001');
+  fecharModal();
+  if(antes === depois) return;              // nada mudou: nao vai ao ERP
+  CLIOP_MERC = new Set(_cmSel);
+  cliopTrocarMerc();
+}
+
 /* A LISTA SAI DA OPERACAO DO CLIENTE, nao do contrato: o contrato tem quatro
    clausulas e a operacao tem doze tipos de carga, e e entre estes doze que
-   quem le quer escolher. Mercadoria que o servidor nao mandou some da lista --
-   e se a escolhida sumiu (trocou de cliente, mudou a janela), o filtro volta
-   para "Todas" em vez de ficar apontando para o nada. */
+   quem le quer escolher. Mercadoria que o servidor nao mandou some da escolha
+   -- trocar de cliente ou mudar a janela nao pode deixar o filtro apontando
+   para algo que aquela operacao nao tem, que se le como cliente sem carga. */
+let CLIOP_MERCS = [];
 function cliopMontarMerc(d){
-  const sel = document.getElementById('fCliopMerc');
-  if(!sel) return;
-  const lista = d.mercadorias || [];
-  if(!lista.length && !CLIOP_MERC){ sel.innerHTML = '<option value="">Todas</option>'; return; }
-  sel.innerHTML = '<option value="">Todas as mercadorias</option>'
-    + lista.map(function(m){
-        return '<option value="' + esc(m.rotulo) + '">' + esc(m.rotulo)
-             + ' (' + m.cargas.toLocaleString('pt-BR') + ')</option>';
-      }).join('');
-  if(CLIOP_MERC && !lista.some(function(m){ return m.rotulo === CLIOP_MERC; })){
-    CLIOP_MERC = '';
-  }
-  sel.value = CLIOP_MERC;
+  CLIOP_MERCS = d.mercadorias || [];
+  const validas = new Set(CLIOP_MERCS.map(function(m){ return m.rotulo; }));
+  let mudou = false;
+  [...CLIOP_MERC].forEach(function(m){
+    if(!validas.has(m)){ CLIOP_MERC.delete(m); mudou = true; }
+  });
+  if(mudou) cliopMercGravar();
+  cliopMercChips();
 }
 
 function cliopSemVinculo(msg){
@@ -25666,8 +25810,14 @@ function cliopTarja(d){
        + ' min atras</b> (o ERP nao respondeu agora)';
 }
 
+let _cliopMercLido = false;
 async function loadCliop(){
   const seq = ++CLIOP_SEQ;
+  /* A ESCOLHA VOLTA DO NAVEGADOR na primeira carga, e so nela: reler a cada
+     ciclo desfaria uma escolha feita agora se outra aba tivesse gravado outra.
+     Fica DENTRO da funcao, e nao no topo do arquivo, porque `const` de topo
+     que chama helper definido adiante ja derrubou o app inteiro nesta casa. */
+  if(!_cliopMercLido){ _cliopMercLido = true; CLIOP_MERC = cliopMercLer(); }
   skelKpis('kpis-cliop', 4);
   try{
     const d = await cliopBuscar('agora', {dias: 45});
@@ -25893,15 +26043,52 @@ async function cliopPermanencia(){
       const clausulas = (ft.linhas || []).slice().sort(function(x, y){
         return (y.ft_descarga_h || 0) - (x.ft_descarga_h || 0);
       });
+      /* O VALOR POR HORA E CONSTANTE DENTRO DE CADA CLIENTE nos 16 contratos
+         vigentes (medido em 11/09/2026) -- e coluna constante sai da tabela e
+         vira referencia no rodape, que e a regra da casa. Mas "constante hoje"
+         nao e "constante": se um dia duas clausulas do mesmo cliente cobrarem
+         precos diferentes, a coluna VOLTA sozinha, em vez de a tela escolher
+         um dos dois para o rodape e esconder o outro. */
+      const rhs = clausulas.map(function(l){ return l.rh_entrega; })
+        .filter(function(v){ return v != null; });
+      const rhVaria = rhs.some(function(v){ return v !== rhs[0]; });
+      const thRh = document.getElementById('cliop-ft-th-rh');
+      if(thRh) thRh.hidden = !rhVaria;
+
       tabFt.innerHTML = clausulas.length ? clausulas.map(function(l){
         const nome = l.mercadoria
           ? esc(l.mercadoria)
           : '<span style="color:var(--n500)">(clausula generica)</span>';
-        return '<tr><td>' + nome + '</td>'
+        /* AS DUAS FONTES DO ERP sobre "esta clausula e generica" -- a
+           observacao vazia e o `distingueoperacao`. Elas concordam em 24 de 24
+           linhas hoje; divergir e cadastro furado, e a tela DIZ em vez de
+           escolher em silencio qual das duas tem razao. */
+        const furado = (l.confere === false)
+          ? ' <span class="badge" style="background:var(--yellow-100);'
+            + 'color:var(--yellow-700)" title="O cadastro do ERP se contradiz: '
+            + 'o campo que marca clausula generica nao concorda com a '
+            + 'mercadoria escrita. Conferir no ERP.">cadastro a conferir</span>'
+          : '';
+        /* VIGENCIA: "desde" sempre, "ate" so quando existe. Clausula com data
+           de fim e a que vai acabar -- e ela precisa aparecer ANTES de acabar,
+           nao depois. Sem data de fim nao e "indefinido", e "sem termino
+           combinado", que e o normal destes contratos. */
+        const vig = esc(fmtD(l.vig_de || '') || '\u2014')
+          + (l.vig_ate
+             ? ' <b style="color:var(--yellow-700)">até ' + esc(fmtD(l.vig_ate)) + '</b>'
+             : '<span class="hint"> sem término combinado</span>');
+        const quem = l.mexido_por
+          ? esc(l.mexido_por) + '<div class="hint">' + esc(fmtD(l.mexido_em || '')) + '</div>'
+          : '<span style="color:var(--n500)">\u2014</span>';
+        return '<tr><td>' + nome + furado + '</td>'
           + '<td class="num">' + _cliopH(l.ft_carga_h) + '</td>'
-          + '<td class="num">' + _cliopH(l.ft_descarga_h) + '</td></tr>';
+          + '<td class="num">' + _cliopH(l.ft_descarga_h) + '</td>'
+          + (rhVaria ? '<td class="num">' + brl2(l.rh_entrega) + '</td>' : '')
+          + '<td>' + vig + '</td>'
+          + '<td class="num">' + (l.filial != null ? l.filial : '\u2014') + '</td>'
+          + '<td>' + quem + '</td></tr>';
       }).join('')
-        : '<tr><td colspan="3" style="color:var(--n500);padding:18px">'
+        : '<tr><td colspan="7" style="color:var(--n500);padding:18px">'
           + 'Sem freetime cadastrado para esta operacao.</td></tr>';
       /* O CONTADOR DA ABA diz quantas clausulas o contrato tem -- e o unico
          jeito de perceber que o contrato mudou sem abrir a aba.
@@ -25911,9 +26098,20 @@ async function cliopPermanencia(){
          sai do PAYLOAD, junto com a tabela, no mesmo quadro. */
       abaContador('abancliopFt', clausulas.length);
       const h = document.getElementById('cliop-ftlinhas-hint');
-      if(h) h.innerHTML = esc('periodo lido: '
-        + ((d.periodo || {}).de || '') + ' a ' + ((d.periodo || {}).ate || '')
-        + ' \u00b7 ' + (d.cargas_no_periodo || 0) + ' cargas') + cliopTarja(d);
+      if(h){
+        /* O PRECO VAI NO RODAPE quando e o mesmo para todas as clausulas, e
+           ele importa: e ele que multiplica a hora excedente. A tabela sem o
+           preco mostra a regua e esconde o que ela custa. */
+        /* `brl2`, com os CENTAVOS: a taxa da Maxion e R$ 102,04/h e o
+           formatador padrao da casa arredonda para R$ 102 -- some justamente
+           o centavo que multiplica milhares de horas. */
+        const preco = (!rhVaria && rhs.length)
+          ? ' \u00b7 hora excedente a ' + brl2(rhs[0]) : '';
+        h.innerHTML = esc('periodo lido: '
+          + ((d.periodo || {}).de || '') + ' a ' + ((d.periodo || {}).ate || '')
+          + ' \u00b7 ' + (d.cargas_no_periodo || 0) + ' cargas')
+          + esc(preco) + cliopTarja(d);
+      }
     }
     document.getElementById('cliop-perm-hint').innerHTML =
       esc((d.cargas_no_periodo || 0) + ' cargas no periodo') + cliopTarja(d);

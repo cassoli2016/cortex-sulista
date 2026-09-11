@@ -163,7 +163,7 @@ def test_o_parametro_raiz_NAO_vence_o_vinculo_na_rota(monkeypatch):
     """
     vistos = []
 
-    def _agora(raiz, dias=45, merc=None):
+    def _agora(raiz, dias=45, mercs=()):
         vistos.append(raiz)
         return {"cargas": [], "em_curso": 0, "concluidas_na_janela": 0,
                 "janela_dias": dias, "fonte": "dublê"}
@@ -183,7 +183,7 @@ def test_a_resposta_diz_de_QUEM_e_o_numero(monkeypatch):
     errada e age em cima — e numa TV ninguém vai conferir o filtro."""
     import json
 
-    monkeypatch.setattr(pc, "get_agora", lambda raiz, dias=45, merc=None: {
+    monkeypatch.setattr(pc, "get_agora", lambda raiz, dias=45, mercs=(): {
         "cargas": [], "em_curso": 0, "concluidas_na_janela": 0,
         "janela_dias": dias, "fonte": "dublê"})
     monkeypatch.setattr(pc, "nome_do_cliente", lambda r: "CLIENTE DUBLÊ S.A.")
@@ -197,7 +197,7 @@ def test_a_resposta_diz_de_QUEM_e_o_numero(monkeypatch):
 def test_a_janela_pedida_e_limitada(monkeypatch):
     """Parâmetro que vem do navegador não escolhe o tamanho da varredura."""
     vistos = []
-    monkeypatch.setattr(pc, "get_agora", lambda raiz, dias=45, merc=None: (
+    monkeypatch.setattr(pc, "get_agora", lambda raiz, dias=45, mercs=(): (
         vistos.append(dias) or {"cargas": [], "em_curso": 0,
                                 "concluidas_na_janela": 0, "janela_dias": dias,
                                 "fonte": "dublê"}))
@@ -208,7 +208,7 @@ def test_a_janela_pedida_e_limitada(monkeypatch):
 
 
 def test_aba_desconhecida_cai_no_padrao_e_nao_estoura(monkeypatch):
-    monkeypatch.setattr(pc, "get_agora", lambda raiz, dias=45, merc=None: {
+    monkeypatch.setattr(pc, "get_agora", lambda raiz, dias=45, mercs=(): {
         "cargas": [], "em_curso": 0, "concluidas_na_janela": 0,
         "janela_dias": dias, "fonte": "dublê"})
     resp = main.portal_cliente_dados(_req({"cliente_cnpj_raiz": RAIZ}),
@@ -475,19 +475,31 @@ def test_posicao_velha_NAO_some_do_mapa():
         "a cor deixou de ser decidida pela idade da posicao")
 
 
-def test_a_cobertura_do_mapa_vai_na_tela_SEM_nomear_fornecedor():
-    """A cobertura e a idade ficam; o nome de quem nos vende rastreamento sai.
+def test_o_mapa_da_parede_NAO_nomeia_o_fornecedor_de_rastreamento():
+    """"erp" e "gobrax" são fornecedor NOSSO.
 
-    "33 de 33 veículos" impede olhar os pontos e concluir que aquilo é a
-    operação inteira, e a idade impede tomar posição de ontem por posição de
-    agora — as duas coisas interessam a quem lê a parede. Já "erp" e "gobrax"
-    são fornecedor NOSSO: num painel que o cliente lê, não dizem nada a ele e
-    expõem a nossa cadeia. A procedência por fornecedor continua no payload,
-    para a Saúde e o diagnóstico interno.
+    Num painel que o CLIENTE lê eles não dizem nada a ele e expõem a nossa
+    cadeia de fornecimento. A procedência por fornecedor continua no payload,
+    para a Saúde e o diagnóstico interno — o que sai é a exibição, não o dado.
+
+    ESTE GUARD JÁ COBROU TAMBÉM A COBERTURA ("33 de 33 veículos · 15 com
+    posição de até 120 min"), que saiu da parede em 11/09/2026 a pedido de
+    quem é dono dela. A remoção tem guard próprio, e ele fica em
+    `tests/frontend/test_tvcli_figuras.py`, ao lado do resto do `tvcli` —
+    porque ESTE arquivo, que fala de rota e de registro, foi onde eu NÃO
+    procurei quando tirei a tarja, e ele quebrou depois de a entrega estar
+    pronta. Guard não mora necessariamente ao lado do código que guarda; quem
+    muda uma regra procura pelo ASSUNTO (`grep -rl`), não pela pasta.
     """
     corpo = INDEX.split("async function tvCliMapa")[1].split("\n}")[0]
-    assert "veículos" in corpo and "fresca_ate_min" in corpo
-    assert "r.fontes" not in corpo
+    assert "r.fontes" not in corpo, (
+        "a parede voltou a nomear o fornecedor de rastreamento")
+    assert "gobrax" not in corpo.lower()
+    # e o mapa continua sendo desenhado: o guard não pode passar por o bloco
+    # inteiro ter sumido
+    assert "tvCliMarcas" in corpo or "tvCliLayer" in corpo, (
+        "a varredura não achou o corpo da função — ela aprovaria qualquer "
+        "coisa por vacuidade")
 
 
 # O medidor e a rosca sao cobrados por COMPORTAMENTO em

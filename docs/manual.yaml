@@ -176,20 +176,23 @@ glossario:
     é processo nosso. Ela entra na tela no instante do primeiro apontamento.
 
     Traz um MAPA com os veículos que estão levando as cargas em curso — só os
-    do cliente, nunca a frota — agrupados por pátio, porque numa operação de
-    planta a planta eles param no mesmo ponto e as etiquetas se empilhariam.
-    Veículo com posição velha não some do mapa: aparece em cinza, porque
-    sumir com ele é pior que mostrá-lo com a idade à mostra. O rodapé do mapa
-    diz quantos veículos têm posição, quantos são recentes e de qual fonte
-    (o CÓRTEX junta o rastreamento do ERP e a Gobrax, e vence a leitura mais
-    nova).
+    do cliente, nunca a frota. Eles NÃO são agrupados: o mapa PASSEIA pelas
+    regiões, parando em cada uma por alguns segundos, e é a escala que separa
+    as etiquetas em vez do agrupamento. Numa parede isso é de graça — ela tem
+    tempo, que é o recurso que um mapa interativo não tem — e responde a
+    pergunta que o agrupamento não respondia: qual caminhão está onde.
+    Veículo com posição velha não some do mapa: aparece em cinza, porque sumir
+    com ele é pior que mostrá-lo com a idade à mostra. O mapa não leva tarja
+    por cima: a leitura de uma parede acontece de longe e de passagem, e as
+    cargas que ele mostra são as mesmas que os cartões ao lado contam.
 
-    Traz também um MEDIDOR da aderência ao freetime e uma ROSCA das cargas por
-    etapa. O medidor mostra DOIS arcos: o cheio é o que está dentro sob
-    qualquer contrato, e o âmbar por cima é até onde o número poderia ir se
-    toda a faixa do meio fosse mercadoria de maior tolerância. Um arco só
-    mostraria 39% em vermelho escondendo que o teto é 70% — e numa parede
-    ninguém lê a ressalva no rodapé.
+    Traz também CHEGAM HOJE (o que encosta na doca do cliente hoje) e a
+    REPARTIÇÃO das cargas por etapa em barra empilhada — empilhada e não
+    rosca, que é a forma que a casa manda usar quando uma categoria domina:
+    fatia de 3% num anel não se lê, e a operação passa meses com quase tudo em
+    viagem. O medidor de freetime que existia aqui saiu em 07/09/2026:
+    freetime é métrica de COBRANÇA, e este é um mural que o CLIENTE lê. Ela
+    continua nas telas SAC / Freetime e Minha Operação, que são de análise.
 - termo: Cargas em curso (o que fecha uma viagem)
   definicao: >-
     Uma carga sai da lista de "em curso" quando o MANIFESTO ELETRÔNICO dela é
@@ -263,8 +266,16 @@ glossario:
     porque o contrato diz 3h para rodas" e "3h porque não há cláusula para esta
     mercadoria" são o mesmo número e afirmações diferentes, e só a segunda é
     a que alguém precisa levar ao comercial. A sub-aba Freetime contratado
-    mostra as cláusulas ativas com as horas de cada uma — é a régua que
-    produziu os números da Permanência.
+    mostra as cláusulas VIGENTES com as horas de cada uma — é a régua que
+    produziu os números da Permanência — e, ao lado delas, o que permite
+    conferir o contrato em vez de só lê-lo: desde quando a cláusula vale (e
+    até quando, quando há prazo combinado), quanto custa a hora excedente, de
+    qual filial é o cadastro e quem mexeu por último. VIGENTES e não "ativas":
+    o campo "ativo" do ERP é gravado à mão e a vigência combinada vira
+    sozinha, e há cláusula encerrada em 2024 ainda marcada como ativa. Quando
+    as duas fontes do ERP sobre a cláusula ser genérica se contradizem, a
+    linha leva a marca "cadastro a conferir" em vez de a tela escolher uma
+    delas em silêncio.
 - termo: Filtro de tipo de mercadoria
   definicao: >-
     O seletor da barra de filtros da Minha Operação, que vale para a TELA
@@ -275,7 +286,11 @@ glossario:
     chassi. A lista sai da operação do próprio cliente (os tipos que ele de
     fato movimenta nos últimos 12 meses, com o volume de cada um), não do
     contrato, e grafias diferentes da mesma mercadoria ("peças" e "pecas")
-    aparecem como uma opção só.
+    aparecem como uma opção só. Dá para escolher MAIS DE UMA: os chips na
+    barra dizem o que está escolhido e saem no clique, e o seletor tem busca e
+    "marcar os visíveis". Nenhuma marcada = todas. O PAINEL DE TV do cliente
+    reflete a mesma escolha — numa TV ninguém clica, então ela herda o filtro
+    da Minha Operação e diz o recorte no título, ao lado do nome do cliente.
 - termo: Por que o portal não mostra entrega no prazo
   definicao: >-
     Porque o ERP não tem prazo de entrega confiável. Medido em 05/09/2026 sobre

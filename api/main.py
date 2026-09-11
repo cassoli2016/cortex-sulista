@@ -23,7 +23,7 @@ from api import (manutencao_compras, segredo_arquivo, suprimentos_oc,
                  suprimentos_pecas)
 
 import psycopg
-from fastapi import BackgroundTasks, FastAPI, Request, Response
+from fastapi import BackgroundTasks, FastAPI, Query, Request, Response
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.responses import JSONResponse as _JSONResponseBase
@@ -6209,7 +6209,7 @@ def portal_cliente_dados(request: Request, aba: str = "agora",
                          dt_de: str | None = None, dt_ate: str | None = None,
                          dias: int = 45, meses: int = 12,
                          raiz: str | None = None,
-                         merc: str | None = None) -> JSONResponse:
+                         merc: list[str] | None = Query(None)) -> JSONResponse:
     """Minha Operação, para os dois leitores da tela.
 
     `raiz` existe para GENTE DA CASA escolher de quem quer ver, e é ignorado
@@ -6239,6 +6239,19 @@ def portal_cliente_dados(request: Request, aba: str = "agora",
         # esconde o seletor, e quem está vendo precisa saber de quem é o
         # número na frente dele. Painel de cliente sem dizer qual cliente é
         # exatamente o jeito de alguém da casa ler a conta errada e agir.
+        # A ESCOLHA VIRA FORMA CANÔNICA NA PORTA, e não lá dentro: é o
+        # que faz ?merc=A&merc=B e ?merc=B&merc=A serem a mesma pergunta
+        # para o cache, em vez de duas idas ao ERP com o mesmo resultado.
+        # `Query(None)` É UM OBJETO, e não `None`, quando esta função é
+        # chamada DIRETO — fora do FastAPI ninguém resolve o default. Sem esta
+        # linha, todo chamador que não passe pela rede recebe um
+        # `fastapi.params.Query` onde espera uma lista, e `canonizar` estoura
+        # tentando iterá-lo. O `Query(...)` é obrigatório aqui: sem ele o
+        # FastAPI leria `list[str]` como parâmetro de CORPO e o filtro sumiria
+        # da query string inteiro.
+        if not isinstance(merc, (list, tuple, str)):
+            merc = None
+        mercs = portal_cliente._ft.canonizar(merc)
         selo = {"travado": travado, "cliente_raiz": alvo,
                 "cliente_nome": portal_cliente.nome_do_cliente(alvo)}
         if aba == "permanencia":
@@ -6246,12 +6259,12 @@ def portal_cliente_dados(request: Request, aba: str = "agora",
             dt_ate = dt_ate or hoje.isoformat()
             dt_de = dt_de or hoje.replace(day=1).isoformat()
             return JSONResponse({**portal_cliente.get_permanencia(
-                alvo, dt_de, dt_ate, merc), **selo})
+                alvo, dt_de, dt_ate, mercs), **selo})
         if aba == "historico":
             return JSONResponse({**portal_cliente.get_historico(
-                alvo, max(1, min(24, meses)), merc), **selo})
+                alvo, max(1, min(24, meses)), mercs), **selo})
         return JSONResponse({**portal_cliente.get_agora(
-            alvo, max(1, min(180, dias)), merc), **selo})
+            alvo, max(1, min(180, dias)), mercs), **selo})
     except psycopg.OperationalError as exc:
         log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={

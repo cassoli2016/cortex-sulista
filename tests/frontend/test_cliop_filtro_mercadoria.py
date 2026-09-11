@@ -50,6 +50,23 @@ AGORA = {
     "fonte": "Sistema de gestão · leitura",
 }
 
+def _cl(merc, carga, desc, **kw):
+    """Uma cláusula do contrato, na FORMA real de `FREETIME_SQL_TODAS`.
+
+    Os valores são os da IOCHPE MAXION lidos do ERP em 11/09/2026: R$ 102,04
+    a hora excedente, vigência desde 01/08/2024 sem término combinado, filial
+    20, alterada pela mesma pessoa em 25/09/2025. Dublê que representa formato
+    EXTERNO é literal copiado do real, nunca derivado do código que vai lê-lo.
+    """
+    base = {"mercadoria": merc, "ft_carga_h": carga, "ft_descarga_h": desc,
+            "rh_coleta": 102.04, "rh_entrega": 102.04,
+            "vig_de": "2024-08-01", "vig_ate": None, "filial": 20,
+            "distingue": 1 if merc else 2, "mexido_em": "2025-09-25",
+            "mexido_por": "PRISCILLA APARECIDA DINIZ", "confere": True}
+    base.update(kw)
+    return base
+
+
 # O payload da permanência com a FORMA nova: cada etapa traz `origens`, e a
 # resposta é binária para quem tem cláusula. Copiado da forma real de
 # 10/09/2026 (IOCHPE MAXION, 90 dias).
@@ -67,10 +84,8 @@ PERM = {
         "carga_piso": 3.0, "carga_teto": 3.0,
         "descarga_piso": 3.0, "descarga_teto": 6.5,
         "linhas": [
-            {"mercadoria": "", "ft_carga_h": 3.0, "ft_descarga_h": 3.0},
-            {"mercadoria": "CONJUNTOS", "ft_carga_h": 3.0, "ft_descarga_h": 6.5},
-            {"mercadoria": "ESCADAS", "ft_carga_h": 3.0, "ft_descarga_h": 6.5},
-            {"mercadoria": "RODAS", "ft_carga_h": 3.0, "ft_descarga_h": 6.5},
+            _cl("", 3.0, 3.0), _cl("CONJUNTOS", 3.0, 6.5),
+            _cl("ESCADAS", 3.0, 6.5), _cl("RODAS", 3.0, 6.5),
         ]},
     "mercadoria": "", "cargas_no_periodo": 1413,
     "periodo": {"de": "2026-06-12", "ate": "2026-09-10"},
@@ -104,6 +119,48 @@ def _abrir(pg, base_url):
     return pedidos, erros
 
 
+def _abrir_com(pg, base_url, perm):
+    """Abre a parede com um payload de permanência SOB MEDIDA.
+
+    Os casos de contrato (preço que varia, cláusula com prazo, cadastro
+    contraditório) não existem na amostra padrão — e é justamente deles que a
+    tela precisa dar conta sem ninguém ter visto acontecer.
+    """
+    def rota(route):
+        u = route.request.url
+        if "/api/auth/me" in u:
+            corpo = CASA
+        elif "/api/portal/cliente" in u:
+            corpo = perm if "aba=permanencia" in u else AGORA
+        else:
+            corpo = {}
+        route.fulfill(status=200, content_type="application/json",
+                      body=json.dumps(corpo))
+
+    pg.route("**/api/**", rota)
+    pg.goto(base_url + "/static/index.html#cliop")
+    pg.wait_for_selector("#cliop-agora tr", state="attached", timeout=20000)
+
+
+def _escolher(pg, mercs):
+    """Abre o seletor, marca as mercadorias e aplica — como quem opera faz.
+
+    Pelo MODAL, e não mexendo em `CLIOP_MERC` por `evaluate`: o que precisa
+    funcionar é o caminho da pessoa. Um teste que escreve direto na variável
+    passaria com o modal quebrado.
+    """
+    pg.click("#cliop-merc-chips .chip:last-child")
+    pg.wait_for_selector("#cm-lista label", state="visible", timeout=20000)
+    for m in mercs:
+        pg.check("#cm-lista input[value=\"%s\"]" % m)
+    pg.click("button.btn:has-text('Aplicar')")
+    # `hidden`, e não `detached`: o modal da casa ESCONDE em vez de remover, e
+    # esperar por "sumiu do DOM" fica esperando para sempre num modal que
+    # fechou direito.
+    pg.wait_for_selector("#cm-lista", state="hidden", timeout=20000)
+    pg.wait_for_timeout(300)
+
+
 def _merc_da_url(url: str) -> str:
     q = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
     return (q.get("merc") or [""])[0]
@@ -124,10 +181,13 @@ def test_o_seletor_nasce_com_as_mercadorias_da_OPERACAO(pagina):
     """
     pg, base = pagina
     _abrir(pg, base)
-    txt = pg.inner_text("#fCliopMerc")
+    # nada escolhido: a barra diz "todas", que é o estado inicial e o mais comum
+    assert "Todas as mercadorias" in pg.inner_text("#cliop-merc-chips")
+    pg.click("#cliop-merc-chips .chip")
+    pg.wait_for_selector("#cm-lista label", state="visible", timeout=20000)
+    txt = pg.inner_text("#cm-lista")
     assert "CHASSI" in txt and "RODAS" in txt
     assert "1.551" in txt, "o volume de cada mercadoria sumiu da lista"
-    assert "Todas" in txt, "não dá para voltar a ver a operação inteira"
 
 
 def test_o_seletor_FICA_para_quem_e_do_cliente(pagina):
@@ -140,7 +200,7 @@ def test_o_seletor_FICA_para_quem_e_do_cliente(pagina):
     """
     pg, base = pagina
     _abrir(pg, base)
-    assert pg.is_visible("#fCliopMerc"), "o filtro sumiu para o cliente"
+    assert pg.is_visible("#cliop-merc-chips"), "o filtro sumiu para o cliente"
     assert not pg.is_visible("#fCliopCliente"), (
         "o seletor de CLIENTE apareceu para quem tem vínculo — isso é escopo")
 
@@ -155,7 +215,7 @@ def test_escolher_a_mercadoria_CHEGA_ao_servidor(pagina):
     pg, base = pagina
     pedidos, _ = _abrir(pg, base)
     antes = len(pedidos)
-    pg.select_option("#fCliopMerc", "RODAS")
+    _escolher(pg, ["RODAS"])
     pg.wait_for_function("document.querySelectorAll('#cliop-agora tr').length > 0",
                          timeout=20000)
     pg.wait_for_timeout(300)
@@ -171,7 +231,7 @@ def test_o_filtro_acompanha_a_troca_de_ABA(pagina):
     """
     pg, base = pagina
     pedidos, _ = _abrir(pg, base)
-    pg.select_option("#fCliopMerc", "RODAS")
+    _escolher(pg, ["RODAS"])
     pg.wait_for_timeout(300)
     pg.click("#tabcliop-perm")
     pg.wait_for_selector("#cliop-perm-tab tr", state="attached", timeout=20000)
@@ -189,11 +249,11 @@ def test_trocar_de_CLIENTE_zera_a_mercadoria(pagina):
     """
     pg, base = pagina
     _abrir(pg, base)
-    pg.select_option("#fCliopMerc", "RODAS")
+    _escolher(pg, ["RODAS"])
     pg.wait_for_timeout(200)
     pg.evaluate("CLIOP_RAIZ = ''; cliopTrocarCliente()")
-    assert pg.eval_on_selector("#fCliopMerc", "e => e.value") == ""
-    assert pg.evaluate("CLIOP_MERC") == ""
+    assert "Todas as mercadorias" in pg.inner_text("#cliop-merc-chips")
+    assert pg.evaluate("CLIOP_MERC.size") == 0
 
 
 def test_a_permanencia_diz_QUAL_clausula_respondeu(pagina):
@@ -285,3 +345,204 @@ def test_a_sub_aba_do_contrato_carrega_SOZINHA(pagina):
     pg.click("#tabcliop-ft")
     pg.wait_for_selector("#cliop-ft-linhas tr", state="visible", timeout=20000)
     assert "RODAS" in pg.inner_text("#cliop-ft-linhas")
+
+
+# ════════════ o detalhe que permite VALIDAR a cláusula (11/09/2026) ═════════
+#
+# Quem opera pediu: "precisamos de mais detalhes para validar". Ler "RODAS
+# 6,5h" não valida nada — valida quem vê desde quando vale, quanto custa a
+# hora excedente, de qual filial é o cadastro e quem mexeu por último.
+
+def test_a_clausula_diz_DESDE_QUANDO_vale(pagina):
+    """Toda conferência de contrato começa por "desde quando".
+
+    E "sem data de fim" não é "indefinido": é "sem término combinado", que é o
+    normal destes contratos — dizer "indefinido" sugeriria um buraco no
+    cadastro onde não há.
+    """
+    pg, base = pagina
+    _abrir(pg, base)
+    pg.click("#tabcliop-ft")
+    pg.wait_for_selector("#cliop-ft-linhas tr", state="visible", timeout=20000)
+    txt = pg.inner_text("#cliop-ft-linhas")
+    assert "01/08/2024" in txt, "a vigência não apareceu: %s" % txt
+    assert "sem término combinado" in txt.lower(), txt
+
+
+def test_a_clausula_QUE_VAI_ACABAR_aparece_antes_de_acabar(pagina):
+    """Cláusula com data de fim precisa aparecer ANTES de vencer, não depois.
+
+    É o defeito que a VOLVO tem no ERP hoje, do outro lado: uma cláusula que
+    acabou em 31/08/2024 e continua marcada como ativa. A tela deixou de
+    aplicá-la; aqui ela garante que uma cláusula COM prazo é visível enquanto
+    ainda vale, para alguém renovar a tempo.
+    """
+    pg, base = pagina
+    com_fim = {**PERM, "freetime": {**PERM["freetime"], "linhas": [
+        _cl("RODAS", 3.0, 6.5, vig_ate="2026-12-31")]}}
+    _abrir_com(pg, base, com_fim)
+    pg.click("#tabcliop-ft")
+    pg.wait_for_selector("#cliop-ft-linhas tr", state="visible", timeout=20000)
+    assert "31/12/2026" in pg.inner_text("#cliop-ft-linhas")
+
+
+def test_o_PRECO_da_hora_excedente_aparece(pagina):
+    """A tabela sem o preço mostra a régua e esconde o que ela cobra.
+
+    E com os CENTAVOS: a taxa da Maxion é R$ 102,04/h, e o formatador padrão
+    da casa arredonda para R$ 102 — some justamente o centavo que multiplica
+    milhares de horas.
+    """
+    pg, base = pagina
+    _abrir(pg, base)
+    pg.click("#tabcliop-ft")
+    pg.wait_for_selector("#cliop-ft-linhas tr", state="visible", timeout=20000)
+    rod = pg.inner_text("#cliop-ftlinhas-hint")
+    assert "102,04" in rod, "o preço sumiu ou perdeu os centavos: %s" % rod
+
+
+def test_o_PRECO_vira_COLUNA_quando_varia_entre_as_clausulas(pagina):
+    """Coluna constante sai da tabela e vira referência no rodapé — regra da
+    casa. Mas "constante hoje" não é "constante": nos 16 contratos vigentes o
+    preço é único por cliente, e no dia em que duas cláusulas cobrarem
+    diferente a coluna tem de VOLTAR, em vez de a tela escolher uma das duas
+    para o rodapé e esconder a outra.
+    """
+    pg, base = pagina
+    varia = {**PERM, "freetime": {**PERM["freetime"], "linhas": [
+        _cl("RODAS", 3.0, 6.5, rh_entrega=102.04),
+        _cl("ESCADAS", 3.0, 6.5, rh_entrega=150.00)]}}
+    _abrir_com(pg, base, varia)
+    pg.click("#tabcliop-ft")
+    pg.wait_for_selector("#cliop-ft-linhas tr", state="visible", timeout=20000)
+    assert pg.is_visible("#cliop-ft-th-rh"), (
+        "os preços divergem e a coluna não apareceu — o rodapé mostraria um só")
+    txt = pg.inner_text("#cliop-ft-linhas")
+    assert "102,04" in txt and "150,00" in txt, txt
+    assert "hora excedente a" not in pg.inner_text("#cliop-ftlinhas-hint"), (
+        "o rodapé afirmou um preço único com dois preços na tabela")
+
+
+def test_o_cadastro_QUE_SE_CONTRADIZ_leva_marca(pagina):
+    """O ERP tem DUAS fontes para "esta cláusula é genérica" — a observação
+    vazia e o `distingueoperacao`. Elas concordam em 24 de 24 linhas hoje.
+
+    Divergir é cadastro furado, e a tela DIZ em vez de escolher em silêncio
+    qual das duas tem razão: escolher calado é como um total inflado por join
+    passa meses sem ninguém notar.
+    """
+    pg, base = pagina
+    furado = {**PERM, "freetime": {**PERM["freetime"], "linhas": [
+        _cl("RODAS", 3.0, 6.5, distingue=2, confere=False)]}}
+    _abrir_com(pg, base, furado)
+    pg.click("#tabcliop-ft")
+    pg.wait_for_selector("#cliop-ft-linhas tr", state="visible", timeout=20000)
+    assert "conferir" in pg.inner_text("#cliop-ft-linhas").lower(), (
+        "o cadastro contraditório passou sem marca")
+
+
+def test_a_clausula_diz_QUEM_mexeu_por_ultimo(pagina):
+    """É com quem se fala quando o número surpreende."""
+    pg, base = pagina
+    _abrir(pg, base)
+    pg.click("#tabcliop-ft")
+    pg.wait_for_selector("#cliop-ft-linhas tr", state="visible", timeout=20000)
+    txt = pg.inner_text("#cliop-ft-linhas")
+    assert "PRISCILLA" in txt.upper(), txt
+    assert "25/09/2025" in txt, txt
+
+
+# ═══════════ escolher VÁRIAS mercadorias, e a parede herdar (11/09/2026) ════
+
+def test_da_para_escolher_MAIS_DE_UMA(pagina):
+    """O pedido de quem opera: "preciso conseguir selecionar mais de uma".
+
+    Duas cargas diferentes com perguntas parecidas — "como está a minha
+    espuma e a minha embalagem de espuma" — eram duas leituras separadas, e
+    nenhuma delas era a soma.
+    """
+    pg, base = pagina
+    pedidos, _ = _abrir(pg, base)
+    _escolher(pg, ["RODAS", "CHASSI"])
+    from urllib.parse import urlparse, parse_qs
+    q = parse_qs(urlparse(pedidos[-1]).query)
+    assert sorted(q.get("merc", [])) == ["CHASSI", "RODAS"], pedidos[-1]
+
+
+def test_cada_mercadoria_vira_uma_CHAVE_e_nao_uma_lista_com_virgula(pagina):
+    """`?merc=A&merc=B`, e não `?merc=A,B`.
+
+    O cadastro de mercadoria do ERP é texto livre: uma vírgula no nome
+    quebraria a separação em silêncio, e o filtro passaria a pedir duas
+    mercadorias que não existem.
+    """
+    pg, base = pagina
+    pedidos, _ = _abrir(pg, base)
+    _escolher(pg, ["RODAS", "CHASSI"])
+    assert "merc=RODAS&merc=CHASSI" in pedidos[-1] \
+        or "merc=CHASSI&merc=RODAS" in pedidos[-1], pedidos[-1]
+    assert "%2C" not in pedidos[-1], "as mercadorias foram juntadas por vírgula"
+
+
+def test_o_chip_TIRA_a_mercadoria_do_filtro(pagina):
+    """Tirar uma da lista é o ajuste mais frequente — obrigar a reabrir o
+    modal para isso é atrito em cima do caminho curto."""
+    pg, base = pagina
+    pedidos, _ = _abrir(pg, base)
+    _escolher(pg, ["RODAS", "CHASSI"])
+    pg.click("#cliop-merc-chips .chip.active")
+    pg.wait_for_timeout(400)
+    from urllib.parse import urlparse, parse_qs
+    q = parse_qs(urlparse(pedidos[-1]).query)
+    assert len(q.get("merc", [])) == 1, pedidos[-1]
+
+
+def test_CANCELAR_o_modal_nao_mexe_no_filtro(pagina):
+    """O modal trabalha numa CÓPIA.
+
+    Mexendo no conjunto direto, "Cancelar" deixaria a escolha pela metade: os
+    chips já teriam mudado e os números não, e a barra passaria a descrever um
+    recorte que a tela não tem.
+    """
+    pg, base = pagina
+    _abrir(pg, base)
+    pg.click("#cliop-merc-chips .chip")
+    pg.wait_for_selector("#cm-lista label", state="visible", timeout=20000)
+    pg.check("#cm-lista input[value=\"RODAS\"]")
+    pg.click("button.ghost:has-text('Cancelar')")
+    pg.wait_for_timeout(300)
+    assert pg.evaluate("CLIOP_MERC.size") == 0, "Cancelar aplicou a escolha"
+    assert "Todas as mercadorias" in pg.inner_text("#cliop-merc-chips")
+
+
+def test_a_escolha_SOBREVIVE_ao_recarregar(pagina):
+    """Ela fica lembrada no navegador — e é essa mesma memória que a parede lê.
+
+    Sem isso, quem prepara o mural escolheria as mercadorias e perderia a
+    escolha no primeiro F5.
+    """
+    pg, base = pagina
+    _abrir(pg, base)
+    _escolher(pg, ["RODAS"])
+    pg.reload()
+    pg.wait_for_selector("#cliop-agora tr", state="attached", timeout=20000)
+    pg.wait_for_timeout(400)
+    assert pg.evaluate("[...CLIOP_MERC]") == ["RODAS"]
+    assert "RODAS" in pg.inner_text("#cliop-merc-chips")
+
+
+def test_a_mercadoria_que_o_cliente_NAO_TEM_sai_da_escolha(pagina):
+    """"ASSENTOS" é da LEAR e não existe na Maxion.
+
+    Uma escolha que sobrevivesse à troca faria a tela nascer vazia com o filtro
+    apontando para algo que aquela operação não tem — e tela vazia se lê como
+    cliente sem carga, não como filtro errado.
+    """
+    pg, base = pagina
+    _abrir(pg, base)
+    pg.evaluate("CLIOP_MERC = new Set(['ASSENTOS']); cliopMercGravar();")
+    pg.reload()
+    pg.wait_for_selector("#cliop-agora tr", state="attached", timeout=20000)
+    pg.wait_for_timeout(400)
+    assert pg.evaluate("CLIOP_MERC.size") == 0, (
+        "o filtro ficou apontando para mercadoria que este cliente não tem")

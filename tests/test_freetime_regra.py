@@ -289,3 +289,187 @@ def test_NENHUM_texto_da_casa_afirma_que_a_mercadoria_e_ignorada():
     assert all(a.exists() and a.stat().st_size > 0 for a in alvos), (
         "a lista de arquivos varridos aponta para arquivo que nao existe — "
         "varredura que nao le nada aprova tudo")
+
+
+# ────────────────────────────────────── a vigência, que não é `ativoinativo`
+
+def test_clausula_VENCIDA_nao_vale_mesmo_marcada_como_ativa():
+    """O defeito que estava armado, com nome e sobrenome.
+
+    A VOLVO tem uma cláusula genérica de 1h com `dtfim = 31/08/2024` e
+    `ativoinativo = 1` até hoje (medido em 11/09/2026). Ninguém a inativou —
+    ela simplesmente acabou. Filtrar só por `ativoinativo` aplica contrato
+    encerrado, que é a regra da casa ao contrário: estado que envelhece
+    sozinho não se grava, se calcula.
+
+    Hoje isso não move um centavo: a VOLVO teve UMA coleta em 180 dias e a
+    cláusula vencida é de outra filial. É exatamente por isso que precisa de
+    guard — o defeito está armado, e o dia em que disparar é o dia em que
+    alguém encerrar a cláusula de um cliente com volume.
+    """
+    import datetime
+    hoje = datetime.date(2026, 9, 11)
+    volvo_vencida = {"ativoinativo": 1, "dtinicio": datetime.date(2024, 8, 1),
+                     "dtfim": datetime.date(2024, 8, 31)}
+    volvo_viva = {"ativoinativo": 1, "dtinicio": datetime.date(2024, 9, 1),
+                  "dtfim": None}
+    assert ft.vigente(volvo_vencida, hoje) is False, (
+        "cláusula encerrada em 31/08/2024 continua valendo")
+    assert ft.vigente(volvo_viva, hoje) is True
+
+
+def test_clausula_AINDA_NAO_VIGENTE_tambem_nao_vale():
+    """O outro lado da mesma régua, e ele é mais insidioso: contrato
+    combinado para o mês que vem, cadastrado hoje, passaria a reger a
+    permanência de ontem."""
+    import datetime
+    hoje = datetime.date(2026, 9, 11)
+    assert ft.vigente({"ativoinativo": 1, "dtinicio": datetime.date(2027, 1, 1),
+                       "dtfim": None}, hoje) is False
+
+
+def test_a_vigencia_chega_ao_SQL_das_TRES_consultas():
+    """A regra em Python não serve de nada se a consulta continuar trazendo a
+    linha vencida — e são três consultas lendo a mesma tabela."""
+    from api import portal_cliente, queries as q
+
+    for nome, sql in (("SAC_FT_REP", q.SAC_FT_REP),
+                      ("SAC_FT_MERC", q.SAC_FT_MERC),
+                      ("SAC_FT_SQL", q.SAC_FT_SQL),
+                      ("FREETIME_SQL_TODAS", portal_cliente.FREETIME_SQL_TODAS)):
+        assert "dtfim" in sql, "%s ainda aceita cláusula vencida" % nome
+        assert "dtinicio IS NULL OR" in sql, (
+            "%s ainda aceita cláusula que não começou" % nome)
+
+
+def test_o_filtro_de_vigencia_sabe_usar_ALIAS():
+    """Uma das consultas usa `ft.` e as outras não.
+
+    Encadear `.replace("dtinicio", "ft.dtinicio")` por fora funciona até o dia
+    em que uma coluna nova contiver o nome de outra — e aí a substituição
+    acerta no meio de uma palavra, sem ninguém ver.
+    """
+    sem = ft.sql_vigente()
+    com = ft.sql_vigente("ft")
+    assert "ft.ativoinativo" in com and "ft.dtfim" in com
+    assert "ft.ativoinativo" not in sem and "ativoinativo = 1" in sem
+    assert com.count("ft.") == 5, (
+        "o alias não alcançou todas as colunas: %s" % com)
+
+
+# ────────────────────────────── as DUAS fontes do ERP sobre "é genérica?"
+
+def test_o_ERP_tem_DUAS_fontes_para_generica_e_elas_sao_conferidas():
+    """`observacao` vazia e `distingueoperacao` dizem a mesma coisa.
+
+    Medido em 11/09/2026: concordam em 24 de 24 linhas vigentes — 1 ⇔ tem
+    mercadoria, 2 ⇔ genérica. A `observacao` continua sendo a PRIMÁRIA (é o
+    texto que casa com a coleta), mas divergência entre as duas é cadastro
+    furado, e a tela diz em vez de escolher em silêncio qual tem razão.
+
+    É o segundo caminho para o mesmo número, que é como esta casa pega join
+    quebrado e cadastro torto.
+    """
+    assert ft.confere_distingue({"distingueoperacao": 2, "mercadoria": ""})
+    assert ft.confere_distingue({"distingueoperacao": 1, "mercadoria": "RODAS"})
+    assert not ft.confere_distingue({"distingueoperacao": 2, "mercadoria": "RODAS"})
+    assert not ft.confere_distingue({"distingueoperacao": 1, "mercadoria": ""})
+    # sem o campo não há o que conferir, e ausência não é divergência
+    assert ft.confere_distingue({"distingueoperacao": None, "mercadoria": "RODAS"})
+
+
+def test_a_Minha_Operacao_publica_o_que_permite_VALIDAR_a_clausula():
+    """Pedido de quem opera em 11/09/2026: "precisamos de mais detalhes para
+    validar".
+
+    Ler "RODAS 6,5h" não valida nada: valida quem vê desde quando vale, quanto
+    custa a hora excedente, de qual filial é o cadastro e quem mexeu por
+    último. Sem o preço, a tela mostra a régua e esconde o que ela cobra.
+    """
+    from api import portal_cliente
+
+    sql = portal_cliente.FREETIME_SQL_TODAS
+    for campo in ("rh_coleta", "rh_entrega", "vig_de", "vig_ate", "filial",
+                  "distingue", "mexido_em", "mexido_por"):
+        assert campo in sql, (
+            "`%s` não sai da consulta — a tela não tem como validar" % campo)
+
+
+# ──────────────────────── escolher VÁRIAS mercadorias (11/09/2026)
+
+def test_a_ordem_da_escolha_NAO_cria_duas_perguntas():
+    """["RODAS","CHASSI"] e ["CHASSI","RODAS"] são a mesma pergunta.
+
+    E isso não é estética: a chave do cache da casa é `repr(args)`, então sem
+    canonizar seriam DUAS entradas — duas idas ao ERP para o mesmo número, e
+    duas cópias dele envelhecendo em ritmos diferentes. Quem abre a tela pela
+    segunda vez com a mesma escolha em outra ordem espera a resposta pronta.
+    """
+    assert ft.canonizar(["RODAS", "CHASSI"]) == ft.canonizar(["CHASSI", "RODAS"])
+    # E A SAÍDA É ORDENADA, não só igual entre si. Um `set` sozinho já faria as
+    # duas chamadas baterem — as duas montam o mesmo conjunto —, e por isso a
+    # igualdade acima passava com o `sorted` removido. O que o `sorted` de fato
+    # garante é ordem ESTÁVEL ENTRE PROCESSOS: o hash de string do Python é
+    # aleatorizado por processo, então sem ele a parede mostraria "RODAS,
+    # CHASSI" hoje e "CHASSI, RODAS" depois do próximo deploy, sem nada ter
+    # mudado. (Esta linha nasceu de uma sabotagem que passou verde.)
+    for entrada in (["RODAS", "CHASSI"], ["CHASSI", "ESCADAS", "RODAS"]):
+        saida = ft.canonizar(entrada)
+        assert list(saida) == sorted(saida), "a saída não vem ordenada: %s" % (saida,)
+
+
+def test_a_escolha_repetida_conta_UMA_vez():
+    """Marcar duas grafias da mesma mercadoria não é escolher duas.
+
+    "PEÇAS" e "PECAS" são a mesma carga — é o caso real da LEAR, 20 e 6
+    coletas. Sem a dedupe a cláusula `= ANY` receberia a mesma chave duas
+    vezes: inofensivo no resultado e enganoso no eco, que diria "2
+    mercadorias" onde há uma.
+    """
+    assert ft.canonizar(["PEÇAS", "PECAS", "peças"]) == ("PECA",)
+
+
+def test_escolha_vazia_e_TODAS_e_nao_nenhuma():
+    """A diferença que inverte a tela.
+
+    Nenhuma marcada tem de virar tupla vazia — que o montador de SQL lê como
+    "sem cláusula de filtro". Se virasse uma lista com string vazia, a consulta
+    passaria a pedir as coletas SEM mercadoria preenchida: o oposto de "todas",
+    e um oposto plausível, porque devolveria linhas.
+    """
+    for vazio in (None, [], "", ["", "  "]):
+        assert ft.canonizar(vazio) == (), repr(vazio)
+    # E O TEXTO QUE NORMALIZA PARA NADA também: "S" sozinho vira "" pela regra
+    # do plural, e entraria na cláusula como uma mercadoria chamada vazio —
+    # que não casa com coleta nenhuma e devolveria a tela em branco.
+    # (A sabotagem que tirava este descarte passou verde: o teste acima só
+    # olhava entrada vazia, não entrada que ESVAZIA.)
+    assert ft.normalizar("S") == "", "a régua do plural mudou; reveja este caso"
+    assert ft.canonizar(["S"]) == ()
+    assert ft.canonizar(["RODAS", "S"]) == ("RODA",)
+
+
+def test_a_escolha_normaliza_pela_MESMA_regua_do_contrato():
+    """Quem escolhe "PEÇAS" na lista está escolhendo as coletas escritas
+    "PECAS" também — o filtro tem de concordar com a lista que ele ofereceu.
+    """
+    assert ft.canonizar(["ESPUMAS PARA BANCO"]) == (ft.normalizar("ESPUMA PARA BANCOS"),)
+
+
+def test_canonizar_aceita_UMA_string_solta():
+    """A rota pode receber `?merc=RODAS` uma vez só, e o FastAPI entrega
+    string quando o parâmetro não é declarado como lista em algum caminho.
+    Aceitar os dois evita um `TypeError` que só apareceria em produção."""
+    assert ft.canonizar("RODAS") == ("RODA",)
+
+
+def test_o_filtro_de_varias_usa_PARAMETRO_e_nao_texto_montado():
+    """A lista vem do navegador. Valor de usuário não entra em texto de SQL
+    nem quando parece inofensivo — e `= ANY(%(merc)s)` serve uma opção ou dez
+    com a mesma cláusula e o mesmo parâmetro."""
+    from api import portal_cliente
+
+    com = portal_cliente._filtro_merc(("RODA", "CHASSI"))
+    assert "ANY(%(merc)s)" in com, com
+    assert "RODA" not in com, "o valor escolhido foi INTERPOLADO no SQL"
+    assert portal_cliente._filtro_merc(()) == ""

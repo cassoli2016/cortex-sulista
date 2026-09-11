@@ -1,3 +1,74 @@
+- versao: "1.42.0"
+  data: "2026-09-11"
+  adicionado:
+    - >-
+      O filtro de mercadoria da Minha Operacao passou a aceitar MAIS DE UMA.
+      A escolha virou o par que a casa ja usa para escolher entre muitos:
+      chips na barra dizendo o que esta escolhido (cada um sai no clique) e um
+      seletor com BUSCA, caixas e "marcar os visiveis". Nenhuma marcada = todas.
+      "Como esta a minha espuma e a minha embalagem de espuma" era duas
+      leituras separadas, e nenhuma delas era a soma.
+    - >-
+      O PAINEL DE TV DO CLIENTE PASSOU A REFLETIR O FILTRO. Numa TV ninguem
+      clica, entao a parede nao ganhou seletor proprio: ela HERDA a escolha
+      feita na Minha Operacao, pela mesma memoria do navegador que ja carrega
+      o cliente. E DIZ o recorte no titulo, ao lado do nome do cliente --
+      parede filtrada sem aviso mostra parte da operacao com cara de todo, e
+      quem le de longe nao tem como desconfiar.
+  corrigido:
+    - >-
+      Ao trocar de cliente, os chips do filtro ficavam mostrando as
+      mercadorias do cliente ANTERIOR ate a proxima carga -- e, sem cliente
+      escolhido, ficavam para sempre. A barra passava a descrever um recorte
+      que a tela nao tinha.
+- versao: "1.41.0"
+  data: "2026-09-11"
+  adicionado:
+    - >-
+      A sub-aba Freetime contratado da Minha Operacao passou a mostrar o que
+      permite VALIDAR a clausula, e nao so le-la: desde quando ela vale (e ate
+      quando, quando ha prazo combinado), quanto custa a hora excedente, de
+      qual filial e o cadastro e quem mexeu por ultimo. Ler "RODAS 6,5h" nao
+      valida nada; conferir um contrato comeca por "desde quando" e termina em
+      "com quem eu falo".
+    - >-
+      O preco da hora excedente sai no rodape enquanto for o mesmo para todas
+      as clausulas do cliente -- e ele e, nos 16 contratos vigentes. Se um dia
+      duas clausulas do mesmo cliente cobrarem precos diferentes, ele vira
+      COLUNA sozinho, em vez de a tela escolher um dos dois para o rodape e
+      esconder o outro.
+    - >-
+      O ERP tem DUAS fontes para "esta clausula e generica" -- a observacao
+      vazia e um campo proprio --, e elas concordam em 24 de 24 clausulas
+      vigentes. Quando discordarem, a linha leva a marca "cadastro a
+      conferir": escolher calado qual das duas tem razao e como um total
+      inflado por join passa meses sem ninguem notar.
+  corrigido:
+    - >-
+      CLAUSULA VENCIDA DEIXOU DE VALER. O sistema so olhava o campo "ativo" do
+      cadastro, que e GRAVADO -- alguem tem de entrar no ERP e desligar --, e
+      ignorava a vigencia combinada, que vira sozinha. A VOLVO tem uma
+      clausula de 1h que acabou em 31/08/2024 e continua marcada como ativa
+      ate hoje; ela estava sendo aplicada. Hoje isso nao move um centavo (a
+      VOLVO teve UMA coleta em 180 dias e a clausula vencida e de outra
+      filial), e e exatamente por isso que precisava de conserto: o defeito
+      estava armado para o dia em que alguem encerrar a clausula de um cliente
+      com volume.
+    - >-
+      Na documentacao, a VOLVO era descrita como "revisao de contrato, 1h ->
+      2h". Nao e: sao duas FILIAIS diferentes, e a de 1h esta vencida. Eu
+      tinha as colunas de filial e de fim de vigencia na frente e nao as li --
+      a consulta so pedia a data de inicio, entao foi so ela que eu enxerguei.
+- versao: "1.40.1"
+  data: "2026-09-11"
+  alterado:
+    - >-
+      O mapa do painel de TV do cliente perdeu a tarja que ficava por cima
+      dele. Ela dizia a cobertura ("15 de 15 veiculos - 15 com posicao de ate
+      120 min") e o passo do roteiro ("regiao 3 de 3 - 1 veiculo"). Numa parede
+      a leitura acontece de longe e de passagem, e o mapa mostra as cargas EM
+      CURSO que os cartoes ao lado ja contam. O passeio por regiao continua
+      igual -- so parou de se anunciar.
 - versao: "1.39.0"
   data: "2026-09-11"
   adicionado:

@@ -13,8 +13,8 @@ mesmo `dtinicio`:
     IOCHPE MAXION  4 linhas, mesma data: genérica 3h · CONJUNTOS/RODAS/
                    ESCADAS 6,5h
     LEAR           4 linhas, mesma data: PEÇAS e EMBALAGENS 3h · ESPUMA 5h
-    VOLVO          2 linhas, datas DIFERENTES (1h -> 2h) — revisão de
-                   contrato, e aí a mais nova manda mesmo
+    VOLVO          2 linhas em duas FILIAIS (1h e 2h), e a de 1h está
+                   VENCIDA desde 31/08/2024 com `ativoinativo = 1`
 
 A tela `sac` resolvia isso com `DISTINCT ON (agrupamentocliente) ... ORDER BY
 dtinicio DESC`. Com as datas empatadas, o banco escolhe UMA AO ACASO — e como
@@ -128,9 +128,8 @@ def test_o_ultimo_recurso_e_o_MAIOR_freetime_e_nao_um_sorteio():
 
 def test_o_desempate_por_MERCADORIA_e_dentro_da_mesma_clausula():
     """O `DISTINCT ON` continua existindo, e agora ele desempata dentro da
-    MESMA mercadoria — o que é revisão de contrato de verdade (a VOLVO tem
-    duas datas para a mesma cláusula), e não sorteio entre cláusulas
-    diferentes."""
+    MESMA mercadoria — que é a mesma cláusula recadastrada, e não sorteio
+    entre cláusulas diferentes."""
     assert "DISTINCT ON (agrupamentocliente, merc)" in q.SAC_FT_MERC
     assert "dtinicio DESC" in q.SAC_FT_MERC, (
         "sem a data, a revisão de contrato deixa de valer sobre a anterior")

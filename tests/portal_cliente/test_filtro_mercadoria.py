@@ -104,16 +104,16 @@ def test_a_consulta_RECUSA_nascer_sem_lugar_para_o_filtro():
     é a única forma de o defeito ter sintoma.
     """
     with pytest.raises(AssertionError):
-        pc._sql("SELECT 1 FROM coleta", "ESPUMA")
+        pc._sql("SELECT 1 FROM coleta", ("ESPUMA",))
     # e sem filtro escolhido a recusa é a MESMA: não é o valor que decide, é a
     # consulta estar apta a recebê-lo
     with pytest.raises(AssertionError):
-        pc._sql("SELECT 1 FROM coleta", None)
+        pc._sql("SELECT 1 FROM coleta", ())
 
 
 def test_escolhida_a_mercadoria_a_clausula_ENTRA_no_SQL():
     for nome, sql in AS_TRES:
-        com = pc._sql(sql, "ESPUMA PARA BANCOS")
+        com = pc._sql(sql, ("ESPUMA PARA BANCO", "RODA"))
         assert "%(merc)s" in com, "%s não recebeu o filtro" % nome
         assert ft.sql_normalizar("c.mercadorias") in com, (
             "%s filtra pelo texto cru — 'PEÇAS' e 'PECAS' viram cargas "
@@ -127,7 +127,7 @@ def test_sem_escolha_a_clausula_NAO_entra():
     o oposto de "todas" — e um oposto plausível, porque devolveria linhas.
     """
     for nome, sql in AS_TRES:
-        sem = pc._sql(sql, None)
+        sem = pc._sql(sql, ())
         assert "%(merc)s" not in sem, "%s filtra sem ninguém ter filtrado" % nome
         assert pc.MARCA_MERC not in sem, "%s ficou com a marca crua" % nome
 
@@ -143,7 +143,7 @@ def test_a_rota_leva_o_filtro_para_AS_TRES_abas(monkeypatch):
 
     def _reg(nome):
         def _f(raiz, *a, **k):
-            vistos[nome] = (a[-1] if a else k.get("merc"))
+            vistos[nome] = (a[-1] if a else k.get("mercs"))
             return {"fonte": "dublê"}
         return _f
 
@@ -158,9 +158,14 @@ def test_a_rota_leva_o_filtro_para_AS_TRES_abas(monkeypatch):
             sessao = {"id": 1}
 
     for aba in ("agora", "permanencia", "historico"):
-        main.portal_cliente_dados(_Req(), aba=aba, merc="ESPUMA PARA BANCOS")
-    assert vistos == {a: "ESPUMA PARA BANCOS"
+        main.portal_cliente_dados(_Req(), aba=aba,
+                                  merc=["ESPUMA PARA BANCOS", "RODAS"])
+    # A ROTA CANONIZA NA PORTA: o que chega às leituras é a tupla normalizada,
+    # ordenada e sem repetida — e é ela que entra na chave do cache.
+    esperado = ft.canonizar(["ESPUMA PARA BANCOS", "RODAS"])
+    assert vistos == {a: esperado
                       for a in ("agora", "permanencia", "historico")}, vistos
+    assert len(esperado) == 2, "a escolha de duas chegou como uma"
 
 
 def test_a_ROTA_declara_o_parametro_para_o_FastAPI():
@@ -181,8 +186,12 @@ def test_a_ROTA_declara_o_parametro_para_o_FastAPI():
     assert "merc" in params, (
         "a rota não declara `merc` — o FastAPI vai descartar o filtro que a "
         "tela manda, em silêncio")
-    assert params["merc"].default is None, (
-        "sem filtro escolhido a rota tem de receber None, que é 'todas'")
+    # LISTA, e não string: a tela manda `?merc=A&merc=B`, e um parâmetro
+    # declarado como `str` guardaria só o ÚLTIMO — a tela mostraria dois chips
+    # e o número responderia por um, sem erro nenhum.
+    anot = str(params["merc"].annotation)
+    assert "list" in anot, (
+        "a rota não aceita várias mercadorias: %s" % anot)
 
 
 # ────────────────────────────────────────── o catálogo que popula a lista
@@ -240,7 +249,8 @@ def test_o_payload_ECOA_o_filtro_que_respondeu(monkeypatch):
     monkeypatch.setattr(pc, "_freetime", lambda raiz: {
         "contratos": 0, "linhas": [], "carga_piso": None, "carga_teto": None,
         "descarga_piso": None, "descarga_teto": None, "ambiguo": False})
-    assert pc.get_agora("11222333", 45, "RODAS")["mercadoria"] == "RODAS"
-    assert pc.get_historico("11222333", 12, "RODAS")["mercadoria"] == "RODAS"
-    perm = pc.get_permanencia("11222333", "2026-08-01", "2026-08-31", "RODAS")
-    assert perm["mercadoria"] == "RODAS"
+    dois = ft.canonizar(["RODAS", "CHASSI"])
+    assert pc.get_agora("11222333", 45, dois)["mercadorias_filtro"] == list(dois)
+    assert pc.get_historico("11222333", 12, dois)["mercadorias_filtro"] == list(dois)
+    perm = pc.get_permanencia("11222333", "2026-08-01", "2026-08-31", dois)
+    assert perm["mercadorias_filtro"] == list(dois)

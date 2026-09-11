@@ -5373,8 +5373,10 @@ def get_custos_extras(dt_de: str, dt_ate: str) -> dict:
 #     IOCHPE MAXION   4 linhas, mesma data: genérica 3h · CONJUNTOS/RODAS/
 #                     ESCADAS 6,5h
 #     LEAR            4 linhas, mesma data: PEÇAS e EMBALAGENS 3h · ESPUMA 5h
-#     VOLVO           2 linhas, datas DIFERENTES (1h -> 2h) — isso é revisão
-#                     de contrato, e aí a mais nova manda mesmo
+#     VOLVO           2 linhas em duas FILIAIS: a viva dá 2h e a outra, de
+#                     1h, está VENCIDA (`dtfim` 31/08/2024) e continua marcada
+#                     como ativa. Não é revisão de contrato — é cláusula
+#                     encerrada que ninguém inativou.
 #
 # Com `ORDER BY dtinicio DESC` sozinho, as quatro linhas da LEAR empatam e o
 # `DISTINCT ON` escolhe UMA AO ACASO. A mesma consulta devolvia 3h ou 5h em
@@ -5415,7 +5417,7 @@ SAC_FT_REP = """
 ft AS (
   SELECT DISTINCT ON (agrupamentocliente) agrupamentocliente,
          freetimecarga, freetimedescarga, valor_coleta, valor_entrega
-  FROM sulista.sac_freetimecliente WHERE ativoinativo = 1
+  FROM sulista.sac_freetimecliente WHERE """ + _ft.sql_vigente() + """
   ORDER BY agrupamentocliente,
            dtinicio DESC NULLS LAST,
            freetimedescarga DESC NULLS LAST,
@@ -5435,8 +5437,9 @@ ft AS (
 #     LEAR           92,2% casam · 7,8% sem linha e SEM genérica -> último recurso
 #
 # O `DISTINCT ON` continua, e agora desempata dentro da MESMA mercadoria: isso
-# é revisão de contrato de verdade (a VOLVO tem duas datas para a mesma
-# cláusula), e não sorteio entre cláusulas diferentes.
+# é a mesma cláusula recadastrada, e não sorteio entre cláusulas diferentes.
+# (Eu citava a VOLVO como exemplo de revisão aqui; ela não é — são duas
+# filiais, uma delas com a vigência encerrada. A medição está na crônica.)
 SAC_FT_MERC = """
 ftm AS (
   SELECT DISTINCT ON (agrupamentocliente, merc) agrupamentocliente AS ag, merc,
@@ -5444,7 +5447,8 @@ ftm AS (
   FROM (SELECT agrupamentocliente, freetimecarga, freetimedescarga,
                valor_coleta, valor_entrega, dtinicio,
                """ + SQL_MERC_CONTRATO + """ AS merc
-        FROM sulista.sac_freetimecliente WHERE ativoinativo = 1) x
+        FROM sulista.sac_freetimecliente
+        WHERE """ + _ft.sql_vigente() + """) x
   ORDER BY agrupamentocliente, merc, dtinicio DESC NULLS LAST,
            freetimedescarga DESC NULLS LAST
 )"""
@@ -5521,7 +5525,7 @@ SELECT coalesce(nullif(trim(ac.descricao),''),'(sem cliente)') AS cliente,
        ft.observacao
 FROM sulista.sac_freetimecliente ft
 LEFT JOIN agrupamentocliente ac ON ac.codigo = ft.agrupamentocliente
-WHERE ft.ativoinativo = 1
+WHERE """ + _ft.sql_vigente("ft") + """
 ORDER BY ac.descricao, ft.filial
 """
 

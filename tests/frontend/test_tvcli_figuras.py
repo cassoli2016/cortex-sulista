@@ -277,9 +277,20 @@ def _corpo(url: str) -> dict:
                               for i in range(7)],
                     "rotas_mostradas": 7, "rotas_total": 25,
                     "cargas_nas_rotas_mostradas": 6134, "cargas_total": 7352}
+        # O DUBLÊ ECOA O FILTRO, como o servidor de verdade: ele devolve as
+        # CHAVES normalizadas ("RODA") e o catálogo que as traduz de volta ao
+        # rótulo ("RODAS"). Dublê que não ecoasse testaria a parede contra ele
+        # mesmo — ela mostraria o título sem recorte e o teste passaria.
+        import urllib.parse as _u
+        from api import freetime as _ft
+        escolhidas = _u.parse_qs(_u.urlparse(url).query).get("merc", [])
+        catalogo = [{"chave": _ft.normalizar(m), "rotulo": m, "cargas": 100}
+                    for m in escolhidas]
         return {**selo, "cargas": _CARGAS, "em_curso": len(_CARGAS),
                 "sem_apontamento": 0, "concluidas_na_janela": 758,
                 "janela_dias": 45,
+                "mercadorias_filtro": [_ft.normalizar(m) for m in escolhidas],
+                "mercadorias": catalogo,
                 "posicao": {"com_posicao": 9, "frescas": 8, "veiculos": 11,
                             "fresca_ate_min": 120, "lista": []}}
     if "/api/tv/estradas" in url:
@@ -669,13 +680,35 @@ def test_o_mapa_PASSEIA_pelas_regioes(pagina):
     z1 = pg.evaluate("() => tvCliMap.getZoom()")
     assert z1 > z0, (
         "o passeio nao aproximou: panorama em %s, regiao em %s" % (z0, z1))
-    leg = pg.inner_text("#tvcli-mapa-sub").lower()
-    assert "regiao" in leg or "região" in leg, (
-        "a legenda nao diz em que regiao o mapa esta: " + leg)
-    # A COBERTURA NAO SOME quando a legenda ganha a regiao: sem ela, quem le a
-    # parede acha que os pontos sao a operacao inteira.
-    assert "ve" in leg and "culos" in leg, (
-        "a cobertura sumiu do rodape do mapa: " + leg)
+    # O QUE O PASSEIO TEM DE FAZER E APROXIMAR, e so isso. Ele nao escreve
+    # mais em lugar nenhum: a tarja que dizia "regiao 3 de 3" saiu junto com a
+    # cobertura em 11/09/2026, a pedido de quem e dono da parede.
+
+
+def test_o_mapa_NAO_TEM_TARJA_por_cima(pagina):
+    """A tarja saiu por decisao de quem e dono da parede (11/09/2026).
+
+    Ela dizia duas coisas: a COBERTURA ("15 de 15 veiculos · 15 com posicao de
+    ate 120 min") e o passo do roteiro ("regiao 3 de 3 · 1 veiculo"). A
+    cobertura e regra da casa -- contador impede ler a amostra como o todo --,
+    e por isso a remocao tem guard PROPRIO em vez de simplesmente acontecer:
+    quem vier depois vai ler a regra, achar que falta a tarja e recolocar.
+
+    O que sustenta a remocao: o mapa desta parede mostra as cargas EM CURSO, os
+    cartoes ao lado contam essas mesmas cargas, e a leitura acontece de longe e
+    de passagem. Se um dia a frota passar a ter veiculo sem posicao com
+    frequencia, o lugar de dizer isso e um CARTAO -- que a sala le -- e nao uma
+    faixa por cima do mapa.
+    """
+    pg, base = pagina
+    _parede(pg, base)
+    pg.wait_for_timeout(1400)
+    assert pg.eval_on_selector_all("#tvcli-mapa-sub", "e => e.length") == 0, (
+        "a tarja voltou por cima do mapa da parede do cliente")
+    # e o mapa continua la: remover a tarja nao pode ter levado o mapa junto
+    assert pg.is_visible("#tvCliMapa"), "o mapa sumiu com a tarja"
+    assert pg.evaluate("() => (tvCliRegs || []).length") == 2, (
+        "as regioes sumiram: o passeio depende delas")
 
 
 def test_o_passeio_PARA_ao_sair_da_parede(pagina):
@@ -714,3 +747,80 @@ def test_os_numeros_da_parede_CONTAM_e_param_no_valor_certo(pagina):
     pg.wait_for_selector("#tvcli-hero:not(.contando)", timeout=8000)
     assert pg.inner_text("#tvcli-hero").strip() == "42", (
         "a contagem parou num valor intermediario")
+
+
+# ═════════ a parede herda o filtro de mercadoria da Minha Operação ═════════
+#
+# Pedido de 11/09/2026: "o filtro de mercadoria deve também refletir no painel
+# de tv do cliente". Numa TV ninguém clica, então a parede não ganha seletor
+# próprio — ela HERDA a escolha pela mesma memória do navegador que já carrega
+# o cliente, exatamente como faz com ele.
+
+def test_a_parede_MANDA_o_filtro_guardado_na_Minha_Operacao(pagina):
+    """Sem isso o mural mostraria a operação inteira enquanto quem o preparou
+    escolheu duas mercadorias — e as duas telas, lado a lado na mesma sala,
+    diriam números diferentes para a mesma pergunta."""
+    pg, base = pagina
+    pedidos = []
+
+    def rota(route):
+        u = route.request.url
+        if "/api/portal/cliente" in u:
+            pedidos.append(u)
+        route.fulfill(status=200, content_type="application/json",
+                      body=json.dumps(_corpo(u)))
+
+    pg.add_init_script(
+        "try{ localStorage.setItem('cliop.raiz','11222333');"
+        " localStorage.setItem('cliop.merc', JSON.stringify(['RODAS','CHASSI']));"
+        " }catch(e){}")
+    pg.route("**/api/**", rota)
+    pg.goto(base + "/static/index.html#tvcli")
+    pg.wait_for_timeout(1600)
+
+    assert pedidos, "a parede não consultou a operação"
+    from urllib.parse import urlparse, parse_qs
+    # AS TRES consultas levam o filtro, e não só a primeira: a parede lê
+    # `agora`, `permanencia` e `historico`, e um mural com o topo filtrado e o
+    # rodapé inteiro é pior que um mural sem filtro nenhum.
+    abas = {}
+    for u in pedidos:
+        q = parse_qs(urlparse(u).query)
+        abas[(q.get("aba") or ["agora"])[0]] = sorted(q.get("merc", []))
+    for aba in ("agora", "permanencia", "historico"):
+        assert abas.get(aba) == ["CHASSI", "RODAS"], (
+            "a aba %s da parede não levou o filtro: %s" % (aba, abas.get(aba)))
+
+
+def test_a_parede_DIZ_que_esta_filtrada(pagina):
+    """O aviso é o que separa "recorte" de "mentira".
+
+    Um mural filtrado sem dizer mostra parte da operação com cara de todo, e
+    quem lê de longe não tem como desconfiar. O nome do cliente continua
+    primeiro — é ele que impede alguém na sala de ler a conta de outro.
+
+    E o recorte sai no ROTULO de verdade ("RODAS"), não na chave normalizada
+    que o servidor usa por dentro ("RODA"): normalizada é um texto que ninguém
+    escreveu.
+    """
+    pg, base = pagina
+    pg.add_init_script(
+        "try{ localStorage.setItem('cliop.raiz','11222333');"
+        " localStorage.setItem('cliop.merc', JSON.stringify(['RODAS']));"
+        " }catch(e){}")
+    _parede(pg, base)
+    pg.wait_for_timeout(1400)
+    tit = pg.inner_text("#tvcli-titulo")
+    assert "RODAS" in tit, "a parede não disse que está filtrada: %s" % tit
+    assert "RODA," not in tit and not tit.endswith("RODA"), (
+        "a parede mostrou a chave normalizada em vez do rótulo: %s" % tit)
+
+
+def test_sem_filtro_a_parede_NAO_inventa_recorte(pagina):
+    """O título fica limpo quando não há filtro — um "· todas as mercadorias"
+    pendurado ali seria ruído permanente numa tela que se lê em três
+    segundos."""
+    pg, base = pagina
+    _parede(pg, base)
+    pg.wait_for_timeout(1400)
+    assert "·" not in pg.inner_text("#tvcli-titulo").split("—")[-1]

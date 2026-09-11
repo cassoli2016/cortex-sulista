@@ -328,14 +328,19 @@ FILTRO_CLIENTE = """(   strpos(cast(c.cnpjcpfcodigotomadorservico AS text), %(ra
 MARCA_MERC = "--{FILTRO_MERC}"
 
 
-def _filtro_merc(merc: str | None) -> str:
-    """A cláusula do filtro, ou nada. Vazio = todas as mercadorias."""
-    if not merc:
+def _filtro_merc(mercs) -> str:
+    """A cláusula do filtro, ou nada. Vazio = todas as mercadorias.
+
+    `= ANY(%(merc)s)` e não um `IN` montado com os valores: a lista vem do
+    navegador, e valor de usuário não entra em texto de SQL nem quando parece
+    inofensivo. Uma opção ou dez usam a mesma cláusula e o mesmo parâmetro.
+    """
+    if not mercs:
         return ""
-    return "AND " + _ft.sql_normalizar("c.mercadorias") + " = %(merc)s"
+    return "AND " + _ft.sql_normalizar("c.mercadorias") + " = ANY(%(merc)s)"
 
 
-def _sql(base: str, merc: str | None) -> str:
+def _sql(base: str, mercs) -> str:
     """A consulta com o filtro dentro — e ela RECUSA nascer sem lugar para ele.
 
     Sem o `assert`, uma consulta que perdesse a marca (ou uma consulta nova
@@ -347,7 +352,7 @@ def _sql(base: str, merc: str | None) -> str:
     SQL, então esquecê-la nunca quebraria a consulta por conta própria.
     """
     assert MARCA_MERC in base, "consulta da Minha Operação sem lugar para o filtro"
-    return base.replace(MARCA_MERC, _filtro_merc(merc))
+    return base.replace(MARCA_MERC, _filtro_merc(mercs))
 
 
 # O CATÁLOGO que popula a lista. Uma linha por mercadoria normalizada, com o
@@ -924,10 +929,26 @@ SELECT DISTINCT
        -- A mercadoria CRUA, vazia quando a cláusula é genérica: quem rotula
        -- é a tela. Guardar '(genérico)' aqui faria a comparação com a
        -- mercadoria da coleta casar com um rótulo nosso.
-       coalesce(trim(ft.observacao),'')                                          AS mercadoria
+       coalesce(trim(ft.observacao),'')                                          AS mercadoria,
+       -- O QUE PERMITE VALIDAR A CLÁUSULA, e não só lê-la. Pedido de quem
+       -- opera em 11/09/2026: "precisamos de mais detalhes para validar".
+       -- O valor por hora é o que multiplica a hora excedente -- sem ele a
+       -- tela mostra a régua e esconde o preço. A vigência responde "desde
+       -- quando", que é a pergunta de toda conferência de contrato. E a
+       -- autoria responde "quem combinou isso", que é com quem se fala
+       -- quando o número surpreende.
+       ft.valor_coleta::float8                                                   AS rh_coleta,
+       ft.valor_entrega::float8                                                  AS rh_entrega,
+       ft.dtinicio::date                                                         AS vig_de,
+       ft.dtfim::date                                                            AS vig_ate,
+       ft.filial                                                                 AS filial,
+       ft.distingueoperacao::int                                                 AS distingue,
+       coalesce(ft.dtalteracao, ft.dtinclusao)::date                             AS mexido_em,
+       coalesce(nullif(btrim(ft.usuarioalteracao),''),
+                nullif(btrim(ft.usuarioinclusao),''))                            AS mexido_por
 FROM sulista.sac_freetimecliente ft
 JOIN agrupamentocliente_cnpjcpfcodigo acc ON acc.codigo = ft.agrupamentocliente
-WHERE ft.ativoinativo = 1
+WHERE """ + _ft.sql_vigente("ft") + """
   AND acc.vinculo = 1
   AND strpos(cast(acc.cnpjcpfcodigo AS text), %(raiz)s) = 1
 ORDER BY 2, 3
@@ -960,7 +981,11 @@ def _freetime(raiz: str) -> dict:
     descs = [r["ft_descarga_h"] for r in linhas if r["ft_descarga_h"]]
     return {
         "contratos": len(linhas),
-        "linhas": [dict(r) for r in linhas],
+        # Cada linha leva a CONFERÊNCIA das duas fontes do ERP sobre ela
+        # ser genérica (`observacao` vazia × `distingueoperacao`). Elas
+        # concordam em 24 de 24 linhas vigentes (11/09/2026); divergir é
+        # cadastro furado, e a tela diz em vez de escolher em silêncio.
+        "linhas": [dict(r, confere=_ft.confere_distingue(r)) for r in linhas],
         "carga_piso": min(cargas) if cargas else None,
         "carga_teto": max(cargas) if cargas else None,
         "descarga_piso": min(descs) if descs else None,
@@ -1055,7 +1080,7 @@ GROUP BY 1,2,3,4,5
 
 
 @cached(ttl=120)
-def get_agora(raiz: str, dias: int = 45, merc: str | None = None) -> dict:
+def get_agora(raiz: str, dias: int = 45, mercs: tuple = ()) -> dict:
     """As cargas no ar agora. Fonte: coleta + SAC + MDF-e + posição.
 
     SEM REDE DE LEITURA VELHA, de propósito, e é a única das quatro funções
@@ -1069,9 +1094,8 @@ def get_agora(raiz: str, dias: int = 45, merc: str | None = None) -> dict:
     tarja: a decisão que alguém tomar olhando o mural já foi tomada quando ele
     lê o aviso. Tela vazia com erro é a resposta honesta para esta.
     """
-    linhas = db.query(_sql(AGORA_SQL, merc),
-                      {"raiz": raiz, "dias": int(dias),
-                       "merc": _ft.normalizar(merc)})
+    linhas = db.query(_sql(AGORA_SQL, mercs),
+                      {"raiz": raiz, "dias": int(dias), "merc": list(mercs)})
     rotas = _eta_por_rota() if linhas else {}
     agora = datetime.now()
     cargas, concluidas = [], 0
@@ -1184,7 +1208,7 @@ def get_agora(raiz: str, dias: int = 45, merc: str | None = None) -> dict:
         "por_destinatario": _por_destinatario(cargas),
         "concluidas_na_janela": concluidas,
         "janela_dias": int(dias),
-        "mercadoria": merc or "",
+        "mercadorias_filtro": list(mercs),
         # A COBERTURA do mapa vai junto: "12 de 66 com posição" é o que impede
         # alguém de olhar seis pontos na tela e concluir que só há seis cargas.
         # `veiculos`, e nao "cargas com placa": sao placas DISTINTAS. As 66
@@ -1206,7 +1230,7 @@ def get_agora(raiz: str, dias: int = 45, merc: str | None = None) -> dict:
 
 @cached(ttl=180, velha_ate=7200)
 def get_permanencia(raiz: str, dt_de: str, dt_ate: str,
-                    merc: str | None = None) -> dict:
+                    mercs: tuple = ()) -> dict:
     """Permanência em carregamento e descarga, contra o freetime CONTRATADO.
 
     Cada permanência é medida contra a cláusula da PRÓPRIA MERCADORIA dela —
@@ -1215,9 +1239,9 @@ def get_permanencia(raiz: str, dt_de: str, dt_ate: str,
     e agora chegam ao mesmo número; enquanto cada uma tinha a própria saída
     para o empate de cláusulas, elas discordavam por construção.
     """
-    linhas = db.query(_sql(PERM_SQL, merc),
+    linhas = db.query(_sql(PERM_SQL, mercs),
                       {"raiz": raiz, "dt_de": dt_de, "dt_ate": dt_ate,
-                       "merc": _ft.normalizar(merc)})
+                       "merc": list(mercs)})
     ft = _freetime(raiz)
     contrato = ft["linhas"]
 
@@ -1264,7 +1288,7 @@ def get_permanencia(raiz: str, dt_de: str, dt_ate: str,
         # cliente que já está olhando a tela dele, e é o que permite conferir
         # POR QUE aquela permanência foi classificada assim.
         "freetime": ft,
-        "mercadoria": merc or "",
+        "mercadorias_filtro": list(mercs),
         "cargas_no_periodo": len(linhas),
         "periodo": {"de": dt_de, "ate": dt_ate},
         "fonte": ("Sistema de gestão · apontamentos de chegada e saída no "
@@ -1275,8 +1299,7 @@ def get_permanencia(raiz: str, dt_de: str, dt_ate: str,
 
 
 @cached(ttl=600, velha_ate=7200)
-def get_historico(raiz: str, meses: int = 12,
-                  merc: str | None = None) -> dict:
+def get_historico(raiz: str, meses: int = 12, mercs: tuple = ()) -> dict:
     """Volume por mês e as rotas usadas, na janela pedida."""
     from datetime import date
 
@@ -1295,9 +1318,8 @@ def get_historico(raiz: str, meses: int = 12,
     chaves.reverse()
     desde = f"{chaves[0]}-01"
 
-    linhas = db.query(_sql(HIST_SQL, merc),
-                      {"raiz": raiz, "desde": desde,
-                       "merc": _ft.normalizar(merc)})
+    linhas = db.query(_sql(HIST_SQL, mercs),
+                      {"raiz": raiz, "desde": desde, "merc": list(mercs)})
     por_mes = {k: 0 for k in chaves}          # o intervalo é GERADO, não colhido
     rotas: dict[str, int] = {}
     for r in linhas:
@@ -1324,6 +1346,6 @@ def get_historico(raiz: str, meses: int = 12,
         "rotas_total": len(rotas),
         "cargas_nas_rotas_mostradas": sum(n for _, n in top),
         "cargas_total": total,
-        "mercadoria": merc or "",
+        "mercadorias_filtro": list(mercs),
         "fonte": f"Sistema de gestão · {int(meses)} meses até hoje · leitura",
     }
