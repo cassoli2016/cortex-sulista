@@ -9240,7 +9240,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
           <div class="rd-col rd-dir">
             <div class="card">
-              <div class="head"><h2>Rodovias agora <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="OCORRÊNCIAS: TomTom, nos quatro corredores que o painel de TV da Operação já acompanhava — Curitiba e a BR-376, a Grande SP (Anchieta e Imigrantes), a Dutra e o eixo Joinville–Itajaí da BR-101. Só rodovia numerada, e dela o que bloqueia a via ou atrasa de forma moderada para cima. A consulta é do SERVIDOR, a cada 90 minutos e com teto no mês — a franquia grátis da TomTom é MENSAL (2.500 consultas de ocorrências), e cada tela aberta consultando a gastaria em dias. NOSSA FROTA: por corredor, os caminhões em viagem que estão lá agora, pelo rastreador do ERP e da Gobrax — quantos andam, quantos estão LENTOS (duas leituras seguidas entre 8 e 40 km/h, o sinal de trânsito) e quantos estão parados, sem afirmar o motivo. Sem placa. Corredor sem caminhão nosso diz isso, e não que a estrada está livre. INTERDIÇÕES NOTICIADAS: Google Notícias dos últimos 3 dias, que avisam antes — o bloqueio programado de sábado sai na quinta.">ⓘ</span></h2><span class="hint" id="rd-rod-hint"></span></div>
+              <div class="head"><h2>Rodovias agora <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="INTERDIÇÕES NOTICIADAS: Google Notícias dos últimos 3 dias sobre bloqueios e interdições nas rodovias, que avisam antes — o bloqueio programado de sábado sai na quinta. Cada manchete abre no próprio veículo, em outra aba.">ⓘ</span></h2><span class="hint" id="rd-rod-hint"></span></div>
               <div class="subtabs" role="tablist" data-abas="radarrod" data-sem-girar aria-label="Rodovias">
                 <button role="tab" id="tabradarrod-oc" data-aba="oc" aria-controls="aba-radarrod-oc" aria-selected="true" onclick="abaTrocar('radarrod','oc')">Ocorrências <span class="aban" id="rd-n-rodoc"></span></button>
                 <button role="tab" id="tabradarrod-int" data-aba="int" aria-controls="aba-radarrod-int" aria-selected="false" onclick="abaTrocar('radarrod','int')">Interdições noticiadas <span class="aban" id="rd-n-rodint"></span></button>
@@ -44170,6 +44170,18 @@ function rdRodovias(r, noticias, fr){
   abaContador('rd-n-rodint', (noticias || {}).total || 0);
   const el = document.getElementById('rd-rod-lista'), hint = document.getElementById('rd-rod-hint');
   if(!el) return;
+  /* A ABA DE OCORRÊNCIAS ESTÁ OCULTA, por pedido de quem opera (11/09/2026):
+     o cartão mostra só as interdições noticiadas, e NADA nele fala da aba --
+     nem cabeçalho, nem aviso, nem o ⓘ. As coletas seguem (a frota e a TomTom
+     alimentam a Saúde, o Copiloto e o ticker da TV). Para reexibir,
+     `RD.ocorrencias = true`, e o ⓘ volta a explicar as duas fontes. */
+  if(!RD.ocorrencias){
+    const oc = document.getElementById('tabradarrod-oc');
+    if(oc) oc.hidden = true;
+    if(hint) hint.textContent = '';
+    abaTrocar('radarrod', 'int');
+    return;
+  }
   const frota = rdFrota(fr);
   /* ABA QUE NÃO PODE TER CONTEÚDO SAI -- visto no celular em 11/09/2026: o
      cartão parava nela e se lia "sem informação". Com a frota medindo, ela

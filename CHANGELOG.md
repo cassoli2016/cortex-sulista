@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.54.1] — 11/09/2026  ·  CX-11/09/2026-v1.54.1
+
+### Alterado
+- O cartão Rodovias agora, da página inicial, mostra direto as interdições noticiadas nas rodovias nos últimos 3 dias.
+
 ## [1.54.0] — 11/09/2026  ·  CX-11/09/2026-v1.54.0
 
 ### Adicionado

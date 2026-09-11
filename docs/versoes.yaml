@@ -1,3 +1,10 @@
+- versao: "1.54.1"
+  data: "2026-09-11"
+  alterado:
+    - >-
+      O cartão Rodovias agora, da página inicial, mostra direto as interdições
+      noticiadas nas rodovias nos últimos 3 dias.
+
 - versao: "1.54.0"
   data: "2026-09-11"
   adicionado:

@@ -44,6 +44,17 @@ def _abrir(pg, base_url, quem=USUARIO, payload=None, hash_="#radar"):
     return erros
 
 
+def _com_ocorrencias(pg):
+    """Reexibe a aba de ocorrências e repinta, como ela nasce: aberta.
+
+    A ABA ESTÁ OCULTA por pedido de quem opera (11/09/2026) e volta com
+    `RD.ocorrencias = true`. Os testes que usam isto seguram o que ela mostra
+    para o dia em que voltar — sem eles, o código dela apodreceria calado.
+    """
+    pg.evaluate("() => { RD.ocorrencias = true; RD.rodAuto = false;"
+                " abaTrocar('radarrod', 'oc'); rdRender(RD.d); }")
+
+
 def test_os_quatro_cartoes_trazem_o_numero_e_a_comparacao(pagina):
     pg, base = pagina
     erros = _abrir(pg, base)
@@ -85,9 +96,32 @@ def test_a_aba_diz_quantas_manchetes_tem_sem_precisar_entrar(pagina):
         assert pg.inner_text(f"#rd-n-{tema}") == (str(total) if total else "")
 
 
+# ------------------------------------------------ o cartão das rodovias
+
+def test_o_cartao_de_rodovias_mostra_so_as_interdicoes_e_nao_fala_da_outra_aba(pagina):
+    """Pedido de quem opera (11/09/2026): a aba de ocorrências fica oculta, e
+    o cartão NÃO diz que ocultou — nem no cabeçalho, nem num aviso, nem no ⓘ.
+    Vale com a TomTom e a frota trazendo dado (o payload padrão traz os dois)."""
+    pg, base = pagina
+    erros = _abrir(pg, base)
+    assert pg.locator("#tabradarrod-oc").is_hidden()
+    assert pg.get_attribute("#tabradarrod-int", "aria-selected") == "true"
+    assert pg.locator("#rd-feed-rodovias a.rd-item").first.is_visible()
+    assert pg.locator("#rd-rod-lista").is_hidden()
+    assert pg.inner_text("#rd-rod-hint") == ""
+    cartao = pg.locator(".card", has=pg.locator("#rd-rod-hint"))
+    falado = (cartao.locator(".head").inner_text() + " "
+              + cartao.locator(".subtabs").inner_text() + " "
+              + (cartao.locator(".ihelp").first.get_attribute("title") or "")).lower()
+    for palavra in ("tomtom", "frota", "ocorrência", "ocult", "desligad"):
+        assert palavra not in falado, f"o cartão fala de '{palavra}': {falado!r}"
+    assert not erros, erros
+
+
 def test_a_rodovia_fechada_aparece_com_o_corredor(pagina):
     pg, base = pagina
     _abrir(pg, base)
+    _com_ocorrencias(pg)
     lista = pg.inner_text("#rd-rod-lista")
     assert "BR-101" in lista and "Via fechada" in lista
     assert "Curitiba" in lista
@@ -135,6 +169,7 @@ def test_TomTom_SEM_CREDITO_diz_o_motivo_e_abre_as_interdicoes(pagina):
     p["coleta"]["rodovias"].update(estado="erro", ok=False, sucesso_em=None,
                                       erro="TomTom sem créditos no produto de trânsito")
     _abrir(pg, base, payload=p)
+    _com_ocorrencias(pg)
     txt = pg.inner_text("#rd-rod-lista")
     assert "sem créditos" in txt and "ainda não chegou" not in txt
     assert pg.locator("#rd-tarja").is_hidden(), "não há dado velho na tela para a tarja acusar"
@@ -154,6 +189,7 @@ def test_sem_TomTom_e_sem_frota_abre_as_interdicoes(pagina):
                                       erro="TomTom sem créditos no produto de trânsito")
     p["frota"] = {"corredores": [], "coletado_em": None, "caminhoes": 0, "lentos": 0}
     _abrir(pg, base, payload=p)
+    _com_ocorrencias(pg)
     assert pg.get_attribute("#tabradarrod-int", "aria-selected") == "true"
     assert "sem créditos" in pg.inner_text("#rd-rod-lista")
 
@@ -169,6 +205,7 @@ def test_sem_TomTom_a_aba_de_ocorrencias_explica_e_nao_finge_estrada_livre(pagin
     p = copy.deepcopy(PAYLOAD)
     p["rodovias"].update(configurado=False, itens=[], bloqueios=0)
     _abrir(pg, base, payload=p)
+    _com_ocorrencias(pg)
     assert "TomTom não está configurada" in pg.inner_text("#rd-rod-lista")
 
 
@@ -185,6 +222,7 @@ def test_transito_DESLIGADO_por_decisao_diz_a_decisao_e_abre_as_interdicoes(pagi
     # sem a frota medindo: é o caso em que a aba de ocorrências não tem o que mostrar
     p["frota"] = {"corredores": [], "coletado_em": None, "caminhoes": 0, "lentos": 0}
     erros = _abrir(pg, base, payload=p)
+    _com_ocorrencias(pg)
     txt = pg.inner_text("#rd-rod-lista")
     assert "desligadas por decisão desde 11/09/2026" in txt
     assert "não está configurada" not in txt and "sem créditos" not in txt
@@ -214,6 +252,7 @@ def test_transito_DESLIGADO_com_a_FROTA_medindo_a_aba_fica_e_mostra_a_frota(pagi
         "desde": "2026-09-11", "desde_br": "11/09/2026", "motivo": "teste"})
     p["coleta"].pop("rodovias")
     _abrir(pg, base, payload=p)
+    _com_ocorrencias(pg)
     assert pg.locator("#tabradarrod-oc").is_visible()
     assert pg.get_attribute("#tabradarrod-oc", "aria-selected") == "true"
     txt = pg.inner_text("#rd-rod-lista")
@@ -224,9 +263,10 @@ def test_transito_DESLIGADO_com_a_FROTA_medindo_a_aba_fica_e_mostra_a_frota(pagi
 
 
 def test_com_o_transito_LIGADO_as_duas_abas_continuam(pagina):
-    """O contrapeso: a aba de ocorrências só sai com a decisão em vigor."""
+    """O contrapeso: reexibida, a aba de ocorrências só sai com a decisão em vigor."""
     pg, base = pagina
     _abrir(pg, base)
+    _com_ocorrencias(pg)
     assert pg.locator("#tabradarrod-oc").is_visible()
     assert pg.get_attribute("#tabradarrod-oc", "aria-selected") == "true"
 
@@ -294,7 +334,7 @@ def _no_limite() -> dict:
 #: As caixas que rolam por dentro: (lista, aba que precisa estar aberta).
 _CAIXAS = (("rd-feed-trc", None),
            ("rd-feed-reforma", ("radar", "reforma")),
-           ("rd-rod-lista", None),
+           ("rd-rod-lista", ("radarrod", "oc")),
            ("rd-feed-rodovias", ("radarrod", "int")))
 
 
@@ -313,10 +353,13 @@ def test_cabe_em_UMA_tela_NO_LIMITE_e_a_rolagem_e_de_quem_segura(pagina):
     4,56× (reforma), 6,8× (ocorrências) e 3,07× (interdições). SABOTANDO O
     VALOR, e não a existência da regra: o `max-height` das listas de 446 para
     4.460px leva a página a 3.291px, e o guard fica vermelho.
+
+    Mede COM a aba de ocorrências reexibida: é o caso mais alto do cartão.
     """
     pg, base = pagina
     pg.set_viewport_size({"width": 1500, "height": 1000})
     _abrir(pg, base, payload=_no_limite())
+    _com_ocorrencias(pg)
     pg.wait_for_selector("#chartRadarBrent svg", timeout=20000)
     assert pg.locator("#rd-feed-trc a.rd-item").count() == 15
     # as linhas da TomTom (a frota vem antes, com as dela)
