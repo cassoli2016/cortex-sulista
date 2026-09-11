@@ -1,3 +1,15 @@
+- versao: "1.48.2"
+  data: "2026-09-11"
+  corrigido:
+    - >-
+      Os testes do Radar voltam a rodar em qualquer maquina. A amostra da
+      planilha da ANP que eles usam nunca entrou no repositorio -- a regra que
+      barra planilha (o repositorio e publico) a ignorou em silencio -- e 11
+      testes passavam so na maquina de quem os escreveu. Agora as celulas reais
+      dela ficam num arquivo de texto e a planilha e remontada na hora do
+      teste, e uma verificacao nova reprova qualquer amostra do Radar que
+      esteja no disco e fora do repositorio.
+
 - versao: "1.48.1"
   data: "2026-09-11"
   corrigido:

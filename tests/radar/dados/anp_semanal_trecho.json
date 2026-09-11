@@ -1,0 +1,1254 @@
+{
+"origem": "ANP, Levantamento de Precos de Combustiveis, planilha semanal Brasil (semanal-brasil-desde-2013.xlsx), baixada em 11/09/2026: cabecalho e as seis ultimas semanas, celula a celula. Datas como {\"data\": ISO}.",
+"aba": "BRASIL - DESDE 30.12.2012",
+"linhas": [
+[
+"AGÊNCIA NACIONAL DO PETRÓLEO, GÁS NATURAL E BIOCOMBUSTÍVEIS - ANP",
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null
+],
+[
+"SUPERINTENDÊNCIA DE DEFESA DA CONCORRÊNCIA",
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null
+],
+[
+"SISTEMA DE LEVANTAMENTO DE PREÇOS",
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null
+],
+[
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null
+],
+[
+"RELATÓRIO DE DEFESA DA CONCORRÊNCIA",
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null
+],
+[
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null
+],
+[
+"INTERVALO DE TEMPO: SEMANAL",
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null
+],
+[
+"PERÍODO: 30/12/2012 EM DIANTE",
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null
+],
+[
+"COMBUSTÍVEL: TODOS",
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null
+],
+[
+"TIPO RELATÓRIO: BRASIL",
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null
+],
+[
+"Obs: Em razão do término do contrato que vigeu até 11/8/2015 para a promoção do Levantamento de Preços e de Margens de Comercialização de Combustíveis, e considerando a publicação do extrato do novo contrato no Diário Oficial da União no dia 21/8/2015, não houve pesquisa de preços para o período de 16/8/2015 a 22/8/2015.",
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null
+],
+[
+"Entre 30/7/17 e 30/12/17, a abrangência geográfica da pesquisa foi reduzida de 501 para 459 municípios, distribuídos da seguinte forma: as 26 capitais e o DF pesquisados semanalmente e outros 432 municípios pesquisados quinzenalmente, alternando-se a cada semana um determinado grupo (Grupo A com as 27 capitais mais 215 municípios, totalizando 242 localidades, e Grupo B com as 27 capitais e outros 217 municípios, reunindo 244 localidades).",
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null
+],
+[
+"Em razão da alternância de municípios pesquisados entre determinada semana e a seguinte (Grupos A e B), recomenda-se, para fins de acompanhamento da evolução de preços em nível nacional, regional e/ou estadual, a comparação entre dados referentes a semanas intercaladas. ",
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null
+],
+[
+"Entre 27/5/18 e 2/6/18, o quantitativo de revendas com combustível disponível pesquisadas foi reduzido em torno de 85% em função dos impactos gerados pela greve dos caminhoneiros.",
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null
+],
+[
+"Não houve pesquisa de preços entre 18/8/20 e 17/10/20. Os preços de distribuição foram coletados por meio da pesquisa de preços até 17/8/20. Para mais informações, acesse https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/precos-revenda-e-de-distribuicao-combustiveis/serie-historica-do-levantamento-de-precos.",
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null
+],
+[
+"A partir de 08/05/22, os preços por litro de todos os combustíveis automotivos comercializados deverão ser expressos com duas casas decimais no painel de preços e nas bombas medidoras. (RESOLUÇÃO ANP Nº 858, DE 5 DE NOVEMBRO DE 2021)",
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null
+],
+[
+"Atualmente, o produto 'óleo diesel' se refere ao óleo diesel B S500 comum.",
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null,
+null
+],
+[
+"DATA INICIAL",
+"DATA FINAL",
+"PRODUTO",
+"NÚMERO DE POSTOS PESQUISADOS",
+"UNIDADE DE MEDIDA",
+"PREÇO MÉDIO REVENDA",
+"DESVIO PADRÃO REVENDA",
+"PREÇO MÍNIMO REVENDA",
+"PREÇO MÁXIMO REVENDA",
+"MARGEM MÉDIA REVENDA",
+"COEF DE VARIAÇÃO REVENDA",
+"PREÇO MÉDIO DISTRIBUIÇÃO",
+"DESVIO PADRÃO DISTRIBUIÇÃO",
+"PREÇO MÍNIMO DISTRIBUIÇÃO",
+"PREÇO MÁXIMO DISTRIBUIÇÃO",
+"COEF DE VARIAÇÃO DISTRIBUIÇÃO"
+],
+[
+{
+"data": "2026-07-26T00:00:00"
+},
+{
+"data": "2026-08-01T00:00:00"
+},
+"ETANOL HIDRATADO",
+3694,
+"R$/l",
+4,
+0.664,
+2.8,
+6.59,
+"-",
+0.166,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-07-26T00:00:00"
+},
+{
+"data": "2026-08-01T00:00:00"
+},
+"GASOLINA ADITIVADA",
+3344,
+"R$/l",
+6.75,
+0.413,
+5.65,
+9.39,
+"-",
+0.061,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-07-26T00:00:00"
+},
+{
+"data": "2026-08-01T00:00:00"
+},
+"GASOLINA COMUM",
+4357,
+"R$/l",
+6.56,
+0.415,
+5.49,
+8.99,
+"-",
+0.063,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-07-26T00:00:00"
+},
+{
+"data": "2026-08-01T00:00:00"
+},
+"GLP",
+3149,
+"R$/13kg",
+114.04,
+12.25,
+77.99,
+161,
+"-",
+0.107,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-07-26T00:00:00"
+},
+{
+"data": "2026-08-01T00:00:00"
+},
+"GNV",
+319,
+"R$/m³",
+4.57,
+0.512,
+3.89,
+6.49,
+"-",
+0.112,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-07-26T00:00:00"
+},
+{
+"data": "2026-08-01T00:00:00"
+},
+"OLEO DIESEL",
+1824,
+"R$/l",
+6.57,
+0.524,
+5.49,
+8.69,
+"-",
+0.08,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-07-26T00:00:00"
+},
+{
+"data": "2026-08-01T00:00:00"
+},
+"OLEO DIESEL S10",
+3063,
+"R$/l",
+6.95,
+0.438,
+5.84,
+9.19,
+"-",
+0.063,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-02T00:00:00"
+},
+{
+"data": "2026-08-08T00:00:00"
+},
+"ETANOL HIDRATADO",
+3752,
+"R$/l",
+3.94,
+0.681,
+2.77,
+6.59,
+"-",
+0.173,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-02T00:00:00"
+},
+{
+"data": "2026-08-08T00:00:00"
+},
+"GASOLINA ADITIVADA",
+3414,
+"R$/l",
+6.73,
+0.417,
+5.68,
+9.39,
+"-",
+0.062,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-02T00:00:00"
+},
+{
+"data": "2026-08-08T00:00:00"
+},
+"GASOLINA COMUM",
+4421,
+"R$/l",
+6.55,
+0.418,
+5.49,
+8.99,
+"-",
+0.064,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-02T00:00:00"
+},
+{
+"data": "2026-08-08T00:00:00"
+},
+"GLP",
+3246,
+"R$/13kg",
+113.94,
+12.273,
+77.99,
+161,
+"-",
+0.108,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-02T00:00:00"
+},
+{
+"data": "2026-08-08T00:00:00"
+},
+"GNV",
+344,
+"R$/m³",
+4.63,
+0.488,
+3.89,
+6.49,
+"-",
+0.105,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-02T00:00:00"
+},
+{
+"data": "2026-08-08T00:00:00"
+},
+"OLEO DIESEL",
+1860,
+"R$/l",
+6.54,
+0.516,
+5.49,
+8.89,
+"-",
+0.079,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-02T00:00:00"
+},
+{
+"data": "2026-08-08T00:00:00"
+},
+"OLEO DIESEL S10",
+3117,
+"R$/l",
+6.94,
+0.444,
+5.84,
+9.19,
+"-",
+0.064,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-09T00:00:00"
+},
+{
+"data": "2026-08-15T00:00:00"
+},
+"ETANOL HIDRATADO",
+3779,
+"R$/l",
+3.91,
+0.698,
+2.79,
+6.6,
+"-",
+0.178,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-09T00:00:00"
+},
+{
+"data": "2026-08-15T00:00:00"
+},
+"GASOLINA ADITIVADA",
+3410,
+"R$/l",
+6.73,
+0.418,
+5.59,
+8.99,
+"-",
+0.062,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-09T00:00:00"
+},
+{
+"data": "2026-08-15T00:00:00"
+},
+"GASOLINA COMUM",
+4451,
+"R$/l",
+6.53,
+0.42,
+5.49,
+8.99,
+"-",
+0.064,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-09T00:00:00"
+},
+{
+"data": "2026-08-15T00:00:00"
+},
+"GLP",
+3262,
+"R$/13kg",
+113.89,
+12.322,
+77.99,
+161,
+"-",
+0.108,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-09T00:00:00"
+},
+{
+"data": "2026-08-15T00:00:00"
+},
+"GNV",
+344,
+"R$/m³",
+4.67,
+0.474,
+3.89,
+6.49,
+"-",
+0.101,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-09T00:00:00"
+},
+{
+"data": "2026-08-15T00:00:00"
+},
+"OLEO DIESEL",
+1848,
+"R$/l",
+6.51,
+0.527,
+5.48,
+8.89,
+"-",
+0.081,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-09T00:00:00"
+},
+{
+"data": "2026-08-15T00:00:00"
+},
+"OLEO DIESEL S10",
+3139,
+"R$/l",
+6.91,
+0.438,
+5.77,
+9.27,
+"-",
+0.063,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-16T00:00:00"
+},
+{
+"data": "2026-08-22T00:00:00"
+},
+"ETANOL HIDRATADO",
+3776,
+"R$/l",
+3.91,
+0.673,
+2.85,
+6.59,
+"-",
+0.172,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-16T00:00:00"
+},
+{
+"data": "2026-08-22T00:00:00"
+},
+"GASOLINA ADITIVADA",
+3409,
+"R$/l",
+6.72,
+0.423,
+5.59,
+8.99,
+"-",
+0.063,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-16T00:00:00"
+},
+{
+"data": "2026-08-22T00:00:00"
+},
+"GASOLINA COMUM",
+4469,
+"R$/l",
+6.52,
+0.417,
+5.49,
+8.99,
+"-",
+0.064,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-16T00:00:00"
+},
+{
+"data": "2026-08-22T00:00:00"
+},
+"GLP",
+3229,
+"R$/13kg",
+114.07,
+12.347,
+77.99,
+161,
+"-",
+0.108,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-16T00:00:00"
+},
+{
+"data": "2026-08-22T00:00:00"
+},
+"GNV",
+355,
+"R$/m³",
+4.68,
+0.475,
+3.89,
+6.49,
+"-",
+0.101,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-16T00:00:00"
+},
+{
+"data": "2026-08-22T00:00:00"
+},
+"OLEO DIESEL",
+1897,
+"R$/l",
+6.48,
+0.507,
+5.49,
+8.89,
+"-",
+0.078,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-16T00:00:00"
+},
+{
+"data": "2026-08-22T00:00:00"
+},
+"OLEO DIESEL S10",
+3173,
+"R$/l",
+6.89,
+0.416,
+5.77,
+9.19,
+"-",
+0.06,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-23T00:00:00"
+},
+{
+"data": "2026-08-29T00:00:00"
+},
+"ETANOL HIDRATADO",
+3716,
+"R$/l",
+3.94,
+0.65,
+2.86,
+6.6,
+"-",
+0.165,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-23T00:00:00"
+},
+{
+"data": "2026-08-29T00:00:00"
+},
+"GASOLINA ADITIVADA",
+3350,
+"R$/l",
+6.71,
+0.419,
+5.59,
+9.39,
+"-",
+0.062,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-23T00:00:00"
+},
+{
+"data": "2026-08-29T00:00:00"
+},
+"GASOLINA COMUM",
+4361,
+"R$/l",
+6.53,
+0.41,
+5.39,
+8.99,
+"-",
+0.063,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-23T00:00:00"
+},
+{
+"data": "2026-08-29T00:00:00"
+},
+"GLP",
+3163,
+"R$/13kg",
+113.9,
+12.354,
+77.99,
+161,
+"-",
+0.108,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-23T00:00:00"
+},
+{
+"data": "2026-08-29T00:00:00"
+},
+"GNV",
+351,
+"R$/m³",
+4.72,
+0.487,
+3.19,
+6.49,
+"-",
+0.103,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-23T00:00:00"
+},
+{
+"data": "2026-08-29T00:00:00"
+},
+"OLEO DIESEL",
+1833,
+"R$/l",
+6.47,
+0.514,
+5.49,
+8.89,
+"-",
+0.079,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-23T00:00:00"
+},
+{
+"data": "2026-08-29T00:00:00"
+},
+"OLEO DIESEL S10",
+3094,
+"R$/l",
+6.88,
+0.419,
+5.74,
+9.27,
+"-",
+0.061,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-30T00:00:00"
+},
+{
+"data": "2026-09-05T00:00:00"
+},
+"ETANOL HIDRATADO",
+3727,
+"R$/l",
+3.95,
+0.629,
+2.89,
+6.59,
+"-",
+0.159,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-30T00:00:00"
+},
+{
+"data": "2026-09-05T00:00:00"
+},
+"GASOLINA ADITIVADA",
+3363,
+"R$/l",
+6.68,
+0.42,
+5.49,
+9.39,
+"-",
+0.063,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-30T00:00:00"
+},
+{
+"data": "2026-09-05T00:00:00"
+},
+"GASOLINA COMUM",
+4386,
+"R$/l",
+6.51,
+0.41,
+5.44,
+8.99,
+"-",
+0.063,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-30T00:00:00"
+},
+{
+"data": "2026-09-05T00:00:00"
+},
+"GLP",
+3215,
+"R$/13kg",
+114.09,
+12.338,
+79,
+161,
+"-",
+0.108,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-30T00:00:00"
+},
+{
+"data": "2026-09-05T00:00:00"
+},
+"GNV",
+344,
+"R$/m³",
+4.7,
+0.478,
+3.95,
+6.49,
+"-",
+0.102,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-30T00:00:00"
+},
+{
+"data": "2026-09-05T00:00:00"
+},
+"OLEO DIESEL",
+1851,
+"R$/l",
+6.47,
+0.512,
+5.07,
+8.89,
+"-",
+0.079,
+"-",
+"-",
+"-",
+"-",
+"-"
+],
+[
+{
+"data": "2026-08-30T00:00:00"
+},
+{
+"data": "2026-09-05T00:00:00"
+},
+"OLEO DIESEL S10",
+3135,
+"R$/l",
+6.88,
+0.42,
+5.63,
+9.25,
+"-",
+0.061,
+"-",
+"-",
+"-",
+"-",
+"-"
+]
+]
+}

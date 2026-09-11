@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.48.2] — 11/09/2026  ·  CX-11/09/2026-v1.48.2
+
+### Corrigido
+- Os testes do Radar voltam a rodar em qualquer maquina. A amostra da planilha da ANP que eles usam nunca entrou no repositorio -- a regra que barra planilha (o repositorio e publico) a ignorou em silencio -- e 11 testes passavam so na maquina de quem os escreveu. Agora as celulas reais dela ficam num arquivo de texto e a planilha e remontada na hora do teste, e uma verificacao nova reprova qualquer amostra do Radar que esteja no disco e fora do repositorio.
+
 ## [1.48.1] — 11/09/2026  ·  CX-11/09/2026-v1.48.1
 
 ### Corrigido
