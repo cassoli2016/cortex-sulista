@@ -574,8 +574,27 @@ barra empilhada, não donut.
     publicado como se fosse medido. Custo por constante envelhece calado.
 - **A régua com dublê mede o ESQUELETO.** `scripts/medir_paineis.py` roda com a
   API devolvendo `{}`: tabela vazia, avisos mudos. A aba Decidir passava com
-  854px e ia a 1.303px com os doze meses reais. Aba nova pede medição com
-  payload CHEIO, no e2e.
+  854px e ia a 1.303px com os doze meses reais; a aba "O dia" da Frequência
+  passou com **381px** e media **1.060** com o dia real. Aba nova pede medição
+  com payload CHEIO, no e2e.
+  - **E payload CHEIO não é payload NO LIMITE** — as duas frentes tropeçaram
+    nisto no MESMO dia (11/09/2026, `freq` e `cliop`). Medir o dia de hoje
+    prova que hoje cabe; não prova que o mecanismo que faz caber está lá. Com
+    4 cláusulas e 12 mercadorias, REMOVER a rolagem interna não mudava um
+    pixel, e as duas sabotagens passaram verdes. O dublê do guard sai do
+    **teto do CADASTRO**, não do maior dia já visto: 92 pessoas com ponto × 6
+    batidas/dia × 9 cercas, contra um pico real de 83/306/8. A régua do
+    conteúdo é `conteudo > 3 × altura da caixa` — abaixo disso o payload não
+    exercita nada.
+  - **Sabotar a EXISTÊNCIA do mecanismo não prova o AJUSTE dele.** Tirar
+    `tabroll` da tabela acusa; o que estava em jogo era o `curta` (260px em
+    vez de 430), e só sabotando o VALOR se descobre que o guard o mede. Vale
+    para todo número que decide layout — `max-height`, teto de linhas, largura
+    de trilha.
+  - E **guard coberto pelo VIZINHO não está coberto**: se o que impede a
+    vacuidade é outro teste do mesmo arquivo, ele morre no dia em que alguém
+    mexer no vizinho. Cada guard de altura cobra, ele mesmo, que o dublê
+    CHEGOU na tela — aba vazia cabe em qualquer régua.
 - **Zero que é ausência de lançamento não é desempenho** — é `n/d` em cinza,
   jamais verde. KPI que só pode dar zero por falta de preenchimento mostra
   "não informado" com a cobertura ("informado em X de Y").
