@@ -7426,6 +7426,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                 <option value="dentro">Dentro da cerca</option>
                 <option value="fora">Fora da cerca</option>
                 <option value="sem_coordenada">Sem GPS</option>
+                <option value="sem_batida">Sem batida (não apareceu)</option>
               </select>
               <select id="fFreqDiaFil" onchange="freqDiaPintar()" aria-label="filial"><option value="">Todas as filiais</option></select>
               <input type="search" id="fFreqDiaQ" oninput="freqDiaPintar()" placeholder="nome, matrícula ou local" aria-label="buscar">
@@ -31522,15 +31523,49 @@ function freqDiaPintar(){
     return true;
   });
 
+  const aus=d.ausentes||{}, semBatida=(aus.em_curso||aus.atipico)?[]:(aus.ausentes||[]);
+  const ausVis=semBatida.filter(p=>{
+    if(fil && p.filial!==fil) return false;
+    if(sit && sit!=='sem_batida') return false;
+    if(q){
+      const alvo=((p.nome||'')+' '+(p.chapa||'')+' '+(p.filial||'')).toLowerCase();
+      if(!alvo.includes(q)) return false;
+    }
+    return true;
+  });
+  const linhasAus=ausVis.map(p=>
+    '<tr style="background:var(--yellow-50,transparent)"><td>'+esc(p.nome||p.chapa)+'</td>'
+    +'<td>'+esc(p.filial||'\u2014')+'</td><td>'+esc(p.funcao||'\u2014')+'</td>'
+    +'<td class="num">0</td><td><span class="badge b-warn" title="'
+    +esc((p.vistos?('trabalhou em '+p.vistos+' dos \u00faltimos dias iguais da semana'):'')
+         +(p.registro_erp?(' \u00b7 o Globus registra: '+p.registro_erp):''))
+    +'">sem batida'+(p.registro_erp?(' \u00b7 '+esc(p.registro_erp)):'')+'</span></td></tr>').join('');
+
   const h=document.getElementById('freq-dia-hint');
   if(h) h.textContent=(d.data?fmtD(d.data):'\u2014')+' \u00b7 '+vis.length+' de '+todas.length+' pessoa(s)'+
     ' \u00b7 '+nf(k.batidas)+' batidas: '+nf(k.dentro)+' dentro, '+nf(k.fora)+' fora, '
     +nf(k.sem_coordenada)+' sem GPS'+
     (k.primeira?(' \u00b7 das '+k.primeira+' \u00e0s '+k.ultima):'')+
-    (d.em_curso?' \u00b7 o dia ainda est\u00e1 em curso':'');
+    (d.em_curso?' \u00b7 o dia ainda est\u00e1 em curso':'')
+    + (semBatidaTexto(aus));
   abaContador('freqNDia', todas.length);
 
   const cls={dentro:'b-ok', fora:'b-dang', sem_coordenada:'b-info'};
+
+  /* QUEM NAO BATEU E UMA PESSOA DO DIA, e por isso e LINHA e nao faixa a
+     parte: a tabela ja responde "o dia por pessoa", ja rola por dentro (entao
+     a linha nao custa altura nenhuma) e ja tem as colunas de filial e funcao
+     que quem vai conferir precisa. Como faixa, oito nomes levavam a aba a
+     1.004px contra a regua de 900.
+
+     ELES VEM PRIMEIRO porque sao o que exige acao; quem bateu esta na tela
+     para consulta. E o denominador e do SERVIDOR: num sabado 61 pessoas
+     constam como COMPENSADO no proprio ERP e nao aparecem aqui — listá-las
+     seria acusar a escala.
+
+     DIA ATIPICO NAO ENTRA: com metade do quadro fora, o que errou foi a
+     premissa (feriado, parada, coleta que nao rodou), e nomear setenta e nove
+     pessoas seria acusar a casa inteira de faltar. */
   const linhas=vis.map(p=>{
     const bs=(p.batidas||[]).filter(b=>!sit||b.situacao===sit).map(b=>{
       /* O relogio viaja no TITULO, nao no rotulo: ele so importa quando
@@ -31547,10 +31582,12 @@ function freqDiaPintar(){
       (p.nome?'':' <span class="badge b-warn">sem cadastro no ERP</span>')+'</td>'+
       '<td>'+esc(p.filial||'\u2014')+'</td><td>'+esc(p.funcao||'\u2014')+'</td>'+
       '<td class="num">'+p.n+'</td><td>'+bs+'</td></tr>';
-  }).join('')||'<tr><td colspan="5" style="color:var(--n500)">ningu\u00e9m bateu neste recorte</td></tr>';
+  }).join('');
+  const corpo = (linhasAus + (sit==='sem_batida' ? '' : linhas))
+    || '<tr><td colspan="5" style="color:var(--n500)">ningu\u00e9m neste recorte</td></tr>';
   document.getElementById('freq-dia-pessoas').innerHTML=
     '<table><thead><tr><th>Pessoa</th><th>Filial</th><th>Fun\u00e7\u00e3o</th><th class="num">Batidas</th>'
-    +'<th>Hor\u00e1rio e lugar</th></tr></thead><tbody>'+linhas+'</tbody></table>';
+    +'<th>Hor\u00e1rio e lugar</th></tr></thead><tbody>'+corpo+'</tbody></table>';
 
   /* A DISTANCIA VAI NO SELO DO QUE FOI REPROVADO, e e ela que separa tres
      coisas que parecem uma so: dezenas de metros e cerca apertada; um ou dois
@@ -31563,6 +31600,18 @@ function freqDiaPintar(){
       +' \u00b7 '+l.batidas+' batida'+(l.batidas>1?'s':'')+esc(dist(l.distancia_m))+'</span>').join('')
     ||'<span style="color:var(--n500)">nenhuma batida neste dia</span>';
   const ff=document.getElementById('freq-dia-fonte'); if(ff) ff.textContent=d.fonte||'';
+}
+
+function semBatidaTexto(a){
+  /* Uma linha, tres respostas — manda, cala porque nao ha, ou recusa dizendo
+     o motivo. A terceira e a que importa: sem ela, "nenhum ausente" num dia em
+     curso se leria como "ninguem faltou", quando ninguem apurou ainda. */
+  if(!a || !a.modo) return a && a.em_curso ? ' \u00b7 a lista de quem faltou s\u00f3 fecha amanh\u00e3' : '';
+  if(a.atipico) return ' \u00b7 '+a.ausentes.length+' das '+a.esperados+' esperadas sem bater '
+    +'\u2014 feriado, parada ou coleta que n\u00e3o rodou, n\u00e3o falta';
+  const n=(a.ausentes||[]).length;
+  if(!n) return ' \u00b7 todas as '+a.esperados+' esperadas bateram';
+  return ' \u00b7 '+n+' sem batida (n\u00e3o \u00e9 falta: confira)';
 }
 
 async function loadFreqCercas(){

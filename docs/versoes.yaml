@@ -1,3 +1,32 @@
+- versao: "1.47.0"
+  data: "2026-09-11"
+  adicionado:
+    - >-
+      A aba O dia da Frequencia passou a mostrar QUEM NAO BATEU, junto de quem
+      bateu, na mesma tabela e no topo dela. E a pergunta que o Globus so
+      responde dias depois: a importacao do AFD e manual, com mediana de 3
+      dias de atraso, entao quem nao apareceu ontem so aparece la na semana
+      seguinte, quando nao ha mais o que perguntar.
+    - >-
+      NAO E UMA LISTA DE FALTAS, e a tela diz isso: sem batida pode ser
+      atestado que ninguem lancou, folga combinada, home office ou
+      esquecimento de bater. Quem transforma em falta e o RH, com a lista na
+      mao. Quem estava de FERIAS sai da conta, e o esperado nao e o quadro
+      inteiro: num sabado 61 pessoas constam como COMPENSADO no proprio ERP, e
+      lista-las seria acusar a escala.
+    - >-
+      E um E-MAIL DIARIO para o RH, com o ponto do dia anterior: quem bateu,
+      quem nao bateu (com o que o Globus registra para cada um, quando ja
+      importou) e as batidas reprovadas agrupadas pela cerca mais proxima. O
+      horario e os destinatarios se configuram em Gestao > Relatorios por
+      e-mail, como os outros. Dia sem ausencia nenhuma TAMBEM e enviado: "todos
+      bateram" e a noticia que se quer receber, e sumir nesse dia ensinaria a
+      duvidar do envio no dia seguinte.
+    - >-
+      Quando metade do quadro nao bate no mesmo dia, nem a tela nem o e-mail
+      listam nomes: isso e feriado, parada coletiva ou a coleta que nao rodou,
+      e nomear setenta e nove pessoas seria acusar a casa inteira de faltar. A
+      mensagem manda olhar a coleta primeiro.
 - versao: "1.46.0"
   data: "2026-09-11"
   adicionado:

@@ -276,3 +276,106 @@ def test_dia_sem_movimento_continua_ocupando_a_linha():
     # entao a contagem e das linhas que carregam o ROTULO
     assert html.count('width="130"') == 2
     assert "border-bottom:1px dashed" in html, "o dia zerado perdeu a linha"
+
+
+# ── O PONTO DE ONTEM ────────────────────────────────────────────────────────
+#
+# O e-mail existe porque o Globus so enxerga o ponto depois que alguem importa
+# o AFD a mao (mediana de 3 dias, maximo de 18): quem nao bateu ontem so
+# aparece la na semana seguinte, quando nao ha mais o que perguntar.
+#
+# E ele e uma lista para CONFERIR, nunca uma lista de faltas — por isso os
+# guards abaixo cobram o texto da ressalva e o denominador, e nao so que o
+# e-mail sai.
+
+def _ponto(monkeypatch, *, ausentes, esperados=79, atipico=False,
+           modo="padrao", locais=None):
+    """Arranjo com os dois lados dublados: quem bateu e quem tinha de bater."""
+    dia = {
+        "dia": "ontem", "data": "2026-09-10", "em_curso": False,
+        "kpis": {"pessoas": 82, "batidas": 284, "dentro": 73, "fora": 67,
+                 "sem_coordenada": 144, "primeira": "00:16", "ultima": "23:58"},
+        "pessoas": [], "locais": locais if locais is not None else [
+            {"local": "longe de SBC OPERACIONAL", "situacao": "fora",
+             "batidas": 37, "pessoas": 10, "distancia_m": 1885},
+            {"local": "PIRAQUARA", "situacao": "dentro", "batidas": 50,
+             "pessoas": 21, "distancia_m": 40}],
+        "fonte": "duble",
+    }
+    aus = {
+        "dia": "2026-09-10", "em_curso": False, "modo": modo,
+        "atipico": atipico, "esperados": esperados, "bateram": 82,
+        "ferias": 10, "erp_ate": "2026-09-06", "janela_dias": 28,
+        "minimo_dias": 3, "ausentes": ausentes,
+    }
+    monkeypatch.setattr("api.pontocertificado.painel.do_dia", lambda d: dia)
+    monkeypatch.setattr("api.frequencia.ausentes_do_dia", lambda d: aus)
+    return relatorios.montar("ponto_do_dia")
+
+
+_UM = [{"chapa": "003838", "nome": "CAROLINE DE MACEDO BARBOSA",
+        "filial": "FILIAL SBC", "funcao": "APRENDIZ ( AUX ESCRITORIO )",
+        "vistos": 3, "registro_erp": None}]
+
+
+def test_o_ponto_de_ontem_nomeia_quem_nao_bateu(monkeypatch):
+    r = _ponto(monkeypatch, ausentes=_UM)
+    assert "CAROLINE DE MACEDO BARBOSA" in r["html"]
+    assert "1 sem batida" in r["assunto"]
+    # o cargo inteiro, sem corte no meio do parenteses
+    assert "APRENDIZ ( AUX ESCRITORIO )" in r["html"]
+
+
+def test_o_e_mail_DIZ_que_nao_e_lista_de_faltas(monkeypatch):
+    """A frase nao e decoracao: e o que separa um instrumento de uma acusacao
+    automatica que chega todo dia de manha na caixa do RH."""
+    r = _ponto(monkeypatch, ausentes=_UM)
+    texto = r["html"].lower()
+    assert "não é uma lista de faltas" in texto
+    assert "atestado" in texto and "folga" in texto
+    # e diz de onde veio o esperado, porque sem isso o numero nao se confere
+    assert "06/09" in r["html"] and "dias iguais da semana" in r["html"]
+
+
+def test_ninguem_faltando_AINDA_MANDA(monkeypatch):
+    """"Todos bateram" e a noticia que o RH quer receber. Sumir nesse dia
+    ensina a duvidar do envio no dia seguinte — e no dia em que houver
+    ausencia, o e-mail sera arquivado junto com os outros."""
+    r = _ponto(monkeypatch, ausentes=[])
+    assert r["vazio"] is False
+    assert "todos bateram" in r["assunto"].lower()
+    assert "79 pessoas esperadas bateram" in r["html"]
+    assert relatorios.CATALOGO["ponto_do_dia"]["pular_vazio"] is False
+
+
+def test_dia_atipico_NAO_lista_ninguem(monkeypatch):
+    """Metade do quadro fora no mesmo dia e feriado, parada ou coleta que nao
+    rodou. Nomear setenta e nove pessoas seria acusar a casa inteira de
+    faltar — e a lista longa e justamente a que ninguem confere."""
+    muitos = [{**_UM[0], "chapa": f"{i:06d}", "nome": f"PESSOA {i}"}
+              for i in range(60)]
+    r = _ponto(monkeypatch, ausentes=muitos, atipico=True)
+    assert "PESSOA 1" not in r["html"]
+    assert "coleta" in r["html"].lower() and "feriado" in r["html"].lower()
+    assert "atípico" in r["assunto"].lower()
+
+
+def test_so_os_lugares_REPROVADOS_entram(monkeypatch):
+    """Quem caiu dentro da cerca nao gera trabalho para ninguem. O que o RH
+    precisa ver e a distancia: dezenas de metros e cerca apertada, quilometros
+    e local sem cerca cadastrada."""
+    r = _ponto(monkeypatch, ausentes=_UM)
+    assert "SBC OPERACIONAL" in r["html"]
+    assert "1,9" in r["html"]          # virgula, nao ponto
+    # a cerca onde as batidas CAIRAM DENTRO nao vira linha de trabalho
+    corpo = r["html"].split("Batidas reprovadas")[1]
+    assert "PIRAQUARA" not in corpo
+
+
+def test_o_relatorio_nao_derruba_a_rotina(monkeypatch):
+    """Ela roda sem ninguem olhando: erro que a derruba some do mundo."""
+    def explode(*a, **k):
+        raise RuntimeError("ERP fora")
+    monkeypatch.setattr("api.pontocertificado.painel.do_dia", explode)
+    r = relatorios.montar("ponto_do_dia")
+    assert r["html"] and r["texto"] and "falha" in r["assunto"].lower()

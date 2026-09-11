@@ -743,6 +743,190 @@ def _escalares_do_dia() -> dict:
             "hoje_batidas_sem_gps": k.get("sem_coordenada"),
             "hoje_primeira_batida": k.get("primeira"),
             "hoje_ultima_batida": k.get("ultima"),
+            **_escalares_de_ontem(),
+        }
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+
+#: Janela para descobrir se a pessoa TRABALHA naquele dia da semana: 28 dias
+#: dão 4 ocorrências do mesmo dia (às vezes 5), e a exigência de 3 tolera uma
+#: falta ou folga isolada sem deixar de reconhecer o padrão.
+AUSENTE_JANELA_DIAS = 28
+AUSENTE_MIN_DIAS = 3
+
+#: As ocorrências que significam "registrou presença". É de propósito que
+#: HOME OFFICE (23) e VIAGEM A TRAB (25) fiquem FORA: quem está em casa ou na
+#: estrada trabalha e não bate no relógio da unidade, e contá-los como
+#: esperados produziria ausência todo dia para as mesmas pessoas — o alarme
+#: que se aprende a ignorar. Medido em 10/09/2026: com ou sem eles a lista do
+#: dia é a mesma, então o conjunto estreito não custa nada e não mente.
+OCOR_PRESENCA = (1, 13)
+
+#: A partir de que fração de ausentes o dia deixa de ser sobre pessoas. Meio
+#: quadro fora no mesmo dia é feriado, parada ou coleta que não rodou — nunca
+#: metade da casa faltando ao trabalho.
+ATIPICO_FRACAO = 0.5
+
+
+def ausentes_do_dia(dia: str) -> dict:
+    """Quem tinha de aparecer no relógio naquele dia e NÃO apareceu.
+
+    SÓ PARA DIA FECHADO, e a recusa é explícita: às 8h da manhã quem entra às
+    13h ainda não bateu, e uma lista de "ausentes" montada com o dia em curso
+    seria uma lista de gente no horário.
+
+    O DENOMINADOR É O PROBLEMA INTEIRO
+    ==================================
+    "Não bateu" só vira informação depois de responder "quem tinha de bater?".
+    Sobre os 90 ativos com ponto, a resposta muda com o dia: num sábado 61
+    pessoas aparecem como COMPENSADO no próprio ERP — não trabalham, e listá-las
+    como ausentes seria acusar a escala. Então o esperado vem de EVIDÊNCIA, em
+    dois modos, e a tela DIZ qual deles respondeu:
+
+    `erp` — o Globus já importou o dia (o AFD entra à mão, com mediana de 3
+      dias de atraso). Aí o esperado é quem o PRÓPRIO ERP registra como
+      presente naquele dia, e a lista vira outra coisa: divergência entre o que
+      o ERP afirma e o que o relógio viu.
+
+    `padrao` — o Globus ainda não importou. O esperado é quem trabalhou em pelo
+      menos 3 das últimas 4 ocorrências do MESMO dia da semana. É inferência,
+      e por isso cada linha carrega quantos dias ela viu.
+
+    QUEM SAI DA LISTA, E POR QUE
+    ============================
+    Férias saem pelo gozo em `vw_ferias` (10 pessoas em 10/09), afastado e
+    desligado saem por `situacaofunc`. O que SOBRA não é falta: pode ser
+    atestado que ninguém lançou ainda, folga combinada ou esquecimento de bater.
+    A tela nomeia isso como "sem batida", nunca como falta — quem diz que foi
+    falta é o RH, com a lista na mão.
+
+    Medido em 10/09/2026 (quinta): 79 esperados pelo padrão, 82 bateram,
+    10 em férias, e a lista final tem QUATRO nomes. Uma lista de quatro se
+    confere na mesma manhã; a mesma pergunta pelo ERP só teria resposta cinco
+    dias depois.
+    """
+    import re
+    from datetime import date as _date
+
+    if not re.match(r"^\d{4}-\d{2}-\d{2}$", dia or ""):
+        raise ValueError("dia inválido")
+    if dia >= _date.today().isoformat():
+        return {"dia": dia, "em_curso": True, "modo": None, "ausentes": [],
+                "motivo": "O dia ainda está em curso — quem entra à tarde "
+                          "ainda não bateu. A lista só fecha amanhã."}
+
+    p = {"d": dia, "emp": EMPRESA}
+    codes = ",".join(str(c) for c in OCOR_PRESENCA)
+
+    # O ERP conhece este dia? É a pergunta que escolhe o modo, e ela é barata.
+    tem = _q("""SELECT COUNT(*) n FROM frq_digitacaomovimento
+                 WHERE dtdigit = TO_DATE(:d,'YYYY-MM-DD')""", {"d": dia})
+    erp_conhece = bool(tem and int(tem[0]["n"] or 0) > 0)
+
+    if erp_conhece:
+        modo = "erp"
+        esperados = _q(f"""
+            SELECT vf.chapafunc chapa, vf.nomefunc nome, vf.descsecao filial,
+                   vf.descfuncao funcao, NULL vistos
+              FROM frq_digitacaomovimento m
+              JOIN vw_funcionarios vf ON vf.codintfunc = m.codintfunc
+                                     AND vf.codigoempresa = :emp
+                                     AND vf.temfrequenfunc = 'S'
+             WHERE m.dtdigit = TO_DATE(:d,'YYYY-MM-DD')
+               AND m.codocorr IN ({codes})""", p)
+    else:
+        modo = "padrao"
+        esperados = _q(f"""
+            SELECT vf.chapafunc chapa, MIN(vf.nomefunc) nome,
+                   MIN(vf.descsecao) filial, MIN(vf.descfuncao) funcao,
+                   COUNT(*) vistos
+              FROM frq_digitacaomovimento m
+              JOIN vw_funcionarios vf ON vf.codintfunc = m.codintfunc
+                                     AND vf.codigoempresa = :emp
+                                     AND vf.temfrequenfunc = 'S'
+                                     AND vf.situacaofunc = 'A'
+             WHERE m.codocorr IN ({codes})
+               AND TO_CHAR(m.dtdigit,'D') = TO_CHAR(TO_DATE(:d,'YYYY-MM-DD'),'D')
+               AND m.dtdigit >= TO_DATE(:d,'YYYY-MM-DD') - :janela
+               AND m.dtdigit <  TO_DATE(:d,'YYYY-MM-DD')
+             GROUP BY vf.chapafunc
+            HAVING COUNT(*) >= :minimo""",
+            {**p, "janela": AUSENTE_JANELA_DIAS, "minimo": AUSENTE_MIN_DIAS})
+
+    # Férias pelo GOZO, não pelo período aquisitivo: o aquisitivo diz que ela
+    # tem direito, o gozo diz que ela está fora hoje.
+    ferias = {str(r["chapa"] or "").strip() for r in _q("""
+        SELECT vf.chapafunc chapa FROM vw_ferias fe
+          JOIN vw_funcionarios vf ON vf.codintfunc = fe.codintfunc
+                                 AND vf.codigoempresa = :emp
+         WHERE TO_DATE(:d,'YYYY-MM-DD') BETWEEN fe.gozoinifer AND fe.gozofinfer""", p)}
+
+    # O que o ERP registra para CADA um no dia — é o que transforma "sem
+    # batida" em resposta quando ele já importou.
+    registro = {}
+    if erp_conhece:
+        registro = {str(r["chapa"] or "").strip(): r["ocorrencia"] for r in _q("""
+            SELECT vf.chapafunc chapa, o.descocorr ocorrencia
+              FROM frq_digitacaomovimento m
+              JOIN frq_ocorrencia o ON o.codocorr = m.codocorr
+              JOIN vw_funcionarios vf ON vf.codintfunc = m.codintfunc
+                                     AND vf.codigoempresa = :emp
+             WHERE m.dtdigit = TO_DATE(:d,'YYYY-MM-DD')""", p)}
+
+    from api.pontocertificado import painel as _pc
+    bateram = _pc.matriculas_do_dia(dia)
+
+    ausentes = []
+    for r in esperados:
+        chapa = str(r["chapa"] or "").strip()
+        if chapa in bateram or chapa in ferias:
+            continue
+        ausentes.append({
+            "chapa": chapa, "nome": r["nome"],
+            "filial": r["filial"] or "—", "funcao": r["funcao"] or "—",
+            "vistos": int(r["vistos"]) if r["vistos"] is not None else None,
+            "registro_erp": registro.get(chapa),
+        })
+    ausentes.sort(key=lambda x: (x["filial"], x["nome"] or ""))
+
+    ult = _q("SELECT MAX(dtdigit) d FROM frq_digitacaomovimento")
+    erp_ate = ult[0]["d"].date().isoformat() if ult and ult[0]["d"] else None
+
+    # QUANDO QUASE TODO MUNDO FALTA, QUEM ERROU FOI A PREMISSA.
+    # Metade do quadro ausente no mesmo dia não é ausência: é feriado, parada
+    # coletiva ou a própria coleta que não rodou. Nomear 79 pessoas nesse dia
+    # seria acusar a casa inteira de faltar — e a lista longa é justamente a
+    # que ninguém confere. O corte é declarado (não é heurística escondida) e
+    # a tela DIZ o que aconteceu em vez de listar.
+    atipico = bool(esperados) and len(ausentes) >= len(esperados) * ATIPICO_FRACAO
+
+    return {
+        "dia": dia, "em_curso": False, "modo": modo,
+        "atipico": atipico,
+        "esperados": len(esperados), "bateram": len(bateram),
+        "ferias": len(ferias), "ausentes": ausentes,
+        "erp_ate": erp_ate,
+        "janela_dias": AUSENTE_JANELA_DIAS, "minimo_dias": AUSENTE_MIN_DIAS,
+        "fonte": ("GLOBUS · FRQ_DIGITACAOMOVIMENTO + VW_FERIAS (quem tinha de "
+                  "aparecer) × CÓRTEX · pc_marcacao (quem apareceu)"),
+    }
+
+def _escalares_de_ontem() -> dict:
+    """Quantos não bateram ONTEM — o dia fechado, que é o que tem resposta.
+
+    Escalar puro: quantos, nunca quem. O snapshot vai para modelo externo
+    quando o Ollama local não responde, e é isso — não um filtro esperto — que
+    permite o chat cair para fora sem levar ninguém junto.
+    """
+    from datetime import date as _d, timedelta as _td
+    try:
+        a = ausentes_do_dia((_d.today() - _td(days=1)).isoformat())
+        return {
+            "ontem_sem_batida": len(a.get("ausentes") or []),
+            "ontem_esperados": a.get("esperados"),
+            "ontem_dia_atipico": bool(a.get("atipico")),
         }
     except Exception:  # noqa: BLE001
         return {}

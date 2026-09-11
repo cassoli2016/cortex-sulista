@@ -6052,7 +6052,19 @@ def rh_frequencia_dia(dia: str | None = None) -> JSONResponse:
     """
     try:
         from api.pontocertificado import painel
-        return JSONResponse({"configurado": True, **painel.do_dia(dia)})
+        d = painel.do_dia(dia)
+        # QUEM NAO BATEU vem junto, mas NAO PODE DERRUBAR o resto: ele depende
+        # do ERP (quem tinha de aparecer) e o resto nao. Sem ele a aba segue
+        # respondendo "quem bateu e onde", que e a pergunta principal; com o
+        # ERP fora do ar, o campo vem ausente em vez de zerado — zero diria
+        # "conferi e nao falta ninguem", que ninguem conferiu.
+        if d.get("data"):
+            try:
+                d["ausentes"] = frequencia.ausentes_do_dia(d["data"])
+            except Exception as exc2:  # noqa: BLE001
+                log.warning("frequencia/dia: ausentes indisponivel: %s",
+                            type(exc2).__name__)
+        return JSONResponse({"configurado": True, **d})
     except Exception as exc:  # noqa: BLE001
         log.warning("frequencia/dia falhou: %s", type(exc).__name__)
         return JSONResponse(status_code=500, content={

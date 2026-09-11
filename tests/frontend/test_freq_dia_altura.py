@@ -99,9 +99,26 @@ def _dia_cheio() -> dict:
                   "pessoas": 15, "distancia_m": 11266} for c in CERCAS]
               + [{"local": "sem GPS", "situacao": "sem_coordenada",
                   "batidas": 184, "pessoas": 92, "distancia_m": None}])
+    # O PIOR CASO DOS AUSENTES E REAL: um feriado que o Globus ainda nao
+    # importou faz o padrao do dia da semana esperar as ~79 pessoas de sempre
+    # e NENHUMA bater. E o teto da lista, e e ele que o teto de 12 selos da
+    # faixa existe para conter.
+    ausentes = {
+        "dia": "2026-09-11", "em_curso": False, "modo": "padrao",
+        "esperados": 79, "bateram": 0, "ferias": 10, "erp_ate": "2026-09-06",
+        # O guard mede o pior caso COM LISTA: o dia atípico (metade do quadro
+        # fora) nem lista nomes, então ele não é o teto de altura — o teto é o
+        # maior número de ausentes que ainda merece nomes.
+        "atipico": False,
+        "janela_dias": 28, "minimo_dias": 3,
+        "ausentes": [{"chapa": f"{3700 + i:06d}", "nome": f"{NOME} {i:02d}",
+                      "filial": "FILIAL CURITIBA",
+                      "funcao": "ANALISTA OPERACIONAL PLENO",
+                      "vistos": 4, "registro_erp": None} for i in range(79)],
+    }
     return {
         "configurado": True, "dia": "hoje", "data": "2026-09-11",
-        "em_curso": True,
+        "em_curso": True, "ausentes": ausentes,
         "kpis": {"pessoas": 92, "batidas": 552, "dentro": 184, "fora": 184,
                  "sem_coordenada": 184, "primeira": "06:00", "ultima": "23:58"},
         "pessoas": pessoas, "locais": locais,
@@ -150,14 +167,19 @@ def test_o_dublê_do_dia_CHEGA_na_tela(pagina):
     _abrir(pg, base)
     linhas = pg.eval_on_selector_all("#freq-dia-pessoas tbody tr", "e => e.length")
     selos = pg.eval_on_selector_all("#freq-dia-locais .badge", "e => e.length")
-    assert linhas == 92, f"a tabela pintou {linhas} linhas, esperado 92"
+    sem = pg.eval_on_selector_all("#freq-dia-pessoas .b-warn", "e => e.length")
+    # 92 que bateram + 79 sem batida: os ausentes sao LINHAS da mesma tabela,
+    # e e por isso que eles nao custam altura nenhuma.
+    assert linhas == 171, f"a tabela pintou {linhas} linhas, esperado 171"
+    assert sem == 79, f"{sem} linhas de 'sem batida', esperado 79"
     assert selos == 19, f"a faixa pintou {selos} selos, esperado 19"
 
 
 def test_a_aba_do_dia_cabe_na_tela_com_o_dia_CHEIO(pagina):
     """900px é a régua da casa: painel se lê sem rolar a página.
 
-    Com 92 pessoas e 552 batidas o conteúdo da tabela passa de 4.000px — é a
+    Com 92 pessoas, 552 batidas e mais 79 linhas de quem não bateu, o
+    conteúdo da tabela passa de 5.000px — é a
     rolagem interna que faz a aba caber, e é ela que este número protege.
     """
     pg, base = pagina

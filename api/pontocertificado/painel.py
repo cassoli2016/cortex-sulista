@@ -449,6 +449,23 @@ def do_dia(dia: str | None = None) -> dict:
     }
 
 
+def matriculas_do_dia(dia: str) -> set[str]:
+    """Quem bateu naquele dia — só as matrículas, para cruzar com o ERP.
+
+    Fica aqui, e não em quem pergunta, porque é `pc_marcacao` que sabe
+    responder — e porque a matrícula precisa sair com os mesmos 6 dígitos com
+    que a coleta a normaliza: o fornecedor devolve "3878" para 36% das
+    pessoas, e comparar isso com a chapa do ERP não casa nada, sem erro nenhum.
+    """
+    import re
+    if not re.match(r"^\d{4}-\d{2}-\d{2}$", dia or ""):
+        raise ValueError("dia inválido")
+    return {r["matricula"] for r in _q(
+        """SELECT DISTINCT matricula FROM pc_marcacao
+            WHERE marcada_em >= %(d)s::date
+              AND marcada_em <  %(d)s::date + 1""", {"d": dia})}
+
+
 def painel(dias: int = DIAS) -> dict:
     """O payload da aba. Nunca levanta por tabela ausente."""
     d = resumo(dias)

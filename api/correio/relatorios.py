@@ -425,7 +425,153 @@ def acoes_pendentes() -> dict:
         return _falhou(titulo, exc)
 
 
+
+def ponto_do_dia() -> dict:
+    """O ponto do ÚLTIMO DIA FECHADO, para o RH ler de manhã.
+
+    POR QUE ESTE E-MAIL EXISTE
+    ==========================
+    O Globus só enxerga o ponto depois que alguém importa o AFD à mão — mediana
+    de 3 dias, máximo de 18. Quem não bateu ontem aparece lá na semana que vem,
+    quando não há mais o que perguntar. Pela API do Ponto Certificado a batida
+    chega em 12 segundos, e a pergunta "alguém não apareceu?" passa a ter
+    resposta na manhã seguinte, que é quando ela ainda serve para alguma coisa.
+
+    ONTEM, E NÃO HOJE. Às 7h da manhã o dia de hoje tem meia dúzia de batidas e
+    ninguém faltou ainda — um relatório do dia em curso seria sempre alarmante
+    e sempre errado.
+
+    NÃO É UMA LISTA DE FALTAS, e o texto diz isso em todo lugar onde pode ser
+    lido depressa. Sem batida pode ser atestado que ninguém lançou, folga
+    combinada, home office ou simplesmente esquecimento de bater. Quem
+    transforma isso em falta é o RH, com a lista na mão — e é essa a diferença
+    entre um instrumento e uma acusação automática.
+
+    VAZIO AQUI É NOTÍCIA BOA E VAI ASSIM MESMO (`pular_vazio: False`): "as 79
+    pessoas esperadas bateram" é exatamente o que o RH quer receber, e sumir
+    nesse dia faria o destinatário duvidar do envio no dia seguinte.
+    """
+    from datetime import timedelta
+
+    titulo = "Ponto — o dia de ontem"
+    try:
+        from api import frequencia
+        from api.pontocertificado import painel as pc
+
+        ontem = (date.today() - timedelta(days=1)).isoformat()
+        dia = pc.do_dia(ontem)
+        k = dia.get("kpis") or {}
+        aus = frequencia.ausentes_do_dia(ontem)
+        sem = aus.get("ausentes") or []
+        atipico = bool(aus.get("atipico"))
+
+        blocos = [p.kpis([
+            {"rotulo": "Bateram", "valor": p.inteiro(k.get("pessoas")),
+             "estado": "ok", "sub": f"{p.inteiro(k.get('batidas'))} batidas"},
+            {"rotulo": "Sem batida", "valor": p.inteiro(len(sem)),
+             "estado": "warn" if sem and not atipico else "ok",
+             "sub": f"de {p.inteiro(aus.get('esperados'))} esperadas"},
+            {"rotulo": "Fora de cerca", "valor": p.inteiro(k.get("fora")),
+             "estado": "warn" if (k.get("fora") or 0) else "ok",
+             "sub": "veja a distância antes de concluir"},
+            {"rotulo": "Sem GPS", "valor": p.inteiro(k.get("sem_coordenada")),
+             "estado": "neutro", "sub": "não é infração"},
+        ])]
+
+        if atipico:
+            # Metade do quadro fora no mesmo dia não é ausência: é feriado,
+            # parada ou coleta que não rodou. Nomear todo mundo seria acusar a
+            # casa inteira de faltar.
+            blocos.append(p.paragrafo(
+                f"{len(sem)} das {aus.get('esperados')} pessoas esperadas não "
+                "bateram. Metade do quadro ausente junto não é falta: é "
+                "feriado, parada coletiva ou a própria coleta que não rodou. "
+                "A lista de nomes fica de fora de propósito — se o dia era de "
+                "expediente, o primeiro lugar a olhar é a coleta.",
+                destaque=True))
+        elif sem:
+            como = ("o Globus já importou este dia e registra presença para "
+                    "elas" if aus.get("modo") == "erp" else
+                    f"o Globus enxerga até {_dia_br(aus.get('erp_ate'))}, "
+                    f"então o esperado veio de quem trabalhou em pelo menos "
+                    f"{aus.get('minimo_dias')} dos últimos dias iguais da semana")
+            blocos.append(p.secao(
+                "Sem batida", f"{len(sem)} de {aus.get('esperados')} esperadas"))
+            blocos.append(p.paragrafo(
+                "NÃO é uma lista de faltas: pode ser atestado ainda não "
+                "lançado, folga combinada, home office ou esquecimento de "
+                f"bater. Quem esteve de férias saiu da conta ({aus.get('ferias')} "
+                f"pessoa(s)). Como se soube: {como}."))
+            blocos.append(p.tabela(
+                ["Pessoa", "Filial", "Função", "O que o Globus registra"],
+                [[str(x.get("nome") or x.get("chapa") or "")[:38],
+                  str(x.get("filial") or "")[:22],
+                  # 22 cortava "APRENDIZ ( AUX ESCRITORIO )" no meio do
+                  # parenteses, e cargo pela metade se le como erro de sistema.
+                  str(x.get("funcao") or "")[:30],
+                  str(x.get("registro_erp") or "— ainda não importado")[:24]]
+                 for x in sem[:40]]))
+        else:
+            blocos.append(p.paragrafo(
+                f"Todas as {aus.get('esperados')} pessoas esperadas bateram o "
+                "ponto. Nada a conferir."))
+
+        # ONDE A CASA BATEU — e é aqui que aparece cerca faltando, que é um
+        # problema de CADASTRO e não de pessoa. Só os lugares reprovados: os
+        # de dentro não geram trabalho para ninguém.
+        longe = [l for l in (dia.get("locais") or [])
+                 if l.get("situacao") == "fora"]
+        if longe:
+            blocos.append(p.secao("Batidas reprovadas, por lugar",
+                                  "a distância é que diz o que fazer"))
+            blocos.append(p.tabela(
+                ["Perto de", "Pessoas", "Batidas", "Distância típica"],
+                [[str(l.get("local") or "").replace("longe de ", "")[:28],
+                  p.inteiro(l.get("pessoas")), p.inteiro(l.get("batidas")),
+                  (f"{(l['distancia_m'] / 1000):.1f} km".replace(".", ",")
+                   if (l.get("distancia_m") or 0) >= 1000
+                   else f"{p.inteiro(l.get('distancia_m'))} m")]
+                 for l in longe[:12]],
+                alinha_dir=(1, 2, 3)))
+            blocos.append(p.paragrafo(
+                "Dezenas de metros é cerca apertada; um ou dois quilômetros "
+                "costuma ser local de trabalho sem cerca cadastrada; dezenas "
+                "de quilômetros é outra cidade. Nenhum dos três se resolve "
+                "com a pessoa."))
+
+        n = len(sem)
+        assunto = (f"[CÓRTEX] Ponto de {_dia_br(ontem)} — "
+                   + ("dia atípico, confira a coleta" if atipico
+                      else f"{n} sem batida" if n
+                      else "todos bateram"))
+        linhas = [f"Ponto de {_dia_br(ontem)}",
+                  f"{k.get('pessoas')} pessoas bateram, {k.get('batidas')} batidas.",
+                  f"Sem batida: {n} de {aus.get('esperados')} esperadas."]
+        linhas += [f"  - {x.get('nome')} ({x.get('filial')})" for x in sem[:40]]
+        return {
+            "assunto": assunto,
+            "html": p.documento(titulo, blocos,
+                                subtitulo=_dia_br(ontem),
+                                origem="Ponto Certificado + Globus"),
+            "texto": "\n".join(linhas),
+            # Nunca vazio: "todos bateram" é a notícia que o RH quer receber.
+            "vazio": False,
+        }
+    except Exception as exc:  # noqa: BLE001
+        log.warning("ponto_do_dia falhou: %s", exc)
+        return _falhou(titulo, exc)
+
+
 CATALOGO = {
+    "ponto_do_dia": {
+        "nome": "Ponto — o dia de ontem",
+        "descricao": "Quem bateu, quem não bateu e onde caíram as batidas do "
+                     "último dia fechado. Para o RH ler de manhã.",
+        "monta": ponto_do_dia,
+        # "Todos bateram" É a notícia que o RH quer receber de manhã. Sumir
+        # nesse dia ensinaria a duvidar do envio no dia seguinte.
+        "pular_vazio": False,
+    },
     "contrapartida": {
         "nome": "CT-e de Contrapartida — despacho do dia",
         "descricao": "Fila do dia, estado da emissão automática e retorno "
