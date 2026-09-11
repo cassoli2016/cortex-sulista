@@ -32,6 +32,23 @@ glossario:
     que alguém atualize a data, o saldo continuaria somando desde agosto,
     trazendo de volta para dentro do número o semestre que já foi pago, sem
     que nada na tela mudasse de aparência.
+- termo: Brent (na página inicial)
+  definicao: >-
+    O preço do petróleo que a imprensa cita: o contrato FUTURO do mês cheio
+    (BZ=F), em dólares por barril, com cerca de 15 minutos de atraso. Não é o
+    spot da EIA, que é a série oficial — ela chega com dois dias de atraso por
+    construção, e a página inicial precisa do preço de agora. As duas medem
+    coisas diferentes (no mesmo 09/09/2026: US$ 101,21 no futuro e US$ 109,51
+    no spot), e por isso a série inteira, do gráfico ao número do cartão, vem
+    da mesma fonte. A hora ao lado do preço é a do ÚLTIMO NEGÓCIO: num sábado,
+    é a de sexta.
+- termo: PTAX
+  definicao: >-
+    A taxa de câmbio de referência que o Banco Central publica uma vez por dia
+    útil, a média das cotações do dia. É a que se usa em contrato e em
+    reajuste — por isso aparece ao lado do dólar comercial, que é o de agora e
+    muda a cada minuto. Os dois têm datas diferentes e respondem perguntas
+    diferentes; nenhum substitui o outro.
 - termo: Piso de caixa
   definicao: >-
     O saldo mínimo que a tesouraria não pode furar, e a régua contra a qual o
@@ -1059,10 +1076,14 @@ glossario:
 
 grupos:
 - nome: Visão geral
-  resumo: 'A leitura do dia — caixa, faturamento contra a meta e o que exige ação agora. O Copiloto responde
+  resumo: 'O Radar do Transporte é a página inicial de todo usuário logado, e por isso só publica dado
+    PÚBLICO: diesel de bomba da ANP, Brent e dólar de agora, PTAX, a tabela vigente do piso da ANTT, as
+    ocorrências nas rodovias dos corredores da operação e as notícias de transporte, diesel, reforma
+    tributária, ANTT e interdições. A Visão Geral é a leitura do dia — caixa, faturamento contra a meta e o que exige ação agora. O Copiloto responde
     em linguagem natural sobre 17 recortes do painel (não só os desta tela): financeiro, comercial, operação,
     frota, ANTT, telemetria e o fechamento do mês.'
   telas:
+  - radar
   - home
   - cop
   - apps

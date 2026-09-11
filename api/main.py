@@ -713,6 +713,25 @@ def aplicativos_lista(req: Request) -> JSONResponse:
     return JSONResponse({"aplicativos": aplicativos.listar(f"{esquema}://{host}")})
 
 
+@app.get("/api/radar")
+def radar_painel() -> JSONResponse:
+    """A página inicial (`radar`): diesel, Brent, dólar, ANTT, rodovias e
+    notícias. De TODO usuário logado — por isso só dado público.
+
+    Lê SÓ o banco local: quem fala com a ANP, o Yahoo, o Banco Central, a
+    TomTom e o Google é o relógio do Radar (`api/radar/agendador.py`). A
+    falha aqui é nossa (banco local), então 500 é o código honesto.
+    """
+    from api.radar import painel
+    try:
+        return JSONResponse(painel.painel())
+    except Exception as exc:  # noqa: BLE001
+        log.warning("radar falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Não foi possível ler o Radar do banco local."})
+
+
 @app.get("/motorista")
 def motorista_pagina() -> FileResponse:
     return FileResponse(STATIC / "motorista.html",
@@ -6478,6 +6497,18 @@ def _startup_aviso_carga() -> None:
         return
     from api.rastreio import agendador
     agendador.iniciar()
+
+
+@app.on_event("startup")
+def _startup_radar() -> None:
+    """O relógio da coleta da página inicial (ANP, Brent, dólar, TomTom,
+    notícias). SÓ NO LÍDER: com `--workers`, cada processo baixaria as mesmas
+    fontes e gastaria a mesma cota da TomTom. E nunca sob pytest (dentro de
+    `agendador.iniciar`)."""
+    if not lider.sou_o_agendador():
+        return
+    from api.radar import agendador as radar_agendador
+    radar_agendador.iniciar()
 
 
 @app.on_event("startup")

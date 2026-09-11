@@ -52,7 +52,11 @@ from api import push, sob_teste as st
 # vivas medindo a casa depois de o teste acabar. O gate esta em
 # `_EmFundo.em_fundo`, e `tests/test_saude_em_fundo.py` prova que as quatro
 # instancias de PRODUCAO nascem gateadas.
-AGENDADORES = ("push-digest", "rastreio-aviso", "saude-em-fundo")
+#
+# `radar-coleta` (11/09/2026) e a coleta da pagina inicial: nao manda mensagem
+# para ninguem, mas baixa quatro sites de terceiro, gasta cota da TomTom e
+# ESCREVE no banco — dentro de uma suite, no schema de producao.
+AGENDADORES = ("push-digest", "rastreio-aviso", "saude-em-fundo", "radar-coleta")
 
 
 def _threads_vivas() -> set[str]:

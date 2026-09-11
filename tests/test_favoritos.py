@@ -202,7 +202,10 @@ def test_o_nao_admin_so_ve_as_dele():
     # acrescentar tela ao `TELAS_TODO_LOGADO` passa a exigir mudar este teste,
     # que é o que impede o conjunto de crescer sozinho (mesmo desenho do
     # `test_a_lista_de_PERMISSOES_SEM_TELA_nao_cresce_sozinha`, abaixo).
-    assert perm == {"prem", "veic", "sup", "apps"}
+    # 'radar' entrou em 11/09/2026: é a página inicial, só com dado público
+    # (ANP, Brent, dólar, ANTT, rodovias, notícias) — a porta de entrada não
+    # pode depender do perfil.
+    assert perm == {"prem", "veic", "sup", "apps", "radar"}
     assert "srv" not in perm and "supfila" not in perm
 
 

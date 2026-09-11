@@ -1,3 +1,36 @@
+- versao: "1.44.0"
+  data: "2026-09-11"
+  adicionado:
+    - >-
+      PAGINA INICIAL NOVA: o RADAR DO TRANSPORTE. E a primeira tela de todo
+      usuario logado, com ou sem perfil, e por isso so publica dado PUBLICO:
+      o diesel de bomba da ANP (S10 e S500, media Brasil, contra a semana
+      anterior), o Brent e o dolar de agora (cerca de 15 minutos de atraso),
+      a PTAX do Banco Central, a tabela vigente do piso minimo da ANTT, as
+      ocorrencias nas rodovias dos quatro corredores da operacao (TomTom) e
+      as noticias de transporte, diesel, reforma tributaria, ANTT e
+      interdicoes. A Visao Geral continua no menu, atras do perfil.
+    - >-
+      Quem nao tinha acesso a Visao Geral caia, ao entrar, na primeira tela da
+      lista em que tivesse permissao -- que era a de um painel de TV. Agora todo
+      mundo entra pelo Radar, e o botao "Inicio" do celular leva a ele.
+    - >-
+      A pagina se atualiza sozinha a cada 5 minutos e diz numa tarja QUAL fonte
+      atrasou e desde quando: numero velho servido calado e pior que tela vazia.
+      O Brent e o contrato FUTURO, o que a imprensa cita -- o spot oficial chega
+      com dois dias de atraso por construcao, e a pagina inicial precisa do
+      preco de agora.
+    - >-
+      O Copiloto passa a responder "quanto esta o diesel?", "e o Brent?" e "o
+      que saiu sobre a reforma?" com o que a pagina inicial mostra, e a Saude
+      do Servidor ganha o cartao da coleta, fonte a fonte.
+  corrigido:
+    - >-
+      A tela Aplicativos, que e de todo usuario logado no servidor, sumia do
+      menu de quem nao era administrador: a lista de telas "de todos" do painel
+      so conhecia o Suporte. Agora as duas listas sao conferidas uma contra a
+      outra pela suite.
+
 - versao: "1.43.0"
   data: "2026-09-11"
   adicionado:

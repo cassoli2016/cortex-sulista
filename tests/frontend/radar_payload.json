@@ -1,0 +1,790 @@
+{
+ "pronto": true,
+ "gerado_em": "2026-09-11T15:00:00+00:00",
+ "diesel": {
+  "diesel_s10": {
+   "serie": [
+    {
+     "semana_inicio": "2026-07-26",
+     "semana_fim": "2026-08-01",
+     "revenda": 6.95,
+     "min": 5.84,
+     "max": 9.19,
+     "postos": 3063,
+     "distribuicao": null
+    },
+    {
+     "semana_inicio": "2026-08-02",
+     "semana_fim": "2026-08-08",
+     "revenda": 6.94,
+     "min": 5.84,
+     "max": 9.19,
+     "postos": 3117,
+     "distribuicao": null
+    },
+    {
+     "semana_inicio": "2026-08-09",
+     "semana_fim": "2026-08-15",
+     "revenda": 6.91,
+     "min": 5.77,
+     "max": 9.27,
+     "postos": 3139,
+     "distribuicao": null
+    },
+    {
+     "semana_inicio": "2026-08-16",
+     "semana_fim": "2026-08-22",
+     "revenda": 6.89,
+     "min": 5.77,
+     "max": 9.19,
+     "postos": 3173,
+     "distribuicao": null
+    },
+    {
+     "semana_inicio": "2026-08-23",
+     "semana_fim": "2026-08-29",
+     "revenda": 6.88,
+     "min": 5.74,
+     "max": 9.27,
+     "postos": 3094,
+     "distribuicao": null
+    },
+    {
+     "semana_inicio": "2026-08-30",
+     "semana_fim": "2026-09-05",
+     "revenda": 6.88,
+     "min": 5.63,
+     "max": 9.25,
+     "postos": 3135,
+     "distribuicao": null
+    }
+   ],
+   "ultimo": {
+    "semana_inicio": "2026-08-30",
+    "semana_fim": "2026-09-05",
+    "revenda": 6.88,
+    "min": 5.63,
+    "max": 9.25,
+    "postos": 3135,
+    "distribuicao": null
+   },
+   "anterior": {
+    "semana_inicio": "2026-08-23",
+    "semana_fim": "2026-08-29",
+    "revenda": 6.88,
+    "min": 5.74,
+    "max": 9.27,
+    "postos": 3094,
+    "distribuicao": null
+   },
+   "ref_4s": {
+    "dia": "2026-08-08",
+    "valor": 6.94
+   },
+   "ref_52s": null
+  },
+  "diesel_s500": {
+   "serie": [
+    {
+     "semana_inicio": "2026-07-26",
+     "semana_fim": "2026-08-01",
+     "revenda": 6.57,
+     "min": 5.49,
+     "max": 8.69,
+     "postos": 1824,
+     "distribuicao": null
+    },
+    {
+     "semana_inicio": "2026-08-02",
+     "semana_fim": "2026-08-08",
+     "revenda": 6.54,
+     "min": 5.49,
+     "max": 8.89,
+     "postos": 1860,
+     "distribuicao": null
+    },
+    {
+     "semana_inicio": "2026-08-09",
+     "semana_fim": "2026-08-15",
+     "revenda": 6.51,
+     "min": 5.48,
+     "max": 8.89,
+     "postos": 1848,
+     "distribuicao": null
+    },
+    {
+     "semana_inicio": "2026-08-16",
+     "semana_fim": "2026-08-22",
+     "revenda": 6.48,
+     "min": 5.49,
+     "max": 8.89,
+     "postos": 1897,
+     "distribuicao": null
+    },
+    {
+     "semana_inicio": "2026-08-23",
+     "semana_fim": "2026-08-29",
+     "revenda": 6.47,
+     "min": 5.49,
+     "max": 8.89,
+     "postos": 1833,
+     "distribuicao": null
+    },
+    {
+     "semana_inicio": "2026-08-30",
+     "semana_fim": "2026-09-05",
+     "revenda": 6.47,
+     "min": 5.07,
+     "max": 8.89,
+     "postos": 1851,
+     "distribuicao": null
+    }
+   ],
+   "ultimo": {
+    "semana_inicio": "2026-08-30",
+    "semana_fim": "2026-09-05",
+    "revenda": 6.47,
+    "min": 5.07,
+    "max": 8.89,
+    "postos": 1851,
+    "distribuicao": null
+   },
+   "anterior": {
+    "semana_inicio": "2026-08-23",
+    "semana_fim": "2026-08-29",
+    "revenda": 6.47,
+    "min": 5.49,
+    "max": 8.89,
+    "postos": 1833,
+    "distribuicao": null
+   },
+   "ref_4s": {
+    "dia": "2026-08-08",
+    "valor": 6.54
+   },
+   "ref_52s": null
+  }
+ },
+ "brent": {
+  "agora": {
+   "valor": 103.68,
+   "momento": "2026-09-11T07:26:42-03:00",
+   "dia": "2026-09-11",
+   "moeda": "USD",
+   "coletado_em": "2026-09-11T08:01:10.021765-03:00"
+  },
+  "fechamento_anterior": {
+   "dia": "2026-09-10",
+   "valor": 107.63
+  },
+  "ref_30d": {
+   "dia": "2026-08-12",
+   "valor": 88.98
+  },
+  "max_12m": 107.63,
+  "min_12m": 76.01,
+  "serie": [
+   {
+    "dia": "2026-07-10",
+    "valor": 76.01
+   },
+   {
+    "dia": "2026-07-13",
+    "valor": 83.3
+   },
+   {
+    "dia": "2026-07-14",
+    "valor": 84.73
+   },
+   {
+    "dia": "2026-07-15",
+    "valor": 84.95
+   },
+   {
+    "dia": "2026-07-16",
+    "valor": 84.23
+   },
+   {
+    "dia": "2026-07-17",
+    "valor": 88.1
+   },
+   {
+    "dia": "2026-07-20",
+    "valor": 89.22
+   },
+   {
+    "dia": "2026-07-21",
+    "valor": 91.01
+   },
+   {
+    "dia": "2026-07-22",
+    "valor": 94.07
+   },
+   {
+    "dia": "2026-07-23",
+    "valor": 100.69
+   },
+   {
+    "dia": "2026-07-24",
+    "valor": 96.78
+   },
+   {
+    "dia": "2026-07-27",
+    "valor": 88.36
+   },
+   {
+    "dia": "2026-07-28",
+    "valor": 84.09
+   },
+   {
+    "dia": "2026-07-29",
+    "valor": 90.74
+   },
+   {
+    "dia": "2026-07-30",
+    "valor": 89.03
+   },
+   {
+    "dia": "2026-07-31",
+    "valor": 90.12
+   },
+   {
+    "dia": "2026-08-03",
+    "valor": 83.77
+   },
+   {
+    "dia": "2026-08-04",
+    "valor": 79.36
+   },
+   {
+    "dia": "2026-08-05",
+    "valor": 79.45
+   },
+   {
+    "dia": "2026-08-06",
+    "valor": 82.49
+   },
+   {
+    "dia": "2026-08-07",
+    "valor": 83.55
+   },
+   {
+    "dia": "2026-08-10",
+    "valor": 87.72
+   },
+   {
+    "dia": "2026-08-11",
+    "valor": 88.91
+   },
+   {
+    "dia": "2026-08-12",
+    "valor": 88.98
+   },
+   {
+    "dia": "2026-08-13",
+    "valor": 87.07
+   },
+   {
+    "dia": "2026-08-14",
+    "valor": 88.52
+   },
+   {
+    "dia": "2026-08-17",
+    "valor": 90.87
+   },
+   {
+    "dia": "2026-08-18",
+    "valor": 91.02
+   },
+   {
+    "dia": "2026-08-19",
+    "valor": 91.62
+   },
+   {
+    "dia": "2026-08-20",
+    "valor": 93.78
+   },
+   {
+    "dia": "2026-08-21",
+    "valor": 94.39
+   },
+   {
+    "dia": "2026-08-24",
+    "valor": 92.17
+   },
+   {
+    "dia": "2026-08-25",
+    "valor": 88.58
+   },
+   {
+    "dia": "2026-08-26",
+    "valor": 87.84
+   },
+   {
+    "dia": "2026-08-27",
+    "valor": 89.7
+   },
+   {
+    "dia": "2026-08-28",
+    "valor": 89.31
+   },
+   {
+    "dia": "2026-08-31",
+    "valor": 90.49
+   },
+   {
+    "dia": "2026-09-01",
+    "valor": 94.65
+   },
+   {
+    "dia": "2026-09-02",
+    "valor": 95.63
+   },
+   {
+    "dia": "2026-09-03",
+    "valor": 95.52
+   },
+   {
+    "dia": "2026-09-04",
+    "valor": 96.28
+   },
+   {
+    "dia": "2026-09-08",
+    "valor": 97.92
+   },
+   {
+    "dia": "2026-09-09",
+    "valor": 101.21
+   },
+   {
+    "dia": "2026-09-10",
+    "valor": 107.63
+   },
+   {
+    "dia": "2026-09-11",
+    "valor": 103.68
+   }
+  ]
+ },
+ "dolar": {
+  "agora": {
+   "valor": 5.0949,
+   "momento": "2026-09-11T06:58:17-03:00",
+   "dia": "2026-09-11",
+   "moeda": "BRL",
+   "coletado_em": "2026-09-11T08:01:10.029191-03:00"
+  },
+  "fechamento_anterior": {
+   "dia": "2026-09-10",
+   "valor": 5.1034
+  },
+  "ref_30d": {
+   "dia": "2026-08-12",
+   "valor": 5.1735
+  },
+  "max_12m": null,
+  "min_12m": null,
+  "serie": []
+ },
+ "ptax": {
+  "dia": "2026-09-10",
+  "valor": 5.1149
+ },
+ "antt": {
+  "resolucao": "6.084/2026",
+  "inicio": "2026-07-17",
+  "anterior": {
+   "resolucao": "6.076/2026",
+   "inicio": "2026-01-20"
+  },
+  "carga_geral": [
+   {
+    "eixos": 5,
+    "ccd": 6.6718,
+    "cc": 657.56,
+    "ccd_anterior": 6.1604,
+    "cc_anterior": 635.08
+   },
+   {
+    "eixos": 6,
+    "ccd": 7.3547,
+    "cc": 671.93,
+    "ccd_anterior": 6.7774,
+    "cc_anterior": 648.95
+   },
+   {
+    "eixos": 7,
+    "ccd": 8.0927,
+    "cc": 831.66,
+    "ccd_anterior": 7.4902,
+    "cc_anterior": 803.22
+   },
+   {
+    "eixos": 9,
+    "ccd": 9.2027,
+    "cc": 903.32,
+    "ccd_anterior": 8.5104,
+    "cc_anterior": 872.44
+   }
+  ],
+  "revisao_esperada": "2027-01-16",
+  "revisao_vencida": false
+ },
+ "rodovias": {
+  "configurado": true,
+  "itens": [
+   {
+    "regiao": "curitiba",
+    "regiao_rotulo": "Curitiba · BR-116 / BR-376 · litoral do PR",
+    "rodovias": "BR-101",
+    "categoria": "Via fechada",
+    "bloqueia": true,
+    "descricao": "Encerrado/a",
+    "de": "BR-101",
+    "para": "BR-101",
+    "atraso_min": null,
+    "magnitude": "indefinida"
+   },
+   {
+    "regiao": "dutra",
+    "regiao_rotulo": "Vale do Paraíba · Dutra",
+    "rodovias": "BR-101",
+    "categoria": "Via fechada",
+    "bloqueia": true,
+    "descricao": "Encerrado/a",
+    "de": "BR-101",
+    "para": "BR-101",
+    "atraso_min": null,
+    "magnitude": "indefinida"
+   },
+   {
+    "regiao": "grande_sp",
+    "regiao_rotulo": "Grande SP · Anchieta / Imigrantes",
+    "rodovias": "BR-101",
+    "categoria": "Via fechada",
+    "bloqueia": true,
+    "descricao": "Encerrado/a",
+    "de": "BR-101",
+    "para": "BR-101",
+    "atraso_min": null,
+    "magnitude": "indefinida"
+   },
+   {
+    "regiao": "joinville",
+    "regiao_rotulo": "Joinville · Itajaí · BR-101 SC",
+    "rodovias": "BR-101",
+    "categoria": "Via fechada",
+    "bloqueia": true,
+    "descricao": "Encerrado/a",
+    "de": "BR-101",
+    "para": "BR-101",
+    "atraso_min": null,
+    "magnitude": "indefinida"
+   },
+   {
+    "regiao": "curitiba",
+    "regiao_rotulo": "Curitiba · BR-116 / BR-376 · litoral do PR",
+    "rodovias": "BR-116",
+    "categoria": "Congestionamento",
+    "bloqueia": false,
+    "descricao": "Trânsito lento",
+    "de": "BR-116",
+    "para": "BR-116",
+    "atraso_min": 5,
+    "magnitude": "moderada"
+   },
+   {
+    "regiao": "dutra",
+    "regiao_rotulo": "Vale do Paraíba · Dutra",
+    "rodovias": "BR-116",
+    "categoria": "Congestionamento",
+    "bloqueia": false,
+    "descricao": "Trânsito lento",
+    "de": "BR-116",
+    "para": "BR-116",
+    "atraso_min": 5,
+    "magnitude": "moderada"
+   },
+   {
+    "regiao": "grande_sp",
+    "regiao_rotulo": "Grande SP · Anchieta / Imigrantes",
+    "rodovias": "BR-116",
+    "categoria": "Congestionamento",
+    "bloqueia": false,
+    "descricao": "Trânsito lento",
+    "de": "BR-116",
+    "para": "BR-116",
+    "atraso_min": 5,
+    "magnitude": "moderada"
+   },
+   {
+    "regiao": "joinville",
+    "regiao_rotulo": "Joinville · Itajaí · BR-101 SC",
+    "rodovias": "BR-116",
+    "categoria": "Congestionamento",
+    "bloqueia": false,
+    "descricao": "Trânsito lento",
+    "de": "BR-116",
+    "para": "BR-116",
+    "atraso_min": 5,
+    "magnitude": "moderada"
+   }
+  ],
+  "bloqueios": 4,
+  "corredores": [
+   {
+    "regiao": "curitiba",
+    "rotulo": "Curitiba · BR-116 / BR-376 · litoral do PR",
+    "itens": 2
+   },
+   {
+    "regiao": "grande_sp",
+    "rotulo": "Grande SP · Anchieta / Imigrantes",
+    "itens": 2
+   },
+   {
+    "regiao": "dutra",
+    "rotulo": "Vale do Paraíba · Dutra",
+    "itens": 2
+   },
+   {
+    "regiao": "joinville",
+    "rotulo": "Joinville · Itajaí · BR-101 SC",
+    "itens": 2
+   }
+  ]
+ },
+ "noticias": {
+  "trc": {
+   "rotulo": "Transporte",
+   "dias": 14,
+   "total": 3,
+   "itens": [
+    {
+     "titulo": "Preço do diesel nos EUA passa de US$ 6 por galão pela 1ª vez",
+     "fonte": "CNN Brasil",
+     "link": "https://news.google.com/rss/articles/CBMisgFBVV95cUxPdzhxTHI1bEFJQXRaaXJoT1k1UGxwUnZTbUFxcm1FejFCTG9OczkxUEp3UlYzQUlwbnVGaUh1U2JmaTdfOWMyaHJQOHkwMVpvdE9RMUY5Q0Z2Q2syTGdXWE42dDhreU9tNFQxbEVrSkt4UWtVbWdwV3F5YUkzWmxQaDdHZUZ4RGlSdUMwa1R2aGJBdW9PaFJNdnNCc1h4cmRLQUtmamwwMGk4V0N5elViR2dR?oc=5",
+     "publicada_em": "2026-09-10T21:57:48-03:00"
+    },
+    {
+     "titulo": "Petrobras aguarda medida do governo para elevar preço do diesel sem impacto a consumidor, dizem fontes",
+     "fonte": "Notícias Agrícolas",
+     "link": "https://news.google.com/rss/articles/CBMiiAJBVV95cUxQdnRNMmh2MTZHb1otUVNFcUNSdTh0MlhJVjVMeGpoVHFabDFnWDVXYzFvR0d6UDVpcG5uRmNYZGx1VmJiUGFWOEZ4WDQ3U0NIOVMzU29WRURnV1RDUVY1MHVyLWhsdTVsSkhvUjZUMnZYa1RMVzJWUDd1aXBFbGhRY29aLTNaOHRWLW1OMTNfYlllYTQtNHlJYktHdFRLY0doT1NVSXhybFFVSHNJOUh0b29nb2xNZWFubjZpc2VEYnE0dXprREJ3a0tiZTZTTzZ1SFkwOHhLQ1VLVUpVeFRuTTRhMHp1ckZKYTBRRS1lMTRTdnlkMUNYejU0YnMwOHQweUtFTDBJNTDSAY4CQVVfeXFMT1FFZ3JrZEt4amN2VldINzh3QTlqY0duZnhIbGNWY0RoRktVYnR1R1JUc2JjcFk1cXFYMVEtUlBDMU1uaTNneklsT2tab2Rpd0w2X2JCU0QxMHFJQW1UYzhLdWFxcjBjVmJFeE01MXJPZE44eXVQV1RtaVp6VDd3bTd0WE1sQzVPQVV6NlJSMGlsUmFXYkYteGZqZTNnNXNTQl9aNXlfV1pHelBGVTFEVDNqVXpVbWVLaGlTUHRZVWxpZmhNZXBOZ1h0dEdMMzRXVkJYbEgyVHNjb2UyeDB2LWdWNk9iX2VBYTZucG82UWZxMnRBalFlUmNJa3BVN0ZTaDZpWmFJelZIX2xTUGxR?oc=5",
+     "publicada_em": "2026-09-10T16:27:38-03:00"
+    },
+    {
+     "titulo": "A safra de soja do Brasil afeta o preço do diesel no mundo. Por quê?",
+     "fonte": "InvestNews",
+     "link": "https://news.google.com/rss/articles/CBMiugFBVV95cUxQM3JtbzdONWpzYXFjSUstLVRxelZPX2hVVXZ3dWtUeGxtSk5OZ0NEdUhha0Z4NloyTDVrSWlfcFVzN3Rsb08xVW00WjZkS2IzSjFNbFZqaTRmSXY0TzV2SjVadjhBX0ZONlhpVko5d21XRENPdVJPNDBqN3J0bXVhWHNzdU5Dc3ROaENqemx2UF9xSnBJR2ZYWWRNNWt6OFJ0MkVvWS1QRkpjWlF0R0RkX05QNEdwSzNOZ0HSAb8BQVVfeXFMTXNHWi1tRmhwS1hfRV9yczFsWUFheXphTEFwdklMcE1UTjhjQnJ4a1g4dFN0bUI0ZFJ5VVQwZ0hRR1ZRTnFnWWd2Z1haN3dhX196MlZxdzV0MHhvblpvcU1tYjZjd3hVYmRwWVJTc3A0MXdFMjdoeWFSanQxSThueURCbXA4Y2hQVFA2UHpXX0RjTE8xRkJuWHV2ZmZKR2UwLWtlb3JUQ0R4Q3BsUDdoemN2dy1Ha1luZWxya3Bnck0?oc=5",
+     "publicada_em": "2026-08-30T04:00:00-03:00"
+    }
+   ]
+  },
+  "diesel": {
+   "rotulo": "Diesel e petróleo",
+   "dias": 14,
+   "total": 3,
+   "itens": [
+    {
+     "titulo": "Preço do diesel nos EUA passa de US$ 6 por galão pela 1ª vez",
+     "fonte": "CNN Brasil",
+     "link": "https://news.google.com/rss/articles/CBMisgFBVV95cUxPdzhxTHI1bEFJQXRaaXJoT1k1UGxwUnZTbUFxcm1FejFCTG9OczkxUEp3UlYzQUlwbnVGaUh1U2JmaTdfOWMyaHJQOHkwMVpvdE9RMUY5Q0Z2Q2syTGdXWE42dDhreU9tNFQxbEVrSkt4UWtVbWdwV3F5YUkzWmxQaDdHZUZ4RGlSdUMwa1R2aGJBdW9PaFJNdnNCc1h4cmRLQUtmamwwMGk4V0N5elViR2dR?oc=5",
+     "publicada_em": "2026-09-10T21:57:48-03:00"
+    },
+    {
+     "titulo": "Petrobras aguarda medida do governo para elevar preço do diesel sem impacto a consumidor, dizem fontes",
+     "fonte": "Notícias Agrícolas",
+     "link": "https://news.google.com/rss/articles/CBMiiAJBVV95cUxQdnRNMmh2MTZHb1otUVNFcUNSdTh0MlhJVjVMeGpoVHFabDFnWDVXYzFvR0d6UDVpcG5uRmNYZGx1VmJiUGFWOEZ4WDQ3U0NIOVMzU29WRURnV1RDUVY1MHVyLWhsdTVsSkhvUjZUMnZYa1RMVzJWUDd1aXBFbGhRY29aLTNaOHRWLW1OMTNfYlllYTQtNHlJYktHdFRLY0doT1NVSXhybFFVSHNJOUh0b29nb2xNZWFubjZpc2VEYnE0dXprREJ3a0tiZTZTTzZ1SFkwOHhLQ1VLVUpVeFRuTTRhMHp1ckZKYTBRRS1lMTRTdnlkMUNYejU0YnMwOHQweUtFTDBJNTDSAY4CQVVfeXFMT1FFZ3JrZEt4amN2VldINzh3QTlqY0duZnhIbGNWY0RoRktVYnR1R1JUc2JjcFk1cXFYMVEtUlBDMU1uaTNneklsT2tab2Rpd0w2X2JCU0QxMHFJQW1UYzhLdWFxcjBjVmJFeE01MXJPZE44eXVQV1RtaVp6VDd3bTd0WE1sQzVPQVV6NlJSMGlsUmFXYkYteGZqZTNnNXNTQl9aNXlfV1pHelBGVTFEVDNqVXpVbWVLaGlTUHRZVWxpZmhNZXBOZ1h0dEdMMzRXVkJYbEgyVHNjb2UyeDB2LWdWNk9iX2VBYTZucG82UWZxMnRBalFlUmNJa3BVN0ZTaDZpWmFJelZIX2xTUGxR?oc=5",
+     "publicada_em": "2026-09-10T16:27:38-03:00"
+    },
+    {
+     "titulo": "A safra de soja do Brasil afeta o preço do diesel no mundo. Por quê?",
+     "fonte": "InvestNews",
+     "link": "https://news.google.com/rss/articles/CBMiugFBVV95cUxQM3JtbzdONWpzYXFjSUstLVRxelZPX2hVVXZ3dWtUeGxtSk5OZ0NEdUhha0Z4NloyTDVrSWlfcFVzN3Rsb08xVW00WjZkS2IzSjFNbFZqaTRmSXY0TzV2SjVadjhBX0ZONlhpVko5d21XRENPdVJPNDBqN3J0bXVhWHNzdU5Dc3ROaENqemx2UF9xSnBJR2ZYWWRNNWt6OFJ0MkVvWS1QRkpjWlF0R0RkX05QNEdwSzNOZ0HSAb8BQVVfeXFMTXNHWi1tRmhwS1hfRV9yczFsWUFheXphTEFwdklMcE1UTjhjQnJ4a1g4dFN0bUI0ZFJ5VVQwZ0hRR1ZRTnFnWWd2Z1haN3dhX196MlZxdzV0MHhvblpvcU1tYjZjd3hVYmRwWVJTc3A0MXdFMjdoeWFSanQxSThueURCbXA4Y2hQVFA2UHpXX0RjTE8xRkJuWHV2ZmZKR2UwLWtlb3JUQ0R4Q3BsUDdoemN2dy1Ha1luZWxya3Bnck0?oc=5",
+     "publicada_em": "2026-08-30T04:00:00-03:00"
+    }
+   ]
+  },
+  "reforma": {
+   "rotulo": "Reforma tributária",
+   "dias": 30,
+   "total": 3,
+   "itens": [
+    {
+     "titulo": "Preço do diesel nos EUA passa de US$ 6 por galão pela 1ª vez",
+     "fonte": "CNN Brasil",
+     "link": "https://news.google.com/rss/articles/CBMisgFBVV95cUxPdzhxTHI1bEFJQXRaaXJoT1k1UGxwUnZTbUFxcm1FejFCTG9OczkxUEp3UlYzQUlwbnVGaUh1U2JmaTdfOWMyaHJQOHkwMVpvdE9RMUY5Q0Z2Q2syTGdXWE42dDhreU9tNFQxbEVrSkt4UWtVbWdwV3F5YUkzWmxQaDdHZUZ4RGlSdUMwa1R2aGJBdW9PaFJNdnNCc1h4cmRLQUtmamwwMGk4V0N5elViR2dR?oc=5",
+     "publicada_em": "2026-09-10T21:57:48-03:00"
+    },
+    {
+     "titulo": "Petrobras aguarda medida do governo para elevar preço do diesel sem impacto a consumidor, dizem fontes",
+     "fonte": "Notícias Agrícolas",
+     "link": "https://news.google.com/rss/articles/CBMiiAJBVV95cUxQdnRNMmh2MTZHb1otUVNFcUNSdTh0MlhJVjVMeGpoVHFabDFnWDVXYzFvR0d6UDVpcG5uRmNYZGx1VmJiUGFWOEZ4WDQ3U0NIOVMzU29WRURnV1RDUVY1MHVyLWhsdTVsSkhvUjZUMnZYa1RMVzJWUDd1aXBFbGhRY29aLTNaOHRWLW1OMTNfYlllYTQtNHlJYktHdFRLY0doT1NVSXhybFFVSHNJOUh0b29nb2xNZWFubjZpc2VEYnE0dXprREJ3a0tiZTZTTzZ1SFkwOHhLQ1VLVUpVeFRuTTRhMHp1ckZKYTBRRS1lMTRTdnlkMUNYejU0YnMwOHQweUtFTDBJNTDSAY4CQVVfeXFMT1FFZ3JrZEt4amN2VldINzh3QTlqY0duZnhIbGNWY0RoRktVYnR1R1JUc2JjcFk1cXFYMVEtUlBDMU1uaTNneklsT2tab2Rpd0w2X2JCU0QxMHFJQW1UYzhLdWFxcjBjVmJFeE01MXJPZE44eXVQV1RtaVp6VDd3bTd0WE1sQzVPQVV6NlJSMGlsUmFXYkYteGZqZTNnNXNTQl9aNXlfV1pHelBGVTFEVDNqVXpVbWVLaGlTUHRZVWxpZmhNZXBOZ1h0dEdMMzRXVkJYbEgyVHNjb2UyeDB2LWdWNk9iX2VBYTZucG82UWZxMnRBalFlUmNJa3BVN0ZTaDZpWmFJelZIX2xTUGxR?oc=5",
+     "publicada_em": "2026-09-10T16:27:38-03:00"
+    },
+    {
+     "titulo": "A safra de soja do Brasil afeta o preço do diesel no mundo. Por quê?",
+     "fonte": "InvestNews",
+     "link": "https://news.google.com/rss/articles/CBMiugFBVV95cUxQM3JtbzdONWpzYXFjSUstLVRxelZPX2hVVXZ3dWtUeGxtSk5OZ0NEdUhha0Z4NloyTDVrSWlfcFVzN3Rsb08xVW00WjZkS2IzSjFNbFZqaTRmSXY0TzV2SjVadjhBX0ZONlhpVko5d21XRENPdVJPNDBqN3J0bXVhWHNzdU5Dc3ROaENqemx2UF9xSnBJR2ZYWWRNNWt6OFJ0MkVvWS1QRkpjWlF0R0RkX05QNEdwSzNOZ0HSAb8BQVVfeXFMTXNHWi1tRmhwS1hfRV9yczFsWUFheXphTEFwdklMcE1UTjhjQnJ4a1g4dFN0bUI0ZFJ5VVQwZ0hRR1ZRTnFnWWd2Z1haN3dhX196MlZxdzV0MHhvblpvcU1tYjZjd3hVYmRwWVJTc3A0MXdFMjdoeWFSanQxSThueURCbXA4Y2hQVFA2UHpXX0RjTE8xRkJuWHV2ZmZKR2UwLWtlb3JUQ0R4Q3BsUDdoemN2dy1Ha1luZWxya3Bnck0?oc=5",
+     "publicada_em": "2026-08-30T04:00:00-03:00"
+    }
+   ]
+  },
+  "antt": {
+   "rotulo": "ANTT",
+   "dias": 30,
+   "total": 3,
+   "itens": [
+    {
+     "titulo": "Preço do diesel nos EUA passa de US$ 6 por galão pela 1ª vez",
+     "fonte": "CNN Brasil",
+     "link": "https://news.google.com/rss/articles/CBMisgFBVV95cUxPdzhxTHI1bEFJQXRaaXJoT1k1UGxwUnZTbUFxcm1FejFCTG9OczkxUEp3UlYzQUlwbnVGaUh1U2JmaTdfOWMyaHJQOHkwMVpvdE9RMUY5Q0Z2Q2syTGdXWE42dDhreU9tNFQxbEVrSkt4UWtVbWdwV3F5YUkzWmxQaDdHZUZ4RGlSdUMwa1R2aGJBdW9PaFJNdnNCc1h4cmRLQUtmamwwMGk4V0N5elViR2dR?oc=5",
+     "publicada_em": "2026-09-10T21:57:48-03:00"
+    },
+    {
+     "titulo": "Petrobras aguarda medida do governo para elevar preço do diesel sem impacto a consumidor, dizem fontes",
+     "fonte": "Notícias Agrícolas",
+     "link": "https://news.google.com/rss/articles/CBMiiAJBVV95cUxQdnRNMmh2MTZHb1otUVNFcUNSdTh0MlhJVjVMeGpoVHFabDFnWDVXYzFvR0d6UDVpcG5uRmNYZGx1VmJiUGFWOEZ4WDQ3U0NIOVMzU29WRURnV1RDUVY1MHVyLWhsdTVsSkhvUjZUMnZYa1RMVzJWUDd1aXBFbGhRY29aLTNaOHRWLW1OMTNfYlllYTQtNHlJYktHdFRLY0doT1NVSXhybFFVSHNJOUh0b29nb2xNZWFubjZpc2VEYnE0dXprREJ3a0tiZTZTTzZ1SFkwOHhLQ1VLVUpVeFRuTTRhMHp1ckZKYTBRRS1lMTRTdnlkMUNYejU0YnMwOHQweUtFTDBJNTDSAY4CQVVfeXFMT1FFZ3JrZEt4amN2VldINzh3QTlqY0duZnhIbGNWY0RoRktVYnR1R1JUc2JjcFk1cXFYMVEtUlBDMU1uaTNneklsT2tab2Rpd0w2X2JCU0QxMHFJQW1UYzhLdWFxcjBjVmJFeE01MXJPZE44eXVQV1RtaVp6VDd3bTd0WE1sQzVPQVV6NlJSMGlsUmFXYkYteGZqZTNnNXNTQl9aNXlfV1pHelBGVTFEVDNqVXpVbWVLaGlTUHRZVWxpZmhNZXBOZ1h0dEdMMzRXVkJYbEgyVHNjb2UyeDB2LWdWNk9iX2VBYTZucG82UWZxMnRBalFlUmNJa3BVN0ZTaDZpWmFJelZIX2xTUGxR?oc=5",
+     "publicada_em": "2026-09-10T16:27:38-03:00"
+    },
+    {
+     "titulo": "A safra de soja do Brasil afeta o preço do diesel no mundo. Por quê?",
+     "fonte": "InvestNews",
+     "link": "https://news.google.com/rss/articles/CBMiugFBVV95cUxQM3JtbzdONWpzYXFjSUstLVRxelZPX2hVVXZ3dWtUeGxtSk5OZ0NEdUhha0Z4NloyTDVrSWlfcFVzN3Rsb08xVW00WjZkS2IzSjFNbFZqaTRmSXY0TzV2SjVadjhBX0ZONlhpVko5d21XRENPdVJPNDBqN3J0bXVhWHNzdU5Dc3ROaENqemx2UF9xSnBJR2ZYWWRNNWt6OFJ0MkVvWS1QRkpjWlF0R0RkX05QNEdwSzNOZ0HSAb8BQVVfeXFMTXNHWi1tRmhwS1hfRV9yczFsWUFheXphTEFwdklMcE1UTjhjQnJ4a1g4dFN0bUI0ZFJ5VVQwZ0hRR1ZRTnFnWWd2Z1haN3dhX196MlZxdzV0MHhvblpvcU1tYjZjd3hVYmRwWVJTc3A0MXdFMjdoeWFSanQxSThueURCbXA4Y2hQVFA2UHpXX0RjTE8xRkJuWHV2ZmZKR2UwLWtlb3JUQ0R4Q3BsUDdoemN2dy1Ha1luZWxya3Bnck0?oc=5",
+     "publicada_em": "2026-08-30T04:00:00-03:00"
+    }
+   ]
+  },
+  "rodovias": {
+   "rotulo": "Rodovias",
+   "dias": 3,
+   "total": 2,
+   "itens": [
+    {
+     "titulo": "Preço do diesel nos EUA passa de US$ 6 por galão pela 1ª vez",
+     "fonte": "CNN Brasil",
+     "link": "https://news.google.com/rss/articles/CBMisgFBVV95cUxPdzhxTHI1bEFJQXRaaXJoT1k1UGxwUnZTbUFxcm1FejFCTG9OczkxUEp3UlYzQUlwbnVGaUh1U2JmaTdfOWMyaHJQOHkwMVpvdE9RMUY5Q0Z2Q2syTGdXWE42dDhreU9tNFQxbEVrSkt4UWtVbWdwV3F5YUkzWmxQaDdHZUZ4RGlSdUMwa1R2aGJBdW9PaFJNdnNCc1h4cmRLQUtmamwwMGk4V0N5elViR2dR?oc=5",
+     "publicada_em": "2026-09-10T21:57:48-03:00"
+    },
+    {
+     "titulo": "Petrobras aguarda medida do governo para elevar preço do diesel sem impacto a consumidor, dizem fontes",
+     "fonte": "Notícias Agrícolas",
+     "link": "https://news.google.com/rss/articles/CBMiiAJBVV95cUxQdnRNMmh2MTZHb1otUVNFcUNSdTh0MlhJVjVMeGpoVHFabDFnWDVXYzFvR0d6UDVpcG5uRmNYZGx1VmJiUGFWOEZ4WDQ3U0NIOVMzU29WRURnV1RDUVY1MHVyLWhsdTVsSkhvUjZUMnZYa1RMVzJWUDd1aXBFbGhRY29aLTNaOHRWLW1OMTNfYlllYTQtNHlJYktHdFRLY0doT1NVSXhybFFVSHNJOUh0b29nb2xNZWFubjZpc2VEYnE0dXprREJ3a0tiZTZTTzZ1SFkwOHhLQ1VLVUpVeFRuTTRhMHp1ckZKYTBRRS1lMTRTdnlkMUNYejU0YnMwOHQweUtFTDBJNTDSAY4CQVVfeXFMT1FFZ3JrZEt4amN2VldINzh3QTlqY0duZnhIbGNWY0RoRktVYnR1R1JUc2JjcFk1cXFYMVEtUlBDMU1uaTNneklsT2tab2Rpd0w2X2JCU0QxMHFJQW1UYzhLdWFxcjBjVmJFeE01MXJPZE44eXVQV1RtaVp6VDd3bTd0WE1sQzVPQVV6NlJSMGlsUmFXYkYteGZqZTNnNXNTQl9aNXlfV1pHelBGVTFEVDNqVXpVbWVLaGlTUHRZVWxpZmhNZXBOZ1h0dEdMMzRXVkJYbEgyVHNjb2UyeDB2LWdWNk9iX2VBYTZucG82UWZxMnRBalFlUmNJa3BVN0ZTaDZpWmFJelZIX2xTUGxR?oc=5",
+     "publicada_em": "2026-09-10T16:27:38-03:00"
+    }
+   ]
+  }
+ },
+ "coleta": {
+  "anp": {
+   "rotulo": "Diesel (ANP)",
+   "estado": "ok",
+   "ok": true,
+   "sucesso_em": "2026-09-11T12:00:00-03:00",
+   "tentativa_em": "2026-09-11T12:00:00-03:00",
+   "idade_s": 0,
+   "erro": null,
+   "itens": 12,
+   "dado_ate": "2026-09-05"
+  },
+  "brent": {
+   "rotulo": "Brent (Yahoo)",
+   "estado": "ok",
+   "ok": true,
+   "sucesso_em": "2026-09-11T12:00:00-03:00",
+   "tentativa_em": "2026-09-11T12:00:00-03:00",
+   "idade_s": 0,
+   "erro": null,
+   "itens": 45,
+   "dado_ate": "2026-09-11"
+  },
+  "dolar": {
+   "rotulo": "Dólar (Yahoo)",
+   "estado": "ok",
+   "ok": true,
+   "sucesso_em": "2026-09-11T12:00:00-03:00",
+   "tentativa_em": "2026-09-11T12:00:00-03:00",
+   "idade_s": 0,
+   "erro": null,
+   "itens": 44,
+   "dado_ate": "2026-09-11"
+  },
+  "ptax": {
+   "rotulo": "PTAX (Banco Central)",
+   "estado": "ok",
+   "ok": true,
+   "sucesso_em": "2026-09-11T12:00:00-03:00",
+   "tentativa_em": "2026-09-11T12:00:00-03:00",
+   "idade_s": 0,
+   "erro": null,
+   "itens": 51,
+   "dado_ate": "2026-09-10"
+  },
+  "rodovias": {
+   "rotulo": "Rodovias (TomTom)",
+   "estado": "ok",
+   "ok": true,
+   "sucesso_em": "2026-09-11T12:00:00-03:00",
+   "tentativa_em": "2026-09-11T12:00:00-03:00",
+   "idade_s": 0,
+   "erro": null,
+   "itens": 8,
+   "dado_ate": "2026-09-11"
+  },
+  "noticias_trc": {
+   "rotulo": "Notícias · Transporte",
+   "estado": "ok",
+   "ok": true,
+   "sucesso_em": "2026-09-11T12:00:00-03:00",
+   "tentativa_em": "2026-09-11T12:00:00-03:00",
+   "idade_s": 0,
+   "erro": null,
+   "itens": 3,
+   "dado_ate": "2026-09-11"
+  },
+  "noticias_diesel": {
+   "rotulo": "Notícias · Diesel e petróleo",
+   "estado": "ok",
+   "ok": true,
+   "sucesso_em": "2026-09-11T12:00:00-03:00",
+   "tentativa_em": "2026-09-11T12:00:00-03:00",
+   "idade_s": 0,
+   "erro": null,
+   "itens": 3,
+   "dado_ate": "2026-09-11"
+  },
+  "noticias_reforma": {
+   "rotulo": "Notícias · Reforma tributária",
+   "estado": "ok",
+   "ok": true,
+   "sucesso_em": "2026-09-11T12:00:00-03:00",
+   "tentativa_em": "2026-09-11T12:00:00-03:00",
+   "idade_s": 0,
+   "erro": null,
+   "itens": 3,
+   "dado_ate": "2026-09-11"
+  },
+  "noticias_antt": {
+   "rotulo": "Notícias · ANTT",
+   "estado": "ok",
+   "ok": true,
+   "sucesso_em": "2026-09-11T12:00:00-03:00",
+   "tentativa_em": "2026-09-11T12:00:00-03:00",
+   "idade_s": 0,
+   "erro": null,
+   "itens": 3,
+   "dado_ate": "2026-09-11"
+  },
+  "noticias_rodovias": {
+   "rotulo": "Notícias · Rodovias",
+   "estado": "ok",
+   "ok": true,
+   "sucesso_em": "2026-09-11T12:00:00-03:00",
+   "tentativa_em": "2026-09-11T12:00:00-03:00",
+   "idade_s": 0,
+   "erro": null,
+   "itens": 3,
+   "dado_ate": "2026-09-11"
+  }
+ }
+}

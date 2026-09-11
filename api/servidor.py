@@ -1986,6 +1986,16 @@ def _servicos() -> list[dict]:
     except Exception as exc:  # noqa: BLE001
         log.warning("saude: ponto certificado: %s", type(exc).__name__)
 
+    # RADAR DO TRANSPORTE — a coleta da página inicial (ANP, Yahoo, Banco
+    # Central, TomTom, Google Notícias). Mede a EXECUÇÃO de cada coleta, fonte
+    # a fonte: a página de todo mundo mostrando o Brent de ontem sem aviso é
+    # exatamente o que a pessoa não pode ver. Lê só o banco local.
+    try:
+        from .radar import painel as _radar
+        servicos.append(_radar.cartao_saude())
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: radar: %s", type(exc).__name__)
+
     # BANCO DE ESCRITA DO CÓRTEX (PostgreSQL local). É o destino dos dez SQLite
     # de data/, migrados um por vez. Fica ao lado dos outros dois bancos porque
     # é o terceiro: ERP (réplica de terceiro), Folha (Oracle) e este, o da casa.

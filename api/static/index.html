@@ -2770,6 +2770,40 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 .appcard .abrir{margin-left:auto}
 @media(max-width:560px){ .apps-grid{grid-template-columns:minmax(0,1fr)} }
 
+/* --- Radar do Transporte (a página inicial) ------------------------------ */
+/* TRÊS COLUNAS em minmax(0,…), nunca `1fr` cru: a coluna das notícias tem
+   manchete longa, e `1fr` é minmax(auto,1fr) — a trilha não encolheria abaixo
+   do min-content e a coluna da direita nasceria fora da tela, sem erro. */
+.rd-grade{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) minmax(0,1fr);
+  gap:18px;align-items:start}
+/* A trilha da coluna TAMBÉM é minmax(0,1fr): grade sem trilha declarada tem
+   trilha `auto`, que não encolhe abaixo da tabela `nowrap` do piso — a coluna
+   da direita saía da tela mesmo com a grade de fora certa. */
+.rd-col{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;align-content:start;min-width:0}
+.rd-feed{max-height:446px;overflow-y:auto;padding:0 18px}
+.rd-feed-media{max-height:300px}
+.rd-feed-curta{max-height:190px}
+.rd-item{display:block;padding:9px 0;border-bottom:1px solid var(--n100);text-decoration:none;color:inherit}
+.rd-item:last-child{border-bottom:0}
+.rd-item .t{display:block;font-size:13px;font-weight:600;line-height:1.35;color:var(--n900)}
+.rd-item:hover .t{text-decoration:underline}
+.rd-item .m,.rd-rod .m{display:block;font-size:11.5px;color:var(--n500);line-height:1.5}
+.rd-rod{padding:9px 0;border-bottom:1px solid var(--n100);font-size:13px;line-height:1.5}
+.rd-atraso{font-family:var(--mono);font-size:12px;color:var(--red)}
+.rd-mais{font-size:11.5px;color:var(--n500);padding:9px 0}
+.rd-reforma{display:grid;gap:9px;padding:9px 18px;border-bottom:1px solid var(--n100)}
+.rd-marco{display:flex;gap:9px;font-size:12.5px;color:var(--n700);line-height:1.4}
+.rd-marco b{flex:0 0 58px;font-family:var(--mono);color:var(--n900)}
+.rd-antt-nota{font-size:12px;color:var(--n500);padding:9px 18px;line-height:1.5}
+@media(max-width:1280px){
+  .rd-grade{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .rd-grade>.rd-dir{grid-column:1 / -1;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+}
+@media(max-width:760px){
+  .rd-grade,.rd-grade>.rd-dir{grid-template-columns:minmax(0,1fr)}
+  .rd-feed{max-height:none}
+}
+
 /* --- tela Ritual Semanal de Gestao -------------------------------------- */
 /* A FAIXA DO ROTEIRO. Ela nao e decoracao: e o cartaz da parede dentro da
    tela, e existe porque a regra que so vive num slide some na terceira
@@ -3069,6 +3103,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="favs-h">Favoritos</div>
         <div id="favsSidebarB"></div>
       </div>
+      <a href="#radar" class="sub topo" data-view="radar" title="Radar do Transporte — a página inicial: diesel, Brent, dólar, ANTT, rodovias e notícias"><span class="ic" data-ic="radaric"></span><span>Radar do Transporte</span></a>
       <a href="#home" class="sub topo" data-view="home" title="Visão Geral"><span class="ic" data-ic="home"></span><span>Visão Geral</span></a>
       <a href="#cop" class="sub topo" data-view="cop" title="Copiloto Cortex"><span class="ic" data-ic="cop"></span><span>Copiloto Cortex</span></a>
       <a href="#apps" class="sub topo" data-view="apps" title="Aplicativos — os endereços do rastreio e do app do motorista"><span class="ic" data-ic="appsic"></span><span>Aplicativos</span></a>
@@ -9165,6 +9200,61 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
       </section>
       <!-- ===================== SUPORTE — MEUS CHAMADOS ===================== -->
+      <!-- ===================== RADAR DO TRANSPORTE — a página inicial ===================== -->
+      <section class="view" id="view-radar">
+        <div class="toast" id="rd-tarja" hidden></div>
+        <div class="kband">
+          <div class="kpis k4" id="kpis-radar"></div>
+        </div>
+        <div class="rd-grade">
+          <div class="rd-col">
+            <div class="card">
+              <div class="head"><h2>Diesel na bomba <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: ANP — Levantamento de Preços de Combustíveis, planilha semanal Brasil (gov.br/anp). Média de REVENDA (bomba), em R$ por litro, do S10 e do S500 comum — o 'óleo diesel' da planilha é o S500, dito na nota do próprio arquivo. A pesquisa fecha no sábado e a ANP publica na sexta seguinte; o CÓRTEX olha a planilha de 6 em 6 horas. Não é o preço que a Sulista paga: é o do país, o número que aparece numa renegociação de frete.">ⓘ</span></h2><span class="hint" id="rd-diesel-hint"></span></div>
+              <div id="chartRadarDiesel" style="width:100%;height:210px"></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Petróleo Brent <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: Yahoo Finance, contrato futuro BZ=F (o Brent do mês cheio, em US$ por barril), com cerca de 15 minutos de atraso — é o Brent que a imprensa cita. A linha é o fechamento diário dos últimos 12 meses; o último ponto é o preço do último negócio, lido a cada 10 minutos. O Yahoo não publica esta consulta como produto: se ela falhar, a tela mostra a última leitura boa com a hora dela, e a Saúde do Servidor acende.">ⓘ</span></h2><span class="hint" id="rd-brent-hint"></span></div>
+              <div id="chartRadarBrent" style="width:100%;height:210px"></div>
+            </div>
+          </div>
+          <div class="card rd-noticias">
+            <div class="head"><h2>Notícias <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: Google Notícias (busca em RSS), uma busca por tema, escrita em api/radar/fontes.py (TEMAS) — a busca é a curadoria, e é lá que ela se ajusta. Transporte e diesel olham 14 dias; reforma tributária e ANTT, 30. A mesma manchete em dois veículos aparece uma vez. O link abre a matéria no próprio veículo; o RSS não traz o texto.">ⓘ</span></h2><span class="hint" id="rd-not-hint"></span></div>
+            <div class="subtabs" role="tablist" data-abas="radar" data-sem-girar aria-label="Temas das notícias">
+              <button role="tab" id="tabradar-trc" data-aba="trc" aria-controls="aba-radar-trc" aria-selected="true" onclick="abaTrocar('radar','trc')">Transporte <span class="aban" id="rd-n-trc"></span></button>
+              <button role="tab" id="tabradar-diesel" data-aba="diesel" aria-controls="aba-radar-diesel" aria-selected="false" onclick="abaTrocar('radar','diesel')">Diesel e petróleo <span class="aban" id="rd-n-diesel"></span></button>
+              <button role="tab" id="tabradar-reforma" data-aba="reforma" aria-controls="aba-radar-reforma" aria-selected="false" onclick="abaTrocar('radar','reforma')">Reforma tributária <span class="aban" id="rd-n-reforma"></span></button>
+              <button role="tab" id="tabradar-antt" data-aba="antt" aria-controls="aba-radar-antt" aria-selected="false" onclick="abaTrocar('radar','antt')">ANTT <span class="aban" id="rd-n-antt"></span></button>
+            </div>
+            <div class="aba" data-abas="radar" data-aba="trc" id="aba-radar-trc" role="tabpanel" aria-labelledby="tabradar-trc"><div class="rd-feed" id="rd-feed-trc"></div></div>
+            <div class="aba" data-abas="radar" data-aba="diesel" id="aba-radar-diesel" role="tabpanel" aria-labelledby="tabradar-diesel" hidden><div class="rd-feed" id="rd-feed-diesel"></div></div>
+            <div class="aba" data-abas="radar" data-aba="reforma" id="aba-radar-reforma" role="tabpanel" aria-labelledby="tabradar-reforma" hidden>
+              <div class="rd-reforma" title="Calendário da Emenda Constitucional 132/2023, regulamentada pela Lei Complementar 214/2025.">
+                <div class="rd-marco"><b>2026</b>Ano de teste: CBS de 0,9% e IBS de 0,1% destacados na nota, compensáveis com PIS/Cofins.</div>
+                <div class="rd-marco"><b>2027</b>CBS em vigor; PIS e Cofins extintos; começa o Imposto Seletivo.</div>
+                <div class="rd-marco"><b>2029–32</b>ICMS e ISS caem 10% ao ano; o IBS sobe na mesma medida.</div>
+                <div class="rd-marco"><b>2033</b>ICMS e ISS extintos; IBS e CBS plenos.</div>
+              </div>
+              <div class="rd-feed rd-feed-media" id="rd-feed-reforma"></div>
+            </div>
+            <div class="aba" data-abas="radar" data-aba="antt" id="aba-radar-antt" role="tabpanel" aria-labelledby="tabradar-antt" hidden><div class="rd-feed" id="rd-feed-antt"></div></div>
+          </div>
+          <div class="rd-col rd-dir">
+            <div class="card">
+              <div class="head"><h2>Rodovias agora <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="OCORRÊNCIAS: TomTom, nos quatro corredores que o painel de TV da Operação já acompanhava — Curitiba e a BR-376, a Grande SP (Anchieta e Imigrantes), a Dutra e o eixo Joinville–Itajaí da BR-101. Só rodovia numerada, e dela o que bloqueia a via ou atrasa de forma moderada para cima. A consulta é do SERVIDOR, a cada 20 minutos — não de cada tela aberta, que multiplicaria o gasto com a TomTom. INTERDIÇÕES NOTICIADAS: Google Notícias dos últimos 3 dias, que avisam antes — o bloqueio programado de sábado sai na quinta.">ⓘ</span></h2><span class="hint" id="rd-rod-hint"></span></div>
+              <div class="subtabs" role="tablist" data-abas="radarrod" data-sem-girar aria-label="Rodovias">
+                <button role="tab" id="tabradarrod-oc" data-aba="oc" aria-controls="aba-radarrod-oc" aria-selected="true" onclick="abaTrocar('radarrod','oc')">Ocorrências <span class="aban" id="rd-n-rodoc"></span></button>
+                <button role="tab" id="tabradarrod-int" data-aba="int" aria-controls="aba-radarrod-int" aria-selected="false" onclick="abaTrocar('radarrod','int')">Interdições noticiadas <span class="aban" id="rd-n-rodint"></span></button>
+              </div>
+              <div class="aba" data-abas="radarrod" data-aba="oc" id="aba-radarrod-oc" role="tabpanel" aria-labelledby="tabradarrod-oc"><div class="rd-feed rd-feed-curta" id="rd-rod-lista"></div></div>
+              <div class="aba" data-abas="radarrod" data-aba="int" id="aba-radarrod-int" role="tabpanel" aria-labelledby="tabradarrod-int" hidden><div class="rd-feed rd-feed-curta" id="rd-feed-rodovias"></div></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Piso mínimo ANTT <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: a tabela vigente da Política Nacional de Pisos Mínimos (Lei 13.703/2018, Anexo II da Res. ANTT 5.867/2020), lida do MESMO cadastro que a tela Piso Mínimo de Frete usa — config/antt_coeficientes.yaml, extraído da calculadora oficial da ANTT. Carga geral, tabela A (contratação da composição veicular). Piso = km × CCD + CC; pedágio não entra no piso. O cadastro é À MÃO: a ANTT revisa em janeiro e julho, e a tela avisa quando a data da revisão passou.">ⓘ</span></h2><span class="hint" id="rd-antt-hint"></span></div>
+              <div id="rd-antt"></div>
+            </div>
+          </div>
+        </div>
+      </section>
       <section class="view" id="view-apps">
         <div class="card"><div class="head"><h2>Aplicativos da Sulista</h2><span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: o registro em api/aplicativos.py, a fonte única desta tela. Todo aplicativo novo (página própria servida fora do painel) entra lá e aparece aqui sozinho — tests/test_aplicativos.py reprova a suíte se um api/static/*.html não estiver registrado. O endereço e o QR são montados com a origem de QUEM PEDIU (o túnel, o ngrok ou o 127.0.0.1), para o link copiado ser o que funciona para você.">ⓘ</span></div>
           <div class="apps-grid" id="apps-lista"></div></div>
@@ -9551,6 +9641,7 @@ const ICONS = {
   monic: IC('<path d="M12 20v-6"/><path d="M8.5 12.5a5 5 0 0 1 7 0"/><path d="M5.5 9.5a9 9 0 0 1 13 0"/><circle cx="12" cy="20" r="1.6"/>'),
   audic: IC('<path d="M4 19V5m0 14h16M8 15V9m4 6V6m4 9v-4"/><circle cx="18" cy="7" r="2.5"/>'),
   srv:  IC('<rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01M7 16.5h.01M11 7.5h5M11 16.5h5"/>'),
+  radaric: IC('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><path d="M12 12l6.4-6.4"/>'),
   appsic: IC('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'),
   supic: IC('<path d="M4 13a8 8 0 0 1 16 0"/><rect x="3" y="12" width="4" height="6" rx="1.5"/><rect x="17" y="12" width="4" height="6" rx="1.5"/><path d="M19 18v1a2 2 0 0 1-2 2h-4"/>'),
   supfila: IC('<path d="M4 6h16M4 12h9M4 18h6"/><circle cx="18" cy="17" r="3.5"/><path d="M18 15v2l1.5 1"/>'),
@@ -9630,7 +9721,7 @@ function tvRecarregar(v){
   if(esTv(v) && mapa[v]) mapa[v]();
 }
 
-const VIEWS = { tvcom:'Painel TV — Comunicação', tvjor:'Painel TV — Jornada', home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Central de Documentos', eqp:'Equipamentos', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', freq:'Frequência e Banco de Horas', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', gesind:'Ritual — Indicadores e Metas', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { radar:'Radar do Transporte', tvcom:'Painel TV — Comunicação', tvjor:'Painel TV — Jornada', home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Central de Documentos', eqp:'Equipamentos', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', freq:'Frequência e Banco de Horas', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', gesind:'Ritual — Indicadores e Metas', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -9900,7 +9991,7 @@ function toggleGroup(gid,sid,key){
   // grupos iniciam fechados no HTML; syncGroups(currentView) abre o do view ativo.
 })();
 
-const VIEW_GROUP = {home:'',cop:'',apps:'',
+const VIEW_GROUP = {radar:'',home:'',cop:'',apps:'',
   com:'Com',clif:'Com',crm:'Com',rent:'Com',drecli:'Com',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',banc:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',antport:'Fin',fluxcon:'Fin',rec:'Fin',
   dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',
@@ -10158,13 +10249,13 @@ function semFilterbar(v){
   // recebe parâmetro NENHUM — o painel mostra o agora, e não há recorte a
   // aplicar. (Os painéis de TV mais antigos não estão nesta lista; ficam
   // como estão porque mexer neles não foi pedido, mas têm o mesmo defeito.)
-  return v==='tvjor'||v==='cop'||v==='mon'||v==='aud'||v==='integ'||v==='apps'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='gesind'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
+  return v==='radar'||v==='tvjor'||v==='cop'||v==='mon'||v==='aud'||v==='integ'||v==='apps'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='gesind'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
          v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='freq'||v==='custos'||v==='pecas'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='antport'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='rhmot'||v==='pneus'||v==='people'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='eqp';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','').split('?')[0];   // `#sup?chamado=12` é a tela sup
-  let v = VIEWS[h] ? h : 'home';
+  let v = VIEWS[h] ? h : 'radar';   // sem hash, a página inicial — que é de todo usuário logado
   if(USER && !podeVer(v)) v = primeiraTela();   // bloqueia acesso por URL direta
   return v;
 }
@@ -10305,7 +10396,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,freq:DATAFREQ,custos:DATACUSTOS,pecas:DATAPECAS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={apps:loadApps,integ:loadInteg,dfe:loadDfe,eqp:loadEqp,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,freq:loadFreq,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+  const LOADMAP={radar:loadRadar,apps:loadApps,integ:loadInteg,dfe:loadDfe,eqp:loadEqp,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,freq:loadFreq,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -12994,6 +13085,10 @@ function abaAutoMontar(){
     const grupo = barra.dataset.abas;
     if(barra.querySelector('.subtabs-auto')) return;
     if(barra.querySelectorAll('button[data-aba]').length < 2) return;
+    /* `data-sem-girar`: aba DENTRO de um cartão (temas de notícia na página
+       inicial). O giro é do PAINEL — numa barra de 380px o seletor espremia
+       os rótulos e empurrava o cartão para fora da tela. */
+    if(barra.hasAttribute('data-sem-girar')) return;
     const seg = abaAutoSegundos(grupo);
     const cx = document.createElement('span');
     cx.className = 'subtabs-auto';
@@ -13903,6 +13998,8 @@ const EC_UNIDADES = {
   horas:  m => (m >= 1500 ? {d:1e3, t:'MIL HORAS'} : {d:1, t:'HORAS'}),
   pct:    () => ({d:1, t:'%'}),
   dias:   () => ({d:1, t:'DIAS'}),
+  rsl:    () => ({d:1, t:'R$/LITRO'}),
+  usd_barril: () => ({d:1, t:'US$/BARRIL'}),
   /* apelidos que a casa escreve sem pensar; sem eles caiam no padrão */
   contagem: m => EC_UNIDADES.num(m),
   qtd:      m => EC_UNIDADES.num(m),
@@ -36052,7 +36149,12 @@ function pararTimers(){   // sessão caiu: silencia auto-refresh de torre/TV (se
   try{ if(_audTimer){ clearTimeout(_audTimer); _audTimer=null; } }catch(e){}
   _audUltimaTela = '';
 }
-function podeVer(v){ if(v==='jornf') v='jorn'; if(v==='sup') return !!USER;   // Suporte é de todo usuário logado
+/* TELAS DE TODO USUÁRIO LOGADO — o espelho de `auth.TELAS_TODO_LOGADO`, e
+   conferido contra ele por teste. Era só o `sup` aqui: a `apps`, declarada de
+   todo logado no servidor, sumia do menu de quem não é administrador, porque
+   a sessão lista só as telas do PERFIL. A página inicial (`radar`) entrou pelo
+   mesmo caminho e expôs o furo. Sem `const` de topo de propósito (TDZ). */
+function podeVer(v){ if(v==='jornf') v='jorn'; if(v==='sup'||v==='apps'||v==='radar') return !!USER;   // telas de todo usuário logado
   return !!USER && ((v==='gestao'||v==='srv') ? USER.admin : (USER.admin || (USER.telas||[]).includes(v))); }
 
 /* ===================== Busca global =====================
@@ -36134,6 +36236,7 @@ const BUSCA_SINONIMOS = {
   prodveic:['produtividade','veiculo','veiculos','km por veiculo','ocioso','ociosidade','parado','frota parada','bi'],
   doc:['documentacao','manual','ajuda','glossario','versao'],
   cop:['copiloto','ia','perguntar','chat'],
+  radar:['inicio','pagina inicial','noticias','diesel','preco do diesel','anp','brent','petroleo','dolar','ptax','reforma tributaria','ibs','cbs','antt','piso minimo','rodovias','estradas','interdicao','bloqueio','mercado'],
   home:['visao geral','resumo','inicio','dashboard'],
 };
 const BUSCA_GRUPO_LBL = {Com:'Comercial',Fin:'Financeiro',Ctr:'Controladoria',Ope:'Operação',
@@ -36262,7 +36365,7 @@ document.addEventListener('keydown', e=>{
 document.addEventListener('click', e=>{
   if(!e.target.closest('.buscabox')) buscaFechar();
 });
-function primeiraTela(){ return USER ? (Object.keys(VIEWS).find(podeVer) || 'home') : 'home'; }
+function primeiraTela(){ return USER ? (Object.keys(VIEWS).find(podeVer) || 'radar') : 'radar'; }
 function aplicarPermissoes(){
   // inclui o .side-foot: o link da Documentação saiu do menu Administração e
   // foi para o rodapé da sidebar, fora do <nav> — sem isto ele apareceria para
@@ -43718,6 +43821,272 @@ async function appsCopiar(bt){
   catch(e){ bt.textContent='Copie à mão'; }
   setTimeout(()=>{ bt.textContent = antes; }, 1800);
 }
+/* ===================== RADAR DO TRANSPORTE — a página inicial =====================
+   A primeira tela de TODO usuário logado (`auth.TELAS_TODO_LOGADO`), e por isso
+   só dado PÚBLICO: diesel da ANP, Brent e dólar de agora, PTAX, piso da ANTT,
+   ocorrências nas rodovias e manchetes. A Visão Geral continua atrás do perfil.
+   Tudo vem de UMA rota que lê o banco local (`/api/radar`); quem fala com a rede
+   é o relógio do servidor. A tela se recarrega sozinha a cada 5 minutos,
+   ENCADEADA — o próximo ciclo só é agendado depois de o anterior terminar, e
+   o guard de sequência descarta a resposta que chegou atrasada. */
+const RD = {d:null, timer:null, seq:0};
+const RD_TEMAS = ['trc','diesel','reforma','antt'];
+function rdNum(v, casas){
+  return (v==null || !isFinite(v)) ? '—'
+    : Number(v).toLocaleString('pt-BR',{minimumFractionDigits:casas, maximumFractionDigits:casas});
+}
+/* Datas de CALENDÁRIO (semana da ANP, pregão) chegam como 'AAAA-MM-DD' e se
+   leem pelo texto: `new Date('2026-09-05')` é meia-noite em UTC, que em
+   UTC−3 é o dia 4. */
+function rdDia(iso){ if(!iso) return '—'; const p=String(iso).slice(0,10).split('-'); return p[2]+'/'+p[1]; }
+function rdDiaAno(iso){ if(!iso) return '—'; const p=String(iso).slice(0,10).split('-'); return p[2]+'/'+p[1]+'/'+p[0].slice(2); }
+/* INSTANTES (último negócio, publicação) chegam com fuso e se mostram na hora
+   LOCAL de quem lê. */
+function rdHora(iso){
+  if(!iso) return '—';
+  const t=new Date(iso);
+  return String(t.getDate()).padStart(2,'0')+'/'+String(t.getMonth()+1).padStart(2,'0')+' '
+    +t.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+}
+function rdHa(iso){
+  if(!iso) return '';
+  const t=new Date(iso), s=(Date.now()-t.getTime())/1000;
+  if(s<3600) return 'há '+Math.max(1,Math.round(s/60))+' min';
+  if(s<86400) return 'há '+Math.round(s/3600)+' h';
+  if(s<172800) return 'ontem';
+  return String(t.getDate()).padStart(2,'0')+'/'+String(t.getMonth()+1).padStart(2,'0');
+}
+async function loadRadar(silencioso){
+  if(!USER) return;
+  const seq = ++RD.seq;
+  clearTimeout(RD.timer); RD.timer = null;
+  try{
+    const r = await fetch('/api/radar',{cache:'no-store'});
+    const d = await respostaJSON(r);
+    if(seq !== RD.seq) return;
+    if(!d.ok){ if(!silencioso) rdFalha((d.dados||{}).mensagem || 'Não foi possível carregar o Radar.'); return; }
+    RD.d = d.dados;
+    rdRender(RD.d);
+    /* O CARIMBO É A HORA DA LEITURA DA TELA: a idade de cada fonte está no
+       cartão dela (e na tarja, quando uma atrasa). Sem esta linha o cabeçalho
+       fica em "carregando…" para sempre, e isso se lê como tela travada. */
+    const ts = new Date(), mt = document.getElementById('meta');
+    if(mt) mt.innerHTML = '<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
+      +'</b><br>'+ts.toLocaleDateString('pt-BR');
+  }catch(err){
+    if(!silencioso && seq === RD.seq) rdFalha(err.message || 'Não foi possível falar com a API.');
+  }finally{
+    if(seq === RD.seq) rdAgendar();
+  }
+}
+function rdAgendar(){
+  clearTimeout(RD.timer);
+  RD.timer = setTimeout(() => {
+    RD.timer = null;
+    if(!USER || currentView() !== 'radar') return;      // a volta à tela recarrega
+    if(document.hidden){ rdAgendar(); return; }          // aba escondida não consulta
+    loadRadar(true);
+  }, 300000);
+}
+function rdFalha(msg){
+  const el = document.getElementById('kpis-radar');
+  if(el) el.innerHTML = '<div class="gx-vazio" style="grid-column:1/-1">'+esc(msg)+'</div>';
+}
+function rdRender(d){
+  if(!d || !d.pronto){ rdFalha((d||{}).mensagem || 'O Radar ainda não tem dado.'); return; }
+  rdTarja(d.coleta || {});
+  rdKpis(d);
+  rdChartDiesel(d.diesel || {});
+  rdChartBrent(d.brent || {});
+  rdNoticias(d.noticias || {});
+  rdRodovias(d.rodovias || {}, (d.noticias || {}).rodovias);
+  rdAntt(d.antt);
+}
+/* A TARJA DIZ QUAL FONTE ATRASOU, com a idade da última leitura boa. Número
+   velho servido calado é pior que tela vazia: ninguém desconfia dele. */
+function rdTarja(c){
+  const el = document.getElementById('rd-tarja'); if(!el) return;
+  const todas = Object.values(c);
+  if(todas.length && todas.every(e => e.estado === 'nunca')){
+    el.className = 'toast t-info';
+    el.innerHTML = '<b>Primeira coleta em andamento</b>O CÓRTEX está buscando os dados agora; os números aparecem em alguns minutos.';
+    el.hidden = false; return;
+  }
+  const ruins = todas.filter(e => e.estado === 'alerta' || e.estado === 'erro');
+  if(!ruins.length){ el.hidden = true; el.innerHTML = ''; return; }
+  el.className = 'toast ' + (ruins.some(e => e.estado === 'erro') ? 't-dang' : 't-warn');
+  el.innerHTML = '<b>Parte do Radar está desatualizada</b>'
+    + ruins.map(e => esc(e.rotulo) + ': última leitura boa '
+        + (e.sucesso_em ? esc(rdHa(e.sucesso_em)) : 'nenhuma')
+        + (e.erro ? ' (' + esc(e.erro) + ')' : '')).join(' · ')
+    + '. O que aparece abaixo é a última leitura boa, com a data dela.';
+  el.hidden = false;
+}
+function rdKpis(d){
+  const el = document.getElementById('kpis-radar'); if(!el) return;
+  const custo = {invert:true, limiar:0.5};
+  const out = [];
+  [['diesel_s10','Diesel S10 · bomba'],['diesel_s500','Diesel S500 · bomba']].forEach(([k, rot]) => {
+    const s = (d.diesel || {})[k] || {}, u = s.ultimo, a = s.anterior;
+    if(!u){ out.push(kpi(rot, '—', 'a ANP ainda não foi lida', '', '')); return; }
+    const tr = a ? trendChip(u.revenda, a.revenda, Object.assign({}, custo, {
+      ref: 'Semana de ' + rdDia(a.semana_inicio) + ' a ' + rdDia(a.semana_fim),
+      fmt: v => 'R$ ' + rdNum(v, 2)})) : '';
+    out.push(kpi(rot, 'R$ ' + rdNum(u.revenda, 2) + '/l',
+      'média Brasil · ' + rdDia(u.semana_inicio) + ' a ' + rdDia(u.semana_fim)
+        + (u.postos ? ' · ' + u.postos.toLocaleString('pt-BR') + ' postos' : ''),
+      '', 'ANP — média de bomba do país na semana. O chip compara com a semana que fechou sete dias antes; sem pesquisa naquela semana, não há chip.', tr));
+  });
+  const b = d.brent || {}, ba = b.agora, bf = b.fechamento_anterior;
+  out.push(ba
+    ? kpi('Brent', 'US$ ' + rdNum(ba.valor, 2), 'barril · ' + rdHora(ba.momento)
+        + (b.ref_30d ? ' · há 30 dias US$ ' + rdNum(b.ref_30d.valor, 2) : ''), '',
+      'Contrato futuro BZ=F (Yahoo Finance), ~15 min de atraso. A hora é a do ÚLTIMO NEGÓCIO — num sábado, é a de sexta. O chip compara com o fechamento do pregão anterior.',
+      bf ? trendChip(ba.valor, bf.valor, Object.assign({}, custo, {
+        ref: 'Fechamento de ' + rdDia(bf.dia), fmt: v => 'US$ ' + rdNum(v, 2)})) : '')
+    : kpi('Brent', '—', 'ainda sem leitura', '', ''));
+  const dl = d.dolar || {}, da = dl.agora, df = dl.fechamento_anterior, px = d.ptax;
+  out.push(da
+    ? kpi('Dólar comercial', 'R$ ' + rdNum(da.valor, 4), rdHora(da.momento)
+        + (px ? ' · PTAX de ' + rdDia(px.dia) + ': R$ ' + rdNum(px.valor, 4) : ''), '',
+      'Dólar comercial (Yahoo Finance, ~15 min). Ao lado, a PTAX de venda do Banco Central — a taxa de referência de contrato, publicada uma vez por dia útil. O chip compara com o fechamento anterior.',
+      df ? trendChip(da.valor, df.valor, Object.assign({}, custo, {
+        ref: 'Fechamento de ' + rdDia(df.dia), fmt: v => 'R$ ' + rdNum(v, 4)})) : '')
+    : kpi('Dólar comercial', '—', 'ainda sem leitura', '', ''));
+  el.innerHTML = out.join('');
+}
+function rdUltimo(arr){ for(let i = arr.length - 1; i >= 0; i--) if(arr[i] != null) return i; return -1; }
+function rdChartDiesel(dz){
+  const s10 = (dz.diesel_s10 || {}).serie || [], s500 = (dz.diesel_s500 || {}).serie || [];
+  const u = (dz.diesel_s10 || {}).ultimo || (dz.diesel_s500 || {}).ultimo;
+  const hint = document.getElementById('rd-diesel-hint');
+  if(hint) hint.textContent = u ? 'média Brasil · até ' + rdDiaAno(u.semana_fim) : '';
+  if(!s10.length && !s500.length){ ecDesenhar('chartRadarDiesel', null, 'a primeira leitura da ANP ainda não chegou'); return; }
+  /* O EIXO É A UNIÃO DAS SEMANAS: semana que falta numa série abre a linha
+     dela (connectNulls falso) em vez de a outra série emendar datas. */
+  const semanas = [...new Set([...s10, ...s500].map(p => p.semana_fim))].sort().slice(-52);
+  const m10 = {}, m500 = {};
+  s10.forEach(p => { m10[p.semana_fim] = p.revenda; });
+  s500.forEach(p => { m500[p.semana_fim] = p.revenda; });
+  const v10 = semanas.map(w => (m10[w] == null ? null : m10[w]));
+  const v500 = semanas.map(w => (m500[w] == null ? null : m500[w]));
+  const i10 = rdUltimo(v10), i500 = rdUltimo(v500);
+  const max = Math.max(...v10.concat(v500).filter(v => v != null));
+  ecDesenhar('chartRadarDiesel', () => {
+    const o = ecOpcoes(semanas.map(rdDiaAno), max, {tipo:'rsl', right:92, top:24});
+    o.yAxis.scale = true;
+    o.yAxis.axisLabel.formatter = v => rdNum(v, 2);
+    o.tooltip.valueFormatter = v => (v == null ? '—' : 'R$ ' + rdNum(v, 2) + '/l');
+    o.series = [
+      ecLinha('S10', v10, CC.laranja, {tamanho:3, posRotulo:'right',
+        rotulo: (v, i) => (i === i10 ? 'S10 ' + rdNum(v, 2) : '')}),
+      ecLinha('S500', v500, CC.navy500, {tamanho:3, posRotulo:'right',
+        rotulo: (v, i) => (i === i500 ? 'S500 ' + rdNum(v, 2) : '')}),
+    ];
+    o.series.forEach(se => { if(se.label) se.label.textBorderWidth = 0; });
+    return o;
+  });
+}
+function rdChartBrent(b){
+  const s = b.serie || [];
+  const hint = document.getElementById('rd-brent-hint');
+  if(hint) hint.textContent = s.length
+    ? '12 meses · máx. ' + rdNum(b.max_12m, 2) + ' · mín. ' + rdNum(b.min_12m, 2) : '';
+  if(!s.length){ ecDesenhar('chartRadarBrent', null, 'a primeira leitura do Brent ainda não chegou'); return; }
+  const vals = s.map(p => Math.round(p.valor * 100) / 100), n = vals.length - 1;
+  ecDesenhar('chartRadarBrent', () => {
+    const o = ecOpcoes(s.map(p => rdDiaAno(p.dia)), Math.max(...vals), {tipo:'usd_barril', right:62, top:24});
+    o.yAxis.scale = true;
+    o.tooltip.valueFormatter = v => (v == null ? '—' : 'US$ ' + rdNum(v, 2));
+    o.series = [ecLinha('Brent', vals, CC.navy700, {tamanho:2, area:true, posRotulo:'right',
+      rotulo: (v, i) => (i === n ? rdNum(v, 2) : '')})];
+    o.series.forEach(se => { if(se.label) se.label.textBorderWidth = 0; });
+    return o;
+  });
+}
+function rdFeed(elId, n, vazio){
+  const el = document.getElementById(elId); if(!el) return;
+  n = n || {};
+  const itens = (n.itens || []).filter(i => /^https:\/\//.test(i.link || ''));
+  if(!itens.length){
+    el.innerHTML = '<div class="gx-vazio">' + esc(vazio || ('Nenhuma manchete deste tema nos últimos ' + (n.dias || '') + ' dias.')) + '</div>';
+    return;
+  }
+  el.innerHTML = itens.map(i => '<a class="rd-item" href="' + esc(i.link) + '" target="_blank" rel="noopener noreferrer">'
+      + '<span class="t">' + esc(i.titulo) + '</span>'
+      + '<span class="m">' + esc(i.fonte || '') + (i.fonte ? ' · ' : '') + esc(rdHa(i.publicada_em)) + '</span></a>').join('')
+    /* TOP-N LEVA CONTADOR: o número da aba é o total, e a lista mostra as
+       mais recentes — sem esta linha, "46" na aba e 15 na lista pareceriam
+       um defeito. */
+    + (n.total > itens.length
+        ? '<div class="rd-mais">' + itens.length + ' de ' + n.total + ' manchetes dos últimos ' + n.dias + ' dias — as mais recentes</div>' : '');
+}
+function rdNoticias(ns){
+  RD_TEMAS.forEach(t => {
+    rdFeed('rd-feed-' + t, ns[t]);
+    abaContador('rd-n-' + t, (ns[t] || {}).total || 0);
+  });
+  const hint = document.getElementById('rd-not-hint');
+  const datas = [];
+  RD_TEMAS.forEach(t => ((ns[t] || {}).itens || []).forEach(i => datas.push(i.publicada_em)));
+  datas.sort();
+  if(hint) hint.textContent = datas.length ? 'a mais recente ' + rdHa(datas[datas.length - 1]) : '';
+}
+function rdRodovias(r, noticias){
+  rdFeed('rd-feed-rodovias', noticias, 'Nenhuma interdição noticiada nos últimos 3 dias.');
+  abaContador('rd-n-rodint', (noticias || {}).total || 0);
+  const el = document.getElementById('rd-rod-lista'), hint = document.getElementById('rd-rod-hint');
+  if(!el) return;
+  if(!r.configurado){
+    abaContador('rd-n-rodoc', 0);
+    if(hint) hint.textContent = '';
+    el.innerHTML = '<div class="gx-vazio">A TomTom não está configurada nesta instalação: as ocorrências ao vivo ficam de fora, e a aba Interdições noticiadas segue valendo.</div>';
+    return;
+  }
+  const est = ((RD.d || {}).coleta || {}).rodovias || {};
+  if(hint) hint.textContent = est.sucesso_em ? '4 corredores · leitura ' + rdHa(est.sucesso_em) : '';
+  const itens = r.itens || [];
+  abaContador('rd-n-rodoc', itens.length);
+  if(!itens.length){
+    el.innerHTML = '<div class="gx-vazio">' + (est.sucesso_em
+      ? 'Nenhum bloqueio nem lentidão relevante nos quatro corredores agora.'
+      : 'A primeira leitura da TomTom ainda não chegou.') + '</div>';
+    return;
+  }
+  el.innerHTML = itens.map(i => '<div class="rd-rod"><div>'
+      + '<span class="badge ' + (i.bloqueia ? 'b-dang' : 'b-warn') + '">' + esc(i.categoria) + '</span> '
+      + '<b>' + esc(i.rodovias || '') + '</b>'
+      + (i.atraso_min != null && i.atraso_min > 0 ? ' <span class="rd-atraso">+' + i.atraso_min + ' min</span>' : '')
+      + '</div><span class="m">' + esc(i.regiao_rotulo)
+      + ((i.de || i.para) ? ' · ' + esc([i.de, i.para].filter(Boolean).join(' → ')) : '')
+      + (i.descricao ? ' · ' + esc(i.descricao) : '') + '</span></div>').join('')
+    + '<div class="rd-mais">' + (r.corredores || []).map(c => esc(String(c.rotulo).split(' · ')[0]) + ': ' + c.itens).join(' · ') + '</div>';
+}
+function rdAntt(a){
+  const el = document.getElementById('rd-antt'), hint = document.getElementById('rd-antt-hint');
+  if(!el) return;
+  if(!a){
+    if(hint) hint.textContent = '';
+    el.innerHTML = '<div class="gx-vazio">A tabela de piso da ANTT não pôde ser lida do cadastro.</div>';
+    return;
+  }
+  if(hint) hint.textContent = 'Res. ' + a.resolucao + ' · desde ' + rdDiaAno(a.inicio);
+  const pctAnt = l => (l.ccd_anterior
+    ? ((l.ccd / l.ccd_anterior - 1) * 100).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1}) + '%'
+    : '—');
+  const linhas = (a.carga_geral || []).map(l => '<tr><td>' + l.eixos + '</td>'
+    + '<td class="num">' + rdNum(l.ccd, 4) + '</td><td class="num">' + rdNum(l.cc, 2) + '</td>'
+    + '<td class="num">' + pctAnt(l) + '</td></tr>').join('');
+  const revisao = a.revisao_vencida
+    ? '<div class="toast t-warn"><b>Conferir se já saiu tabela nova</b>A ANTT revisa em janeiro e julho, e a revisão era esperada por volta de '
+      + esc(rdDiaAno(a.revisao_esperada)) + '. Este cadastro é atualizado à mão.</div>'
+    : 'Próxima revisão esperada por volta de ' + esc(rdDiaAno(a.revisao_esperada)) + ' (a ANTT revisa em janeiro e julho).';
+  el.innerHTML = '<div class="tablewrap tabroll curta"><table><thead><tr><th>Eixos</th>'
+    + '<th class="num">CCD R$/km</th><th class="num">CC R$</th><th class="num" title="Variação do CCD contra a '
+    + esc(a.anterior ? 'Res. ' + a.anterior.resolucao : 'tabela anterior') + '">Δ CCD</th></tr></thead><tbody>' + linhas + '</tbody></table></div>'
+    + '<div class="rd-antt-nota">Carga geral, tabela A · piso = km × CCD + CC · pedágio fora do piso. ' + revisao
+    + (podeVer('anpiso') ? ' <a href="#anpiso">Conferir os pagamentos contra o piso →</a>' : '') + '</div>';
+}
 async function loadSup(){
   const alvo = supAlvoDaUrl('sup');
   const ok = await supMeusCarregar(false);
@@ -44118,7 +44487,7 @@ async function supConfigSalvar(){
 boot();
 </script>
 <nav class="bottomnav" id="bottomnav" aria-label="Navegação principal">
-  <a href="#home" data-bview="home"><span class="ic" data-ic="home"></span>Início</a>
+  <a href="#radar" data-bview="radar"><span class="ic" data-ic="radaric"></span>Início</a>
   <a href="#fluxo" data-bview="fluxo"><span class="ic" data-ic="flx"></span>Caixa</a>
   <a href="#torre" data-bview="torre"><span class="ic" data-ic="tor"></span>Torre</a>
   <a href="#cop" data-bview="cop"><span class="ic" data-ic="cop"></span>Copiloto</a>
@@ -44142,6 +44511,7 @@ boot();
       <div class="dgrp-b">
         <a href="#apps" onclick="fecharDrawer()"><span class="ic" data-ic="appsic"></span>Aplicativos</a>
         <a href="#cop" onclick="fecharDrawer()"><span class="ic" data-ic="cop"></span>Copiloto Cortex</a>
+        <a href="#radar" onclick="fecharDrawer()"><span class="ic" data-ic="radaric"></span>Radar do Transporte</a>
         <a href="#home" onclick="fecharDrawer()"><span class="ic" data-ic="home"></span>Visão Geral</a>
       </div>
     </div>

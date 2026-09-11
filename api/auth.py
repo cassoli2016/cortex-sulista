@@ -463,7 +463,9 @@ _ROTAS_SEM_TELA = ("/api/push/", "/api/report", "/api/auth/foto/",
                    "/api/favoritos", "/api/notificacoes", "/api/suporte/meus",
                    # a tela `apps` e de todo usuario logado (TELAS_TODO_LOGADO),
                    # entao a rota dela nao tem entrada em ROTA_TELAS
-                   "/api/aplicativos")
+                   "/api/aplicativos",
+                   # idem a `radar`, a pagina inicial: so dado publico
+                   "/api/radar")
 
 # Telas que EXISTEM no menu mas nao tem entrada em `TELAS`, porque o acesso a
 # elas e decidido de outro jeito:
@@ -492,9 +494,16 @@ TELAS_SEM_MENU = frozenset({"dreexc", "desrh"})
 #: propria -- o rastreio nao pede login (o token vem no link) e o do motorista
 #: manda codigo no WhatsApp --, entao esconder a LISTA por perfil so faria
 #: alguem nao achar o endereco que precisa mandar para um cliente.
-TELAS_TODO_LOGADO = frozenset({"sup", "apps"})
+#:
+#: `radar` e a PAGINA INICIAL, e entra aqui pela razao inversa das outras duas:
+#: nao e que nao haja dado, e que o dado e todo PUBLICO (ANP, Brent, dolar,
+#: ANTT, rodovias, noticias). A Visao Geral continua atras do perfil; a porta
+#: de entrada nao pode depender dele — quem nao tinha a `home` caia na
+#: primeira tela da lista em que tivesse acesso, que era a de um painel de TV.
+TELAS_TODO_LOGADO = frozenset({"sup", "apps", "radar"})
 
 TELAS_FORA_DO_RBAC = {
+    "radar":  ("Radar do Transporte", "Início"),
     "apps":   ("Aplicativos", "Início"),
     "sup":    ("Suporte", "Suporte"),
     "srv":    ("Saúde do Servidor", "Sistema"),

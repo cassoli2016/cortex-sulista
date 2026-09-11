@@ -139,6 +139,7 @@ _FONTES_ROTULO = {
     "recolha_fiscal": "Central de Documentos — recolha de XML (SEFAZ e e-mail)",
     "projecao_caixa": "Fluxo Consolidado — projeção de caixa de 12 meses",
     "plano_de_caixa": "Fluxo Consolidado — quanto antecipar, e o que a antecipação não resolve",
+    "radar_mercado": "Radar do Transporte — diesel, Brent, dólar, ANTT, rodovias e notícias",
 }
 
 
@@ -1052,6 +1053,14 @@ def _fontes_do_snapshot() -> dict:
         # magico, que permite o fallback externo do chat.
         "projecao_caixa": _projecao_caixa,
         "plano_de_caixa": _plano_de_caixa,
+        # A PAGINA INICIAL: diesel da ANP, Brent e dolar de agora, PTAX, piso
+        # da ANTT, ocorrencias nas rodovias e manchetes. Tudo PUBLICO e tudo
+        # do banco local -- quem fala com a rede e o relogio do Radar, entao
+        # esta fonte nao dispara coleta nenhuma. Entra porque "quanto esta o
+        # diesel?" e "o que saiu sobre a reforma?" sao as perguntas de quem
+        # acabou de abrir o CORTEX.
+        "radar_mercado": lambda: __import__(
+            "api.radar.painel", fromlist=["resumo_copiloto"]).resumo_copiloto(),
     }
 
 
