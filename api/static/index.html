@@ -9253,7 +9253,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
           <div class="rd-col rd-dir">
             <div class="card">
-              <div class="head"><h2>Rodovias agora <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="OCORRÊNCIAS: TomTom, nos quatro corredores que o painel de TV da Operação já acompanhava — Curitiba e a BR-376, a Grande SP (Anchieta e Imigrantes), a Dutra e o eixo Joinville–Itajaí da BR-101. Só rodovia numerada, e dela o que bloqueia a via ou atrasa de forma moderada para cima. A consulta é do SERVIDOR, a cada 20 minutos — não de cada tela aberta, que multiplicaria o gasto com a TomTom. INTERDIÇÕES NOTICIADAS: Google Notícias dos últimos 3 dias, que avisam antes — o bloqueio programado de sábado sai na quinta.">ⓘ</span></h2><span class="hint" id="rd-rod-hint"></span></div>
+              <div class="head"><h2>Rodovias agora <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="OCORRÊNCIAS: TomTom, nos quatro corredores que o painel de TV da Operação já acompanhava — Curitiba e a BR-376, a Grande SP (Anchieta e Imigrantes), a Dutra e o eixo Joinville–Itajaí da BR-101. Só rodovia numerada, e dela o que bloqueia a via ou atrasa de forma moderada para cima. A consulta é do SERVIDOR, a cada 20 minutos — não de cada tela aberta, que multiplicaria o gasto com a TomTom. Com o trânsito da TomTom DESLIGADO POR DECISÃO (desde 11/09/2026: sem crédito, e a decisão foi não recarregar), essa aba sai e o cartão fica só com as notícias. INTERDIÇÕES NOTICIADAS: Google Notícias dos últimos 3 dias, que avisam antes — o bloqueio programado de sábado sai na quinta.">ⓘ</span></h2><span class="hint" id="rd-rod-hint"></span></div>
               <div class="subtabs" role="tablist" data-abas="radarrod" data-sem-girar aria-label="Rodovias">
                 <button role="tab" id="tabradarrod-oc" data-aba="oc" aria-controls="aba-radarrod-oc" aria-selected="true" onclick="abaTrocar('radarrod','oc')">Ocorrências <span class="aban" id="rd-n-rodoc"></span></button>
                 <button role="tab" id="tabradarrod-int" data-aba="int" aria-controls="aba-radarrod-int" aria-selected="false" onclick="abaTrocar('radarrod','int')">Interdições noticiadas <span class="aban" id="rd-n-rodint"></span></button>
@@ -44322,15 +44322,20 @@ function rdRodovias(r, noticias){
   const el = document.getElementById('rd-rod-lista'), hint = document.getElementById('rd-rod-hint');
   if(!el) return;
   /* DESLIGADO POR DECISÃO não é "não configurada": a chave existe e quem
-     opera decidiu não pagar pelo produto de trânsito. A tela diz a decisão,
-     e a aba que tem dado abre sozinha (só na primeira pintura). */
+     opera decidiu não pagar pelo produto de trânsito. E a aba de ocorrências
+     SAI: aba que não pode ter conteúdo é onde a pessoa para e lê "sem
+     informação" -- visto no celular em 11/09/2026, porque a troca automática
+     só vale na primeira pintura e bastava ter tocado na aba vazia uma vez. O
+     cartão fica com o que tem dado, e a decisão vai para o cabeçalho. */
+  const abaOc = document.getElementById('tabradarrod-oc');
+  if(abaOc) abaOc.hidden = !!r.desligado;
   if(r.desligado){
     abaContador('rd-n-rodoc', 0);
-    if(hint) hint.textContent = '';
+    if(hint) hint.textContent = 'ao vivo desligado por decisão (' + String(r.desligado.desde_br || '').slice(0, 5) + ')';
     el.innerHTML = '<div class="gx-vazio">' + esc('Ocorrências ao vivo desligadas por decisão desde '
       + (r.desligado.desde_br || '') + (r.desligado.motivo ? ' (' + r.desligado.motivo + ')' : '')
-      + '. As interdições noticiadas seguem na aba ao lado.') + '</div>';
-    if(!RD.rodAuto){ RD.rodAuto = true; abaTrocar('radarrod', 'int'); }
+      + '.') + '</div>';
+    abaTrocar('radarrod', 'int');
     return;
   }
   if(!r.configurado){

@@ -171,6 +171,26 @@ def test_transito_DESLIGADO_por_decisao_diz_a_decisao_e_abre_as_interdicoes(pagi
     assert pg.locator("#rd-tarja").is_hidden()
     assert not erros, erros
 
+    # A ABA VAZIA SAI, e o cartão fica com o que tem dado. Visto no celular
+    # em 11/09/2026: com a troca automática já gasta (ela só vale na primeira
+    # pintura), o cartão parava em "Ocorrências" e se lia "sem informação".
+    assert pg.locator("#tabradarrod-oc").is_hidden(), "aba que não pode ter conteúdo"
+    assert "por decisão" in pg.inner_text("#rd-rod-hint"), "a decisão vai para o cabeçalho"
+    assert pg.locator("#rd-feed-rodovias a.rd-item").first.is_visible()
+    pg.evaluate("() => { RD.rodAuto = true; abaTrocar('radarrod', 'oc');"
+                " rdRodovias(RD.d.rodovias, RD.d.noticias.rodovias); }")
+    assert pg.get_attribute("#tabradarrod-int", "aria-selected") == "true", (
+        "com a troca automática já usada, a recarga deixava o cartão na aba vazia")
+    assert pg.locator("#rd-feed-rodovias a.rd-item").first.is_visible()
+
+
+def test_com_o_transito_LIGADO_as_duas_abas_continuam(pagina):
+    """O contrapeso: a aba de ocorrências só sai com a decisão em vigor."""
+    pg, base = pagina
+    _abrir(pg, base)
+    assert pg.locator("#tabradarrod-oc").is_visible()
+    assert pg.get_attribute("#tabradarrod-oc", "aria-selected") == "true"
+
 
 # -------------------------------------------------------------- a régua
 

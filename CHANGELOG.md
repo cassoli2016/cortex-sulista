@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.52.1] — 11/09/2026  ·  CX-11/09/2026-v1.52.1
+
+### Corrigido
+- Na página inicial, o cartão Rodovias agora deixa de abrir numa aba vazia. Com o trânsito da TomTom desligado por decisão, a aba Ocorrências não tem como ter conteúdo — e no celular o cartão parava nela, lido como "sem informação". Agora essa aba sai enquanto a decisão valer, o cartão mostra direto as interdições noticiadas e o cabeçalho diz "ao vivo desligado por decisão".
+
 ## [1.52.0] — 11/09/2026  ·  CX-11/09/2026-v1.52.0
 
 ### Adicionado

@@ -1,3 +1,14 @@
+- versao: "1.52.1"
+  data: "2026-09-11"
+  corrigido:
+    - >-
+      Na página inicial, o cartão Rodovias agora deixa de abrir numa aba vazia.
+      Com o trânsito da TomTom desligado por decisão, a aba Ocorrências não tem
+      como ter conteúdo — e no celular o cartão parava nela, lido como "sem
+      informação". Agora essa aba sai enquanto a decisão valer, o cartão mostra
+      direto as interdições noticiadas e o cabeçalho diz "ao vivo desligado
+      por decisão".
+
 - versao: "1.52.0"
   data: "2026-09-11"
   adicionado:
