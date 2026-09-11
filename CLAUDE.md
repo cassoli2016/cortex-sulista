@@ -615,6 +615,16 @@ barra empilhada, não donut.
 - **Média de população heterogênea não decide nada** — separar (idade da frota:
   tração 6,9 anos × implemento 12,9).
 - **Top-N leva contador** ("30 de 102 · 774 dos 793") — senão vira total falso.
+  - **Antes do contador vem outra pergunta: existe um número NO MUNDO que
+    esta lista não pode passar?** Se existe, ele é o teto e o servidor não
+    precisa cortar — a tabela do dia da Frequência não tem `LIMIT` e está
+    certa, porque nenhum dia pode ter mais gente batendo ponto do que as 92
+    pessoas que têm ponto no cadastro; o teto é real, só mora na FOLHA e
+    não no código. Se não existe — ocorrências de trânsito num corredor, que
+    o mundo produz às centenas —, o corte é DECISÃO: o servidor corta, a
+    tela diz "N de M", e o número do corte sai de uma MEDIÇÃO da coleta
+    real levada a quem opera, nunca de um redondo escolhido para caber.
+    (11/09/2026, `freq` × página inicial.)
 - **Faixa física valida a leitura** (km/l de caminhão: 0,8–6,0; jornada > 24h;
   km > 1.500/dia): fora dela é `n/d` com o bruto no tooltip, e conta num aviso.
 - **Rótulo de eixo nomeia a unidade FINAL** (`MILHÕES DE KM`, nunca
