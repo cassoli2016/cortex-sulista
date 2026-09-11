@@ -1,3 +1,31 @@
+- versao: "1.37.1"
+  data: "2026-09-10"
+  corrigido:
+    - >-
+      O mapa da Operacao MWM abria mostrando o PLANETA INTEIRO. A aba Mapa
+      nasce escondida -- quem abre e o Resumo por dia --, e o mapa se enquadra
+      no carregamento da tela: com a aba escondida o espaco dele mede zero, e
+      enquadrar sem tamanho devolve o mundo. Ao abrir a aba o mapa ganhava o
+      tamanho certo e ficava com o zoom do mundo, porque o que roda ali so
+      corrige o tamanho. As cinco paradas do ABC ficavam a poucos pixels uma da
+      outra, e nada disso levantava erro -- os pinos estavam todos "dentro da
+      area visivel" porque a area visivel era o planeta.
+    - >-
+      Agora ele se enquadra quando a aba ABRE, e tambem ao expandir o cartao,
+      que e quando o tamanho muda de novo. Medido antes e depois: zoom 0 (norte
+      85,6 / sul -88,1) contra zoom 8 (norte -22,5 / sul -24,1), que e a faixa
+      de Campinas a Sao Bernardo.
+    - >-
+      E ganhou teto de aproximacao: num milk run e normal todas as paradas
+      cairem no mesmo bairro, e sem teto o mapa daria zoom de telhado -- a tela
+      mostraria quarteiroes sem nenhuma referencia de cidade.
+    - >-
+      Nos filtros da mesma tela, a quantidade aparecia COLADA no rotulo:
+      "Todos13", "Pendentes0". O espaco existia no HTML e o CSS o jogava fora
+      -- o chip e um contentor flex, e flex descarta o espaco em branco entre
+      dois filhos. Quem lia o codigo jurava que o espaco estava la. Agora o vao
+      e do componente, e ha um guard que MEDE o pixel na tela: procurar o
+      espaco no codigo passaria verde com a tela errada.
 - versao: "1.37.0"
   data: "2026-09-10"
   alterado:

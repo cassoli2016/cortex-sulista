@@ -1981,6 +1981,20 @@ body.tvmode #tarja-velha{background:#3A2E12;border-color:#FBBF24;color:#FBBF24}
 .lg-ok{color:var(--green,#1E7F4F);font-size:13px;line-height:1.45;margin-top:10px}
 .m-err{color:var(--red,#C03221);font-size:13px;min-height:16px;margin-top:8px;flex:1}
 .ges-tabs{display:flex;gap:8px;flex-wrap:wrap;padding:0 2px 4px}
+/* O NÚMERO COLADO NO RÓTULO ("Todos13", "Pendentes0") — relatado em
+   10/09/2026 nos chips da Operação MWM.
+
+   O espaço EXISTE no HTML (`${rotulo} <span>${n}</span>`) e o CSS o joga fora:
+   `button.ghost` é `inline-flex`, e contêiner flex DESCARTA o nó de texto em
+   branco entre dois filhos. Quem olha o HTML jura que o espaço está lá; quem
+   olha a tela vê "Todos13". É a família do "a regra de CSS pode existir, estar
+   certa e não valer" — só o navegador diz quem venceu.
+
+   O `gap` vai no componente e não em `button.ghost` porque o botão fantasma é
+   usado na casa inteira, quase sempre com um filho só (onde `gap` não faz
+   nada) — mudar lá seria mexer em dezenas de botões para consertar dois. 7px é
+   o mesmo vão que `button.btn` já usa entre ícone e texto. */
+.ges-tabs button{gap:7px}
 .ges-audbar{display:flex;gap:8px;margin:0 0 10px}
 .ges-audbar input{flex:1;padding:9px 10px;border:1px solid var(--n300,#d3dae2);border-radius:6px;font:inherit;font-size:14px}
 /* `.card` não tem padding próprio — cada bloco de conteúdo põe o seu (.modl,
@@ -6118,7 +6132,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
   <div id="milk-grupos"></div>
         </div>
-        <div class="aba" data-abas="milkrun" data-aba="mapa" id="aba-milkrun-mapa" role="tabpanel" aria-labelledby="tabmilkrun-mapa" hidden>
+        <div class="aba" data-abas="milkrun" data-aba="mapa" id="aba-milkrun-mapa" role="tabpanel" aria-labelledby="tabmilkrun-mapa" data-ao-abrir="milkAbrirMapa" hidden>
   <div class="card">
             <div class="head"><h2>Mapa da operação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Pino redondo = ponto de coleta, com o número da parada dentro e a cor da situação. Ícone de caminhão = onde o veículo está AGORA (última posição do rastreador, não a do período filtrado); caminhão vazado significa posição com mais de 2 horas.">i</span></h2>
               <span class="hint" id="hintMilkMapa">pontos de coleta e veículos</span>
@@ -23064,9 +23078,11 @@ function milkExpandir(){
   document.body.style.overflow = abrindo ? 'hidden' : '';
   b.textContent = abrindo ? 'Recolher' : 'Expandir';
   b.setAttribute('aria-expanded', String(abrindo));
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{
-    if(milkMap) milkMap.invalidateSize();
-  }));
+  /* Expandir muda o TAMANHO do cartao, e o enquadramento e funcao do tamanho:
+     so invalidar deixaria o mapa com o zoom do cartao pequeno numa area quatro
+     vezes maior — muita agua em volta de um punhado de pinos. O proprio
+     `milkEnquadrar` ja invalida o tamanho por dentro antes de enquadrar. */
+  requestAnimationFrame(()=>requestAnimationFrame(milkEnquadrar));
   if(abrindo) b.focus();
 }
 document.addEventListener('keydown', e=>{
@@ -23390,14 +23406,59 @@ async function milkMapa(pts){
   }
 
 
+  /* OS LIMITES FICAM GUARDADOS, e o enquadramento e uma FUNCAO.
+
+     O defeito, medido em 10/09/2026: a aba Mapa nasce ESCONDIDA (quem nasce
+     aberta e o Resumo por dia), e `milkMapa` roda no carregamento da tela.
+     Com a aba escondida o container mede 0x0, o Leaflet nao tem como calcular
+     escala e o `fitBounds` devolve ZOOM 0 -- o planeta inteiro. Ao abrir a
+     aba, o `mapasRemedir` chama `invalidateSize()`, que conserta o TAMANHO e
+     nao o ZOOM: o mapa ganhava 1322x300 px e continuava no zoom 0, com as
+     cinco paradas do ABC a cinco pixels de distancia uma da outra.
+
+     Enquadrar e medir, e nao da para medir o que nao tem tamanho. Por isso o
+     enquadramento saiu do meio da pintura e virou `milkEnquadrar()`, chamado
+     quando o container EXISTE: no fim da pintura (se a aba estiver visivel),
+     ao ABRIR a aba, e ao expandir o cartao. */
+  milkBounds = null;
   try{
     const tudo = comCoord.filter(p=>!MILK_OCULTO.has(p.estado)).map(p=>[p.lat,p.lng])
       .concat(MILK_OCULTO.has('veic') ? []
         : Object.values(pos).filter(v=>v.lat&&v.lng).map(v=>[v.lat,v.lng]));
-    if(!tudo.length) throw new Error('nada visivel');
-    milkMap.fitBounds(L.latLngBounds(tudo).pad(0.2));
+    if(tudo.length) milkBounds = L.latLngBounds(tudo);
   }catch(e){}
-  setTimeout(()=>milkMap.invalidateSize(), 60);
+  milkEnquadrar();
+}
+
+let milkBounds = null;
+
+/* ENQUADRA O MAPA DO MILK RUN. Ver o porque no fim de `milkMapa`.
+
+   `maxZoom` e o PISO DE AREA, a mesma regra do painel de TV: numa operacao em
+   que todas as paradas caem no mesmo bairro -- que e o caso normal de um milk
+   run -- um `fitBounds` puro daria zoom de telhado, e a tela mostraria
+   quarteiroes sem nenhuma referencia de cidade. 13 mantem o bairro legivel e
+   ainda deixa ver de que cidade se trata.
+
+   E ele SO ENQUADRA SE HOUVER TAMANHO: chamado com o container em 0x0 (aba
+   escondida) o Leaflet devolve zoom 0, e o mapa ficaria assim ate alguem
+   mexer. `offsetParent === null` e o jeito barato de perguntar "esta
+   visivel?" -- o mesmo que o `mapasRemedir` ja usa. */
+function milkEnquadrar(){
+  if(typeof milkMap === 'undefined' || !milkMap || !milkBounds) return;
+  const el = milkMap.getContainer();
+  if(!el || el.offsetParent === null || !el.clientWidth || !el.clientHeight) return;
+  milkMap.invalidateSize();
+  try{ milkMap.fitBounds(milkBounds, {padding:[26,26], maxZoom:13}); }catch(e){}
+}
+
+/* O GANCHO DA ABA. `mapasRemedir` continua rodando no `abaTrocar` e conserta o
+   TAMANHO de todos os mapas; este conserta o ENQUADRAMENTO deste. Os dois
+   existem porque sao duas perguntas: "o mapa sabe quanto mede?" e "ele esta
+   olhando para a operacao?". O rAF duplo e porque `hidden=false` so vira
+   layout no quadro seguinte -- medir antes do reflow mede o zero de novo. */
+function milkAbrirMapa(){
+  requestAnimationFrame(() => requestAnimationFrame(milkEnquadrar));
 }
 /* ============ PORTAIS DE ANTECIPAÇÃO ============ */
 async function loadAntport(){
