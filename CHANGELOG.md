@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.50.0] — 11/09/2026  ·  CX-11/09/2026-v1.50.0
+
+### Adicionado
+- A Minha Operacao ganhou a aba ROTA E EVENTOS: um mapa com a origem combinada (verde), o destino (vermelho), onde o veiculo esta AGORA e o traco de por onde ele passou nos ultimos 7 dias. Os tres desenhados diferente de proposito -- origem e destino sao o COMBINADO e nao mudam na viagem; a posicao e fato do momento. Com o mesmo simbolo, quem le perde a diferenca entre o que foi prometido e o que aconteceu, que e justamente o que a tela existe para mostrar.
+- Na mesma aba, os EVENTOS DO VEICULO: os macros que o motorista envia pelo computador de bordo (CHEGADA NO CLIENTE, INICIO/FIM DE CARGA, PARADA TRANSITO...), com hora e lugar. Sao eventos do VEICULO que leva a carga, e nao da carga -- um caminhao leva varios CT-es. Onde o macro nao alcanca (ele cobre 57% das cargas), a tela DIZ que o acompanhamento segue pela coluna Situacao, em vez de ficar vazia: tabela vazia num painel que o cliente le se interpreta como "a Sulista nao sabe".
+- O painel de TV do cliente ganhou as mesmas pontas e o mesmo traco, finos e translucidos por baixo das marcas: numa parede eles sao contexto, e o assunto continua sendo onde o caminhao esta agora.
+
 ## [1.49.0] — 11/09/2026  ·  CX-11/09/2026-v1.49.0
 
 ### Alterado

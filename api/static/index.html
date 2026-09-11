@@ -6648,6 +6648,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="subtabs" role="tablist" data-abas="cliop" aria-label="Seções desta tela">
           <button role="tab" id="tabcliop-agora" data-aba="agora" aria-controls="aba-cliop-agora" aria-selected="true" onclick="abaTrocar('cliop','agora')">Agora <span class="aban" id="abancliopAgora" data-fixo="1"></span></button>
           <button role="tab" id="tabcliop-perm" data-aba="perm" aria-controls="aba-cliop-perm" aria-selected="false" onclick="abaTrocar('cliop','perm')">Permanência</button>
+          <button role="tab" id="tabcliop-rota" data-aba="rota" aria-controls="aba-cliop-rota" aria-selected="false" onclick="abaTrocar('cliop','rota')">Rota e eventos <span class="aban" id="abancliopRota" data-fixo="1"></span></button>
           <button role="tab" id="tabcliop-ft" data-aba="ft" aria-controls="aba-cliop-ft" aria-selected="false" onclick="abaTrocar('cliop','ft')">Freetime contratado <span class="aban" id="abancliopFt" data-fixo="1"></span></button>
           <button role="tab" id="tabcliop-hist" data-aba="hist" aria-controls="aba-cliop-hist" aria-selected="false" onclick="abaTrocar('cliop','hist')">Histórico</button>
         </div>
@@ -6685,6 +6686,19 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="tablewrap tabroll"><table><thead><tr>
               <th>Etapa</th><th class="num">Mediana</th><th class="num">Dentro do freetime</th><th class="num">Depende da mercadoria</th><th class="num">Excedente</th><th class="num">Não medido</th>
             </tr></thead><tbody id="cliop-perm-tab"></tbody></table></div>
+          </div>
+        </div>
+
+        <div class="aba" data-abas="cliop" data-aba="rota" id="aba-cliop-rota" role="tabpanel" aria-labelledby="tabcliop-rota" data-ao-abrir="cliopRota" hidden>
+          <div class="card">
+            <div class="head"><h2>Onde a carga sai, onde ela vai, e por onde passou <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O mapa das cargas em curso. O pino verde é a ORIGEM combinada e o vermelho é o DESTINO — os dois vêm da própria coleta e estão preenchidos em 96% e 98% dela. O círculo é onde o veículo está AGORA, e o traço atrás dele é por onde passou nos últimos 7 dias, vindo do rastreamento. Origem e destino são o que foi COMBINADO e não mudam durante a viagem; a posição é fato do momento — por isso desenhados diferente. O traço é simplificado: pontos a menos de 2 km um do outro são descartados, o que tira 94% do peso e menos de 1% do comprimento.">i</span></h2><span class="hint" id="cliop-rota-hint"></span></div>
+            <div id="cliopMapa" style="width:100%;height:330px"></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Eventos do veículo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os macros que o motorista envia pelo computador de bordo (Raster), com hora e lugar. São os eventos do VEÍCULO que leva a carga, não da carga: um caminhão leva vários CT-es, então o mesmo evento vale para todas as cargas que ele carrega naquele momento. O macro alcança 57% das cargas — onde ele não chega, a tela continua mostrando o apontamento da operação, que é a fonte da coluna Situação na aba Agora. Um não substitui o outro.">i</span></h2><span class="hint" id="cliop-eventos-hint"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Quando</th><th>Veículo</th><th>Evento</th><th>Onde</th>
+            </tr></thead><tbody id="cliop-eventos"></tbody></table></div>
           </div>
         </div>
 
@@ -13132,6 +13146,10 @@ function mapasRemedir(){
     [typeof milkMap !== 'undefined' && milkMap,
      typeof torreMap !== 'undefined' && torreMap,
      typeof poliMap !== 'undefined' && poliMap,
+     /* O mapa da aba Rota da `cliop` nasce numa aba ESCONDIDA, e Leaflet mede
+        o container uma vez: sem entrar aqui, ele abre no planeta e o sintoma é
+        mudo. É o mesmo defeito que a Operação MWM já teve. */
+     typeof cliopMap !== 'undefined' && cliopMap,
      typeof tvMap !== 'undefined' && tvMap].forEach(m => {
       try{ if(m && m.getContainer && m.getContainer().offsetParent !== null)
              m.invalidateSize(); }catch(e){}
@@ -14836,7 +14854,7 @@ function tvCliMarcas(){
    sempre, e o sintoma e mudo (mapa cinza, sem erro). Por isso o
    `invalidateSize()` a cada passada e o `setTimeout` na criacao -- o mesmo
    remedio que a Torre usa. */
-async function tvCliMapa(cargas, resumo){
+async function tvCliMapa(cargas, resumo, trilhas){
   try{ await ensureLeaflet(); }catch(e){ return; }
   const el = document.getElementById('tvCliMapa');
   if(!el) return;
@@ -14850,6 +14868,38 @@ async function tvCliMapa(cargas, resumo){
   /* SEMPRE, e ANTES de enquadrar: e a medida do container que decide o zoom. */
   tvCliMap.invalidateSize();
   tvCliLayer.clearLayers();
+
+  /* O TRACO E AS DUAS PONTAS VEM PRIMEIRO, por baixo das marcas: linha
+     desenhada depois passa por cima do pino e some com a ponta da rota.
+     Numa parede eles sao contexto, nao o assunto -- por isso finos e
+     translucidos: o assunto e onde o caminhao esta AGORA. */
+  const trilhasTv = trilhas || {};
+  const vistasTv = {};
+  (cargas || []).forEach(function(c){
+    if(!c.placa || vistasTv[c.placa]) return;
+    vistasTv[c.placa] = 1;
+    const t = trilhasTv[c.placa] || [];
+    if(t.length < 2) return;
+    L.polyline(t.map(function(p){ return [p.lat, p.lon]; }),
+               {color:'#E85D10', weight:2, opacity:.38}).addTo(tvCliLayer);
+  });
+  const paresTv = {};
+  (cargas || []).forEach(function(c){
+    const o = c.origem_pt, dd = c.destino_pt;
+    if(!o && !dd) return;
+    const k = (o ? o.lat.toFixed(2)+','+o.lon.toFixed(2) : '-') + '|'
+            + (dd ? dd.lat.toFixed(2)+','+dd.lon.toFixed(2) : '-');
+    if(!paresTv[k]) paresTv[k] = {o:o, d:dd};
+  });
+  Object.keys(paresTv).forEach(function(k){
+    const p = paresTv[k];
+    /* SEM TOOLTIP: numa parede ninguem aponta o mouse. O verde e a origem e o
+       vermelho o destino, e o semaforo da casa ja ensina essa leitura. */
+    if(p.o) L.circleMarker([p.o.lat, p.o.lon], {radius:4, color:'#4ADE80',
+      fillColor:'#4ADE80', fillOpacity:.85, weight:1}).addTo(tvCliLayer);
+    if(p.d) L.circleMarker([p.d.lat, p.d.lon], {radius:4, color:'#F87171',
+      fillColor:'#F87171', fillOpacity:.85, weight:1}).addTo(tvCliLayer);
+  });
 
   /* UMA MARCA POR VEICULO, nao por carga: um caminhao leva varios CT-es (66
      cargas em 33 veiculos, medido), e uma marca por carga empilharia pontos
@@ -15582,7 +15632,7 @@ async function loadTvCli(){
          + ' cargas · a lista completa está em Minha Operação')
       : '';
 
-    tvCliMapa(cargas, dA.posicao);
+    tvCliMapa(cargas, dA.posicao, dA.trilhas);
     tvCliTicker(dA, dP, {emViagem: emViagem, total: total});
     /* A CONTAGEM VEM DEPOIS DE TODOS OS NUMEROS ESTAREM NA TELA: ela LE o
        texto do elemento para saber o alvo, entao rodar antes pegaria o "—" do
@@ -26304,6 +26354,159 @@ async function cliopPermanencia(){
     if(e.semVinculo){ cliopSemVinculo(e.message); return; }
     showBanner('Nao foi possivel carregar a permanencia.', e.message);
   }
+}
+
+/* ── ROTA E EVENTOS ────────────────────────────────────────────────────────
+   O mapa desta aba responde uma pergunta que a lista nao responde: a carga
+   esta indo para onde ela deveria? Origem e destino sao o COMBINADO e nao
+   mudam na viagem; a posicao e o fato do momento; o traco e por onde passou.
+   Os tres desenhados diferente de proposito -- um pino de destino e uma
+   posicao atual com o mesmo desenho fariam plano e fato virarem a mesma
+   coisa na leitura. */
+let cliopMap = null, cliopLayer = null;
+
+async function cliopRota(){
+  try{
+    const d = await cliopBuscar('agora', {dias: 45});
+    if(d.escolher){ cliopMontarSeletor(d); return; }
+    await cliopDesenharRota(d);
+    cliopEventos(d);
+  }catch(e){
+    if(e.semVinculo){ cliopSemVinculo(e.message); return; }
+    showBanner('Nao foi possivel carregar a rota.', e.message);
+  }
+}
+
+async function cliopDesenharRota(d){
+  try{ await ensureLeaflet(); }catch(e){ return; }
+  const el = document.getElementById('cliopMapa'); if(!el) return;
+  if(!cliopMap){
+    cliopMap = L.map('cliopMapa', {scrollWheelZoom:false, attributionControl:false})
+                .setView([-22.5,-45.5], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18})
+     .addTo(cliopMap);
+    cliopLayer = L.layerGroup().addTo(cliopMap);
+  }
+  /* SEMPRE, e ANTES de enquadrar: o Leaflet mede o container UMA vez, e medida
+     feita com a aba escondida vale zero para sempre -- o sintoma e mudo, o
+     mapa abre no planeta. */
+  cliopMap.invalidateSize();
+  cliopLayer.clearLayers();
+
+  const cargas = d.cargas || [];
+  const trilhas = d.trilhas || {};
+  const pontos = [];
+
+  /* O TRACO VEM PRIMEIRO, por baixo de tudo: linha desenhada depois do pino
+     passa por cima dele e some com a ponta da rota. */
+  const vistas = {};
+  cargas.forEach(function(c){
+    if(!c.placa || vistas[c.placa]) return;
+    vistas[c.placa] = 1;
+    const t = trilhas[c.placa] || [];
+    if(t.length < 2) return;
+    const linha = t.map(function(p){ return [p.lat, p.lon]; });
+    L.polyline(linha, {color:'#E85D10', weight:2.5, opacity:.55})
+     .addTo(cliopLayer);
+    linha.forEach(function(p){ pontos.push(p); });
+  });
+
+  /* AS DUAS PONTAS, uma vez por PAR origem-destino e nao por carga: quinze
+     cargas saindo do mesmo patio para a mesma planta empilhariam quinze pinos
+     identicos no mesmo pixel, e a parede pareceria ter quinze origens. */
+  const pares = {};
+  cargas.forEach(function(c){
+    const o = c.origem_pt, dd = c.destino_pt;
+    const k = (o ? o.lat.toFixed(3)+','+o.lon.toFixed(3) : '-') + '|'
+            + (dd ? dd.lat.toFixed(3)+','+dd.lon.toFixed(3) : '-');
+    if(!pares[k]) pares[k] = {o:o, d:dd, n:0, origem:c.origem, destino:c.destino,
+                             uf_o:c.uf_origem, uf_d:c.uf_destino};
+    pares[k].n += 1;
+  });
+  Object.keys(pares).forEach(function(k){
+    const p = pares[k];
+    const rot = p.n > 1 ? ' · ' + p.n + ' cargas' : '';
+    if(p.o){
+      L.circleMarker([p.o.lat, p.o.lon], {radius:7, color:'#1E7F4F',
+        fillColor:'#1E7F4F', fillOpacity:.9, weight:2})
+       .bindTooltip('Origem: ' + esc(p.origem || '') + '/' + esc(p.uf_o || '') + rot)
+       .addTo(cliopLayer);
+      pontos.push([p.o.lat, p.o.lon]);
+    }
+    if(p.d){
+      L.circleMarker([p.d.lat, p.d.lon], {radius:7, color:'#C03221',
+        fillColor:'#C03221', fillOpacity:.9, weight:2})
+       .bindTooltip('Destino: ' + esc(p.destino || '') + '/' + esc(p.uf_d || '') + rot)
+       .addTo(cliopLayer);
+      pontos.push([p.d.lat, p.d.lon]);
+    }
+  });
+
+  /* A POSICAO ATUAL POR CIMA DE TUDO, e com desenho proprio: e o unico
+     elemento do mapa que muda sozinho, e quem olha precisa achar o caminhao
+     sem procurar. Posicao VELHA nao some -- vai em cinza, porque sumir com
+     ela e pior que mostra-la com a idade a mostra. */
+  const jaPos = {};
+  cargas.forEach(function(c){
+    if(!c.pos || !c.placa || jaPos[c.placa]) return;
+    jaPos[c.placa] = 1;
+    const velha = c.pos.velha;
+    L.circleMarker([c.pos.lat, c.pos.lon], {radius:9,
+      color: velha ? '#636C76' : '#1E172F',
+      fillColor: velha ? '#9AA3AD' : '#E0705F', fillOpacity:1, weight:3})
+     .bindTooltip(esc(c.placa) + (velha ? ' · posicao de ' + (c.pos.idade_min||'?')
+                                          + ' min atras' : ' · posicao recente'))
+     .addTo(cliopLayer);
+    pontos.push([c.pos.lat, c.pos.lon]);
+  });
+
+  if(pontos.length){
+    try{ cliopMap.fitBounds(L.latLngBounds(pontos), {padding:[28,28], maxZoom:11}); }
+    catch(e){}
+  }
+
+  const r = d.raster || {};
+  const comRota = Object.keys(pares).filter(function(k){
+    return pares[k].o && pares[k].d; }).length;
+  /* A COBERTURA VAI JUNTO e nao e detalhe: um mapa com metade dos tracos
+     parece frota parada, nao fonte que nao alcanca aquele veiculo. */
+  const h = document.getElementById('cliop-rota-hint');
+  if(h) h.innerHTML = esc(cargas.length + ' cargas em curso \u00b7 ' + comRota
+      + ' rotas com as duas pontas \u00b7 ' + (r.placas_com_trilha || 0)
+      + ' de ' + (r.placas || 0) + ' veiculos com deslocamento nos ultimos '
+      + (r.janela_dias || 7) + ' dias') + cliopTarja(d);
+}
+
+function cliopEventos(d){
+  const tb = document.getElementById('cliop-eventos'); if(!tb) return;
+  /* UMA LISTA SO, em ordem de tempo, e nao uma por veiculo: quem le quer saber
+     o que aconteceu na operacao agora, e nao percorrer quinze listas. */
+  const linhas = [];
+  Object.keys(d.macros || {}).forEach(function(pl){
+    (d.macros[pl] || []).forEach(function(m){ linhas.push({placa: pl, m: m}); });
+  });
+  linhas.sort(function(a, b){ return (a.m.quando < b.m.quando) ? 1 : -1; });
+
+  tb.innerHTML = linhas.length ? linhas.slice(0, 60).map(function(x){
+    const m = x.m;
+    const onde = (m.cidade ? esc(m.cidade) + '/' + esc(m.uf || '') : '\u2014');
+    const det = m.detalhe
+      ? '<div class="hint">' + esc(m.detalhe) + '</div>' : '';
+    return '<tr><td>' + esc(fmtDT ? fmtDT(m.quando) : m.quando) + '</td>'
+      + '<td>' + esc(x.placa) + '</td>'
+      + '<td>' + esc(m.macro) + det + '</td>'
+      + '<td>' + onde + '</td></tr>';
+  }).join('')
+    : '<tr><td colspan="4" style="color:var(--n500);padding:18px">'
+      + 'Nenhum macro nos ultimos dias para os veiculos destas cargas. O '
+      + 'acompanhamento segue pela coluna Situacao, na aba Agora.</td></tr>';
+  abaContador('abancliopRota', linhas.length);
+  const r = d.raster || {};
+  const he = document.getElementById('cliop-eventos-hint');
+  if(he) he.textContent = (r.indisponivel
+    ? 'rastreamento indisponivel agora \u2014 a tela segue pelo apontamento'
+    : linhas.length + ' eventos \u00b7 ' + (r.placas_com_macro || 0) + ' de '
+      + (r.placas || 0) + ' veiculos com macro');
 }
 
 async function cliopHistorico(){

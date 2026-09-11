@@ -34,12 +34,37 @@ AGORA = {
         "origem": "CIDADE A", "uf_origem": "SP",
         "destino": "CIDADE B", "uf_destino": "RJ",
         "destinatario": "MONTADORA - CIDADE B/RJ", "placa": "AAA1A11",
+        "origem_pt": {"lat": -22.58550827, "lon": -44.95908151},
+        "destino_pt": {"lat": -22.4680711, "lon": -44.4479203},
         "marco": "Em viagem", "marco_cod": 400, "marco_em": "",
         "marco_fonte": "apontamento",
         "janela_carga": "", "janela_entrega": "",
         "chegada": None, "chegada_fonte": None, "desvio_h": None,
-        "pos": None, "eta": None, "eta_amostras": None,
+        # POSIÇÃO PRESENTE: carga em curso com `pos: None` é o caso raro, e o
+        # dublê padrão tem de ser o caso COMUM — senão o teste do mapa mede um
+        # mapa sem caminhão e aprova a marca que falta.
+        "pos": {"lat": -22.4700, "lon": -44.4500, "velocidade": 62,
+                "fonte": "erp", "idade_min": 8, "velha": False},
+        "eta": None, "eta_amostras": None,
     }],
+    # AS DUAS PONTAS, MACROS E TRILHA — valores REAIS lidos do ERP em
+    # 11/09/2026 (rota CRUZEIRO/SP -> RESENDE/RJ, placa NZG2G74). Dublê de
+    # coordenada com (0,0) ou (1,1) esconderia justamente o erro que importa,
+    # porque qualquer aritmética "funciona" neles.
+    "origem_pt_ref": {"lat": -22.58550827, "lon": -44.95908151},
+    "macros": {"AAA1A11": [
+        {"macro": "CHEGADA NO CLIENTE", "detalhe": None,
+         "quando": "2026-09-11 06:17", "lat": -22.4680711, "lon": -44.4479203,
+         "cidade": "RESENDE", "uf": "RJ"},
+        {"macro": "DESBLOQUEAR VEICULO", "detalhe": "3114 · 8176",
+         "quando": "2026-09-11 09:03", "lat": -23.7394, "lon": -46.5989,
+         "cidade": "SÃO BERNARDO DO CAMPO", "uf": "SP"}]},
+    "trilhas": {"AAA1A11": [
+        {"lat": -22.5855, "lon": -44.9590, "quando": "2026-09-10 20:00"},
+        {"lat": -22.5200, "lon": -44.7000, "quando": "2026-09-10 22:00"},
+        {"lat": -22.4680, "lon": -44.4479, "quando": "2026-09-11 06:00"}]},
+    "raster": {"placas": 1, "placas_com_macro": 1, "placas_com_trilha": 1,
+               "janela_dias": 7, "indisponivel": None},
     "em_curso": 1, "sem_apontamento": 0, "por_destinatario": [],
     "concluidas_na_janela": 0, "janela_dias": 45, "mercadoria": "",
     "mercadorias": MERCADORIAS,
@@ -662,3 +687,105 @@ def test_a_tabela_do_contrato_rola_DENTRO_do_card(pagina):
     assert alt <= 900, (
         "com 20 cláusulas a aba foi a %d px — a tabela não está rolando por "
         "dentro do card" % alt)
+
+
+# ═════════════ rota e eventos da Raster (11/09/2026) ═══════════════════════
+
+def test_o_mapa_da_rota_ABRE_e_nao_fica_no_planeta(pagina):
+    """O mapa abre enquadrado no dado, e não no planeta.
+
+    É o defeito que a Operação MWM já teve: Leaflet mede o container UMA vez, e
+    medida feita com a aba escondida vale zero para sempre — os pinos ficam
+    todos "dentro da área visível" porque a área visível é o mundo, sem erro
+    nenhum, com sintoma mudo.
+
+    O QUE ESTE GUARD **NÃO** PROVA, e eu tinha escrito que provava: ele não
+    protege o `invalidateSize()`. Sabotei os DOIS mecanismos — a chamada
+    explícita e a entrada no `mapasRemedir` — e ele continuou verde. O motivo é
+    real e vale saber: aqui o mapa é criado SOB DEMANDA (`data-ao-abrir`),
+    quando a aba já está visível, então o container já tem tamanho no momento
+    da criação. Os dois são rede, não o que sustenta. Na `tvcli` é o oposto —
+    lá o mapa nasce com a tela escondida, e lá a rede é obrigatória.
+
+    O que ele prova é o RESULTADO: com as duas pontas a ~65 km uma da outra, o
+    enquadramento passa de zoom 5. Se alguém tornar esta aba de renderização
+    ansiosa, é este assert que vai acender.
+    """
+    pg, base = pagina
+    _abrir(pg, base)
+    pg.click("#tabcliop-rota")
+    pg.wait_for_selector("#cliopMapa .leaflet-container, #cliopMapa.leaflet-container",
+                         state="visible", timeout=20000)
+    pg.wait_for_timeout(900)
+    z = pg.evaluate("() => cliopMap && cliopMap.getZoom()")
+    assert z and z > 5, "o mapa da rota abriu no planeta (zoom %s)" % z
+
+
+def test_origem_destino_posicao_e_traco_sao_DESENHOS_DIFERENTES(pagina):
+    """Plano e fato não podem ter o mesmo desenho.
+
+    Origem e destino são o COMBINADO e não mudam na viagem; a posição é onde o
+    veículo está agora; o traço é por onde passou. Com o mesmo símbolo, quem
+    lê o mapa perde a diferença entre o que foi prometido e o que aconteceu —
+    e é justamente essa diferença que a tela existe para mostrar.
+    """
+    pg, base = pagina
+    _abrir(pg, base)
+    pg.click("#tabcliop-rota")
+    pg.wait_for_timeout(1200)
+    n = pg.evaluate(
+        "() => { let path = 0, linha = 0;"
+        " cliopLayer.eachLayer(function(l){"
+        "   if(l instanceof L.Polyline && !(l instanceof L.CircleMarker)) linha++;"
+        "   else if(l instanceof L.CircleMarker) path++; });"
+        " return [path, linha]; }")
+    assert n[1] >= 1, "o traço do deslocamento não foi desenhado"
+    assert n[0] >= 3, ("faltam marcas: esperava origem, destino e posição, "
+                       "achei %d" % n[0])
+
+
+def test_a_lista_de_eventos_traz_o_macro_com_hora_e_lugar(pagina):
+    """O macro sem lugar é metade da informação: "PARADA TRANSITO" às 14h não
+    diz nada; "PARADA TRANSITO em Nova Odessa/SP" diz onde ir olhar."""
+    pg, base = pagina
+    _abrir(pg, base)
+    pg.click("#tabcliop-rota")
+    pg.wait_for_selector("#cliop-eventos tr", state="visible", timeout=20000)
+    txt = pg.inner_text("#cliop-eventos")
+    assert "CHEGADA NO CLIENTE" in txt
+    assert "RESENDE" in txt, "o lugar do evento sumiu: %s" % txt
+    # e o PARÂMETRO do formulário do motorista vai junto, separado do rótulo
+    assert "3114" in txt, "o detalhe do macro sumiu"
+
+
+def test_sem_macro_a_tela_DIZ_o_que_fazer_em_vez_de_ficar_vazia(pagina):
+    """O macro alcança 57% das cargas. Nos outros 43% a tabela fica vazia — e
+    tabela vazia num painel que o cliente lê se interpreta como "a Sulista não
+    sabe", não como "esta fonte não alcança este veículo".
+
+    Então o vazio DIZ que o acompanhamento continua pela coluna Situação.
+    """
+    pg, base = pagina
+    sem = {**AGORA, "macros": {}, "raster": {**AGORA["raster"],
+                                             "placas_com_macro": 0}}
+    _abrir_com(pg, base, PERM, agora=sem)
+    pg.click("#tabcliop-rota")
+    pg.wait_for_selector("#cliop-eventos tr", state="visible", timeout=20000)
+    txt = pg.inner_text("#cliop-eventos").lower()
+    assert "situa" in txt and "agora" in txt, txt
+
+
+def test_a_aba_de_rota_cabe_na_tela_com_dado_real(pagina):
+    """A régua do script mede o ESQUELETO; mapa e tabela só enchem com dado."""
+    pg, base = pagina
+    _abrir(pg, base)
+    pg.set_viewport_size({"width": 1500, "height": 1000})
+    pg.click("#tabcliop-rota")
+    pg.wait_for_timeout(1200)
+    alt = pg.evaluate(
+        "() => { const c = document.getElementById('content');"
+        " const b = c.querySelector('#banner');"
+        " const fora = (b && b.offsetParent !== null)"
+        "   ? Math.round(b.getBoundingClientRect().height) + 14 : 0;"
+        " return Math.round(c.scrollHeight) - fora; }")
+    assert alt <= 900, "a aba Rota foi a %d px com dado real" % alt
