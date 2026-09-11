@@ -285,6 +285,10 @@ def coleta_isolada(monkeypatch, cofre):
     credenciais.gravar("TOMTOM_API_KEY", "chave-de-teste-aaaaaaaa")
     monkeypatch.setattr(coleta, "_cache", None)
     monkeypatch.setattr(coleta, "registrar", lambda *a, **k: None)
+    # Sem chave (ou sem crédito) a Torre cai na RESERVA pela velocidade da
+    # frota, que lê o ERP — e nenhum teste consulta o ERP de verdade.
+    from api import frota_movimento
+    monkeypatch.setattr(frota_movimento, "serie", lambda *a, **k: {})
     return coleta
 
 
@@ -370,7 +374,10 @@ def test_sem_chave_a_coleta_RECUSA_sem_chamar_nada(coleta_isolada, monkeypatch):
         "não podia ter chamado a API sem chave"))
     r = coleta_isolada.condicao_da_frota(forcar=True, viagens=VIAGENS,
                                          posicoes_atuais=POSICOES)
-    assert r["configurado"] is False and r["trechos"] == []
+    # a TomTom não foi chamada (o `pytest.fail` acima) e quem responde é a
+    # RESERVA pela velocidade da frota, dizendo que a chave falta
+    assert r["configurado"] is False and r["reserva"] is True
+    assert all(t["fonte"] == "frota" for t in r["trechos"])
 
 
 # ── geocodificação: o destino que o ERP não tem ─────────────────────────────

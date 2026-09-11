@@ -196,33 +196,10 @@ def condicao_da_frota(*, forcar: bool = False, limite: int | None = None,
         if not forcar and _cache and (time.monotonic() - _cache[0]) < ttl:
             return {**_cache[1], "do_cache": True}
 
-        if not cliente.configurado():
-            return {"configurado": False,
-                    "mensagem": "Chave da TomTom não configurada "
-                                "(Gestão › Integrações).",
-                    "trechos": [], "resumo": transito.resumo([])}
-
         # A PRIMEIRA VARREDURA DO PROCESSO é contada à parte: o cache é da
         # memória, e o AutoDeploy reinicia a API várias vezes por dia — cada
         # reinício é uma varredura inteira que ninguém pediu.
         apos_reinicio = _cache is None
-
-        # SEM CRÉDITO NÃO SE VARRE. Com o freio do produto de trânsito ligado,
-        # a varredura nem começa — e o resultado entra no cache como qualquer
-        # outro, para a próxima tela não refazer a pergunta.
-        f = cliente.freio("traffic")
-        if f:
-            msg = ("TomTom sem créditos no produto de trânsito desde %s — "
-                   "nenhuma consulta sai até %s." % (f["desde"][11:16], f["ate"][11:16]))
-            fora = {"configurado": True, "sem_creditos": True, "erro": msg,
-                    "mensagem": msg, "freio": f, "trechos": [],
-                    "resumo": transito.resumo([]), "erros": 0,
-                    "colhido_em": datetime.now().isoformat(timespec="seconds"),
-                    "do_cache": False}
-            registrar("fluxo", n=0, erros=0, origem=origem, barradas=1,
-                      apos_reinicio=apos_reinicio)
-            _cache = (time.monotonic(), fora)
-            return fora
 
         if viagens is None:
             from api import queries
@@ -247,6 +224,31 @@ def condicao_da_frota(*, forcar: bool = False, limite: int | None = None,
         sem_posicao = [pl for pl in placas if pl not in mapa]
         if limite:
             alvos = alvos[:limite]
+
+        # SEM CHAVE, A RESERVA. Não é falha (é instalação sem o recurso), mas
+        # a Torre não precisa ficar cega por isso: a velocidade dos próprios
+        # caminhões responde o que dá para responder.
+        if not cliente.configurado():
+            fora = _reserva(placas, alvos, sem_posicao, posicoes_atuais,
+                            "TomTom não configurada (Gestão › Integrações)")
+            fora["configurado"] = False
+            _cache = (time.monotonic(), fora)
+            return fora
+
+        # SEM CRÉDITO NÃO SE VARRE. Com o freio do produto de trânsito ligado,
+        # a TomTom nem é chamada — e a Torre recebe a RESERVA, que entra no
+        # cache como qualquer outra leitura.
+        f = cliente.freio("traffic")
+        if f:
+            registrar("fluxo", n=0, erros=0, origem=origem, barradas=1,
+                      apos_reinicio=apos_reinicio)
+            fora = _reserva(placas, alvos, sem_posicao, posicoes_atuais,
+                            "TomTom sem créditos no produto de trânsito desde %s — "
+                            "nenhuma consulta sai até %s"
+                            % (f["desde"][11:16], f["ate"][11:16]))
+            fora.update(sem_creditos=True, freio=f)
+            _cache = (time.monotonic(), fora)
+            return fora
 
         t0 = time.time()
         # A SONDA. O primeiro ponto vai sozinho: se a TomTom disser que não
@@ -297,13 +299,59 @@ def condicao_da_frota(*, forcar: bool = False, limite: int | None = None,
             "colhido_em": datetime.now().isoformat(timespec="seconds"),
             "do_cache": False,
         }
-        if sem_creditos:
-            fora["sem_creditos"] = True
-            fora["erro"] = fora["mensagem"] = (
-                "TomTom sem créditos no produto de trânsito — recarregar no "
-                "painel da TomTom. As consultas ficam suspensas por uma hora.")
+        if trechos and (sem_creditos or erros == len(trechos)):
+            motivo = ("TomTom sem créditos no produto de trânsito — recarregar no "
+                      "painel da TomTom; as consultas ficam suspensas por uma hora"
+                      if sem_creditos else
+                      "a TomTom não respondeu a nenhum dos %d caminhões" % len(trechos))
+            reserva = _reserva(placas, alvos, sem_posicao, posicoes_atuais, motivo)
+            reserva.update(sem_creditos=sem_creditos, erros_tomtom=erros,
+                           segundos=fora["segundos"])
+            fora = reserva
         _cache = (time.monotonic(), fora)
         return fora
+
+
+def _reserva(placas, alvos, sem_posicao, posicoes_atuais, motivo: str) -> dict:
+    """A condição pela VELOCIDADE DA PRÓPRIA FROTA (ERP + Gobrax), no lugar da
+    TomTom quando ela não responde — decisão de quem opera, 11/09/2026: a
+    TomTom segue sendo a principal; esta é a reserva. Ver `api/frota_movimento.py`.
+
+    NÃO LEVA `erro`: com ele a Torre mostraria só a mensagem e esconderia as
+    linhas, que é justamente o que a reserva existe para mostrar. O motivo
+    vai em `reserva_motivo`, e a tela o diz no cabeçalho da tabela.
+    """
+    from api import frota_movimento
+    consultadas = [pl for pl, _ in alvos]
+    try:
+        trechos = frota_movimento.condicao(consultadas, posicoes_atuais)
+        falha = None
+    except Exception as exc:  # noqa: BLE001
+        # A reserva também pode falhar (o ERP é réplica de terceiro); aí a
+        # tela diz as DUAS coisas, em vez de uma tabela vazia calada.
+        log.warning("reserva da condicao da frota falhou: %s", type(exc).__name__)
+        trechos, falha = [], type(exc).__name__
+    mapa = (posicoes_atuais or {}).get("posicoes") or {}
+    for t in trechos:
+        p = mapa.get(t["placa"]) or {}
+        t["lat"], t["lon"] = p.get("lat"), p.get("lon")
+        t["fonte_posicao"] = {"erp": "ERP", "gobrax": "Gobrax"}.get(
+            t.get("fonte_velocidade"), p.get("fonte"))
+        t["posicao_idade_min"] = t.get("idade_min", p.get("idade_min"))
+    fora = {
+        "configurado": True, "reserva": True, "reserva_motivo": motivo,
+        "trechos": sorted(trechos, key=lambda t: _ordem(t["estado"])),
+        "resumo": transito.resumo(trechos),
+        "viagens": len(placas), "consultados": len(consultadas),
+        "sem_posicao": sem_posicao, "erros": 0,
+        "posicao_por_fonte": (posicoes_atuais or {}).get("por_fonte"),
+        "fontes_fora": (posicoes_atuais or {}).get("fontes_fora") or [],
+        "colhido_em": datetime.now().isoformat(timespec="seconds"),
+        "do_cache": False,
+    }
+    if falha:
+        fora["erro"] = "%s — e a reserva pela velocidade da frota falhou (%s)" % (motivo, falha)
+    return fora
 
 
 _PESO = {"bloqueado": 0, "parado": 1, "congestionado": 2, "lento": 3,

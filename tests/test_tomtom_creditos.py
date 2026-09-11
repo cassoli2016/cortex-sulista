@@ -141,10 +141,14 @@ POSICOES = {"posicoes": {f"AAA{i}A1{i}": {"lat": -26.3, "lon": -48.8, "fonte": "
 
 @pytest.fixture
 def varredura(cofre, monkeypatch):
+    from api import frota_movimento
     from api.tomtom import coleta
     monkeypatch.setattr(coleta, "_cache", None)
     registros = []
     monkeypatch.setattr(coleta, "registrar", lambda *a, **k: registros.append((a, k)))
+    # Sem crédito a Torre cai na RESERVA pela velocidade da frota, que lê o
+    # ERP — e nenhum teste consulta o ERP de verdade.
+    monkeypatch.setattr(frota_movimento, "serie", lambda *a, **k: {})
     return coleta, registros
 
 
@@ -158,7 +162,8 @@ def test_sem_credito_a_varredura_manda_UMA_SONDA_e_nao_as_seis(varredura, monkey
     monkeypatch.setattr(cliente, "fluxo", sem_credito)
     r = coleta.condicao_da_frota(viagens=VIAGENS, posicoes_atuais=POSICOES, origem="tv")
     assert len(chamadas) == 1, "a sonda falhou por crédito e as outras cinco saíram mesmo assim"
-    assert r["sem_creditos"] is True and "créditos" in r["erro"]
+    assert r["sem_creditos"] is True and r["reserva"] is True
+    assert "créditos" in r["reserva_motivo"]
     (recurso,), k = registros[-1]
     assert recurso == "fluxo" and k["n"] == 1 and k["origem"] == "tv"
     assert k["apos_reinicio"] is True, "cache vazio = primeira varredura do processo"
@@ -171,7 +176,8 @@ def test_com_o_freio_ligado_a_varredura_NEM_COMECA(varredura, monkeypatch):
         "resta_s": 3000})
     monkeypatch.setattr(cliente, "fluxo", lambda *a, **k: pytest.fail("saiu para a rede"))
     r = coleta.condicao_da_frota(viagens=VIAGENS, posicoes_atuais=POSICOES)
-    assert r["sem_creditos"] is True and r["trechos"] == []
+    assert r["sem_creditos"] is True and r["reserva"] is True
+    assert all(t["fonte"] == "frota" for t in r["trechos"]), "o que aparece é a RESERVA"
     (recurso,), k = registros[-1]
     assert k["n"] == 0 and k["barradas"] == 1 and k["origem"] == "torre"
 

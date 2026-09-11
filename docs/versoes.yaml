@@ -2,6 +2,22 @@
   data: "2026-09-11"
   adicionado:
     - >-
+      A Torre de Controle deixa de ficar cega quando a TomTom falha. Sem credito,
+      sem chave ou recusando todos os pontos, a condicao da estrada de cada
+      caminhao passa a vir da VELOCIDADE DO PROPRIO CAMINHAO -- o rastreador do
+      ERP, que cobre 55 de 56 viagens, com o ultimo ponto da Gobrax quando ele e
+      mais novo. A TomTom continua sendo a fonte principal, por decisao de quem
+      opera; esta e a reserva, e a tabela diz quando esta nela.
+    - >-
+      A reserva so afirma o que a velocidade sustenta: "Andando", "Lento ha N
+      min" (duas leituras seguidas entre 8 e 40 km/h, o sinal de transito) e
+      "Parado ha N min, motivo nao informado" -- nunca "congestionado", porque
+      parado pode ser descanso, cliente ou posto (as 11h de 11/09, 22 dos 55
+      caminhoes em viagem estavam parados). Uma leitura lenta isolada aparece
+      como "Devagar numa leitura so", neutra: nem transito, nem estrada livre.
+      No painel de TV, o parado da reserva nao vira selo vermelho; o lento
+      aparece como LENTO, com os minutos.
+
       A aba O dia da Frequencia passou a mostrar QUEM NAO BATEU, junto de quem
       bateu, na mesma tabela e no topo dela. E a pergunta que o Globus so
       responde dias depois: a importacao do AFD e manual, com mediana de 3

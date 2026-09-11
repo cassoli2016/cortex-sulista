@@ -15831,6 +15831,15 @@ let tvOpeEstradas = null;
    segundo é a unidade da API, não a de quem liga para o motorista. */
 function tvBadgeChegada(v, tr){
   if(v.atrasada) return '<span class="tv-badge err">ATRASADA</span>';
+  /* RESERVA (velocidade da própria frota): o PARADO dela não tem motivo --
+     pode ser descanso ou cliente --, e um selo vermelho numa TV afirmaria
+     problema de estrada. O LENTO sustentado é o sinal de trânsito que ela
+     tem, e aparece com os minutos. */
+  if(tr && tr.fonte === 'frota'){
+    if(tr.estado === 'lento')
+      return '<span class="tv-badge warn">LENTO' + (tr.minutos ? ' ' + tr.minutos + ' min' : '') + '</span>';
+    return '<span class="tv-badge ok">no prazo</span>';
+  }
   if(tr && tr.estado && tr.estado !== 'livre' && tr.estado !== 'nd'){
     const min = (tr.atraso_s != null && tr.atraso_s > 60)
       ? ' ' + Math.round(tr.atraso_s / 60) + ' min' : '';
@@ -32203,7 +32212,7 @@ function renderTorreEstradas(d){
       + esc((d && d.erro) || 'sem dado') + '</td></tr>';
     return;
   }
-  if(d.configurado === false){
+  if(d.configurado === false && !d.reserva){
     hint.textContent = 'TomTom não configurada';
     tb.innerHTML = '<tr><td colspan="6" style="color:var(--n500)">'
       + esc(d.mensagem || 'chave não configurada') + '</td></tr>';
@@ -32214,6 +32223,14 @@ function renderTorreEstradas(d){
      pouca medição faria o problema parecer menor exatamente quando se sabe
      menos -- o erro dos 664 rastreadores "sem sinal". */
   const partes = [];
+  /* A RESERVA NÃO SOMA "TRÂNSITO RUIM": o parado dela é caminhão parado,
+     de motivo não informado (descanso, cliente, posto) -- somá-lo como
+     problema de estrada afirmaria a causa. Diz a fonte, os lentos e os
+     parados, cada um com o seu nome. */
+  if(d.reserva){
+    partes.push('RESERVA pela velocidade dos próprios caminhões (' + (d.reserva_motivo || 'TomTom indisponível') + ')');
+    partes.push((c.lento || 0) + ' lento(s) · ' + (c.parado || 0) + ' parado(s), motivo não informado');
+  } else
   partes.push((r.com_problema || 0) + ' de ' + (r.medidos || 0)
     + ' com trânsito ruim' + (r.pct_problema != null ? ' (' + NMI.format(r.pct_problema) + '%)' : ''));
   if(r.atraso_total_min) partes.push(NMI.format(r.atraso_total_min) + ' min perdidos no total');
