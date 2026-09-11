@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.53.0] — 11/09/2026  ·  CX-11/09/2026-v1.53.0
+
+### Alterado
+- Os eventos logisticos da Raster passaram a ALIMENTAR as telas que ja existem, em vez de morar numa aba propria. A coluna Situacao da Minha Operacao e o painel de TV do cliente ganharam uma QUARTA testemunha do estado da carga: o proprio veiculo, pelo computador de bordo. Quando o macro e a noticia mais fresca, e ele quem responde -- e traz o que nenhuma das outras tres tem: ONDE o veiculo estava quando disse. "Chegada para descarga · macro · RESENDE/RJ" responde a pergunta inteira; "Chegada para descarga · apontamento" responde metade.
+- So viram estado os macros que MOVEM A CARGA de etapa (inicio de viagem, chegada no cliente, inicio e fim de carga/descarga). "Parada para refeicao", "desbloquear veiculo" e "inicio de jornada" sao acoes do veiculo que nao mudam onde a carga esta, e virariam ruido com cara de resposta. E "FIM DE VIAGEM" tambem NAO conclui a carga: e o motorista encerrando a viagem dele, nao a entrega -- mapeado, ele dizia "viagem finalizada" para 8 das 26 cargas da Maxion que seguiam paradas no patio do cliente.
+- O macro so vence se for MAIS RECENTE, e nunca anda para tras no fluxo: um "inicio de viagem" registrado depois de uma chegada e o motorista reabrindo o formulario, nao a carga voltando para a estrada.
+- O painel de TV do cliente ganhou no mapa a origem e o destino combinados e o traco de por onde o veiculo passou, finos e translucidos por baixo das marcas: na parede sao contexto, e o assunto continua sendo onde o caminhao esta agora.
+
 ## [1.52.1] — 11/09/2026  ·  CX-11/09/2026-v1.52.1
 
 ### Corrigido

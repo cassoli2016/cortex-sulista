@@ -689,103 +689,53 @@ def test_a_tabela_do_contrato_rola_DENTRO_do_card(pagina):
         "dentro do card" % alt)
 
 
-# ═════════════ rota e eventos da Raster (11/09/2026) ═══════════════════════
+# ════════ o evento logístico alimentando a tela que JÁ EXISTE ════════════
+#
+# A primeira versão disto era uma aba nova ("Rota e eventos"). Quem opera
+# corrigiu: os eventos têm de alimentar as telas que já existem, monitorando a
+# ação do veículo — e não morar num lugar separado onde alguém precisa lembrar
+# de ir olhar. A aba saiu; o macro virou a QUARTA testemunha do estado que a
+# coluna Situação já mostrava.
 
-def test_o_mapa_da_rota_ABRE_e_nao_fica_no_planeta(pagina):
-    """O mapa abre enquadrado no dado, e não no planeta.
+def test_a_SITUACAO_diz_quando_quem_falou_foi_o_VEICULO(pagina):
+    """A coluna já existia e já dizia a fonte (apontamento / manifesto /
+    programação). O macro entra como quarta, e traz o que nenhuma das outras
+    tem: ONDE o veículo estava quando disse.
 
-    É o defeito que a Operação MWM já teve: Leaflet mede o container UMA vez, e
-    medida feita com a aba escondida vale zero para sempre — os pinos ficam
-    todos "dentro da área visível" porque a área visível é o mundo, sem erro
-    nenhum, com sintoma mudo.
-
-    O QUE ESTE GUARD **NÃO** PROVA, e eu tinha escrito que provava: ele não
-    protege o `invalidateSize()`. Sabotei os DOIS mecanismos — a chamada
-    explícita e a entrada no `mapasRemedir` — e ele continuou verde. O motivo é
-    real e vale saber: aqui o mapa é criado SOB DEMANDA (`data-ao-abrir`),
-    quando a aba já está visível, então o container já tem tamanho no momento
-    da criação. Os dois são rede, não o que sustenta. Na `tvcli` é o oposto —
-    lá o mapa nasce com a tela escondida, e lá a rede é obrigatória.
-
-    O que ele prova é o RESULTADO: com as duas pontas a ~65 km uma da outra, o
-    enquadramento passa de zoom 5. Se alguém tornar esta aba de renderização
-    ansiosa, é este assert que vai acender.
+    "Chegada para descarga · macro · RESENDE/RJ" responde a pergunta inteira;
+    "Chegada para descarga · apontamento" responde metade.
     """
     pg, base = pagina
-    _abrir(pg, base)
-    pg.click("#tabcliop-rota")
-    pg.wait_for_selector("#cliopMapa .leaflet-container, #cliopMapa.leaflet-container",
-                         state="visible", timeout=20000)
-    pg.wait_for_timeout(900)
-    z = pg.evaluate("() => cliopMap && cliopMap.getZoom()")
-    assert z and z > 5, "o mapa da rota abriu no planeta (zoom %s)" % z
+    com = {**AGORA, "cargas": [{**AGORA["cargas"][0],
+                                "marco": "Chegada para descarga",
+                                "marco_cod": 396, "marco_fonte": "macro",
+                                "marco_onde": "RESENDE/RJ",
+                                "marco_em": "2026-09-11 11:27"}]}
+    _abrir_com(pg, base, PERM, agora=com)
+    txt = pg.inner_text("#cliop-agora")
+    assert "macro" in txt, "a fonte do evento sumiu da Situação"
+    assert "RESENDE/RJ" in txt, "o lugar do evento sumiu: %s" % txt
 
 
-def test_origem_destino_posicao_e_traco_sao_DESENHOS_DIFERENTES(pagina):
-    """Plano e fato não podem ter o mesmo desenho.
+def test_sem_lugar_a_SITUACAO_nao_pendura_separador_vazio(pagina):
+    """Apontamento e manifesto não carregam lugar, e `marco_onde` volta nulo.
 
-    Origem e destino são o COMBINADO e não mudam na viagem; a posição é onde o
-    veículo está agora; o traço é por onde passou. Com o mesmo símbolo, quem
-    lê o mapa perde a diferença entre o que foi prometido e o que aconteceu —
-    e é justamente essa diferença que a tela existe para mostrar.
+    Um ' · ' pendurado sem nada depois se lê como informação que não carregou
+    — e numa tabela que o cliente lê isso vira dúvida sobre o resto da linha.
     """
     pg, base = pagina
-    _abrir(pg, base)
-    pg.click("#tabcliop-rota")
-    pg.wait_for_timeout(1200)
-    n = pg.evaluate(
-        "() => { let path = 0, linha = 0;"
-        " cliopLayer.eachLayer(function(l){"
-        "   if(l instanceof L.Polyline && !(l instanceof L.CircleMarker)) linha++;"
-        "   else if(l instanceof L.CircleMarker) path++; });"
-        " return [path, linha]; }")
-    assert n[1] >= 1, "o traço do deslocamento não foi desenhado"
-    assert n[0] >= 3, ("faltam marcas: esperava origem, destino e posição, "
-                       "achei %d" % n[0])
-
-
-def test_a_lista_de_eventos_traz_o_macro_com_hora_e_lugar(pagina):
-    """O macro sem lugar é metade da informação: "PARADA TRANSITO" às 14h não
-    diz nada; "PARADA TRANSITO em Nova Odessa/SP" diz onde ir olhar."""
-    pg, base = pagina
-    _abrir(pg, base)
-    pg.click("#tabcliop-rota")
-    pg.wait_for_selector("#cliop-eventos tr", state="visible", timeout=20000)
-    txt = pg.inner_text("#cliop-eventos")
-    assert "CHEGADA NO CLIENTE" in txt
-    assert "RESENDE" in txt, "o lugar do evento sumiu: %s" % txt
-    # e o PARÂMETRO do formulário do motorista vai junto, separado do rótulo
-    assert "3114" in txt, "o detalhe do macro sumiu"
-
-
-def test_sem_macro_a_tela_DIZ_o_que_fazer_em_vez_de_ficar_vazia(pagina):
-    """O macro alcança 57% das cargas. Nos outros 43% a tabela fica vazia — e
-    tabela vazia num painel que o cliente lê se interpreta como "a Sulista não
-    sabe", não como "esta fonte não alcança este veículo".
-
-    Então o vazio DIZ que o acompanhamento continua pela coluna Situação.
-    """
-    pg, base = pagina
-    sem = {**AGORA, "macros": {}, "raster": {**AGORA["raster"],
-                                             "placas_com_macro": 0}}
+    sem = {**AGORA, "cargas": [{**AGORA["cargas"][0],
+                                "marco_fonte": "apontamento",
+                                "marco_onde": None}]}
     _abrir_com(pg, base, PERM, agora=sem)
-    pg.click("#tabcliop-rota")
-    pg.wait_for_selector("#cliop-eventos tr", state="visible", timeout=20000)
-    txt = pg.inner_text("#cliop-eventos").lower()
-    assert "situa" in txt and "agora" in txt, txt
+    linha = pg.inner_text("#cliop-agora tr:first-child")
+    assert "· ·" not in linha and not linha.rstrip().endswith("·"), linha
 
 
-def test_a_aba_de_rota_cabe_na_tela_com_dado_real(pagina):
-    """A régua do script mede o ESQUELETO; mapa e tabela só enchem com dado."""
+def test_a_tela_NAO_tem_mais_aba_de_rota(pagina):
+    """A aba saiu por decisão de quem opera, e a remoção tem guard próprio:
+    sem ele, alguém relê o pedido original ("rota e eventos") e a recria."""
     pg, base = pagina
     _abrir(pg, base)
-    pg.set_viewport_size({"width": 1500, "height": 1000})
-    pg.click("#tabcliop-rota")
-    pg.wait_for_timeout(1200)
-    alt = pg.evaluate(
-        "() => { const c = document.getElementById('content');"
-        " const b = c.querySelector('#banner');"
-        " const fora = (b && b.offsetParent !== null)"
-        "   ? Math.round(b.getBoundingClientRect().height) + 14 : 0;"
-        " return Math.round(c.scrollHeight) - fora; }")
-    assert alt <= 900, "a aba Rota foi a %d px com dado real" % alt
+    assert pg.eval_on_selector_all("#tabcliop-rota", "e => e.length") == 0, (
+        "a aba de rota voltou — os eventos alimentam as telas que já existem")

@@ -767,6 +767,62 @@ def _marco(r: dict) -> tuple[int, str, str]:
     return PROGRAMADA, "Programada", ""
 
 
+def trim_placa(r: dict) -> str:
+    """A placa da linha crua, aparada. Uma função só porque três lugares a
+    leem e `coalesce(veiculo,'')` com espaço à direita já fez chave de
+    dicionário não casar em silêncio."""
+    return (r.get("veiculo") or r.get("placa") or "").strip()
+
+
+def _macro_vence(cod, rotulo, quando, fonte, macros):
+    """A QUARTA testemunha: o próprio veículo, pelo computador de bordo.
+
+    As três de antes são registros de PROCESSO — alguém aponta no SAC, a SEFAZ
+    autoriza o manifesto, a programação combina a janela. O macro é o veículo
+    dizendo o que está fazendo, no momento em que faz, e com a coordenada
+    junto. Onde ele chega, é a notícia mais fresca que existe.
+
+    MAS SÓ VENCE SE FOR MAIS RECENTE. Não porque a fonte seja melhor — o
+    apontamento é MAIS FINO (distingue carga de descarga, que o macro não
+    distingue) —, e sim porque estado de fluxo é o ÚLTIMO evento, venha de
+    quem vier. Um macro de ontem não pode desfazer um apontamento de hoje, e
+    um apontamento de ontem não pode esconder que o veículo acabou de chegar.
+
+    E NÃO ANDA PARA TRÁS: um "INICIO DE VIAGEM" registrado depois de uma
+    chegada apontada é o motorista reabrindo a viagem no formulário, não a
+    carga voltando para a estrada. Quando o macro é mais recente mas está
+    ATRÁS no fluxo, ele não vira estado — o `ORDEM` da casa é quem decide o
+    que é "adiante".
+
+    Devolve a quíntupla com o LUGAR, que é o que esta testemunha acrescenta às
+    outras: "Chegada para descarga · macro · RESENDE/RJ" responde a pergunta
+    inteira; "Chegada para descarga · apontamento" responde metade.
+    """
+    if not macros:
+        return cod, rotulo, quando, fonte, None
+    from api import raster_eventos
+    melhor = None
+    for m in macros:
+        mc = raster_eventos.marco_do(m.get("macro"))
+        if mc is None:
+            continue                     # ação do veículo que não move a carga
+        if quando and m.get("quando") and m["quando"] <= quando:
+            continue                     # mais velho que o que já se sabe
+        if cod != PROGRAMADA and ORDEM.index(mc) < ORDEM.index(cod):
+            continue                     # mais recente, porém atrás no fluxo
+        if melhor is None or m["quando"] > melhor["quando"]:
+            melhor = dict(m, _cod=mc)
+    if melhor is None:
+        return cod, rotulo, quando, fonte, None
+    lugar = None
+    if melhor.get("cidade"):
+        lugar = melhor["cidade"] + (("/" + melhor["uf"]) if melhor.get("uf") else "")
+    # O RÓTULO É O DA TABELA DE DOMÍNIO, venha o horário de onde vier — a mesma
+    # regra que o manifesto já segue. Um segundo vocabulário para o mesmo
+    # estado faria a tela parecer ter dois estados onde há um.
+    return melhor["_cod"], MARCOS[melhor["_cod"]], melhor["quando"], "macro", lugar
+
+
 def _estado(r: dict) -> tuple[int, str, str, str]:
     """Em que pé a carga está: (código, rótulo, horário, fonte).
 
@@ -1125,9 +1181,32 @@ def get_agora(raiz: str, dias: int = 45, mercs: tuple = ()) -> dict:
                       {"raiz": raiz, "dias": int(dias), "merc": list(mercs)})
     rotas = _eta_por_rota() if linhas else {}
     agora = datetime.now()
+
+    # OS EVENTOS DA RASTER VÊM ANTES DO LAÇO, porque é o laço que decide o
+    # estado de cada carga e o macro é uma das testemunhas desse estado.
+    #
+    # As placas saem das LINHAS CRUAS e não das cargas montadas: a carga só
+    # existe depois de decidido o estado, e o estado depende do macro — a
+    # ordem inversa seria circular.
+    #
+    # `por_placa` já é cacheado e devolve `{}` com o motivo se o ERP falhar,
+    # então uma indisponibilidade da tabela mais pesada da casa faz a tela
+    # voltar ao que ela era antes destes eventos, e não quebrar.
+    from api import raster_eventos
+    placas_cruas = tuple(sorted({trim_placa(r) for r in linhas if trim_placa(r)}))
+    rast = raster_eventos.por_placa(
+        placas_cruas,
+        dias=raster_eventos.JANELA_MAPA_D,
+        macros_por_placa=raster_eventos.MACROS_NO_MAPA)
+    _macros = rast.get("macros", {})
+
     cargas, concluidas = [], 0
     for r in linhas:
         cod, rotulo, quando, fonte = _estado(r)
+        # A QUARTA TESTEMUNHA entra DEPOIS das três, e só se for mais recente:
+        # o macro é o veículo dizendo o que está fazendo agora.
+        cod, rotulo, quando, fonte, onde = _macro_vence(
+            cod, rotulo, quando, fonte, _macros.get(trim_placa(r)))
         if not em_curso(r, agora):
             concluidas += 1
             continue
@@ -1148,6 +1227,10 @@ def get_agora(raiz: str, dias: int = 45, mercs: tuple = ()) -> dict:
             "origem_pt": _ponto(r["lat_origem"], r["lon_origem"]),
             "destino_pt": _ponto(r["lat_destino"], r["lon_destino"]),
             "marco": rotulo, "marco_cod": cod, "marco_em": quando,
+            # ONDE o veículo estava quando disse. Só existe quando quem falou
+            # foi ele — apontamento e manifesto não carregam lugar, e inventar
+            # um a partir do destino diria uma precisão que não há.
+            "marco_onde": onde,
             # DE ONDE VEIO O ESTADO. "apontamento" é a operação que registrou;
             # "manifesto" é a SEFAZ; "programação" é só a janela, ninguém
             # confirmou nada ainda. O leitor precisa distinguir — um estado
@@ -1240,16 +1323,6 @@ def get_agora(raiz: str, dias: int = 45, mercs: tuple = ()) -> dict:
     # leva a carga, não os eventos DA carga. O macro aponta para um documento
     # em 93,7% dos casos, mas o documento é o manifesto (59%) ou o CT-e (33%)
     # e a coleta em apenas 1,3% — casar pela coleta cobriria quase nada.
-    from api import raster_eventos
-    # O MAPA PEDE POUCO: a viagem corrente (7 dias) e os últimos macros de
-    # cada placa. A linha do tempo inteira é outra pergunta, e quem a faz abre
-    # a aba que a carrega — um payload de 700 KB por minuto numa parede é
-    # gastar rede para redesenhar o mesmo traço.
-    rast = raster_eventos.por_placa(
-        tuple(sorted(placas)),
-        dias=raster_eventos.JANELA_MAPA_D,
-        macros_por_placa=raster_eventos.MACROS_NO_MAPA)
-
     return {
         "cargas": cargas,
         "em_curso": len(cargas),

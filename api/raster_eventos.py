@@ -175,6 +175,63 @@ MACROS_NO_MAPA = 6          # o que o mapa desenha como pino, por placa
 JANELA_MAPA_D = 7           # a viagem corrente, não o mês
 
 
+# ═══════════ O MACRO FALA A MESMA LÍNGUA DOS MARCOS DA OPERAÇÃO ═══════════
+#
+# Não é coincidência: o formulário do computador de bordo foi desenhado sobre o
+# mesmo fluxo que o apontamento do SAC descreve. Medido em 30 dias, os seis
+# macros mais frequentes são exatamente as seis transições que a tela já mostra:
+#
+#     CHEGADA NO CLIENTE              4.924   -> 396 Chegada para descarga
+#     REINICIO DE VIAGEM              3.698   -> 400 Em viagem
+#     FIM DE CARGA E/OU DESCARGA      2.149   -> 397 Fim de descarga
+#     INICIO DE VIAGEM                1.793   -> 400 Em viagem
+#     FIM DE VIAGEM                   1.557   -> 401 Viagem finalizada
+#     INICIO DE CARGA E/OU DESCARGA   1.292   -> 398 Aguardando carregamento
+#
+# POR QUE "INICIO DE CARGA E/OU DESCARGA" VIRA 398 E NÃO 399: o macro não
+# distingue carga de descarga — o "E/OU" está no nome. Mapeá-lo para o estado
+# de DESCARGA afirmaria uma coisa que o motorista não disse. O 398 é o começo
+# da operação de pátio, e é o mais fraco dos dois: quando o apontamento existir,
+# ele é mais fino e ganha (ver `_estado`). Errar para o lado que diz MENOS é a
+# única direção segura quando a fonte é ambígua.
+#
+# O QUE NÃO TEM MARCO CORRESPONDENTE fica de fora do estado de propósito —
+# PARADA TRANSITO, PARADA PARA REFEIÇÃO, DESBLOQUEAR VEICULO, INICIO JORNADA.
+# São ações do veículo que não movem a carga de etapa, e promovê-las a estado
+# faria a tela dizer "Parada para refeição" onde o cliente pergunta "onde está
+# minha carga". Elas continuam no payload, para quem quiser a trilha completa.
+MACRO_MARCO = {
+    "INICIO DE VIAGEM": 400,
+    "REINICIO DE VIAGEM": 400,
+    "CHEGADA NO CLIENTE": 396,
+    "INICIO DE CARGA E/OU DESCARGA": 398,
+    "FIM DE CARGA E/OU DESCARGA": 397,
+}
+
+# O QUE FICOU DE FORA, e por quê — esta lista vale tanto quanto a de cima.
+#
+# "FIM DE VIAGEM" e "CHEGADA NA MATRIZ OU FILIAL" descrevem a viagem do
+# VEÍCULO, não a etapa da CARGA. Mapeados (a primeira versão mapeava), a tela
+# passava a dizer "Viagem finalizada" para 8 das 26 cargas em curso da Maxion
+# — caminhões que o `em_curso` mantém na lista justamente porque o fim de
+# descarga não foi apontado. Ou seja: "concluída" para o caminhão parado no
+# pátio do cliente, que é o defeito que esta tela corrigiu em 09/09/2026 e
+# que custou as ~3h de pátio sumirem do painel.
+#
+# O motorista encerrando a viagem DELE não é a carga entregue. Esses macros
+# continuam no payload e na trilha; o que eles não fazem é virar ESTADO.
+_FORA_DO_ESTADO = ("FIM DE VIAGEM", "CHEGADA NA MATRIZ OU FILIAL",
+                   "PARADA TRANSITO", "PARADA PARA REFEICAO",
+                   "PARADA PARA PERNOITE", "PARADA PARA ABASTECIMENTO",
+                   "PARADA PARA DESCANSO", "PARADA POSTO FISCAL",
+                   "DESBLOQUEAR VEICULO", "INICIO JORNADA", "ENTREGA DO VEICULO")
+
+
+def marco_do(rotulo: str | None) -> int | None:
+    """O marco que este macro representa, ou `None` se ele não move a carga."""
+    return MACRO_MARCO.get((rotulo or "").strip().upper())
+
+
 @cached(ttl=120, velha_ate=7200)
 def por_placa(placas: tuple, dias: int = 7, macros_por_placa: int = 0) -> dict:
     """Macros e deslocamento das placas pedidas, na janela pedida.

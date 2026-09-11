@@ -519,6 +519,11 @@ def test_o_payload_da_carga_e_lista_EXPLICITA(monkeypatch):
     assert set(carga) == {"coleta", "emissao", "origem", "uf_origem", "destino",
                           "uf_destino", "destinatario", "placa",
                           "marco", "marco_cod", "marco_em", "marco_fonte",
+                          # ONDE o veículo estava quando disse (11/09/2026).
+                          # Só existe quando quem falou foi ELE — apontamento e
+                          # manifesto não carregam lugar, e derivá-lo do
+                          # destino diria uma precisão que não há.
+                          "marco_onde",
                           "janela_carga", "janela_entrega",
                           "chegada", "chegada_fonte", "desvio_h",
                           "pos", "eta", "eta_amostras",
@@ -974,3 +979,91 @@ def test_destinatario_sem_cadastro_nao_faz_a_carga_sumir():
     assert "LEFT JOIN cadastro cdd" in pc.AGORA_SQL
     d = pc._por_destinatario([{"destinatario": None, "marco_cod": 400}])
     assert d[0]["cargas"] == 1 and d[0]["destinatario"]
+
+
+# ════════ o macro como QUARTA testemunha do estado (11/09/2026) ═══════════
+
+def _mac(rotulo, quando, cidade="RESENDE", uf="RJ"):
+    return {"macro": rotulo, "detalhe": None, "quando": quando,
+            "lat": -22.46, "lon": -44.44, "cidade": cidade, "uf": uf}
+
+
+def test_o_macro_MAIS_RECENTE_vira_o_estado_e_traz_o_LUGAR():
+    """O veículo dizendo o que faz, no momento em que faz.
+
+    As três testemunhas de antes são registros de PROCESSO; o macro é a ação
+    do veículo, com coordenada junto. Onde ele é a notícia mais fresca, ele
+    responde — e acrescenta o que as outras não têm: onde isso aconteceu.
+    """
+    cod, rot, quando, fonte, onde = pc._macro_vence(
+        400, "Em viagem", "2026-09-11 08:00", "apontamento",
+        [_mac("CHEGADA NO CLIENTE", "2026-09-11 11:27")])
+    assert (cod, fonte, onde) == (396, "macro", "RESENDE/RJ")
+    assert rot == pc.MARCOS[396], "o rótulo tem de ser o da tabela de domínio"
+
+
+def test_o_macro_MAIS_VELHO_nao_desfaz_o_apontamento():
+    """Estado de fluxo é o ÚLTIMO evento, venha de quem vier. Um macro de
+    ontem não pode apagar um apontamento de hoje.
+
+    O MACRO AQUI É MAIS VELHO E ADIANTE NO FLUXO, e a combinação é de
+    propósito: a primeira versão deste teste usava um macro velho e ATRÁS no
+    fluxo, e aí quem o barrava era a outra regra — sabotar a checagem de
+    recência deixava o teste verde. Guard que passa pelo motivo errado não
+    guarda nada.
+
+    O caso real: a carga está em viagem desde as 12h (apontado) e existe um
+    "CHEGADA NO CLIENTE" das 08h, de uma perna anterior. Sem a checagem, a
+    tela diria "chegou" para um caminhão que saiu quatro horas depois.
+    """
+    r = pc._macro_vence(400, "Em viagem", "2026-09-11 12:00", "apontamento",
+                        [_mac("CHEGADA NO CLIENTE", "2026-09-11 08:00")])
+    assert r[3] == "apontamento" and r[0] == 400, (
+        "um macro de quatro horas antes desfez o apontamento mais recente")
+
+
+def test_o_macro_NAO_ANDA_PARA_TRAS_no_fluxo():
+    """"INICIO DE VIAGEM" registrado DEPOIS de uma chegada apontada é o
+    motorista reabrindo a viagem no formulário, não a carga voltando para a
+    estrada. Mais recente e atrás no fluxo não vira estado."""
+    r = pc._macro_vence(396, "Chegada para descarga", "2026-09-11 08:00",
+                        "apontamento", [_mac("INICIO DE VIAGEM", "2026-09-11 12:00")])
+    assert r[0] == 396 and r[3] == "apontamento"
+
+
+def test_FIM_DE_VIAGEM_nao_conclui_a_carga():
+    """O defeito que este guard existe para impedir, e ele quase subiu.
+
+    A primeira versão mapeava "FIM DE VIAGEM" para 401 (Viagem finalizada), e
+    a tela passou a dizer "Viagem finalizada" para 8 das 26 cargas em curso da
+    Maxion — caminhões que o `em_curso` mantém na lista justamente porque o fim
+    de descarga não foi apontado. Ou seja: "concluída" para o caminhão parado
+    no pátio do CLIENTE, que é o defeito corrigido em 09/09/2026 e que tinha
+    apagado do painel as ~3h de pátio.
+
+    O motorista encerrando a viagem DELE não é a carga entregue.
+    """
+    from api import raster_eventos
+    assert raster_eventos.marco_do("FIM DE VIAGEM") is None
+    assert raster_eventos.marco_do("CHEGADA NA MATRIZ OU FILIAL") is None
+    r = pc._macro_vence(396, "Chegada para descarga", "2026-09-11 08:00",
+                        "apontamento", [_mac("FIM DE VIAGEM", "2026-09-11 14:00")])
+    assert r[0] == 396, "FIM DE VIAGEM concluiu uma carga que segue no pátio"
+
+
+def test_a_acao_que_NAO_MOVE_a_carga_nao_vira_estado():
+    """"Parada para refeição" onde o cliente pergunta "onde está minha carga"
+    é ruído com cara de resposta. Elas seguem no payload, não no estado."""
+    from api import raster_eventos
+    for m in ("PARADA TRANSITO", "PARADA PARA REFEICAO", "DESBLOQUEAR VEICULO",
+              "INICIO JORNADA", "PARADA PARA PERNOITE"):
+        assert raster_eventos.marco_do(m) is None, m
+
+
+def test_sem_macro_o_estado_fica_EXATAMENTE_como_era():
+    """O macro alcança 57% das cargas. Nos outros 43% nada pode mudar — e
+    `marco_onde` volta `None`, não string vazia: vazio vira ' · ' pendurado
+    na tela, que se lê como informação que não carregou."""
+    antes = (400, "Em viagem", "2026-09-11 08:00", "apontamento")
+    assert pc._macro_vence(*antes, None) == (*antes, None)
+    assert pc._macro_vence(*antes, []) == (*antes, None)
