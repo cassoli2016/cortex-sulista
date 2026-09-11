@@ -8,8 +8,15 @@ daqui: script que agenda a si mesmo vira um segundo relógio ao lado do
 primeiro, e ninguém sabe qual está valendo.
 
 A cadência de 10 min não é para "tempo real" — a batida chega ao fornecedor em
-12 segundos, e quem quiser o instante usa o webhook. É para que uma queda de
-uma hora custe seis execuções perdidas e não um dia.
+12 segundos. Ela existe para que uma queda de uma hora custe seis execuções
+perdidas e não um dia inteiro de apuração.
+
+O WEBHOOK FICA DE FORA, e é DECISÃO de quem opera (11/09/2026), não pendência.
+A API do fornecedor expõe `WebhookSubscription`, e é natural quem reencontrar
+isso propor a troca — dez minutos de atraso não incomodam ninguém aqui, e o
+push traz porta aberta, segredo de assinatura e uma fila que só falha quando
+já falhou. A coleta por cursor é idempotente e se recupera sozinha; o webhook
+seria mais peça para manter, resolvendo um problema que a casa não tem.
 
 PRIMEIRA EXECUÇÃO
 =================

@@ -10,9 +10,14 @@
 # HORARIO: de 10 em 10 minutos, o dia inteiro.
 #
 # E os 10 minutos NAO sao para "tempo real". A batida chega ao fornecedor em 12
-# segundos (mediana medida), e quem quiser o instante usa o webhook, que a API
-# oferece e ainda nao foi ligado. Os 10 minutos existem para que uma queda de
-# uma hora custe seis execucoes perdidas e nao um dia de apuracao.
+# segundos (mediana medida); a cadencia existe para que uma queda de uma hora
+# custe seis execucoes perdidas e nao um dia de apuracao.
+#
+# O WEBHOOK FICOU DE FORA POR DECISAO de quem opera (11/09/2026). A API expoe
+# `WebhookSubscription` e a troca parece um avanco obvio — nao e: dez minutos
+# de atraso nao incomodam ninguem aqui, e o push traz porta aberta, segredo de
+# assinatura e uma fila que so falha quando ja falhou. O cursor e idempotente e
+# se recupera sozinho.
 #
 # NAO HA FREIO DO FORNECEDOR A RESPEITAR, ao contrario da SEFAZ: nenhuma
 # punicao por consulta sem resultado foi observada, e a chamada do cursor

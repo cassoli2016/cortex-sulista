@@ -311,6 +311,18 @@ moram em arquivos que não falam do assunto.
   não viaja sozinho: `confronto()` põe as duas contabilidades na mesma linha do
   tempo, e o custo em reais carrega `ressalva_custo`. Guards:
   `tests/rh/test_frequencia_confronto.py`.
+- **A COLETA DO PONTO É POR CURSOR, DE 10 EM 10 MINUTOS, E O WEBHOOK FICOU DE
+  FORA POR DECISÃO** (quem opera, 11/09/2026). A API do fornecedor expõe
+  `WebhookSubscription`, e quem reencontrar isso vai propor a troca achando que
+  é um avanço óbvio — não é: dez minutos de atraso não incomodam ninguém aqui,
+  e o push traz porta aberta, segredo de assinatura e uma fila que só falha
+  quando já falhou. O cursor é idempotente e se recupera sozinho.
+  E **a prova de que a tarefa agendada existe é o DADO que ela produz**, nunca
+  `Get-ScheduledTask`: sem elevação ele não enxerga tarefa registrada como
+  SISTEMA e responde "não existe" sem erro nenhum — em 09/09/2026 eu li esse
+  silêncio como resposta, disse que a tarefa não tinha sido criada e pedi que a
+  instalassem de novo, quando ela já estava rodando havia horas. Dois segundos
+  de consulta ao cursor (`pc_cursor.ultima_coleta_em`) respondem de verdade.
 - **A COORDENADA DA BATIDA ENTRA E NÃO FICA** (`api/pontocertificado/coleta.py`,
   `sql/cortex/0077_*.sql`). A cerca precisa responder "caiu na unidade?", e
   para isso bastam o VEREDITO e a DISTÂNCIA — um escalar. A coordenada crua
