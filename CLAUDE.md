@@ -583,9 +583,18 @@ barra empilhada, não donut.
     4 cláusulas e 12 mercadorias, REMOVER a rolagem interna não mudava um
     pixel, e as duas sabotagens passaram verdes. O dublê do guard sai do
     **teto do CADASTRO**, não do maior dia já visto: 92 pessoas com ponto × 6
-    batidas/dia × 9 cercas, contra um pico real de 83/306/8. A régua do
-    conteúdo é `conteudo > 3 × altura da caixa` — abaixo disso o payload não
-    exercita nada.
+    batidas/dia × 9 cercas, contra um pico real de 83/306/8.
+  - **A mira é `conteúdo ≥ 3 × a caixa`, mas quem MANDA é o teto do
+    cadastro** — e as duas se contradizem mais do que parece. A lista de
+    mercadorias do `cliop` chega a 2,58× com os 91 tipos que o ERP produz em
+    365 dias; para passar de 3× precisaria de ~106, que não existem, e enchê-la
+    até lá seria testar ficção (dublê tem a ordem de grandeza do REAL). Então:
+    quando o cadastro não alcança a mira, usa-se o teto e DIZ-SE a razão
+    obtida, que é o que se pode afirmar. O inverso é que não vale — escolher
+    um número redondo abaixo do teto porque cabe. E a mira não é estética:
+    medido a 1,19×, a sabotagem que tira o `max-height` só era pega pela
+    asserção de altura ABSOLUTA, e bastava a grade refluir noutro viewport
+    para o guard aprovar a remoção; a 2,58× quem pega é o mecanismo.
   - **Sabotar a EXISTÊNCIA do mecanismo não prova o AJUSTE dele.** Tirar
     `tabroll` da tabela acusa; o que estava em jogo era o `curta` (260px em
     vez de 430), e só sabotando o VALOR se descobre que o guard o mede. Vale
