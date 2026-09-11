@@ -413,3 +413,33 @@ def test_a_distancia_que_SE_REPETE_e_o_que_separa_endereco_de_transito(esq):
     c = {x["cerca"]: x for x in painel.fora_por_dia(3)["cercas"]}
     assert c["SBC OPERACIONAL"]["dias_no_mesmo_lugar"] == 2
     assert c["MAXION CRZ"]["dias_no_mesmo_lugar"] == 1
+
+
+def test_o_percentual_dentro_NAO_conta_quem_nao_tinha_GPS(esq):
+    """A decisao que faz este numero valer alguma coisa.
+
+    Batida sem coordenada nao caiu dentro nem fora: nao se sabe. Dividir
+    "dentro" pelo total daria 25% com tres dentro, um fora e oito sem GPS — e
+    seria lido como "so um quarto bate no lugar certo", quando o que houve foi
+    que oito aparelhos nao mandaram posicao. O denominador so contem quem
+    PODIA ser julgado, e o resto viaja ao lado.
+    """
+    linhas = ([dict(id_=200 + i, situacao="dentro", quando=HOJE_8H, dist=30,
+                    cerca="PIRAQUARA", local="PIRAQUARA", mat=f"00379{i}")
+               for i in range(3)]
+              + [dict(id_=210, situacao="fora", quando=HOJE_8H, dist=1880,
+                      cerca="SBC OPERACIONAL", mat="003800")]
+              + [dict(id_=220 + i, situacao="sem_coordenada", quando=HOJE_8H,
+                      mat=f"00381{i}") for i in range(8)])
+    _semear_dia(esq, linhas)
+    d = painel.composicao_por_dia(3)
+    assert d["com_gps"] == 4 and d["sem_coordenada"] == 8
+    assert d["pct_dentro"] == 75.0          # 3 de 4, nao 3 de 12
+    assert d["pct_sem_coordenada"] == 66.7
+
+
+def test_sem_nenhuma_batida_com_GPS_o_percentual_e_NAO_SEI(esq):
+    """Zero afirmaria "ninguem bateu dentro". Ninguem mediu."""
+    _semear_dia(esq, [dict(id_=230, situacao="sem_coordenada", quando=HOJE_8H)])
+    d = painel.composicao_por_dia(3)
+    assert d["pct_dentro"] is None and d["com_gps"] == 0

@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.52.0] — 11/09/2026  ·  CX-11/09/2026-v1.52.0
+
+### Adicionado
+- O e-mail diario do ponto ganhou um GRAFICO com a composicao de cada dia -- dentro da cerca, fora e sem GPS na mesma barra -- e um MEDIDOR com o percentual dentro da cerca. A barra inteira diz o movimento do dia e os pedacos dizem a divisao: com escala fixa, um dia de 5 batidas e um de 350 sairiam do mesmo tamanho.
+- O PERCENTUAL SAI SOBRE AS BATIDAS COM COORDENADA, e nao sobre o total. Metade das batidas chega sem GPS (587 de 1.141 em 7 dias) e essas nao cairam dentro nem fora: nao se sabe. Contadas como erro, o numero cairia de 48,4% para 23,5% sem ninguem ter feito nada errado. O numero das sem GPS viaja ao lado, sempre, porque e ele que decide se a cerca pode virar regra.
+- Os dois sao desenhados com CELULA DE TABELA, nao com imagem: cliente de e-mail bloqueia imagem remota por padrao e o Outlook nao desenha SVG. Um grafico que chega como retangulo cinza e pior que grafico nenhum.
+
 ## [1.51.0] — 11/09/2026  ·  CX-11/09/2026-v1.51.0
 
 ### Adicionado

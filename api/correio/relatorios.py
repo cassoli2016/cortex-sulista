@@ -36,6 +36,14 @@ def _data_br(iso) -> str:
     return f"{t[2]}/{t[1]}/{t[0]}" if len(t) == 3 else "—"
 
 
+
+def _pct(v) -> str:
+    """Percentual em pt-BR, ou um travessão quando não há base."""
+    if v is None:
+        return "—"
+    return f"{float(v):.1f}".replace(".", ",") + "%"
+
+
 def _falhou(titulo: str, exc: Exception) -> dict:
     txt = (f"{titulo}\n\nO CÓRTEX não conseguiu montar este relatório:\n"
            f"{type(exc).__name__}: {str(exc)[:300]}\n\n"
@@ -515,6 +523,40 @@ def ponto_do_dia() -> dict:
             blocos.append(p.paragrafo(
                 f"Todas as {aus.get('esperados')} pessoas esperadas bateram o "
                 "ponto. Nada a conferir."))
+
+        # DENTRO x FORA, DIA A DIA — com o SEM GPS na mesma barra.
+        # A barra inteira e o movimento do dia; os pedacos sao a composicao.
+        # O sem GPS entra porque ele e METADE das batidas: uma barra que
+        # mostrasse so dentro+fora mentiria sobre o volume do dia, e a fatia
+        # cinza e justamente o que decide se a cerca pode virar regra.
+        comp = pc.composicao_por_dia(7, ate=ontem)
+        if comp.get("total"):
+            blocos.append(p.secao("Dentro e fora da cerca",
+                                  f"{p.inteiro(comp['total'])} batidas em 7 dias"))
+            blocos.append(p.medidor(
+                titulo="Dentro da cerca",
+                pct=comp.get("pct_dentro"),
+                texto=(f"{p.inteiro(comp['dentro'])} de "
+                       f"{p.inteiro(comp['com_gps'])} batidas que trouxeram "
+                       f"coordenada caíram numa cerca cadastrada"),
+                sub=(f"Outras {p.inteiro(comp['sem_coordenada'])} batidas "
+                     f"({_pct(comp.get('pct_sem_coordenada'))}) chegaram SEM "
+                     "GPS e ficam fora desta conta: elas não caíram dentro nem "
+                     "fora — não se sabe. Contá-las como erro derrubaria o "
+                     "número pela metade sem ninguém ter feito nada errado."),
+                estado=("ok" if (comp.get("pct_dentro") or 0) >= 70
+                        else "warn" if (comp.get("pct_dentro") or 0) >= 40
+                        else "bad")))
+            blocos.append(p.barras_empilhadas(
+                [{"rotulo": d["rotulo"],
+                  "valores": [d["dentro"], d["fora"], d["sem_coordenada"]],
+                  "texto": (f"{d['dentro']}/{d['fora']}/{d['sem_coordenada']}")}
+                 for d in comp["serie"]],
+                [{"nome": "Dentro", "cor": p.VERDE},
+                 {"nome": "Fora", "cor": p.VERMELHO},
+                 {"nome": "Sem GPS", "cor": p.CINZA}]))
+            blocos.append(p.legenda([("Dentro", p.VERDE), ("Fora", p.VERMELHO),
+                                     ("Sem GPS", p.CINZA)]))
 
         # FORA DE CERCA, DIA A DIA E POR CERCA — e nao o total de ontem.
         # "44 batidas fora de cerca" pode ser tres coisas com providencias

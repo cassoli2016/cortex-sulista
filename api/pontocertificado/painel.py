@@ -548,6 +548,72 @@ def fora_por_dia(dias: int = 7, ate: str | None = None) -> dict:
     }
 
 
+
+@cached(ttl=300, velha_ate=7200)
+def composicao_por_dia(dias: int = 7, ate: str | None = None) -> dict:
+    """Dentro, fora e sem GPS, dia a dia — e o percentual que se pode afirmar.
+
+    O DENOMINADOR DO PERCENTUAL NÃO É O TOTAL, e essa é a decisão que faz este
+    número valer alguma coisa. Quase metade das batidas chega SEM COORDENADA
+    (144 de 284 em 10/09/2026), e batida sem GPS não caiu dentro nem fora: não
+    se sabe. Dividir "dentro" pelo total daria 26% e seria lido como "só um
+    quarto das pessoas bate no lugar certo", quando o que aconteceu é que
+    metade dos aparelhos não mandou posição.
+
+    Então o percentual sai sobre as batidas COM COORDENADA — as únicas que
+    podiam ser julgadas —, e o número das outras viaja ao lado, sempre. É a
+    mesma regra do rastreador da frota, onde tirar do denominador quem não
+    tinha como cumprir levou "79% sem sinal" a 86,7% de cobertura.
+
+    Medido em 10/09/2026: 73 dentro e 67 fora entre as 140 com GPS, ou seja
+    52,1% dentro — e 144 sem GPS ao lado, que é o número que decide se a cerca
+    pode virar regra.
+    """
+    import re
+    from datetime import date as _d, timedelta as _td
+
+    dias = max(2, min(int(dias or 7), 60))
+    fim = (_d.fromisoformat(ate)
+           if ate and re.match(r"^\d{4}-\d{2}-\d{2}$", ate) else _d.today())
+    ini = fim - _td(days=dias - 1)
+    linhas = _q("""
+        SELECT (marcada_em::date) dia,
+               SUM(CASE WHEN situacao='dentro' THEN 1 ELSE 0 END) dentro,
+               SUM(CASE WHEN situacao='fora' THEN 1 ELSE 0 END) fora,
+               SUM(CASE WHEN situacao='sem_coordenada' THEN 1 ELSE 0 END) sem
+          FROM pc_marcacao
+         WHERE marcada_em >= %(i)s::date AND marcada_em < %(f)s::date + 1
+         GROUP BY 1""", {"i": ini.isoformat(), "f": fim.isoformat()})
+    por_dia = {r["dia"]: r for r in linhas}
+
+    # Eixo GERADO: dia sem batida nenhuma e uma barra vazia, nao um buraco.
+    eixo = [ini + _td(days=i) for i in range(dias)]
+    serie = []
+    for d in eixo:
+        r = por_dia.get(d) or {}
+        serie.append({
+            "dia": d.isoformat(), "rotulo": d.strftime("%d/%m"),
+            "dentro": int(r.get("dentro") or 0),
+            "fora": int(r.get("fora") or 0),
+            "sem_coordenada": int(r.get("sem") or 0),
+        })
+    dentro = sum(x["dentro"] for x in serie)
+    fora = sum(x["fora"] for x in serie)
+    sem = sum(x["sem_coordenada"] for x in serie)
+    com_gps = dentro + fora
+    return {
+        "rotulos": [x["rotulo"] for x in serie],
+        "serie": serie,
+        "dentro": dentro, "fora": fora, "sem_coordenada": sem,
+        "com_gps": com_gps, "total": dentro + fora + sem,
+        # None, e nao zero, quando nao houve nenhuma batida com coordenada:
+        # zero afirmaria "ninguem bateu dentro", que ninguem mediu.
+        "pct_dentro": round(100 * dentro / com_gps, 1) if com_gps else None,
+        "pct_sem_coordenada": (round(100 * sem / (com_gps + sem), 1)
+                               if (com_gps + sem) else None),
+    }
+
+
 def matriculas_do_dia(dia: str) -> set[str]:
     """Quem bateu naquele dia — só as matrículas, para cruzar com o ERP.
 

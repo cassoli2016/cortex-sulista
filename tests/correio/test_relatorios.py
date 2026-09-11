@@ -396,3 +396,71 @@ def test_o_relatorio_nao_derruba_a_rotina(monkeypatch):
     monkeypatch.setattr("api.pontocertificado.painel.do_dia", explode)
     r = relatorios.montar("ponto_do_dia")
     assert r["html"] and r["texto"] and "falha" in r["assunto"].lower()
+
+
+# ── O GRAFICO E O MEDIDOR ───────────────────────────────────────────────────
+#
+# Os dois sao desenhados com CELULA DE TABELA, e nao com img, svg ou canvas.
+# Nao e preciosismo: imagem remota e bloqueada por padrao e chega como
+# retangulo cinza; Outlook renderiza e-mail com o motor do Word e nao desenha
+# SVG. Celula com largura percentual e o unico desenho que todo cliente mostra.
+
+def test_o_grafico_e_o_medidor_sao_TABELA_e_nao_desenho():
+    from api.correio import painel as p
+    html = (p.barras_empilhadas(
+                [{"rotulo": "10/09", "valores": [73, 67, 144]}],
+                [{"nome": "Dentro", "cor": p.VERDE},
+                 {"nome": "Fora", "cor": p.VERMELHO},
+                 {"nome": "Sem GPS", "cor": p.CINZA}])
+            + p.medidor(titulo="Dentro da cerca", pct=52.1, texto="x"))
+    for proibido in ("<svg", "<img", "<canvas", "display:flex", "display:grid"):
+        assert proibido not in html, proibido
+    assert "<table" in html and "52,1%" in html      # virgula, nao ponto
+
+
+def test_o_medidor_sem_base_DIZ_que_nao_sabe():
+    """Trilho vazio se le como 0%, que e uma afirmacao. Nao ter base nao e."""
+    from api.correio import painel as p
+    html = p.medidor(titulo="Dentro da cerca", pct=None, texto="sem batida com GPS")
+    # `"0%" not in html` nao serve: a tabela de fora tem width="100%". O que
+    # importa e que o NUMERO nao virou zero.
+    assert ">—</div>" in html and ">0,0%<" not in html
+    assert "dashed" in html          # o trilho vazio se mostra como ausencia
+
+
+def test_a_barra_do_dia_diz_o_VOLUME_e_a_composicao():
+    """A barra inteira e proporcional ao maior DIA; os pedacos, ao proprio dia.
+    Com escala fixa em 100%, um dia de 5 batidas e um de 350 sairiam do mesmo
+    tamanho e o grafico mentiria sobre o movimento."""
+    from api.correio import painel as p
+    html = p.barras_empilhadas(
+        [{"rotulo": "grande", "valores": [200, 100, 50]},
+         {"rotulo": "pequeno", "valores": [2, 1, 1]}],
+        [{"nome": "a", "cor": p.VERDE}, {"nome": "b", "cor": p.VERMELHO},
+         {"nome": "c", "cor": p.CINZA}])
+    import re
+    # so as tabelas DA BARRA: a de fora tambem e width="100%", e pega-la
+    # faria o guard passar por acidente.
+    larguras = re.findall(
+        r'<table role="presentation" width="(\d+)%" cellpadding="0" '
+        r'cellspacing="0"><tr>', html)
+    assert larguras == ["100", "1"], larguras
+
+
+def test_o_e_mail_do_ponto_leva_o_medidor_e_o_grafico(monkeypatch):
+    comp = {"rotulos": ["09/09", "10/09"],
+            "serie": [{"dia": "2026-09-09", "rotulo": "09/09", "dentro": 81,
+                       "fora": 72, "sem_coordenada": 133},
+                      {"dia": "2026-09-10", "rotulo": "10/09", "dentro": 73,
+                       "fora": 67, "sem_coordenada": 144}],
+            "dentro": 154, "fora": 139, "sem_coordenada": 277,
+            "com_gps": 293, "total": 570,
+            "pct_dentro": 52.6, "pct_sem_coordenada": 48.6}
+    monkeypatch.setattr("api.pontocertificado.painel.composicao_por_dia",
+                        lambda dias, ate=None: comp)
+    r = _ponto(monkeypatch, ausentes=_UM)
+    h = r["html"]
+    assert "52,6%" in h                       # o medidor, com virgula
+    assert "154 de 293" in h                  # o denominador que ele usa
+    assert "277" in h and "48,6%" in h        # e o que ficou de fora, ao lado
+    assert "09/09" in h and "10/09" in h      # a serie diaria

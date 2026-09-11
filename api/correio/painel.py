@@ -370,6 +370,105 @@ def barras(itens: list[dict], *, unidade: str = "") -> str:
   </table></td></tr>"""
 
 
+
+def barras_empilhadas(itens: list[dict], series: list[dict]) -> str:
+    """Barras de PARTE-DO-TODO, uma por linha, desenhadas com células.
+
+    Mesma técnica de `barras()` e pelos mesmos motivos: imagem remota chega
+    como retângulo cinza (o cliente bloqueia por padrão) e Outlook não desenha
+    SVG. Célula com largura percentual é o único desenho que todos mostram.
+
+    Empilhada e não lado a lado porque a pergunta aqui é de composição — do
+    movimento do dia, quanto caiu dentro — e é a regra da casa para
+    parte-do-todo com categoria dominante. Duas barras separadas obrigariam a
+    somar de cabeça para saber o total do dia.
+
+    A ESCALA É O MAIOR TOTAL DA LISTA, não 100%: com escala fixa, um dia de 5
+    batidas e um de 90 saem do mesmo tamanho e o gráfico mente sobre o volume.
+    Dentro de cada barra, sim, a divisão é percentual — ali a pergunta é a
+    proporção.
+
+    `itens`: [{rotulo, valores: [n, n, ...], total?}]
+    `series`: [{nome, cor}] na mesma ordem dos `valores`.
+    """
+    if not itens or not series:
+        return ""
+    topo = max((sum(i.get("valores") or []) for i in itens), default=0) or 1
+    linhas = []
+    for i in itens:
+        vals = [float(v or 0) for v in (i.get("valores") or [])]
+        soma = sum(vals)
+        # A largura da barra INTEIRA diz o volume do dia; os pedaços dizem a
+        # composição. Dia sem movimento vira linha tracejada, não some.
+        larg = max(round(100 * soma / topo), 1) if soma else 0
+        if larg:
+            pedacos = ""
+            for v, se in zip(vals, series):
+                if not v:
+                    continue
+                pct = max(round(100 * v / soma), 1)
+                pedacos += (f'<td width="{pct}%" style="background:{se["cor"]};'
+                            f'height:14px;font-size:0;line-height:0">&nbsp;</td>')
+            barra = (f'<table role="presentation" width="{larg}%" cellpadding="0" '
+                     f'cellspacing="0"><tr>{pedacos}</tr></table>')
+        else:
+            barra = f'<div style="height:14px;border-bottom:1px dashed {BORDA}"></div>'
+        linhas.append(f"""
+<tr>
+  <td width="64" valign="middle" style="font:400 12.5px/1.3 {FONTE};
+      color:{TINTA};padding:5px 10px 5px 0;white-space:nowrap">{_esc(i.get('rotulo'))}</td>
+  <td valign="middle" style="padding:5px 10px 5px 0">{barra}</td>
+  <td width="96" align="right" valign="middle" style="font:600 12.5px/1.3 {MONO};
+      color:{TINTA};padding:5px 0">{_esc(i.get('texto') or inteiro(soma))}</td>
+</tr>""")
+    return f"""
+<tr><td style="padding:14px 26px 0">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    {''.join(linhas)}
+  </table></td></tr>"""
+
+
+def medidor(*, titulo: str, pct: float | None, texto: str, sub: str = "",
+            estado: str = "neutro") -> str:
+    """O "gauge" possível em e-mail: número grande + trilho preenchido.
+
+    NÃO É UM PONTEIRO EM MEIO-CÍRCULO, e não dá para ser: aquilo se desenha em
+    SVG ou canvas, e nenhum dos dois sobrevive ao Outlook (motor do Word) nem
+    ao bloqueio de imagem remota do Gmail. O que um gauge comunica — "onde
+    estou entre 0 e 100" — cabe inteiro num trilho horizontal, que toda caixa
+    de entrada desenha.
+
+    `pct` None é "não sei", e sai DIZENDO isso em vez de desenhar zero: trilho
+    vazio se lê como 0%, que é uma afirmação, e a ausência de base não é.
+    """
+    cor = {"ok": VERDE, "warn": AMBAR, "bad": VERMELHO}.get(estado, AZUL_GRAFICO)
+    if pct is None:
+        trilho = (f'<div style="height:12px;border-radius:6px;background:{FUNDO};'
+                  f'border:1px dashed {BORDA}"></div>')
+        numero = "—"
+    else:
+        cheio = max(0, min(100, round(float(pct))))
+        trilho = (f'<table role="presentation" width="100%" cellpadding="0" '
+                  f'cellspacing="0" style="background:{FUNDO};border-radius:6px">'
+                  f'<tr><td width="{cheio}%" style="background:{cor};height:12px;'
+                  f'border-radius:6px;font-size:0;line-height:0">&nbsp;</td>'
+                  f'<td style="font-size:0;line-height:0">&nbsp;</td></tr></table>')
+        numero = f"{float(pct):.1f}".replace(".", ",") + "%"
+    return f"""
+<tr><td style="padding:16px 26px 0">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+         style="border:1px solid {BORDA};border-radius:10px">
+    <tr><td style="padding:16px 18px">
+      <div style="font:600 11px/1.4 {FONTE};letter-spacing:.08em;
+                  text-transform:uppercase;color:{CINZA}">{_esc(titulo)}</div>
+      <div style="font:700 30px/1.2 {MONO};color:{cor};padding:4px 0 2px">{numero}</div>
+      <div style="font:400 12px/1.5 {FONTE};color:{TINTA};padding-bottom:10px">{_esc(texto)}</div>
+      {trilho}
+      {f'<div style="font:400 11.5px/1.5 {FONTE};color:{CINZA};padding-top:8px">{_esc(sub)}</div>' if sub else ''}
+    </td></tr>
+  </table></td></tr>"""
+
+
 def legenda(itens: list[tuple[str, str]]) -> str:
     """Chaves de cor do gráfico. Sem ela, barra colorida é enfeite."""
     partes = "".join(
