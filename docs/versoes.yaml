@@ -1,4 +1,4 @@
-- versao: "1.47.0"
+- versao: "1.48.0"
   data: "2026-09-11"
   adicionado:
     - >-
@@ -17,7 +17,17 @@
       como "Devagar numa leitura so", neutra: nem transito, nem estrada livre.
       No painel de TV, o parado da reserva nao vira selo vermelho; o lento
       aparece como LENTO, com os minutos.
+  corrigido:
+    - >-
+      O historico de versoes volta a separar as duas entregas: por um erro na
+      resolucao do rebase, a reserva da Torre tinha subido com o mesmo numero
+      da entrega da Frequencia (1.47.0) e com o texto dela misturado ao desta.
+      A 1.47.0 volta a ser so a da Frequencia, como foi publicada.
 
+- versao: "1.47.0"
+  data: "2026-09-11"
+  adicionado:
+    - >-
       A aba O dia da Frequencia passou a mostrar QUEM NAO BATEU, junto de quem
       bateu, na mesma tabela e no topo dela. E a pergunta que o Globus so
       responde dias depois: a importacao do AFD e manual, com mediana de 3

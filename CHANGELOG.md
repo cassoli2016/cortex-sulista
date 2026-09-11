@@ -4,12 +4,19 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
-## [1.47.0] — 11/09/2026  ·  CX-11/09/2026-v1.47.0
+## [1.48.0] — 11/09/2026  ·  CX-11/09/2026-v1.48.0
 
 ### Adicionado
 - A Torre de Controle deixa de ficar cega quando a TomTom falha. Sem credito, sem chave ou recusando todos os pontos, a condicao da estrada de cada caminhao passa a vir da VELOCIDADE DO PROPRIO CAMINHAO -- o rastreador do ERP, que cobre 55 de 56 viagens, com o ultimo ponto da Gobrax quando ele e mais novo. A TomTom continua sendo a fonte principal, por decisao de quem opera; esta e a reserva, e a tabela diz quando esta nela.
 - A reserva so afirma o que a velocidade sustenta: "Andando", "Lento ha N min" (duas leituras seguidas entre 8 e 40 km/h, o sinal de transito) e "Parado ha N min, motivo nao informado" -- nunca "congestionado", porque parado pode ser descanso, cliente ou posto (as 11h de 11/09, 22 dos 55 caminhoes em viagem estavam parados). Uma leitura lenta isolada aparece como "Devagar numa leitura so", neutra: nem transito, nem estrada livre. No painel de TV, o parado da reserva nao vira selo vermelho; o lento aparece como LENTO, com os minutos.
-A aba O dia da Frequencia passou a mostrar QUEM NAO BATEU, junto de quem bateu, na mesma tabela e no topo dela. E a pergunta que o Globus so responde dias depois: a importacao do AFD e manual, com mediana de 3 dias de atraso, entao quem nao apareceu ontem so aparece la na semana seguinte, quando nao ha mais o que perguntar.
+
+### Corrigido
+- O historico de versoes volta a separar as duas entregas: por um erro na resolucao do rebase, a reserva da Torre tinha subido com o mesmo numero da entrega da Frequencia (1.47.0) e com o texto dela misturado ao desta. A 1.47.0 volta a ser so a da Frequencia, como foi publicada.
+
+## [1.47.0] — 11/09/2026  ·  CX-11/09/2026-v1.47.0
+
+### Adicionado
+- A aba O dia da Frequencia passou a mostrar QUEM NAO BATEU, junto de quem bateu, na mesma tabela e no topo dela. E a pergunta que o Globus so responde dias depois: a importacao do AFD e manual, com mediana de 3 dias de atraso, entao quem nao apareceu ontem so aparece la na semana seguinte, quando nao ha mais o que perguntar.
 - NAO E UMA LISTA DE FALTAS, e a tela diz isso: sem batida pode ser atestado que ninguem lancou, folga combinada, home office ou esquecimento de bater. Quem transforma em falta e o RH, com a lista na mao. Quem estava de FERIAS sai da conta, e o esperado nao e o quadro inteiro: num sabado 61 pessoas constam como COMPENSADO no proprio ERP, e lista-las seria acusar a escala.
 - E um E-MAIL DIARIO para o RH, com o ponto do dia anterior: quem bateu, quem nao bateu (com o que o Globus registra para cada um, quando ja importou) e as batidas reprovadas agrupadas pela cerca mais proxima. O horario e os destinatarios se configuram em Gestao > Relatorios por e-mail, como os outros. Dia sem ausencia nenhuma TAMBEM e enviado: "todos bateram" e a noticia que se quer receber, e sumir nesse dia ensinaria a duvidar do envio no dia seguinte.
 - Quando metade do quadro nao bate no mesmo dia, nem a tela nem o e-mail listam nomes: isso e feriado, parada coletiva ou a coleta que nao rodou, e nomear setenta e nove pessoas seria acusar a casa inteira de faltar. A mensagem manda olhar a coleta primeiro.
