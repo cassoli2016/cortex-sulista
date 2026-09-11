@@ -1,3 +1,17 @@
+- versao: "1.55.0"
+  data: "2026-09-11"
+  adicionado:
+    - >-
+      No painel de TV do cliente, a Situação de cada carga passa a dizer de onde
+      o próprio caminhão avisou — "Em viagem · RESENDE/RJ" — quando o estado
+      veio do computador de bordo (o evento da Raster). Antes a parede mostrava
+      só o rótulo, igual venha de onde viesse, e a mudança não aparecia; hoje
+      isso vale para 30 das 97 cargas em curso da MWM-Tupy.
+  corrigido:
+    - >-
+      No mesmo painel, o texto que não cabe na tabela volta a terminar em
+      reticências, em vez de ser cortado no meio da palavra.
+
 - versao: "1.54.1"
   data: "2026-09-11"
   alterado:

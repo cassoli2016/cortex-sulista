@@ -559,6 +559,41 @@ def test_a_situacao_ganha_a_COR_da_etapa_e_o_rotulo_junto(pagina):
         "todas as situacoes na mesma cor: a coluna nao separa nada " + str(cores))
 
 
+def test_a_situacao_diz_ONDE_o_caminhao_avisou_quando_o_estado_veio_dele(pagina):
+    """11/09/2026: o macro do computador de bordo virou a quarta testemunha da
+    situacao (`portal_cliente._macro_vence`), e a parede nao mostrava diferenca
+    nenhuma -- o rotulo e o mesmo, venha de onde vier. Quem opera: "nao vi
+    mudanca na situacao das viagens". Quando quem disse foi o VEICULO, a celula
+    ganha a cidade de onde ele falou; quando foi o SAC, nao ganha nada -- nem
+    se um lugar vier junto por engano."""
+    pg, base = pagina
+    cargas = [dict(c) for c in _CARGAS]
+    for c in cargas:
+        if c["coleta"] == 16021:            # a primeira linha da parede
+            c.update(marco_fonte="macro", marco_onde="RESENDE/RJ")
+        if c["coleta"] == 19900:            # lugar sem ser o veiculo: nao sai
+            c.update(marco_fonte="apontamento", marco_onde="ITAJAI/SC")
+
+    def corpo(url):
+        d = _corpo(url)
+        return {**d, "cargas": cargas} if "aba=agora" in url else d
+    pg.route("**/api/**", lambda r: r.fulfill(
+        status=200, content_type="application/json",
+        body=json.dumps(corpo(r.request.url))))
+    pg.set_viewport_size({"width": 1920, "height": 1080})
+    pg.goto(base + "/static/index.html#tvcli")
+    pg.wait_for_selector("#tvcli-barras .bar", timeout=15000)
+    linhas = pg.evaluate("""() => [...document.querySelectorAll('#tvcli-cargas tr')]
+        .map(tr => [tr.children[0].textContent.trim(), tr.children[3].textContent.trim()])""")
+    por = dict(linhas)
+    assert "16021" in por and "19900" in por, f"as duas cargas nao estao na parede: {linhas}"
+    assert por["16021"].endswith("· RESENDE/RJ"), por["16021"]
+    assert all("·" not in s for k, s in por.items() if k != "16021"), (
+        "so o estado vindo do veiculo ganha lugar: " + str(por))
+    corte = pg.evaluate("() => getComputedStyle(document.querySelector('#tvcli-cargas td')).textOverflow")
+    assert corte == "ellipsis", "o texto cortado da tabela termina em reticencias"
+
+
 def test_o_ticker_cobra_a_JANELA_e_nao_a_estimativa(pagina):
     """Ele ficou para tras quando o cartao trocou de regua e passou a dizer
     "passaram da estimativa de chegada" para um painel que nao mostra

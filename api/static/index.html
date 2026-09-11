@@ -1592,7 +1592,12 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
    altura de cada registro e a lista come a tela inteira; numa parede, texto
    cortado com reticencias se le melhor que texto empilhado. */
 #tvcli-cargas td,#view-tvcli .tv-tab th{white-space:nowrap;overflow:hidden;
-  text-overflow:ellipsisflex:1 1 auto;min-height:0;overflow:hidden}
+  text-overflow:ellipsis}
+/* A CIDADE DE ONDE O CAMINHAO AVISOU, depois do rotulo da situacao: em cinza,
+   porque o rotulo continua sendo a coisa lida. (A regra de cima ficou de
+   07/09 a 11/09/2026 como `ellipsisflex:1 1 auto;...` -- um pedaco da regra do
+   heroi colado nela por engano --, e as reticencias nunca valeram.) */
+#tvcli-cargas .tvc-onde{color:#8FA6BC;font-weight:400}
 .tvc-hero{display:flex;align-items:center;gap:2.2vw;flex:1 1 auto;min-height:0}
 .tvc-hero .n{font-size:clamp(64px,7.4vw,150px);font-weight:800;line-height:.92;
   font-variant-numeric:tabular-nums;letter-spacing:-.02em;color:#fff}
@@ -15603,8 +15608,18 @@ async function loadTvCli(){
             return '<tr><td>' + esc(String(c.coleta)) + '</td>'
               + '<td>' + esc(c.destinatario || (c.destino + '/' + c.uf_destino)) + '</td>'
               + '<td>' + esc(c.placa || '\u2014') + '</td>'
+              /* ONDE O CAMINHAO AVISOU (11/09/2026). Quando o estado veio do
+                 proprio veiculo -- o macro do computador de bordo, a "quarta
+                 testemunha" de `portal_cliente._macro_vence` --, a celula ganha
+                 a cidade de onde ele falou. Sem isto a parede nao mostrava
+                 diferenca nenhuma entre "o SAC apontou" e "o caminhao avisou
+                 de RESENDE/RJ": o rotulo e o mesmo, venha de onde vier. So o
+                 VEICULO ganha lugar; o rotulo continua sendo a coisa lida. */
               + '<td style="color:' + cor + '">'
-              + esc(TVCLI_MARCO_CURTO[c.marco] || c.marco) + '</td>'
+              + esc(TVCLI_MARCO_CURTO[c.marco] || c.marco)
+              + ((c.marco_fonte === 'macro' && c.marco_onde)
+                  ? '<span class="tvc-onde"> · ' + esc(c.marco_onde) + '</span>' : '')
+              + '</td>'
               + '<td>' + quando + '</td>'
               + '<td>' + tvCliEAgora(c) + '</td></tr>';
           }).join('');

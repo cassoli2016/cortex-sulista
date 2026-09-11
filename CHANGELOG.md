@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.55.0] — 11/09/2026  ·  CX-11/09/2026-v1.55.0
+
+### Adicionado
+- No painel de TV do cliente, a Situação de cada carga passa a dizer de onde o próprio caminhão avisou — "Em viagem · RESENDE/RJ" — quando o estado veio do computador de bordo (o evento da Raster). Antes a parede mostrava só o rótulo, igual venha de onde viesse, e a mudança não aparecia; hoje isso vale para 30 das 97 cargas em curso da MWM-Tupy.
+
+### Corrigido
+- No mesmo painel, o texto que não cabe na tabela volta a terminar em reticências, em vez de ser cortado no meio da palavra.
+
 ## [1.54.1] — 11/09/2026  ·  CX-11/09/2026-v1.54.1
 
 ### Alterado
