@@ -411,7 +411,13 @@ def test_com_a_clausula_resolvida_a_resposta_e_BINARIA():
               _p(4.0, pc._ft.MERCADORIA, 6.5)]    # aderente sob RODAS
     f = pc._faixas(linhas, "ft_descarga_h", 3.0, 6.5)
     assert (f["dentro"], f["fora"], f["zona"]) == (1, 1, 0)
-    assert f["origens"] == {"mercadoria": 1, "generico": 1, "sem_clausula": 0}
+    # QUATRO origens desde 11/09/2026: `equivalencia` entrou quando quem
+    # negocia o contrato declarou que "CONJUNTO PHEVUS" é "CONJUNTOS". Ela é
+    # contada SEPARADA de `mercadoria` de propósito — "o contrato tem uma
+    # cláusula para esta carga" e "alguém decidiu que esta carga é outra" são
+    # afirmações diferentes, e só a segunda pode ser revista.
+    assert f["origens"] == {"mercadoria": 1, "equivalencia": 0,
+                            "generico": 1, "sem_clausula": 0}
 
 
 def test_a_zona_cinzenta_sobra_SO_para_quem_nao_tem_clausula():

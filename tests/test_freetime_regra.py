@@ -85,13 +85,18 @@ def test_a_normalizacao_casa_o_que_tem_de_casar():
 
 
 def test_a_normalizacao_NAO_casa_o_que_e_DECISAO_COMERCIAL():
-    """"CONJUNTO PHEVUS" não é "CONJUNTOS", e o código não decide que é.
+    """A normalização continua não decidindo — QUEM decidiu foi uma pessoa.
 
-    São 163 coletas da Maxion em 90 dias. Se forem a mesma mercadoria, o
-    freetime de descarga passa de 3h para 6,5h e boa parte da estadia estimada
-    some — o que é exatamente o motivo de a resposta não poder sair daqui. Quem
-    negocia o contrato responde; a tela mostra que a pergunta existe (a coluna
-    diz que respondeu a cláusula GENÉRICA) e espera.
+    A pergunta foi respondida em 11/09/2026 ("Phevus também é conjuntos") e a
+    resposta NÃO entrou aqui: ela entrou em `EQUIVALENCIAS`, uma tabela com
+    data e efeito medido. A distinção é o ponto inteiro deste guard — a
+    normalização faz aritmética de texto (maiúscula, acento, espaço, plural) e
+    nada mais; julgamento comercial mora num lugar onde se lê.
+
+    Se a resposta tivesse virado um `LIKE 'CONJUNTO%'` aqui dentro, ela teria
+    levado junto "CONJUNTO PHEVUS" E qualquer coisa que começasse igual, sem
+    ninguém ter decidido isso — e foi o que aconteceu de fato com a LONGARINA
+    PHEVUS, que a mesma conversa deixou de FORA.
 
     Este guard existe para o dia em que alguém tentar resolver a pergunta com
     um LIKE. Aproximação por prefixo casaria "CONJUNTO PHEVUS" com "CONJUNTOS"
@@ -473,3 +478,115 @@ def test_o_filtro_de_varias_usa_PARAMETRO_e_nao_texto_montado():
     assert "ANY(%(merc)s)" in com, com
     assert "RODA" not in com, "o valor escolhido foi INTERPOLADO no SQL"
     assert portal_cliente._filtro_merc(()) == ""
+
+
+# ─────────────────── as equivalências declaradas (11/09/2026) ──────────────
+
+def test_a_equivalencia_e_DECLARADA_e_nao_uma_heuristica():
+    """A tabela é o mecanismo inteiro: sem `LIKE`, sem prefixo, sem distância
+    de texto. Cada linha é uma decisão de pessoa, e o que ela cobre é
+    exatamente o que está escrito — nem uma grafia a mais.
+    """
+    from api import freetime
+
+    assert isinstance(freetime.EQUIVALENCIAS, dict)
+    sql = freetime.sql_equivalente("X")
+    assert "LIKE" not in sql.upper() and "%" not in sql, (
+        "a equivalência virou aproximação de texto: %s" % sql)
+    assert sql.startswith("CASE ") and " ELSE X END" in sql
+
+
+def test_CONJUNTO_PHEVUS_vale_como_CONJUNTOS():
+    """A decisão de quem negocia o contrato, 11/09/2026.
+
+    764 coletas/ano da IOCHPE MAXION saem da cláusula genérica (3h) para a de
+    CONJUNTOS (6,5h na descarga). Medido pela consulta real: a estadia
+    estimada em 60 dias vai de R$ 959.814,37 para R$ 952.489,63.
+    """
+    assert ft.equivalente("CONJUNTO PHEVUS") == ft.normalizar("CONJUNTOS")
+    r = ft.resolver([{"mercadoria": "CONJUNTOS", "ft_carga_h": 3.0,
+                      "ft_descarga_h": 6.5},
+                     {"mercadoria": "", "ft_carga_h": 3.0, "ft_descarga_h": 3.0}],
+                    "CONJUNTO PHEVUS")
+    assert r["ft_descarga_h"] == 6.5, "a equivalência não alcançou a cláusula"
+
+
+def test_LONGARINA_PHEVUS_ficou_de_FORA_e_isso_foi_perguntado():
+    """A parte da decisão que é fácil de perder, e vale R$ 37,9 mil em 60 dias.
+
+    "Phevus também é conjuntos" podia ser lido como "tudo que é PHEVUS", e
+    LONGARINA PHEVUS tem 998 coletas/ano — o terceiro maior item da operação
+    da Maxion. Perguntado com os dois números na mesa e respondido: só
+    CONJUNTO PHEVUS. Incluir a longarina levaria o efeito de R$ 7.324,75 para
+    R$ 45.210,51 em 60 dias.
+
+    Este guard existe porque a leitura ampla é a mais natural, e alguém vai
+    tentar "completar" a tabela um dia achando que faltou.
+    """
+    assert ft.equivalente("LONGARINA PHEVUS") != ft.normalizar("CONJUNTOS")
+    r = ft.resolver([{"mercadoria": "CONJUNTOS", "ft_carga_h": 3.0,
+                      "ft_descarga_h": 6.5},
+                     {"mercadoria": "", "ft_carga_h": 3.0, "ft_descarga_h": 3.0}],
+                    "LONGARINA PHEVUS")
+    assert r["origem"] == ft.GENERICO and r["ft_descarga_h"] == 3.0
+
+
+def test_a_tela_sabe_que_foi_EQUIVALENCIA_e_nao_clausula_propria():
+    """"6,5h porque o contrato tem cláusula para CONJUNTOS" e "6,5h porque
+    alguém declarou que CONJUNTO PHEVUS é CONJUNTOS" são o mesmo número e
+    afirmações diferentes.
+
+    A segunda depende de uma decisão de pessoa, que pode ser revista — e quem
+    confere a conta tem direito de ver que ela existe, em vez de achar que o
+    contrato fala de "CONJUNTO PHEVUS".
+    """
+    contrato = [{"mercadoria": "CONJUNTOS", "ft_carga_h": 3.0, "ft_descarga_h": 6.5}]
+    assert ft.resolver(contrato, "CONJUNTOS")["origem"] == ft.MERCADORIA
+    assert ft.resolver(contrato, "CONJUNTO PHEVUS")["origem"] == ft.EQUIVALENCIA
+
+    from api import queries as q
+    assert "'equivalencia'" in q.SAC_DET_SQL, (
+        "o SQL não publica o quarto estado — a tela do SAC não tem como dizer")
+    # E O JOIN TEM DE USAR A EQUIVALÊNCIA, não só o `CASE` que a rotula. Com o
+    # join na expressão CRUA, a cláusula de CONJUNTOS nunca casa com "CONJUNTO
+    # PHEVUS": o `CASE` continua escrito, nunca dispara, e a estadia volta aos
+    # R$ 959.814,37 sem nada na tela mudar de aparência. Esta linha nasceu de
+    # uma sabotagem que passou VERDE.
+    assert q.SAC_DET_SQL.count("AND esp.merc = CASE ") == 1, (
+        "o join da cláusula específica não passa pelas equivalências — elas "
+        "existem no SQL e não alcançam linha nenhuma")
+
+
+def test_os_DOIS_sotaques_aplicam_a_MESMA_tabela_de_equivalencia(pg_disponivel):
+    """A equivalência também tem duas execuções — SQL no ERP, Python em casa.
+
+    Duas tabelas "equivalentes" divergem na linha que uma tem e a outra não, e
+    a divergência aparece num cliente só, num mês só. Aqui o SQL é GERADO da
+    mesma tabela, e o guard executa os dois lados contra as grafias reais.
+    """
+    ok, motivo = pg_disponivel
+    if not ok:
+        pytest.skip(motivo)
+    from api import pglocal
+
+    casos = ["CONJUNTO PHEVUS", "CONJUNTOS", "LONGARINA PHEVUS", "LONGARINA",
+             "RODAS", "conjunto phevus"]
+    expr = ft.sql_equivalente(ft.sql_normalizar("t.v"))
+    sql = ("SELECT t.v AS bruto, " + expr + " AS eq FROM (VALUES "
+           + ", ".join("(%s)" for _ in casos) + ") AS t(v)")
+    linhas = [(r["bruto"], r["eq"]) for r in pglocal.query(sql, tuple(casos))]
+    divergiu = [(b, e, ft.equivalente(b)) for b, e in linhas
+                if e != ft.equivalente(b)]
+    assert not divergiu, "SQL e Python discordam na equivalência: %s" % divergiu
+
+
+def test_toda_equivalencia_aponta_para_uma_mercadoria_NORMALIZADA():
+    """Chave e valor têm de estar na forma normalizada, senão a tabela nunca
+    casa com nada e o efeito é silencioso: a linha existe, parece decidida, e
+    não muda um centavo."""
+    for origem, destino in ft.EQUIVALENCIAS.items():
+        assert ft.normalizar(origem) == origem, (
+            "a chave %r não está normalizada — nunca vai casar" % origem)
+        assert ft.normalizar(destino) == destino, (
+            "o destino %r não está normalizado — não acha a cláusula" % destino)
+        assert origem != destino, "equivalência de %r para ele mesmo" % origem

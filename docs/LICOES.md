@@ -141,7 +141,27 @@ parte dos R$ 71,2 mil desaparece. Na mesma lista: "LONGARINA PHEVUS" (273) e
 contrato sem cláusula genérica.
 
 Isso é decisão de quem negocia o contrato, não de uma heurística de texto
-escondida numa query. A tela passa a DIZER qual cláusula respondeu por cada
+escondida numa query.
+
+**E a resposta veio no mesmo dia**: *"Sim. Phevus também é conjuntos."* Ela
+NÃO entrou na normalização — entrou em `api/freetime.EQUIVALENCIAS`, uma
+tabela onde cada linha tem data e efeito medido. São 764 cargas/ano da Maxion
+que passam da genérica (3h) para CONJUNTOS (6,5h): a estadia estimada em 60
+dias sai de R$ 959.814,37 para R$ 952.489,63, e a aderência da descarga da
+Maxion sobe de 50,4% para 56,5%.
+
+O ALCANCE precisou de uma segunda pergunta, e é a parte que quase se perde.
+"Phevus é conjuntos" podia levar junto LONGARINA PHEVUS — 998 cargas/ano, o
+terceiro item da operação, e a leitura mais natural da frase. Medidos os dois
+cenários (−R$ 7.324,75 contra −R$ 45.210,51 em 60 dias), a diferença era de
+R$ 37,9 mil e a resposta foi a estreita: só CONJUNTO PHEVUS. A LONGARINA
+PHEVUS continua na genérica, ao lado da LONGARINA comum.
+
+E a tela ganhou um QUARTO estado por causa disso. `equivalencia` sai separado
+de `mercadoria` porque "o contrato tem uma cláusula para esta carga" e "alguém
+decidiu que esta carga é outra" são o mesmo número e afirmações diferentes —
+a segunda depende de uma decisão de pessoa, que pode ser revista, e quem
+confere a conta tem direito de ver que ela existe. A tela passa a DIZER qual cláusula respondeu por cada
 número — "3h porque o contrato dá 3h para RODAS" e "3h porque não há cláusula
 para esta mercadoria" são o mesmo número e afirmações diferentes, e só a
 segunda é a que alguém precisa levar adiante. Há guard proibindo `LIKE` na

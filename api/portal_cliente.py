@@ -1032,7 +1032,8 @@ def _faixas(linhas: list[dict], ftc: str,
     ninguém mediu.
     """
     conta = {"dentro": 0, "zona": 0, "fora": 0, "sem_regua": 0}
-    origens = {_ft.MERCADORIA: 0, _ft.GENERICO: 0, _ft.SEM_CLAUSULA: 0}
+    origens = {_ft.MERCADORIA: 0, _ft.EQUIVALENCIA: 0,
+               _ft.GENERICO: 0, _ft.SEM_CLAUSULA: 0}
     for r in linhas:
         origens[r["_origem"]] = origens.get(r["_origem"], 0) + 1
         conta[_faixa_da_hora(r["_h"], r[ftc], piso, teto) or "sem_regua"] += 1

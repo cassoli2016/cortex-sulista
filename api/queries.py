@@ -5412,6 +5412,11 @@ def get_custos_extras(dt_de: str, dt_ate: str) -> dict:
 # mesma coisa.
 SQL_MERC_CONTRATO = _ft.sql_normalizar("observacao")
 SQL_MERC_COLETA = _ft.sql_normalizar("c.mercadorias")
+# A MESMA COLUNA, com as EQUIVALÊNCIAS DECLARADAS aplicadas. A
+# normalização continua fazendo só aritmética de texto; o julgamento
+# comercial ("CONJUNTO PHEVUS é CONJUNTOS") mora na tabela de
+# `api/freetime.EQUIVALENCIAS`, com data e efeito medido.
+SQL_MERC_EQUIV = _ft.sql_equivalente(SQL_MERC_COLETA)
 
 SAC_FT_REP = """
 ft AS (
@@ -5487,7 +5492,9 @@ perm AS (
                                      ft.freetimecarga))/3600 AS ft_carga,
          extract(epoch from coalesce(esp.freetimedescarga, ger.freetimedescarga,
                                      ft.freetimedescarga))/3600 AS ft_desc,
-         CASE WHEN esp.ag IS NOT NULL THEN 'mercadoria'
+         CASE WHEN esp.ag IS NOT NULL
+                    AND {SQL_MERC_COLETA} <> {SQL_MERC_EQUIV} THEN 'equivalencia'
+              WHEN esp.ag IS NOT NULL THEN 'mercadoria'
               WHEN ger.ag IS NOT NULL THEN 'generico'
               ELSE 'sem_clausula' END AS origem_ft,
          btrim(coalesce(c.mercadorias,'')) AS mercadoria,
@@ -5502,7 +5509,7 @@ perm AS (
   LEFT JOIN agrupamentocliente ac ON ac.grupo=acc.grupo AND ac.empresa=acc.empresa AND ac.codigo=acc.codigo
   JOIN ft ON ft.agrupamentocliente = ac.codigo
   LEFT JOIN ftm esp ON esp.ag = ac.codigo AND esp.merc <> ''
-    AND esp.merc = {SQL_MERC_COLETA}
+    AND esp.merc = {SQL_MERC_EQUIV}
   LEFT JOIN ftm ger ON ger.ag = ac.codigo AND ger.merc = '')
 SELECT coleta, filial, cliente, data, mercadoria, origem_ft,
        round(win_carga::numeric,1)::float8 AS h_carga,

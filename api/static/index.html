@@ -26173,12 +26173,21 @@ async function cliopPermanencia(){
        afirmacoes diferentes, e so a segunda e a que alguem precisa ir resolver
        com o comercial. Sem esta contagem as duas viram o mesmo numero. */
     const org = (d.descarga || {}).origens || {};
-    const nOrg = (org.mercadoria || 0) + (org.generico || 0) + (org.sem_clausula || 0);
+    const nOrg = (org.mercadoria || 0) + (org.equivalencia || 0)
+               + (org.generico || 0) + (org.sem_clausula || 0);
     const pct = function(n){ return nOrg ? Math.round(100 * n / nOrg) + '%' : '0%'; };
     document.getElementById('cliop-ft-hint').innerHTML = ft.contratos
       ? esc(ft.contratos + ' clausulas ativas \u00b7 '
             + pct(org.mercadoria || 0) + ' medidas pela clausula da propria '
             + 'mercadoria \u00b7 ' + pct(org.generico || 0) + ' pela clausula generica'
+            /* A EQUIVALENCIA DECLARADA sai SEPARADA da clausula propria, e nao
+               somada nela: "o contrato tem uma clausula para esta mercadoria"
+               e "alguem decidiu que esta mercadoria e outra" sao afirmacoes
+               diferentes, e so a segunda depende de uma decisao que pode ser
+               revista. */
+            + ((org.equivalencia || 0)
+               ? ' \u00b7 ' + pct(org.equivalencia) + ' por equivalencia declarada'
+               : '')
             + ((org.sem_clausula || 0)
                ? ' \u00b7 ' + pct(org.sem_clausula) + ' sem clausula para a mercadoria'
                : ''))
@@ -26377,6 +26386,13 @@ function renderSac(d){
      numero e afirmacoes diferentes: so a segunda vira conversa com o
      comercial, e por isso ela sai marcada. */
   const ORIG={mercadoria:['clausula propria',''],
+              /* EQUIVALENCIA DECLARADA: o contrato nao tem clausula com este
+                 nome; alguem decidiu que esta mercadoria e a mesma de outra
+                 que tem. E decisao de PESSOA, entao a linha DIZ -- quem
+                 confere a conta tem direito de ver que ela existe, em vez de
+                 achar que o contrato fala de "CONJUNTO PHEVUS". */
+              equivalencia:['clausula de CONJUNTOS por equivalencia declarada',
+                            'color:var(--orange-500)'],
               generico:['clausula generica','color:var(--n500)'],
               sem_clausula:['sem clausula — maior freetime do contrato',
                             'color:var(--yellow-700)']};

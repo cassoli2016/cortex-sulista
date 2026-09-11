@@ -176,6 +176,62 @@ def canonizar(mercs) -> tuple:
     return tuple(sorted(v for v in vistos if v))
 
 
+# ───────────────────────────── AS EQUIVALÊNCIAS DECLARADAS ────────────────
+#
+# Duas grafias que a normalização NÃO aproxima, e que quem negocia o contrato
+# disse serem a mesma mercadoria. Cada linha aqui MOVE DINHEIRO, e é por isso
+# que ela mora numa tabela com data e efeito medido, e não numa aproximação de
+# texto escondida na consulta: a normalização continua fazendo só aritmética
+# (maiúscula, acento, espaço, plural), e tudo que for julgamento comercial
+# passa por aqui, onde se lê.
+#
+# Quem acrescentar uma linha: meça o efeito ANTES e escreva na linha. Sem o
+# número, a próxima pessoa não tem como saber se a equivalência é detalhe de
+# cadastro ou um item de R$ 200 mil por ano.
+EQUIVALENCIAS = {
+    # 11/09/2026, decisão de quem opera: "Phevus também é conjuntos".
+    # 764 coletas/ano da IOCHPE MAXION saem da cláusula genérica (3h) para a
+    # de CONJUNTOS (6,5h na descarga). Efeito medido: R$ 7.324,75 A MENOS de
+    # estadia estimada em 60 dias, sobre 63 permanências.
+    #
+    # LONGARINA PHEVUS (998 coletas/ano) FICA DE FORA, e isso foi perguntado e
+    # respondido no mesmo dia: ela continua na genérica, junto com a LONGARINA
+    # comum. Incluí-la levaria o efeito a R$ 45.210,51 em 60 dias — a
+    # diferença entre as duas leituras era de R$ 37,9 mil, e por isso não foi
+    # deduzida daqui.
+    "CONJUNTO PHEVU": "CONJUNTO",
+}
+
+
+def _lit(t: str) -> str:
+    """Literal SQL, com a aspa escapada. As chaves saem de `normalizar`, que
+    só produz letra e espaço — o escape é para o dia em que alguém acrescentar
+    uma mercadoria com apóstrofo no nome."""
+    return "'" + t.replace("'", "''") + "'"
+
+
+def sql_equivalente(expr: str) -> str:
+    """A expressão já normalizada, com as equivalências declaradas aplicadas.
+
+    `CASE <expr> WHEN … THEN … ELSE <expr> END` — sem `LIKE`, sem prefixo, sem
+    nada que aproxime por conta própria: só as trocas que estão escritas na
+    tabela acima. Tabela vazia devolve a expressão intacta.
+    """
+    if not EQUIVALENCIAS:
+        return expr
+    casos = "".join(" WHEN %s THEN %s" % (_lit(k), _lit(v))
+                    for k, v in sorted(EQUIVALENCIAS.items()))
+    return "CASE %s%s ELSE %s END" % (expr, casos, expr)
+
+
+def equivalente(merc: str | None) -> str:
+    """O mesmo, em Python: o valor normalizado depois das equivalências."""
+    n = normalizar(merc)
+    return EQUIVALENCIAS.get(n, n)
+
+
+EQUIVALENCIA = "equivalencia"
+
 # A ORDEM DE RESOLUÇÃO, que é a regra propriamente dita.
 MERCADORIA = "mercadoria"
 GENERICO = "generico"
@@ -203,11 +259,17 @@ def resolver(linhas: list[dict], mercadoria: str | None) -> dict | None:
     """
     if not linhas:
         return None
-    alvo = normalizar(mercadoria)
+    crua = normalizar(mercadoria)
+    alvo = EQUIVALENCIAS.get(crua, crua)
     if alvo:
         for ln in linhas:
             if ln.get("mercadoria") and normalizar(ln["mercadoria"]) == alvo:
-                return dict(ln, origem=MERCADORIA)
+                # DIZ QUANDO FOI POR EQUIVALÊNCIA. "6,5h porque o contrato tem
+                # uma cláusula para CONJUNTOS" e "6,5h porque alguém declarou
+                # que CONJUNTO PHEVUS é CONJUNTOS" são o mesmo número e
+                # afirmações diferentes — a segunda é uma decisão de pessoa, e
+                # quem confere a conta tem direito de ver que ela existe.
+                return dict(ln, origem=(MERCADORIA if alvo == crua else EQUIVALENCIA))
     for ln in linhas:
         if not ln.get("mercadoria"):
             return dict(ln, origem=GENERICO)

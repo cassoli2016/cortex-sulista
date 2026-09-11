@@ -680,9 +680,24 @@ barra empilhada, não donut.
   nunca heurística escondida numa query.** Normalizar grafia (maiúscula,
   acento, espaço, plural) casa "ESPUMAS PARA BANCO" com "ESPUMA PARA BANCOS" e
   é aritmética. Casar "CONJUNTO PHEVUS" com "CONJUNTOS" muda o freetime de 3h
-  para 6,5h em 163 cargas — isso é pergunta para quem negocia o contrato. A
-  tela DIZ qual cláusula respondeu (própria / genérica / não há), que é como a
-  pergunta chega a quem pode respondê-la; há guard proibindo `LIKE` ali.
+  para 6,5h — isso é pergunta para quem negocia o contrato. A tela DIZ qual
+  cláusula respondeu, que é como a pergunta chega a quem pode respondê-la; há
+  guard proibindo `LIKE` ali.
+  - **E quando a resposta vier, ela entra numa TABELA, não na normalização**
+    (`api/freetime.EQUIVALENCIAS`, com data e efeito medido por linha). Em
+    11/09/2026 quem opera respondeu "Phevus também é conjuntos": 764 cargas/ano
+    da Maxion passaram à cláusula de CONJUNTOS, −R$ 7.324,75 de estadia
+    estimada em 60 dias. A tela ganhou um QUARTO estado — `equivalencia`,
+    separado de `mercadoria` —, porque "o contrato tem cláusula para esta
+    carga" e "alguém decidiu que esta carga é outra" são o mesmo número e
+    afirmações diferentes, e só a segunda pode ser revista.
+  - **A pergunta AMPLA e a ESTREITA não são a mesma pergunta, e a diferença
+    custa.** "Phevus é conjuntos" podia levar junto LONGARINA PHEVUS (998
+    cargas/ano, o terceiro item da operação): −R$ 45.210,51 em vez de
+    −R$ 7.324,75 em 60 dias. Foi perguntado com os dois números na mesa e a
+    resposta foi a estreita. Decisão comercial se confirma no ALCANCE, não só
+    no princípio — e o guard registra o que ficou de fora, porque a leitura
+    ampla é a natural e alguém vai querer "completar" a tabela.
 - **Filtro cuja marca no SQL é um COMENTÁRIO precisa de recusa explícita.**
   `--{FILTRO_MERC}` perdido não quebra consulta nenhuma: ela roda, responde e
   ignora o filtro — a tela mostra "ESPUMA" no seletor e devolve a operação

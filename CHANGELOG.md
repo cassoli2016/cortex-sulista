@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.46.0] — 11/09/2026  ·  CX-11/09/2026-v1.46.0
+
+### Adicionado
+- "CONJUNTO PHEVUS" passou a valer como "CONJUNTOS" no freetime da IOCHPE MAXION, por decisao de quem negocia o contrato. Sao 764 cargas por ano que saem da clausula generica (3h) para a de CONJUNTOS (6,5h na descarga): a estadia estimada em 60 dias cai de R$ 959.814,35 para R$ 952.489,63, e a aderencia da descarga da Maxion sobe de 50,4% para 56,5%.
+- A decisao NAO virou aproximacao de texto: ela entrou numa tabela de EQUIVALENCIAS DECLARADAS, onde cada linha tem data e efeito medido. A normalizacao continua fazendo so aritmetica (maiuscula, acento, espaco, plural) e nao aproxima nada por conta propria -- um `LIKE` teria levado junto tudo que comeca igual, sem ninguem ter decidido.
+- As duas telas passaram a DIZER quando o numero veio de uma equivalencia, em vez de somar com a clausula propria. "O contrato tem uma clausula para esta carga" e "alguem decidiu que esta carga e outra" sao o mesmo numero e afirmacoes diferentes, e so a segunda pode ser revista -- quem confere a conta tem direito de ver que ela existe.
+
 ## [1.45.0] — 11/09/2026  ·  CX-11/09/2026-v1.45.0
 
 ### Adicionado
