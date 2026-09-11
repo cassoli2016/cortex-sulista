@@ -1,3 +1,14 @@
+- versao: "1.48.1"
+  data: "2026-09-11"
+  corrigido:
+    - >-
+      Na pagina inicial, o cartao de Rodovias sem a TomTom dizia "a primeira
+      leitura ainda nao chegou" -- uma espera que nao ia terminar, porque o
+      produto de transito da TomTom esta sem credito. Agora ele diz o motivo e
+      abre sozinho a aba de Interdicoes noticiadas, que tem dado. E a tarja
+      vermelha do topo so aparece quando ha numero VELHO na tela; fonte que
+      nunca teve leitura se explica no proprio cartao.
+
 - versao: "1.48.0"
   data: "2026-09-11"
   adicionado:

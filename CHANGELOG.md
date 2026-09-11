@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.48.1] — 11/09/2026  ·  CX-11/09/2026-v1.48.1
+
+### Corrigido
+- Na pagina inicial, o cartao de Rodovias sem a TomTom dizia "a primeira leitura ainda nao chegou" -- uma espera que nao ia terminar, porque o produto de transito da TomTom esta sem credito. Agora ele diz o motivo e abre sozinho a aba de Interdicoes noticiadas, que tem dado. E a tarja vermelha do topo so aparece quando ha numero VELHO na tela; fonte que nunca teve leitura se explica no proprio cartao.
+
 ## [1.48.0] — 11/09/2026  ·  CX-11/09/2026-v1.48.0
 
 ### Adicionado

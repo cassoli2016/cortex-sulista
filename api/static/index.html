@@ -43989,7 +43989,11 @@ function rdTarja(c){
     el.innerHTML = '<b>Primeira coleta em andamento</b>O CÓRTEX está buscando os dados agora; os números aparecem em alguns minutos.';
     el.hidden = false; return;
   }
-  const ruins = todas.filter(e => e.estado === 'alerta' || e.estado === 'erro');
+  /* A TARJA É PARA DADO VELHO NA TELA, e só ele entra: fonte que NUNCA teve
+     leitura boa não tem número velho à mostra -- o cartão dela diz o motivo.
+     Visto em 11/09/2026: com a TomTom sem crédito, uma tarja vermelha o dia
+     inteiro na página de todo mundo, acusando um número que não estava ali. */
+  const ruins = todas.filter(e => (e.estado === 'alerta' || e.estado === 'erro') && e.sucesso_em);
   if(!ruins.length){ el.hidden = true; el.innerHTML = ''; return; }
   el.className = 'toast ' + (ruins.some(e => e.estado === 'erro') ? 't-dang' : 't-warn');
   el.innerHTML = '<b>Parte do Radar está desatualizada</b>'
@@ -44125,9 +44129,22 @@ function rdRodovias(r, noticias){
   const itens = r.itens || [];
   abaContador('rd-n-rodoc', itens.length);
   if(!itens.length){
-    el.innerHTML = '<div class="gx-vazio">' + (est.sucesso_em
+    /* TRÊS VAZIOS DIFERENTES, e cada um diz o seu: estrada limpa (a coleta
+       rodou e não achou nada), fonte que falhou (com o motivo -- 'ainda não
+       chegou' com a TomTom sem crédito prometia uma espera que não ia
+       terminar) e a primeira coleta que ainda não aconteceu. */
+    const semAoVivo = !!est.erro || (est.estado && est.estado !== 'ok' && est.estado !== 'nunca');
+    const msg = (est.sucesso_em && !semAoVivo)
       ? 'Nenhum bloqueio nem lentidão relevante nos quatro corredores agora.'
-      : 'A primeira leitura da TomTom ainda não chegou.') + '</div>';
+      : semAoVivo
+        ? 'Sem ocorrências ao vivo: ' + (est.erro || 'a TomTom não respondeu')
+          + '. As interdições noticiadas seguem na aba ao lado.'
+        : 'A primeira leitura da TomTom ainda não chegou.';
+    el.innerHTML = '<div class="gx-vazio">' + esc(msg) + '</div>';
+    /* SEM AO VIVO, A ABA QUE TEM DADO ABRE SOZINHA -- e só na primeira
+       pintura: a recarga de 5 min não pode tirar a pessoa da aba que ela
+       escolheu. */
+    if(semAoVivo && !RD.rodAuto){ RD.rodAuto = true; abaTrocar('radarrod', 'int'); }
     return;
   }
   el.innerHTML = itens.map(i => '<div class="rd-rod"><div>'

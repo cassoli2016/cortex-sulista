@@ -123,6 +123,22 @@ def test_fonte_atrasada_ACENDE_a_tarja_dizendo_qual(pagina):
     assert "t-dang" in (pg.get_attribute("#rd-tarja", "class") or "")
 
 
+def test_TomTom_SEM_CREDITO_diz_o_motivo_e_abre_as_interdicoes(pagina):
+    """Visto no ar em 11/09/2026: o cartão dizia 'a primeira leitura ainda
+    não chegou' (uma espera que não ia terminar), a aba aberta era a vazia, e
+    uma tarja vermelha acusava dado velho que não estava na tela."""
+    pg, base = pagina
+    p = copy.deepcopy(PAYLOAD)
+    p["rodovias"].update(itens=[], bloqueios=0)
+    p["coleta"]["rodovias"].update(estado="erro", ok=False, sucesso_em=None,
+                                      erro="TomTom sem créditos no produto de trânsito")
+    _abrir(pg, base, payload=p)
+    txt = pg.inner_text("#rd-rod-lista")
+    assert "sem créditos" in txt and "ainda não chegou" not in txt
+    assert pg.get_attribute("#tabradarrod-int", "aria-selected") == "true"
+    assert pg.locator("#rd-tarja").is_hidden(), "não há dado velho na tela para a tarja acusar"
+
+
 def test_tudo_em_dia_NAO_mostra_tarja(pagina):
     pg, base = pagina
     _abrir(pg, base)
