@@ -4,6 +4,16 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.43.0] — 11/09/2026  ·  CX-11/09/2026-v1.43.0
+
+### Adicionado
+- A Frequencia ganhou a aba O DIA: quem bateu HOJE, a que horas e ONDE. E a pergunta que o Globus nao responde — a importacao do AFD dele e manual e atrasa dias, entao "quem bateu hoje" nao existe la. Aqui a batida chega em 12 segundos, pela coleta do Ponto Certificado que roda de 10 em 10 minutos. Tem botao para HOJE e ONTEM, seletor para qualquer outro dia, e filtros por situacao da batida, por filial e por nome, matricula ou local.
+- O LUGAR DA BATIDA tem tres respostas, e a aba mostra as tres sem confundi-las. Dentro de cerca: o lugar tem nome (PIRAQUARA, AUDI, TUPY). Fora: nao ha nome, e o que se sabe e a distancia ate a cerca mais proxima. Sem GPS: quase metade das batidas, e NAO e infracao — o aparelho nao mandou coordenada, e o que se sabe e o relogio em que ela entrou.
+- A faixa de lugares do dia agrupa o que foi reprovado pela cerca MAIS PROXIMA, com a distancia mediana ao lado — e e ela que separa tres coisas que pareciam uma so. Dezenas de metros: a cerca esta apertada. Um ou dois quilometros: ha um local de trabalho sem cerca cadastrada (sete pessoas batem todo dia a 1,9 km da SBC OPERACIONAL). Cem quilometros: e outra cidade, e ninguem cadastrou nada la.
+
+### Corrigido
+- As tres tarjas amarelas do topo da Frequencia sairam. Duas repetiam o que a aba Batidas ja diz em vermelho; a terceira — o atraso da apuracao — passou para a linha do cabecalho, colada na competencia que ela qualifica. Tarja empilhada antes do primeiro numero vira papel de parede: quem abre a tela todo dia para de le-la.
+
 ## [1.42.0] — 11/09/2026  ·  CX-11/09/2026-v1.42.0
 
 ### Adicionado

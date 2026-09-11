@@ -281,6 +281,174 @@ def por_pessoa(dias: int = DIAS, limite: int = 40) -> list[dict]:
          ORDER BY 3 DESC, 2 DESC LIMIT %(l)s""", {"d": dias, "l": max(5, min(limite, 200))})]
 
 
+def _dia_pedido(dia: str | None) -> str:
+    """Traduz o que a tela pede para uma data ISO, SEMPRE em horário local.
+
+    `hoje`/`ontem` se resolvem no BANCO (`current_date`), que é onde
+    `marcada_em` é comparada — resolver aqui no Python daria a data do processo
+    da API, e a casa já se queimou com `toISOString()` devolvendo o dia
+    anterior em UTC−3. Data explícita passa validada; qualquer outra coisa é
+    hoje.
+    """
+    import re
+    d = (dia or "hoje").strip().lower()
+    if d in ("hoje", "ontem"):
+        return d
+    return d if re.match(r"^\d{4}-\d{2}-\d{2}$", d) else "hoje"
+
+
+@cached(ttl=60, velha_ate=1800)
+def do_dia(dia: str | None = None) -> dict:
+    """O DIA: quem bateu, a que horas e onde — uma linha por PESSOA.
+
+    É a pergunta operacional que o AFD do ERP não responde: ele chega por
+    importação manual, com mediana de 3 dias de atraso, então "quem bateu hoje"
+    simplesmente não existe lá. Aqui existe, com 12 s de latência mediana.
+
+    "ONDE" TEM TRÊS RESPOSTAS, E A MAIS COMUM É UMA AUSÊNCIA
+    =======================================================
+    Medido em 11/09/2026 (66 batidas do dia até as 8h19):
+
+        dentro de cerca ....  18  -> o lugar TEM nome (PIRAQUARA, AUDI, TUPY)
+        fora de cerca ......  16  -> não há nome; o que se sabe é a DISTÂNCIA
+                                     até a cerca mais próxima (9 a 12 km)
+        sem coordenada .....  32  -> não se sabe, e não é infração
+
+    A terceira é quase metade, e chamá-la de "fora" seria repetir o defeito que
+    desligou o ponto por aplicativo em jan/2025. O que se sabe dela é o RELÓGIO
+    onde a batida entrou, e por isso ele vai junto na linha: das 59 séries
+    vistas, 57 são de UMA pessoa só (aplicativo no aparelho dela) e uma —
+    `00000.31900.997904` — é usada por 42 pessoas de TODAS as filiais e nunca
+    manda GPS. Não é um relógio de parede de uma unidade (as filiais não
+    batem), e este módulo NÃO inventa o que ele é: mostra o número de série e
+    quantas pessoas o usam, que é o que dá para provar. Quem sabe é o RH.
+
+    O DIA DE HOJE ESTÁ EM CURSO, e a tela diz isso: às 8h da manhã quem entra
+    às 13h ainda não bateu. Contar isso como falta seria transformar o relógio
+    em acusação.
+    """
+    d = _dia_pedido(dia)
+    if d == "hoje":
+        onde, p = "marcada_em >= current_date AND marcada_em < current_date + 1", {}
+    elif d == "ontem":
+        onde, p = ("marcada_em >= current_date - 1 AND marcada_em < current_date", {})
+    else:
+        onde = "marcada_em >= %(d)s::date AND marcada_em < %(d)s::date + 1"
+        p = {"d": d}
+
+    linhas = _q(f"""
+        SELECT matricula, marcada_em, situacao, local, distancia_m,
+               cerca_proxima, relogio, atividade,
+               (marcada_em::date) dia
+          FROM pc_marcacao
+         WHERE {onde}
+         ORDER BY matricula, marcada_em""", p)
+
+    # Quantas pessoas usam cada relógio NA JANELA LONGA, não no dia: com um dia
+    # só, todo relógio pareceria individual e a distinção sumiria.
+    compart = {r["relogio"]: int(r["p"]) for r in _q(
+        """SELECT relogio, COUNT(DISTINCT matricula) p FROM pc_marcacao
+            WHERE relogio IS NOT NULL AND marcada_em >= now() - interval '90 days'
+            GROUP BY 1""")}
+
+    nomes = _nomes()
+    pessoas: dict[str, dict] = {}
+    for r in linhas:
+        m = r["matricula"]
+        cad = nomes.get(m) or {}
+        alvo = pessoas.setdefault(m, {
+            "matricula": m, "nome": cad.get("nome"), "filial": cad.get("filial"),
+            "funcao": cad.get("funcao"), "situacao_cad": cad.get("situacao"),
+            "batidas": [], "n": 0, "dentro": 0, "fora": 0, "sem_coordenada": 0,
+            "locais": [], "primeira": None, "ultima": None,
+        })
+        hora = r["marcada_em"].strftime("%H:%M")
+        # O LUGAR, pelo que se sabe dele — e nunca um nome inventado para a
+        # ausência. `local` vem 'FORA DE CERCA' do fornecedor nos dois casos
+        # em que não há lugar, então ele não serve de rótulo sozinho.
+        if r["situacao"] == "dentro":
+            lugar = r["local"] or r["cerca_proxima"] or "dentro de cerca"
+        elif r["situacao"] == "fora":
+            km = (r["distancia_m"] or 0) / 1000
+            perto = r["cerca_proxima"]
+            # VÍRGULA, não ponto: o rótulo vai para a tela em português, e
+            # "11.3 km" se lê como outra coisa em quem escreve 11,3.
+            lugar = (f"{km:.1f}".replace(".", ",") + f" km de {perto}"
+                     if perto and km >= 1
+                     else f"{r['distancia_m']} m de {perto}" if perto
+                     else "fora de cerca")
+        else:
+            lugar = "sem GPS"
+        alvo["batidas"].append({
+            "hora": hora, "situacao": r["situacao"], "lugar": lugar,
+            "local": r["local"], "cerca": r["cerca_proxima"],
+            "distancia_m": int(r["distancia_m"]) if r["distancia_m"] is not None else None,
+            "relogio": r["relogio"],
+            "relogio_pessoas": compart.get(r["relogio"]),
+            "atividade": r["atividade"],
+        })
+        alvo["n"] += 1
+        alvo[r["situacao"]] += 1
+        if r["situacao"] == "dentro" and lugar not in alvo["locais"]:
+            alvo["locais"].append(lugar)
+        alvo["primeira"] = alvo["primeira"] or hora
+        alvo["ultima"] = hora
+
+    ordenadas = sorted(pessoas.values(),
+                       key=lambda x: (x["ultima"] or ""), reverse=True)
+
+    # O resumo por LUGAR, que responde "onde a casa bateu hoje" sem abrir
+    # pessoa por pessoa.
+    # O FORA NÃO VIRA UM BALDE SÓ: ele se agrupa pela cerca MAIS PRÓXIMA, e é
+    # assim que um local de trabalho SEM CERCA aparece — dez pessoas batendo
+    # todo dia a 11 km da mesma unidade não são dez infrações, é uma cerca que
+    # ninguém cadastrou. Foi o que os 68 casos acima de 10 km mostraram.
+    locais: dict[str, dict] = {}
+    for pes in pessoas.values():
+        for b in pes["batidas"]:
+            if b["situacao"] == "dentro":
+                chave = b["local"] or "dentro de cerca"
+            elif b["situacao"] == "fora":
+                chave = "longe de " + (b["cerca"] or "qualquer cerca")
+            else:
+                chave = "sem GPS"
+            alvo = locais.setdefault(chave, {"local": chave, "batidas": 0,
+                                             "pessoas": set(), "situacao": b["situacao"],
+                                             "dist": []})
+            alvo["batidas"] += 1
+            alvo["pessoas"].add(pes["matricula"])
+            if b["distancia_m"] is not None:
+                alvo["dist"].append(b["distancia_m"])
+    def _mediana(v):
+        if not v:
+            return None
+        v = sorted(v)
+        return int(v[len(v) // 2])
+    resumo_local = sorted(
+        ({"local": v["local"], "situacao": v["situacao"], "batidas": v["batidas"],
+          "pessoas": len(v["pessoas"]), "distancia_m": _mediana(v["dist"])}
+         for v in locais.values()),
+        key=lambda x: -x["batidas"])
+
+    return {
+        "dia": d,
+        "data": linhas[0]["dia"].isoformat() if linhas else None,
+        "em_curso": d == "hoje",
+        "kpis": {
+            "pessoas": len(pessoas),
+            "batidas": len(linhas),
+            "dentro": sum(1 for r in linhas if r["situacao"] == "dentro"),
+            "fora": sum(1 for r in linhas if r["situacao"] == "fora"),
+            "sem_coordenada": sum(1 for r in linhas if r["situacao"] == "sem_coordenada"),
+            "primeira": ordenadas and min(p["primeira"] for p in pessoas.values()) or None,
+            "ultima": ordenadas and max(p["ultima"] for p in pessoas.values()) or None,
+        },
+        "pessoas": ordenadas,
+        "locais": resumo_local,
+        "fonte": "CÓRTEX · pc_marcacao (Ponto Certificado, coleta de 10 em 10 min)",
+    }
+
+
 def painel(dias: int = DIAS) -> dict:
     """O payload da aba. Nunca levanta por tabela ausente."""
     d = resumo(dias)

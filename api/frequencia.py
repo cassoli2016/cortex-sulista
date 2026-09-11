@@ -725,6 +725,29 @@ def get_batidas(meses: int = 12) -> dict:
 # ============================================================================
 # Snapshot do Copiloto — ESCALARES, sem PII
 # ============================================================================
+def _escalares_do_dia() -> dict:
+    """Os numeros do dia de hoje, do Ponto Certificado — ou nada.
+
+    Falha aqui NAO pode derrubar o snapshot: o modulo do fornecedor pode nem
+    estar instalado (tabela ausente devolve lista vazia por desenho), e o
+    Copiloto sem um bloco e melhor que um chat que nao abre.
+    """
+    try:
+        from api.pontocertificado import painel
+        d = painel.do_dia("hoje")
+        k = d.get("kpis", {})
+        return {
+            "hoje_pessoas_que_bateram": k.get("pessoas"),
+            "hoje_batidas": k.get("batidas"),
+            "hoje_batidas_fora_de_cerca": k.get("fora"),
+            "hoje_batidas_sem_gps": k.get("sem_coordenada"),
+            "hoje_primeira_batida": k.get("primeira"),
+            "hoje_ultima_batida": k.get("ultima"),
+        }
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 def resumo_escalares() -> dict:
     """O que o Copiloto pode saber sobre frequência.
 
@@ -748,6 +771,11 @@ def resumo_escalares() -> dict:
             "batidas_dias_de_atraso": b.get("frescor", {}).get("dias_atraso"),
             "batidas_pct_digitada_ultimo_mes": (b.get("origem") or [{}])[-1].get("pct_digitada"),
             "avisos_abertos": len(b.get("avisos") or []),
+            # O DIA, que o ERP nao sabe: o AFD dele entra por importacao
+            # manual e atrasa dias. Sai do banco da casa (`pc_marcacao`), sem
+            # tocar o fornecedor — snapshot nao dispara coleta. Escalar puro:
+            # quantos, nunca quem.
+            **_escalares_do_dia(),
         }
     except Exception:  # noqa: BLE001
         # Snapshot NUNCA derruba o Copiloto: a ausência de um bloco é melhor

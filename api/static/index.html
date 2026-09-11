@@ -7334,7 +7334,17 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
            denominador aqui e o publico com frequencia, e a tela DIZ isso no
            cabecalho — sobre 195 o percentual mentiria por um fator de dois. -->
       <section class="view" id="view-freq">
-        <div id="freq-avisos"></div>
+        <!-- NAO HA FAIXA DE AVISO NO TOPO, e e decisao de quem opera
+             (11/09/2026). As tres que viviam aqui — atraso da apuracao, DP
+             digitando, ajuste manual — repetiam o que os paineis ja dizem:
+             as duas ultimas sao KPI VERMELHO na aba Batidas, e o atraso da
+             apuracao passou para a linha do cabecalho, colado na competencia
+             que ele qualifica. Tres tarjas amarelas empilhadas antes do
+             primeiro numero viram papel de parede: quem abre a tela todo dia
+             para de le-las, e ai elas nao avisam mais nada.
+             Os avisos continuam sendo CALCULADOS no servidor (o Copiloto le
+             `avisos_abertos`) e o contador da aba Batidas continua apontando
+             para onde a evidencia esta. -->
         <div class="card">
           <div class="head"><h2>Frequência e Banco de Horas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Ponto eletrônico do ERP GLOBUS (tabelas FRQ_*), somente leitura. O público é quem tem frequência no cadastro (TEMFREQUENFUNC='S') — motorista não bate ponto e não entra em nenhum número desta tela. O saldo de banco de horas é o da competência escolhida, e o padrão é a última FECHADA: a importação do AFD é manual, então o mês em curso não é parcial, é indeterminado. O custo do passivo é uma estimativa a 50% sobre salário base ÷ 220, e a premissa aparece no rodapé do cartão.">i</span></h2>
             <span class="hint" id="freq-hint">carregando…</span>
@@ -7346,6 +7356,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div class="subtabs" role="tablist" data-abas="freq" aria-label="Seções desta tela">
           <button role="tab" id="tabfreq-passivo" data-aba="passivo" aria-controls="aba-freq-passivo" aria-selected="true" onclick="abaTrocar('freq','passivo')">Passivo</button>
+          <button role="tab" id="tabfreq-dia" data-aba="dia" aria-controls="aba-freq-dia" aria-selected="false" onclick="abaTrocar('freq','dia')">O dia <span class="aban" id="freqNDia"></span></button>
           <button role="tab" id="tabfreq-pessoas" data-aba="pessoas" aria-controls="aba-freq-pessoas" aria-selected="false" onclick="abaTrocar('freq','pessoas')">Por pessoa <span class="aban" id="freqNPess"></span></button>
           <button role="tab" id="tabfreq-batidas" data-aba="batidas" aria-controls="aba-freq-batidas" aria-selected="false" onclick="abaTrocar('freq','batidas')">Batidas <span class="aban" id="freqNBat"></span></button>
         </div>
@@ -7359,6 +7370,50 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div id="freq-conf-aviso"></div>
             <div class="tablewrap tabroll" id="freq-confronto"></div></div>
           </div>
+        <!-- O DIA: a pergunta que o ERP nao responde.
+             O AFD entra por importacao MANUAL, com mediana de 3 dias de
+             atraso — "quem bateu hoje" nao existe no Globus. Pela API do Ponto
+             Certificado a batida chega em 12 segundos, e e dai que esta aba
+             sai. Ela nao repete a apuracao: responde "o dia esta acontecendo
+             como deveria?".
+             O DIA DE HOJE ESTA EM CURSO e a aba DIZ isso: as 8h da manha quem
+             entra as 13h ainda nao bateu, e contar isso como falta seria
+             transformar o relogio em acusacao. -->
+        <div class="aba" data-abas="freq" data-aba="dia" id="aba-freq-dia" role="tabpanel" aria-labelledby="tabfreq-dia" hidden data-ao-abrir="loadFreqDia">
+          <div class="card"><div class="head"><h2>Quem bateu, e onde <span class="ihelp" tabindex="0" role="img" aria-label="como se le o lugar da batida" title="O lugar tem TRES respostas, e a mais comum e uma ausencia. DENTRO: a batida caiu numa cerca cadastrada, e o lugar tem nome. FORA: nao ha nome — o que se sabe e a distancia ate a cerca mais proxima, e e por ela que se separa cerca apertada (dezenas de metros) de local sem cerca (quilometros). SEM GPS: quase metade das batidas, e NAO e infracao — o aparelho nao mandou coordenada, e o que se sabe e o relogio em que a batida entrou. A coordenada em si nunca e guardada: a coleta a transforma em distancia e a descarta.">i</span></h2>
+            <div class="chips" id="freqDiaChips" style="margin-left:auto">
+              <button class="chip on" data-fdd="hoje" onclick="freqDiaQuando(this)">Hoje</button>
+              <button class="chip" data-fdd="ontem" onclick="freqDiaQuando(this)">Ontem</button>
+            </div>
+            <span class="hint" id="freq-dia-hint">carregando…</span></div>
+            <div class="cardfilters">
+              <input type="date" id="fFreqDiaData" onchange="freqDiaData()" aria-label="outro dia">
+              <select id="fFreqDiaSit" onchange="freqDiaPintar()" aria-label="situação da batida">
+                <option value="">Todas as situações</option>
+                <option value="dentro">Dentro da cerca</option>
+                <option value="fora">Fora da cerca</option>
+                <option value="sem_coordenada">Sem GPS</option>
+              </select>
+              <select id="fFreqDiaFil" onchange="freqDiaPintar()" aria-label="filial"><option value="">Todas as filiais</option></select>
+              <input type="search" id="fFreqDiaQ" oninput="freqDiaPintar()" placeholder="nome, matrícula ou local" aria-label="buscar">
+            </div>
+            <!-- ONDE A CASA BATEU: faixa de selos, nao um segundo card com
+                 tabela rolavel — duas tabelas de 430px empilhadas passam de
+                 1.000px, e a regua da casa e 900. Fica DENTRO do card porque
+                 e o resumo da tabela que vem abaixo, e porque fora dele
+                 custava o `gap` da aba alem do proprio espaco. -->
+            <div id="freq-dia-locais" style="display:flex;flex-wrap:wrap;gap:9px;align-items:center;padding:0 16px 14px"></div>
+            <!-- `curta` (260px) e nao a rolagem cheia (430px): com o dia
+                 INTEIRO — 82 pessoas, 284 batidas — a aba fechava em 933px, e
+                 a regua da casa e 900. A medicao com a API dublada dizia
+                 381px, porque tabela vazia nao tem altura: aba nova se mede
+                 com payload CHEIO, e foi so por isso que isto apareceu.
+                 A tabela rola por dentro, e e para isso que os filtros ao lado
+                 existem — a lista de 82 nome se navega filtrando, nao
+                 rolando. -->
+            <div class="tablewrap tabroll curta" id="freq-dia-pessoas"></div>
+            <div id="freq-dia-fonte" style="color:var(--n500);font-size:11.5px;margin-top:9px"></div></div>
+        </div>
         <div class="aba" data-abas="freq" data-aba="pessoas" id="aba-freq-pessoas" role="tabpanel" aria-labelledby="tabfreq-pessoas" hidden>
           <div class="card"><div class="head"><h2>Concentração do saldo credor</h2><span class="hint" id="freq-faixa-hint">quem deve mais folga · faixa por horas acumuladas</span></div>
             <div class="tablewrap" id="freq-faixas"></div>
@@ -9720,8 +9775,8 @@ let folhaindSeq = 0;
 let DATAFOLHAIND = null;
 let heSeq = 0;
 let DATAHE = null;
-let freqSeq = 0, freqBatSeq = 0, freqCercSeq = 0;
-let DATAFREQ = null, DATAFREQBAT = null, DATAFREQCERC = null;
+let freqSeq = 0, freqBatSeq = 0, freqCercSeq = 0, freqDiaSeq = 0;
+let DATAFREQ = null, DATAFREQBAT = null, DATAFREQCERC = null, DATAFREQDIA = null;
 let custosSeq = 0;
 let DATACUSTOS = null;
 let pecasSeq = 0;
@@ -31150,8 +31205,12 @@ function renderFreq(d){
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+ts.toLocaleDateString('pt-BR');
 
   const hint=document.getElementById('freq-hint');
+  /* O ATRASO DA APURACAO FICA COLADO NA COMPETENCIA QUE ELE QUALIFICA. Saiu
+     da faixa do topo, mas nao pode sumir: a importacao do AFD e MANUAL, e
+     sem esta linha os numeros abaixo parecem mais frescos do que sao. */
   if(hint) hint.textContent=pb.com_frequencia+' de '+pb.ativos+' ativos têm ponto · competência '+
-    (d.competencia||'—')+' · última marcação em '+(fr.ultimo_dia?fmtD(fr.ultimo_dia):'—');
+    (d.competencia||'—')+' · última marcação em '+(fr.ultimo_dia?fmtD(fr.ultimo_dia):'—')+
+    ((fr.dias_atraso||0)>2?(' · '+fr.dias_atraso+' dias sem apurar'):'');
 
   /* A JANELA DE COMPENSACAO, E O AVISO DE QUE ELA VENCEU. A data do ultimo
      fechamento e escrita a mao (o ERP nao a registra); passada a janela sem
@@ -31291,6 +31350,112 @@ async function loadFreqBatidas(){
   }catch(e){ /* a aba principal ja reporta a falha de rede */ }
 }
 
+/* ============================ O DIA ============================
+   Quem bateu hoje, a que horas e onde. O SERVIDOR resolve o dia (`hoje`,
+   `ontem` ou a data escolhida) porque e la que `marcada_em` e comparada:
+   resolver "hoje" no navegador ja devolveu o dia anterior nesta casa, com
+   `toISOString()` em UTC-3.
+   Os outros filtros — situacao, filial, busca — sao do CLIENTE, sobre as
+   linhas que ja chegaram: um dia tem algumas centenas de batidas, e ir ao
+   servidor a cada tecla so acrescentaria espera. */
+function freqDiaQuando(btn){
+  document.querySelectorAll('#freqDiaChips .chip').forEach(b=>b.classList.toggle('on', b===btn));
+  const dt=document.getElementById('fFreqDiaData'); if(dt) dt.value='';
+  loadFreqDia();
+}
+function freqDiaData(){
+  /* Data escolhida a mao DESLIGA os chips: dois controles acesos dizendo dias
+     diferentes e a origem de "o numero nao bate com o que eu pedi". */
+  document.querySelectorAll('#freqDiaChips .chip').forEach(b=>b.classList.remove('on'));
+  loadFreqDia();
+}
+function freqDiaPedido(){
+  const dt=(document.getElementById('fFreqDiaData')||{}).value;
+  if(dt) return dt;
+  const on=document.querySelector('#freqDiaChips .chip.on');
+  return on?on.dataset.fdd:'hoje';
+}
+async function loadFreqDia(){
+  const seq=++freqDiaSeq;
+  try{
+    const r=await fetch('/api/rh/frequencia/dia?dia='+encodeURIComponent(freqDiaPedido()),{cache:'no-store'});
+    const rr=await respostaJSON(r); if(seq!==freqDiaSeq) return;
+    if(!rr.ok){ showBanner('Nao foi possivel ler as batidas do dia.', rr.mensagem||''); return; }
+    DATAFREQDIA=rr.dados; freqDiaFiliais(rr.dados); freqDiaPintar();
+  }catch(e){ if(seq===freqDiaSeq) showBanner('Nao foi possivel falar com a API.', e.message); }
+}
+function freqDiaFiliais(d){
+  /* A lista de filiais sai do PROPRIO DIA, nao de um cadastro: filial sem
+     ninguem batendo hoje no seletor e uma opcao que so devolve tabela vazia. */
+  const sel=document.getElementById('fFreqDiaFil'); if(!sel) return;
+  const atual=sel.value;
+  const fs=[...new Set((d.pessoas||[]).map(p=>p.filial).filter(Boolean))].sort();
+  sel.innerHTML='<option value="">Todas as filiais</option>'+
+    fs.map(f=>'<option value="'+esc(f)+'">'+esc(f)+'</option>').join('');
+  if(fs.includes(atual)) sel.value=atual;
+}
+function freqDiaPintar(){
+  const d=DATAFREQDIA; if(!d) return;
+  const nf=(v,c)=>Number(v||0).toLocaleString('pt-BR',{maximumFractionDigits:c==null?0:c});
+  const k=d.kpis||{}, todas=d.pessoas||[];
+  const sit=(document.getElementById('fFreqDiaSit')||{}).value||'';
+  const fil=(document.getElementById('fFreqDiaFil')||{}).value||'';
+  const q=((document.getElementById('fFreqDiaQ')||{}).value||'').trim().toLowerCase();
+
+  const vis=todas.filter(p=>{
+    if(fil && p.filial!==fil) return false;
+    if(sit && !(p.batidas||[]).some(b=>b.situacao===sit)) return false;
+    if(q){
+      const alvo=((p.nome||'')+' '+(p.matricula||'')+' '+(p.filial||'')+' '+
+        (p.batidas||[]).map(b=>b.lugar).join(' ')).toLowerCase();
+      if(!alvo.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const h=document.getElementById('freq-dia-hint');
+  if(h) h.textContent=(d.data?fmtD(d.data):'\u2014')+' \u00b7 '+vis.length+' de '+todas.length+' pessoa(s)'+
+    ' \u00b7 '+nf(k.batidas)+' batidas: '+nf(k.dentro)+' dentro, '+nf(k.fora)+' fora, '
+    +nf(k.sem_coordenada)+' sem GPS'+
+    (k.primeira?(' \u00b7 das '+k.primeira+' \u00e0s '+k.ultima):'')+
+    (d.em_curso?' \u00b7 o dia ainda est\u00e1 em curso':'');
+  abaContador('freqNDia', todas.length);
+
+  const cls={dentro:'b-ok', fora:'b-dang', sem_coordenada:'b-info'};
+  const linhas=vis.map(p=>{
+    const bs=(p.batidas||[]).filter(b=>!sit||b.situacao===sit).map(b=>{
+      /* O relogio viaja no TITULO, nao no rotulo: ele so importa quando
+         alguem pergunta "de onde veio esta batida sem GPS?", e no rotulo
+         empurraria o lugar para fora da linha. */
+      const t=(b.relogio?('rel\u00f3gio '+b.relogio+(b.relogio_pessoas>1
+              ?(' \u00b7 usado por '+b.relogio_pessoas+' pessoas'):' \u00b7 aparelho individual')):'')+
+              (b.atividade?(' \u00b7 '+b.atividade):'')+
+              (b.distancia_m!=null?(' \u00b7 '+nf(b.distancia_m)+' m da cerca mais pr\u00f3xima'):'');
+      return '<span class="badge '+cls[b.situacao]+'" title="'+esc(t)+'" style="margin:0 4px 4px 0">'+
+             esc(b.hora)+' \u00b7 '+esc(b.lugar)+'</span>';
+    }).join('');
+    return '<tr><td>'+esc(p.nome||p.matricula)+
+      (p.nome?'':' <span class="badge b-warn">sem cadastro no ERP</span>')+'</td>'+
+      '<td>'+esc(p.filial||'\u2014')+'</td><td>'+esc(p.funcao||'\u2014')+'</td>'+
+      '<td class="num">'+p.n+'</td><td>'+bs+'</td></tr>';
+  }).join('')||'<tr><td colspan="5" style="color:var(--n500)">ningu\u00e9m bateu neste recorte</td></tr>';
+  document.getElementById('freq-dia-pessoas').innerHTML=
+    '<table><thead><tr><th>Pessoa</th><th>Filial</th><th>Fun\u00e7\u00e3o</th><th class="num">Batidas</th>'
+    +'<th>Hor\u00e1rio e lugar</th></tr></thead><tbody>'+linhas+'</tbody></table>';
+
+  /* A DISTANCIA VAI NO SELO DO QUE FOI REPROVADO, e e ela que separa tres
+     coisas que parecem uma so: dezenas de metros e cerca apertada; um ou dois
+     quilometros e um local de trabalho sem cerca cadastrada; cem quilometros e
+     outra cidade. Sem o numero ao lado, os tres viram "fora de cerca". */
+  const dist=m=>m==null?'':(m>=1000?(' \u00b7 ~'+nf(m/1000,1)+' km'):(' \u00b7 ~'+nf(m)+' m'));
+  document.getElementById('freq-dia-locais').innerHTML=
+    (d.locais||[]).map(l=>'<span class="badge '+cls[l.situacao]+'" style="font-size:12px;padding:5px 11px">'
+      +esc(l.local)+' <b>'+l.pessoas+'</b> pessoa'+(l.pessoas>1?'s':'')
+      +' \u00b7 '+l.batidas+' batida'+(l.batidas>1?'s':'')+esc(dist(l.distancia_m))+'</span>').join('')
+    ||'<span style="color:var(--n500)">nenhuma batida neste dia</span>';
+  const ff=document.getElementById('freq-dia-fonte'); if(ff) ff.textContent=d.fonte||'';
+}
+
 async function loadFreqCercas(){
   const seq=++freqCercSeq;
   try{
@@ -31307,9 +31472,10 @@ function renderFreqBatidas(d){
   const ogF=og.filter(o=>!o.parcial), ajF=aj.filter(a=>!a.parcial);
   const uo=ogF[ogF.length-1]||{}, ua=ajF[ajF.length-1]||{};
 
+  /* O CONTADOR FICA, A FAIXA NAO. Ele e o que chama para a aba que ninguem
+     abriria; as faixas repetiam, no topo, o que os KPIs daqui ja dizem em
+     vermelho. */
   abaContador('freqNBat', av.length);
-  document.getElementById('freq-avisos').innerHTML=av.map(a=>
-    '<div class="avisofaixa">'+esc(a.titulo)+' — <span style="font-weight:400">'+esc(a.detalhe)+'</span></div>').join('');
 
   KPIBAT.dp = kpi('Marcação digitada pelo DP', nf(uo.pct_digitada,1)+'%',
       'em '+(uo.mes||'—')+' · não veio do relógio', (uo.pct_digitada||0)>=10?'neg':'');

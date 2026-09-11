@@ -6019,6 +6019,24 @@ def rh_frequencia_cercas(dias: int = 14) -> JSONResponse:
             "mensagem": "Não foi possível ler as batidas coletadas."})
 
 
+@app.get("/api/rh/frequencia/dia")
+def rh_frequencia_dia(dia: str | None = None) -> JSONResponse:
+    """O DIA: quem bateu, a que horas e onde. `dia` = hoje | ontem | AAAA-MM-DD.
+
+    A pergunta que o ERP não responde: o AFD entra por importação manual, com
+    mediana de 3 dias de atraso, então "quem bateu hoje" não existe lá. Aqui a
+    batida chega em 12 segundos.
+    """
+    try:
+        from api.pontocertificado import painel
+        return JSONResponse({"configurado": True, **painel.do_dia(dia)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("frequencia/dia falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Não foi possível ler as batidas do dia."})
+
+
 @app.get("/api/rh/horas-extras")
 def rh_horas_extras(comp: str | None = None) -> JSONResponse:
     import re
