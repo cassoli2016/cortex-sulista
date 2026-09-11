@@ -48,6 +48,14 @@ ESQUEMA: str | None = None       # os testes redirecionam
 TTL_S = 600                      # 10 min: trânsito não muda em segundos
 TRABALHADORES = 8
 
+#: A TORRE NÃO VARRE A TOMTOM (11/09/2026). A franquia grátis de fluxo é de
+#: 20 mil consultas POR MÊS (docs.tomtom.com/pricing), e a varredura da frota
+#: gastava de 3 a 7 mil POR DIA — a de setembro acabou no dia 7 e a Torre
+#: ficaria o resto do mês sem nada. A condição por caminhão sai da velocidade
+#: da própria frota (`api/frota_movimento.py`), medida e de graça. Religar é
+#: `True`, e só com um orçamento que caiba na franquia.
+FLUXO_NA_TORRE = False
+
 _cache: tuple[float, dict] | None = None
 _lock = threading.Lock()
 
@@ -244,6 +252,17 @@ def condicao_da_frota(*, forcar: bool = False, limite: int | None = None,
                             "trânsito da TomTom desligado por decisão desde %s — %s"
                             % (d["desde_br"], d["motivo"]))
             fora["desligado"] = d
+            _cache = (time.monotonic(), fora)
+            return fora
+
+        # A TORRE NÃO VARRE A TOMTOM (`FLUXO_NA_TORRE`): a condição de cada
+        # caminhão sai da velocidade da própria frota, e nada se conta — não
+        # houve chamada. `fonte_principal` diz à tela que isto não é reserva.
+        if not FLUXO_NA_TORRE:
+            fora = _reserva(placas, alvos, sem_posicao, posicoes_atuais,
+                            "a franquia grátis de fluxo da TomTom (20 mil consultas "
+                            "por mês) não comporta varrer a frota")
+            fora["fonte_principal"] = "frota"
             _cache = (time.monotonic(), fora)
             return fora
 

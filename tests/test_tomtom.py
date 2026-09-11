@@ -288,6 +288,9 @@ def coleta_isolada(monkeypatch, cofre):
     credenciais.gravar("TOMTOM_API_KEY", "chave-de-teste-aaaaaaaa")
     monkeypatch.setattr(coleta, "_cache", None)
     monkeypatch.setattr(coleta, "registrar", lambda *a, **k: None)
+    # a VARREDURA da TomTom é o assunto aqui; por padrão a Torre não a faz
+    # (`coleta.FLUXO_NA_TORRE`, 11/09/2026)
+    monkeypatch.setattr(coleta, "FLUXO_NA_TORRE", True)
     # Sem chave (ou sem crédito) a Torre cai na RESERVA pela velocidade da
     # frota, que lê o ERP — e nenhum teste consulta o ERP de verdade.
     from api import frota_movimento

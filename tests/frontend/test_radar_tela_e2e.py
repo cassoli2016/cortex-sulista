@@ -91,7 +91,9 @@ def test_a_rodovia_fechada_aparece_com_o_corredor(pagina):
     lista = pg.inner_text("#rd-rod-lista")
     assert "BR-101" in lista and "Via fechada" in lista
     assert "Curitiba" in lista
-    assert pg.inner_text("#rd-n-rodoc") == str(len(PAYLOAD["rodovias"]["itens"]))
+    # o contador soma as ocorrências da TomTom e os caminhões LENTOS da frota
+    assert pg.inner_text("#rd-n-rodoc") == str(len(PAYLOAD["rodovias"]["itens"])
+                                                + PAYLOAD["frota"]["lentos"])
 
 
 # ---------------------------------------------------- a página de TODO mundo
@@ -135,8 +137,25 @@ def test_TomTom_SEM_CREDITO_diz_o_motivo_e_abre_as_interdicoes(pagina):
     _abrir(pg, base, payload=p)
     txt = pg.inner_text("#rd-rod-lista")
     assert "sem créditos" in txt and "ainda não chegou" not in txt
-    assert pg.get_attribute("#tabradarrod-int", "aria-selected") == "true"
     assert pg.locator("#rd-tarja").is_hidden(), "não há dado velho na tela para a tarja acusar"
+    # COM A FROTA MEDINDO, O CARTÃO FICA NAS OCORRÊNCIAS e mostra a lentidão
+    # dos nossos caminhões (11/09/2026: "quero que apareça e esteja certo").
+    bruto = pg.text_content("#rd-rod-lista")    # inner_text segue o text-transform do CSS
+    assert "Nossa frota nos corredores" in bruto and "1 lento" in bruto
+    assert pg.get_attribute("#tabradarrod-oc", "aria-selected") == "true"
+
+
+def test_sem_TomTom_e_sem_frota_abre_as_interdicoes(pagina):
+    """Nada ao vivo de fonte nenhuma: aí a aba que tem dado abre sozinha."""
+    pg, base = pagina
+    p = copy.deepcopy(PAYLOAD)
+    p["rodovias"].update(itens=[], bloqueios=0)
+    p["coleta"]["rodovias"].update(estado="erro", ok=False, sucesso_em=None,
+                                      erro="TomTom sem créditos no produto de trânsito")
+    p["frota"] = {"corredores": [], "coletado_em": None, "caminhoes": 0, "lentos": 0}
+    _abrir(pg, base, payload=p)
+    assert pg.get_attribute("#tabradarrod-int", "aria-selected") == "true"
+    assert "sem créditos" in pg.inner_text("#rd-rod-lista")
 
 
 def test_tudo_em_dia_NAO_mostra_tarja(pagina):
@@ -163,6 +182,8 @@ def test_transito_DESLIGADO_por_decisao_diz_a_decisao_e_abre_as_interdicoes(pagi
         "desde": "2026-09-11", "desde_br": "11/09/2026",
         "motivo": "sem crédito no produto de trânsito, e a decisão foi não recarregar"})
     p["coleta"].pop("rodovias")
+    # sem a frota medindo: é o caso em que a aba de ocorrências não tem o que mostrar
+    p["frota"] = {"corredores": [], "coletado_em": None, "caminhoes": 0, "lentos": 0}
     erros = _abrir(pg, base, payload=p)
     txt = pg.inner_text("#rd-rod-lista")
     assert "desligadas por decisão desde 11/09/2026" in txt
@@ -178,10 +199,28 @@ def test_transito_DESLIGADO_por_decisao_diz_a_decisao_e_abre_as_interdicoes(pagi
     assert "por decisão" in pg.inner_text("#rd-rod-hint"), "a decisão vai para o cabeçalho"
     assert pg.locator("#rd-feed-rodovias a.rd-item").first.is_visible()
     pg.evaluate("() => { RD.rodAuto = true; abaTrocar('radarrod', 'oc');"
-                " rdRodovias(RD.d.rodovias, RD.d.noticias.rodovias); }")
+                " rdRodovias(RD.d.rodovias, RD.d.noticias.rodovias, RD.d.frota); }")
     assert pg.get_attribute("#tabradarrod-int", "aria-selected") == "true", (
         "com a troca automática já usada, a recarga deixava o cartão na aba vazia")
     assert pg.locator("#rd-feed-rodovias a.rd-item").first.is_visible()
+
+
+def test_transito_DESLIGADO_com_a_FROTA_medindo_a_aba_fica_e_mostra_a_frota(pagina):
+    """Com a nossa frota medindo, a aba de ocorrências tem o que mostrar mesmo
+    com a TomTom desligada — e a decisão fica dita numa linha."""
+    pg, base = pagina
+    p = copy.deepcopy(PAYLOAD)
+    p["rodovias"].update(configurado=False, itens=[], bloqueios=0, desligado={
+        "desde": "2026-09-11", "desde_br": "11/09/2026", "motivo": "teste"})
+    p["coleta"].pop("rodovias")
+    _abrir(pg, base, payload=p)
+    assert pg.locator("#tabradarrod-oc").is_visible()
+    assert pg.get_attribute("#tabradarrod-oc", "aria-selected") == "true"
+    txt = pg.inner_text("#rd-rod-lista")
+    bruto = pg.text_content("#rd-rod-lista")    # inner_text segue o text-transform do CSS
+    assert "Nossa frota nos corredores" in bruto and "1 lento" in bruto
+    assert "desligadas por decisão" in txt
+    assert "nenhum caminhão nosso no corredor agora" in txt, "corredor vazio diz isso, não 'livre'"
 
 
 def test_com_o_transito_LIGADO_as_duas_abas_continuam(pagina):
@@ -280,7 +319,8 @@ def test_cabe_em_UMA_tela_NO_LIMITE_e_a_rolagem_e_de_quem_segura(pagina):
     _abrir(pg, base, payload=_no_limite())
     pg.wait_for_selector("#chartRadarBrent svg", timeout=20000)
     assert pg.locator("#rd-feed-trc a.rd-item").count() == 15
-    assert pg.locator("#rd-rod-lista .rd-rod").count() == OCORRENCIAS_NO_LIMITE
+    # as linhas da TomTom (a frota vem antes, com as dela)
+    assert pg.locator("#rd-rod-lista .rd-rod.rd-oc").count() == OCORRENCIAS_NO_LIMITE
     razoes = {}
     for caixa, aba in _CAIXAS:
         if aba:

@@ -10,8 +10,11 @@ A CADÊNCIA É DE CADA FONTE, e sai do ritmo dela, não do relógio da thread:
   que a própria fonte já tem. Só a primeira carga pede dois anos de série; as
   seguintes pedem um mês (a série antiga não muda);
 - a PTAX sai uma vez por dia útil, ao fim da tarde. Três horas;
-- rodovias: 20 minutos, e o limite é o CUSTO da TomTom, não a vontade de
-  saber (`rodovias.py`);
+- rodovias (TomTom): 90 minutos, e o limite é a FRANQUIA GRÁTIS, que é
+  mensal — 2.500 consultas, com teto conferido antes de cada passada
+  (`rodovias.py`);
+- frota (a lentidão medida pelos nossos caminhões nos mesmos corredores): todo
+  ciclo, porque a consulta é ao nosso ERP (`frota.py`);
 - notícia é o que envelhece em horas: meia hora (reforma e ANTT, uma).
 
 A thread acorda de dez em dez minutos e só busca a fonte VENCIDA — o que está
@@ -34,7 +37,7 @@ import logging
 from datetime import date, datetime, timedelta, timezone
 
 from .. import pglocal
-from . import fontes, rodovias
+from . import fontes, frota, rodovias
 
 log = logging.getLogger("cortex.radar.coleta")
 
@@ -49,7 +52,12 @@ CADENCIA_S: dict[str, int] = {
     "brent": 540,
     "dolar": 540,
     "ptax": 3 * 3600,
-    "rodovias": 20 * 60 - 60,
+    # 90 min, e não 20: a franquia grátis de ocorrências da TomTom é de 2.500
+    # consultas POR MÊS (`rodovias.TETO_MES`), e quatro corredores a cada 20
+    # minutos a gastariam em nove dias.
+    "rodovias": 90 * 60 - 60,
+    # A frota é nossa e a consulta é ao ERP: todo ciclo, como o preço de agora.
+    "frota": 540,
     **{f"noticias_{t}": 30 * 60 - 60 for t in fontes.TEMAS},
     "noticias_reforma": 60 * 60 - 60,
     "noticias_antt": 60 * 60 - 60,
@@ -263,11 +271,31 @@ def _noticias(tema: str, baixar, esquema) -> dict:
             "dado_ate": max(i["publicada_em"] for i in novas).date() if novas else None}
 
 
-def _plano(baixar, esquema, consultar_tomtom=None) -> list[tuple[str, object]]:
+def _frota(esquema, ler_frota=None) -> dict:
+    """O RETRATO da nossa frota nos corredores (`frota.py`), substituído
+    inteiro numa transação. Sem caminhão nenhum nos corredores (madrugada), o
+    retrato zerado é gravado: é a resposta verdadeira. Falha levanta ANTES da
+    transação, e o retrato anterior fica."""
+    linhas = (ler_frota or frota.ler)()
+    with pglocal.get_conn(esquema) as c:
+        c.execute("DELETE FROM rad_frota")
+        with c.cursor() as cur:
+            cur.executemany(
+                """INSERT INTO rad_frota (regiao, caminhoes, andando, lentos, parados,
+                     indefinidos, lento_max_min, vel_lentos)
+                   VALUES (%(regiao)s, %(caminhoes)s, %(andando)s, %(lentos)s,
+                           %(parados)s, %(indefinidos)s, %(lento_max_min)s,
+                           %(vel_lentos)s)""", linhas)
+    return {"itens": sum(l["caminhoes"] for l in linhas), "dado_ate": _agora().date()}
+
+
+def _plano(baixar, esquema, consultar_tomtom=None,
+           ler_frota=None) -> list[tuple[str, object]]:
     plano = [("anp", lambda: _anp(baixar, esquema)),
              ("brent", lambda: _mercado("brent", baixar, esquema)),
              ("dolar", lambda: _mercado("dolar", baixar, esquema)),
-             ("ptax", lambda: _ptax(baixar, esquema))]
+             ("ptax", lambda: _ptax(baixar, esquema)),
+             ("frota", lambda: _frota(esquema, ler_frota))]
     # Sem TomTom a fonte nem entra no plano: não é falha, é recurso que a
     # instalação não tem — e registrá-la como erro a cada 20 min pintaria a
     # Saúde de vermelho por um motivo que ninguém precisa consertar.
@@ -280,20 +308,21 @@ def _plano(baixar, esquema, consultar_tomtom=None) -> list[tuple[str, object]]:
 
 
 def coletar(esquema: str | None = None, forcar: bool = False, baixar=None,
-            so: set[str] | None = None, consultar_tomtom=None) -> dict[str, str]:
+            so: set[str] | None = None, consultar_tomtom=None,
+            ler_frota=None) -> dict[str, str]:
     """Uma passada por todas as fontes vencidas. `{fonte: ok|erro|no_prazo}`.
 
     Uma fonte que falha não impede as outras, e NUNCA levanta para quem chamou
     por causa de uma delas — a thread que chama isto não pode morrer porque o
-    gov.br teve uma manhã ruim. `baixar` e `consultar_tomtom` existem para o
-    teste: nenhum teste sai para a rede.
+    gov.br teve uma manhã ruim. `baixar`, `consultar_tomtom` e `ler_frota`
+    existem para o teste: nenhum teste sai para a rede nem consulta o ERP.
     """
     esq = _esq(esquema)
     baixar = baixar or fontes.baixar
     est = estado(esq)
     agora = _agora()
     resultado: dict[str, str] = {}
-    for fonte, fn in _plano(baixar, esq, consultar_tomtom):
+    for fonte, fn in _plano(baixar, esq, consultar_tomtom, ler_frota):
         if so is not None and fonte not in so:
             continue
         if not forcar and not _vencida(fonte, est, agora):

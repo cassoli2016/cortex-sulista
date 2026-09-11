@@ -119,23 +119,20 @@ def _frear(familia: str) -> None:
     _FREIO[familia] = (time.monotonic() + FREIO_S, datetime.now())
 
 
-#: O TRÂNSITO DA TOMTOM ESTÁ DESLIGADO POR DECISÃO — não por falha, e é por
-#: isso que mora aqui e não no freio. Em 11/09/2026 o produto de trânsito ficou
-#: sem crédito (InsufficientFunds) e quem opera decidiu NÃO recarregar. O freio
-#: serve à falta que vai ser consertada ("tentar de novo daqui a uma hora");
-#: para a que não vai, ele deixava a Saúde e o Radar vermelhos para sempre,
-#: acusando uma coisa que ninguém vai consertar — e vermelho permanente ensina
-#: a ignorar o vermelho. Desligado: nenhuma chamada de trânsito sai daqui (nem
-#: pelo navegador — a TV deixa de pedir a camada e as ocorrências), a Torre e a
-#: TV usam a velocidade da própria frota (`api/frota_movimento.py`), e os
-#: cartões dizem a decisão, em azul. Rotas (ETA) e busca são OUTROS produtos,
-#: com crédito próprio, e seguem como estão.
+#: O INTERRUPTOR DO TRÂNSITO DA TOMTOM. Preenchido (`desde`, `motivo`), é o
+#: trânsito DESLIGADO POR DECISÃO: nenhuma chamada sai daqui, Torre e TV usam
+#: a velocidade da própria frota e os cartões dizem a decisão, em azul, em vez
+#: de acusar uma falha que ninguém vai consertar.
 #:
-#: PARA RELIGAR (crédito recarregado): `TRAFEGO_DESLIGADO = None`.
-TRAFEGO_DESLIGADO: dict | None = {
-    "desde": "2026-09-11",
-    "motivo": "sem crédito no produto de trânsito, e a decisão foi não recarregar",
-}
+#: FOI DESLIGADO E RELIGADO NO MESMO DIA, e a história ensina. Em 11/09/2026 o
+#: produto de trânsito respondeu "sem crédito" e ele foi desligado; horas
+#: depois quem opera pediu de volta ("não quero que desligue, quero que apareça
+#: e esteja certo"), e o diagnóstico mudou: a franquia grátis é MENSAL (20 mil
+#: fluxos e 2.500 ocorrências, docs.tomtom.com/pricing) e a Torre a gastou em
+#: uma semana. Voltou com ORÇAMENTO — a Torre não varre mais a TomTom
+#: (`coleta.FLUXO_NA_TORRE`), o Radar consulta a cada 90 min com teto do mês
+#: (`api/radar/rodovias.TETO_MES`), e a TV lê o Radar.
+TRAFEGO_DESLIGADO: dict | None = None
 
 
 class TomTomDesligado(TomTomFreado):

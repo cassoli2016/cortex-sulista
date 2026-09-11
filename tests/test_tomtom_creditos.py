@@ -147,6 +147,8 @@ def varredura(cofre, monkeypatch):
     from api import frota_movimento
     from api.tomtom import coleta
     monkeypatch.setattr(coleta, "_cache", None)
+    # a VARREDURA é o assunto; por padrão a Torre não varre (FLUXO_NA_TORRE)
+    monkeypatch.setattr(coleta, "FLUXO_NA_TORRE", True)
     registros = []
     monkeypatch.setattr(coleta, "registrar", lambda *a, **k: registros.append((a, k)))
     # Sem crédito a Torre cai na RESERVA pela velocidade da frota, que lê o
@@ -242,6 +244,18 @@ def test_o_painel_de_TV_pede_30_min_e_SE_IDENTIFICA():
             / "index.html").read_text(encoding="utf-8")
     assert "/api/operacao/torre/estradas?tolerancia=1800&origem=tv" in html
     assert "estradas?tolerancia=1200" not in html
+
+
+def test_a_TV_NAO_consulta_ocorrencias_da_TomTom_pelo_navegador():
+    """11/09/2026: cada TV ligada consultava quatro caixas de ocorrências a
+    cada recarga, da franquia grátis de 2.500 POR MÊS — fora de qualquer teto
+    do servidor. O ticker lê o Radar, que consulta uma vez para todo mundo."""
+    from pathlib import Path
+    html = (Path(__file__).resolve().parent.parent / "api" / "static"
+            / "index.html").read_text(encoding="utf-8")
+    assert "traffic/services/5/incidentDetails" not in html
+    ini = html.index("async function tvEstradas(")
+    assert "fetch('/api/radar'" in html[ini:ini + 600]
 
 
 def test_o_radar_diz_SEM_CREDITO_e_nao_o_nome_da_excecao():

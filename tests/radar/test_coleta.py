@@ -12,7 +12,7 @@ from api import pglocal
 from api.radar import coleta, fontes
 from tests.radar.conftest import TomTom, ler
 
-TODAS = {"anp", "brent", "dolar", "ptax", "rodovias",
+TODAS = {"anp", "brent", "dolar", "ptax", "rodovias", "frota",
          *[f"noticias_{t}" for t in fontes.TEMAS]}
 
 

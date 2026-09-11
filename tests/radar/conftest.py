@@ -142,6 +142,23 @@ def _sem_rede_de_verdade(monkeypatch):
     # no dia em que alguém religasse o trânsito.
     from api.tomtom import cliente
     monkeypatch.setattr(cliente, "TRAFEGO_DESLIGADO", None)
+    # A FROTA É DO ERP, e nenhum teste do Radar consulta o ERP: a coleta de
+    # toda passada lê este dublê — um caminhão andando e um lento em Curitiba,
+    # um parado em Joinville. Quem testa a leitura de verdade chama `frota.ler`
+    # com as entradas na mão (test_frota.py).
+    from api.radar import frota
+    viagens = [{"placa": "RAD0A01"}, {"placa": "RAD0A02"}, {"placa": "RAD0A03"}]
+    posicoes = {"posicoes": {
+        "RAD0A01": {"lat": -25.43, "lon": -49.27, "fonte": "erp", "idade_min": 2.0},
+        "RAD0A02": {"lat": -25.50, "lon": -49.20, "fonte": "erp", "idade_min": 2.0},
+        "RAD0A03": {"lat": -26.30, "lon": -48.85, "fonte": "erp", "idade_min": 3.0}}}
+    velocidades = {"RAD0A01": (70, 72, 75), "RAD0A02": (30, 22, 18), "RAD0A03": (0, 0, 0)}
+
+    def serie(placas, agora):
+        return {pl: [(agora - timedelta(minutes=m), float(v))
+                     for m, v in zip((12, 6, 1), velocidades[pl])] for pl in placas}
+    monkeypatch.setattr(frota, "_entradas", lambda: (viagens, posicoes))
+    monkeypatch.setattr(frota, "_serie", serie)
 
 
 class Relogio:

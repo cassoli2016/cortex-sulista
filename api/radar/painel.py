@@ -34,6 +34,7 @@ ROTULO_FONTE: dict[str, str] = {
     "dolar": "Dólar (Yahoo)",
     "ptax": "PTAX (Banco Central)",
     "rodovias": "Rodovias (TomTom)",
+    "frota": "Rodovias (nossa frota)",
     **{f"noticias_{t}": "Notícias · " + c["rotulo"] for t, c in fontes.TEMAS.items()},
 }
 
@@ -46,7 +47,9 @@ LIMITE_ALERTA_S: dict[str, int] = {
     "ptax": 26 * 3600,
     "brent": 40 * 60,
     "dolar": 40 * 60,
-    "rodovias": 70 * 60,
+    # a cadência das ocorrências é de 90 min (a franquia da TomTom é mensal)
+    "rodovias": 100 * 60,
+    "frota": 40 * 60,
     **{f"noticias_{t}": 2 * 3600 for t in fontes.TEMAS},
     "noticias_reforma": 3 * 3600,
     "noticias_antt": 3 * 3600,
@@ -187,6 +190,29 @@ def _rodovias(esq) -> dict:
                            for k in rotulos]}
 
 
+def _frota(esq) -> dict:
+    """A nossa frota nos corredores — só contagem, nunca placa (`frota.py`)."""
+    linhas = pglocal.query(
+        """SELECT regiao, caminhoes, andando, lentos, parados, indefinidos,
+                  lento_max_min, vel_lentos, coletado_em
+             FROM rad_frota""", esquema=esq)
+    if not linhas:
+        return {"corredores": [], "coletado_em": None, "caminhoes": 0, "lentos": 0}
+    por = {l["regiao"]: l for l in linhas}
+    corredores = []
+    for chave, rotulo, *_caixa in rodovias.CORREDORES:
+        l = por.get(chave) or {}
+        corredores.append({
+            "regiao": chave, "rotulo": rotulo,
+            **{k: int(l.get(k) or 0)
+               for k in ("caminhoes", "andando", "lentos", "parados", "indefinidos")},
+            "lento_max_min": l.get("lento_max_min"), "vel_lentos": l.get("vel_lentos")})
+    return {"corredores": corredores,
+            "coletado_em": _d(max(l["coletado_em"] for l in linhas)),
+            "caminhoes": sum(c["caminhoes"] for c in corredores),
+            "lentos": sum(c["lentos"] for c in corredores)}
+
+
 def _chave_titulo(t: str) -> str:
     n = unicodedata.normalize("NFD", t or "")
     return " ".join("".join(c for c in n if unicodedata.category(c) != "Mn").lower().split())
@@ -268,6 +294,7 @@ def painel(esquema: str | None = None) -> dict:
         "dolar": _mercado(esq, "dolar", 0),
         "ptax": _ptax(esq),
         "rodovias": _rodovias(esq),
+        "frota": _frota(esq),
         "noticias": _noticias(esq),
         "coleta": estado,
     }
@@ -312,7 +339,8 @@ def cartao_saude(esquema: str | None = None) -> dict:
     pior = min((e["estado"] for e in medidas.values()), key=lambda s: _PESO.get(s, 2))
     partes = []
     for f, rot in (("anp", "diesel até"), ("brent", "Brent"), ("dolar", "dólar"),
-                   ("ptax", "PTAX até"), ("rodovias", "rodovias")):
+                   ("ptax", "PTAX até"), ("rodovias", "rodovias"),
+                   ("frota", "frota nos corredores")):
         e = medidas.get(f)
         if not e:
             continue
@@ -373,6 +401,10 @@ def resumo_copiloto(esquema: str | None = None) -> dict:
     rod = p["rodovias"]
     r["rodovias_ocorrencias_agora"] = len(rod["itens"]) if rod["configurado"] else None
     r["rodovias_bloqueios_agora"] = rod["bloqueios"] if rod["configurado"] else None
+    # A NOSSA FROTA NOS CORREDORES, só em contagem: nenhuma placa sai daqui.
+    fr = p["frota"]
+    r["rodovias_frota_caminhoes_agora"] = fr["caminhoes"] if fr["coletado_em"] else None
+    r["rodovias_frota_lentos_agora"] = fr["lentos"] if fr["coletado_em"] else None
     for tema, n in p["noticias"].items():
         r[f"manchetes_{tema}"] = " | ".join(i["titulo"] for i in n["itens"][:3]) or None
     return r

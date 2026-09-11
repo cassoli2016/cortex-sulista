@@ -636,6 +636,25 @@
    ]
   }
  },
+ "frota": {
+  "corredores": [
+   {"regiao": "curitiba", "rotulo": "Curitiba · BR-116 / BR-376 · litoral do PR",
+    "caminhoes": 3, "andando": 1, "lentos": 1, "parados": 1, "indefinidos": 0,
+    "lento_max_min": 14, "vel_lentos": 22},
+   {"regiao": "grande_sp", "rotulo": "Grande SP · Anchieta / Imigrantes",
+    "caminhoes": 0, "andando": 0, "lentos": 0, "parados": 0, "indefinidos": 0,
+    "lento_max_min": null, "vel_lentos": null},
+   {"regiao": "dutra", "rotulo": "Vale do Paraíba · Dutra",
+    "caminhoes": 2, "andando": 2, "lentos": 0, "parados": 0, "indefinidos": 0,
+    "lento_max_min": null, "vel_lentos": null},
+   {"regiao": "joinville", "rotulo": "Joinville · Itajaí · BR-101 SC",
+    "caminhoes": 1, "andando": 0, "lentos": 0, "parados": 1, "indefinidos": 0,
+    "lento_max_min": null, "vel_lentos": null}
+  ],
+  "coletado_em": "2026-09-11T12:00:00-03:00",
+  "caminhoes": 6,
+  "lentos": 1
+ },
  "coleta": {
   "anp": {
    "rotulo": "Diesel (ANP)",
@@ -690,6 +709,17 @@
    "idade_s": 0,
    "erro": null,
    "itens": 8,
+   "dado_ate": "2026-09-11"
+  },
+  "frota": {
+   "rotulo": "Rodovias (nossa frota)",
+   "estado": "ok",
+   "ok": true,
+   "sucesso_em": "2026-09-11T12:00:00-03:00",
+   "tentativa_em": "2026-09-11T12:00:00-03:00",
+   "idade_s": 0,
+   "erro": null,
+   "itens": 6,
    "dado_ate": "2026-09-11"
   },
   "noticias_trc": {

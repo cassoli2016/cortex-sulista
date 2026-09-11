@@ -2,18 +2,18 @@
 """Ocorrências AGORA nos corredores da operação, pela TomTom.
 
 OS CORREDORES SÃO OS DO PAINEL DE TV, e não uma lista nova. O ticker da TV da
-Operação (`TV_BBOXES` no `index.html`) já consultava estes quatro — Curitiba e
-a BR-376, a Grande SP, a Dutra e o eixo Joinville–Itajaí da BR-101 —, e dois
-recortes diferentes de "situação das rodovias" em duas telas dariam duas
-respostas para a mesma pergunta.
+Operação já consultava estes quatro — Curitiba e a BR-376, a Grande SP, a
+Dutra e o eixo Joinville–Itajaí da BR-101 —, e dois recortes diferentes de
+"situação das rodovias" em duas telas dariam duas respostas para a mesma
+pergunta. Desde 11/09/2026 o ticker lê o Radar, e as caixas moram só aqui.
 
-A DIFERENÇA É QUEM PAGA A CONSULTA. Lá, cada TV aberta consulta a TomTom do
-próprio navegador. Aqui a página inicial é aberta por TODO MUNDO, e uma
-consulta por abertura multiplicaria o gasto pelo número de pessoas logadas —
-contra um teto de plano que a TomTom não mostra em resposta nenhuma
-(`api/tomtom/coleta.py`). Então a consulta é do SERVIDOR, no relógio do Radar:
-quatro chamadas a cada 20 minutos (~290 por dia), contadas em `tt_chamadas`
-como `radar_incidentes` e visíveis na Saúde junto com o resto do consumo.
+QUEM PAGA A CONSULTA É O SERVIDOR, e só ele. A página inicial é aberta por
+TODO MUNDO, e uma consulta por abertura multiplicaria o gasto pelo número de
+pessoas logadas; a TV também consultava do próprio navegador, e desde
+11/09/2026 lê o Radar. A franquia grátis de ocorrências é de 2.500 consultas
+POR MÊS (`TETO_MES`): quatro chamadas a cada 90 minutos (~64 por dia),
+contadas em `tt_chamadas` como `radar_incidentes`, com o teto conferido ANTES
+de cada passada. A lentidão de agora vem da nossa frota (`frota.py`).
 
 O FILTRO É O MESMO CRITÉRIO DO TICKER, um pouco mais largo: só rodovia
 NUMERADA (fechamento de rua domina a contagem bruta e não muda viagem de
@@ -27,7 +27,7 @@ log = logging.getLogger("cortex.radar.rodovias")
 
 #: (chave, rótulo, oeste, sul, leste, norte) — a ordem da TomTom é lon/lat, e
 #: trocá-la devolve uma caixa no oceano com ZERO ocorrências, indistinguível
-#: de "estrada livre". Os números são os do `TV_BBOXES`.
+#: de "estrada livre". São as mesmas caixas da lentidão da frota (`frota.py`).
 CORREDORES: tuple[tuple[str, str, float, float, float, float], ...] = (
     ("curitiba", "Curitiba · BR-116 / BR-376 · litoral do PR", -49.9, -26.1, -48.4, -24.8),
     ("grande_sp", "Grande SP · Anchieta / Imigrantes", -47.3, -24.1, -45.9, -23.1),
@@ -36,6 +36,39 @@ CORREDORES: tuple[tuple[str, str, float, float, float, float], ...] = (
 )
 
 MAGNITUDES_QUE_CONTAM = {"moderada", "grande"}
+
+#: A FRANQUIA GRÁTIS DE OCORRÊNCIAS DA TOMTOM É DE 2.500 CONSULTAS POR MÊS
+#: (docs.tomtom.com/pricing, lida em 11/09/2026) — MENSAL, não diária: a de
+#: fluxo acabou em 07/09 com a Torre gastando de 3 a 7 mil por dia. O Radar é
+#: o único que consulta ocorrências (a TV lê o Radar): quatro corredores a cada
+#: 90 minutos são 64 por dia, ~2.000 num mês de 31 dias. O teto fica ABAIXO da
+#: franquia, e conta o que saiu para a rede (`tt_chamadas`).
+TETO_MES = 2300
+
+
+class OrcamentoEsgotado(RuntimeError):
+    """O Radar já gastou a parte dele da franquia do mês: não se consulta, e a
+    tela diz isso — em vez de gastar a franquia inteira no dia 20 e passar o
+    resto do mês recebendo recusa."""
+
+    def __init__(self, gastas: int):
+        super().__init__(f"{gastas} consultas de ocorrências da TomTom no mês; "
+                         f"o teto é {TETO_MES}")
+        self.rotulo_curto = (f"franquia do mês da TomTom atingida "
+                             f"({gastas} de {TETO_MES} consultas)")
+
+
+def gastas_no_mes(esquema: str | None = None, hoje=None) -> int:
+    """Consultas de ocorrências do Radar desde o dia 1º (`tt_chamadas`)."""
+    from datetime import date
+
+    from .. import pglocal
+    hoje = hoje or date.today()
+    l = pglocal.um(
+        "SELECT coalesce(sum(chamadas), 0)::int AS n FROM tt_chamadas "
+        "WHERE recurso = 'radar_incidentes' AND dia >= %s",
+        (hoje.replace(day=1),), esquema=esquema)
+    return int((l or {}).get("n") or 0)
 
 
 def desligado() -> dict | None:
@@ -86,6 +119,11 @@ def consultar(consultar_tomtom=None, esquema: str | None = None) -> dict:
     from ..tomtom import transito
     consultar_tomtom = consultar_tomtom or _consultar_tomtom
     from ..tomtom import cliente as tt_cliente
+    # O TETO DO MÊS VEM ANTES DE QUALQUER CHAMADA: estourá-lo não dá erro
+    # nenhum na hora — dá o resto do mês sem ocorrência, como em setembro.
+    gastas = gastas_no_mes(esquema)
+    if gastas + len(CORREDORES) > TETO_MES:
+        raise OrcamentoEsgotado(gastas)
     itens, brutos, falhas, freados, ultima = [], 0, 0, 0, None
     for chave, rotulo, oeste, sul, leste, norte in CORREDORES:
         try:

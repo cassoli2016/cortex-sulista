@@ -121,6 +121,9 @@ def torre(tmp_path, monkeypatch):
     monkeypatch.setattr(cliente, "TRAFEGO_DESLIGADO", None)
     monkeypatch.setattr(coleta, "_cache", None)
     monkeypatch.setattr(coleta, "registrar", lambda *a, **k: None)
+    # a reserva por FALHA da varredura é o assunto; por padrão a Torre nem
+    # varre (`coleta.FLUXO_NA_TORRE`), e isso tem teste próprio abaixo
+    monkeypatch.setattr(coleta, "FLUXO_NA_TORRE", True)
     monkeypatch.setattr(fm, "serie", lambda placas, agora=None, janela_min=45: {
         "AAA0A00": serie(30, 20, 15, fim_ha_min=1),
         "BBB1B11": serie(0, 0, 0, fim_ha_min=1)})
@@ -163,6 +166,17 @@ def test_SEM_CHAVE_a_reserva_responde(torre, monkeypatch):
     r = coleta.condicao_da_frota(viagens=VIAGENS, posicoes_atuais=POSICOES)
     assert r["reserva"] is True and r["configurado"] is False
     assert len(r["trechos"]) == 2
+
+
+def test_por_padrao_a_torre_NAO_varre_a_TomTom(torre, monkeypatch):
+    """11/09/2026: a franquia grátis de fluxo é de 20 mil por MÊS e a varredura
+    gastava de 3 a 7 mil por DIA. A Torre fica com a velocidade da frota."""
+    monkeypatch.setattr(coleta, "FLUXO_NA_TORRE", False)
+    monkeypatch.setattr(cliente, "fluxo", lambda *a, **k: pytest.fail("varreu a TomTom"))
+    r = coleta.condicao_da_frota(viagens=VIAGENS, posicoes_atuais=POSICOES)
+    assert r["fonte_principal"] == "frota" and "20 mil" in r["reserva_motivo"]
+    assert {t["placa"]: t["estado"] for t in r["trechos"]} == {
+        "AAA0A00": "lento", "BBB1B11": "parado"}
 
 
 def test_com_a_TomTom_respondendo_NAO_ha_reserva(torre, monkeypatch):

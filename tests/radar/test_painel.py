@@ -125,11 +125,12 @@ def test_transito_DESLIGADO_nao_pinta_a_saude_nem_publica_o_retrato_velho(
     velha lida como de agora."""
     from api.tomtom import cliente
     from tests.radar.conftest import TomTom
-    # O retrato das rodovias é de QUATRO HORAS atrás, e desde então toda
-    # tentativa falhou — uma falha logo depois do sucesso ainda está no prazo,
-    # e não acenderia nada. As outras fontes são de agora.
+    # O retrato das rodovias é de SEIS HORAS atrás (o erro acende no triplo do
+    # alerta de 100 min), e desde então toda tentativa falhou — uma falha logo
+    # depois do sucesso ainda está no prazo, e não acenderia nada. As outras
+    # fontes são de agora.
     coleta.coletar(esquema=esquema_pg, baixar=rede, consultar_tomtom=tomtom, so={"rodovias"})
-    relogio.andar(hours=4)
+    relogio.andar(hours=6)
     coleta.coletar(esquema=esquema_pg, baixar=rede, consultar_tomtom=TomTom(falhar=True),
                    forcar=True)
     antes = painel.cartao_saude(esquema_pg)

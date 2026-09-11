@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.54.0] — 11/09/2026  ·  CX-11/09/2026-v1.54.0
+
+### Adicionado
+- No cartão Rodovias agora, da página inicial, a situação ao vivo volta a aparecer, medida pelos nossos próprios caminhões. Para cada corredor (Curitiba, Grande SP, Dutra e Joinville), o cartão mostra quantos caminhões nossos estão lá agora, quantos andam, quantos estão LENTOS (há quanto tempo e a que velocidade) e quantos estão parados — sem placa.
+
+### Alterado
+- O trânsito da TomTom foi religado, com orçamento. A franquia grátis dela é MENSAL (20 mil consultas de fluxo e 2.500 de ocorrências), e a Torre de Controle a gastava em uma semana. Agora a Torre usa só a velocidade da frota, o Radar consulta as ocorrências a cada 90 minutos com teto de 2.300 no mês, e o painel de TV mostra as ocorrências do Radar em vez de consultar a TomTom direto do navegador. Quando a franquia renovar, as ocorrências da TomTom voltam sozinhas ao cartão, embaixo da frota.
+
 ## [1.53.0] — 11/09/2026  ·  CX-11/09/2026-v1.53.0
 
 ### Alterado
