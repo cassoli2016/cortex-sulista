@@ -595,15 +595,19 @@ def test_a_lista_de_mercadorias_rola_DENTRO_do_seletor(pagina):
     `max-height` do `.pk-lista` não mudava um pixel e este guard aprovava a
     remoção. Payload que não exercita o limite não prova limite nenhum.
 
-    Aqui são 40, dentro do que a base comporta (80 valores distintos de
-    mercadoria em 180 dias). Se a lista crescesse a página, o modal viraria
-    uma tela de rolagem e o botão Aplicar sairia de vista.
+    O dublê sai do TETO DO CADASTRO, e não do maior caso de hoje: 91 tipos
+    distintos de mercadoria no ERP em 365 dias (o maior cliente de hoje, a
+    TUPY, tem 29). Um cliente novo, no pior caso, não passa dos 91 — e é
+    contra o pior caso que o mecanismo precisa segurar.
+
+    Se a lista crescesse a página, o modal viraria uma tela de rolagem e o
+    botão Aplicar sairia de vista.
     """
     pg, base = pagina
     muitas = {**AGORA, "mercadorias": [
         {"chave": "MERCADORIA DE TESTE %02d" % i,
          "rotulo": "MERCADORIA DE TESTE %02d" % i, "cargas": 500 - i}
-        for i in range(40)]}
+        for i in range(91)]}
     _abrir_com(pg, base, PERM, agora=muitas)
     pg.click("#cliop-merc-chips .chip")
     pg.wait_for_selector("#cm-lista label", state="visible", timeout=20000)
