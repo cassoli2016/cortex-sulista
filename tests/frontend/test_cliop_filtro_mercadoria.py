@@ -634,11 +634,21 @@ def test_a_tabela_do_contrato_rola_DENTRO_do_card(pagina):
     pg.wait_for_selector("#cliop-ft-linhas tr", state="visible", timeout=20000)
     pg.set_viewport_size({"width": 1500, "height": 1000})
     pg.wait_for_timeout(400)
+    # AS VINTE CHEGARAM? Sem esta linha o teste passa por VACUIDADE: se a
+    # tabela renderizasse duas linhas, a aba caberia em qualquer régua e o
+    # verde não diria nada sobre rolagem. Hoje quem pega isso é um teste
+    # VIZINHO deste arquivo — e guard que depende do vizinho morre no dia em
+    # que alguém mexer no vizinho.
+    linhas = pg.eval_on_selector_all("#cliop-ft-linhas tr", "e => e.length")
+    assert linhas == 20, "chegaram %d cláusulas na tela, não 20" % linhas
     rola = pg.eval_on_selector(
         "#cliop-ft-linhas", "e => { const w = e.closest('.tablewrap');"
         " return [w ? w.className : '', w ? (w.scrollHeight > w.clientHeight + 4) : false]; }")
     assert "tabroll" in rola[0], (
         "a tabela do contrato perdeu o .tabroll: %r" % rola[0])
+    assert rola[1], (
+        "com 20 cláusulas a tabela NÃO rola por dentro — ou o conteúdo não "
+        "chegou, ou a rolagem saiu")
     alt = pg.evaluate(
         "() => { const c = document.getElementById('content');"
         " const b = c.querySelector('#banner');"
