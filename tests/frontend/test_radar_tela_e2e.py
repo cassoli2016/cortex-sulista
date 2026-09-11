@@ -176,3 +176,81 @@ def test_no_celular_nao_rola_para_o_lado(pagina):
     pg.set_viewport_size({"width": 400, "height": 860})
     _abrir(pg, base)
     assert pg.evaluate(_LADO) == 0
+
+
+# ------------------------------------------------- a régua NO LIMITE
+
+#: Dezenas de ocorrências: a lista das rodovias NÃO tem teto no servidor, e
+#: uma caixa real da TomTom já trouxe 194 incidentes (`tests/test_tomtom.py`),
+#: dos quais o filtro de rodovia numerada deixa algumas dezenas.
+OCORRENCIAS_NO_LIMITE = 40
+
+
+def _no_limite() -> dict:
+    """O payload no TETO DO CADASTRO, e não o do dia das amostras.
+
+    PAYLOAD CHEIO NÃO É PAYLOAD NO LIMITE: com as 3 manchetes por tema das
+    amostras, remover a rolagem interna não mudaria um pixel, e o guard de
+    altura aprovaria a remoção. Aqui cada aba recebe o teto que o SERVIDOR
+    manda (`painel.LIMITE_NOTICIAS`, 15) com o título mais longo das amostras
+    reais, e o total da aba passa do que a lista mostra — como no dia real,
+    46 manchetes de diesel em 14 dias.
+    """
+    from api.radar import painel
+    p = copy.deepcopy(PAYLOAD)
+    titulo = max((i["titulo"] for n in PAYLOAD["noticias"].values() for i in n["itens"]),
+                 key=len)
+    for tema, n in p["noticias"].items():
+        base = n["itens"][0]
+        n["itens"] = [dict(base, titulo=f"{titulo} ({k})", link=f"{base['link']}&n={k}")
+                      for k in range(painel.LIMITE_NOTICIAS)]
+        n["total"] = 46
+    modelo = p["rodovias"]["itens"][0]
+    p["rodovias"]["itens"] = [dict(modelo, rodovias=f"BR-{101 + k}")
+                              for k in range(OCORRENCIAS_NO_LIMITE)]
+    p["rodovias"]["bloqueios"] = OCORRENCIAS_NO_LIMITE
+    return p
+
+
+#: As caixas que rolam por dentro: (lista, aba que precisa estar aberta).
+_CAIXAS = (("rd-feed-trc", None),
+           ("rd-feed-reforma", ("radar", "reforma")),
+           ("rd-rod-lista", None),
+           ("rd-feed-rodovias", ("radarrod", "int")))
+
+
+def test_cabe_em_UMA_tela_NO_LIMITE_e_a_rolagem_e_de_quem_segura(pagina):
+    """Três afirmações, e cada uma segura a outra:
+
+    1. o dublê CHEGOU na tela (15 manchetes, 40 ocorrências desenhadas) — sem
+       isto, aba vazia cabe em qualquer régua e o teste passa por vacuidade;
+    2. o conteúdo EXERCITA a caixa (ao menos 3× a altura dela, a mira da casa)
+       — abaixo disso, tirar o `max-height` não mudaria a altura da página;
+    3. e mesmo assim a página cabe em 900px e não rola para o lado.
+
+    MEDIDO EM 11/09/2026, 1500×1000: 835px, e as razões 3,07× (notícias, o
+    teto de 15 do servidor alcança a mira por pouco), 4,56× (reforma), 15,97×
+    (ocorrências) e 7,21× (interdições). SABOTANDO O VALOR, e não a existência
+    da regra: o `max-height` das notícias de 446 para 4.460px leva a página a
+    1.650px, e o das rodovias de 190 para 1.900px a 2.545px — as duas ficam
+    vermelhas aqui.
+    """
+    pg, base = pagina
+    pg.set_viewport_size({"width": 1500, "height": 1000})
+    _abrir(pg, base, payload=_no_limite())
+    pg.wait_for_selector("#chartRadarBrent svg", timeout=20000)
+    assert pg.locator("#rd-feed-trc a.rd-item").count() == 15
+    assert pg.locator("#rd-rod-lista .rd-rod").count() == OCORRENCIAS_NO_LIMITE
+    razoes = {}
+    for caixa, aba in _CAIXAS:
+        if aba:
+            pg.evaluate("([g, a]) => abaTrocar(g, a)", list(aba))
+        rol, vis = pg.evaluate(
+            "id => { const e = document.getElementById(id); return [e.scrollHeight, e.clientHeight]; }",
+            caixa)
+        razoes[caixa] = round(rol / vis, 2) if vis else 0
+    assert all(r >= 3 for r in razoes.values()), (
+        f"o conteúdo não exercita a caixa (razão rolável/visível): {razoes}")
+    altura = pg.evaluate(_ALTURA)
+    assert altura <= 900, f"a página inicial tem {altura}px NO LIMITE — a régua é 900 ({razoes})"
+    assert pg.evaluate(_LADO) == 0
