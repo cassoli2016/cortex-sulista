@@ -14,7 +14,7 @@
 # custe seis execucoes perdidas e nao um dia de apuracao.
 #
 # O WEBHOOK FICOU DE FORA POR DECISAO de quem opera (11/09/2026). A API expoe
-# `WebhookSubscription` e a troca parece um avanco obvio — nao e: dez minutos
+# `WebhookSubscription` e a troca parece um avanco obvio - nao e: dez minutos
 # de atraso nao incomodam ninguem aqui, e o push traz porta aberta, segredo de
 # assinatura e uma fila que so falha quando ja falhou. O cursor e idempotente e
 # se recupera sozinho.
