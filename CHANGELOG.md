@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.51.0] — 11/09/2026  ·  CX-11/09/2026-v1.51.0
+
+### Adicionado
+- O e-mail diario do ponto passou a mostrar as batidas FORA DE CERCA dia a dia, por cerca, em vez do total de ontem. O total nao diz o que fazer: 44 batidas fora podem ser tres coisas com providencias opostas, e o que as separa e a DISTANCIA se repetindo.
+- A coluna "Mesmo lugar" conta em quantos dos dias com movimento a distancia ficou na mesma faixa. Distancia que se repete todo dia e ENDERECO -- gente trabalhando onde nao ha cerca cadastrada: nos ultimos 7 dias, 11 pessoas bateram todo dia a 1.884 metros da SBC OPERACIONAL, com variacao de oito metros. Distancia que pula de 2,8 km para 100 km e gente em transito, e cerca nenhuma resolve. Dezenas de metros e cerca apertada.
+
+### Corrigido
+- O rodape dos e-mails parou de mandar quem le para dentro do painel. Alem de ocupar espaco em toda mensagem com uma coisa que se faz uma vez na vida, a instrucao estava ERRADA: apontava para Gestao > Integracoes, e o agendamento mora em Gestao > aba E-mail > Relatorios agendados.
+
 ## [1.50.0] — 11/09/2026  ·  CX-11/09/2026-v1.50.0
 
 ### Adicionado
