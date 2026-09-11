@@ -40,6 +40,7 @@ import json
 import logging
 import time
 import urllib.error
+from datetime import datetime, timedelta
 import urllib.parse
 import urllib.request
 
@@ -58,6 +59,64 @@ class TomTomNaoConfigurado(Exception):
 
 class TomTomIndisponivel(Exception):
     """A API não respondeu, ou respondeu erro. A mensagem já vem sanitizada."""
+
+
+#: O produto de cada família de endpoint, como a TomTom cobra.
+ROTULO_FAMILIA = {"traffic": "de trânsito", "routing": "de rotas", "search": "de busca"}
+
+
+class TomTomSemCreditos(TomTomIndisponivel):
+    """A TomTom recusou por FALTA DE CRÉDITO no produto (`InsufficientFunds`).
+
+    Chega como HTTP 403, e 403 aqui se lia como "chave do mapa restrita por
+    domínio" — mandando conferir uma chave que estava certa. Visto em
+    11/09/2026: o trânsito respondia isto enquanto a busca, no mesmo minuto,
+    respondia normal. O crédito é POR PRODUTO, e o freio também é.
+    """
+
+    def __init__(self, mensagem: str, familia: str = "traffic"):
+        super().__init__(mensagem)
+        self.familia = familia
+        self.rotulo_curto = ("TomTom sem créditos no produto "
+                             + ROTULO_FAMILIA.get(familia, familia))
+
+
+class TomTomFreado(TomTomSemCreditos):
+    """Recusado AQUI, sem sair para a rede: o produto está sem crédito e o
+    freio está ligado. NÃO é chamada — quem conta consumo não a conta."""
+
+
+#: Por quanto tempo um produto sem crédito não é chamado de novo. A Torre
+#: varria ~70 veículos por ciclo e seguia varrendo com 100% de recusa —
+#: 7.440 chamadas até as 10h de 11/09/2026, nenhuma servindo para nada. Uma
+#: hora é o suficiente para não martelar e curto o bastante para a volta do
+#: crédito aparecer sozinha, sem alguém precisar reiniciar a API.
+FREIO_S = 3600
+
+#: familia -> (até quando, em relógio monotônico; desde quando, na parede)
+_FREIO: dict[str, tuple[float, datetime]] = {}
+
+
+def _familia(caminho: str) -> str:
+    return (caminho.strip("/").split("/") or [""])[0]
+
+
+def freio(familia: str = "traffic") -> dict | None:
+    """O freio de falta de crédito daquele produto, se estiver ligado."""
+    f = _FREIO.get(familia)
+    if not f:
+        return None
+    ate, desde = f
+    resta = ate - time.monotonic()
+    if resta <= 0:
+        return None
+    return {"familia": familia, "desde": desde.isoformat(timespec="seconds"),
+            "ate": (datetime.now() + timedelta(seconds=resta)).isoformat(timespec="seconds"),
+            "resta_s": int(resta)}
+
+
+def _frear(familia: str) -> None:
+    _FREIO[familia] = (time.monotonic() + FREIO_S, datetime.now())
 
 
 def chave_mapa() -> str | None:
@@ -155,6 +214,14 @@ def _get(caminho: str, params: dict, _tentativa: int = 0) -> dict:
     if not k:
         raise TomTomNaoConfigurado(
             "Chave da TomTom não configurada — Gestão › Integrações › TomTom.")
+    familia = _familia(caminho)
+    f = freio(familia)
+    if f:
+        raise TomTomFreado(
+            "A TomTom recusou por falta de créditos no produto %s às %s; nenhuma "
+            "chamada desse produto sai daqui até %s."
+            % (ROTULO_FAMILIA.get(familia, familia), f["desde"][11:16],
+               f["ate"][11:16]), familia)
     url = "%s%s?%s" % (BASE, caminho,
                        urllib.parse.urlencode({**params, "key": k}))
     req = urllib.request.Request(url, headers={"Accept": "application/json"})
@@ -167,6 +234,19 @@ def _get(caminho: str, params: dict, _tentativa: int = 0) -> dict:
             corpo = exc.read().decode("utf-8", "replace")[:300]
         except Exception:  # noqa: BLE001
             pass
+        # FALTA DE CRÉDITO vem como 403 e só o CORPO a distingue da chave
+        # restrita. Ela vai antes da explicação da chave, que mandaria olhar o
+        # lugar errado, e liga o freio do produto.
+        if "InsufficientFunds" in corpo:
+            _frear(familia)
+            log.warning("tomtom: sem creditos no produto %s — freio de %d s",
+                        familia, FREIO_S)
+            raise TomTomSemCreditos(
+                "A TomTom respondeu HTTP %s por FALTA DE CRÉDITOS no produto %s "
+                "(InsufficientFunds) — não é a chave. Recarregar no painel da TomTom; "
+                "até lá nenhuma chamada desse produto sai daqui, por %d min de cada vez."
+                % (exc.code, ROTULO_FAMILIA.get(familia, familia), FREIO_S // 60),
+                familia) from None
         # 403 com a chave do mapa é o caso previsível, e a mensagem tem de
         # dizer isso: senão manda conferir uma chave que está correta.
         extra = ""

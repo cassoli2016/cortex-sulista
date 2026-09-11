@@ -2326,6 +2326,28 @@ def _servicos() -> list[dict]:
                     servicos[-1]["status"] = "alerta"
         except Exception:  # noqa: BLE001
             pass
+        # QUEM GASTA (0080): a pergunta que decide a cadência, no cartão.
+        try:
+            from .tomtom import coleta as _ttc2
+            po = _ttc2.consumo_por_origem(dias=1)
+            if po:
+                servicos[-1]["detalhe"] += " · hoje por origem: " + ", ".join(
+                    "%s %s %s× (%s chamadas%s)" % (
+                        p["origem"], p["recurso"], p["varreduras"], p["chamadas"],
+                        ", %s barradas" % p["barradas"] if p["barradas"] else "")
+                    for p in po)
+        except Exception:  # noqa: BLE001
+            pass
+        # SEM CRÉDITO VENCE o resto do cartão, e vem na frente: o motivo é
+        # dinheiro, não configuração, e o conserto é no painel da TomTom.
+        f = tomtom.freio("traffic")
+        if f:
+            servicos[-1]["status"] = "erro"
+            servicos[-1]["detalhe"] = (
+                "SEM CRÉDITOS no produto de trânsito (InsufficientFunds) desde %s — "
+                "freio ligado, nenhuma consulta de trânsito sai até %s; recarregar "
+                "no painel da TomTom · " % (f["desde"][11:16], f["ate"][11:16])
+                + servicos[-1]["detalhe"])
     except Exception as exc:  # noqa: BLE001
         servicos.append({"nome": "TomTom (trânsito)", "status": "info",
                          "detalhe": "integração indisponível"})

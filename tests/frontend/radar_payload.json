@@ -390,46 +390,6 @@
   "dia": "2026-09-10",
   "valor": 5.1149
  },
- "antt": {
-  "resolucao": "6.084/2026",
-  "inicio": "2026-07-17",
-  "anterior": {
-   "resolucao": "6.076/2026",
-   "inicio": "2026-01-20"
-  },
-  "carga_geral": [
-   {
-    "eixos": 5,
-    "ccd": 6.6718,
-    "cc": 657.56,
-    "ccd_anterior": 6.1604,
-    "cc_anterior": 635.08
-   },
-   {
-    "eixos": 6,
-    "ccd": 7.3547,
-    "cc": 671.93,
-    "ccd_anterior": 6.7774,
-    "cc_anterior": 648.95
-   },
-   {
-    "eixos": 7,
-    "ccd": 8.0927,
-    "cc": 831.66,
-    "ccd_anterior": 7.4902,
-    "cc_anterior": 803.22
-   },
-   {
-    "eixos": 9,
-    "ccd": 9.2027,
-    "cc": 903.32,
-    "ccd_anterior": 8.5104,
-    "cc_anterior": 872.44
-   }
-  ],
-  "revisao_esperada": "2027-01-16",
-  "revisao_vencida": false
- },
  "rodovias": {
   "configurado": true,
   "itens": [

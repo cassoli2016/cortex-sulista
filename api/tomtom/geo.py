@@ -87,7 +87,7 @@ def coordenada(lugar: str, *, esquema=None) -> dict | None:
         log.warning("geocode de %s falhou: %s", chave, exc)
         return None
     finally:
-        coleta.registrar("geocode", n=1)
+        coleta.registrar("geocode", n=1, origem="geocode")
 
     achou = bool(d)
     try:

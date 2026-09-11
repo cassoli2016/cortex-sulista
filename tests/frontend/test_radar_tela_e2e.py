@@ -94,13 +94,6 @@ def test_a_rodovia_fechada_aparece_com_o_corredor(pagina):
     assert pg.inner_text("#rd-n-rodoc") == str(len(PAYLOAD["rodovias"]["itens"]))
 
 
-def test_o_piso_da_ANTT_mostra_a_resolucao_vigente(pagina):
-    pg, base = pagina
-    _abrir(pg, base)
-    assert "6.084/2026" in pg.inner_text("#rd-antt-hint")
-    assert pg.locator("#rd-antt tbody tr").count() == 4
-
-
 # ---------------------------------------------------- a página de TODO mundo
 
 def test_quem_nao_tem_perfil_nenhum_ENTRA_pela_pagina_inicial(pagina):
@@ -142,14 +135,6 @@ def test_sem_TomTom_a_aba_de_ocorrencias_explica_e_nao_finge_estrada_livre(pagin
     p["rodovias"].update(configurado=False, itens=[], bloqueios=0)
     _abrir(pg, base, payload=p)
     assert "TomTom não está configurada" in pg.inner_text("#rd-rod-lista")
-
-
-def test_passada_a_revisao_da_ANTT_a_tela_pede_conferencia(pagina):
-    pg, base = pagina
-    p = copy.deepcopy(PAYLOAD)
-    p["antt"]["revisao_vencida"] = True
-    _abrir(pg, base, payload=p)
-    assert pg.locator("#rd-antt .toast.t-warn").count() == 1
 
 
 # -------------------------------------------------------------- a régua
@@ -228,12 +213,12 @@ def test_cabe_em_UMA_tela_NO_LIMITE_e_a_rolagem_e_de_quem_segura(pagina):
        — abaixo disso, tirar o `max-height` não mudaria a altura da página;
     3. e mesmo assim a página cabe em 900px e não rola para o lado.
 
-    MEDIDO EM 11/09/2026, 1500×1000: 835px, e as razões 3,07× (notícias, o
-    teto de 15 do servidor alcança a mira por pouco), 4,56× (reforma), 15,97×
-    (ocorrências) e 7,21× (interdições). SABOTANDO O VALOR, e não a existência
-    da regra: o `max-height` das notícias de 446 para 4.460px leva a página a
-    1.650px, e o das rodovias de 190 para 1.900px a 2.545px — as duas ficam
-    vermelhas aqui.
+    MEDIDO EM 11/09/2026, 1500×1000, depois de o piso da ANTT sair da página
+    (as listas das rodovias passaram a ter a altura das notícias): 728px, e as
+    razões 3,07× (notícias, o teto de 15 do servidor alcança a mira por pouco),
+    4,56× (reforma), 6,8× (ocorrências) e 3,07× (interdições). SABOTANDO O
+    VALOR, e não a existência da regra: o `max-height` das listas de 446 para
+    4.460px leva a página a 3.291px, e o guard fica vermelho.
     """
     pg, base = pagina
     pg.set_viewport_size({"width": 1500, "height": 1000})

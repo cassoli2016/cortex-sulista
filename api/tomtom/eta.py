@@ -241,7 +241,7 @@ def previsoes(*, forcar: bool = False, agora: datetime | None = None,
         erros_api = sum(1 for l in linhas
                         if not l.get("ok") and l.get("motivo") == "api")
         sem_cadastro = sum(1 for l in linhas if l.get("motivo") == "cadastro")
-        coleta.registrar("rota", n=chamadas, erros=erros_api)
+        coleta.registrar("rota", n=chamadas, erros=erros_api, origem="eta")
         erros = erros_api + sem_cadastro
 
         fora = {

@@ -1,3 +1,33 @@
+- versao: "1.45.0"
+  data: "2026-09-11"
+  adicionado:
+    - >-
+      A Saude do Servidor passa a mostrar QUEM gasta a TomTom: o consumo do dia
+      separado por origem (Torre, painel de TV, Radar, ETA, busca de endereco),
+      com quantas vezes cada uma pediu, quantas chamadas sairam, quantas o
+      freio de credito barrou e quantas aconteceram logo depois de um reinicio
+      da API. Ate aqui so havia o total por recurso -- em 07/09 foram 14.554
+      chamadas de transito, e ninguem sabia dizer de onde.
+  alterado:
+    - >-
+      O Radar do Transporte deixa de mostrar o piso minimo da ANTT, a pedido de
+      quem opera. A coluna da direita fica so com as Rodovias, e as listas de
+      ocorrencias e de interdicoes ganham a mesma altura das noticias. As
+      noticias da ANTT continuam na aba propria.
+    - >-
+      O painel de TV da Operacao passa a aceitar leitura de transito de ate 30
+      minutos (era 20). Ele recarrega a cada minuto e roda o dia inteiro, e era
+      ele que ditava o consumo da TomTom; quem olha a Torre na propria tela
+      continua com a leitura de 10 minutos.
+  corrigido:
+    - >-
+      Quando a TomTom recusa por FALTA DE CREDITO (InsufficientFunds, o que
+      aconteceu em 11/09 com o produto de transito), o CORTEX diz isso -- antes
+      mandava conferir a chave do mapa, que estava certa -- e para de insistir:
+      por uma hora nenhuma consulta de transito sai daqui, e a varredura da
+      Torre testa UM veiculo antes de consultar os cerca de 70. Busca de
+      endereco e calculo de rota sao outro produto e seguem funcionando.
+
 - versao: "1.44.0"
   data: "2026-09-11"
   adicionado:

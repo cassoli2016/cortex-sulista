@@ -4840,7 +4840,8 @@ def torre_chegadas(forcar: int = 0) -> JSONResponse:
 
 
 @app.get("/api/operacao/torre/estradas")
-def torre_estradas(forcar: int = 0, tolerancia: int = 0) -> JSONResponse:
+def torre_estradas(forcar: int = 0, tolerancia: int = 0,
+                   origem: str = "torre") -> JSONResponse:
     """Condição da estrada onde cada caminhão EM VIAGEM está agora (TomTom).
 
     ROTA SEPARADA da Torre, de propósito: são ~70 chamadas a uma API de
@@ -4853,11 +4854,14 @@ def torre_estradas(forcar: int = 0, tolerancia: int = 0) -> JSONResponse:
     """
     from api.tomtom import coleta
     try:
-        # `tolerancia` em segundos: o painel de TV manda 1200 porque roda
+        # `tolerancia` em segundos: o painel de TV manda 1800 porque roda
         # sozinho o dia inteiro e não pode ditar o consumo da TomTom.
+        # `origem` é SÓ da lista: vira texto gravado em `tt_chamadas_origem`,
+        # e parâmetro de URL não escolhe o que se escreve no banco.
         return JSONResponse(coleta.condicao_da_frota(
             forcar=bool(forcar),
-            idade_maxima_s=int(tolerancia) if tolerancia else None))
+            idade_maxima_s=int(tolerancia) if tolerancia else None,
+            origem=origem if origem in ("torre", "tv") else "torre"))
     except Exception as exc:  # noqa: BLE001
         log.warning("torre_estradas: %s", type(exc).__name__)
         return JSONResponse(status_code=500, content={

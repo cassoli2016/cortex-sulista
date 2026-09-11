@@ -57,9 +57,19 @@ def _esq(esquema: str | None = None) -> str | None:
 
 
 def registrar(recurso: str, n: int = 1, erros: int = 0,
-              esquema: str | None = None) -> None:
+              esquema: str | None = None, origem: str | None = None,
+              barradas: int = 0, apos_reinicio: bool = False) -> None:
     """Soma ao consumo do dia. NÃO levanta: contabilidade que derruba a
-    funcionalidade que ela mede é pior que contabilidade nenhuma."""
+    funcionalidade que ela mede é pior que contabilidade nenhuma.
+
+    `origem` diz QUEM pediu (torre, tv, radar, eta, geocode) e vai para
+    `tt_chamadas_origem`, na mesma passada. `tt_chamadas` segue sendo o
+    total por recurso, com o significado de sempre. Existe porque em
+    11/09/2026 o produto de trânsito esgotou o crédito e "quem gasta?" não
+    tinha resposta: a previsão escrita era ~5.000/dia da TV, o medido foi o
+    dobro, e a diferença não tinha dono.
+    """
+    _registrar_origem(recurso, n, erros, esquema, origem, barradas, apos_reinicio)
     try:
         pglocal.executar(
             """INSERT INTO tt_chamadas (dia, recurso, chamadas, erros, ultima_em)
@@ -73,6 +83,46 @@ def registrar(recurso: str, n: int = 1, erros: int = 0,
     except Exception as exc:  # noqa: BLE001
         log.warning("não consegui registrar consumo da TomTom: %s",
                     type(exc).__name__)
+
+
+def _registrar_origem(recurso, n, erros, esquema, origem, barradas, apos_reinicio):
+    if not origem:
+        return
+    try:
+        pglocal.executar(
+            """INSERT INTO tt_chamadas_origem (dia, recurso, origem, varreduras,
+                    chamadas, erros, barradas, apos_reinicio, ultima_em)
+               VALUES (%s, %s, %s, 1, %s, %s, %s, %s, %s)
+               ON CONFLICT (dia, recurso, origem) DO UPDATE SET
+                  varreduras    = tt_chamadas_origem.varreduras + 1,
+                  chamadas      = tt_chamadas_origem.chamadas + EXCLUDED.chamadas,
+                  erros         = tt_chamadas_origem.erros + EXCLUDED.erros,
+                  barradas      = tt_chamadas_origem.barradas + EXCLUDED.barradas,
+                  apos_reinicio = tt_chamadas_origem.apos_reinicio + EXCLUDED.apos_reinicio,
+                  ultima_em     = EXCLUDED.ultima_em""",
+            (date.today(), recurso, str(origem)[:30], n, erros, barradas,
+             1 if apos_reinicio else 0, datetime.now()),
+            esquema=_esq(esquema))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("não consegui registrar a origem do consumo da TomTom: %s",
+                    type(exc).__name__)
+
+
+def consumo_por_origem(dias: int = 1, esquema: str | None = None) -> list[dict]:
+    """Quem gastou, somado na janela — a pergunta que decide a cadência."""
+    try:
+        return [dict(r) for r in pglocal.query(
+            """SELECT recurso, origem, sum(varreduras)::int AS varreduras,
+                      sum(chamadas)::int AS chamadas, sum(erros)::int AS erros,
+                      sum(barradas)::int AS barradas,
+                      sum(apos_reinicio)::int AS apos_reinicio
+                 FROM tt_chamadas_origem
+                WHERE dia > current_date - %s
+                GROUP BY recurso, origem
+                ORDER BY sum(chamadas) DESC, origem""", (dias,), esquema=_esq(esquema))]
+    except Exception as exc:  # noqa: BLE001
+        log.warning("consumo por origem indisponível: %s", type(exc).__name__)
+        return []
 
 
 def consumo(dias: int = 7, esquema: str | None = None) -> dict:
@@ -103,13 +153,16 @@ def _um_ponto(item: tuple[str, dict]) -> dict:
         # A MENSAGEM JÁ VEM SANITIZADA do cliente. Repassá-la é seguro, e é o
         # que permite a tela dizer "403 com a chave do mapa" em vez de "erro".
         return {"placa": placa, "ok": False, "estado": "nd",
-                "rotulo": "Não foi possível consultar", "erro": str(exc)}
+                "rotulo": "Não foi possível consultar", "erro": str(exc),
+                "sem_creditos": isinstance(exc, cliente.TomTomSemCreditos),
+                "freado": isinstance(exc, cliente.TomTomFreado)}
 
 
 def condicao_da_frota(*, forcar: bool = False, limite: int | None = None,
                       viagens=None, posicoes_atuais=None,
                       so_cache: bool = False,
-                      idade_maxima_s: int | None = None) -> dict:
+                      idade_maxima_s: int | None = None,
+                      origem: str = "torre") -> dict:
     """A leitura de trânsito das viagens em curso.
 
     `so_cache=True` NUNCA sai para a rede: devolve o que houver em cache, ou
@@ -149,6 +202,28 @@ def condicao_da_frota(*, forcar: bool = False, limite: int | None = None,
                                 "(Gestão › Integrações).",
                     "trechos": [], "resumo": transito.resumo([])}
 
+        # A PRIMEIRA VARREDURA DO PROCESSO é contada à parte: o cache é da
+        # memória, e o AutoDeploy reinicia a API várias vezes por dia — cada
+        # reinício é uma varredura inteira que ninguém pediu.
+        apos_reinicio = _cache is None
+
+        # SEM CRÉDITO NÃO SE VARRE. Com o freio do produto de trânsito ligado,
+        # a varredura nem começa — e o resultado entra no cache como qualquer
+        # outro, para a próxima tela não refazer a pergunta.
+        f = cliente.freio("traffic")
+        if f:
+            msg = ("TomTom sem créditos no produto de trânsito desde %s — "
+                   "nenhuma consulta sai até %s." % (f["desde"][11:16], f["ate"][11:16]))
+            fora = {"configurado": True, "sem_creditos": True, "erro": msg,
+                    "mensagem": msg, "freio": f, "trechos": [],
+                    "resumo": transito.resumo([]), "erros": 0,
+                    "colhido_em": datetime.now().isoformat(timespec="seconds"),
+                    "do_cache": False}
+            registrar("fluxo", n=0, erros=0, origem=origem, barradas=1,
+                      apos_reinicio=apos_reinicio)
+            _cache = (time.monotonic(), fora)
+            return fora
+
         if viagens is None:
             from api import queries
             viagens = (queries.get_torre() or {}).get("transito") or []
@@ -174,11 +249,31 @@ def condicao_da_frota(*, forcar: bool = False, limite: int | None = None,
             alvos = alvos[:limite]
 
         t0 = time.time()
-        with ThreadPoolExecutor(max_workers=TRABALHADORES) as pool:
-            trechos = list(pool.map(_um_ponto, alvos))
+        # A SONDA. O primeiro ponto vai sozinho: se a TomTom disser que não
+        # há crédito, as outras ~70 chamadas não saem — elas voltariam todas
+        # com o mesmo 403, e cada uma é um pedido a um fornecedor que acabou
+        # de dizer não. Com crédito, o resto segue no paralelo de sempre.
+        trechos = []
+        if alvos:
+            sonda = _um_ponto(alvos[0])
+            trechos.append(sonda)
+            if sonda.get("sem_creditos"):
+                trechos += [{"placa": pl, "ok": False, "estado": "nd",
+                             "rotulo": "Não consultado", "erro": sonda["erro"],
+                             "sem_creditos": True, "freado": True}
+                            for pl, _ in alvos[1:]]
+            else:
+                with ThreadPoolExecutor(max_workers=TRABALHADORES) as pool:
+                    trechos += list(pool.map(_um_ponto, alvos[1:]))
         gastou = time.time() - t0
         erros = sum(1 for t in trechos if not t.get("ok"))
-        registrar("fluxo", n=len(trechos), erros=erros)
+        # FREADO NÃO É CHAMADA: não saiu para a rede, e contá-lo inflaria o
+        # consumo exatamente no dia em que não há consumo nenhum.
+        freados = sum(1 for t in trechos if t.get("freado"))
+        registrar("fluxo", n=len(trechos) - freados, erros=erros - freados,
+                  origem=origem, barradas=1 if freados else 0,
+                  apos_reinicio=apos_reinicio)
+        sem_creditos = bool(trechos) and all(t.get("sem_creditos") for t in trechos)
 
         for t in trechos:
             p = mapa.get(t["placa"]) or {}
@@ -202,6 +297,11 @@ def condicao_da_frota(*, forcar: bool = False, limite: int | None = None,
             "colhido_em": datetime.now().isoformat(timespec="seconds"),
             "do_cache": False,
         }
+        if sem_creditos:
+            fora["sem_creditos"] = True
+            fora["erro"] = fora["mensagem"] = (
+                "TomTom sem créditos no produto de trânsito — recarregar no "
+                "painel da TomTom. As consultas ficam suspensas por uma hora.")
         _cache = (time.monotonic(), fora)
         return fora
 

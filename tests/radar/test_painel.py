@@ -93,23 +93,6 @@ def test_a_rodovia_fechada_vem_antes_da_lenta(carregado):
     assert {c["itens"] for c in r["corredores"]} == {2}
 
 
-# ------------------------------------------------------------------- ANTT
-
-def test_a_tabela_da_ANTT_vigente_e_a_anterior():
-    a = painel._antt(date(2026, 9, 11))
-    assert a["resolucao"] == "6.084/2026" and a["anterior"]["resolucao"] == "6.076/2026"
-    assert [l["eixos"] for l in a["carga_geral"]] == [5, 6, 7, 9]
-    seis = next(l for l in a["carga_geral"] if l["eixos"] == 6)
-    assert seis["ccd_anterior"] == 6.7774
-    assert a["revisao_vencida"] is False
-
-
-def test_passada_a_revisao_esperada_a_tela_pede_CONFERENCIA():
-    """O cadastro é à mão: no dia em que a ANTT publicar a tabela nova, esta
-    tela continua mostrando a velha até alguém atualizar o arquivo."""
-    assert painel._antt(date(2027, 2, 1))["revisao_vencida"] is True
-
-
 # ------------------------------------------------------------------ Saúde
 
 def test_a_saude_sem_coleta_nenhuma_e_info_e_diz_por_que(esquema_pg, relogio):
@@ -147,5 +130,4 @@ def test_o_resumo_do_copiloto_e_SO_ESCALAR(carregado):
     r = painel.resumo_copiloto(carregado)
     assert all(not isinstance(v, (list, dict, tuple, set)) for v in r.values()), r
     assert r["brent_agora"] == 103.68 and r["diesel_s10_bomba_rs_litro"] == 6.88
-    assert r["antt_tabela_vigente"].startswith("Res. ")
     assert r["rodovias_bloqueios_agora"] in (4, None)

@@ -57,11 +57,6 @@ LIMITE_ALERTA_S: dict[str, int] = {
 DIAS_NOTICIA = {"trc": 14, "diesel": 14, "reforma": 30, "antt": 30, "rodovias": 3}
 LIMITE_NOTICIAS = 15
 
-#: As composições mais comuns de carga lotação: carreta de 5 e 6 eixos,
-#: bitrem de 7 e rodotrem de 9.
-EIXOS_EXEMPLO = (5, 6, 7, 9)
-
-
 def _esq(esquema: str | None) -> str | None:
     return esquema if esquema is not None else ESQUEMA
 
@@ -166,42 +161,6 @@ def _ptax(esq) -> dict | None:
     return {"dia": l["dia"].isoformat(), "valor": float(l["valor"])} if l else None
 
 
-def _antt(hoje: date | None = None) -> dict | None:
-    """A tabela de piso VIGENTE, lida do mesmo cadastro que a tela de piso usa
-    (`config/antt_coeficientes.yaml`). É regra pública, não dado da casa.
-
-    O CADASTRO É À MÃO, e a tela precisa dizer isso: a ANTT revisa a tabela em
-    janeiro e julho, e no dia em que sair uma nova esta tela seguirá mostrando a
-    anterior até alguém atualizar o arquivo. Por isso a data de revisão
-    esperada viaja junto, e passada ela a tela pede conferência em vez de
-    afirmar que a tabela ainda vale.
-    """
-    from ..antt import coeficientes
-    hoje = hoje or date.today()
-    vig = sorted(coeficientes.carregar().get("vigencias") or [], key=lambda v: v["inicio"])
-    atual = next((v for v in reversed(vig) if v["inicio"] <= hoje
-                  and (v.get("fim") is None or hoje <= v["fim"])), None)
-    if atual is None:
-        return None
-    i = vig.index(atual)
-    ant = vig[i - 1] if i > 0 else None
-    cg = (atual.get("tabelas") or {}).get("A", {}).get("carga_geral") or {}
-    cg_ant = ((ant or {}).get("tabelas") or {}).get("A", {}).get("carga_geral") or {}
-    linhas = []
-    for e in EIXOS_EXEMPLO:
-        a, p = cg.get(e), cg_ant.get(e)
-        if a:
-            linhas.append({"eixos": e, "ccd": float(a["ccd"]), "cc": float(a["cc"]),
-                           "ccd_anterior": float(p["ccd"]) if p else None,
-                           "cc_anterior": float(p["cc"]) if p else None})
-    revisao = atual["inicio"] + timedelta(days=183)
-    return {"resolucao": atual["resolucao"], "inicio": atual["inicio"].isoformat(),
-            "anterior": ({"resolucao": ant["resolucao"], "inicio": ant["inicio"].isoformat()}
-                         if ant else None),
-            "carga_geral": linhas, "revisao_esperada": revisao.isoformat(),
-            "revisao_vencida": hoje >= revisao}
-
-
 def _rodovias(esq) -> dict:
     linhas = pglocal.query(
         """SELECT regiao, rodovias, categoria, bloqueia, descricao, de, para,
@@ -292,13 +251,6 @@ def painel(esquema: str | None = None) -> dict:
                     "mensagem": "As tabelas do Radar ainda não existem — elas "
                                 "nascem com a API (migration 0079)."}
         raise
-    try:
-        antt = _antt()
-    except Exception as exc:  # noqa: BLE001
-        # O cadastro do piso é arquivo da casa; se ele quebrar, o cartão diz
-        # que não leu — o resto da página não tem nada a ver com isso.
-        log.warning("radar: tabela da ANTT ilegivel: %s", type(exc).__name__)
-        antt = None
     return {
         "pronto": True,
         "gerado_em": _agora().isoformat(),
@@ -306,7 +258,6 @@ def painel(esquema: str | None = None) -> dict:
         "brent": _mercado(esq, "brent", 365),
         "dolar": _mercado(esq, "dolar", 0),
         "ptax": _ptax(esq),
-        "antt": antt,
         "rodovias": _rodovias(esq),
         "noticias": _noticias(esq),
         "coleta": estado,
@@ -380,8 +331,8 @@ def _var(a, b) -> float | None:
 
 
 def resumo_copiloto(esquema: str | None = None) -> dict:
-    """SÓ ESCALARES, e todos públicos: preço de bomba, Brent, dólar, piso da
-    ANTT, contagem de ocorrências e manchetes. Nada da Sulista entra aqui."""
+    """SÓ ESCALARES, e todos públicos: preço de bomba, Brent, dólar,
+    contagem de ocorrências e manchetes. Nada da Sulista entra aqui."""
     p = painel(esquema)
     if not p.get("pronto"):
         return {"indisponivel": p.get("mensagem")}
@@ -406,8 +357,6 @@ def resumo_copiloto(esquema: str | None = None) -> dict:
     if p.get("ptax"):
         r["ptax_venda"] = p["ptax"]["valor"]
         r["ptax_dia"] = p["ptax"]["dia"]
-    if p.get("antt"):
-        r["antt_tabela_vigente"] = f"Res. {p['antt']['resolucao']} desde {p['antt']['inicio']}"
     rod = p["rodovias"]
     r["rodovias_ocorrencias_agora"] = len(rod["itens"]) if rod["configurado"] else None
     r["rodovias_bloqueios_agora"] = rod["bloqueios"] if rod["configurado"] else None

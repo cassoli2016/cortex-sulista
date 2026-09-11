@@ -134,6 +134,11 @@ class FormatoInesperado(ValueError):
 def descrever_falha(exc: Exception) -> str:
     """O que se grava e se mostra de uma falha: o TIPO, e o código HTTP quando
     houver. Nunca `str(exc)` de rede (ver o cabeçalho)."""
+    # A exceção que já sabe se dizer em uma linha diz (a TomTom sem crédito:
+    # "TomTom sem créditos no produto de trânsito", e não "TomTomIndisponivel").
+    rotulo = getattr(exc, "rotulo_curto", None)
+    if rotulo:
+        return str(rotulo)[:200]
     codigo = getattr(exc, "code", None)
     if isinstance(exc, FormatoInesperado):
         return f"formato inesperado: {exc}"[:200]

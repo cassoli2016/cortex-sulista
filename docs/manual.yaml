@@ -1077,7 +1077,7 @@ glossario:
 grupos:
 - nome: Visão geral
   resumo: 'O Radar do Transporte é a página inicial de todo usuário logado, e por isso só publica dado
-    PÚBLICO: diesel de bomba da ANP, Brent e dólar de agora, PTAX, a tabela vigente do piso da ANTT, as
+    PÚBLICO: diesel de bomba da ANP, Brent e dólar de agora, PTAX, as
     ocorrências nas rodovias dos corredores da operação e as notícias de transporte, diesel, reforma
     tributária, ANTT e interdições. A Visão Geral é a leitura do dia — caixa, faturamento contra a meta e o que exige ação agora. O Copiloto responde
     em linguagem natural sobre 17 recortes do painel (não só os desta tela): financeiro, comercial, operação,

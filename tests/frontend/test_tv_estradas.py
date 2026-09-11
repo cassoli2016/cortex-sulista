@@ -22,7 +22,7 @@ AS REGRAS DE TV QUE ISTO OBEDECE
   olha o dia inteiro.
 
 E O CUSTO, que é uma regra de projeto e não um detalhe: a TV recarrega a cada
-60 s e roda sozinha o dia todo. Ela pede `tolerancia=1200` — tolera 20 min de
+60 s e roda sozinha o dia todo. Ela pede `tolerancia=1800` — tolera 20 min de
 atraso na leitura — porque com o TTL de 10 min da Torre só ela dispararia ~6
 varreduras por hora, ~5.000 chamadas num dia de 12 h, e o teto do plano da
 TomTom não é observável na resposta.
@@ -44,7 +44,7 @@ def _fn(nome: str) -> str:
 def test_a_TV_tolera_leitura_mais_VELHA_que_a_torre():
     """Sem isto o painel de TV passa a ditar o consumo da TomTom: ele recarrega
     a cada 60 s e roda o dia inteiro, enquanto a Torre é aberta por alguém."""
-    assert "tolerancia=1200" in HTML, (
+    assert "tolerancia=1800" in HTML, (
         "a TV precisa pedir tolerância maior — senão dispara a varredura a cada "
         "10 min o dia todo")
 
@@ -97,7 +97,7 @@ def test_o_badge_AMBAR_existe_no_CSS():
 
 def test_a_falha_da_TOMTOM_nao_apaga_a_tabela():
     """A tabela de chegadas é o que a torre olha o dia inteiro."""
-    i = HTML.index("tolerancia=1200")
+    i = HTML.index("tolerancia=1800")
     trecho = HTML[i:i + 700]
     assert "catch" in trecho, "a busca tem de ter catch próprio"
     assert "tvope-cheg" in HTML[i:i + 2000], (

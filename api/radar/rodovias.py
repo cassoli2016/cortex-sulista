@@ -72,12 +72,15 @@ def consultar(consultar_tomtom=None, esquema: str | None = None) -> dict:
     from ..tomtom import coleta as tt_coleta
     from ..tomtom import transito
     consultar_tomtom = consultar_tomtom or _consultar_tomtom
-    itens, brutos, falhas, ultima = [], 0, 0, None
+    from ..tomtom import cliente as tt_cliente
+    itens, brutos, falhas, freados, ultima = [], 0, 0, 0, None
     for chave, rotulo, oeste, sul, leste, norte in CORREDORES:
         try:
             lido = transito.ler_incidentes(consultar_tomtom(oeste, sul, leste, norte))
         except Exception as exc:  # noqa: BLE001
             falhas += 1
+            # o corredor recusado pelo FREIO de crédito não saiu para a rede
+            freados += isinstance(exc, tt_cliente.TomTomFreado)
             ultima = exc
             log.warning("radar: corredor %s falhou: %s", chave, type(exc).__name__)
             continue
@@ -85,8 +88,9 @@ def consultar(consultar_tomtom=None, esquema: str | None = None) -> dict:
         for i in lido["itens"]:
             if relevante(i):
                 itens.append(dict(i, regiao=chave, regiao_rotulo=rotulo))
-    tt_coleta.registrar("radar_incidentes", n=len(CORREDORES), erros=falhas,
-                        esquema=esquema)
+    tt_coleta.registrar("radar_incidentes", n=len(CORREDORES) - freados,
+                        erros=falhas - freados, esquema=esquema, origem="radar",
+                        barradas=1 if freados else 0)
     if falhas == len(CORREDORES) and ultima is not None:
         raise ultima
     return {"itens": itens, "brutos": brutos, "falhas": falhas}

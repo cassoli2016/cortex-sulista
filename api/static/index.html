@@ -2782,7 +2782,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 .rd-col{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;align-content:start;min-width:0}
 .rd-feed{max-height:446px;overflow-y:auto;padding:0 18px}
 .rd-feed-media{max-height:300px}
-.rd-feed-curta{max-height:190px}
 .rd-item{display:block;padding:9px 0;border-bottom:1px solid var(--n100);text-decoration:none;color:inherit}
 .rd-item:last-child{border-bottom:0}
 .rd-item .t{display:block;font-size:13px;font-weight:600;line-height:1.35;color:var(--n900)}
@@ -2794,7 +2793,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
 .rd-reforma{display:grid;gap:9px;padding:9px 18px;border-bottom:1px solid var(--n100)}
 .rd-marco{display:flex;gap:9px;font-size:12.5px;color:var(--n700);line-height:1.4}
 .rd-marco b{flex:0 0 58px;font-family:var(--mono);color:var(--n900)}
-.rd-antt-nota{font-size:12px;color:var(--n500);padding:9px 18px;line-height:1.5}
 @media(max-width:1280px){
   .rd-grade{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
   .rd-grade>.rd-dir{grid-column:1 / -1;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
@@ -9245,12 +9243,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                 <button role="tab" id="tabradarrod-oc" data-aba="oc" aria-controls="aba-radarrod-oc" aria-selected="true" onclick="abaTrocar('radarrod','oc')">Ocorrências <span class="aban" id="rd-n-rodoc"></span></button>
                 <button role="tab" id="tabradarrod-int" data-aba="int" aria-controls="aba-radarrod-int" aria-selected="false" onclick="abaTrocar('radarrod','int')">Interdições noticiadas <span class="aban" id="rd-n-rodint"></span></button>
               </div>
-              <div class="aba" data-abas="radarrod" data-aba="oc" id="aba-radarrod-oc" role="tabpanel" aria-labelledby="tabradarrod-oc"><div class="rd-feed rd-feed-curta" id="rd-rod-lista"></div></div>
-              <div class="aba" data-abas="radarrod" data-aba="int" id="aba-radarrod-int" role="tabpanel" aria-labelledby="tabradarrod-int" hidden><div class="rd-feed rd-feed-curta" id="rd-feed-rodovias"></div></div>
-            </div>
-            <div class="card">
-              <div class="head"><h2>Piso mínimo ANTT <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: a tabela vigente da Política Nacional de Pisos Mínimos (Lei 13.703/2018, Anexo II da Res. ANTT 5.867/2020), lida do MESMO cadastro que a tela Piso Mínimo de Frete usa — config/antt_coeficientes.yaml, extraído da calculadora oficial da ANTT. Carga geral, tabela A (contratação da composição veicular). Piso = km × CCD + CC; pedágio não entra no piso. O cadastro é À MÃO: a ANTT revisa em janeiro e julho, e a tela avisa quando a data da revisão passou.">ⓘ</span></h2><span class="hint" id="rd-antt-hint"></span></div>
-              <div id="rd-antt"></div>
+              <div class="aba" data-abas="radarrod" data-aba="oc" id="aba-radarrod-oc" role="tabpanel" aria-labelledby="tabradarrod-oc"><div class="rd-feed" id="rd-rod-lista"></div></div>
+              <div class="aba" data-abas="radarrod" data-aba="int" id="aba-radarrod-int" role="tabpanel" aria-labelledby="tabradarrod-int" hidden><div class="rd-feed" id="rd-feed-rodovias"></div></div>
             </div>
           </div>
         </div>
@@ -16418,16 +16412,18 @@ async function loadTvOpe(){
        É outra coisa do que o `tvEstradas()` do ticker, que traz incidente numa
        REGIÃO: aqui é o trecho onde CADA caminhão está agora.
 
-       `tolerancia=1200`: a TV recarrega a cada 60 s e roda sozinha o dia
+       `tolerancia=1800`: a TV recarrega a cada 60 s e roda sozinha o dia
        inteiro. Com o TTL de 10 min da Torre, só ela dispararia 6 varreduras
-       por hora — ~5.000 chamadas num dia de 12 h, e o teto do plano não é
-       observável. Tolerando 20 min, cai pela metade.
+       por hora. Era 1200 (20 min) até 11/09/2026, quando o produto de
+       trânsito da TomTom esgotou o crédito; 30 min corta mais um terço, e
+       quem olha a Torre na própria tela continua com 10. `origem=tv` é o
+       que separa este gasto do da Torre no consumo por origem (Saúde).
 
        E é `catch` silencioso de propósito: a TomTom fora não pode apagar a
        tabela de chegadas, que é o que a torre olha o dia todo. */
     let est = {};
     try{
-      const re_ = await fetch('/api/operacao/torre/estradas?tolerancia=1200',
+      const re_ = await fetch('/api/operacao/torre/estradas?tolerancia=1800&origem=tv',
                               {cache:'no-store', headers:{'X-Carga-Fundo':'1'}});
       if(re_.ok){
         const dd = await re_.json();
@@ -36236,7 +36232,7 @@ const BUSCA_SINONIMOS = {
   prodveic:['produtividade','veiculo','veiculos','km por veiculo','ocioso','ociosidade','parado','frota parada','bi'],
   doc:['documentacao','manual','ajuda','glossario','versao'],
   cop:['copiloto','ia','perguntar','chat'],
-  radar:['inicio','pagina inicial','noticias','diesel','preco do diesel','anp','brent','petroleo','dolar','ptax','reforma tributaria','ibs','cbs','antt','piso minimo','rodovias','estradas','interdicao','bloqueio','mercado'],
+  radar:['inicio','pagina inicial','noticias','diesel','preco do diesel','anp','brent','petroleo','dolar','ptax','reforma tributaria','ibs','cbs','antt','rodovias','estradas','interdicao','bloqueio','mercado'],
   home:['visao geral','resumo','inicio','dashboard'],
 };
 const BUSCA_GRUPO_LBL = {Com:'Comercial',Fin:'Financeiro',Ctr:'Controladoria',Ope:'Operação',
@@ -43900,7 +43896,6 @@ function rdRender(d){
   rdChartBrent(d.brent || {});
   rdNoticias(d.noticias || {});
   rdRodovias(d.rodovias || {}, (d.noticias || {}).rodovias);
-  rdAntt(d.antt);
 }
 /* A TARJA DIZ QUAL FONTE ATRASOU, com a idade da última leitura boa. Número
    velho servido calado é pior que tela vazia: ninguém desconfia dele. */
@@ -44061,31 +44056,6 @@ function rdRodovias(r, noticias){
       + ((i.de || i.para) ? ' · ' + esc([i.de, i.para].filter(Boolean).join(' → ')) : '')
       + (i.descricao ? ' · ' + esc(i.descricao) : '') + '</span></div>').join('')
     + '<div class="rd-mais">' + (r.corredores || []).map(c => esc(String(c.rotulo).split(' · ')[0]) + ': ' + c.itens).join(' · ') + '</div>';
-}
-function rdAntt(a){
-  const el = document.getElementById('rd-antt'), hint = document.getElementById('rd-antt-hint');
-  if(!el) return;
-  if(!a){
-    if(hint) hint.textContent = '';
-    el.innerHTML = '<div class="gx-vazio">A tabela de piso da ANTT não pôde ser lida do cadastro.</div>';
-    return;
-  }
-  if(hint) hint.textContent = 'Res. ' + a.resolucao + ' · desde ' + rdDiaAno(a.inicio);
-  const pctAnt = l => (l.ccd_anterior
-    ? ((l.ccd / l.ccd_anterior - 1) * 100).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1}) + '%'
-    : '—');
-  const linhas = (a.carga_geral || []).map(l => '<tr><td>' + l.eixos + '</td>'
-    + '<td class="num">' + rdNum(l.ccd, 4) + '</td><td class="num">' + rdNum(l.cc, 2) + '</td>'
-    + '<td class="num">' + pctAnt(l) + '</td></tr>').join('');
-  const revisao = a.revisao_vencida
-    ? '<div class="toast t-warn"><b>Conferir se já saiu tabela nova</b>A ANTT revisa em janeiro e julho, e a revisão era esperada por volta de '
-      + esc(rdDiaAno(a.revisao_esperada)) + '. Este cadastro é atualizado à mão.</div>'
-    : 'Próxima revisão esperada por volta de ' + esc(rdDiaAno(a.revisao_esperada)) + ' (a ANTT revisa em janeiro e julho).';
-  el.innerHTML = '<div class="tablewrap tabroll curta"><table><thead><tr><th>Eixos</th>'
-    + '<th class="num">CCD R$/km</th><th class="num">CC R$</th><th class="num" title="Variação do CCD contra a '
-    + esc(a.anterior ? 'Res. ' + a.anterior.resolucao : 'tabela anterior') + '">Δ CCD</th></tr></thead><tbody>' + linhas + '</tbody></table></div>'
-    + '<div class="rd-antt-nota">Carga geral, tabela A · piso = km × CCD + CC · pedágio fora do piso. ' + revisao
-    + (podeVer('anpiso') ? ' <a href="#anpiso">Conferir os pagamentos contra o piso →</a>' : '') + '</div>';
 }
 async function loadSup(){
   const alvo = supAlvoDaUrl('sup');
