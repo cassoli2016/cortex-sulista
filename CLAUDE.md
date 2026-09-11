@@ -35,6 +35,27 @@ reinicia a API. Consequências, todas já vividas (crônicas em `docs/LICOES.md`
 - **Topo de versão não regride.** Se a outra sessão publicar uma versão MAIOR
   enquanto você trabalha, renumere a sua para um patch acima da dela
   (0.214.1 → 0.215.1), nunca deixe o topo do `versoes.yaml` cair.
+  - **A trava é sobre o SEU número, não sobre o do outro**: no MESMO comando do
+    push, exigir que a sua versão seja MAIOR que o topo do `origin`, comparada
+    como tupla de inteiros (`1.9.0` < `1.10.0`, que a comparação de texto
+    inverte). "Conferi o topo antes de começar" não é trava: entre o começo e o
+    push cabem três entregas de outra frente — aconteceu em 11/09/2026, com uma
+    entrega combinada como 1.40.0 chegando ao origin como 1.43.0.
+  - **Merge SEM CONFLITO não é prova de acerto.** No mesmo dia, duas sessões
+    subiram a MESMA linha do `pyproject` para o MESMO número (1.46.0 → 1.47.0):
+    o git mesclou limpo, sem nada a resolver, e uma entrega foi publicada com o
+    número e dentro do bloco da outra (`987fce1`, desfeito em `4fc16a3` com
+    commit novo — nunca `--force`). Onde dois lados escrevem a mesma coisa por
+    motivos diferentes, ausência de conflito é ausência de AVISO. A conferência
+    que resolve é ler o resultado: bloco a bloco, nenhuma versão some, nenhum
+    bloco antigo muda, o meu continua idêntico ao publicado.
+  - **Conferência que falha sem INTERROMPER vale tanto quanto conferência
+    nenhuma.** Os dois casos de 11/09: `grep` no fim de um `pipe` com `&&`
+    (o código de saída lido é o do grep, e o push seguiu depois da conferência
+    ter falhado); e script de edição cujo `assert` estoura ANTES do `write` —
+    o arquivo fica intacto, o teste continua verde, e o verde se lê como
+    "guard robusto". Todo passo de verificação para o comando quando falha, e
+    sabotagem/edição se confere olhando o ALVO, não a saída do script.
 - **O que vai demorar não fica aqui** (suíte de 35 min, módulo grande):
   worktree própria — ver memória `worktree-por-frente`. A suíte completa nesta
   árvore colide com o AutoDeploy por construção (ele desinstala o playwright
