@@ -478,6 +478,16 @@ SELECT c.numero AS coleta,
        upper(trim(coalesce(c.destino,''))) AS destino,
        coalesce(c.ufdestino,'')                  AS uf_destino,
        trim(coalesce(c.veiculo,''))              AS placa,
+       -- ONDE A CARGA SAI E ONDE ELA VAI, em coordenada. (A cobertura medida
+       -- está no comentário de `_ponto`, em Python: sinal de porcentagem
+       -- dentro de constante SQL vira placeholder do psycopg e derruba a
+       -- consulta inteira.) O que falta sai como `null`, nunca como (0,0):
+       -- zero é a Ilha de Null, no golfo da Guiné, e um pino ali num mapa do
+       -- Brasil não se lê como ausência, se lê como erro grosseiro de alguém.
+       nullif(c.latitudeorigem, 0)::float8       AS lat_origem,
+       nullif(c.longitudeorigem, 0)::float8      AS lon_origem,
+       nullif(c.latitudedestino, 0)::float8      AS lat_destino,
+       nullif(c.longitudedestino, 0)::float8     AS lon_destino,
        -- QUEM RECEBE A CARGA, e não só a cidade. "CRUZEIRO → RESENDE/RJ" é a
        -- montadora E a planta do próprio cliente na mesma cidade: dois
        -- destinatários, duas docas, duas janelas, uma linha só na tela. É por
@@ -689,6 +699,22 @@ def _chegada(r: dict) -> dict:
         except (TypeError, ValueError):
             desvio = None
     return {"chegada": quando, "chegada_fonte": fonte, "desvio_h": desvio}
+
+
+def _ponto(lat, lon):
+    """(lat, lon) como dicionário, ou `None` quando falta qualquer um dos dois.
+
+    COBERTURA MEDIDA em 11/09/2026, sobre 17.302 coletas de 180 dias: origem
+    em 96,2% e destino em 97,6%. É alta o bastante para o mapa ser a leitura
+    principal, e baixa o bastante para a tela precisar dizer quando falta.
+
+    Meia coordenada não é meia informação — é nenhuma. Um ponto com latitude e
+    sem longitude vira (x, 0) no mapa, que é o meridiano de Greenwich: um pino
+    no Atlântico com cara de dado bom.
+    """
+    if lat is None or lon is None:
+        return None
+    return {"lat": float(lat), "lon": float(lon)}
 
 
 def _por_destinatario(cargas: list[dict]) -> list[dict]:
@@ -1115,6 +1141,12 @@ def get_agora(raiz: str, dias: int = 45, mercs: tuple = ()) -> dict:
             "destino": r["destino"], "uf_destino": r["uf_destino"],
             "destinatario": r["destinatario_nome"],
             "placa": r["placa"],
+            # As duas pontas viajam SEPARADAS da posição: origem e destino são
+            # o que foi COMBINADO e não mudam durante a viagem; a posição é
+            # onde o veículo está agora. Misturá-las num campo só faria a tela
+            # perder a diferença entre plano e fato.
+            "origem_pt": _ponto(r["lat_origem"], r["lon_origem"]),
+            "destino_pt": _ponto(r["lat_destino"], r["lon_destino"]),
             "marco": rotulo, "marco_cod": cod, "marco_em": quando,
             # DE ONDE VEIO O ESTADO. "apontamento" é a operação que registrou;
             # "manifesto" é a SEFAZ; "programação" é só a janela, ninguém
@@ -1197,10 +1229,39 @@ def get_agora(raiz: str, dias: int = 45, mercs: tuple = ()) -> dict:
         log.warning("catálogo de mercadorias falhou: o filtro sai vazio")
         catalogo = {"mercadorias": []}
 
+    # OS EVENTOS DA RASTER E O DESLOCAMENTO, por PLACA e não por carga.
+    #
+    # Um caminhão leva vários CT-es, então pendurar os macros em cada carga
+    # repetiria o mesmo evento cinco vezes no payload e faria a tela desenhar
+    # o mesmo traço cinco vezes por cima de si mesmo. Aqui eles vão num mapa
+    # placa -> eventos, e a tela procura pela placa da carga que está lendo.
+    #
+    # É também o que mantém honesto o rótulo: são os eventos DO VEÍCULO que
+    # leva a carga, não os eventos DA carga. O macro aponta para um documento
+    # em 93,7% dos casos, mas o documento é o manifesto (59%) ou o CT-e (33%)
+    # e a coleta em apenas 1,3% — casar pela coleta cobriria quase nada.
+    from api import raster_eventos
+    # O MAPA PEDE POUCO: a viagem corrente (7 dias) e os últimos macros de
+    # cada placa. A linha do tempo inteira é outra pergunta, e quem a faz abre
+    # a aba que a carrega — um payload de 700 KB por minuto numa parede é
+    # gastar rede para redesenhar o mesmo traço.
+    rast = raster_eventos.por_placa(
+        tuple(sorted(placas)),
+        dias=raster_eventos.JANELA_MAPA_D,
+        macros_por_placa=raster_eventos.MACROS_NO_MAPA)
+
     return {
         "cargas": cargas,
         "em_curso": len(cargas),
         "mercadorias": catalogo["mercadorias"],
+        "macros": rast.get("macros", {}),
+        "trilhas": rast.get("trilhas", {}),
+        # A COBERTURA VAI JUNTO: numa amostra em que metade das placas não
+        # manda macro, uma linha do tempo pela metade parece veículo parado, e
+        # não fonte que não alcança aquele veículo.
+        "raster": {k: rast.get(k) for k in
+                   ("placas", "placas_com_macro", "placas_com_trilha",
+                    "janela_dias", "indisponivel")},
         # `sem_apontamento` mantém o NOME por compatibilidade com a tela e a
         # parede, que já o leem; o que ele conta agora são as PROGRAMADAS —
         # que passaram a aparecer, em vez de sumir. O número continua servindo

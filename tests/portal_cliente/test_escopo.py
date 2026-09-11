@@ -154,6 +154,12 @@ def _linha(**ev):
     base = {"coleta": 1, "emissao": "2026-09-01",
             "origem": "C", "uf_origem": "SP", "destino": "D", "uf_destino": "RJ",
             "destinatario_nome": "DESTINO X", "placa": "AAA1A11",
+            # AS DUAS PONTAS EM COORDENADA, que a consulta passou a trazer em
+            # 11/09/2026. Valores reais de uma rota CRUZEIRO/SP -> RESENDE/RJ:
+            # dublê de coordenada com (0,0) ou (1,1) esconderia justamente o
+            # erro que importa, porque qualquer aritmética "funciona" neles.
+            "lat_origem": -22.58550827, "lon_origem": -44.95908151,
+            "lat_destino": -22.4680711, "lon_destino": -44.4479203,
             "janela_carga": None, "janela_entrega": None,
             "t_cheg_carga": None, "t_aguard_carga": None, "t_saiu_carga": None,
             "t_viagem": None, "t_cheg_desc": None, "t_aguard_desc": None,
@@ -515,7 +521,13 @@ def test_o_payload_da_carga_e_lista_EXPLICITA(monkeypatch):
                           "marco", "marco_cod", "marco_em", "marco_fonte",
                           "janela_carga", "janela_entrega",
                           "chegada", "chegada_fonte", "desvio_h",
-                          "pos", "eta", "eta_amostras"}
+                          "pos", "eta", "eta_amostras",
+                          # ONDE A CARGA SAI E ONDE ELA VAI (11/09/2026).
+                          # SEPARADAS de `pos`: origem e destino são o que foi
+                          # COMBINADO e não mudam durante a viagem; `pos` é
+                          # onde o veículo está agora. Num campo só, a tela
+                          # perderia a diferença entre plano e fato.
+                          "origem_pt", "destino_pt"}
     texto = repr(carga)
     assert "8123" not in texto and "FULANO" not in texto
     assert "11222333000199" not in texto
