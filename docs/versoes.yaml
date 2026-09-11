@@ -1,3 +1,15 @@
+- versao: "1.56.0"
+  data: "2026-09-11"
+  adicionado:
+    - >-
+      O funil do CRM virou uma pirâmide 3D, com visual de tela holográfica e
+      movimento: os blocos flutuam, um brilho desce por eles e partículas
+      correm pelo eixo, como o fluxo do funil. Cada bloco é um estágio, na
+      ordem do processo, e a largura dele é o valor mensal do estágio — o
+      rótulo ao lado diz quantas oportunidades e quanto; o detalhe (ponderado,
+      probabilidade, sem valor) continua ao passar o mouse. Quem pede menos
+      movimento no sistema vê a pirâmide parada.
+
 - versao: "1.55.1"
   data: "2026-09-11"
   corrigido:

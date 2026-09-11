@@ -790,3 +790,80 @@ def test_oportunidade_ganha_oferece_abrir_projeto(pagina):
     pg.wait_for_selector("#modalBg.aberto", timeout=5000)
     # a oportunidade do dublê está em PROPOSTA: o botão não pode aparecer
     assert "Abrir projeto" not in pg.inner_text("#modalBg .m-foot")
+
+
+# ------------------------------------------------------------ a pirâmide
+
+def test_o_funil_e_uma_piramide_com_a_largura_do_VALOR_na_ordem_do_processo(pagina):
+    """11/09/2026: o funil virou pirâmide 3D (série `custom` do ECharts). O que
+    se testa é o que a forma AFIRMA: um bloco por estágio, na ordem do
+    processo, a largura saindo do VALOR, e o estágio vazio continuando a
+    existir (no piso) em vez de sumir."""
+    pg, base_url = pagina
+    erros = _abrir(pg, base_url)
+    pg.wait_for_selector("#chartCrmFunil svg", timeout=15000)
+    txt = pg.text_content("#chartCrmFunil")
+    for f in FUNIL:
+        assert f["rotulo"] in txt, f"o bloco de {f['rotulo']} não tem rótulo"
+    assert "vazio" in txt, "o estágio sem oportunidade diz isso"
+    g = pg.evaluate("f => crmPiramideGeo(f, 600, 210)", FUNIL)
+    larg = [b["wt"] for b in g["blocos"]]
+    assert larg[2] == max(larg), "a proposta (R$ 105,6 mil) é o bloco mais largo"
+    assert larg[0] == larg[1] > 0, "sem valor fica no piso, mas existe"
+    assert larg[3] > larg[1], "a negociação (R$ 9 mil) passa do piso"
+    ys = [b["y0"] for b in g["blocos"]]
+    assert ys == sorted(ys), "a ordem é a do processo, de cima para baixo"
+    assert "Proposta" in pg.get_attribute("#chartCrmFunil", "aria-label")
+    assert not erros, erros
+
+
+def test_funil_SEM_oportunidade_aberta_mostra_a_piramide_vazia_e_nao_some(pagina):
+    """Medido em 11/09/2026: o CRM da casa estava com ZERO oportunidades
+    abertas, e o cartão só dizia "nenhuma oportunidade aberta" — a pirâmide
+    nem aparecia. Estágio vazio é a informação mais acionável do funil, e o
+    funil INTEIRO vazio também: os quatro blocos aparecem, iguais, dizendo
+    "vazio"."""
+    pg, base_url = pagina
+    vazio = [dict(f, n=0, valor=0.0, ponderado=0.0, sem_valor=0) for f in FUNIL]
+    antigo = PAINEL["funil"]
+    PAINEL["funil"] = vazio
+    try:
+        erros = _abrir(pg, base_url)
+        pg.wait_for_selector("#chartCrmFunil svg", timeout=15000)
+        txt = pg.text_content("#chartCrmFunil")
+        hint = pg.inner_text("#crm-funil-hint")
+    finally:
+        PAINEL["funil"] = antigo
+    assert txt.count("vazio") == 4, txt
+    assert "nenhuma oportunidade aberta" in hint
+    g = pg.evaluate("f => crmPiramideGeo(f, 600, 210)", vazio)
+    assert len({round(b["wt"], 3) for b in g["blocos"]}) == 1, "sem valor medido, os blocos são iguais"
+    assert not erros, erros
+
+
+def _dois_quadros(pg, ms=500):
+    a = pg.inner_html("#chartCrmFunil")
+    pg.wait_for_timeout(ms)
+    return a, pg.inner_html("#chartCrmFunil")
+
+
+def test_a_piramide_se_MOVE(pagina):
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    pg.wait_for_selector("#chartCrmFunil svg", timeout=15000)
+    pg.wait_for_timeout(1200)          # a entrada do ECharts termina
+    a, b = _dois_quadros(pg)
+    assert a != b, "a pirâmide está parada"
+
+
+def test_com_MENOS_MOVIMENTO_pedido_no_sistema_a_piramide_fica_parada(pagina):
+    """Movimento é enfeite, e há quem passe mal com ele — a mesma regra do anel
+    da marca e do ticker da TV."""
+    pg, base_url = pagina
+    pg.emulate_media(reduced_motion="reduce")
+    _abrir(pg, base_url)
+    pg.wait_for_selector("#chartCrmFunil svg", timeout=15000)
+    pg.wait_for_timeout(1200)
+    a, b = _dois_quadros(pg)
+    assert a == b, "quem pediu menos movimento continua vendo a pirâmide andar"
+    assert "Proposta" in pg.text_content("#chartCrmFunil"), "e ela continua lá, parada"

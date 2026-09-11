@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.56.0] — 11/09/2026  ·  CX-11/09/2026-v1.56.0
+
+### Adicionado
+- O funil do CRM virou uma pirâmide 3D, com visual de tela holográfica e movimento: os blocos flutuam, um brilho desce por eles e partículas correm pelo eixo, como o fluxo do funil. Cada bloco é um estágio, na ordem do processo, e a largura dele é o valor mensal do estágio — o rótulo ao lado diz quantas oportunidades e quanto; o detalhe (ponderado, probabilidade, sem valor) continua ao passar o mouse. Quem pede menos movimento no sistema vê a pirâmide parada.
+
 ## [1.55.1] — 11/09/2026  ·  CX-11/09/2026-v1.55.1
 
 ### Corrigido

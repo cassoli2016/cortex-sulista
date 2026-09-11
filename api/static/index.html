@@ -7076,7 +7076,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="aba" data-abas="crm" data-aba="pnl" id="aba-crm-pnl" role="tabpanel" aria-labelledby="tabcrm-pnl">
           <div class="kpis k4" id="kpis-crm"></div>
           <div class="grid2">
-            <div class="card"><div class="head"><h2>Funil <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Oportunidades ABERTAS por estágio, com o valor mensal somado das lanes de cada uma. O valor ponderado usa a probabilidade da oportunidade quando o vendedor informou uma, e a do estágio quando não — o cartão do funil diz qual das duas está valendo. Estágio vazio aparece com zero em vez de sumir: “não há nada aqui” é a informação mais acionável do gráfico.">i</span></h2><span class="hint" id="crm-funil-hint">oportunidades abertas · valor mensal</span></div>
+            <div class="card"><div class="head"><h2>Funil <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Oportunidades ABERTAS por estágio, em pirâmide, na ordem do processo de cima para baixo. A LARGURA de cada bloco é o valor mensal somado das lanes do estágio, com um piso para o estágio vazio não sumir — “não há nada aqui” é a informação mais acionável do gráfico. Se um estágio do meio pesa mais que o de cima, a pirâmide estufa ali: é informação, não defeito. O valor ponderado (pela probabilidade da oportunidade quando o vendedor informou uma, e pela do estágio quando não) está no detalhe de cada bloco. O movimento é só visual e não carrega número; some para quem pede menos movimento no sistema.">i</span></h2><span class="hint" id="crm-funil-hint">oportunidades abertas · valor mensal</span></div>
               <div class="chartwrap"><div id="chartCrmFunil" style="width:100%;height:210px" role="img" aria-label="Funil de oportunidades por estágio"></div></div></div>
             <div class="card"><div class="head"><h2>Previsão de fechamento <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os próximos 6 meses pela data prevista de fechamento, com o valor ponderado pela probabilidade. O mês é GERADO, não colhido: mês sem previsão nenhuma entra zerado, porque emendar dois meses distantes numa linha contínua faz “nada previsto” parecer tendência. Oportunidade sem data prevista não pertence a mês nenhum e é contada à parte, no rodapé — é lacuna de cadastro, e lacuna dita é acionável.">i</span></h2><span class="hint" id="crm-prev-hint">6 meses · ponderado pela probabilidade</span></div>
               <div class="chartwrap"><div id="chartCrmPrev" style="width:100%;height:210px" role="img" aria-label="Previsão de fechamento por mês"></div></div></div>
@@ -28049,6 +28049,48 @@ function crmRenderPainel() {
   crmAlertas();
 }
 
+/* A GEOMETRIA DA PIRÂMIDE, pura e exposta: é ela que decide o que a forma
+   AFIRMA, e é ela que o teste chama. A LARGURA de cada bloco sai do VALOR
+   mensal do estágio, com PISO -- o estágio vazio continua existindo, porque
+   "não há nada aqui" é a informação mais acionável do funil --, e a ordem é a
+   do PROCESSO, de cima para baixo. Não se reordena por tamanho: se a proposta
+   pesa mais que a qualificação, a pirâmide ESTUFA ali, e isso é o gráfico
+   dizendo alguma coisa. Cada bloco afina 16% embaixo, que é o que dá a cara de
+   pirâmide sem mexer na largura que carrega o número (a de cima). */
+function crmPiramideGeo(f, W, H){
+  const n = Math.max(f.length, 1);
+  const max = Math.max(...f.map(x => x.valor || 0), 1);
+  const dx = Math.min(22, W * 0.05), dy = Math.min(12, H * 0.06);
+  const topo = 10 + dy, base = H - 16, gap = 6;
+  const h = Math.max(12, (base - topo - gap * (n - 1)) / n);
+  /* NADA COM VALOR (o funil vazio, ou só oportunidades sem valor informado):
+     os blocos ficam todos no MESMO piso, maior, para a pirâmide continuar
+     legível -- iguais, porque não há valor medido que os diferencie. Medido
+     em 11/09/2026: o CRM da casa tinha zero oportunidades abertas. */
+  const semMedida = !f.some(x => (x.valor || 0) > 0);
+  const maxW = Math.min(W * 0.46, 420), minW = maxW * (semMedida ? 0.34 : 0.16);
+  const cx = 16 + maxW / 2;
+  return {dx, dy, topo, base, gap, h, maxW, minW, cx,
+    xRot: cx + maxW / 2 + dx + 18, curto: W < 460,
+    blocos: f.map((x, i) => {
+      const wt = minW + (maxW - minW) * ((x.valor || 0) / max);
+      const y0 = topo + i * (h + gap);
+      return {wt, wb: wt * 0.84, y0, y1: y0 + h};
+    })};
+}
+
+/* O FUNIL EM PIRÂMIDE 3D (11/09/2026, pedido de quem opera: "visual
+   futurista e, se possível, movimento"). CONTINUA SENDO ECHARTS -- série
+   `custom` desenhando os blocos à mão e `keyframeAnimation` para o movimento
+   --, porque a regra da casa é UMA biblioteca de gráfico, vendorizada: um
+   motor 3D a mais seriam centenas de KB e um segundo vocabulário de cor, de
+   tema e de falha. E passa por `ecDesenhar`, que é quem diz a falha no cartão
+   e redesenha na troca de tema.
+   O MOVIMENTO É ENFEITE e não carrega número nenhum: os blocos flutuam de
+   leve, um brilho desce por eles e partículas descem pelo eixo -- o fluxo do
+   funil. Some com `prefers-reduced-motion`, como o anel da marca. As cores são
+   fixas (a "tela" escura é a mesma nos dois temas, como os painéis de TV):
+   frio no começo do processo, quente perto do fechamento. */
 function crmFunilChart() {
   const f = (CRMD && CRMD.funil) || [];
   const hint = document.getElementById('crm-funil-hint');
@@ -28057,19 +28099,28 @@ function crmFunilChart() {
   if (hint) hint.textContent = total
     ? (total + ' oportunidade' + (total === 1 ? '' : 's') + ' · ' + brlAbbr(soma) + '/mês')
     : 'nenhuma oportunidade aberta';
-  if (!total) { ecDesenhar('chartCrmFunil', null, 'nenhuma oportunidade aberta'); return; }
-  ecDesenhar('chartCrmFunil', () => {
-    const max = Math.max(...f.map(x => x.valor || 0), 1);
-    const o = ecOpcoes(f.map(x => x.rotulo), max, { tipo: 'moeda', sombra: true, bottom: 30 });
-    o.series = [
-      ecBarras('Valor no estágio', f.map(x => x.valor || 0), CC.navy500, {
-        rotulo: (i) => f[i].n ? (f[i].n + (f[i].n === 1 ? ' opo' : ' opos')) : '',
-      }),
-      ecBarras('Ponderado', f.map(x => x.ponderado || 0), CC.laranja,
-        { largura: 12, raio: false }),
-    ];
-    o.tooltip.formatter = ps => {
-      const i = ps[0].dataIndex, x = f[i];
+  /* O FUNIL VAZIO TAMBÉM SE DESENHA: os quatro estágios existem e estão
+     vazios, e isso é a informação -- a frase sozinha escondia a pirâmide
+     inteira (o CRM da casa tinha zero oportunidades abertas em 11/09/2026).
+     Só sem estágio NENHUM (payload quebrado) o cartão cai no texto. */
+  if (!f.length) { ecDesenhar('chartCrmFunil', null, 'nenhuma oportunidade aberta'); return; }
+  const el = document.getElementById('chartCrmFunil');
+  if (el) el.setAttribute('aria-label', 'Funil em pirâmide: ' + f.map(x =>
+    x.rotulo + ' ' + x.n + ' (' + brlAbbr(x.valor || 0) + ' por mês)').join(', '));
+  const mover = !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const anima = (cfg) => mover ? cfg : undefined;
+  const NEON = ['#5FD4FF', '#8FA8FF', '#FFB36B', '#FF7A3D'];
+  const rgba = (hex, a) => {
+    const v = parseInt(hex.slice(1), 16);
+    return 'rgba(' + ((v >> 16) & 255) + ',' + ((v >> 8) & 255) + ',' + (v & 255) + ',' + a + ')';
+  };
+  ecDesenhar('chartCrmFunil', () => ({
+    animation: true, animationDuration: 700,
+    backgroundColor: {type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+      colorStops: [{offset: 0, color: '#0B1926'}, {offset: 1, color: '#15304A'}]},
+    tooltip: {trigger: 'item', confine: true, formatter: p => {
+      const x = f[p.dataIndex];
+      if (!x) return '';
       return '<b>' + esc(x.rotulo) + '</b><br>' + x.n + ' oportunidade'
         + (x.n === 1 ? '' : 's') + '<br>valor ' + BRL.format(x.valor || 0) + '/mês'
         + '<br>ponderado ' + BRL.format(x.ponderado || 0) + '/mês'
@@ -28077,9 +28128,95 @@ function crmFunilChart() {
         + x.probabilidade_padrao + '%</span>'
         + (x.sem_valor ? '<br><span style="color:#B97709">' + x.sem_valor
           + ' sem valor informado</span>' : '');
-    };
-    return o;
-  });
+    }},
+    series: [
+      /* O CENÁRIO: grade de HUD, base holográfica, feixe e partículas. Mudo
+         (`silent`): nada aqui responde ao mouse, porque nada aqui é dado. */
+      {type: 'custom', coordinateSystem: 'none', silent: true, data: [[0]], z: 1,
+        renderItem: (params, api) => {
+          const W = api.getWidth(), H = api.getHeight();
+          const g = crmPiramideGeo(f, W, H);
+          const eixo = g.cx + g.dx / 2;
+          const filhos = [];
+          for (let y = 9; y < H; y += 18)
+            filhos.push({type: 'line', shape: {x1: 0, y1: y, x2: W, y2: y},
+              style: {stroke: 'rgba(95,212,255,0.05)', lineWidth: 1}});
+          filhos.push({type: 'ellipse', shape: {cx: eixo, cy: g.base + 5, rx: g.maxW * 0.42, ry: 6},
+            originX: eixo, originY: g.base + 5,
+            style: {fill: {type: 'radial', x: 0.5, y: 0.5, r: 0.5, colorStops: [
+              {offset: 0, color: 'rgba(95,212,255,0.45)'}, {offset: 1, color: 'rgba(95,212,255,0)'}]}},
+            keyframeAnimation: anima({duration: 2600, loop: true, keyframes: [
+              {percent: 0.5, scaleX: 1.12, scaleY: 1.35, easing: 'sinusoidalInOut'},
+              {percent: 1, scaleX: 1, scaleY: 1, easing: 'sinusoidalInOut'}]})});
+          filhos.push({type: 'line', shape: {x1: eixo, y1: g.topo - g.dy - 6, x2: eixo, y2: g.base},
+            style: {lineWidth: 1.5, stroke: {type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [
+              {offset: 0, color: 'rgba(95,212,255,0)'}, {offset: 0.5, color: 'rgba(95,212,255,0.55)'},
+              {offset: 1, color: 'rgba(95,212,255,0)'}]}}});
+          if (mover) for (let k = 0; k < 7; k++) {
+            filhos.push({type: 'circle',
+              shape: {cx: eixo + ((k % 3) - 1) * Math.min(10, g.minW * 0.2), cy: g.topo - g.dy, r: 1.8},
+              style: {fill: '#BFF1FF', shadowBlur: 6, shadowColor: '#5FD4FF', opacity: 0},
+              keyframeAnimation: anima({duration: 3400, loop: true, delay: k * 480, keyframes: [
+                {percent: 0, y: 0, style: {opacity: 0}},
+                {percent: 0.12, style: {opacity: 1}},
+                {percent: 0.88, style: {opacity: 0.9}},
+                {percent: 1, y: g.base - g.topo + g.dy, style: {opacity: 0}}]})});
+          }
+          return {type: 'group', children: filhos};
+        }},
+      /* OS BLOCOS: um item por estágio, e é por isso que cada um tem o seu
+         tooltip. Frente, topo e lateral fazem o 3D; a linha tracejada de HUD
+         leva o bloco ao rótulo, que diz o número por extenso. */
+      {type: 'custom', coordinateSystem: 'none', data: f.map((x, i) => [i]), z: 2,
+        renderItem: (params, api) => {
+          const i = params.dataIndex, x = f[i];
+          const g = crmPiramideGeo(f, api.getWidth(), api.getHeight());
+          const b = g.blocos[i], c = NEON[i % NEON.length], cx = g.cx, dx = g.dx, dy = g.dy;
+          const L = cx - b.wt / 2, R = cx + b.wt / 2, l = cx - b.wb / 2, r = cx + b.wb / 2;
+          const frente = [[L, b.y0], [R, b.y0], [r, b.y1], [l, b.y1]];
+          const topo = [[L, b.y0], [R, b.y0], [R + dx, b.y0 - dy], [L + dx, b.y0 - dy]];
+          const lado = [[R, b.y0], [R + dx, b.y0 - dy], [r + dx, b.y1 - dy], [r, b.y1]];
+          const ym = (b.y0 + b.y1) / 2 - dy / 2;
+          /* ZERO QUE É AUSÊNCIA NÃO É DESEMPENHO: estágio em que NENHUMA
+             oportunidade tem valor informado diz isso, e não "R$ 0" -- que se
+             leria como negócio de valor zero. A largura dele fica no piso, a
+             mesma do estágio vazio: nos dois casos não há valor medido. */
+          const semTudo = x.n > 0 && !(x.valor) && x.sem_valor === x.n;
+          const valor = !x.n ? 'vazio'
+            : x.n + (g.curto ? '' : (x.n === 1 ? ' opo' : ' opos')) + ' · '
+              + (semTudo ? (g.curto ? 's/ valor' : 'sem valor informado')
+                         : brlAbbr(x.valor || 0) + (g.curto ? '' : '/mês')
+                           + (x.sem_valor && !g.curto ? ' · ' + x.sem_valor + ' s/ valor' : ''));
+          return {type: 'group',
+            keyframeAnimation: anima({duration: 3800, loop: true, delay: i * 420, keyframes: [
+              {percent: 0.5, y: -2.5, easing: 'sinusoidalInOut'},
+              {percent: 1, y: 0, easing: 'sinusoidalInOut'}]}),
+            children: [
+              {type: 'polygon', shape: {points: lado},
+                style: {fill: rgba(c, 0.28), stroke: rgba(c, 0.8), lineWidth: 1}},
+              {type: 'polygon', shape: {points: topo},
+                style: {fill: rgba(c, 0.62), stroke: rgba(c, 0.95), lineWidth: 1}},
+              {type: 'polygon', shape: {points: frente},
+                style: {fill: {type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [
+                  {offset: 0, color: rgba(c, 0.55)}, {offset: 1, color: rgba(c, 0.16)}]},
+                  stroke: c, lineWidth: 1.2, shadowBlur: 12, shadowColor: rgba(c, 0.8)}},
+              {type: 'polyline', silent: true, shape: {points: frente.concat([frente[0]])},
+                style: {stroke: '#FFFFFF', lineWidth: 1.4, fill: null, opacity: mover ? 0.1 : 0},
+                keyframeAnimation: anima({duration: 2800, loop: true, delay: i * 350, keyframes: [
+                  {percent: 0.12, style: {opacity: 0.85}},
+                  {percent: 0.45, style: {opacity: 0.1}},
+                  {percent: 1, style: {opacity: 0.1}}]})},
+              {type: 'line', silent: true, shape: {x1: R + dx + 3, y1: ym, x2: g.xRot - 6, y2: ym},
+                style: {stroke: rgba(c, 0.55), lineWidth: 1, lineDash: [3, 3]}},
+              {type: 'circle', silent: true, shape: {cx: g.xRot - 6, cy: ym, r: 2}, style: {fill: c}},
+              {type: 'text', style: {text: x.rotulo, x: g.xRot, y: ym - 7, fill: '#FFFFFF',
+                font: '700 12px Saira, sans-serif', verticalAlign: 'middle'}},
+              {type: 'text', style: {text: valor, x: g.xRot, y: ym + 8, fill: c,
+                font: '500 11px "IBM Plex Mono", monospace', verticalAlign: 'middle'}},
+            ]};
+        }},
+    ],
+  }));
 }
 
 function crmPrevChart() {
