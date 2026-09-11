@@ -163,7 +163,7 @@ def test_o_parametro_raiz_NAO_vence_o_vinculo_na_rota(monkeypatch):
     """
     vistos = []
 
-    def _agora(raiz, dias=45):
+    def _agora(raiz, dias=45, merc=None):
         vistos.append(raiz)
         return {"cargas": [], "em_curso": 0, "concluidas_na_janela": 0,
                 "janela_dias": dias, "fonte": "dublê"}
@@ -183,7 +183,7 @@ def test_a_resposta_diz_de_QUEM_e_o_numero(monkeypatch):
     errada e age em cima — e numa TV ninguém vai conferir o filtro."""
     import json
 
-    monkeypatch.setattr(pc, "get_agora", lambda raiz, dias=45: {
+    monkeypatch.setattr(pc, "get_agora", lambda raiz, dias=45, merc=None: {
         "cargas": [], "em_curso": 0, "concluidas_na_janela": 0,
         "janela_dias": dias, "fonte": "dublê"})
     monkeypatch.setattr(pc, "nome_do_cliente", lambda r: "CLIENTE DUBLÊ S.A.")
@@ -197,7 +197,7 @@ def test_a_resposta_diz_de_QUEM_e_o_numero(monkeypatch):
 def test_a_janela_pedida_e_limitada(monkeypatch):
     """Parâmetro que vem do navegador não escolhe o tamanho da varredura."""
     vistos = []
-    monkeypatch.setattr(pc, "get_agora", lambda raiz, dias=45: (
+    monkeypatch.setattr(pc, "get_agora", lambda raiz, dias=45, merc=None: (
         vistos.append(dias) or {"cargas": [], "em_curso": 0,
                                 "concluidas_na_janela": 0, "janela_dias": dias,
                                 "fonte": "dublê"}))
@@ -208,7 +208,7 @@ def test_a_janela_pedida_e_limitada(monkeypatch):
 
 
 def test_aba_desconhecida_cai_no_padrao_e_nao_estoura(monkeypatch):
-    monkeypatch.setattr(pc, "get_agora", lambda raiz, dias=45: {
+    monkeypatch.setattr(pc, "get_agora", lambda raiz, dias=45, merc=None: {
         "cargas": [], "em_curso": 0, "concluidas_na_janela": 0,
         "janela_dias": dias, "fonte": "dublê"})
     resp = main.portal_cliente_dados(_req({"cliente_cnpj_raiz": RAIZ}),

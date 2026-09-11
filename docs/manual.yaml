@@ -231,13 +231,38 @@ glossario:
     Tempo entre a chegada e a saída do veículo, medido pelos apontamentos da
     operação (ocorrências SAC 394→395 no carregamento, 396→397 na descarga).
     Cobre cerca de 72% das cargas — bem mais que a entrega no prazo, que só é
-    medível em 8,7% delas. Sai em TRÊS FAIXAS e não num número só porque o
-    contrato de freetime distingue por mercadoria e o apontamento não diz qual
-    mercadoria era: dentro do menor freetime é aderente sob qualquer contrato,
-    acima do maior é excedente sob qualquer contrato, e no meio a resposta
-    depende de um dado que não temos — e a tela diz isso em vez de escolher um
-    lado. Permanência acima de 24h vira "não medido": é apontamento
-    atravessando dias, não veículo parado.
+    medível em 8,7% delas. Cada permanência é comparada com a cláusula de
+    freetime do TIPO DE MERCADORIA daquela carga: o contrato tem uma linha por
+    tipo, e a carga transportada está registrada na coleta (preenchida em 100%
+    das 17.269 coletas de 180 dias). Com a cláusula conhecida a resposta é uma
+    das duas — dentro do freetime ou excedente. Mercadoria sem cláusula própria
+    cai na cláusula genérica do contrato; sem cláusula e sem genérica a tela
+    não escolhe: a permanência entra em "depende da mercadoria", entre o menor
+    e o maior freetime contratado. Permanência acima de 24h vira "não medido":
+    é apontamento atravessando dias, não veículo parado.
+- termo: Freetime contratado (e qual cláusula respondeu)
+  definicao: >-
+    O contrato de freetime tem UMA LINHA POR TIPO DE MERCADORIA, e um cliente
+    pode ter várias ativas ao mesmo tempo, com a mesma data de início — a
+    Iochpe-Maxion tem uma genérica de 3h e três cláusulas de 6,5h na descarga
+    (conjuntos, rodas, escadas); a Lear tem quatro e nenhuma genérica. Por isso
+    a tela diz não só o número de horas, mas QUAL cláusula respondeu: "3h
+    porque o contrato diz 3h para rodas" e "3h porque não há cláusula para esta
+    mercadoria" são o mesmo número e afirmações diferentes, e só a segunda é
+    a que alguém precisa levar ao comercial. A sub-aba Freetime contratado
+    mostra as cláusulas ativas com as horas de cada uma — é a régua que
+    produziu os números da Permanência.
+- termo: Filtro de tipo de mercadoria
+  definicao: >-
+    O seletor da barra de filtros da Minha Operação, que vale para a TELA
+    INTEIRA — Agora, Permanência e Histórico. Ele existe porque o freetime é
+    diferente por tipo de carga e a média sobre tipos diferentes não descreve
+    nenhum deles: medido na Iochpe-Maxion em 90 dias, 50,4% das descargas
+    ficaram dentro do freetime na operação toda e 83,5% quando se olha só
+    chassi. A lista sai da operação do próprio cliente (os tipos que ele de
+    fato movimenta nos últimos 12 meses, com o volume de cada um), não do
+    contrato, e grafias diferentes da mesma mercadoria ("peças" e "pecas")
+    aparecem como uma opção só.
 - termo: Por que o portal não mostra entrega no prazo
   definicao: >-
     Porque o ERP não tem prazo de entrega confiável. Medido em 05/09/2026 sobre

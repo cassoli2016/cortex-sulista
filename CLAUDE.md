@@ -593,6 +593,40 @@ barra empilhada, não donut.
   devolve o mês sem linha — abril emendaria em agosto); mês sem coleta rotulado,
   barra cinza, linha ABERTA (`connectNulls:false`); cobertura parcial mostra o
   número POR DIA; janela ancorada no ÚLTIMO DADO, nunca em `current_date`.
+- **Empate em `ORDER BY` é SORTEIO, e sorteio estável por acidente passa em
+  todo teste.** `DISTINCT ON (cliente) … ORDER BY dtinicio DESC` sobre um
+  contrato que tem UMA LINHA POR MERCADORIA, todas com a mesma data, devolve
+  uma ao acaso — e como o `valor_est` do SAC multiplica a hora excedente pelo
+  valor contratado, o sorteio mexia em DINHEIRO. Três execuções seguidas deram
+  o mesmo resultado: era a ordem FÍSICA da tabela, não regra, e um `VACUUM`
+  bastava para virar. Desempate se escreve por inteiro, e a chave do
+  `DISTINCT ON` inclui a dimensão que de fato distingue as linhas.
+- **Duas telas que leem a MESMA fonte e cada uma inventa a própria política
+  discordam POR CONSTRUÇÃO.** O `sac` sorteava a cláusula de freetime; a
+  `cliop` recusava escolher e publicava uma faixa. Nenhuma errada, e
+  incompatíveis. A regra vira MÓDULO (`api/freetime.py`) e as telas a executam.
+  Quando ela precisa de dois sotaques (SQL no ERP, Python em casa), **o guard
+  EXECUTA os dois lado a lado contra entrada REAL** — comparar as duas
+  implementações por leitura aprova qualquer divergência de comportamento, e
+  foi assim que se achou o Python colapsando espaço interno e o SQL não.
+- **"Procurei por ali e não achei" não é "o dado não existe"** — e vira mentira
+  duradoura quando escrito como comentário afirmativo no código. O vínculo
+  coleta↔mercadoria não estava em `coleta_composicao` (11 linhas para 2.998
+  coletas), e por isso ficou escrito que não havia vínculo confiável; estava em
+  `coleta.mercadorias`, 100% preenchida em 17.269 coletas de 180 dias.
+- **Aproximação de texto que decide DINHEIRO é decisão comercial declarada,
+  nunca heurística escondida numa query.** Normalizar grafia (maiúscula,
+  acento, espaço, plural) casa "ESPUMAS PARA BANCO" com "ESPUMA PARA BANCOS" e
+  é aritmética. Casar "CONJUNTO PHEVUS" com "CONJUNTOS" muda o freetime de 3h
+  para 6,5h em 163 cargas — isso é pergunta para quem negocia o contrato. A
+  tela DIZ qual cláusula respondeu (própria / genérica / não há), que é como a
+  pergunta chega a quem pode respondê-la; há guard proibindo `LIKE` ali.
+- **Filtro cuja marca no SQL é um COMENTÁRIO precisa de recusa explícita.**
+  `--{FILTRO_MERC}` perdido não quebra consulta nenhuma: ela roda, responde e
+  ignora o filtro — a tela mostra "ESPUMA" no seletor e devolve a operação
+  inteira. O montador levanta `AssertionError` sem o lugar do filtro, e uma
+  varredura por `ast` cobra a marca de toda constante SQL do módulo (com
+  `assert` contra resultado vazio).
 - **JOIN com tabela de vigência/histórico multiplica linhas e o total inflado é
   PLAUSÍVEL** — tabela com `dtvigencia`/`versao`/`_hist` entra por
   `DISTINCT ON (chave) … ORDER BY chave, data DESC NULLS LAST`, nunca join

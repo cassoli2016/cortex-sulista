@@ -375,27 +375,85 @@ def test_sem_contrato_o_freetime_e_nd_e_NAO_zero(monkeypatch):
     assert ft["descarga_piso"] is None and ft["carga_piso"] is None
 
 
+def _p(h, origem, ft):
+    """Uma permanência já resolvida, como `get_permanencia` a monta."""
+    return {"_h": h, "_origem": origem, "ft_descarga_h": ft}
+
+
 def test_sem_regua_a_tela_nao_classifica_nada():
-    """Sem piso/teto não há faixa — e n/d, nunca 100% de aderência."""
-    f = pc._faixas([1.0, 2.0, 9.0], None, None)
+    """Sem contrato não há faixa — e n/d, nunca 100% de aderência.
+
+    Um zero em "excedente" se lê como "ninguém passou do freetime", que é uma
+    afirmação sobre um contrato que não existe.
+    """
+    linhas = [_p(1.0, pc._ft.SEM_CLAUSULA, None),
+              _p(2.0, pc._ft.SEM_CLAUSULA, None),
+              _p(9.0, pc._ft.SEM_CLAUSULA, None)]
+    f = pc._faixas(linhas, "ft_descarga_h", None, None)
     assert f["dentro"] is None and f["fora"] is None and f["n"] == 3
+    assert f["sem_regua"] == 3
 
 
-def test_as_tres_faixas_somam_o_universo():
-    f = pc._faixas([0.5, 1.9, 2.1, 3.0, 4.9, 7.0, 20.0], 2.0, 5.0)
-    assert f["dentro"] + f["zona"] + f["fora"] == f["n"] == 7
-    assert f["dentro"] == 2      # 1.0 e 2.9
-    assert f["fora"] == 2        # 7.0 e 20.0
-    assert f["zona"] == 3        # 3.1, 5.0, 6.4
+def test_com_a_clausula_resolvida_a_resposta_e_BINARIA():
+    """Esta é a mudança de 10/09/2026, e é o ponto da entrega.
+
+    Sabendo qual cláusula vale para esta carga, a permanência está dentro do
+    que o contrato dá ou não está. Não há terceira resposta — e a zona
+    cinzenta que existia antes era consequência de não saber a mercadoria,
+    não de uma dúvida do contrato.
+
+    As duas linhas aqui têm freetimes DIFERENTES de propósito: é isso que uma
+    régua única (piso/teto) não conseguia fazer. 4h é excedente sob 3h e é
+    aderente sob 6,5h — e as duas coisas são verdade ao mesmo tempo, para
+    cargas diferentes, no mesmo cliente.
+    """
+    linhas = [_p(4.0, pc._ft.GENERICO, 3.0),      # excedente sob a genérica
+              _p(4.0, pc._ft.MERCADORIA, 6.5)]    # aderente sob RODAS
+    f = pc._faixas(linhas, "ft_descarga_h", 3.0, 6.5)
+    assert (f["dentro"], f["fora"], f["zona"]) == (1, 1, 0)
+    assert f["origens"] == {"mercadoria": 1, "generico": 1, "sem_clausula": 0}
+
+
+def test_a_zona_cinzenta_sobra_SO_para_quem_nao_tem_clausula():
+    """A dúvida não some por decreto: ela encolhe até onde de fato está.
+
+    Mercadoria sem cláusula própria e contrato sem genérica — é a LEAR, onde
+    "DIVERSOS" (203 cargas em 90 dias) não casa com linha nenhuma. Aí a régua
+    volta a ser a faixa do contrato inteiro, e o meio dela é dúvida legítima:
+    a tela diz "depende da mercadoria" em vez de escolher um lado.
+    """
+    linhas = [_p(2.0, pc._ft.SEM_CLAUSULA, None),   # abaixo do piso
+              _p(4.0, pc._ft.SEM_CLAUSULA, None),   # no meio: dúvida
+              _p(9.0, pc._ft.SEM_CLAUSULA, None)]   # acima do teto
+    f = pc._faixas(linhas, "ft_descarga_h", 3.0, 5.0)
+    assert (f["dentro"], f["zona"], f["fora"]) == (1, 1, 1)
+
+
+def test_as_faixas_SOMAM_o_universo_medido():
+    """Quatro contagens, e elas fecham. `sem_regua` existe para isso.
+
+    Sem a quarta, a linha que não pôde ser classificada sumiria da soma e os
+    percentuais das outras três diriam respeito a um total que a tela não
+    mostra — a forma mais silenciosa de um painel mentir.
+    """
+    linhas = [_p(1.0, pc._ft.MERCADORIA, 3.0), _p(9.0, pc._ft.GENERICO, 3.0),
+              _p(4.0, pc._ft.SEM_CLAUSULA, None)]
+    f = pc._faixas(linhas, "ft_descarga_h", 3.0, 5.0)
+    assert f["dentro"] + f["zona"] + f["fora"] + f["sem_regua"] == f["n"] == 3
 
 
 def test_o_limite_e_inclusivo_no_piso_e_no_teto():
-    """O piso está DENTRO e o teto ainda não é excedente: os dois inclusivos.
+    """O freetime está DENTRO: a hora contratada é hora dada, não excedida.
 
-    Valores de dublê — o que se afirma é a fronteira, não a hora contratada.
+    Vale nos dois modos — contra a cláusula resolvida e contra a faixa. Valores
+    de dublê: o que se afirma é a fronteira, não a hora contratada.
     """
-    f = pc._faixas([2.0, 5.0], 2.0, 5.0)
-    assert f["dentro"] == 1 and f["fora"] == 0 and f["zona"] == 1
+    exato = pc._faixas([_p(3.0, pc._ft.MERCADORIA, 3.0)], "ft_descarga_h", 3.0, 5.0)
+    assert exato["dentro"] == 1 and exato["fora"] == 0
+    faixa = pc._faixas([_p(2.0, pc._ft.SEM_CLAUSULA, None),
+                        _p(5.0, pc._ft.SEM_CLAUSULA, None)],
+                       "ft_descarga_h", 2.0, 5.0)
+    assert faixa["dentro"] == 1 and faixa["fora"] == 0 and faixa["zona"] == 1
 
 
 # --------------------------------------------------- a régua física
@@ -406,13 +464,15 @@ def test_permanencia_acima_de_24h_vira_nd_CONTADO(monkeypatch):
     Zero puxaria a mediana para baixo; descartar calado esconderia um problema
     de apontamento. Vira `fora_da_regua`, que a tela mostra em cinza.
     """
-    linhas = [{"h_carga": 2.0, "h_descarga": 4.0},
-              {"h_carga": 30.0, "h_descarga": 99.0},   # apontamento atravessando dias
-              {"h_carga": None, "h_descarga": 5.0}]
+    linhas = [{"h_carga": 2.0, "h_descarga": 4.0, "mercadoria": "RODAS"},
+              {"h_carga": 30.0, "h_descarga": 99.0,   # apontamento atravessando dias
+               "mercadoria": "RODAS"},
+              {"h_carga": None, "h_descarga": 5.0, "mercadoria": ""}]
     monkeypatch.setattr(pc.db, "query", lambda sql, *a, **k: linhas)
     monkeypatch.setattr(pc, "_freetime", lambda raiz: {
         "contratos": 1, "carga_piso": 2.0, "carga_teto": 2.0,
-        "descarga_piso": 2.0, "descarga_teto": 5.0, "ambiguo": False})
+        "descarga_piso": 2.0, "descarga_teto": 5.0, "ambiguo": False,
+        "linhas": [{"mercadoria": "", "ft_carga_h": 2.0, "ft_descarga_h": 5.0}]})
     d = pc.get_permanencia(RAIZ, "2026-08-01", "2026-08-31")
     assert d["carga"]["fora_da_regua"] == 1
     assert d["descarga"]["fora_da_regua"] == 1

@@ -1,3 +1,57 @@
+- versao: "1.38.0"
+  data: "2026-09-11"
+  adicionado:
+    - >-
+      A Minha Operacao ganhou FILTRO DE TIPO DE MERCADORIA, e ele vale para a
+      tela inteira -- Agora, Permanencia e Historico. Ele existe porque o
+      freetime e diferente por tipo de carga, e a media sobre tipos diferentes
+      nao descreve nenhum deles: na IOCHPE MAXION, 90 dias, 50,4% das
+      descargas ficaram dentro do freetime na operacao toda e 83,5% quando se
+      olha so CHASSI. A lista sai da operacao do proprio cliente (os tipos que
+      ele de fato movimenta em 12 meses, com o volume de cada um), e grafias
+      diferentes da mesma mercadoria -- "PECAS" e "PECAS" com cedilha --
+      aparecem como uma opcao so.
+    - >-
+      A Permanencia ganhou a sub-aba FREETIME CONTRATADO, com as clausulas
+      ativas do contrato e as horas de cada uma. E a regua que produziu os
+      numeros da aba anterior: validar o freetime exige poder ver o contrato
+      ao lado do que ele governou.
+  alterado:
+    - >-
+      A PERMANENCIA PASSA A SER MEDIDA CONTRA A CLAUSULA DA PROPRIA
+      MERCADORIA. O contrato de freetime tem uma linha por tipo de carga, e
+      ate aqui a tela nao sabia qual tipo era: ela publicava TRES FAIXAS
+      (dentro do menor freetime, acima do maior, e "depende da mercadoria" no
+      meio), e a faixa do meio engolia a leitura. A carga transportada estava
+      na propria coleta o tempo todo -- preenchida em 100% das 17.269 coletas
+      de 180 dias, no mesmo vocabulario do contrato. Agora cada permanencia e
+      comparada com a clausula dela e a resposta e uma das duas: dentro do
+      freetime ou excedente. Na MAXION a zona cinzenta foi a ZERO; na LEAR
+      encolheu para os 42,5% de cargas cuja mercadoria nao tem clausula e cujo
+      contrato nao tem generica, que e onde a duvida de fato esta.
+    - >-
+      A tela passa a dizer QUAL clausula respondeu por cada numero. "3h porque
+      o contrato da 3h para RODAS" e "3h porque nao ha clausula para esta
+      mercadoria" sao o mesmo numero e afirmacoes diferentes -- e so a segunda
+      e a que alguem precisa levar ao comercial.
+  corrigido:
+    - >-
+      O FREETIME DA TELA SAC ERA SORTEADO. O contrato tem varias clausulas
+      ativas ao mesmo tempo, todas com a MESMA data de inicio (a MAXION tem
+      quatro, a LEAR tem quatro), e a consulta escolhia uma por data -- com as
+      datas empatadas, quem escolhia era o banco, ao acaso. Como a estimativa
+      multiplica a hora excedente pelo valor contratado, o sorteio mexia em
+      DINHEIRO. Agora a clausula e casada pela mercadoria da coleta. Medido em
+      60 dias: a estadia estimada sai de R$ 877.771,15 para R$ 949.714,50, e o
+      aumento e TODO de dois clientes -- IOCHPE MAXION (+R$ 71.244,35, que
+      usava 6,5h para tudo quando 75,7% das coletas valem 3h) e LEAR
+      (+R$ 699,00). Quem tem uma clausula so nao mudou em nada.
+    - >-
+      A tela SAC e a Minha Operacao passam a concordar. Elas liam o MESMO
+      contrato e cada uma tinha inventado a propria saida para o empate de
+      clausulas -- uma sorteava, a outra recusava escolher --, entao
+      discordavam por construcao. A regra agora mora num lugar so e as duas
+      telas a executam.
 - versao: "1.37.1"
   data: "2026-09-10"
   corrigido:

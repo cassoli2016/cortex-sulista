@@ -12,6 +12,158 @@
 
 ---
 
+## O freetime sorteado, e o dado que estava na porta ao lado (2026-09-11, v1.38.0)
+
+Quem opera pediu: *"o freetime contratado na minha operação precisa validar com
+o SAC / Freetime, e também colocar um filtro de tipo de mercadoria no filtro da
+minha operação."* Pedido de conferência e um campo novo. O que a conferência
+achou era outra coisa.
+
+### O contrato tem uma linha por mercadoria, e as datas empatam
+
+`sulista.sac_freetimecliente` tem UMA LINHA POR TIPO DE MERCADORIA. Dezesseis
+clientes têm contrato ativo; três têm várias linhas ao mesmo tempo, e em dois
+deles **todas com o mesmo `dtinicio`** (medido em 10/09/2026):
+
+| cliente | linhas | datas | freetime de descarga |
+|---|---|---|---|
+| IOCHPE MAXION | 4 | **iguais** | genérica 3h · CONJUNTOS/RODAS/ESCADAS 6,5h |
+| LEAR | 4 | **iguais** | PEÇAS e EMBALAGENS 3h · ESPUMA 5h |
+| VOLVO | 2 | diferentes | 1h → 2h (revisão de contrato — aí a nova manda mesmo) |
+
+Duas telas leem esse contrato, e cada uma tinha inventado a própria saída para
+o empate:
+
+- **`sac`** resolvia com `DISTINCT ON (agrupamentocliente) … ORDER BY dtinicio
+  DESC`. Com as datas empatadas, quem escolhe é o BANCO, ao acaso. E o
+  `valor_est` multiplica a hora excedente pelo valor contratado — o sorteio
+  mexia em dinheiro.
+- **`cliop`** recusava escolher e publicava uma FAIXA: dentro do menor freetime
+  é aderente sob qualquer cláusula, acima do maior é excedente sob qualquer
+  cláusula, no meio "depende da mercadoria". Honesto, e caro: a zona cinzenta
+  engolia a leitura.
+
+**Elas discordavam por construção**, e nenhuma das duas estava "errada" —
+estavam resolvendo o mesmo problema com duas políticas diferentes, cada uma
+escrita no próprio arquivo.
+
+Sobre o sorteio, um detalhe que vale por si: **três execuções seguidas deram o
+mesmo resultado**. A ordem estava estável por ACIDENTE (ordem física da
+tabela), não por regra. É o pior tipo de bug latente — ele não aparece em teste
+nenhum até um `VACUUM`, um índice novo ou um plano diferente reordenarem as
+linhas, e quando aparecer vai parecer que alguém mexeu na regra.
+
+### Procurar num caminho e não achar não é o dado não existir
+
+Eu tinha escrito, no próprio `queries.py`, a justificativa de por que casar
+pela mercadoria era impossível: *"a permanência é medida na COLETA e a
+mercadoria vive no CT-e, e não há vínculo confiável entre os dois —
+`coleta_composicao` tem 11 linhas para 2.998 coletas em 30 dias."* A medição
+estava certa e a conclusão estava errada. A mercadoria estava na PRÓPRIA
+coleta, em `coleta.mercadorias`: **100% preenchida** nas 17.269 coletas de 180
+dias, 80 valores distintos, no mesmo vocabulário do contrato.
+
+Procurei o vínculo pelo caminho natural, não achei, e converti "não achei por
+ali" em "não existe" — e escrevi isso como um comentário afirmativo, que é o
+formato em que uma conclusão errada sobrevive mais tempo.
+
+### O que o casamento por mercadoria mudou, em dinheiro
+
+A ordem passou a ser: **cláusula da mercadoria → cláusula genérica → último
+recurso**. O último recurso é o MAIOR freetime, e a escolha não é neutra: com o
+maior, só vira excedente a hora que excede sob QUALQUER cláusula do contrato —
+a estimativa passa a ser um PISO do que se pode afirmar. O menor inflaria a
+cobrança com horas talvez contratadas, e estimativa que erra para cima é a que
+ninguém confere até o cliente contestar.
+
+Medido em 60 dias:
+
+| | linhas | horas excedentes | valor estimado |
+|---|---|---|---|
+| antes | 1.774 | 8.918,3 | R$ 877.771,15 |
+| depois | 1.942 | 9.626,4 | **R$ 949.714,50** |
+
+**+R$ 71.943,35**, e o aumento é todo de dois clientes, por construção: IOCHPE
+MAXION +R$ 71.244,35 (usava 6,5h para tudo, e 75,7% das coletas são de
+mercadoria sem cláusula, que valem 3h) e LEAR +R$ 699,00. Quem tem uma cláusula
+só não mudou em nada — não havia o que sortear.
+
+Na Minha Operação o efeito é o espelho: a zona cinzenta da MAXION foi a ZERO
+(100% das permanências passaram a ter cláusula), e a da LEAR encolheu para os
+42,5% de cargas cuja mercadoria não casa com linha nenhuma num contrato SEM
+genérica — que é onde a dúvida de fato está.
+
+### O guard que compara duas implementações por leitura não compara nada
+
+A regra agora mora em `api/freetime.py` e aparece em dois sotaques: SQL (a
+estimativa do SAC roda inteira no ERP, sobre milhares de linhas) e Python (na
+Minha Operação as linhas vêm para casa de qualquer jeito). Duas execuções do
+mesmo texto — e duas execuções que divergem são piores que duas cópias
+declaradas, porque ninguém procura a diferença.
+
+O guard central EXECUTA os dois lados contra as mesmas 23 strings reais
+(colhidas do contrato e das coletas) e exige o mesmo resultado. Ele roda a
+expressão SQL no PostgreSQL local; `translate`, `upper`, `btrim` e
+`regexp_replace` são idênticos no 16 e no 9.3 do ERP, e é só isso que a
+expressão usa.
+
+**E ele achou uma divergência na primeira execução**: o Python colapsava espaço
+interno (`" ".join(t.split())`) e o SQL não (`btrim` só tira das pontas).
+"ESPUMA  PARA  BANCOS" com espaço dobrado no cadastro não casaria com a mesma
+mercadoria escrita direito. Nenhuma leitura do texto das duas implementações
+teria mostrado isso — as duas *pareciam* fazer a mesma coisa, e faziam quase.
+
+### O filtro, e por que ele é a mesma pergunta
+
+O filtro de tipo de mercadoria não era um pedido paralelo: o contrato dá
+freetime diferente por tipo de carga, então "quanto tempo minha carga fica
+parada" tem respostas muito diferentes por tipo de carga. Medido na MAXION, 90
+dias: **50,4%** das descargas dentro do freetime na operação toda, **83,5%**
+olhando só CHASSI. A média das duas não descreve nenhuma.
+
+Ele vale para a TELA INTEIRA (Agora, Permanência, Histórico), porque a régua da
+casa é que todo KPI obedece a todos os filtros. E a defesa contra o defeito
+mudo — seletor que muda e consulta que ignora — é estrutural: a marca
+`--{FILTRO_MERC}` é um COMENTÁRIO SQL, então perdê-la não quebraria consulta
+nenhuma; ela rodaria, responderia e ignoraria o filtro. Por isso `_sql()`
+RECUSA montar uma consulta sem o lugar do filtro, e uma varredura por `ast`
+cobra a marca de toda constante SQL do módulo que leia `coleta` — com `assert`
+contra resultado vazio, porque varredura que não acha nada passa por vacuidade.
+
+### O que fica para quem negocia, e não para o código
+
+A normalização faz pouco de propósito: maiúscula, sem acento, espaço colapsado,
+S final fora. O que ela NÃO faz é aproximar **"CONJUNTO PHEVUS" de
+"CONJUNTOS"** — são 163 coletas da Maxion em 90 dias que hoje caem na cláusula
+genérica de 3h. Se forem comercialmente a mesma mercadoria, são 6,5h, e boa
+parte dos R$ 71,2 mil desaparece. Na mesma lista: "LONGARINA PHEVUS" (273) e
+"LONGARINA" (125) na Maxion; "DIVERSOS" (203) e "ASSENTOS" (122) na LEAR, num
+contrato sem cláusula genérica.
+
+Isso é decisão de quem negocia o contrato, não de uma heurística de texto
+escondida numa query. A tela passa a DIZER qual cláusula respondeu por cada
+número — "3h porque o contrato dá 3h para RODAS" e "3h porque não há cláusula
+para esta mercadoria" são o mesmo número e afirmações diferentes, e só a
+segunda é a que alguém precisa levar adiante. Há guard proibindo `LIKE` na
+normalização, para o dia em que alguém tentar resolver a pergunta comercial
+com casamento por prefixo.
+
+### As regras que ficam
+
+1. **Duas telas que leem a MESMA fonte e cada uma inventa a própria política
+   discordam por construção.** A regra vira módulo; as telas a executam.
+2. **Guard que compara duas implementações por LEITURA aprova divergência de
+   comportamento.** Se a regra tem dois sotaques, o guard executa os dois lado
+   a lado contra entrada real.
+3. **"Procurei e não achei" não é "não existe"** — e vira mentira duradoura
+   quando escrito como comentário afirmativo no código.
+4. **Empate em `ORDER BY` é sorteio**, e sorteio estável por ordem física de
+   tabela passa em todo teste até o dia em que não passa.
+5. **Filtro cuja marca é um comentário SQL precisa de recusa explícita**: a
+   ausência dele não tem sintoma nenhum.
+
+---
+
 ## Três projeções de caixa, nenhuma decidia (2026-09-09, v1.29.0)
 
 Quem opera disse: *"ainda está um pouco confuso e dá para melhorar a leitura,

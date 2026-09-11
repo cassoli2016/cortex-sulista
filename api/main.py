@@ -6208,7 +6208,8 @@ def portaria() -> JSONResponse:
 def portal_cliente_dados(request: Request, aba: str = "agora",
                          dt_de: str | None = None, dt_ate: str | None = None,
                          dias: int = 45, meses: int = 12,
-                         raiz: str | None = None) -> JSONResponse:
+                         raiz: str | None = None,
+                         merc: str | None = None) -> JSONResponse:
     """Minha Operação, para os dois leitores da tela.
 
     `raiz` existe para GENTE DA CASA escolher de quem quer ver, e é ignorado
@@ -6244,10 +6245,13 @@ def portal_cliente_dados(request: Request, aba: str = "agora",
             hoje = date.today()
             dt_ate = dt_ate or hoje.isoformat()
             dt_de = dt_de or hoje.replace(day=1).isoformat()
-            return JSONResponse({**portal_cliente.get_permanencia(alvo, dt_de, dt_ate), **selo})
+            return JSONResponse({**portal_cliente.get_permanencia(
+                alvo, dt_de, dt_ate, merc), **selo})
         if aba == "historico":
-            return JSONResponse({**portal_cliente.get_historico(alvo, max(1, min(24, meses))), **selo})
-        return JSONResponse({**portal_cliente.get_agora(alvo, max(1, min(180, dias))), **selo})
+            return JSONResponse({**portal_cliente.get_historico(
+                alvo, max(1, min(24, meses)), merc), **selo})
+        return JSONResponse({**portal_cliente.get_agora(
+            alvo, max(1, min(180, dias)), merc), **selo})
     except psycopg.OperationalError as exc:
         log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={

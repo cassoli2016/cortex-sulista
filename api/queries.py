@@ -18,6 +18,7 @@ import re
 from . import agrupador_gerencial as _ag
 from . import db
 from . import frota_identidade
+from . import freetime as _ft
 
 log = logging.getLogger("cortex.queries")
 
@@ -5364,12 +5365,88 @@ def get_custos_extras(dt_de: str, dt_ate: str) -> dict:
 # embutido na regra oficial. Fonte: Querys Sulista/OPERACAO - Monitoramento SAC.
 # ============================================================================
 # Freetime representativo por cliente (contrato vigente mais recente).
+# O FREETIME DE REFERÊNCIA DO SAC — e por que ele deixou de ser sorteado.
+#
+# O contrato tem UMA LINHA POR TIPO DE MERCADORIA, e um cliente pode ter várias
+# ativas ao mesmo tempo, TODAS com o mesmo `dtinicio`. Medido em 10/09/2026:
+#
+#     IOCHPE MAXION   4 linhas, mesma data: genérica 3h · CONJUNTOS/RODAS/
+#                     ESCADAS 6,5h
+#     LEAR            4 linhas, mesma data: PEÇAS e EMBALAGENS 3h · ESPUMA 5h
+#     VOLVO           2 linhas, datas DIFERENTES (1h -> 2h) — isso é revisão
+#                     de contrato, e aí a mais nova manda mesmo
+#
+# Com `ORDER BY dtinicio DESC` sozinho, as quatro linhas da LEAR empatam e o
+# `DISTINCT ON` escolhe UMA AO ACASO. A mesma consulta devolvia 3h ou 5h em
+# execuções diferentes, sem nada no código mudar — e como o `valor_est` do
+# `SAC_DET_SQL` multiplica a hora excedente pelo valor contratado, o sorteio
+# mexia em DINHEIRO.
+#
+# O DESEMPATE É O MAIOR FREETIME, e a escolha não é neutra nem arbitrária:
+# com o maior, só vira excedente a hora que excede sob QUALQUER linha do
+# contrato. A estimativa passa a ser um PISO — o que se pode afirmar sem saber
+# qual era a mercadoria. O contrário (menor freetime) inflaria a estadia com
+# horas que talvez estivessem contratadas, e estimativa de cobrança que erra
+# para cima é a que ninguém confere até o cliente contestar.
+#
+# É a mesma régua que a tela Minha Operação já usa do outro lado
+# (`portal_cliente._freetime`): dentro do piso é aderente sob qualquer
+# contrato, acima do teto é excedente sob qualquer contrato. As duas telas
+# passam a concordar na parte CERTA.
+#
+# ESTE `ft` É O ÚLTIMO RECURSO, e só ele. Quem responde primeiro é a linha da
+# MERCADORIA (`ftm`, logo abaixo) — o caminho que eu tinha dado como
+# impossível aqui, e não era: procurei o vínculo coleta↔CT-e em
+# `coleta_composicao` (11 linhas para 2.998 coletas em 30 dias) e concluí que
+# não havia como saber a mercadoria. Havia, na própria coleta:
+# `coleta.mercadorias`, preenchida em 100% das 17.269 coletas de 180 dias.
+# Procurar o dado num caminho e não achar não é o mesmo que o dado não
+# existir.
+# A NORMALIZAÇÃO VEM DE `api/freetime.py`, que é onde a regra mora. Aqui ela
+# aparece em SQL porque a estimativa do SAC roda inteira no ERP, sobre
+# milhares de linhas; a tela Minha Operação executa a MESMA regra em Python.
+# Duas cópias do texto é como as duas telas passaram a discordar em primeiro
+# lugar — `tests/test_freetime_regra.py` prova que os dois sotaques dizem a
+# mesma coisa.
+SQL_MERC_CONTRATO = _ft.sql_normalizar("observacao")
+SQL_MERC_COLETA = _ft.sql_normalizar("c.mercadorias")
+
 SAC_FT_REP = """
 ft AS (
   SELECT DISTINCT ON (agrupamentocliente) agrupamentocliente,
          freetimecarga, freetimedescarga, valor_coleta, valor_entrega
   FROM sulista.sac_freetimecliente WHERE ativoinativo = 1
-  ORDER BY agrupamentocliente, dtinicio DESC NULLS LAST
+  ORDER BY agrupamentocliente,
+           dtinicio DESC NULLS LAST,
+           freetimedescarga DESC NULLS LAST,
+           freetimecarga DESC NULLS LAST,
+           coalesce(observacao,'')
+)"""
+
+# AS LINHAS DO CONTRATO POR MERCADORIA — o que torna o desempate desnecessário
+# na maior parte dos casos.
+#
+# `ft` acima virou ÚLTIMO RECURSO: só responde quando nada casa e não há linha
+# genérica. Esta CTE é o primeiro recurso — uma linha por (cliente, mercadoria)
+# mais a genérica, e cada permanência casa com a que vale para ela.
+#
+# Medido em 180 dias (10/09/2026):
+#     IOCHPE MAXION  24,3% casam com linha própria · 75,7% caem na genérica (3h)
+#     LEAR           92,2% casam · 7,8% sem linha e SEM genérica -> último recurso
+#
+# O `DISTINCT ON` continua, e agora desempata dentro da MESMA mercadoria: isso
+# é revisão de contrato de verdade (a VOLVO tem duas datas para a mesma
+# cláusula), e não sorteio entre cláusulas diferentes.
+SAC_FT_MERC = """
+ftm AS (
+  SELECT DISTINCT ON (agrupamentocliente, merc) agrupamentocliente AS ag, merc,
+         freetimecarga, freetimedescarga, valor_coleta, valor_entrega
+  FROM (SELECT agrupamentocliente, freetimecarga, freetimedescarga,
+               valor_coleta, valor_entrega, dtinicio,
+               """ + SQL_MERC_CONTRATO + """ AS merc
+        FROM sulista.sac_freetimecliente WHERE ativoinativo = 1) x
+  ORDER BY agrupamentocliente, merc, dtinicio DESC NULLS LAST,
+           freetimedescarga DESC NULLS LAST
 )"""
 
 # Estadia estimada por coleta (só as que excederam o freetime no período).
@@ -5388,6 +5465,7 @@ WITH ev AS (
     AND dtocorrencia::date BETWEEN %(dt_de)s AND %(dt_ate)s
   GROUP BY 1,2,3,4,5,6,7),
 {SAC_FT_REP},
+{SAC_FT_MERC},
 perm AS (
   SELECT c.numero AS coleta, c.filial,
          coalesce(nullif(trim(ac.descricao),''),'(sem cliente)') AS cliente,
@@ -5396,9 +5474,21 @@ perm AS (
               THEN extract(epoch from (ev.sc-ev.cc))/3600 ELSE 0 END AS win_carga,
          CASE WHEN ev.fd > ev.cd AND ev.fd <= ev.cd + interval '24 hours'
               THEN extract(epoch from (ev.fd-ev.cd))/3600 ELSE 0 END AS win_desc,
-         extract(epoch from ft.freetimecarga)/3600 AS ft_carga,
-         extract(epoch from ft.freetimedescarga)/3600 AS ft_desc,
-         coalesce(ft.valor_coleta,0) AS vc, coalesce(ft.valor_entrega,0) AS ve
+         -- A LINHA DA MERCADORIA primeiro, a genérica depois, o último
+         -- recurso por fim. `origem_ft` vai junto porque a tela precisa dizer
+         -- QUAL das três respondeu: "3h porque o contrato diz 3h para RODAS" e
+         -- "3h porque não há cláusula para esta mercadoria" são afirmações
+         -- diferentes, e a segunda é a que alguém precisa ir resolver.
+         extract(epoch from coalesce(esp.freetimecarga, ger.freetimecarga,
+                                     ft.freetimecarga))/3600 AS ft_carga,
+         extract(epoch from coalesce(esp.freetimedescarga, ger.freetimedescarga,
+                                     ft.freetimedescarga))/3600 AS ft_desc,
+         CASE WHEN esp.ag IS NOT NULL THEN 'mercadoria'
+              WHEN ger.ag IS NOT NULL THEN 'generico'
+              ELSE 'sem_clausula' END AS origem_ft,
+         btrim(coalesce(c.mercadorias,'')) AS mercadoria,
+         coalesce(esp.valor_coleta, ger.valor_coleta, ft.valor_coleta,0) AS vc,
+         coalesce(esp.valor_entrega, ger.valor_entrega, ft.valor_entrega,0) AS ve
   FROM ev
   JOIN coleta c ON c.grupo=ev.grupo AND c.empresa=ev.empresa AND c.filial=ev.filial
     AND c.unidade=ev.unidade AND c.diferenciadornumero=ev.diferenciadornumero
@@ -5406,8 +5496,11 @@ perm AS (
   LEFT JOIN agrupamentocliente_cnpjcpfcodigo acc ON acc.grupo=c.grupo AND acc.empresa=c.empresa
     AND acc.cnpjcpfcodigo=c.cnpjcpfcodigopagadorfrete AND acc.vinculo=1
   LEFT JOIN agrupamentocliente ac ON ac.grupo=acc.grupo AND ac.empresa=acc.empresa AND ac.codigo=acc.codigo
-  JOIN ft ON ft.agrupamentocliente = ac.codigo)
-SELECT coleta, filial, cliente, data,
+  JOIN ft ON ft.agrupamentocliente = ac.codigo
+  LEFT JOIN ftm esp ON esp.ag = ac.codigo AND esp.merc <> ''
+    AND esp.merc = {SQL_MERC_COLETA}
+  LEFT JOIN ftm ger ON ger.ag = ac.codigo AND ger.merc = '')
+SELECT coleta, filial, cliente, data, mercadoria, origem_ft,
        round(win_carga::numeric,1)::float8 AS h_carga,
        round(win_desc::numeric,1)::float8 AS h_descarga,
        round(GREATEST(win_carga - ft_carga, 0)::numeric,1)::float8 AS exc_carga,
@@ -5484,7 +5577,9 @@ def get_sac_freetime(dt_de: str, dt_ate: str) -> dict:
         "freetime_cliente": freetime_cli,
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": ("ERP AVA · SAC (coleta_ocorrencia 394-397) + sulista.sac_freetimecliente · "
-                  "ESTIMATIVA (freetime padrão, sem exceções por mercadoria) · leitura"),
+                  "ESTIMATIVA — a cláusula de freetime é casada pela "
+                  "MERCADORIA da coleta, com a genérica do contrato como "
+                  "segunda opção · leitura"),
     }
 
 

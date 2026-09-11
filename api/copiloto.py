@@ -514,7 +514,7 @@ def _fontes_do_snapshot() -> dict:
         # ainda não carregaram, quantas estão na estrada e quantas estão
         # PARADAS no cliente — esta última é a que vira pergunta.
         no_destino = programadas = 0
-        acima_desc, desvios = [], []
+        acima_desc, zona_desc, desvios = [], [], []
         for raiz in raizes:
             try:
                 ag = pc.get_agora(raiz, 45)
@@ -530,6 +530,8 @@ def _fontes_do_snapshot() -> dict:
                 d = perm.get("descarga") or {}
                 if d.get("fora_pct") is not None:
                     acima_desc.append(d["fora_pct"])
+                if d.get("zona_pct") is not None:
+                    zona_desc.append(d["zona_pct"])
             except Exception:  # noqa: BLE001
                 continue
         desvios.sort()
@@ -546,9 +548,21 @@ def _fontes_do_snapshot() -> dict:
             "cargas_com_janela_e_chegada": len(desvios),
             "descarga_acima_do_freetime_pct": (
                 round(sum(acima_desc) / len(acima_desc), 1) if acima_desc else None),
+            # A ZONA CINZENTA vai junto, e não some no arredondamento: ela é
+            # o que o CÓRTEX não pode afirmar (mercadoria sem cláusula própria
+            # num contrato sem cláusula genérica). Um percentual de excedente
+            # sem ela ao lado sugere que o resto é aderente, e não é — é o que
+            # não se sabe. Zero aqui é a resposta comum e é uma boa notícia.
+            "descarga_sem_clausula_pct": (
+                round(sum(zona_desc) / len(zona_desc), 1) if zona_desc else None),
             "nota": ("percentual sobre as descargas medidas no mês corrente, "
-                     "contra o MAIOR freetime do contrato (o contrato distingue "
-                     "por mercadoria e o apontamento não diz qual era). O desvio "
+                     "contra a cláusula de freetime do TIPO DE MERCADORIA "
+                     "daquela carga — o contrato tem uma linha por tipo e a "
+                     "coleta registra o que transportou. Mercadoria sem "
+                     "cláusula própria cai na genérica do contrato; sem "
+                     "nenhuma das duas, a carga entra em "
+                     "`descarga_sem_clausula_pct` e NÃO conta como excedente. "
+                     "O desvio "
                      "da janela é a chegada real menos a janela de entrega "
                      "programada, em horas — positivo é atraso; a janela é "
                      "digitada pela nossa programação, não é prazo contratado. "

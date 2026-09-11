@@ -93,6 +93,7 @@ import re
 from datetime import datetime, timedelta
 
 from . import db
+from . import freetime as _ft
 from .queries import cached
 
 log = logging.getLogger("cortex.portal_cliente")
@@ -308,6 +309,88 @@ FILTRO_CLIENTE = """(   strpos(cast(c.cnpjcpfcodigotomadorservico AS text), %(ra
                      OR strpos(cast(c.destinatario                AS text), %(raiz)s) = 1)"""
 
 
+# ---------------------------------------------------------------------------
+# O FILTRO DE TIPO DE MERCADORIA — pedido de quem opera em 10/09/2026, e a
+# outra metade da mesma pergunta que o freetime: "quanto tempo minha carga
+# fica parada" tem respostas MUITO diferentes por tipo de carga, porque o
+# contrato tem freetime diferente por tipo de carga. Uma média sobre espuma e
+# rodas juntas não descreve nenhuma das duas.
+#
+# ELE VALE PARA A TELA INTEIRA, não para um card: a regra da casa é que todo
+# KPI obedece a TODOS os filtros. Por isso ele entra nas TRÊS consultas —
+# Agora, Permanência e Histórico — e não só na que motivou o pedido.
+#
+# O casamento é pelo valor NORMALIZADO (`api/freetime`), não pelo texto cru:
+# "PEÇAS" e "PECAS" são a mesma carga e apareceriam como duas opções na lista,
+# cada uma com metade das coletas. É a MESMA normalização que resolve a
+# cláusula do contrato — a lista do filtro e a régua da cobrança falam a mesma
+# língua, e é isso que permite ler as duas juntas.
+MARCA_MERC = "--{FILTRO_MERC}"
+
+
+def _filtro_merc(merc: str | None) -> str:
+    """A cláusula do filtro, ou nada. Vazio = todas as mercadorias."""
+    if not merc:
+        return ""
+    return "AND " + _ft.sql_normalizar("c.mercadorias") + " = %(merc)s"
+
+
+def _sql(base: str, merc: str | None) -> str:
+    """A consulta com o filtro dentro — e ela RECUSA nascer sem lugar para ele.
+
+    Sem o `assert`, uma consulta que perdesse a marca (ou uma consulta nova
+    que nascesse sem ela) rodaria, responderia e IGNORARIA o filtro em
+    silêncio: a tela mostraria "ESPUMA" no seletor e a operação inteira nos
+    números. Campo que aceita valor e não muda nada é pior que campo nenhum,
+    porque quem filtra acredita no resultado — e esta é a classe de defeito
+    que não tem sintoma nenhum. Falhar aqui é barato; a marca é um comentário
+    SQL, então esquecê-la nunca quebraria a consulta por conta própria.
+    """
+    assert MARCA_MERC in base, "consulta da Minha Operação sem lugar para o filtro"
+    return base.replace(MARCA_MERC, _filtro_merc(merc))
+
+
+# O CATÁLOGO que popula a lista. Uma linha por mercadoria normalizada, com o
+# rótulo sendo a grafia MAIS FREQUENTE do cliente — mostrar a normalizada
+# ("PECA") seria mostrar um texto que ninguém escreveu. A contagem vai junto
+# porque lista de 30 itens sem volume não diz por onde começar.
+MERC_SQL = """
+SELECT """ + _ft.sql_normalizar("c.mercadorias") + """ AS chave,
+       btrim(coalesce(c.mercadorias,''))               AS rotulo,
+       count(*)                                        AS cargas
+FROM coleta c
+WHERE c.dtcancelamento IS NULL
+  AND c.dtemissao >= current_date - %(dias)s
+  AND btrim(coalesce(c.mercadorias,'')) <> ''
+  AND """ + FILTRO_CLIENTE + """
+GROUP BY 1, 2
+ORDER BY 3 DESC
+"""
+
+
+@cached(ttl=600, velha_ate=7200)
+def get_mercadorias(raiz: str, dias: int = 365) -> dict:
+    """Os tipos de mercadoria que ESTA operação de fato movimenta.
+
+    Sai da operação do próprio cliente, não do contrato: o contrato tem quatro
+    cláusulas e a operação tem trinta tipos de carga, e é entre estes trinta
+    que quem lê a tela quer escolher. A janela é longa (365 dias) de propósito
+    — a lista não pode encolher porque o mês foi fraco, senão o filtro some
+    justamente quando alguém vai investigar a queda.
+    """
+    linhas = db.query(MERC_SQL, {"raiz": raiz, "dias": int(dias)})
+    por_chave: dict[str, dict] = {}
+    for r in linhas:
+        it = por_chave.setdefault(r["chave"], {"chave": r["chave"],
+                                               "rotulo": r["rotulo"], "cargas": 0})
+        # A grafia mais frequente ganha o rótulo; as demais somam no volume.
+        if r["cargas"] > it["cargas"]:
+            it["rotulo"] = r["rotulo"]
+        it["cargas"] += int(r["cargas"])
+    itens = sorted(por_chave.values(), key=lambda x: -x["cargas"])
+    return {"mercadorias": itens, "janela_dias": int(dias)}
+
+
 # ============================================================================
 # 1) AGORA — as cargas em curso, e em que pé cada uma está.
 # ============================================================================
@@ -440,6 +523,7 @@ LEFT JOIN cadastro cdd ON cdd.codigo = c.destinatario
 WHERE c.dtcancelamento IS NULL
   AND c.dtemissao >= current_date - %(dias)s
   AND """ + FILTRO_CLIENTE + """
+  --{FILTRO_MERC}
 -- ORDEM DA OPERAÇÃO, não da emissão: a linha do tempo do dia, que é como a
 -- planilha da torre é lida e como as docas se organizam. Ordenar pelo último
 -- evento (o que estava aqui antes) põe no topo quem acabou de ser apontado,
@@ -791,10 +875,10 @@ def em_curso(r: dict, agora: datetime | None = None) -> bool:
 # O FREETIME VEM DO CONTRATO (`sulista.sac_freetimecliente`), por
 # `agrupamentocliente`, e é a ÚNICA coisa aqui que não passa pela raiz do
 # CNPJ — porque freetime é cláusula comercial e mora no agrupamento mesmo.
-# `DISTINCT ON` porque a tabela tem histórico: um cliente pode ter VÁRIAS
-# linhas ativas para a mesma filial ao mesmo tempo (uma por tipo de
-# mercadoria). Join direto multiplicaria cada coleta por todas elas e o total
-# sairia N× maior — plausível, e errado. É a regra de vigência da casa.
+# As linhas do contrato vêm SEPARADAS da permanência, e o casamento é feito
+# aqui em Python (`api/freetime.resolver`). Join direto multiplicaria cada
+# coleta por todas as linhas ativas do cliente e o total sairia N× maior —
+# plausível, e errado. É a regra de vigência da casa.
 PERM_SQL = """
 WITH ev AS (
   SELECT grupo,empresa,filial,unidade,diferenciadornumero,serie,numero,
@@ -811,13 +895,19 @@ SELECT c.numero AS coleta,
        upper(trim(coalesce(c.origem,'')))  AS origem,
        upper(trim(coalesce(c.destino,''))) AS destino,
        CASE WHEN ev.sc > ev.cc THEN extract(epoch from (ev.sc-ev.cc))/3600 END AS h_carga,
-       CASE WHEN ev.fd > ev.cd THEN extract(epoch from (ev.fd-ev.cd))/3600 END AS h_descarga
+       CASE WHEN ev.fd > ev.cd THEN extract(epoch from (ev.fd-ev.cd))/3600 END AS h_descarga,
+       -- A MERCADORIA DA PRÓPRIA COLETA. É ela que diz qual cláusula do
+       -- contrato vale para esta permanência. (A cobertura medida está no
+       -- comentário de `_freetime`, em Python: sinal de porcentagem dentro de
+       -- uma constante SQL vira placeholder do psycopg e derruba a consulta.)
+       btrim(coalesce(c.mercadorias,'')) AS mercadoria
 FROM ev
 JOIN coleta c ON c.grupo=ev.grupo AND c.empresa=ev.empresa AND c.filial=ev.filial
   AND c.unidade=ev.unidade AND c.diferenciadornumero=ev.diferenciadornumero
   AND c.serie=ev.serie AND c.numero=ev.numero
 WHERE c.dtcancelamento IS NULL
   AND """ + FILTRO_CLIENTE + """
+  --{FILTRO_MERC}
 """
 
 # O freetime vigente do cliente. Uma linha, ou nenhuma — e "nenhuma" é n/d na
@@ -831,7 +921,10 @@ FREETIME_SQL_TODAS = """
 SELECT DISTINCT
        round((extract(epoch from ft.freetimecarga)/3600)::numeric,1)::float8    AS ft_carga_h,
        round((extract(epoch from ft.freetimedescarga)/3600)::numeric,1)::float8 AS ft_descarga_h,
-       coalesce(nullif(trim(ft.observacao),''),'(genérico)')                    AS mercadoria
+       -- A mercadoria CRUA, vazia quando a cláusula é genérica: quem rotula
+       -- é a tela. Guardar '(genérico)' aqui faria a comparação com a
+       -- mercadoria da coleta casar com um rótulo nosso.
+       coalesce(trim(ft.observacao),'')                                          AS mercadoria
 FROM sulista.sac_freetimecliente ft
 JOIN agrupamentocliente_cnpjcpfcodigo acc ON acc.codigo = ft.agrupamentocliente
 WHERE ft.ativoinativo = 1
@@ -842,31 +935,32 @@ ORDER BY 2, 3
 
 
 def _freetime(raiz: str) -> dict:
-    """O freetime contratado, como FAIXA — nunca como um número só.
+    """As linhas de freetime ativas do cliente, e a faixa que elas formam.
 
-    O CONTRATO DISTINGUE POR MERCADORIA e a ocorrência SAC não diz qual
-    mercadoria era. Um cliente pode ter várias linhas ativas ao mesmo tempo,
-    TODAS com o mesmo `dtinicio` — uma genérica e outras com tolerância maior,
-    por tipo de carga. `DISTINCT ON` ordenado por `dtinicio` desempata ao ACASO
-    entre elas: rodada a rodada, o mesmo mês daria perto de 39% ou perto de
-    70% de aderência, sem nada no código mudar.
+    O QUE MUDOU EM 10/09/2026, e por quê. Esta função devolvia só PISO e TETO,
+    e a tela repartia a permanência em três faixas: dentro do menor freetime é
+    aderente sob qualquer cláusula, acima do maior é excedente sob qualquer
+    cláusula, no meio "depende da mercadoria". Era honesto — o contrato
+    distingue por mercadoria e eu acreditava que o apontamento não dizia qual
+    mercadoria era — e era caro: a zona cinzenta engolia a leitura. Para a
+    LEAR, o mesmo mês dava perto de 39% ou perto de 70% de aderência conforme
+    a linha sorteada, e por isso a tela recusava sortear.
 
-    Então não se escolhe. Devolve-se o PISO (menor freetime) e o TETO (maior),
-    e a tela mostra três faixas: dentro do piso é aderente sob qualquer
-    contrato; acima do teto é excedente sob qualquer contrato; no meio a
-    resposta depende de um dado que não temos, e a tela DIZ isso em vez de
-    chutar para um dos lados. Num painel que o CLIENTE lê, chutar para o lado
-    que nos favorece é pior ainda: ele fecha conta em cima.
+    O apontamento não diz, mas a COLETA diz: `coleta.mercadorias`, preenchida
+    em 100% das 17.269 coletas de 180 dias, no mesmo vocabulário do contrato.
+    Então a permanência passa a ser medida contra A CLÁUSULA DELA
+    (`api/freetime.resolver`), e a faixa de dúvida sobra só para a coleta cuja
+    mercadoria não casa com cláusula nenhuma e cujo contrato não tem linha
+    genérica — que é onde a dúvida de fato está.
 
-    (A mesma ambiguidade existe hoje no `SAC_FT_REP` de `api/queries.py`, que
-    alimenta a tela `sac` — lá o desempate arbitrário está de pé. Não mexo
-    nele daqui: é tela de outra frente e a correção merece a própria entrega.)
+    PISO e TETO continuam saindo, e é para essa sobra que eles servem agora.
     """
     linhas = db.query(FREETIME_SQL_TODAS, {"raiz": raiz})
     cargas = [r["ft_carga_h"] for r in linhas if r["ft_carga_h"]]
     descs = [r["ft_descarga_h"] for r in linhas if r["ft_descarga_h"]]
     return {
         "contratos": len(linhas),
+        "linhas": [dict(r) for r in linhas],
         "carga_piso": min(cargas) if cargas else None,
         "carga_teto": max(cargas) if cargas else None,
         "descarga_piso": min(descs) if descs else None,
@@ -879,17 +973,54 @@ def _freetime(raiz: str) -> dict:
     }
 
 
-def _faixas(valores: list[float], piso: float | None, teto: float | None) -> dict:
-    """Reparte as permanências nas três faixas do freetime."""
-    n = len(valores)
-    if not n or piso is None or teto is None:
-        return {"n": n, "dentro": None, "zona": None, "fora": None}
-    dentro = sum(1 for h in valores if h <= piso)
-    fora = sum(1 for h in valores if h > teto)
-    return {"n": n, "dentro": dentro, "zona": n - dentro - fora, "fora": fora,
-            "dentro_pct": round(100.0 * dentro / n, 1),
-            "zona_pct": round(100.0 * (n - dentro - fora) / n, 1),
-            "fora_pct": round(100.0 * fora / n, 1)}
+def _faixa_da_hora(h: float, ft: float | None,
+                   piso: float | None, teto: float | None) -> str:
+    """Onde esta permanência cai: dentro, excedente, ou dúvida legítima.
+
+    Com a cláusula resolvida (`ft`) a resposta é BINÁRIA, e tem de ser: essa
+    hora está dentro do que o contrato dá ou não está. A zona cinzenta só
+    existe quando não há cláusula para esta mercadoria E não há genérica — aí
+    a régua é a faixa do contrato inteiro, e o meio dela é dúvida de verdade.
+
+    Sem contrato nenhum não há régua, e a tela não classifica: `n/d` é a
+    resposta certa, e é por isso que esta função pode devolver "".
+    """
+    if ft is not None:
+        return "dentro" if h <= ft else "fora"
+    if piso is None or teto is None:
+        return ""
+    if h <= piso:
+        return "dentro"
+    if h > teto:
+        return "fora"
+    return "zona"
+
+
+def _faixas(linhas: list[dict], ftc: str,
+            piso: float | None, teto: float | None) -> dict:
+    """Reparte as permanências, cada uma contra a cláusula que vale para ela.
+
+    As quatro contagens SOMAM `n`, e a quarta é o que impede a soma de mentir:
+    `sem_regua` é a permanência que não pôde ser classificada porque o cliente
+    não tem freetime nenhum cadastrado. Ela não é "dentro" e não é "fora" — e
+    diluí-la em qualquer uma das três faria a tela afirmar uma aderência que
+    ninguém mediu.
+    """
+    conta = {"dentro": 0, "zona": 0, "fora": 0, "sem_regua": 0}
+    origens = {_ft.MERCADORIA: 0, _ft.GENERICO: 0, _ft.SEM_CLAUSULA: 0}
+    for r in linhas:
+        origens[r["_origem"]] = origens.get(r["_origem"], 0) + 1
+        conta[_faixa_da_hora(r["_h"], r[ftc], piso, teto) or "sem_regua"] += 1
+    n = len(linhas)
+    if not n or conta["sem_regua"] == n:
+        # Sem régua para NENHUMA linha a tela não classifica: `n/d`, nunca
+        # 100% de aderência — que é o que um zero em "fora" se leria.
+        return {"n": n, "dentro": None, "zona": None, "fora": None,
+                "sem_regua": conta["sem_regua"], "origens": origens}
+    return {"n": n, **conta, "origens": origens,
+            "dentro_pct": round(100.0 * conta["dentro"] / n, 1),
+            "zona_pct": round(100.0 * conta["zona"] / n, 1),
+            "fora_pct": round(100.0 * conta["fora"] / n, 1)}
 
 
 def _mediana(v: list[float]) -> float | None:
@@ -918,12 +1049,13 @@ FROM coleta c
 WHERE c.dtcancelamento IS NULL
   AND c.dtemissao >= %(desde)s
   AND """ + FILTRO_CLIENTE + """
+  --{FILTRO_MERC}
 GROUP BY 1,2,3,4,5
 """
 
 
 @cached(ttl=120)
-def get_agora(raiz: str, dias: int = 45) -> dict:
+def get_agora(raiz: str, dias: int = 45, merc: str | None = None) -> dict:
     """As cargas no ar agora. Fonte: coleta + SAC + MDF-e + posição.
 
     SEM REDE DE LEITURA VELHA, de propósito, e é a única das quatro funções
@@ -937,7 +1069,9 @@ def get_agora(raiz: str, dias: int = 45) -> dict:
     tarja: a decisão que alguém tomar olhando o mural já foi tomada quando ele
     lê o aviso. Tela vazia com erro é a resposta honesta para esta.
     """
-    linhas = db.query(AGORA_SQL, {"raiz": raiz, "dias": int(dias)})
+    linhas = db.query(_sql(AGORA_SQL, merc),
+                      {"raiz": raiz, "dias": int(dias),
+                       "merc": _ft.normalizar(merc)})
     rotas = _eta_por_rota() if linhas else {}
     agora = datetime.now()
     cargas, concluidas = [], 0
@@ -1022,9 +1156,26 @@ def get_agora(raiz: str, dias: int = 45) -> dict:
     for c in cargas:
         c["pos"] = pos.get(c["placa"]) if c["placa"] else None
 
+    # O CATÁLOGO DE MERCADORIAS SAI DAQUI, e não de uma rota própria: é a aba
+    # Agora que sempre carrega, e é ela que popula o seletor da barra — que
+    # vale para a tela inteira. Lista em rota separada faria a barra depender
+    # de uma segunda ida ao servidor para existir, e no dia em que essa ida
+    # falhasse o filtro sumiria sem a tela ter o que dizer.
+    #
+    # Cada uma tem o PRÓPRIO cache (a lista muda devagar e olha 365 dias; as
+    # cargas mudam a cada minuto), então juntá-las aqui não faz a lista ser
+    # relida junto. E falhar a lista NÃO derruba a tela: o filtro nasce vazio,
+    # que é "todas", e as cargas continuam na frente de quem abriu.
+    try:
+        catalogo = get_mercadorias(raiz)
+    except Exception:  # noqa: BLE001
+        log.warning("catálogo de mercadorias falhou: o filtro sai vazio")
+        catalogo = {"mercadorias": []}
+
     return {
         "cargas": cargas,
         "em_curso": len(cargas),
+        "mercadorias": catalogo["mercadorias"],
         # `sem_apontamento` mantém o NOME por compatibilidade com a tela e a
         # parede, que já o leem; o que ele conta agora são as PROGRAMADAS —
         # que passaram a aparecer, em vez de sumir. O número continua servindo
@@ -1033,6 +1184,7 @@ def get_agora(raiz: str, dias: int = 45) -> dict:
         "por_destinatario": _por_destinatario(cargas),
         "concluidas_na_janela": concluidas,
         "janela_dias": int(dias),
+        "mercadoria": merc or "",
         # A COBERTURA do mapa vai junto: "12 de 66 com posição" é o que impede
         # alguém de olhar seis pontos na tela e concluir que só há seis cargas.
         # `veiculos`, e nao "cargas com placa": sao placas DISTINTAS. As 66
@@ -1053,12 +1205,23 @@ def get_agora(raiz: str, dias: int = 45) -> dict:
 
 
 @cached(ttl=180, velha_ate=7200)
-def get_permanencia(raiz: str, dt_de: str, dt_ate: str) -> dict:
-    """Permanência em carregamento e descarga, contra o freetime contratado."""
-    linhas = db.query(PERM_SQL, {"raiz": raiz, "dt_de": dt_de, "dt_ate": dt_ate})
-    ft = _freetime(raiz)
+def get_permanencia(raiz: str, dt_de: str, dt_ate: str,
+                    merc: str | None = None) -> dict:
+    """Permanência em carregamento e descarga, contra o freetime CONTRATADO.
 
-    def colher(campo: str) -> tuple[list[float], int]:
+    Cada permanência é medida contra a cláusula da PRÓPRIA MERCADORIA dela —
+    a razão está em `_freetime` e a regra em `api/freetime.py`, a mesma que a
+    tela SAC / Freetime usa do outro lado. As duas telas leem o mesmo contrato
+    e agora chegam ao mesmo número; enquanto cada uma tinha a própria saída
+    para o empate de cláusulas, elas discordavam por construção.
+    """
+    linhas = db.query(_sql(PERM_SQL, merc),
+                      {"raiz": raiz, "dt_de": dt_de, "dt_ate": dt_ate,
+                       "merc": _ft.normalizar(merc)})
+    ft = _freetime(raiz)
+    contrato = ft["linhas"]
+
+    def colher(campo: str, ftc: str) -> tuple[list[dict], int]:
         bons, fora = [], 0
         for r in linhas:
             h = r[campo]
@@ -1068,32 +1231,52 @@ def get_permanencia(raiz: str, dt_de: str, dt_ate: str) -> dict:
             # veículo parado. Fora dela é n/d CONTADO — nunca zero, que
             # entraria na mediana puxando-a para baixo, e nunca descartado em
             # silêncio, que esconderia um problema de coleta de evento.
-            if 0 < h <= CAP_H:
-                bons.append(float(h))
-            elif h > CAP_H:
-                fora += 1
+            if not 0 < h <= CAP_H:
+                if h > CAP_H:
+                    fora += 1
+                continue
+            # A CLÁUSULA DESTA COLETA. `resolver` devolve `None` só quando o
+            # cliente não tem contrato nenhum — e aí a tela não classifica.
+            cl = _ft.resolver(contrato, r["mercadoria"])
+            bons.append({
+                "_h": float(h),
+                "_origem": cl["origem"] if cl else _ft.SEM_CLAUSULA,
+                # `sem_clausula` NÃO carrega freetime: é justamente a linha
+                # cuja régua não se sabe, e é ela que vai para a faixa de
+                # dúvida em vez de para um dos lados.
+                ftc: (cl or {}).get(ftc)
+                     if cl and cl["origem"] != _ft.SEM_CLAUSULA else None,
+            })
         return bons, fora
 
-    h_carga, fora_carga = colher("h_carga")
-    h_desc, fora_desc = colher("h_descarga")
+    h_carga, fora_carga = colher("h_carga", "ft_carga_h")
+    h_desc, fora_desc = colher("h_descarga", "ft_descarga_h")
     return {
-        "carga": {"mediana_h": _mediana(h_carga),
-                  **_faixas(h_carga, ft["carga_piso"], ft["carga_teto"]),
+        "carga": {"mediana_h": _mediana([r["_h"] for r in h_carga]),
+                  **_faixas(h_carga, "ft_carga_h",
+                            ft["carga_piso"], ft["carga_teto"]),
                   "fora_da_regua": fora_carga},
-        "descarga": {"mediana_h": _mediana(h_desc),
-                     **_faixas(h_desc, ft["descarga_piso"], ft["descarga_teto"]),
+        "descarga": {"mediana_h": _mediana([r["_h"] for r in h_desc]),
+                     **_faixas(h_desc, "ft_descarga_h",
+                               ft["descarga_piso"], ft["descarga_teto"]),
                      "fora_da_regua": fora_desc},
+        # As linhas do contrato saem do payload: são cláusula comercial do
+        # cliente que já está olhando a tela dele, e é o que permite conferir
+        # POR QUE aquela permanência foi classificada assim.
         "freetime": ft,
+        "mercadoria": merc or "",
         "cargas_no_periodo": len(linhas),
         "periodo": {"de": dt_de, "ate": dt_ate},
         "fonte": ("Sistema de gestão · apontamentos de chegada e saída no "
-                  "carregamento e na descarga + freetime do contrato · "
+                  "carregamento e na descarga + freetime do contrato, casado "
+                  "pela mercadoria da coleta · "
                   f"permanências acima de {CAP_H:.0f}h tratadas como n/d · leitura"),
     }
 
 
 @cached(ttl=600, velha_ate=7200)
-def get_historico(raiz: str, meses: int = 12) -> dict:
+def get_historico(raiz: str, meses: int = 12,
+                  merc: str | None = None) -> dict:
     """Volume por mês e as rotas usadas, na janela pedida."""
     from datetime import date
 
@@ -1112,7 +1295,9 @@ def get_historico(raiz: str, meses: int = 12) -> dict:
     chaves.reverse()
     desde = f"{chaves[0]}-01"
 
-    linhas = db.query(HIST_SQL, {"raiz": raiz, "desde": desde})
+    linhas = db.query(_sql(HIST_SQL, merc),
+                      {"raiz": raiz, "desde": desde,
+                       "merc": _ft.normalizar(merc)})
     por_mes = {k: 0 for k in chaves}          # o intervalo é GERADO, não colhido
     rotas: dict[str, int] = {}
     for r in linhas:
@@ -1139,5 +1324,6 @@ def get_historico(raiz: str, meses: int = 12) -> dict:
         "rotas_total": len(rotas),
         "cargas_nas_rotas_mostradas": sum(n for _, n in top),
         "cargas_total": total,
+        "mercadoria": merc or "",
         "fonte": f"Sistema de gestão · {int(meses)} meses até hoje · leitura",
     }
