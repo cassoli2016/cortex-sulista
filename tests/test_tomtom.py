@@ -26,6 +26,9 @@ def cofre(tmp_path, monkeypatch):
     monkeypatch.setattr(credenciais, "CAMINHO", tmp_path / "cred.json")
     for n in ("TOMTOM_API_KEY", "TOMTOM_API_KEY_SERVIDOR"):
         monkeypatch.delenv(n, raising=False)
+    # estes testes descrevem o trânsito LIGADO; o desligado por decisão tem
+    # arquivo próprio (test_tomtom_trafego_desligado.py)
+    monkeypatch.setattr(cliente, "TRAFEGO_DESLIGADO", None)
     return tmp_path
 
 

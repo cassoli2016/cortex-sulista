@@ -116,6 +116,40 @@ def test_a_saude_diz_QUAL_fonte_falhou_e_por_que(esquema_pg, rede, tomtom, relog
     assert "Diesel (ANP): HTTPError 503" in c["detalhe"]
 
 
+def test_transito_DESLIGADO_nao_pinta_a_saude_nem_publica_o_retrato_velho(
+        esquema_pg, rede, tomtom, relogio, monkeypatch):
+    """11/09/2026: sem crédito no trânsito, e a decisão foi não recarregar. O
+    erro da última tentativa continua gravado em `rad_coleta` e o retrato de
+    antes continua em `rad_rodovia` — sem esta regra os dois ficariam na tela
+    para sempre: vermelho acusando o que ninguém vai consertar, e ocorrência
+    velha lida como de agora."""
+    from api.tomtom import cliente
+    from tests.radar.conftest import TomTom
+    # O retrato das rodovias é de QUATRO HORAS atrás, e desde então toda
+    # tentativa falhou — uma falha logo depois do sucesso ainda está no prazo,
+    # e não acenderia nada. As outras fontes são de agora.
+    coleta.coletar(esquema=esquema_pg, baixar=rede, consultar_tomtom=tomtom, so={"rodovias"})
+    relogio.andar(hours=4)
+    coleta.coletar(esquema=esquema_pg, baixar=rede, consultar_tomtom=TomTom(falhar=True),
+                   forcar=True)
+    antes = painel.cartao_saude(esquema_pg)
+    assert antes["status"] == "erro" and "Rodovias (TomTom)" in antes["detalhe"], "o cenário"
+    assert painel.painel(esquema_pg)["rodovias"]["itens"], "o retrato velho está gravado"
+
+    monkeypatch.setattr(cliente, "TRAFEGO_DESLIGADO", {
+        "desde": "2026-09-11", "motivo": "sem crédito no produto de trânsito"})
+    c = painel.cartao_saude(esquema_pg)
+    assert c["status"] == "ok", c
+    assert "desligadas por decisão desde 11/09/2026" in c["detalhe"]
+    assert "Rodovias (TomTom)" not in c["detalhe"]
+    p = painel.painel(esquema_pg)
+    r = p["rodovias"]
+    assert r["itens"] == [] and r["bloqueios"] == 0 and r["configurado"] is False
+    assert r["desligado"]["desde_br"] == "11/09/2026"
+    assert "rodovias" not in p["coleta"], "a tarja da tela leria o erro velho"
+    assert "rodovias" not in coleta.coletar(esquema=esquema_pg, baixar=rede, forcar=True)
+
+
 def test_sem_as_tabelas_a_tela_e_a_saude_dizem_e_nao_quebram(monkeypatch):
     def _sem(*a, **k):
         raise psycopg.errors.UndefinedTable("relation rad_coleta does not exist")

@@ -8012,8 +8012,15 @@ def tv_estradas() -> JSONResponse:
     justamente a que funciona em qualquer lugar.
     """
     from api.tomtom import cliente as tomtom
+    # DESLIGADO POR DECISÃO, a chave nem vai: a camada e as ocorrências da TV
+    # saem do NAVEGADOR direto para o produto de trânsito, sem passar por freio
+    # nenhum daqui — cada TV ligada pediria o dia inteiro a um produto sem
+    # crédito. Sem `configurado`, a TV não desenha a camada nem pede ocorrência.
+    desligado = tomtom.trafego_desligado()
+    if desligado:
+        return JSONResponse({"configurado": False, "key": "", "desligado": desligado})
     chave = tomtom.chave_mapa() or ""
-    return JSONResponse({"configurado": bool(chave), "key": chave})
+    return JSONResponse({"configurado": bool(chave), "key": chave, "desligado": None})
 
 
 @app.post("/api/operacao/milkrun/chat-stream")

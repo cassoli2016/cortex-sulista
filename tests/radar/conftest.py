@@ -136,6 +136,12 @@ def _sem_rede_de_verdade(monkeypatch):
 
     monkeypatch.setattr(fontes, "baixar", _proibido)
     monkeypatch.setattr(rodovias, "_consultar_tomtom", _proibido)
+    # O TRÂNSITO LIGADO é o caminho que estes testes descrevem. O desligado
+    # por decisão (`cliente.TRAFEGO_DESLIGADO`, 11/09/2026) tem os testes dele,
+    # que o ligam explicitamente — sem esta linha a suíte mudaria de resultado
+    # no dia em que alguém religasse o trânsito.
+    from api.tomtom import cliente
+    monkeypatch.setattr(cliente, "TRAFEGO_DESLIGADO", None)
 
 
 class Relogio:

@@ -119,6 +119,45 @@ def _frear(familia: str) -> None:
     _FREIO[familia] = (time.monotonic() + FREIO_S, datetime.now())
 
 
+#: O TRÂNSITO DA TOMTOM ESTÁ DESLIGADO POR DECISÃO — não por falha, e é por
+#: isso que mora aqui e não no freio. Em 11/09/2026 o produto de trânsito ficou
+#: sem crédito (InsufficientFunds) e quem opera decidiu NÃO recarregar. O freio
+#: serve à falta que vai ser consertada ("tentar de novo daqui a uma hora");
+#: para a que não vai, ele deixava a Saúde e o Radar vermelhos para sempre,
+#: acusando uma coisa que ninguém vai consertar — e vermelho permanente ensina
+#: a ignorar o vermelho. Desligado: nenhuma chamada de trânsito sai daqui (nem
+#: pelo navegador — a TV deixa de pedir a camada e as ocorrências), a Torre e a
+#: TV usam a velocidade da própria frota (`api/frota_movimento.py`), e os
+#: cartões dizem a decisão, em azul. Rotas (ETA) e busca são OUTROS produtos,
+#: com crédito próprio, e seguem como estão.
+#:
+#: PARA RELIGAR (crédito recarregado): `TRAFEGO_DESLIGADO = None`.
+TRAFEGO_DESLIGADO: dict | None = {
+    "desde": "2026-09-11",
+    "motivo": "sem crédito no produto de trânsito, e a decisão foi não recarregar",
+}
+
+
+class TomTomDesligado(TomTomFreado):
+    """Recusado AQUI: o trânsito está desligado por decisão. Não sai para a
+    rede e não é chamada — herda do freio para que quem já trata "não saiu"
+    (a contagem de consumo, a varredura) continue certo sem saber disto."""
+
+    def __init__(self, mensagem: str, familia: str = "traffic"):
+        super().__init__(mensagem, familia)
+        self.rotulo_curto = "trânsito da TomTom desligado por decisão"
+
+
+def trafego_desligado() -> dict | None:
+    """A decisão em vigor (`desde`, `desde_br`, `motivo`), ou None com o
+    trânsito ligado. Cópia: quem recebe não altera a constante."""
+    if not TRAFEGO_DESLIGADO:
+        return None
+    d = dict(TRAFEGO_DESLIGADO)
+    d["desde_br"] = "/".join(reversed(str(d["desde"]).split("-")))
+    return d
+
+
 def chave_mapa() -> str | None:
     """A que vai para o NAVEGADOR. Cofre primeiro, ambiente depois — é o que
     `credenciais.ler` faz, e é a mesma ordem do resto da casa."""
@@ -215,6 +254,14 @@ def _get(caminho: str, params: dict, _tentativa: int = 0) -> dict:
         raise TomTomNaoConfigurado(
             "Chave da TomTom não configurada — Gestão › Integrações › TomTom.")
     familia = _familia(caminho)
+    # DESLIGADO POR DECISÃO vem antes do freio: o freio é "tentar de novo
+    # daqui a uma hora"; a decisão é "não tentar".
+    d = trafego_desligado() if familia == "traffic" else None
+    if d:
+        raise TomTomDesligado(
+            "O trânsito da TomTom está desligado por decisão desde %s (%s); "
+            "nenhuma chamada desse produto sai daqui." % (d["desde_br"], d["motivo"]),
+            familia)
     f = freio(familia)
     if f:
         raise TomTomFreado(

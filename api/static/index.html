@@ -44118,6 +44118,18 @@ function rdRodovias(r, noticias){
   abaContador('rd-n-rodint', (noticias || {}).total || 0);
   const el = document.getElementById('rd-rod-lista'), hint = document.getElementById('rd-rod-hint');
   if(!el) return;
+  /* DESLIGADO POR DECISÃO não é "não configurada": a chave existe e quem
+     opera decidiu não pagar pelo produto de trânsito. A tela diz a decisão,
+     e a aba que tem dado abre sozinha (só na primeira pintura). */
+  if(r.desligado){
+    abaContador('rd-n-rodoc', 0);
+    if(hint) hint.textContent = '';
+    el.innerHTML = '<div class="gx-vazio">' + esc('Ocorrências ao vivo desligadas por decisão desde '
+      + (r.desligado.desde_br || '') + (r.desligado.motivo ? ' (' + r.desligado.motivo + ')' : '')
+      + '. As interdições noticiadas seguem na aba ao lado.') + '</div>';
+    if(!RD.rodAuto){ RD.rodAuto = true; abaTrocar('radarrod', 'int'); }
+    return;
+  }
   if(!r.configurado){
     abaContador('rd-n-rodoc', 0);
     if(hint) hint.textContent = '';

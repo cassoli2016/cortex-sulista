@@ -116,6 +116,9 @@ def torre(tmp_path, monkeypatch):
         monkeypatch.delenv(n, raising=False)
     credenciais.gravar("TOMTOM_API_KEY", "chave-de-teste-aaaaaaaa")
     monkeypatch.setattr(cliente, "_FREIO", {})
+    # a reserva por FALHA da TomTom é o assunto; a por decisão tem arquivo
+    # próprio (test_tomtom_trafego_desligado.py)
+    monkeypatch.setattr(cliente, "TRAFEGO_DESLIGADO", None)
     monkeypatch.setattr(coleta, "_cache", None)
     monkeypatch.setattr(coleta, "registrar", lambda *a, **k: None)
     monkeypatch.setattr(fm, "serie", lambda placas, agora=None, janela_min=45: {

@@ -235,6 +235,18 @@ def condicao_da_frota(*, forcar: bool = False, limite: int | None = None,
             _cache = (time.monotonic(), fora)
             return fora
 
+        # DESLIGADO POR DECISÃO, nem se tenta e nada se conta: não há varredura
+        # barrada, há um produto que a casa decidiu não usar
+        # (`cliente.TRAFEGO_DESLIGADO`). A Torre recebe a RESERVA de sempre.
+        d = cliente.trafego_desligado()
+        if d:
+            fora = _reserva(placas, alvos, sem_posicao, posicoes_atuais,
+                            "trânsito da TomTom desligado por decisão desde %s — %s"
+                            % (d["desde_br"], d["motivo"]))
+            fora["desligado"] = d
+            _cache = (time.monotonic(), fora)
+            return fora
+
         # SEM CRÉDITO NÃO SE VARRE. Com o freio do produto de trânsito ligado,
         # a TomTom nem é chamada — e a Torre recebe a RESERVA, que entra no
         # cache como qualquer outra leitura.

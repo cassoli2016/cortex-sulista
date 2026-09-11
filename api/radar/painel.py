@@ -162,7 +162,10 @@ def _ptax(esq) -> dict | None:
 
 
 def _rodovias(esq) -> dict:
-    linhas = pglocal.query(
+    # DESLIGADO POR DECISÃO, o retrato gravado é o da última leitura ANTES da
+    # decisão: publicá-lo seria mostrar ocorrência velha como se fosse de agora.
+    desligado = rodovias.desligado()
+    linhas = [] if desligado else pglocal.query(
         """SELECT regiao, rodovias, categoria, bloqueia, descricao, de, para,
                   atraso_s, magnitude, coletado_em
              FROM rad_rodovia
@@ -178,7 +181,7 @@ def _rodovias(esq) -> dict:
                       "de": l["de"], "para": l["para"],
                       "atraso_min": (round(l["atraso_s"] / 60) if l["atraso_s"] is not None else None),
                       "magnitude": l["magnitude"]})
-    return {"configurado": rodovias.ativo(),
+    return {"configurado": rodovias.ativo(), "desligado": desligado,
             "itens": itens, "bloqueios": sum(1 for i in itens if i["bloqueia"]),
             "corredores": [{"regiao": k, "rotulo": rotulos[k], "itens": por_regiao.get(k, 0)}
                            for k in rotulos]}
@@ -221,7 +224,13 @@ def _coleta(esq) -> dict:
     est = coleta.estado(esq)
     agora = _agora()
     saida = {}
+    desligado = rodovias.desligado()
     for fonte, rotulo in ROTULO_FONTE.items():
+        # DESLIGADA POR DECISÃO, a fonte sai do estado: a última tentativa
+        # (a da falta de crédito) continua gravada em `rad_coleta`, e a Saúde
+        # e a tarja da tela a leriam como falha de agora, para sempre.
+        if fonte == "rodovias" and desligado:
+            continue
         e = est.get(fonte)
         if not e:
             saida[fonte] = {"rotulo": rotulo, "estado": "nunca"}
@@ -318,7 +327,11 @@ def cartao_saude(esquema: str | None = None) -> dict:
                       else f"notícias: {len(ruins)} de {len(noticias)} temas atrasados")
     falhas = [f"{e['rotulo']}: {e['erro'] or 'sem sucesso'} (último sucesso {_ha(e['idade_s'])})"
               for e in medidas.values() if e["estado"] != "ok"]
-    if not rodovias.ativo():
+    desligado = rodovias.desligado()
+    if desligado:
+        partes.append(f"rodovias ao vivo desligadas por decisão desde "
+                      f"{desligado['desde_br']} (só notícias)")
+    elif not rodovias.ativo():
         partes.append("rodovias sem TomTom (só notícias)")
     detalhe = " · ".join(partes + falhas)
     return {"nome": NOME_CARTAO, "status": pior, "detalhe": detalhe[:500]}

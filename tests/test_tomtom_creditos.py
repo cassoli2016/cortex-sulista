@@ -32,6 +32,9 @@ def cofre(tmp_path, monkeypatch):
         monkeypatch.delenv(n, raising=False)
     credenciais.gravar("TOMTOM_API_KEY", "chave-do-mapa-aaaaaaaa")
     monkeypatch.setattr(cliente, "_FREIO", {})
+    # o assunto aqui é o FREIO; a decisão de desligar tem arquivo próprio
+    # (test_tomtom_trafego_desligado.py)
+    monkeypatch.setattr(cliente, "TRAFEGO_DESLIGADO", None)
     return tmp_path
 
 

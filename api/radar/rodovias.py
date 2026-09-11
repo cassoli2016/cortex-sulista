@@ -38,12 +38,25 @@ CORREDORES: tuple[tuple[str, str, float, float, float, float], ...] = (
 MAGNITUDES_QUE_CONTAM = {"moderada", "grande"}
 
 
-def ativo() -> bool:
-    """TomTom configurada? Sem ela não é falha — é instalação sem o recurso, e
-    a tela fica só com as notícias de rodovia."""
+def desligado() -> dict | None:
+    """O trânsito da TomTom desligado POR DECISÃO (`cliente.TRAFEGO_DESLIGADO`),
+    ou None. Não é o mesmo que "sem TomTom": a chave existe e quem opera
+    decidiu não pagar pelo produto — e a tela diz isso, não "não configurada"."""
     try:
         from ..tomtom import cliente
-        return cliente.configurado()
+        return cliente.trafego_desligado()
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def ativo() -> bool:
+    """TomTom configurada E trânsito ligado? Sem ela não é falha — é
+    instalação sem o recurso, e a tela fica só com as notícias de rodovia.
+    Desligada por decisão dá no mesmo para a coleta: a fonte nem entra no
+    plano."""
+    try:
+        from ..tomtom import cliente
+        return cliente.configurado() and not cliente.trafego_desligado()
     except Exception:  # noqa: BLE001
         return False
 

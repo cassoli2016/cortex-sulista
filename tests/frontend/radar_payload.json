@@ -392,6 +392,7 @@
  },
  "rodovias": {
   "configurado": true,
+  "desligado": null,
   "itens": [
    {
     "regiao": "curitiba",

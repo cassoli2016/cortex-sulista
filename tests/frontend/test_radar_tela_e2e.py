@@ -153,6 +153,25 @@ def test_sem_TomTom_a_aba_de_ocorrencias_explica_e_nao_finge_estrada_livre(pagin
     assert "TomTom não está configurada" in pg.inner_text("#rd-rod-lista")
 
 
+def test_transito_DESLIGADO_por_decisao_diz_a_decisao_e_abre_as_interdicoes(pagina):
+    """11/09/2026: sem crédito no trânsito, e quem opera decidiu não
+    recarregar. A tela diz a DECISÃO — não "não configurada", que mandaria
+    alguém procurar uma chave que existe — e abre a aba que tem dado."""
+    pg, base = pagina
+    p = copy.deepcopy(PAYLOAD)
+    p["rodovias"].update(configurado=False, itens=[], bloqueios=0, desligado={
+        "desde": "2026-09-11", "desde_br": "11/09/2026",
+        "motivo": "sem crédito no produto de trânsito, e a decisão foi não recarregar"})
+    p["coleta"].pop("rodovias")
+    erros = _abrir(pg, base, payload=p)
+    txt = pg.inner_text("#rd-rod-lista")
+    assert "desligadas por decisão desde 11/09/2026" in txt
+    assert "não está configurada" not in txt and "sem créditos" not in txt
+    assert pg.get_attribute("#tabradarrod-int", "aria-selected") == "true"
+    assert pg.locator("#rd-tarja").is_hidden()
+    assert not erros, erros
+
+
 # -------------------------------------------------------------- a régua
 
 _ALTURA = ("() => { const c = document.getElementById('content'); if(!c) return 0;"

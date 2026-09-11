@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.49.0] — 11/09/2026  ·  CX-11/09/2026-v1.49.0
+
+### Alterado
+- O trânsito da TomTom passa a ficar DESLIGADO POR DECISÃO, e as telas dizem isso em vez de acusar falha. O produto de trânsito está sem crédito desde hoje e a decisão foi não recarregar: a Torre de Controle e o painel de TV usam direto a velocidade dos próprios caminhões (ERP + Gobrax), o painel de TV deixa de pedir a camada e as ocorrências de trânsito à TomTom, e na página inicial o cartão de Rodovias diz a decisão e abre as Interdições noticiadas. Na Saúde do Servidor, os cartões da TomTom e do Radar deixam de ficar vermelhos por uma falta que ninguém vai consertar. Rotas (previsão de chegada) e busca de endereço são outros produtos da TomTom e seguem como estavam.
+
 ## [1.48.2] — 11/09/2026  ·  CX-11/09/2026-v1.48.2
 
 ### Corrigido

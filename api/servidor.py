@@ -1863,6 +1863,83 @@ def _servico_whatsapp(d: dict) -> dict:
             "detalhe": " · ".join(partes)}
 
 
+def _servico_tomtom() -> dict:
+    """TomTom — NÃO CONSULTA A API. Toda chamada gasta cota, e a Saúde recarrega
+    a cada 5 s: perguntar à TomTom para desenhar um cartão queimaria o limite
+    diário sem medir nada de útil. O que se mede é a CONFIGURAÇÃO, que é onde
+    os problemas desta integração moram — e o principal deles é silencioso:
+    a chave do mapa restrita por domínio funciona no navegador e devolve 403
+    no servidor, o que se lê como "chave errada".
+    """
+    nome = "TomTom (trânsito)"
+    try:
+        from .tomtom import cliente as tomtom
+        if not tomtom.configurado():
+            c = {"nome": nome, "status": "info",
+                 "detalhe": "não configurada — falta a chave de API "
+                            "(Gestão › Integrações)"}
+        elif tomtom.usando_a_chave_do_mapa():
+            c = {"nome": nome, "status": "info",
+                 "detalhe": "usando a chave do MAPA na coleta — se ela estiver "
+                            "restrita por domínio no painel da TomTom, o "
+                            "servidor recebe 403; configure a chave da coleta"}
+        else:
+            c = {"nome": nome, "status": "ok",
+                 "detalhe": "chave própria de servidor configurada"}
+        # O CONSUMO, porque o LIMITE não é observável: nenhuma resposta da
+        # TomTom traz cabeçalho de cota (medido nas três famílias de
+        # endpoint), e o teto só existe no painel deles. Se não dá para ver o
+        # limite, o mínimo honesto é ver o gasto.
+        try:
+            from .tomtom import coleta as _ttc
+            cons = _ttc.consumo(dias=1)
+            if cons.get("hoje") is not None:
+                c["detalhe"] += " · %s chamada(s) hoje" % cons["hoje"]
+                if cons.get("erros_hoje"):
+                    c["detalhe"] += " · %s com erro" % cons["erros_hoje"]
+                    c["status"] = "alerta"
+        except Exception:  # noqa: BLE001
+            pass
+        # QUEM GASTA (0080): a pergunta que decide a cadência, no cartão.
+        try:
+            from .tomtom import coleta as _ttc2
+            po = _ttc2.consumo_por_origem(dias=1)
+            if po:
+                c["detalhe"] += " · hoje por origem: " + ", ".join(
+                    "%s %s %s× (%s chamadas%s)" % (
+                        p["origem"], p["recurso"], p["varreduras"], p["chamadas"],
+                        ", %s barradas" % p["barradas"] if p["barradas"] else "")
+                    for p in po)
+        except Exception:  # noqa: BLE001
+            pass
+        # DESLIGADO POR DECISÃO VENCE o resto do cartão — o freio e os erros
+        # de hoje inclusive: não há o que consertar, e vermelho permanente
+        # ensina a ignorar o vermelho. Azul, dizendo desde quando e o que
+        # responde no lugar; o consumo continua à vista.
+        d = tomtom.trafego_desligado()
+        if d and tomtom.configurado():
+            c["status"] = "info"
+            c["detalhe"] = (
+                "trânsito DESLIGADO por decisão desde %s (%s) — a Torre e a TV usam "
+                "a velocidade da própria frota (ERP + Gobrax); rotas e busca seguem · "
+                % (d["desde_br"], d["motivo"]) + c["detalhe"])
+            return c
+        # SEM CRÉDITO VENCE o resto do cartão, e vem na frente: o motivo é
+        # dinheiro, não configuração, e o conserto é no painel da TomTom.
+        f = tomtom.freio("traffic")
+        if f:
+            c["status"] = "erro"
+            c["detalhe"] = (
+                "SEM CRÉDITOS no produto de trânsito (InsufficientFunds) desde %s — "
+                "freio ligado, nenhuma consulta de trânsito sai até %s; recarregar "
+                "no painel da TomTom · " % (f["desde"][11:16], f["ate"][11:16])
+                + c["detalhe"])
+        return c
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: tomtom: %s", exc)
+        return {"nome": nome, "status": "info", "detalhe": "integração indisponível"}
+
+
 def _servicos() -> list[dict]:
     servicos: list[dict] = []
 
@@ -2290,68 +2367,7 @@ def _servicos() -> list[dict]:
                              "detalhe": "integração indisponível"})
             log.warning("saude: %s: %s", modulo, exc)
 
-    # TomTom — NÃO CONSULTA A API. Toda chamada gasta cota, e a Saúde recarrega
-    # a cada 5 s: perguntar à TomTom para desenhar um cartão queimaria o limite
-    # diário sem medir nada de útil. O que se mede é a CONFIGURAÇÃO, que é onde
-    # os problemas desta integração moram — e o principal deles é silencioso:
-    # a chave do mapa restrita por domínio funciona no navegador e devolve 403
-    # no servidor, o que se lê como "chave errada".
-    try:
-        from .tomtom import cliente as tomtom
-        if not tomtom.configurado():
-            servicos.append({
-                "nome": "TomTom (trânsito)", "status": "info",
-                "detalhe": "não configurada — falta a chave de API "
-                           "(Gestão › Integrações)"})
-        elif tomtom.usando_a_chave_do_mapa():
-            servicos.append({
-                "nome": "TomTom (trânsito)", "status": "info",
-                "detalhe": "usando a chave do MAPA na coleta — se ela estiver "
-                           "restrita por domínio no painel da TomTom, o "
-                           "servidor recebe 403; configure a chave da coleta"})
-        else:
-            servicos.append({"nome": "TomTom (trânsito)", "status": "ok",
-                             "detalhe": "chave própria de servidor configurada"})
-        # O CONSUMO, porque o LIMITE não é observável: nenhuma resposta da
-        # TomTom traz cabeçalho de cota (medido nas três famílias de
-        # endpoint), e o teto só existe no painel deles. Se não dá para ver o
-        # limite, o mínimo honesto é ver o gasto.
-        try:
-            from .tomtom import coleta as _ttc
-            c = _ttc.consumo(dias=1)
-            if c.get("hoje") is not None:
-                servicos[-1]["detalhe"] += " · %s chamada(s) hoje" % c["hoje"]
-                if c.get("erros_hoje"):
-                    servicos[-1]["detalhe"] += " · %s com erro" % c["erros_hoje"]
-                    servicos[-1]["status"] = "alerta"
-        except Exception:  # noqa: BLE001
-            pass
-        # QUEM GASTA (0080): a pergunta que decide a cadência, no cartão.
-        try:
-            from .tomtom import coleta as _ttc2
-            po = _ttc2.consumo_por_origem(dias=1)
-            if po:
-                servicos[-1]["detalhe"] += " · hoje por origem: " + ", ".join(
-                    "%s %s %s× (%s chamadas%s)" % (
-                        p["origem"], p["recurso"], p["varreduras"], p["chamadas"],
-                        ", %s barradas" % p["barradas"] if p["barradas"] else "")
-                    for p in po)
-        except Exception:  # noqa: BLE001
-            pass
-        # SEM CRÉDITO VENCE o resto do cartão, e vem na frente: o motivo é
-        # dinheiro, não configuração, e o conserto é no painel da TomTom.
-        f = tomtom.freio("traffic")
-        if f:
-            servicos[-1]["status"] = "erro"
-            servicos[-1]["detalhe"] = (
-                "SEM CRÉDITOS no produto de trânsito (InsufficientFunds) desde %s — "
-                "freio ligado, nenhuma consulta de trânsito sai até %s; recarregar "
-                "no painel da TomTom · " % (f["desde"][11:16], f["ate"][11:16])
-                + servicos[-1]["detalhe"])
-    except Exception as exc:  # noqa: BLE001
-        servicos.append({"nome": "TomTom (trânsito)", "status": "info",
-                         "detalhe": "integração indisponível"})
-        log.warning("saude: tomtom: %s", exc)
+    servicos.append(_servico_tomtom())
 
     # Túnel Cloudflare
     n = _processo_cloudflared()
