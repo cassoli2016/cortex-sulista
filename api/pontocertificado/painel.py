@@ -449,6 +449,105 @@ def do_dia(dia: str | None = None) -> dict:
     }
 
 
+
+#: Quanto a distância do dia pode se afastar da distância típica e ainda contar
+#: como "o mesmo lugar". Dez por cento sobre 1.884 m são 188 m — mais que o
+#: suficiente para o GPS de um celular e para a pessoa bater do outro lado do
+#: pátio, e pouco o bastante para não confundir 12 km com 51 km.
+MESMO_LUGAR_TOLERANCIA = 0.10
+
+
+@cached(ttl=300, velha_ate=7200)
+def fora_por_dia(dias: int = 7, ate: str | None = None) -> dict:
+    """A evolução diária das batidas reprovadas, POR CERCA.
+
+    O NÚMERO SOZINHO NÃO DIZ O QUE FAZER, e é por isso que esta função existe
+    em vez de um total. "44 batidas fora de cerca ontem" pode ser qualquer uma
+    de três coisas, e elas pedem providências opostas. O que as separa não é a
+    quantidade: é a DISTÂNCIA, e principalmente se ela se REPETE.
+
+    Medido em 11/09/2026, últimos 7 dias:
+
+        SBC OPERACIONAL .. 37 a 44 por dia · 10-11 pessoas · 1.877 a 1.885 m
+        PIRAQUARA ........  4 a 10 por dia ·  1-4  pessoas · 12.279 a 12.310 m
+        MAXION CRZ .......  2 a  7 por dia ·  2-3  pessoas · 2.846 a 100.978 m
+        TUPY .............  1 a  2 por dia ·  1    pessoa  ·    41 a 7.291 m
+
+    A primeira linha é onze pessoas batendo TODO DIA a mil oitocentos e oitenta
+    e poucos metros — a mesma distância, dia após dia, com variação de oito
+    metros em cinco dias. Isso não é gente no lugar errado: é um local de
+    trabalho que ninguém cadastrou como cerca. A terceira linha é a mesma
+    quantidade de gente com a distância pulando de 2,8 km para 100 km: essas
+    estão em trânsito, e cerca nenhuma resolve. A quarta, a 41 m, é cerca
+    apertada demais.
+
+    Por isso a saída traz, por cerca, a série diária E `dias_no_mesmo_lugar`:
+    em quantos dos dias com movimento a distância mediana ficou dentro de
+    ±10% da distância típica. É esse número — e não o total — que diz se há um
+    endereço a cadastrar.
+    """
+    import re
+    from datetime import date as _d, timedelta as _td
+
+    dias = max(2, min(int(dias or 7), 60))
+    # `ate` existe para o e-mail da manhã, que fala do dia ANTERIOR: incluir
+    # hoje ali poria uma coluna de meia manhã ao lado de dias inteiros, e a
+    # queda seria lida como melhora.
+    fim = (_d.fromisoformat(ate)
+           if ate and re.match(r"^\d{4}-\d{2}-\d{2}$", ate) else _d.today())
+    ini = fim - _td(days=dias - 1)
+    linhas = _q("""
+        SELECT COALESCE(cerca_proxima, '(sem cerca próxima)') cerca,
+               (marcada_em::date) dia,
+               COUNT(*) n,
+               COUNT(DISTINCT matricula) pessoas,
+               ROUND(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY distancia_m)) dist
+          FROM pc_marcacao
+         WHERE situacao = 'fora'
+           AND marcada_em >= %(i)s::date
+           AND marcada_em <  %(f)s::date + 1
+         GROUP BY 1, 2 ORDER BY 1, 2""",
+        {"i": ini.isoformat(), "f": fim.isoformat()})
+
+    # O eixo de dias é GERADO, não colhido: dia sem reprovação nenhuma é uma
+    # coluna ZERO na série, e não um buraco que emenda terça com sexta.
+    eixo = [ini + _td(days=i) for i in range(dias)]
+
+    por_cerca: dict[str, dict] = {}
+    for r in linhas:
+        c = por_cerca.setdefault(r["cerca"], {"cerca": r["cerca"], "por_dia": {},
+                                              "pessoas": 0, "dist": []})
+        c["por_dia"][r["dia"]] = int(r["n"])
+        c["pessoas"] = max(c["pessoas"], int(r["pessoas"]))
+        if r["dist"] is not None:
+            c["dist"].append(float(r["dist"]))
+
+    saida = []
+    for c in por_cerca.values():
+        ds = sorted(c["dist"])
+        tipica = ds[len(ds) // 2] if ds else None
+        perto = ([x for x in ds
+                  if abs(x - tipica) <= tipica * MESMO_LUGAR_TOLERANCIA]
+                 if tipica else [])
+        saida.append({
+            "cerca": c["cerca"],
+            "serie": [c["por_dia"].get(d, 0) for d in eixo],
+            "total": sum(c["por_dia"].values()),
+            "pessoas": c["pessoas"],
+            "distancia_m": int(tipica) if tipica is not None else None,
+            "dias_com_movimento": len(ds),
+            "dias_no_mesmo_lugar": len(perto),
+        })
+    saida.sort(key=lambda x: -x["total"])
+    return {
+        "dias": [d.isoformat() for d in eixo],
+        "rotulos": [d.strftime("%d/%m") for d in eixo],
+        "cercas": saida,
+        "total": sum(c["total"] for c in saida),
+        "tolerancia": MESMO_LUGAR_TOLERANCIA,
+    }
+
+
 def matriculas_do_dia(dia: str) -> set[str]:
     """Quem bateu naquele dia — só as matrículas, para cruzar com o ERP.
 

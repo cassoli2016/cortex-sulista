@@ -178,7 +178,7 @@ def montar(nome: str, email: str, senha: str, url: str,
         "a senha deste e-mail."))
     html = p.documento(assunto, blocos, origem="cadastro de usuário",
                        # disparado pelo cadastro, nao por agendamento
-                       agendado=False)
+                       )
     return assunto, texto, html
 
 

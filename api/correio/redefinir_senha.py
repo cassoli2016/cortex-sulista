@@ -64,7 +64,6 @@ def montar(nome: str, url_link: str, validade_min: int,
         origem="tela de login do CÓRTEX",
         # Nao ha horario nem lista de destinatarios para mudar em lugar nenhum:
         # esta mensagem existe porque alguem clicou "esqueci minha senha".
-        agendado=False,
     )
     return assunto, texto, html
 

@@ -360,16 +360,33 @@ def test_dia_atipico_NAO_lista_ninguem(monkeypatch):
     assert "atípico" in r["assunto"].lower()
 
 
-def test_so_os_lugares_REPROVADOS_entram(monkeypatch):
-    """Quem caiu dentro da cerca nao gera trabalho para ninguem. O que o RH
-    precisa ver e a distancia: dezenas de metros e cerca apertada, quilometros
-    e local sem cerca cadastrada."""
+def test_o_fora_de_cerca_vem_como_EVOLUCAO_por_cerca(monkeypatch):
+    """O total de ontem nao diz o que fazer; a distancia SE REPETINDO diz.
+
+    Onze pessoas a mil oitocentos e oitenta e poucos metros todo dia sao um
+    local de trabalho sem cerca cadastrada. A mesma gente com a distancia
+    pulando de 2,8 km para 100 km esta em transito, e cerca nenhuma resolve.
+    O e-mail precisa levar os dois lados para quem le decidir.
+    """
+    ev = {"dias": ["2026-09-08", "2026-09-09", "2026-09-10"],
+          "rotulos": ["08/09", "09/09", "10/09"], "total": 120,
+          "tolerancia": 0.10,
+          "cercas": [
+              {"cerca": "SBC OPERACIONAL", "serie": [39, 44, 37], "total": 120,
+               "pessoas": 11, "distancia_m": 1884,
+               "dias_com_movimento": 3, "dias_no_mesmo_lugar": 3},
+              {"cerca": "MAXION CRZ", "serie": [5, 7, 6], "total": 18,
+               "pessoas": 3, "distancia_m": 51858,
+               "dias_com_movimento": 3, "dias_no_mesmo_lugar": 1}]}
+    monkeypatch.setattr("api.pontocertificado.painel.fora_por_dia",
+                        lambda dias, ate=None: ev)
     r = _ponto(monkeypatch, ausentes=_UM)
-    assert "SBC OPERACIONAL" in r["html"]
-    assert "1,9" in r["html"]          # virgula, nao ponto
-    # a cerca onde as batidas CAIRAM DENTRO nao vira linha de trabalho
-    corpo = r["html"].split("Batidas reprovadas")[1]
-    assert "PIRAQUARA" not in corpo
+    h = r["html"]
+    assert "SBC OPERACIONAL" in h and "1,9" in h          # virgula, nao ponto
+    assert "39" in h and "44" in h                        # a serie, dia a dia
+    assert "3/3" in h and "1/3" in h                      # o que separa os dois
+    # e a explicacao do que a coluna significa, sem tag literal
+    assert "Mesmo lugar" in h and "&lt;b&gt;" not in h
 
 
 def test_o_relatorio_nao_derruba_a_rotina(monkeypatch):

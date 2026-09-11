@@ -368,3 +368,48 @@ def test_o_dia_no_snapshot_do_copiloto_e_so_NUMERO(esq, monkeypatch):
     bruto = " ".join(str(v) for v in r.values()).upper()
     for proibido in ("003792", "003812", "PIRAQUARA", "SBC"):
         assert proibido not in bruto, f"{proibido} vazou para o snapshot"
+
+
+# ── A EVOLUCAO DIARIA DO FORA DE CERCA ──────────────────────────────────────
+
+def test_a_evolucao_so_conta_o_que_foi_REPROVADO(esq):
+    """Batida que caiu DENTRO nao gera trabalho para ninguem, e batida SEM GPS
+    nao tem distancia nenhuma para comparar. Se qualquer uma das duas entrasse
+    na serie, a contagem por cerca viraria "movimento do dia" — outro numero,
+    com o mesmo nome."""
+    _semear_dia(esq, [
+        dict(id_=90, situacao="fora", quando=HOJE_8H, dist=1880,
+             cerca="SBC OPERACIONAL", mat="003792"),
+        dict(id_=91, situacao="dentro", quando=HOJE_8H, dist=30,
+             cerca="SBC OPERACIONAL", local="SBC OPERACIONAL", mat="003812"),
+        dict(id_=92, situacao="sem_coordenada", quando=HOJE_8H, mat="003813"),
+    ])
+    d = painel.fora_por_dia(3)
+    assert [c["cerca"] for c in d["cercas"]] == ["SBC OPERACIONAL"]
+    assert d["total"] == 1 and d["cercas"][0]["serie"][-1] == 1
+
+
+def test_dia_sem_reprovacao_e_ZERO_na_serie_e_nao_um_buraco(esq):
+    """`GROUP BY` nao devolve o dia sem linha: sem o eixo gerado, a serie
+    emendaria terca com sexta e a leitura da evolucao seria outra."""
+    _semear_dia(esq, [dict(id_=95, situacao="fora", quando=HOJE_8H,
+                           dist=1880, cerca="SBC OPERACIONAL")])
+    d = painel.fora_por_dia(5)
+    assert len(d["rotulos"]) == 5 and len(d["cercas"][0]["serie"]) == 5
+    assert d["cercas"][0]["serie"][:-1] == [0, 0, 0, 0]
+
+
+def test_a_distancia_que_SE_REPETE_e_o_que_separa_endereco_de_transito(esq):
+    """O numero que a tela e o e-mail publicam. Mesma distancia todo dia e
+    ENDERECO — gente trabalhando onde nao ha cerca cadastrada. Distancia que
+    pula e gente em transito, e cerca nenhuma resolve."""
+    fixo = [dict(id_=100 + i, situacao="fora", quando=q, dist=d,
+                 cerca="SBC OPERACIONAL", mat="003792")
+            for i, (q, d) in enumerate([(ONTEM_8H, 1877), (HOJE_8H, 1885)])]
+    transito = [dict(id_=110 + i, situacao="fora", quando=q, dist=d,
+                     cerca="MAXION CRZ", mat="003812")
+                for i, (q, d) in enumerate([(ONTEM_8H, 2846), (HOJE_8H, 100978)])]
+    _semear_dia(esq, fixo + transito)
+    c = {x["cerca"]: x for x in painel.fora_por_dia(3)["cercas"]}
+    assert c["SBC OPERACIONAL"]["dias_no_mesmo_lugar"] == 2
+    assert c["MAXION CRZ"]["dias_no_mesmo_lugar"] == 1

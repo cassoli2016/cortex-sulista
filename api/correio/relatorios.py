@@ -516,28 +516,48 @@ def ponto_do_dia() -> dict:
                 f"Todas as {aus.get('esperados')} pessoas esperadas bateram o "
                 "ponto. Nada a conferir."))
 
-        # ONDE A CASA BATEU — e é aqui que aparece cerca faltando, que é um
-        # problema de CADASTRO e não de pessoa. Só os lugares reprovados: os
-        # de dentro não geram trabalho para ninguém.
-        longe = [l for l in (dia.get("locais") or [])
-                 if l.get("situacao") == "fora"]
-        if longe:
-            blocos.append(p.secao("Batidas reprovadas, por lugar",
-                                  "a distância é que diz o que fazer"))
-            blocos.append(p.tabela(
-                ["Perto de", "Pessoas", "Batidas", "Distância típica"],
-                [[str(l.get("local") or "").replace("longe de ", "")[:28],
-                  p.inteiro(l.get("pessoas")), p.inteiro(l.get("batidas")),
-                  (f"{(l['distancia_m'] / 1000):.1f} km".replace(".", ",")
-                   if (l.get("distancia_m") or 0) >= 1000
-                   else f"{p.inteiro(l.get('distancia_m'))} m")]
-                 for l in longe[:12]],
-                alinha_dir=(1, 2, 3)))
+        # FORA DE CERCA, DIA A DIA E POR CERCA — e nao o total de ontem.
+        # "44 batidas fora de cerca" pode ser tres coisas com providencias
+        # opostas, e o que as separa e a DISTANCIA se repetindo: onze pessoas
+        # a mil oitocentos e oitenta e poucos metros todo dia sao um local de
+        # trabalho sem cerca cadastrada; a mesma gente com a distancia pulando
+        # de 2,8 km para 100 km esta em transito, e cerca nenhuma resolve; e
+        # quarenta metros e cerca apertada demais.
+        ev = pc.fora_por_dia(7, ate=ontem)
+        if ev.get("cercas"):
+            blocos.append(p.secao(
+                "Fora de cerca, por lugar",
+                f"{p.inteiro(ev['total'])} batidas em 7 dias"))
+            cab = ["Perto de"] + ev["rotulos"] + ["Pessoas", "Distância",
+                                                  "Mesmo lugar"]
+            linhas_ev = []
+            for c in ev["cercas"][:10]:
+                d = c.get("distancia_m")
+                dist = ("—" if d is None else
+                        f"{(d / 1000):.1f} km".replace(".", ",") if d >= 1000
+                        else f"{d} m")
+                linhas_ev.append(
+                    [str(c["cerca"])[:24]]
+                    + [(str(n) if n else "·") for n in c["serie"]]
+                    + [p.inteiro(c["pessoas"]), dist,
+                       # "5/5" e nao "5 de 5 dias": a celula quebrava em tres
+                       # linhas e esticava a tabela inteira. O que significa
+                       # esta no paragrafo abaixo, uma vez, em vez de em cada
+                       # linha.
+                       f"{c['dias_no_mesmo_lugar']}/{c['dias_com_movimento']}"])
+            blocos.append(p.tabela(cab, linhas_ev,
+                                   alinha_dir=tuple(range(1, len(cab)))))
             blocos.append(p.paragrafo(
-                "Dezenas de metros é cerca apertada; um ou dois quilômetros "
-                "costuma ser local de trabalho sem cerca cadastrada; dezenas "
-                "de quilômetros é outra cidade. Nenhum dos três se resolve "
-                "com a pessoa."))
+                # `p.paragrafo` ESCAPA html — as tags sairiam literais no
+                # e-mail, e foi o que aconteceu na primeira versao.
+                "A coluna Mesmo lugar conta em quantos dos dias com "
+                "movimento a distância ficou na mesma faixa (±10%): 5/5 é "
+                "todo dia no mesmo ponto. Distância "
+                "que se repete todo dia é ENDEREÇO: gente trabalhando num "
+                "lugar que não tem cerca cadastrada — dezenas de metros é "
+                "cerca apertada, um ou dois quilômetros é um local a "
+                "cadastrar. Distância que pula de um dia para o outro é gente "
+                "em trânsito, e aí cerca nenhuma resolve."))
 
         n = len(sem)
         assunto = (f"[CÓRTEX] Ponto de {_dia_br(ontem)} — "

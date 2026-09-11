@@ -398,11 +398,20 @@ def _rodape(html: str) -> str:
     return re.sub(r"\s+", " ", m.group(0))
 
 
-def test_relatorio_agendado_DIZ_onde_desligar():
-    """Aqui a instrução é verdadeira e útil — não pode sumir junto."""
+def test_NENHUM_e_mail_manda_quem_le_para_dentro_do_painel():
+    """Decisão de quem opera (11/09/2026), e a frase ainda estava ERRADA:
+    apontava para Gestão › Integrações, e o agendamento mora em Gestão › aba
+    E-mail › Relatórios agendados. Instrução errada repetida em todo relatório
+    é pior que instrução nenhuma.
+
+    O guard cobre o relatório AGENDADO, que era o único que a tinha — se ela
+    voltar, volta por aqui."""
     from api.correio import painel as p
     html = p.documento("Relatório", [p.paragrafo("x")], origem="alertas do painel")
-    assert GESTAO in _rodape(html)
+    assert GESTAO not in _rodape(html)
+    assert "entre no painel" not in _rodape(html)
+    # e o que o rodapé DIZ continua lá: quando saiu e de onde veio
+    assert "Gerado pelo CÓRTEX" in _rodape(html) and "alertas do painel" in _rodape(html)
 
 
 def test_redefinicao_de_senha_NAO_manda_ninguem_a_gestao():
@@ -422,13 +431,19 @@ def test_mensagem_ao_cliente_nao_cita_tela_interna():
     """O CRM sai para fora da empresa: instrução impossível para quem recebe,
     e ainda conta como o painel se organiza por dentro."""
     from api.correio import painel as p
-    html = p.documento("Assunto", [p.paragrafo("oi")], origem="CRM", agendado=False)
+    html = p.documento("Assunto", [p.paragrafo("oi")], origem="CRM")
     assert GESTAO not in _rodape(html)
 
 
-def test_o_padrao_continua_sendo_o_agendado():
-    """Quem esquecer o parâmetro cai no comportamento antigo, não no novo: o
-    e-mail agendado é a maioria, e perder a instrução lá seria a regressão."""
+def test_o_rodape_nao_tem_MAIS_o_parametro_que_escondia_a_instrucao():
+    """O parâmetro `agendado` existia só para esconder a instrução em mensagem
+    disparada por ação. Sem a instrução ele não faz nada — e parâmetro sem
+    efeito é o que a próxima pessoa tenta usar, achando que muda alguma coisa.
+
+    O guard cobra a ASSINATURA porque a alternativa (chamar com o parâmetro e
+    conferir que nada muda) passaria também se alguém o ressuscitasse."""
+    import inspect
     from api.correio import painel as p
-    assert GESTAO in p.rodape("qualquer")
-    assert GESTAO not in p.rodape("qualquer", agendado=False)
+    assert "agendado" not in inspect.signature(p.rodape).parameters
+    assert "agendado" not in inspect.signature(p.documento).parameters
+    assert GESTAO not in p.rodape("qualquer")
