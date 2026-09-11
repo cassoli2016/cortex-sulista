@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.55.1] — 11/09/2026  ·  CX-11/09/2026-v1.55.1
+
+### Corrigido
+- O painel de TV do cliente passa a caber no celular. Em tela estreita os cartões ficam um embaixo do outro, o título e o relógio cabem na tela, e a lista de cargas vira blocos — coleta e destinatário, veículo e situação, janela e chegada — com o texto inteiro em vez de cortado. É o que faz aparecer a cidade de onde o caminhão avisou ("Em viagem · QUELUZ/SP"), que no celular ficava escondida atrás de "Em viage…". Na TV da sala nada muda.
+
 ## [1.55.0] — 11/09/2026  ·  CX-11/09/2026-v1.55.0
 
 ### Adicionado

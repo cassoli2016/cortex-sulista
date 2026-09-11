@@ -1692,6 +1692,47 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
 @media (prefers-reduced-motion: reduce){
   .tvc-tick-in{animation:none;padding-left:1.5vw}
 }
+/* A PAREDE NA MAO (11/09/2026). O painel nasceu para a TV da sala, e quem
+   opera abre ele no celular -- o print mostrou o que uma grade de quatro
+   colunas medida em `vw` faz a 390px: titulo em quatro linhas, relogio saindo
+   da tela, chips cortados ("ja che..."), colunas "C...", "V..." e a cidade de
+   onde o caminhao avisou escondida atras de "Em viage...".
+   Abaixo de 760px a parede vira UMA coluna de altura livre (no celular rolar e
+   normal; na TV nao existe), o mapa e as barras ganham altura propria (numa
+   coluna de altura livre o `flex:1` delas vale zero), e a tabela vira uma
+   lista de blocos -- coleta e destinatario, veiculo e situacao, janela e
+   chegada -- em que o texto QUEBRA em vez de cortar. A TV nao muda: tudo mora
+   dentro do `@media`. Guard: test_no_CELULAR_a_parede_vira_coluna_e_nada_corta. */
+@media (max-width:760px){
+  #view-tvcli.on{height:auto}
+  #view-tvcli .tv-head{grid-template-columns:auto minmax(0,1fr);row-gap:9px;
+    grid-template-areas:"esq dir" "tit tit"}
+  #view-tvcli .tv-head .tv-left{grid-area:esq}
+  #view-tvcli .tv-head .tv-right{grid-area:dir;gap:9px}
+  #view-tvcli .tv-head .tv-title{grid-area:tit;min-width:0}
+  #view-tvcli .tv-head h2{font-size:22px;line-height:1.15}
+  #view-tvcli .tv-head .tv-clock,#view-tvcli .tv-head .tv-next{font-size:20px !important}
+  #view-tvcli .tvc-wall{display:flex;flex-direction:column;flex:none;overflow:visible;gap:18px}
+  #view-tvcli .tvc-wall>.tv-card{overflow:visible;padding:18px}
+  #view-tvcli .tvc-mapa{min-height:62vw}
+  #view-tvcli .tvc-hero{gap:18px}
+  #view-tvcli .tvc-empilha{height:22px;margin-top:9px}
+  #view-tvcli .tvc-chip{gap:9px}
+  #view-tvcli .tvc-chip i{width:10px;height:10px}
+  #view-tvcli .tvc-barras{flex:none;height:200px}
+  #view-tvcli .tvc-tick{height:40px;margin-top:18px}
+  #view-tvcli .tv-tab{display:block;font-size:14px}
+  #view-tvcli .tv-tab thead{display:none}
+  #view-tvcli #tvcli-cargas{display:block}
+  #view-tvcli #tvcli-cargas tr{display:grid;grid-template-columns:auto minmax(0,1fr);
+    column-gap:18px;row-gap:0;padding:9px 0;border-top:1px solid #1E3A54}
+  #view-tvcli #tvcli-cargas td{white-space:normal;overflow:visible;padding:0;border:0}
+  #view-tvcli #tvcli-cargas td:nth-child(1),
+  #view-tvcli #tvcli-cargas td:nth-child(3){color:#8FA6BC}
+  #view-tvcli #tvcli-cargas td:nth-child(2){font-weight:700}
+  #view-tvcli #tvcli-cargas td:nth-child(5)::before{content:'janela ';color:#8FA6BC}
+  #view-tvcli #tvcli-cargas td:nth-child(6)::before{content:'chegada ';color:#8FA6BC}
+}
 .tvc-gauge,.tvc-rosca{display:flex;align-items:center;justify-content:center;gap:1.1vw;min-height:11vw}
 .tvc-leg{display:flex;flex-direction:column;gap:0.32vw}
 .tvc-leg span{display:flex;align-items:center;gap:0.4vw;font-size:clamp(10px,0.78vw,15px);color:#C6D4E2;white-space:nowrap}

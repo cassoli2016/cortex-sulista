@@ -594,6 +594,65 @@ def test_a_situacao_diz_ONDE_o_caminhao_avisou_quando_o_estado_veio_dele(pagina)
     assert corte == "ellipsis", "o texto cortado da tabela termina em reticencias"
 
 
+def test_no_CELULAR_a_parede_vira_coluna_e_nada_corta(pagina):
+    """Print de 11/09/2026, num celular de 390px: titulo em quatro linhas,
+    relogio saindo da tela, chips cortados ("ja che..."), colunas "C...",
+    "V...", e a cidade de onde o caminhao avisou escondida atras de
+    "Em viage..." -- a mudanca existia e ninguem conseguia ve-la.
+    GEOMETRIA, e nao texto-fonte: o que se afirma e o que o navegador pintou."""
+    pg, base = pagina
+    cargas = [dict(c) for c in _CARGAS]
+    for c in cargas:
+        if c["coleta"] == 16021:
+            c.update(marco_fonte="macro", marco_onde="SAO JOSE DOS CAMPOS/SP")
+
+    # O NOME DO CLIENTE NO TAMANHO DOS MAIORES DO CADASTRO (~30 caracteres), e o
+    # celular ESTREITO (360px): com "CLIENTE DE TESTE" o titulo cabia em duas
+    # linhas mesmo sem a regra que o encolhe, e a sabotagem dela passou verde.
+    # Nome ficticio -- nome de cliente de verdade nao entra em repo publico.
+    def corpo(url):
+        d = _corpo(url)
+        if "/api/portal/cliente" in url:
+            d = {**d, "cliente_nome": "CLIENTE DUBLÊ DE NOME LONGO S.A."}
+        return {**d, "cargas": cargas} if "aba=agora" in url else d
+    pg.route("**/api/**", lambda r: r.fulfill(
+        status=200, content_type="application/json",
+        body=json.dumps(corpo(r.request.url))))
+    pg.set_viewport_size({"width": 360, "height": 780})
+    pg.goto(base + "/static/index.html#tvcli")
+    pg.wait_for_selector("#tvcli-barras .bar", timeout=15000)
+    pg.wait_for_timeout(600)
+    m = pg.evaluate("""() => {
+      const vw = document.documentElement.clientWidth;
+      const dentroDoMapa = e => !!e.closest('#tvCliMapa');
+      const fora = [...document.querySelectorAll('#view-tvcli .tv-head *, #view-tvcli .tvc-wall *')]
+        .filter(e => !dentroDoMapa(e) && e.getClientRects().length
+                     && e.getBoundingClientRect().right > vw + 1)
+        .map(e => (e.id || e.className || e.tagName) + ':' + (e.textContent || '').trim().slice(0, 30));
+      const cortados = [...document.querySelectorAll('#tvcli-cargas td, #view-tvcli .tvc-chip')]
+        .filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.textContent.trim());
+      const larguras = [...document.querySelectorAll('.tvc-wall > .tv-card')]
+        .map(c => Math.round(c.getBoundingClientRect().width));
+      const titulo = document.querySelector('#view-tvcli .tv-head h2');
+      return {lado: document.documentElement.scrollWidth - vw, fora, cortados, larguras,
+              linhasTitulo: Math.round(titulo.getBoundingClientRect().height
+                                       / parseFloat(getComputedStyle(titulo).lineHeight)),
+              mapa: document.getElementById('tvCliMapa').getBoundingClientRect().height,
+              barra: Math.max(...[...document.querySelectorAll('#tvcli-barras .bar')]
+                              .map(b => b.getBoundingClientRect().height)),
+              situacoes: [...document.querySelectorAll('#tvcli-cargas tr')]
+                         .map(tr => tr.children[3].textContent.trim())};
+    }""")
+    assert m["lado"] == 0, "a parede rola para o lado no celular"
+    assert not m["fora"], "passa da borda da tela: " + str(m["fora"][:6])
+    assert not m["cortados"], "texto cortado no celular: " + str(m["cortados"][:6])
+    assert len(set(m["larguras"])) == 1, "uma coluna: todo cartao com a mesma largura " + str(m["larguras"])
+    assert m["linhasTitulo"] <= 2, f"o titulo ocupa {m['linhasTitulo']} linhas"
+    assert any(s.endswith("· SAO JOSE DOS CAMPOS/SP") for s in m["situacoes"]), m["situacoes"]
+    assert m["mapa"] > 150, f"o mapa sumiu na coluna ({m['mapa']}px)"
+    assert m["barra"] > 40, f"as barras do volume sumiram na coluna ({m['barra']}px)"
+
+
 def test_o_ticker_cobra_a_JANELA_e_nao_a_estimativa(pagina):
     """Ele ficou para tras quando o cartao trocou de regua e passou a dizer
     "passaram da estimativa de chegada" para um painel que nao mostra

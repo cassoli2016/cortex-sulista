@@ -1,3 +1,15 @@
+- versao: "1.55.1"
+  data: "2026-09-11"
+  corrigido:
+    - >-
+      O painel de TV do cliente passa a caber no celular. Em tela estreita os
+      cartões ficam um embaixo do outro, o título e o relógio cabem na tela, e
+      a lista de cargas vira blocos — coleta e destinatário, veículo e
+      situação, janela e chegada — com o texto inteiro em vez de cortado. É o
+      que faz aparecer a cidade de onde o caminhão avisou ("Em viagem ·
+      QUELUZ/SP"), que no celular ficava escondida atrás de "Em viage…". Na TV
+      da sala nada muda.
+
 - versao: "1.55.0"
   data: "2026-09-11"
   adicionado:
