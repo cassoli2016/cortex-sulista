@@ -90,6 +90,11 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "jorn":    ("Jornada do Motorista", "Operação"),
     "cex":     ("Custos Extras", "Operação"),
     "sac":     ("SAC / Freetime", "Operação"),
+    # HORAS PARADAS: a estadia que se COBRA, no layout de cada cliente. Irmã
+    # do `sac`, e separada dela de propósito: o SAC é ESTIMATIVA de toda a
+    # carteira pela regra do contrato; aqui é a conta de cobrança de UM
+    # cliente, com a regra dele e os ajustes manuais, que vira planilha.
+    "hp":      ("Horas Paradas", "Operação"),
     # A ÚNICA TELA DESTA CASA CUJO USUÁRIO NÃO É DA CASA. O perfil dá acesso à
     # tela; QUAIS LINHAS ele vê vem do vínculo `usuarios.cliente_cnpj_raiz`,
     # aplicado no servidor por `api/portal_cliente.escopo()` (fail-closed:
@@ -399,6 +404,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/operacao/make-vs-buy",     frozenset({"mvb"})),
     ("/api/operacao/custos-extras",   frozenset({"cex"})),
     ("/api/operacao/sac-freetime",    frozenset({"sac"})),
+    ("/api/operacao/horas-paradas",   frozenset({"hp"})),
     ("/api/operacao/portaria",        frozenset({"port"})),
     ("/api/portal/cliente",           frozenset({"cliop", "tvcli"})),
     ("/api/comercial/crm",            frozenset({"crm"})),
@@ -633,9 +639,9 @@ _PERFIS_MODELO = [
     ("Controladoria", "DRE gerencial, balanço patrimonial, contabilidade, DRE/margem por cliente, qualidade/certidões e extrato bancário.",
      ["dre", "bal", "cont", "drecli", "qual", "orc", "banc", "extb", "fech", "anpiso",
       "anrntrc", "ctecp"]),
-    ("Operação",    "Torre de controle, programação, jornada, custos extras, SAC/freetime, portaria, análise de KM, agregados e make-vs-buy.",
+    ("Operação",    "Torre de controle, programação, jornada, custos extras, SAC/freetime, horas paradas, portaria, análise de KM, agregados e make-vs-buy.",
      ["torre", "prog", "jorn", "cex", "sac", "port", "km", "agr", "mvb",
-      "poli"]),
+      "poli", "hp"]),
     ("Frota",       "Veículos, consulta por placa, combustível, manutenção, preventiva, rastreadora, multas, infrações e licenças da Smartec, e premiação de motoristas.",
      ["veic", "veicf", "comb", "man", "mprev", "comrast", "mul",
       "pneus", "telcon", "telcond", "telhod", "cnh"]),
@@ -1142,6 +1148,18 @@ def _seed_perfis_modelo(c: psycopg.Connection) -> None:
                           " VALUES(%s,%s) ON CONFLICT DO NOTHING",
                           (row["id"], "freq"))
         c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v43', '1') ON CONFLICT(chave) DO NOTHING")
+
+    # v44 (2026-09-12): Horas Paradas (`hp`) ao perfil de Operação — quem
+    # monta a planilha de estadia do cliente — e à Diretoria, que responde
+    # pela receita que ela cobra. O seed acima só alcança instalação nova.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v44'").fetchone():
+        for nome in ("Operação", "Diretoria"):
+            row = c.execute("SELECT id FROM perfis WHERE nome=%s", (nome,)).fetchone()
+            if row:
+                c.execute("INSERT INTO perfil_telas(perfil_id, tela)"
+                          " VALUES(%s,%s) ON CONFLICT DO NOTHING",
+                          (row["id"], "hp"))
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v44', '1') ON CONFLICT(chave) DO NOTHING")
 
 
 def _agora() -> str:

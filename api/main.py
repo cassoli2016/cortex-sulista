@@ -6552,6 +6552,208 @@ def sac_freetime(dt_de: str | None = None, dt_ate: str | None = None) -> JSONRes
             "erro": "erro_consulta", "mensagem": "Erro ao consultar o SAC/freetime."})
 
 
+# ───────────────────────── HORAS PARADAS (`hp`) ─────────────────────────────
+# A estadia que se COBRA, cliente a cliente: o Monitoramento SAC do ERP, a
+# regra de cobrança de cada cliente (perfil) e os ajustes manuais com motivo.
+# Tudo em `api/horas_paradas/`. Recusa legível é 409; migration faltando
+# também — é instalação incompleta, e a tela diz o que fazer.
+
+def _hp_periodo(de: str | None, ate: str | None) -> tuple[str, str]:
+    """Sem período, a SEMANA corrente (segunda a domingo), que é como a
+    primeira cliente recebe. Data inválida levanta `ValueError` (422)."""
+    from datetime import timedelta
+    if de and ate:
+        return date.fromisoformat(de).isoformat(), date.fromisoformat(ate).isoformat()
+    hoje = date.today()
+    seg = hoje - timedelta(days=hoje.weekday())
+    return seg.isoformat(), (seg + timedelta(days=6)).isoformat()
+
+
+def _hp_falha(exc: Exception, oque: str) -> JSONResponse:
+    from api import pglocal
+    from api.horas_paradas import cadastro, servico
+    if isinstance(exc, cadastro.Recusa):
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "recusado", "mensagem": str(exc)})
+    if isinstance(exc, servico.PerfilNaoExiste):
+        return JSONResponse(status_code=404, content={
+            "erro": "nao_encontrado", "mensagem": "Perfil de cliente não encontrado."})
+    if isinstance(exc, ValueError):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Parâmetro inválido."})
+    if pglocal.sem_tabela(exc):
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "instalacao_incompleta",
+            "mensagem": ("As tabelas de horas paradas ainda não existem no banco "
+                         "do CÓRTEX — falta aplicar a migration 0084 "
+                         "(uv run python scripts/migrar_schema.py).")})
+    if isinstance(exc, psycopg.OperationalError):
+        log.warning("horas paradas: banco inacessivel (%s)", type(exc).__name__)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel", "mensagem": "Sem conexão com o banco."})
+    log.warning("horas paradas: %s falhou (%s)", oque, type(exc).__name__)
+    return JSONResponse(status_code=500, content={
+        "erro": "erro_consulta", "mensagem": "Erro ao %s." % oque})
+
+
+def _hp_quem(req: Request) -> str:
+    return ((getattr(req.state, "sessao", None) or {}).get("email") or "")
+
+
+async def _hp_corpo(req: Request) -> dict | None:
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        return None
+    return body if isinstance(body, dict) else None
+
+
+@app.get("/api/operacao/horas-paradas")
+def horas_paradas(perfil: int, de: str | None = None,
+                  ate: str | None = None) -> JSONResponse:
+    from api.horas_paradas import servico
+    try:
+        d0, d1 = _hp_periodo(de, ate)
+        return JSONResponse(servico.montar(perfil, d0, d1))
+    except Exception as exc:  # noqa: BLE001
+        return _hp_falha(exc, "montar as horas paradas")
+
+
+@app.get("/api/operacao/horas-paradas/perfis")
+def horas_paradas_perfis() -> JSONResponse:
+    from api.horas_paradas import cadastro, planilha
+    try:
+        return JSONResponse({
+            "perfis": cadastro.listar_perfis(),
+            "catalogo_colunas": [{"campo": k, "titulo": v[0], "tipo": v[1]}
+                                 for k, v in planilha.CATALOGO.items()],
+            "padrao": cadastro.validar_config({}),
+        })
+    except Exception as exc:  # noqa: BLE001
+        return _hp_falha(exc, "listar os clientes configurados")
+
+
+@app.get("/api/operacao/horas-paradas/clientes")
+def horas_paradas_clientes() -> JSONResponse:
+    from api.horas_paradas import fonte
+    try:
+        return JSONResponse({"clientes": fonte.clientes()})
+    except Exception as exc:  # noqa: BLE001
+        return _hp_falha(exc, "listar os clientes do ERP")
+
+
+@app.get("/api/operacao/horas-paradas/catalogo")
+def horas_paradas_catalogo(perfil: int) -> JSONResponse:
+    from api.horas_paradas import cadastro, fonte
+    try:
+        p = cadastro.perfil(perfil)
+        if not p:
+            return JSONResponse(status_code=404, content={
+                "erro": "nao_encontrado", "mensagem": "Perfil de cliente não encontrado."})
+        return JSONResponse({**fonte.catalogo(p["cliente_codigo"]),
+                             "versoes": cadastro.versoes(perfil)})
+    except Exception as exc:  # noqa: BLE001
+        return _hp_falha(exc, "ler mercadorias e destinos do cliente")
+
+
+@app.get("/api/operacao/horas-paradas/planilha")
+def horas_paradas_planilha(perfil: int, de: str | None = None,
+                           ate: str | None = None) -> Response:
+    """O `.xlsx` no layout do cliente — das MESMAS linhas que a tela mostra."""
+    from urllib.parse import quote
+
+    from api.horas_paradas import servico
+    try:
+        d0, d1 = _hp_periodo(de, ate)
+        nome, conteudo = servico.exportar(perfil, d0, d1)
+    except Exception as exc:  # noqa: BLE001
+        return _hp_falha(exc, "gerar a planilha")
+    ascii_ = nome.encode("ascii", "ignore").decode() or "horas-paradas.xlsx"
+    return Response(
+        content=conteudo,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=\"%s\"; filename*=UTF-8''%s"
+                 % (ascii_.replace('"', ""), quote(nome))})
+
+
+@app.post("/api/operacao/horas-paradas/perfis")
+async def horas_paradas_perfil_criar(req: Request) -> JSONResponse:
+    from api.horas_paradas import cadastro
+    quem = _hp_quem(req)
+    body = await _hp_corpo(req)
+    if not quem or body is None:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Corpo ou sessão inválidos."})
+    try:
+        p = await sem_travar(cadastro.criar_perfil, int(body.get("cliente_codigo") or 0),
+                             str(body.get("cliente_nome") or ""), quem)
+    except Exception as exc:  # noqa: BLE001
+        return _hp_falha(exc, "criar o perfil do cliente")
+    await sem_travar(auth.audit, quem, "hp_perfil_criar", alvo=str(p["cliente_codigo"]),
+                     detalhe=p["cliente_nome"][:180])
+    return JSONResponse({"ok": True, "perfil": p})
+
+
+@app.post("/api/operacao/horas-paradas/perfis/salvar")
+async def horas_paradas_perfil_salvar(req: Request) -> JSONResponse:
+    """A REGRA DE COBRANÇA de um cliente. Move dinheiro: toda versão fica em
+    `hp_perfil_versao`, e a trilha leva quem mudou."""
+    from api.horas_paradas import cadastro
+    quem = _hp_quem(req)
+    body = await _hp_corpo(req)
+    if not quem or body is None or not isinstance(body.get("config"), dict):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Corpo ou sessão inválidos."})
+    try:
+        p = await sem_travar(cadastro.salvar_config, int(body.get("id") or 0),
+                             body["config"], quem)
+    except Exception as exc:  # noqa: BLE001
+        return _hp_falha(exc, "salvar a regra do cliente")
+    await sem_travar(auth.audit, quem, "hp_perfil_salvar", alvo=str(p["cliente_codigo"]),
+                     detalhe="%d regra(s), %d coluna(s)" % (len(p["config"]["regras"]),
+                                                          len(p["config"]["colunas"])))
+    return JSONResponse({"ok": True, "perfil": p})
+
+
+@app.post("/api/operacao/horas-paradas/ajuste")
+async def horas_paradas_ajustar(req: Request) -> JSONResponse:
+    """Corrige UM horário (ou inclui/exclui a carga) com MOTIVO obrigatório."""
+    from api.horas_paradas import cadastro
+    quem = _hp_quem(req)
+    body = await _hp_corpo(req)
+    if not quem or body is None:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Corpo ou sessão inválidos."})
+    try:
+        r = await sem_travar(cadastro.ajustar, str(body.get("chave") or ""),
+                             str(body.get("campo") or ""), body.get("valor"),
+                             body.get("valor_erp"), str(body.get("motivo") or ""), quem)
+    except Exception as exc:  # noqa: BLE001
+        return _hp_falha(exc, "gravar o ajuste")
+    await sem_travar(auth.audit, quem, "hp_ajuste",
+                     alvo="%s %s=%s" % (r["coleta_chave"], r["campo"], r["valor"]),
+                     detalhe=("ERP: %s · %s" % (r.get("valor_erp") or "—", r["motivo"]))[:180])
+    return JSONResponse({"ok": True, "ajuste": r})
+
+
+@app.post("/api/operacao/horas-paradas/ajuste/desfazer")
+async def horas_paradas_desfazer(req: Request) -> JSONResponse:
+    from api.horas_paradas import cadastro
+    quem = _hp_quem(req)
+    body = await _hp_corpo(req)
+    if not quem or body is None:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Corpo ou sessão inválidos."})
+    chave, campo = str(body.get("chave") or ""), str(body.get("campo") or "")
+    try:
+        achou = await sem_travar(cadastro.desfazer, chave, campo)
+    except Exception as exc:  # noqa: BLE001
+        return _hp_falha(exc, "desfazer o ajuste")
+    if achou:
+        await sem_travar(auth.audit, quem, "hp_ajuste_desfazer", alvo="%s %s" % (chave, campo))
+    return JSONResponse({"ok": True, "desfeito": achou})
+
+
 @app.get("/api/jornada/motorista")
 def jornada_motorista(doc: str | None = None, de: str | None = None,
                       ate: str | None = None) -> JSONResponse:

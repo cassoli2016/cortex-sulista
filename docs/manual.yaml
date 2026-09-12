@@ -28,6 +28,28 @@ glossario:
     O dono da mercadoria guardada no armazém — o cliente do Avacorp copiado
     para o cadastro do WMS. O produto é do depositante e o código é o dele,
     porque dois clientes usam o mesmo código para coisas diferentes.
+- termo: Horas paradas
+  definicao: >-
+    A estadia que se COBRA do cliente: o tempo do veículo no carregamento e
+    na descarga além do freetime do contrato, vezes o valor da hora. É a
+    tela Horas Paradas, e difere do SAC/Freetime de propósito — o SAC é a
+    ESTIMATIVA de toda a carteira pela regra do contrato; aqui é a conta de
+    UM cliente, com a regra dele e os ajustes manuais, que vira a planilha
+    que ele recebe.
+- termo: Início do relógio
+  definicao: >-
+    O horário a partir do qual a permanência conta, e ele é do cliente. Três
+    modos: a JANELA, sempre (a fórmula do relatório do ERP, que conta até a
+    hora em que o caminhão ainda nem tinha chegado); a CHEGADA do veículo; ou
+    o que vier DEPOIS dos dois — chegou antes da hora marcada, vale a janela
+    (esperar a hora combinada não é estadia); chegou atrasado, vale a chegada.
+- termo: Ajuste manual
+  definicao: >-
+    A correção de um horário de uma coleta só na conta das horas paradas —
+    o ERP não muda. Tem motivo obrigatório e autor, a linha mostra o valor do
+    ERP ao lado, e o topo da tela diz quanto os ajustes mudaram o total.
+    Existe porque a planilha que se montava à mão corrigia o ERP: na primeira
+    conferida, um terço das cargas tinha um horário diferente do apontado.
 - termo: Sem batida
   definicao: >-
     Pessoa que tinha de aparecer no relogio num dia e nao apareceu. NAO e
@@ -1213,10 +1235,12 @@ grupos:
   - drecli
 - nome: Operação
   resumo: Torre de controle ao vivo, programação de cargas contra veículos, análise de quilometragem e
-    retorno vazio, jornada do motorista (Lei 13.103), custos extras, freetime, portaria, agregados e terceiros, a decisão de fazer com frota própria ou comprar, e a permanência
+    retorno vazio, jornada do motorista (Lei 13.103), custos extras, freetime, as horas paradas a cobrar de cada
+    cliente no layout da planilha dele, portaria, agregados e terceiros, a decisão de fazer com frota própria ou comprar, e a permanência
     dentro da planta do cliente (polígonos mapeados na Tupy Joinville).
   telas:
   - torre
+  - hp
   - pedagio
   - milkrun
   - poli

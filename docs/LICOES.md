@@ -12,6 +12,74 @@
 
 ---
 
+## Horas paradas: a planilha mostra a conta e esconde o critério (2026-09-12, v1.60.0)
+
+O pedido: *"um controle de horas paradas; cada cliente recebe de um jeito e
+tem suas particularidades"*, com a planilha semanal de uma cliente e o
+Monitoramento SAC do ERP como base. Pela lição de 09/09 ("a planilha que a
+torre mantinha à mão era a especificação"), a planilha foi tratada como
+ORÁCULO antes de uma linha de tela ser escrita: cada carga dela, horário a
+horário, contra o ERP.
+
+### O que a conferência separou
+
+| o que a planilha tinha | de onde vinha |
+|---|---|
+| chegada e saída do carregamento e da descarga | ocorrências SAC 394–397 — iguais ao ERP em toda linha que ninguém corrigiu |
+| janelas | `dtcoletar` e `dtprevisaochegadaviagem` — com exceções digitadas |
+| o tempo de cada perna | **não** a fórmula do relatório do ERP |
+| o freetime | o contrato do ERP — com exceções que ele não diz |
+| o valor | excedente por MINUTO × valor da hora, arredondado só no fim |
+
+Três achados decidiram a arquitetura:
+
+1. **O relógio é do cliente.** O relatório oficial do ERP conta da JANELA,
+   sempre — inclusive quando o caminhão chegou depois dela, e aí entram horas
+   em que o veículo nem estava lá. A planilha contava do que viesse DEPOIS
+   (chegou antes da hora marcada, vale a janela; chegou atrasado, a chegada),
+   e numa das operações, da chegada: ali a janela de carregamento do ERP é um
+   horário DERIVADO da entrega, não um compromisso — tão artificial que
+   muitas cargas saíam antes dela.
+2. **O contrato não é a regra inteira.** O relatório do ERP carrega uma
+   exceção escrita À MÃO no SQL (uma cláusula por mercadoria só vale para UM
+   destinatário) e a planilha pratica outra que contradiz a equivalência
+   declarada em 11/09 no CÓRTEX. Nenhuma das duas está no cadastro do
+   contrato. Por isso a exceção virou REGRA DECLARADA no perfil do cliente,
+   com nome, e a linha diz qual respondeu — o mesmo princípio de
+   `api/freetime.EQUIVALENCIAS`, agora por cliente.
+3. **A planilha corrigia o ERP.** Um terço das cargas tinha um horário
+   diferente do apontado (chegada anotada antes, janela de descarga
+   remarcada), e as correções mudavam o total da semana em cerca de 5%. Não é
+   ruído a limpar: é o processo. O ajuste manual ganhou tabela, motivo
+   obrigatório, autor e a FOTO do ERP, e o topo da tela soma o efeito deles.
+
+Com a regra da cliente no perfil e os ajustes gravados, o motor reproduziu a
+planilha **linha a linha, ao centavo**, contra o ERP de verdade — e só então a
+tela foi escrita.
+
+### O que a planilha NÃO dizia
+
+O critério de QUEM entra. A semana inteira da cliente, fechada pelo fim da
+descarga, tinha mais de três vezes as cargas da planilha — e nenhuma data
+(janela, chegada, fim de descarga, emissão do CT-e) separava as que entraram
+das que ficaram fora. O motor reproduzia a conta de cada linha e não tinha
+como reproduzir a lista.
+
+**A lição: oráculo prova a CONTA, não prova o RECORTE.** Comparar linha a
+linha só olha as linhas que estão lá; a pergunta "e as que não estão?" exige
+partir do outro lado — a população inteira do ERP — e ver quem sobra. Foi o
+que mostrou que "reproduzir a planilha" tinha duas metades, e que só uma delas
+era aritmética. A outra é pergunta para quem monta a planilha, e a tela nasce
+com o recorte como escolha do perfil e a inclusão manual como ajuste com
+motivo, em vez de um critério inventado para fechar o número.
+
+E a de método, que vale para o próximo cliente: **conta que bate ao centavo
+com ajustes não prova que os ajustes estão certos** — prova que o motor é
+capaz de representar a prática. Os ajustes continuam sendo decisões de
+alguém, e é por isso que eles aparecem.
+
+---
+
 ## O freetime sorteado, e o dado que estava na porta ao lado (2026-09-11, v1.38.0)
 
 Quem opera pediu: *"o freetime contratado na minha operação precisa validar com

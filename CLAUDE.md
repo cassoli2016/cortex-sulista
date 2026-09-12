@@ -158,7 +158,7 @@ a ACL em vez de afirmar a proteção.
 ## 3. Telas e módulos
 
 **O registro canônico das telas é `api/auth.py`** (`TELAS`, `ROTA_TELAS`,
-`VIEW_GROUP` no `index.html`). Hoje: **92 telas em `auth.TELAS`** + 3 fora
+`VIEW_GROUP` no `index.html`). Hoje: **93 telas em `auth.TELAS`** + 3 fora
 (`srv`, `gestao`, `jornf`, que não estão em `TELAS`). Duas das 83 — `sup` e
 `apps` — são de TODO usuário logado (`TELAS_TODO_LOGADO`): entram por sessão
 além do perfil. Organizadas assim:
@@ -167,7 +167,7 @@ além do perfil. Organizadas assim:
 |---|---|---|
 | Início | home, cop (Copiloto) | snapshot de KPIs |
 | Financeiro | fluxo, receber, cob, banc, extb, lanc, antec, antport, rec, fluxcon, pagar | AVA + locais `ext_*`, `ant_*`, `prev_*` |
-| Operação | milkrun, agr, mvb, km, prog, torre, jorn, cex, sac, port, pedagio, poli | AVA + `jor_*`, `ped_*`, `tt_*`, posições Gobrax+ERP |
+| Operação | milkrun, agr, mvb, km, prog, torre, jorn, cex, sac, hp, port, pedagio, poli | AVA + `jor_*`, `ped_*`, `tt_*`, `hp_*`, posições Gobrax+ERP |
 | Comercial | com, clif, crm, drecli | AVA + `crm_*` (banco local) |
 | Controladoria | dre, bal, cont, qual, orc, fech, fat | AVA + `orc_*`, `prev_*` |
 | Suprimentos | oc, custos, pecas | AVA (`ordemcompra` × vínculo de NF × `aprovador`, estado em `api/suprimentos_oc.py`; preço de peça pela mediana do produto em `api/suprimentos_pecas.py`) |
@@ -394,6 +394,22 @@ moram em arquivos que não falam do assunto.
   e os itens casam pelas 8 colunas da PK da nota (com `sequencianotafiscal`)
   — pelas 7 da coleta viriam os itens de todas as notas dela. "Rua A" é o
   código `A` ou `A-…`, nunca o prefixo cru: ele casava a área `AVARIA`.
+- **HORAS PARADAS (`hp`) É A ESTADIA QUE SE COBRA, e a regra é DO CLIENTE,
+  não do contrato** (`api/horas_paradas/`, 12/09/2026). A planilha semanal de
+  uma cliente, conferida linha a linha contra o Monitoramento SAC do ERP,
+  mostrou três coisas: a conta NÃO é a do relatório do ERP (ele conta da
+  JANELA sempre; a planilha conta do que vier depois — janela ou chegada — e,
+  numa operação em que a janela do ERP é derivada, da chegada); o freetime
+  tem exceções que o contrato do ERP não diz; e um terço das cargas tinha
+  horário corrigido à mão. Por isso a regra e o layout moram em
+  `hp_perfil.config` (banco da casa — **nunca `if cliente ==` no código**, o
+  repo é público), toda versão fica em `hp_perfil_versao`, e o ajuste manual
+  é tabela (`hp_ajuste`) com motivo, autor e a foto do ERP, marcado na linha e
+  somado no topo como "efeito dos ajustes". O freetime continua saindo de
+  `api/freetime.resolver`; exceção de cliente é regra declarada, com nome, e a
+  linha diz qual respondeu. **Cliente novo se confere do mesmo jeito antes de
+  a planilha dele sair daqui**: a dele contra o ERP, e cada diferença vira
+  regra do perfil ou ajuste com motivo. Guards: `tests/horas_paradas/`.
 - Integração é **módulo por fornecedor** em `api/<fornecedor>/` (gobrax,
   smartec, tomtom, whatsapp, monkey, jornada/RasterJOR, pedagio/QualP) — não
   existe hub genérico de conectores.

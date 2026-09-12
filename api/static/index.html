@@ -1450,6 +1450,12 @@ body.tvfull .tv-head .tv-logo{display:block}
 .tvd-col.neg .v{color:#F87171}
 /* rótulo permanente dos 3 pontos mais carregados do mapa da planta: texto com
    halo, sem caixa — a caixinha padrão do Leaflet cobriria o polígono vizinho */
+/* HORAS PARADAS: o horário AJUSTADO À MÃO se distingue do que veio do ERP, e
+   a carga fora da planilha fica na tela, atenuada — sumir com ela esconderia
+   de quem confere a decisão de não cobrar. */
+.hp-aj{color:var(--orange-500);font-weight:700;font-size:11px;cursor:help}
+.hp-fora td{opacity:.55}
+.hp-campos td{vertical-align:middle}
 .poli-rotulo{background:transparent;border:none;box-shadow:none;color:#14181D;
   font:700 12px/1.2 Saira,sans-serif;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff}
 .poli-rotulo::before{display:none}
@@ -3269,6 +3275,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#cex" class="sub" data-view="cex" title="Custos Extras por CT-e"><span class="ic" data-ic="cexic"></span><span>Custos Extras</span></a>
         <a href="#mvb" class="sub" data-view="mvb" title="Frota própria ou agregado, rota a rota"><span class="ic" data-ic="mvb"></span><span>Frota Própria × Agregado</span></a>
         <a href="#gr" class="sub" data-view="gr" title="Gerenciamento de Risco — eventos do rastreamento, cobertura de GR nas viagens e a saúde do fluxo"><span class="ic" data-ic="gric"></span><span>Gerenciamento de Risco</span></a>
+        <a href="#hp" class="sub" data-view="hp" title="Horas Paradas — a estadia a cobrar de cada cliente, no layout que ele recebe, com os ajustes manuais à mostra"><span class="ic" data-ic="hpic"></span><span>Horas Paradas</span></a>
         <a href="#jorn" class="sub" data-view="jorn" title="Jornada do Motorista (Lei 13.103) — apuração da RasterJOR, com as inconformidades nomeadas pelo fornecedor"><span class="ic" data-ic="jornic"></span><span>Jornada do Motorista</span></a>
         <a href="#cliop" class="sub" data-view="cliop" title="Minha Operação — o portal do cliente: cargas em curso, permanência e histórico da operação dele"><span class="ic" data-ic="cliopic"></span><span>Minha Operação</span></a>
         <a href="#milkrun" class="sub" data-view="milkrun" title="Operação MWM: chegada e saída detectadas pelo rastreamento"><span class="ic" data-ic="milkic"></span><span>Operação MWM</span></a>
@@ -6712,6 +6719,52 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="tablewrap tabroll" id="sac-coletas" style="max-height:520px"></div>
         </div>
       </section>
+      <!-- ===================== HORAS PARADAS =====================
+           A estadia que se COBRA, cliente a cliente, no layout de cada um.
+           Tudo sai de `api/horas_paradas/`: o Monitoramento SAC do ERP, a
+           regra de cobrança do cliente (perfil, no banco da casa — condição
+           comercial não entra no repositório) e os ajustes manuais, que
+           ficam com motivo e autor e aparecem na linha com o lado do ERP. -->
+      <section class="view" id="view-hp">
+        <div class="cardfilters">
+          <label for="fHpPerfil" style="color:var(--n500)">Cliente</label>
+          <select id="fHpPerfil" onchange="hpTrocarPerfil()" style="min-width:240px"></select>
+          <input type="date" id="fHpDe" aria-label="Início do período">
+          <span style="color:var(--n500)">até</span>
+          <input type="date" id="fHpAte" aria-label="Fim do período">
+          <button class="btn" onclick="hpPeriodo(-1)" title="Período anterior" aria-label="Período anterior">‹</button>
+          <button class="btn" onclick="hpPeriodo(1)" title="Próximo período" aria-label="Próximo período">›</button>
+          <button class="btn" onclick="loadHp()">Atualizar</button>
+          <button class="btn primary" id="btnHpPlanilha" onclick="hpBaixar()">Baixar planilha do cliente</button>
+          <button class="btn" onclick="hpNovoPerfil()">Configurar cliente</button>
+        </div>
+        <div class="banner-inline" id="hpAviso" style="display:none;margin:0"></div>
+        <div class="kpis k4" id="kpis-hp"></div>
+        <div class="subtabs" role="tablist" data-abas="hp" aria-label="Seções das horas paradas">
+          <button role="tab" id="tabhp-cargas" data-aba="cargas" aria-controls="aba-hp-cargas" aria-selected="true" onclick="abaTrocar('hp','cargas')">Cargas do período <span class="aban" id="abanHpCargas"></span></button>
+          <button role="tab" id="tabhp-abertas" data-aba="abertas" aria-controls="aba-hp-abertas" aria-selected="false" onclick="abaTrocar('hp','abertas')">Em aberto <span class="aban" id="abanHpAbertas"></span></button>
+          <button role="tab" id="tabhp-regras" data-aba="regras" aria-controls="aba-hp-regras" aria-selected="false" onclick="abaTrocar('hp','regras')">Regras do cliente</button>
+        </div>
+        <div class="aba" data-abas="hp" data-aba="cargas" id="aba-hp-cargas" role="tabpanel" aria-labelledby="tabhp-cargas">
+          <div class="card">
+            <div class="head"><h2>Cargas do período <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="As coletas do cliente cujo MARCO (por padrão, o fim da descarga) caiu no período. Chegada e saída são as ocorrências SAC do ERP (394/395 no carregamento, 396/397 na descarga); as janelas são as da coleta. O relógio de cada perna começa conforme a regra do cliente (na janela, na chegada, ou no que vier depois), o freetime vem do contrato do ERP vigente NA DATA DA CARGA — a cláusula da mercadoria, senão a genérica — e as exceções declaradas na aba Regras. O excedente é cobrado por minuto ou arredondado, conforme o cliente. Horário corrigido à mão aparece marcado, com o valor do ERP ao passar o mouse, e o total diz quanto os ajustes mudaram.">i</span></h2><span class="hint" id="hp-cargas-hint"></span></div>
+            <div class="tablewrap tabroll" style="max-height:520px"><table><thead><tr>
+              <th class="num">Coleta</th><th>Veículo</th><th>Carga</th><th>Carregamento</th><th class="num">Tempo · freetime</th><th>Descarga</th><th class="num">Tempo · freetime</th><th class="num">Valor</th><th></th>
+            </tr></thead><tbody id="hp-cargas"></tbody></table></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="hp" data-aba="abertas" id="aba-hp-abertas" role="tabpanel" aria-labelledby="tabhp-abertas" hidden>
+          <div class="card">
+            <div class="head"><h2>Em aberto <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Coletas do cliente que carregaram no período mas ainda não chegaram ao marco (por padrão, o fim da descarga). NÃO somam: cobrar pela metade faria a mesma carga aparecer em duas planilhas. Quando o ERP ficou sem o apontamento, o ajuste manual (com motivo) fecha a carga e ela passa para o período.">i</span></h2><span class="hint" id="hp-abertas-hint"></span></div>
+            <div class="tablewrap tabroll" style="max-height:520px"><table><thead><tr>
+              <th class="num">Coleta</th><th>Veículo</th><th>Carga</th><th>Carregamento</th><th>Chegada na descarga</th><th></th>
+            </tr></thead><tbody id="hp-abertas"></tbody></table></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="hp" data-aba="regras" id="aba-hp-regras" role="tabpanel" aria-labelledby="tabhp-regras" data-ao-abrir="hpRegrasAbrir" hidden>
+          <div id="hp-regras"></div>
+        </div>
+      </section>
       <!-- ===================== MINHA OPERAÇÃO (portal do cliente) =====================
            A tela do CLIENTE. O que ela mostra sai de `api/portal_cliente.py`,
            escopado pelo vínculo da SESSÃO — a raiz do CNPJ nunca vem daqui.
@@ -9975,6 +10028,7 @@ const ICONS = {
   telconic: IC('<path d="M12 3.5c3.2 3.6 5 6.1 5 8.3a5 5 0 0 1-10 0c0-2.2 1.8-4.7 5-8.3z"/><path d="M3 21h18M5.5 21v-3.5M9 21v-6"/>'),
   desic: IC('<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/>'),
   peopleic: IC('<circle cx="9" cy="7.5" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16.5 3.6a3 3 0 0 1 0 7.8"/><path d="M18 19a5 5 0 0 0-2.6-4.4"/>'),
+  hpic: IC('<circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.6 2.2"/><path d="M9.5 2.5h5"/><path d="M12 2.5V6"/>'),
   poliic: IC('<path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5z"/><circle cx="12" cy="11" r="2.2"/><path d="M12 13.2V17"/>'),
   pneuic: IC('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.6"/><path d="M12 3v5.4M12 15.6V21M3 12h5.4M15.6 12H21"/>'),
   rhmotic: IC('<path d="M4 5.5h16a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 3.5V16.5H4A1.5 1.5 0 0 1 2.5 15V7A1.5 1.5 0 0 1 4 5.5Z"/><path d="M7 9.5h10M7 12.5h6"/>'),
@@ -10032,7 +10086,7 @@ function tvRecarregar(v){
   if(esTv(v) && mapa[v]) mapa[v]();
 }
 
-const VIEWS = { radar:'Radar do Transporte', tvcom:'Painel TV — Comunicação', tvjor:'Painel TV — Jornada', home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Central de Documentos', eqp:'Equipamentos', wmspan:'Painel do Armazém', wmsrec:'Recebimento', wmsest:'Estoque e Inventário', wmsexp:'Separação e Expedição', wmscad:'Cadastros do Armazém', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', freq:'Frequência e Banco de Horas', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', gesind:'Ritual — Indicadores e Metas', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { hp:'Horas Paradas', radar:'Radar do Transporte', tvcom:'Painel TV — Comunicação', tvjor:'Painel TV — Jornada', home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Central de Documentos', eqp:'Equipamentos', wmspan:'Painel do Armazém', wmsrec:'Recebimento', wmsest:'Estoque e Inventário', wmsexp:'Separação e Expedição', wmscad:'Cadastros do Armazém', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', freq:'Frequência e Banco de Horas', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', gesind:'Ritual — Indicadores e Metas', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -10308,7 +10362,7 @@ const VIEW_GROUP = {radar:'',home:'',cop:'',apps:'',
   dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',
   ctecp:'Tms',eqp:'Tms',dfe:'Tms',
   wmspan:'Wms',wmsrec:'Wms',wmsest:'Wms',wmsexp:'Wms',wmscad:'Wms',
-  torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',cliop:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',pedagio:'Ope',
+  torre:'Ope',milkrun:'Ope',poli:'Ope',hp:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',cliop:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',pedagio:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',pecas:'Sup',
   prodveic:'Bi',fat:'Ctr',gr:'Ope',tvcli:'Bi',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',tvcom:'Bi',tvjor:'Bi',
@@ -10493,6 +10547,12 @@ function qsView(k){
   } else if(k==='sac'){
     if(V('fSacDe'))p.set('dt_de',V('fSacDe'));
     if(V('fSacAte'))p.set('dt_ate',V('fSacAte'));
+  } else if(k==='hp'){
+    // Filtros PRÓPRIOS (cliente e período): a barra global não se aplica —
+    // a regra de cobrança é de UM cliente, e o período é o da planilha dele.
+    if(V('fHpPerfil'))p.set('perfil',V('fHpPerfil'));
+    if(V('fHpDe'))p.set('de',V('fHpDe'));
+    if(V('fHpAte'))p.set('ate',V('fHpAte'));
   } else if(k==='cop'){
   } else if(k==='prog'){
   } else if(k==='torre'){
@@ -10564,7 +10624,7 @@ function semFilterbar(v){
   return v==='radar'||v==='tvjor'||v==='cop'||v==='mon'||v==='aud'||v==='integ'||v==='apps'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='gesind'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
          v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='freq'||v==='custos'||v==='pecas'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='antport'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='rhmot'||v==='pneus'||v==='people'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='eqp'||
-         v==='wmspan'||v==='wmsrec'||v==='wmsest'||v==='wmsexp'||v==='wmscad';
+         v==='wmspan'||v==='wmsrec'||v==='wmsest'||v==='wmsexp'||v==='wmscad'||v==='hp';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','').split('?')[0];   // `#sup?chamado=12` é a tela sup
@@ -10685,7 +10745,7 @@ function router(){
   document.getElementById('grpFluxcon').style.display = fluxcon ? 'flex' : 'none';
   const ges = (v==='gestao');
   const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = semFilterbar(v) ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (v==='tvjor'||cop||ges||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='gesind'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='prem'||v==='doc'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='apps'||v==='wmscad') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (v==='tvjor'||cop||ges||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='gesind'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='prem'||v==='doc'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='apps'||v==='wmscad'||v==='hp') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', semFilterbar(v)); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -10709,7 +10769,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,freq:DATAFREQ,custos:DATACUSTOS,pecas:DATAPECAS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={radar:loadRadar,apps:loadApps,integ:loadInteg,dfe:loadDfe,eqp:loadEqp,wmspan:loadWmsPan,wmsrec:loadWmsRec,wmsest:loadWmsEst,wmsexp:loadWmsExp,wmscad:loadWmsCad,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,freq:loadFreq,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+  const LOADMAP={hp:loadHp,radar:loadRadar,apps:loadApps,integ:loadInteg,dfe:loadDfe,eqp:loadEqp,wmspan:loadWmsPan,wmsrec:loadWmsRec,wmsest:loadWmsEst,wmsexp:loadWmsExp,wmscad:loadWmsCad,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,freq:loadFreq,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -26768,6 +26828,547 @@ function renderSac(d){
     return `<tr><td>${c.data?fmtD(String(c.data).slice(0,10)):'—'}</td><td class="num">${c.coleta}</td><td>${esc(c.cliente)}</td><td>${merc}</td><td class="num">${c.h_carga!=null?c.h_carga+'h':'—'}</td><td class="num">${c.h_descarga!=null?c.h_descarga+'h':'—'}</td><td class="num">${(c.exc_carga+c.exc_descarga).toLocaleString('pt-BR',{maximumFractionDigits:1})} h</td><td class="num" style="font-weight:700">${BRL.format(c.valor_est)}</td></tr>`;}).join('')||'<tr><td colspan="8" style="color:var(--n500)">sem coletas com excedente no período</td></tr>';
   document.getElementById('sac-coletas').innerHTML=`<table><thead><tr><th>Data</th><th class="num">Coleta</th><th>Cliente</th><th>Mercadoria</th><th class="num">Carga</th><th class="num">Descarga</th><th class="num">Excedente</th><th class="num">Estimado</th></tr></thead><tbody>${cl}</tbody></table>`;
 }
+// ---------------- Horas Paradas ----------------
+/* A ESTADIA QUE SE COBRA, cliente a cliente (`api/horas_paradas/`).
+
+   "Cada cliente recebe de um jeito": a regra de cobrança (quando começa o
+   relógio, que cláusula vale, como arredondar) e o layout da planilha moram
+   no PERFIL do cliente, no banco da casa — condição comercial não entra no
+   repositório. A tela tem três abas: as cargas do período (a conta), as que
+   ainda não fecharam, e as regras.
+
+   O AJUSTE MANUAL É PARTE DO PROCESSO, não um remendo: na primeira planilha
+   conferida, um terço das cargas tinha horário corrigido à mão. Por isso ele tem
+   motivo obrigatório, fica marcado na linha com o valor do ERP ao lado, e o
+   topo diz quanto os ajustes mudaram o total — número que pode ser mexido
+   sem aparecer não é número. */
+let HP_PERFIS=null, HP_COLCAT=[], DATAHP=null, HP_CFG=null, HP_CAT=null, hpSeq=0, HP_SUJO=false, HP_SEL=null;
+const HP_INICIO={maior:'o que vier depois — janela ou chegada', chegada:'a chegada do veículo',
+                 janela:'a janela, sempre (fórmula do relatório do ERP)'};
+const HP_RECORTE={fim_descarga:'fim da descarga', chegada_descarga:'chegada na descarga',
+                  saida_carga:'saída do carregamento', janela_carga:'janela de carregamento'};
+const HP_PERIODO={dia:'dia', semana:'semana (segunda a domingo)', mes:'mês'};
+const HP_ARRED={0:'por minuto (proporcional)', 15:'para cima, de 15 em 15 min',
+                30:'para cima, de 30 em 30 min', 60:'para cima, hora cheia'};
+const HP_CLAUS={mercadoria:'cláusula da mercadoria', equivalencia:'cláusula por equivalência declarada',
+                generico:'cláusula genérica', sem_clausula:'sem cláusula — maior freetime do contrato'};
+const HP_CAMPOS={carga_janela:'Janela do carregamento', carga_chegada:'Chegada no carregamento',
+                 carga_saida:'Saída do carregamento', descarga_janela:'Janela da descarga',
+                 descarga_chegada:'Chegada na descarga', descarga_saida:'Fim da descarga'};
+
+function hpHM(s){
+  if(s==null) return '—';
+  const m=Math.round(Math.abs(s)/60);
+  return (s<0?'−':'')+String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+}
+function hpHoras(h){ return h==null ? '—' : hpHM(h*3600); }
+function hpDT(s){
+  if(!s) return '—';
+  const t=String(s).replace('T',' '), d=t.slice(0,10).split('-');
+  return d[2]+'/'+d[1]+' '+t.slice(11,16);
+}
+function hpR(v){ return (v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+function hpNum(v){
+  v=(v||'').trim(); if(!v) return null;
+  const m=v.match(/^(\d{1,3}):([0-5]\d)$/);
+  if(m) return +m[1] + (+m[2])/60;
+  const n=Number(v.includes(',') ? v.replace(/\./g,'').replace(',','.') : v);
+  return isFinite(n) ? n : NaN;
+}
+function hpDatas(tipo, base){
+  const b=new Date(base.getFullYear(), base.getMonth(), base.getDate());
+  if(tipo==='dia') return [_iso(b), _iso(b)];
+  if(tipo==='mes') return [_iso(new Date(b.getFullYear(), b.getMonth(), 1)),
+                           _iso(new Date(b.getFullYear(), b.getMonth()+1, 0))];
+  const seg=new Date(b); seg.setDate(b.getDate()-((b.getDay()+6)%7));
+  const dom=new Date(seg); dom.setDate(seg.getDate()+6);
+  return [_iso(seg), _iso(dom)];
+}
+function hpPerfilAtual(){
+  const id=+((document.getElementById('fHpPerfil')||{}).value||0);
+  return (HP_PERFIS||[]).find(p=>p.id===id) || null;
+}
+function hpDefaults(){
+  const de=document.getElementById('fHpDe'), ate=document.getElementById('fHpAte');
+  if(de && ate && (!de.value || !ate.value)){
+    const p=hpPerfilAtual();
+    const [a,b]=hpDatas((p && p.config.periodo) || 'semana', new Date());
+    de.value=a; ate.value=b;
+  }
+}
+function hpPeriodo(passo){
+  const p=hpPerfilAtual(), tipo=(p && p.config.periodo) || 'semana';
+  const de=document.getElementById('fHpDe');
+  const d=new Date((de.value || _iso(new Date()))+'T12:00:00');
+  if(tipo==='dia') d.setDate(d.getDate()+passo);
+  else if(tipo==='mes') d.setMonth(d.getMonth()+passo, 1);
+  else d.setDate(d.getDate()+7*passo);
+  const [a,b]=hpDatas(tipo, d);
+  de.value=a; document.getElementById('fHpAte').value=b;
+  loadHp();
+}
+function hpPreencherPerfis(){
+  const sel=document.getElementById('fHpPerfil'); if(!sel) return;
+  let atual=HP_SEL || +sel.value || 0;
+  if(!atual){ try{ atual=+(localStorage.getItem('cs.hpPerfil')||0); }catch(e){ atual=0; } }
+  sel.innerHTML=(HP_PERFIS||[]).map(p=>
+    `<option value="${p.id}">${esc(p.cliente_nome || ('cliente '+p.cliente_codigo))}</option>`).join('');
+  if((HP_PERFIS||[]).some(p=>p.id===atual)) sel.value=String(atual);
+  HP_SEL=null;
+}
+function hpTrocarPerfil(){
+  try{ localStorage.setItem('cs.hpPerfil', document.getElementById('fHpPerfil').value); }catch(e){}
+  HP_CFG=null; HP_CAT=null; HP_SUJO=false;
+  loadHp();
+}
+function hpVazio(msg){
+  document.getElementById('kpis-hp').innerHTML='';
+  const t = msg ? esc(msg)
+    : 'Nenhum cliente tem regra de horas paradas ainda. Cada cliente recebe de um jeito: '
+      +'configure o primeiro — a regra de cobrança e o layout da planilha dele.';
+  const bt = msg ? '' : ' <button class="btn sm primary" onclick="hpNovoPerfil()">Configurar cliente</button>';
+  document.getElementById('hp-cargas').innerHTML=`<tr><td colspan="9" style="color:var(--n500)">${t}${bt}</td></tr>`;
+  document.getElementById('hp-abertas').innerHTML='';
+  abaContador('abanHpCargas',0); abaContador('abanHpAbertas',0);
+  const r=document.getElementById('hp-regras');
+  if(r) r.innerHTML=`<div class="card"><p class="hint" style="margin:0">${t}</p></div>`;
+  const av=document.getElementById('hpAviso'); if(av) av.style.display='none';
+  LOADEDQS.hp=qsView('hp');
+}
+
+async function loadHp(){
+  const seq=++hpSeq;
+  document.getElementById('content').classList.add('loading');
+  try{
+    if(!HP_PERFIS){
+      const r=await fetch('/api/operacao/horas-paradas/perfis',{cache:'no-store'});
+      const j=await respostaJSON(r); if(seq!==hpSeq) return;
+      if(!j.ok){ hpVazio((j.dados||{}).mensagem || 'Não foi possível listar os clientes configurados.'); return; }
+      HP_PERFIS=j.dados.perfis||[]; HP_COLCAT=j.dados.catalogo_colunas||[];
+      hpPreencherPerfis();
+    }
+    if(!HP_PERFIS.length){ hpVazio(null); return; }
+    hpDefaults();
+    skelKpis('kpis-hp',4);
+    const q=qsView('hp');
+    const r=await fetch('/api/operacao/horas-paradas?'+q,{cache:'no-store'});
+    const j=await respostaJSON(r); if(seq!==hpSeq) return;
+    if(!j.ok){ showBanner((j.dados||{}).mensagem || 'Erro ao montar as horas paradas.'); return; }
+    hideBanner(); DATAHP=j.dados; LOADEDQS.hp=q; renderHp(DATAHP);
+  }catch(e){ if(seq===hpSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===hpSeq) document.getElementById('content').classList.remove('loading'); }
+}
+
+function hpCelPerna(p){
+  const ajs=p.erp||{};
+  const mk=k=> (k in ajs)
+    ? ` <span class="hp-aj" title="${esc('ajustado à mão — no ERP: '+(ajs[k]?hpDT(ajs[k]):'sem apontamento'))}">ajustado</span>` : '';
+  const ini = p.inicio_de==='janela' ? 'relógio da janela' : (p.inicio_de==='chegada' ? 'relógio da chegada' : '');
+  return `<div>${hpDT(p.chegada)}${mk('chegada')} → ${hpDT(p.saida)}${mk('saida')}</div>`
+    + `<div class="hint">janela ${hpDT(p.janela)}${mk('janela')}${ini?' · '+ini:''}</div>`;
+}
+function hpCelTempo(p){
+  if(p.estado==='sem_apontamento')
+    return '<span class="hint" style="color:var(--yellow-700)">sem apontamento</span>';
+  const exc = p.cobrado_s>0 ? `<div style="color:var(--red);font-weight:700">+${hpHM(p.cobrado_s)}</div>` : '';
+  const orig = p.estado==='sem_contrato' ? 'sem freetime no contrato'
+    : (p.regra ? 'regra: '+p.regra : (HP_CLAUS[p.clausula]||''));
+  return `<div>${hpHM(p.tempo_s)} <span class="hint">/ ${hpHoras(p.freetime_h)}</span></div>${exc}`
+    + `<div class="hint">${esc(orig)}</div>`;
+}
+function renderHp(d){
+  const r=d.resumo||{}, per=d.periodo||{};
+  const hc=r.horas_carga||0, hd=r.horas_descarga||0;
+  const ajChip = r.ajustadas
+    ? statChip('warn', (r.efeito_ajustes<0?'−':'+')+hpR(Math.abs(r.efeito_ajustes))+' por ajuste',
+        'Diferença entre o total com os ajustes manuais e o que o ERP sozinho daria. Cada ajuste tem motivo e autor — veja na linha.')
+    : '';
+  document.getElementById('kpis-hp').innerHTML=[
+    kpi('A cobrar no período', hpR(r.valor_total),
+        'carregamento '+hpR(r.valor_carga)+' · descarga '+hpR(r.valor_descarga), '',
+        'Soma das cargas incluídas: o excedente sobre o freetime de cada perna vezes o valor da hora do contrato. É o total da planilha do cliente.', ajChip),
+    kpi('Cargas no período', (r.cargas||0).toLocaleString('pt-BR'),
+        (r.com_excedente||0)+' com excedente · '+(r.em_aberto||0)+' em aberto', '',
+        'Cargas cujo marco do cliente (padrão: fim da descarga) caiu no período. As em aberto ainda não chegaram ao marco e não somam.'),
+    kpi('Horas excedidas', hpHM((hc+hd)*3600),
+        'carregamento '+hpHM(hc*3600)+' · descarga '+hpHM(hd*3600), '',
+        'Tempo cobrado além do freetime, já com o arredondamento do cliente.'),
+    kpi('Ajustes manuais', (r.ajustadas||0).toLocaleString('pt-BR'),
+        (r.excluidas||0)+' fora da planilha'+(r.sem_apontamento?' · '+r.sem_apontamento+' sem apontamento':''), '',
+        'Cargas com algum horário corrigido à mão. Fora da planilha: excluídas à mão — continuam na lista, atenuadas, com o motivo.'),
+  ].join('');
+
+  const av=document.getElementById('hpAviso'), avs=[];
+  if(r.sem_apontamento) avs.push(r.sem_apontamento+' carga(s) sem chegada ou saída apontada no ERP: a perna sem apontamento não entra na conta — confira e, se for o caso, ajuste o horário com o motivo');
+  if(r.sem_contrato) avs.push(r.sem_contrato+' perna(s) sem freetime no contrato do ERP nem numa regra do cliente: não se cobra o que não tem régua');
+  if(av){
+    if(avs.length){ av.style.display='flex'; av.innerHTML=`<i>${ICONS['sevWarn']}</i><span>${avs.map(esc).join('. ')}.</span>`; }
+    else av.style.display='none';
+  }
+
+  const lido = d.lido_em ? new Date(d.lido_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
+  const hint=document.getElementById('hp-cargas-hint');
+  if(hint) hint.textContent='semana '+(per.semana||'—')+' · '+fmtD(per.de)+' a '+fmtD(per.ate)
+    +' · entra pelo '+(HP_RECORTE[per.recorte]||per.recorte)+(lido?' · ERP lido às '+lido:'');
+
+  const ls=d.linhas||[];
+  document.getElementById('hp-cargas').innerHTML = ls.map(l=>{
+    const aviso=(l.avisos||[]).length
+      ? `<div class="hint" style="color:var(--yellow-700)" title="${esc(l.avisos.join(' · '))}">atenção</div>` : '';
+    const fora=!l.incluida
+      ? `<div class="hint" title="${esc(((l.ajustes||[]).find(a=>a.campo==='incluir')||{}).motivo||'')}">fora da planilha</div>` : '';
+    return `<tr${l.incluida?'':' class="hp-fora"'}>`
+      + `<td class="num">${l.coleta}<div class="hint">${esc(l.pedido_num||'')}${l.referencia?' · '+esc(l.referencia):''}</div></td>`
+      + `<td>${esc(l.frota_cavalo||l.placa_cavalo||'—')}<div class="hint">${esc(l.frota_cavalo?l.placa_cavalo:'')}${l.placa_carreta?' · '+esc(l.placa_carreta):''}</div></td>`
+      + `<td>${esc(l.mercadoria||'—')}<div class="hint">→ ${esc(l.destino||'—')}</div></td>`
+      + `<td>${hpCelPerna(l.carga)}</td><td class="num">${hpCelTempo(l.carga)}</td>`
+      + `<td>${hpCelPerna(l.descarga)}</td><td class="num">${hpCelTempo(l.descarga)}</td>`
+      + `<td class="num" style="font-weight:700">${hpR(l.valor)}`
+      + `${l.valor!==l.valor_erp?`<div class="hint">ERP: ${hpR(l.valor_erp)}</div>`:''}${fora}${aviso}</td>`
+      + `<td><button class="btn sm" data-chave="${esc(l.chave)}" onclick="hpAjustar(this.dataset.chave)">Ajustar</button></td></tr>`;
+  }).join('') || '<tr><td colspan="9" style="color:var(--n500)">nenhuma carga do cliente fechou no período</td></tr>';
+
+  const ab=d.abertas||[];
+  document.getElementById('hp-abertas').innerHTML = ab.map(a=>
+    `<tr><td class="num">${a.coleta}</td><td>${esc(a.frota_cavalo||a.placa_cavalo||'—')}</td>`
+    + `<td>${esc(a.mercadoria||'—')}<div class="hint">→ ${esc(a.destino||'—')}</div></td>`
+    + `<td>${hpDT(a.carga_chegada)} → ${hpDT(a.carga_saida)}</td><td>${hpDT(a.descarga_chegada)}</td>`
+    + `<td><button class="btn sm" data-chave="${esc(a.chave)}" onclick="hpAjustar(this.dataset.chave)">Ajustar</button></td></tr>`
+  ).join('') || '<tr><td colspan="6" style="color:var(--n500)">nenhuma carga do período sem o marco</td></tr>';
+  const ha=document.getElementById('hp-abertas-hint');
+  if(ha) ha.textContent=ab.length ? ab.length+' carga(s) — não somam até fechar' : '';
+  abaContador('abanHpCargas', ls.length); abaContador('abanHpAbertas', ab.length);
+
+  const ar=document.getElementById('aba-hp-regras');
+  if(ar && !ar.hidden) hpRegrasAbrir();
+}
+
+// ── o ajuste manual ──────────────────────────────────────────────────────
+function hpItem(chave){
+  const l=((DATAHP||{}).linhas||[]).find(x=>x.chave===chave);
+  if(l){
+    const erp={};
+    ['carga','descarga'].forEach(p=>Object.entries(l[p].erp||{}).forEach(([k,v])=>{ erp[p+'_'+k]=v; }));
+    return {coleta:l.coleta, veic:l.frota_cavalo||l.placa_cavalo, merc:l.mercadoria, dest:l.destino,
+            incluida:l.incluida, referencia:l.referencia||'', linha:true, ajustes:l.ajustes||[], erp,
+            vals:{carga_janela:l.carga.janela, carga_chegada:l.carga.chegada, carga_saida:l.carga.saida,
+                  descarga_janela:l.descarga.janela, descarga_chegada:l.descarga.chegada,
+                  descarga_saida:l.descarga.saida}};
+  }
+  const a=((DATAHP||{}).abertas||[]).find(x=>x.chave===chave);
+  if(!a) return null;
+  const vals={}; Object.keys(HP_CAMPOS).forEach(k=>{ vals[k]=a[k]; });
+  return {coleta:a.coleta, veic:a.frota_cavalo||a.placa_cavalo, merc:a.mercadoria, dest:a.destino,
+          incluida:true, referencia:'', linha:false, ajustes:a.ajustes||[], erp:a.erp||{}, vals};
+}
+function hpAjustar(chave){
+  const it=hpItem(chave); if(!it) return;
+  const aj={}; (it.ajustes||[]).forEach(a=>{ aj[a.campo]=a; });
+  const loc=s=> s ? String(s).replace(' ','T').slice(0,16) : '';
+  const desf=(campo,rot)=>`<button class="btn sm" data-chave="${esc(chave)}" data-campo="${campo}" onclick="hpDesfazer(this.dataset.chave,this.dataset.campo)">${rot}</button>`;
+  const campos=Object.keys(HP_CAMPOS).map(k=>{
+    const a=aj[k], erp = a ? it.erp[k] : it.vals[k];
+    return `<tr><td>${HP_CAMPOS[k]}</td><td class="hint">${erp?hpDT(erp):'sem apontamento'}</td>`
+      + `<td><input type="datetime-local" id="hpv-${k}" value="${esc(loc(it.vals[k]))}" data-orig="${esc(loc(it.vals[k]))}" aria-label="${esc(HP_CAMPOS[k])}"></td>`
+      + `<td>${a?`<span class="hp-aj" title="${esc(a.motivo+' — '+a.autor)}">ajustado</span> ${desf(k,'Voltar ao ERP')}`:''}</td></tr>`;
+  }).join('');
+  const extra = it.linha
+    ? `<div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end">`
+      + `<label style="display:flex;gap:9px;align-items:center"><input type="checkbox" id="hpv-incluir"${it.incluida?' checked':''} data-orig="${it.incluida}"> Incluir na planilha do cliente</label>`
+      + (aj.incluir ? desf('incluir','Voltar ao padrão') : '')
+      + `<div><label for="hpv-referencia">Referência do cliente</label><input type="text" id="hpv-referencia" maxlength="60" value="${esc(it.referencia)}" data-orig="${esc(it.referencia)}"></div>`
+      + (aj.referencia ? desf('referencia','Voltar ao padrão') : '') + `</div>`
+    : '';
+  abrirModal(`<h3 style="margin:0 0 3px">Coleta ${it.coleta} · ${esc(it.veic||'')}</h3>`
+    + `<p class="hint" style="margin:0 0 18px">${esc(it.merc||'')} → ${esc(it.dest||'')}. O ERP não é alterado: o ajuste vale só nesta conta, fica gravado com o motivo e o autor, e a linha mostra os dois lados.</p>`
+    + `<div class="ges-form">`
+    + `<table class="hp-campos"><thead><tr><th>Horário</th><th>No ERP</th><th>Vale na conta</th><th></th></tr></thead><tbody>${campos}</tbody></table>`
+    + extra
+    + `<div><label for="hp-motivo">Motivo</label><textarea id="hp-motivo" rows="3" style="width:100%" placeholder="Ex.: chegada anotada pela portaria às 07:40; janela remarcada pelo cliente"></textarea></div>`
+    + `<p id="m-err" class="hint" style="color:var(--red);margin:0"></p>`
+    + `<div style="display:flex;gap:9px;justify-content:flex-end">`
+    + `<button class="btn" onclick="fecharModal()">Cancelar</button>`
+    + `<button class="btn primary" id="hp-gravar" data-chave="${esc(chave)}" onclick="hpGravarAjuste(this.dataset.chave)">Gravar</button></div></div>`);
+}
+async function hpPost(url, corpo){
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(corpo)});
+  return respostaJSON(r);
+}
+async function hpGravarAjuste(chave){
+  const it=hpItem(chave); if(!it) return;
+  const aj={}; (it.ajustes||[]).forEach(a=>{ aj[a.campo]=a; });
+  const motivo=(document.getElementById('hp-motivo').value||'').trim();
+  const mud=[];
+  for(const k of Object.keys(HP_CAMPOS)){
+    const e=document.getElementById('hpv-'+k); if(!e || e.value===e.dataset.orig) continue;
+    if(!e.value){ mErro('Horário vazio não se grava — para voltar ao ERP, use “Voltar ao ERP”.'); return; }
+    mud.push({campo:k, valor:e.value.replace('T',' '), valor_erp:it.erp[k]||it.vals[k]||''});
+  }
+  const inc=document.getElementById('hpv-incluir');
+  if(inc && String(inc.checked)!==inc.dataset.orig)
+    mud.push(inc.checked && aj.incluir ? {desfazer:'incluir'} : {campo:'incluir', valor:inc.checked?'sim':'nao', valor_erp:'sim'});
+  const ref=document.getElementById('hpv-referencia');
+  if(ref && ref.value.trim()!==ref.dataset.orig){
+    if(!ref.value.trim()){ mErro('Para voltar à referência padrão, use “Voltar ao padrão”.'); return; }
+    mud.push({campo:'referencia', valor:ref.value.trim(), valor_erp:''});
+  }
+  if(!mud.length){ mErro('Nada mudou.'); return; }
+  if(mud.some(m=>m.campo) && motivo.length<5){ mErro('Escreva o motivo — é ele que responde à contestação do cliente daqui a um mês.'); return; }
+  const bt=document.getElementById('hp-gravar'); bt.disabled=true;
+  let ok=true;
+  try{
+    for(const m of mud){
+      const j = m.desfazer
+        ? await hpPost('/api/operacao/horas-paradas/ajuste/desfazer',{chave, campo:m.desfazer})
+        : await hpPost('/api/operacao/horas-paradas/ajuste',{chave, campo:m.campo, valor:m.valor, valor_erp:m.valor_erp, motivo});
+      if(!j.ok){ mErro((j.dados||{}).mensagem || 'Não foi possível gravar.'); ok=false; break; }
+    }
+  }catch(e){ mErro(e.message); ok=false; }
+  finally{ bt.disabled=false; }
+  if(ok) fecharModal();
+  loadHp();   // FORA do try: o que já foi gravado aparece mesmo que o seguinte tenha falhado
+}
+async function hpDesfazer(chave, campo){
+  let ok=true;
+  try{
+    const j=await hpPost('/api/operacao/horas-paradas/ajuste/desfazer',{chave, campo});
+    if(!j.ok){ mErro((j.dados||{}).mensagem || 'Não foi possível desfazer.'); ok=false; }
+  }catch(e){ mErro(e.message); ok=false; }
+  if(ok) fecharModal();
+  loadHp();
+}
+
+// ── as regras do cliente ─────────────────────────────────────────────────
+async function hpRegrasAbrir(){
+  const box=document.getElementById('hp-regras'); if(!box) return;
+  const p=hpPerfilAtual();
+  if(!p){ box.innerHTML='<div class="card"><p class="hint" style="margin:0">Escolha ou configure um cliente.</p></div>'; return; }
+  if(!HP_CFG || HP_CFG._pid!==p.id){ HP_CFG=JSON.parse(JSON.stringify(p.config)); HP_CFG._pid=p.id; HP_SUJO=false; }
+  if(!HP_CAT || HP_CAT._pid!==p.id){
+    box.innerHTML='<div class="card"><p class="hint" style="margin:0">carregando mercadorias e destinatários do cliente…</p></div>';
+    try{
+      const j=await respostaJSON(await fetch('/api/operacao/horas-paradas/catalogo?perfil='+p.id,{cache:'no-store'}));
+      HP_CAT = j.ok ? Object.assign(j.dados,{_pid:p.id})
+                    : {mercadorias:[], destinos:[], versoes:[], _pid:p.id, _erro:(j.dados||{}).mensagem};
+    }catch(e){ HP_CAT={mercadorias:[], destinos:[], versoes:[], _pid:p.id, _erro:e.message}; }
+  }
+  hpRenderRegras();
+}
+function hpSel(id, mapa, atual, onch){
+  return `<select id="${id}"${onch?` onchange="${onch}"`:''}>`
+    + Object.entries(mapa).map(([k,v])=>`<option value="${esc(k)}"${String(k)===String(atual??'')?' selected':''}>${esc(v)}</option>`).join('')
+    + '</select>';
+}
+function hpCfg(k, v){ HP_CFG[k]=v; hpSujo(); }
+function hpSujo(){
+  HP_SUJO=true;
+  const s=document.getElementById('hp-sujo');
+  if(s) s.textContent='alterações não salvas — a conta da tela só muda depois de salvar';
+}
+function hpRenderRegras(){
+  const box=document.getElementById('hp-regras'), c=HP_CFG; if(!box || !c) return;
+  const cat=HP_CAT||{mercadorias:[], destinos:[], versoes:[]};
+  const destNome=cod=>{ const d=(cat.destinos||[]).find(x=>x.codigo===cod); return d ? d.nome : cod; };
+  const nR=(c.regras||[]).length, nC=(c.colunas||[]).length;
+  const regras=(c.regras||[]).map((r,i)=>{
+    const quando=[r.perna==='ambas'?'carregamento e descarga':(r.perna==='carga'?'só carregamento':'só descarga')]
+      .concat((r.mercadorias||[]).length ? ['mercadoria: '+r.mercadorias.join(', ')] : [])
+      .concat((r.destinos||[]).length ? ['destino: '+r.destinos.map(destNome).join(', ')] : []);
+    const entao=[];
+    if(r.inicio) entao.push('relógio: '+HP_INICIO[r.inicio]);
+    if(r.clausula==='generica') entao.push('cláusula genérica');
+    if(r.freetime_h!=null) entao.push('freetime '+hpHoras(r.freetime_h));
+    if(r.valor_h!=null) entao.push('hora a '+hpR(r.valor_h));
+    if(!entao.length) entao.push('mantém o contrato (exceção à regra seguinte)');
+    return `<tr><td class="num">${i+1}</td><td>${esc(r.nome)}</td><td>${esc(quando.join(' · '))}</td><td>${esc(entao.join(' · '))}</td>`
+      + `<td style="white-space:nowrap"><button class="btn sm" onclick="hpRegraMover(${i},-1)" aria-label="Subir"${i?'':' disabled'}>↑</button> `
+      + `<button class="btn sm" onclick="hpRegraMover(${i},1)" aria-label="Descer"${i<nR-1?'':' disabled'}>↓</button> `
+      + `<button class="btn sm" onclick="hpRegraEditar(${i})">Editar</button> `
+      + `<button class="btn sm" onclick="hpRegraRemover(${i})" aria-label="Remover">✕</button></td></tr>`;
+  }).join('') || '<tr><td colspan="5" style="color:var(--n500)">nenhuma exceção — vale o contrato do ERP e o padrão ao lado</td></tr>';
+  const tituloCampo=campo=>((HP_COLCAT||[]).find(y=>y.campo===campo)||{}).titulo || campo;
+  const cols=(c.colunas||[]).map((x,i)=>
+    `<tr><td class="num">${i+1}</td><td class="hint">${esc(tituloCampo(x.campo))}</td>`
+    + `<td><input type="text" value="${esc(x.titulo)}" maxlength="60" data-i="${i}" oninput="hpColTitulo(this)" aria-label="Título da coluna ${i+1}" style="width:100%"></td>`
+    + `<td style="white-space:nowrap"><button class="btn sm" onclick="hpColMover(${i},-1)" aria-label="Subir"${i?'':' disabled'}>↑</button> `
+    + `<button class="btn sm" onclick="hpColMover(${i},1)" aria-label="Descer"${i<nC-1?'':' disabled'}>↓</button> `
+    + `<button class="btn sm" onclick="hpColRemover(${i})" aria-label="Remover"${nC>1?'':' disabled'}>✕</button></td></tr>`).join('');
+  const opcCol=(HP_COLCAT||[]).map(x=>`<option value="${esc(x.campo)}">${esc(x.titulo)}</option>`).join('');
+  const ct=(DATAHP && DATAHP.perfil && DATAHP.perfil.id===c._pid) ? (DATAHP.contrato||[]) : [];
+  const contrato=ct.map(x=>`<tr${x.vigente?'':' class="hp-fora"'}><td>${esc(x.mercadoria||'(genérica)')}</td>`
+    + `<td class="num">${hpHoras(x.ft_carga_h)}</td><td class="num">${hpHoras(x.ft_descarga_h)}</td>`
+    + `<td class="num">${x.valor_coleta!=null?hpR(x.valor_coleta):'—'}</td><td class="num">${x.valor_entrega!=null?hpR(x.valor_entrega):'—'}</td>`
+    + `<td>${x.dtinicio?fmtD(x.dtinicio):'—'} a ${x.dtfim?fmtD(x.dtfim):'—'}${x.vigente?'':' · fora de vigência'}</td></tr>`).join('')
+    || '<tr><td colspan="6" style="color:var(--n500)">sem contrato de freetime no ERP — só as exceções daqui dão régua</td></tr>';
+  const vers=(cat.versoes||[]);
+  const ultima = vers.length ? 'versão de '+new Date(vers[0].em).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})+' por '+vers[0].autor+' · '+vers.length+' versão(ões) guardada(s)' : '';
+  box.innerHTML=
+    `<div class="grid2">`
+    + `<div class="card"><div class="head"><h2>Como a conta se faz <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O padrão do cliente. O relógio de cada perna começa na janela, na chegada, ou no que vier depois (chegou antes da hora marcada, vale a janela; chegou atrasado, vale a chegada). O excedente é cobrado por minuto ou arredondado para cima. O marco decide em que período a carga cai.">i</span></h2></div>`
+    + `<div class="ges-form">`
+    + `<div><label for="hpc-ic">O relógio do carregamento começa em</label>${hpSel('hpc-ic',HP_INICIO,c.inicio_carga,"hpCfg('inicio_carga',this.value)")}</div>`
+    + `<div><label for="hpc-id">O relógio da descarga começa em</label>${hpSel('hpc-id',HP_INICIO,c.inicio_descarga,"hpCfg('inicio_descarga',this.value)")}</div>`
+    + `<div><label for="hpc-ar">O excedente é cobrado</label>${hpSel('hpc-ar',HP_ARRED,c.arredondamento_min,"hpCfg('arredondamento_min',+this.value)")}</div>`
+    + `<div><label for="hpc-rc">A carga entra no período pelo</label>${hpSel('hpc-rc',HP_RECORTE,c.recorte,"hpCfg('recorte',this.value)")}</div>`
+    + `<div><label for="hpc-pe">O cliente recebe por</label>${hpSel('hpc-pe',HP_PERIODO,c.periodo,"hpCfg('periodo',this.value)")}</div>`
+    + `</div></div>`
+    + `<div class="card"><div class="head"><h2>Contrato de freetime no ERP <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.sac_freetimecliente, como está no ERP. É a régua de base, pela regra única da casa: a cláusula da mercadoria, senão a genérica. Cada carga usa a cláusula vigente NA DATA DELA. As exceções abaixo vêm por cima.">i</span></h2><span class="hint">referência · a regra única da casa</span></div>`
+    + `<div class="tablewrap tabroll" style="max-height:240px"><table><thead><tr><th>Mercadoria</th><th class="num">FT carreg.</th><th class="num">FT descarga</th><th class="num">R$/h coleta</th><th class="num">R$/h entrega</th><th>Vigência</th></tr></thead><tbody>${contrato}</tbody></table></div></div>`
+    + `</div>`
+    + `<div class="grid2">`
+    + `<div class="card"><div class="head"><h2>Exceções do cliente <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O que o cliente pratica e o contrato do ERP não diz. A PRIMEIRA que casa com a perna responde — a específica vem antes da geral. A linha da carga diz qual regra respondeu.">i</span></h2><button class="btn sm" onclick="hpRegraEditar(-1)">Nova exceção</button></div>`
+    + (cat._erro ? `<p class="hint" style="color:var(--yellow-700);margin:0 0 9px">${esc(cat._erro)}</p>` : '')
+    + `<div class="tablewrap tabroll" style="max-height:260px"><table><thead><tr><th class="num">#</th><th>Nome</th><th>Quando</th><th>Então</th><th></th></tr></thead><tbody>${regras}</tbody></table></div></div>`
+    + `<div class="card"><div class="head"><h2>Planilha que o cliente recebe <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="As colunas, na ordem e com o nome que o cliente usa. O arquivo sai das MESMAS linhas da tela, sem as cargas excluídas, com os totais de dinheiro na última linha. No nome do arquivo valem {{cliente}}, {{semana}}, {{de}} e {{ate}}.">i</span></h2></div>`
+    + `<div style="display:flex;gap:9px;flex-wrap:wrap;margin:0 0 9px">`
+    + `<input type="text" id="hpc-arq" maxlength="100" value="${esc(c.arquivo||'')}" placeholder="Nome do arquivo: HP {{cliente}} - Semana {{semana}}" oninput="hpCfg('arquivo',this.value)" style="flex:2;min-width:0" aria-label="Nome do arquivo">`
+    + `<input type="text" id="hpc-aba" maxlength="31" value="${esc(c.aba||'')}" placeholder="Nome da aba" oninput="hpCfg('aba',this.value)" style="flex:1;min-width:0" aria-label="Nome da aba"></div>`
+    + `<div class="tablewrap tabroll" style="max-height:220px"><table><thead><tr><th class="num">#</th><th>Campo</th><th>Título na planilha</th><th></th></tr></thead><tbody>${cols}</tbody></table></div>`
+    + `<div style="display:flex;gap:9px;margin:9px 0 0"><select id="hpc-novacol" style="flex:1;min-width:0" aria-label="Coluna a acrescentar">${opcCol}</select><button class="btn sm" onclick="hpColAdd()">Acrescentar coluna</button></div></div>`
+    + `</div>`
+    + `<div class="card"><div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">`
+    + `<button class="btn primary" id="hp-salvar" onclick="hpSalvar()">Salvar regras do cliente</button>`
+    + `<button class="btn" onclick="hpDescartar()">Descartar alterações</button>`
+    + `<span class="hint" id="hp-sujo">${HP_SUJO?'alterações não salvas — a conta da tela só muda depois de salvar':''}</span>`
+    + `<span class="hint" style="margin-left:auto">${esc(ultima)}</span></div></div>`;
+}
+function hpRegraMover(i, d){
+  const a=HP_CFG.regras, j=i+d; if(j<0 || j>=a.length) return;
+  [a[i],a[j]]=[a[j],a[i]]; hpSujo(); hpRenderRegras();
+}
+function hpRegraRemover(i){ HP_CFG.regras.splice(i,1); hpSujo(); hpRenderRegras(); }
+function hpColTitulo(el){ HP_CFG.colunas[+el.dataset.i].titulo=el.value; hpSujo(); }
+function hpColMover(i, d){
+  const a=HP_CFG.colunas, j=i+d; if(j<0 || j>=a.length) return;
+  [a[i],a[j]]=[a[j],a[i]]; hpSujo(); hpRenderRegras();
+}
+function hpColRemover(i){ if(HP_CFG.colunas.length<=1) return; HP_CFG.colunas.splice(i,1); hpSujo(); hpRenderRegras(); }
+function hpColAdd(){
+  const s=document.getElementById('hpc-novacol'); if(!s) return;
+  const cat=(HP_COLCAT||[]).find(x=>x.campo===s.value); if(!cat) return;
+  HP_CFG.colunas.push({campo:cat.campo, titulo:cat.titulo}); hpSujo(); hpRenderRegras();
+}
+function hpRegraEditar(i){
+  const r = i>=0 ? HP_CFG.regras[i]
+    : {nome:'', perna:'ambas', mercadorias:[], destinos:[], inicio:null, clausula:null, freetime_h:null, valor_h:null};
+  const cat=HP_CAT||{mercadorias:[], destinos:[]};
+  const nM={}; (cat.mercadorias||[]).forEach(m=>{ nM[m.codigo]=m.n; });
+  const mercs=[...new Set([...(r.mercadorias||[]), ...(cat.mercadorias||[]).map(m=>m.codigo)])];
+  const dests=[...(cat.destinos||[])];
+  (r.destinos||[]).forEach(cod=>{ if(!dests.some(d=>d.codigo===cod)) dests.push({codigo:cod, nome:cod, n:0}); });
+  const chk=(nome,val,marc,rot)=>`<label style="display:block"><input type="checkbox" name="${nome}" value="${esc(val)}"${marc?' checked':''}> ${esc(rot)}</label>`;
+  const caixa='max-height:160px;overflow:auto;border:1px solid var(--n200);border-radius:6px;padding:9px';
+  abrirModal(`<h3 style="margin:0 0 3px">${i>=0?'Editar exceção':'Nova exceção'}</h3>`
+    + `<p class="hint" style="margin:0 0 18px">A primeira exceção que casa com a perna responde. Campo vazio HERDA — do contrato do ERP ou do padrão do cliente; nunca vira zero. Mercadoria e destinatário saem da lista do que o cliente de fato carregou em 180 dias.</p>`
+    + `<div class="ges-form">`
+    + `<div><label for="hpr-nome">Nome (aparece na linha que ela responder)</label><input id="hpr-nome" type="text" maxlength="80" value="${esc(r.nome)}" style="width:100%"></div>`
+    + `<div><label for="hpr-perna">Vale para</label>${hpSel('hpr-perna',{ambas:'carregamento e descarga', carga:'só o carregamento', descarga:'só a descarga'},r.perna,'')}</div>`
+    + `<div><label>Mercadorias (nenhuma marcada = qualquer)</label><div style="${caixa}">${mercs.map(m=>chk('hpr-merc',m,(r.mercadorias||[]).includes(m),m+(nM[m]?' · '+nM[m]+' em 180 dias':''))).join('')||'<span class="hint">sem mercadorias em 180 dias</span>'}</div></div>`
+    + `<div><label>Destinatários (nenhum marcado = qualquer)</label><div style="${caixa}">${dests.map(d=>chk('hpr-dest',d.codigo,(r.destinos||[]).includes(d.codigo),(d.nome||d.codigo)+(d.n?' · '+d.n+' em 180 dias':''))).join('')||'<span class="hint">sem destinatários em 180 dias</span>'}</div></div>`
+    + `<div><label for="hpr-ini">O relógio começa em</label>${hpSel('hpr-ini',Object.assign({'':'(herda do cliente)'},HP_INICIO),r.inicio||'','')}</div>`
+    + `<div><label for="hpr-cl">Cláusula do contrato</label>${hpSel('hpr-cl',{'':'a da mercadoria (regra da casa)', generica:'a genérica, mesmo havendo a da mercadoria'},r.clausula||'','')}</div>`
+    + `<div style="display:flex;gap:18px;flex-wrap:wrap"><div><label for="hpr-ft">Freetime (6,5 ou 06:30)</label><input id="hpr-ft" type="text" inputmode="decimal" value="${r.freetime_h??''}" placeholder="do contrato"></div>`
+    + `<div><label for="hpr-vh">Valor da hora (R$)</label><input id="hpr-vh" type="text" inputmode="decimal" value="${r.valor_h??''}" placeholder="do contrato"></div></div>`
+    + `<p id="m-err" class="hint" style="color:var(--red);margin:0"></p>`
+    + `<div style="display:flex;gap:9px;justify-content:flex-end"><button class="btn" onclick="fecharModal()">Cancelar</button>`
+    + `<button class="btn primary" onclick="hpRegraGravar(${i})">Aplicar</button></div></div>`);
+}
+function hpRegraGravar(i){
+  const g=id=>document.getElementById(id);
+  const marc=n=>[...document.querySelectorAll('input[name="'+n+'"]:checked')].map(e=>e.value);
+  const r={nome:g('hpr-nome').value.trim(), perna:g('hpr-perna').value,
+           mercadorias:marc('hpr-merc'), destinos:marc('hpr-dest'),
+           inicio:g('hpr-ini').value||null, clausula:g('hpr-cl').value||null,
+           freetime_h:hpNum(g('hpr-ft').value), valor_h:hpNum(g('hpr-vh').value)};
+  if(Number.isNaN(r.freetime_h) || Number.isNaN(r.valor_h)){ mErro('Freetime e valor: número (6,5) ou horas (06:30).'); return; }
+  if(!r.inicio && !r.clausula && r.freetime_h==null && r.valor_h==null && !r.mercadorias.length && !r.destinos.length){
+    mErro('A exceção precisa de uma condição (mercadoria ou destinatário) ou de um efeito.'); return;
+  }
+  if(!r.nome) r.nome='Exceção '+((i>=0?i:HP_CFG.regras.length)+1);
+  if(i>=0) HP_CFG.regras[i]=r; else HP_CFG.regras.push(r);
+  fecharModal(); hpSujo(); hpRenderRegras();
+}
+async function hpSalvar(){
+  const p=hpPerfilAtual(); if(!p || !HP_CFG) return;
+  const cfg=Object.assign({}, HP_CFG); delete cfg._pid;
+  const bt=document.getElementById('hp-salvar'), s=document.getElementById('hp-sujo');
+  if(bt) bt.disabled=true;
+  let novo=null;
+  try{
+    const j=await hpPost('/api/operacao/horas-paradas/perfis/salvar',{id:p.id, config:cfg});
+    if(!j.ok){ if(s) s.textContent=(j.dados||{}).mensagem || 'Não foi possível salvar.'; }
+    else novo=j.dados.perfil;
+  }catch(e){ if(s) s.textContent=e.message; }
+  finally{ if(bt) bt.disabled=false; }
+  if(novo){
+    const k=HP_PERFIS.findIndex(x=>x.id===novo.id); if(k>=0) HP_PERFIS[k]=novo;
+    HP_CFG=null; HP_CAT=null; HP_SUJO=false;
+    loadHp();
+  }
+}
+function hpDescartar(){ HP_CFG=null; HP_SUJO=false; hpRegrasAbrir(); }
+
+// ── cliente novo e a planilha ────────────────────────────────────────────
+async function hpNovoPerfil(){
+  abrirModal('<h3 style="margin:0 0 9px">Configurar cliente</h3><p class="hint" style="margin:0">carregando os clientes do ERP…</p>');
+  let cls=[];
+  try{
+    const j=await respostaJSON(await fetch('/api/operacao/horas-paradas/clientes',{cache:'no-store'}));
+    if(!j.ok) throw new Error((j.dados||{}).mensagem || 'Não foi possível listar os clientes do ERP.');
+    cls=j.dados.clientes||[];
+  }catch(e){
+    abrirModal(`<h3 style="margin:0 0 9px">Configurar cliente</h3><p class="hint">${esc(e.message)}</p>`
+      + `<div style="display:flex;justify-content:flex-end"><button class="btn" onclick="fecharModal()">Fechar</button></div>`);
+    return;
+  }
+  const ja=new Set((HP_PERFIS||[]).map(p=>p.cliente_codigo));
+  const opts=cls.filter(c=>!ja.has(c.codigo)).map(c=>
+    `<option value="${c.codigo}" data-nome="${esc(c.nome)}">${esc(c.nome)}${c.tem_contrato?' — tem freetime no ERP':''}</option>`).join('');
+  abrirModal(`<h3 style="margin:0 0 3px">Configurar cliente</h3>`
+    + `<p class="hint" style="margin:0 0 18px">O cliente é o agrupamento do ERP — o mesmo do Monitoramento SAC e do contrato de freetime, pelo pagador do frete. Ele nasce com o padrão da casa (relógio no que vier depois, cobrança por minuto, fechamento pelo fim da descarga) e a aba Regras ajusta ao jeito dele.</p>`
+    + `<div class="ges-form"><div><label for="hpn-cli">Cliente</label><select id="hpn-cli" style="width:100%">${opts}</select></div>`
+    + `<p id="m-err" class="hint" style="color:var(--red);margin:0"></p>`
+    + `<div style="display:flex;gap:9px;justify-content:flex-end"><button class="btn" onclick="fecharModal()">Cancelar</button>`
+    + `<button class="btn primary" id="hpn-criar" onclick="hpCriarPerfil()">Criar</button></div></div>`);
+}
+async function hpCriarPerfil(){
+  const s=document.getElementById('hpn-cli'); if(!s || !s.value){ mErro('Escolha o cliente.'); return; }
+  const nome=s.options[s.selectedIndex].dataset.nome || '';
+  const bt=document.getElementById('hpn-criar'); bt.disabled=true;
+  let novo=null;
+  try{
+    const j=await hpPost('/api/operacao/horas-paradas/perfis',{cliente_codigo:+s.value, cliente_nome:nome});
+    if(!j.ok) mErro((j.dados||{}).mensagem || 'Não foi possível criar.');
+    else novo=j.dados.perfil;
+  }catch(e){ mErro(e.message); }
+  finally{ bt.disabled=false; }
+  if(novo){
+    fecharModal();
+    HP_PERFIS=null; HP_SEL=novo.id; HP_CFG=null; HP_CAT=null;
+    abaTrocar('hp','regras');
+    loadHp();
+  }
+}
+async function hpBaixar(){
+  const bt=document.getElementById('btnHpPlanilha'); if(!hpPerfilAtual()) return;
+  bt.disabled=true;
+  try{
+    const r=await fetch('/api/operacao/horas-paradas/planilha?'+qsView('hp'),{cache:'no-store'});
+    if(!r.ok){
+      const j=await respostaJSON(r);
+      showBanner((j.dados||{}).mensagem || 'Não foi possível gerar a planilha.');
+      return;
+    }
+    const cd=r.headers.get('content-disposition')||'';
+    const m=cd.match(/filename\*=UTF-8''([^;]+)/i);
+    const nome=m ? decodeURIComponent(m[1]) : 'horas-paradas.xlsx';
+    const url=URL.createObjectURL(await r.blob());
+    const a=document.createElement('a'); a.href=url; a.download=nome;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  }catch(e){ showBanner('Não foi possível gerar a planilha.', e.message); }
+  finally{ bt.disabled=false; }
+}
 // ---------------- Manutenção Preventiva ----------------
 async function loadMPrev(){
   const seq=++mprevSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
@@ -36745,6 +37346,7 @@ function podeVer(v){ if(v==='jornf') v='jorn'; if(v==='sup'||v==='apps'||v==='ra
    tecla sem rede. Os atalhos de conteúdo só PREPARAM a consulta (preenchem
    o campo e disparam), quem busca de verdade é a tela de destino. */
 const BUSCA_SINONIMOS = {
+  hp:['hora parada','horas paradas','estadia','diaria','freetime','permanencia','cobranca de estadia','tempo excedido','planilha do cliente','hp'],
   cliop:['portal do cliente','portal','minha operacao','cliente','iochpe','maxion','permanencia','freetime','estadia','patio','carga em curso','onde esta minha carga','nivel de servico','sla'],
   tvjor:['jornada tempo real','tempo real','motorista agora','direcao continua','5h30','lei 13103','onde esta o motorista','painel jornada','em direcao','repouso','monitoramento'],
   tvcom:['rastreador','rastreadora','comunicacao','sem sinal','mudo','localizador','carreta sem sinal','3s','raster','onixsat','sem posicao'],
@@ -46465,6 +47067,7 @@ boot();
         <a href="#cex" onclick="fecharDrawer()"><span class="ic" data-ic="cexic"></span>Custos Extras</a>
         <a href="#mvb" onclick="fecharDrawer()"><span class="ic" data-ic="mvb"></span>Frota Própria × Agregado</a>
         <a href="#gr" onclick="fecharDrawer()"><span class="ic" data-ic="gric"></span>Gerenciamento de Risco</a>
+        <a href="#hp" onclick="fecharDrawer()"><span class="ic" data-ic="hpic"></span>Horas Paradas</a>
         <a href="#jorn" onclick="fecharDrawer()"><span class="ic" data-ic="jornic"></span>Jornada do Motorista</a>
         <a href="#cliop" onclick="fecharDrawer()"><span class="ic" data-ic="cliopic"></span>Minha Operação</a>
         <a href="#milkrun" onclick="fecharDrawer()"><span class="ic" data-ic="milkic"></span>Operação MWM</a>

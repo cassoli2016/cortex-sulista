@@ -140,6 +140,7 @@ _FONTES_ROTULO = {
     "desempenho": "Avaliação de Desempenho — nine box",
     "recolha_fiscal": "Central de Documentos — recolha de XML (SEFAZ e e-mail)",
     "projecao_caixa": "Fluxo Consolidado — projeção de caixa de 12 meses",
+    "horas_paradas": "Horas Paradas — estadia a cobrar por cliente",
     "plano_de_caixa": "Fluxo Consolidado — quanto antecipar, e o que a antecipação não resolve",
     "radar_mercado": "Radar do Transporte — diesel, Brent, dólar, ANTT, rodovias e notícias",
     "wms_armazem": "WMS — ocupação, doca, recebimento, separação, expedição e inventário",
@@ -282,6 +283,53 @@ def _smartec_snapshot() -> dict:
 def _desempenho() -> dict:
     from api import desempenho
     return desempenho.snapshot()
+
+
+def _horas_paradas() -> dict:
+    """Horas paradas — SÓ ESCALAR: quantos clientes têm regra de cobrança e a
+    SEMANA PASSADA somada (cargas, excedidas, valor a cobrar, efeito dos
+    ajustes manuais). Nome de cliente não sobe: o snapshot pode ir para modelo
+    externo.
+
+    Semana passada, e não a corrente: a corrente está aberta, e o valor dela
+    só cresce até domingo — publicá-la como "a cobrar" seria dar um piso como
+    se fosse o número.
+    """
+    from datetime import date, timedelta
+
+    from api import pglocal
+    from api.horas_paradas import cadastro, servico
+    try:
+        perfis = cadastro.listar_perfis()
+        cont = cadastro.contagem()
+    except Exception as exc:  # noqa: BLE001
+        if pglocal.sem_tabela(exc):
+            return {"instalado": False}
+        raise
+    hoje = date.today()
+    seg = hoje - timedelta(days=hoje.weekday() + 7)
+    tot = {"cargas": 0, "com_excedente": 0, "valor_total": 0.0,
+           "efeito_ajustes": 0.0, "em_aberto": 0}
+    lidos = 0
+    for p in perfis[:10]:
+        try:
+            r = servico.montar(p["id"], seg.isoformat(),
+                               (seg + timedelta(days=6)).isoformat())["resumo"]
+        except Exception:  # noqa: BLE001
+            continue
+        lidos += 1
+        for k in tot:
+            tot[k] += r.get(k) or 0
+    return {"clientes_configurados": len(perfis),
+            "clientes_lidos": lidos,
+            "ajustes_manuais": cont["ajustes"],
+            "semana_passada": {"de": seg.isoformat(),
+                               "ate": (seg + timedelta(days=6)).isoformat(),
+                               "cargas": tot["cargas"],
+                               "com_excedente": tot["com_excedente"],
+                               "valor_a_cobrar": round(tot["valor_total"], 2),
+                               "efeito_dos_ajustes_manuais": round(tot["efeito_ajustes"], 2),
+                               "cargas_sem_fim_de_descarga": tot["em_aberto"]}}
 
 
 def _app_motorista() -> dict:
@@ -1062,6 +1110,9 @@ def _fontes_do_snapshot() -> dict:
         # O app do motorista vive FORA do painel: nenhuma tela daqui
         # responde "quantos motoristas ja usam". So contagens.
         "app_motorista": _app_motorista,
+        # HORAS PARADAS: a semana passada somada entre os clientes
+        # configurados. So escalar -- nome de cliente nao sobe.
+        "horas_paradas": _horas_paradas,
         # A pagina publica de rastreio e a unica superficie da casa sem login,
         # e ate agora o Copiloto nao sabia que ela existia.
         "monitoramentos_carga": _monitoramentos,

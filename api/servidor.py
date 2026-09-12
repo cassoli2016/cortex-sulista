@@ -551,6 +551,35 @@ def _servico_auditoria(d: dict) -> dict:
     return {"nome": nome, "status": "ok", "detalhe": " · ".join(partes)}
 
 
+def _horas_paradas() -> dict:
+    """Quantos clientes têm regra de cobrança, e quanto se ajustou à mão.
+
+    Nenhum perfil é INFO, não alarme: é recurso que ainda não foi configurado.
+    A tabela faltando é ERRO de instalação — o código chegou e a migration não
+    rodou, e a tela recusa até alguém rodá-la.
+    """
+    from . import pglocal
+    from .horas_paradas import cadastro
+
+    nome = "Horas paradas (cobrança por cliente)"
+    try:
+        c = cadastro.contagem()
+    except Exception as exc:  # noqa: BLE001
+        if pglocal.sem_tabela(exc):
+            return {"nome": nome, "status": "erro",
+                    "detalhe": ("as tabelas `hp_*` não existem — falta aplicar a "
+                                "migration 0084 (uv run python scripts/migrar_schema.py)")}
+        raise
+    if not c["perfis"]:
+        return {"nome": nome, "status": "info",
+                "detalhe": "nenhum cliente configurado — cadastre na tela Horas Paradas"}
+    detalhe = "%d cliente(s) configurado(s) · %d ajuste(s) manual(is)" % (
+        c["perfis"], c["ajustes"])
+    if c["ultimo_ajuste"]:
+        detalhe += " · último ajuste em %s" % c["ultimo_ajuste"][:16].replace("T", " ")
+    return {"nome": nome, "status": "ok", "detalhe": detalhe}
+
+
 def _portal_cliente() -> dict:
     """Quantos logins de cliente existem, e a coluna que os sustenta existe?
 
@@ -2293,6 +2322,14 @@ def _servicos() -> list[dict]:
         servicos.append({"nome": "Portal do cliente (Minha Operação)",
                          "status": "info", "detalhe": "conferência indisponível"})
         log.warning("saude: portal do cliente: %s", exc)
+    # HORAS PARADAS. Junto do portal porque a pergunta e da mesma familia:
+    # o que a casa entrega ao cliente, e se esta configurado para isso.
+    try:
+        servicos.append(_horas_paradas())
+    except Exception as exc:  # noqa: BLE001
+        servicos.append({"nome": "Horas paradas (cobrança por cliente)",
+                         "status": "info", "detalhe": "conferência indisponível"})
+        log.warning("saude: horas paradas: %s", type(exc).__name__)
     # MONITORAMENTOS DE CARGA. Fica junto da auditoria porque grava no mesmo
     # banco da casa — e porque a falha das duas é do mesmo tipo: muda.
     try:
