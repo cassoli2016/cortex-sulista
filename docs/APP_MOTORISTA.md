@@ -392,14 +392,33 @@ exceção deliberada, não um esquecimento:
   vincular usuário↔motorista, ver os apontamentos que chegaram, conciliar com
   o ERP. Essa é tela de perfil normal, com os seis registros de sempre.
 
-**PWA fica para depois, de propósito.** A casa já tem `manifest.json`, `sw.js`
-e Web Push (`api/push.py`, VAPID) funcionando, e o app vai querer os três — com
-manifest e service worker PRÓPRIOS, porque os da casa apontam para o
-`index.html`. Mas service worker é cache, e cache mal feito serve uma versão
+**PWA fica para depois, de propósito — o PUSH, não.** A casa já tem
+`manifest.json`, `sw.js` e Web Push (`api/push.py`, VAPID) funcionando, e o app
+vai querer os três — com manifest e service worker PRÓPRIOS, porque os da casa
+apontam para o `index.html`. Mas service worker com cache serve uma versão
 velha do app para sempre, sem sintoma e sem jeito de o motorista limpar. Ele
 entra quando houver o que instalar de verdade (fase 1 inteira), não junto do
 primeiro login. Hoje a página é uma URL que se abre no navegador — o que basta
 para a piloto.
+
+**Os avisos (11/09/2026) trouxeram um service worker SÓ DE NOTIFICAÇÃO**
+(`api/static/motorista-sw.js`, servido em `/motorista-sw.js` com escopo
+`/motorista`): ele tem `push` e `notificationclick` e **não tem `fetch`** — não
+intercepta pedido nenhum, então não há cache para envelhecer, e a regra acima
+continua de pé. Um teste proíbe o `fetch` no arquivo. O desenho dos avisos
+está em `api/motorista/avisos.py`, e são três decisões:
+
+- **O aviso não leva conteúdo para fora do app** — "há uma nova multa", nunca
+  qual nem de quanto; a notificação é lida na tela de bloqueio (a mesma regra
+  do aviso do RH por WhatsApp).
+- **A lista é a fonte, o push é o mensageiro.** Todo aviso é uma linha de
+  `mot_avisos` que o app mostra no sino do cabeçalho; quem não ligou a
+  notificação — ou está num iPhone sem o app na Tela de Início, onde o Safari
+  não entrega push — vê o mesmo aviso ao abrir o app.
+- **Multa, registro e viagem se descobrem por VARREDURA** (de 10 em 10 min, no
+  líder), e a primeira passada de cada motorista vira base sem avisar.
+  Recado do RH (resposta na conversa e comunicado do mural) nasce na própria
+  rota do RH. O acesso mestre não marca como lido nem liga notificação.
 
 ---
 

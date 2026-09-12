@@ -872,7 +872,16 @@ def _mot_avisos(sess: dict) -> dict:
         n += int(mmural.meus(sess)["pendentes"])
     except Exception as exc:  # noqa: BLE001
         log.info("mural indisponivel para o aviso (%s)", type(exc).__name__)
-    return {"conversas": n}
+    # OS AVISOS DO APP (11/09/2026) numa conta PROPRIA: e o sino do
+    # cabecalho. Somar na bolinha do RH faria multa e viagem nova acenderem a
+    # aba errada.
+    novos = 0
+    try:
+        from api.motorista import avisos as mavisos
+        novos = mavisos.nao_lidos(sess["motorista_codigo"])
+    except Exception as exc:  # noqa: BLE001
+        log.info("avisos novos indisponiveis (%s)", type(exc).__name__)
+    return {"conversas": n, "novos": novos}
 
 
 @app.post("/api/motorista/sair")
@@ -1087,6 +1096,68 @@ async def motorista_conversa_ciencia(cid: int, req: Request) -> JSONResponse:
                          "conversa_ciencia", corpo)
 
 
+# ------------------------------------------------------------- os avisos
+#
+# A LISTA DE AVISOS E A FONTE, e o push e o mensageiro — o desenho inteiro
+# esta em `api/motorista/avisos.py`. Quatro rotas, todas com `_eu(req)`: ler,
+# marcar como lido, ligar e desligar a notificacao DESTE aparelho.
+
+@app.get("/api/motorista/avisos")
+def motorista_avisos(req: Request) -> JSONResponse:
+    from api.motorista import avisos as mavisos
+    return _mot_ler(req, mavisos.meus, "avisos")
+
+
+@app.get("/api/motorista/avisos/novos")
+def motorista_avisos_novos(req: Request) -> JSONResponse:
+    """So o NUMERO do sino, para a recarga de minuto em minuto do app: o `/eu`
+    inteiro consultaria as secoes (jornada, ERP) a cada volta."""
+    from api.motorista import avisos as mavisos
+    return _mot_ler(req, lambda s: {"novos": mavisos.nao_lidos(s["motorista_codigo"])},
+                    "avisos")
+
+
+@app.post("/api/motorista/avisos/lidos")
+async def motorista_avisos_lidos(req: Request) -> JSONResponse:
+    """Marca como lido. SEM TRILHA, de proposito: e recibo de leitura,
+    disparado ao abrir uma aba — uma linha no `audit_log` a cada toque no app
+    afogaria a trilha das acoes que importam (entrar, dar ciencia, escrever ao
+    RH, ligar a notificacao)."""
+    from api.motorista import avisos as mavisos
+    from api.motorista import conversas as mconv
+    from api.motorista import sessao as msessao
+    corpo = await _corpo_json(req)
+    try:
+        sess = _eu(req)
+    except msessao.SemSessao:
+        return _mot_recusa("Faca login para continuar.", status=401)
+    try:
+        return JSONResponse(mavisos.marcar_lidos(
+            sess, corpo.get("ids"), str(corpo.get("aba") or "")))
+    except mconv.Recusa as exc:
+        return _mot_recusa(str(exc))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("avisos lidos do motorista falhou: %s", type(exc).__name__)
+        return _mot_recusa("Nao consegui salvar agora. Tente de novo.")
+
+
+@app.post("/api/motorista/avisos/inscrever")
+async def motorista_avisos_inscrever(req: Request) -> JSONResponse:
+    """Liga a notificacao neste aparelho. COM trilha: e uma acao dele."""
+    from api.motorista import avisos as mavisos
+    return _mot_escrever(
+        req, lambda s, c: mavisos.inscrever(s, c.get("subscription")),
+        "avisos_ligou", await _corpo_json(req))
+
+
+@app.post("/api/motorista/avisos/desinscrever")
+async def motorista_avisos_desinscrever(req: Request) -> JSONResponse:
+    from api.motorista import avisos as mavisos
+    return _mot_escrever(
+        req, lambda s, c: mavisos.desinscrever(s, str(c.get("endpoint") or "")),
+        "avisos_desligou", await _corpo_json(req))
+
+
 # --------------------------------------------------------- o acesso mestre
 #
 # AS DUAS ROTAS ABAIXO SAO A SEGUNDA EXCECAO DESTE MODULO (a primeira sao as
@@ -1267,6 +1338,15 @@ async def _avisar_motorista(conversa_id: int) -> dict:
     muitas vezes num aparelho compartilhado (medido: 5 dos 585 motoristas
     dividem o numero). O canal tem o conteudo; o aviso so diz que ele existe.
     """
+    # O AVISO DO APP nasce ANTES do WhatsApp e independente dele: a lista de
+    # avisos (e o push de quem ligou a notificacao) nao depende da janela de
+    # horario nem do teto de destinatarios do numero da casa. O push sai pelo
+    # relogio dos avisos (`api/motorista/agendador.py`), em ate um minuto.
+    try:
+        from api.motorista import avisos as mavisos
+        await sem_travar(mavisos.da_conversa, conversa_id)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("aviso do app (RH) nao registrado: %s", type(exc).__name__)
     from api.motorista import conversas as mconv
     from api.whatsapp import envio as wa
     try:
@@ -1358,12 +1438,27 @@ async def rh_mural_publicar(req: Request) -> JSONResponse:
     """
     from api.motorista import mural as mmural
     corpo = await _corpo_json(req)
-    return await _rh_conversa_escrever(
+    resp = await _rh_conversa_escrever(
         req,
         lambda uid, autor: mmural.publicar(
             str(corpo.get("titulo") or ""), str(corpo.get("texto") or ""),
             autor_id=uid, autor_nome=autor),
         "rh_mural_publicou")
+    if resp.status_code == 200:
+        # O AVISO DO APP, sim — o que continua fora e o WhatsApp em massa. A
+        # lista de avisos e o push nao gastam o numero da casa. O push sai
+        # pelo relogio dos avisos, e nao por esta rota: o RH nao pode ficar
+        # esperando oitenta entregas para ver "publicado".
+        try:
+            import json as _json
+            from api.motorista import avisos as mavisos
+            d = _json.loads(bytes(resp.body))
+            await sem_travar(mavisos.para_todos, "mural",
+                             "comunicado:%d" % int(d["id"]),
+                             str(corpo.get("titulo") or "")[:200])
+        except Exception as exc:  # noqa: BLE001
+            log.warning("aviso do mural nao registrado: %s", type(exc).__name__)
+    return resp
 
 
 @app.post("/api/rh/motorista/mural/{cid}/encerrar")
@@ -1393,6 +1488,15 @@ def service_worker(req: Request) -> Response:
     # servido da RAIZ (não de /static) para o escopo do SW ser "/" — senão
     # navigator.serviceWorker.ready nunca resolve (escopo /static/ não controla /)
     return _servir(STATIC / "sw.js", req, "application/javascript")
+
+
+@app.get("/motorista-sw.js")
+def service_worker_motorista(req: Request) -> Response:
+    """O service worker do app do motorista: SO notificacao, sem cache (ver o
+    cabecalho do arquivo). Da RAIZ, como o `sw.js`, para poder ter o escopo
+    `/motorista` — um SW servido de `/static/` nao alcanca acima da pasta dele.
+    """
+    return _servir(STATIC / "motorista-sw.js", req, "application/javascript")
 
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
@@ -6525,6 +6629,18 @@ def _startup_radar() -> None:
         return
     from api.radar import agendador as radar_agendador
     radar_agendador.iniciar()
+
+
+@app.on_event("startup")
+def _startup_motorista_avisos() -> None:
+    """O relogio dos avisos do app do motorista: a varredura (multa, registro,
+    viagem) e a entrega do push. SO NO LIDER — com `--workers`, cada processo
+    varreria o ERP e mandaria o mesmo push — e nunca sob pytest (dentro de
+    `agendador.iniciar`)."""
+    if not lider.sou_o_agendador():
+        return
+    from api.motorista import agendador as mot_agendador
+    mot_agendador.iniciar()
 
 
 @app.on_event("startup")

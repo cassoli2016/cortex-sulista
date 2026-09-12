@@ -1,3 +1,23 @@
+- versao: "1.57.0"
+  data: "2026-09-11"
+  adicionado:
+    - >-
+      O app do motorista ganhou avisos. Um sino no alto da tela mostra quantas
+      novidades há e abre a lista: resposta do RH, recado novo no mural, multa
+      nova, registro novo e viagem nova programada. Tocando no aviso, o app vai
+      direto para a aba certa, e o que foi aberto deixa de contar como novo.
+    - >-
+      O motorista pode ligar a notificação no celular, na própria lista de
+      avisos. Ela avisa que há novidade ("Há uma nova multa no seu app"), sem
+      mostrar o conteúdo, que só aparece dentro do app. No iPhone ela só chega
+      com o app adicionado à Tela de Início, e a tela explica como. No acesso
+      da administração a notificação fica desligada e nada é marcado como lido.
+    - >-
+      O que já existia antes de hoje não vira aviso: a primeira busca de cada
+      motorista serve de ponto de partida. A Saúde do Servidor passa a mostrar
+      quantos motoristas ligaram a notificação e se a busca de novidades está
+      rodando.
+
 - versao: "1.56.0"
   data: "2026-09-11"
   adicionado:

@@ -344,7 +344,20 @@ def _app_motorista() -> dict:
         if pglocal.sem_tabela(exc):
             return {"instalado": False}
         raise
-    return {"instalado": True, **dict(r or {"vinculados": 0, "ativos_30d": 0,
+    # OS AVISOS DO APP (11/09/2026), em `try` PRÓPRIO: as tabelas deles chegam
+    # numa migration posterior às de cima, e a falta delas não pode apagar a
+    # adesão inteira. Contagem, como o resto.
+    avisos: dict = {}
+    try:
+        from api.motorista import avisos as mavisos
+        a = mavisos.contagem()
+        avisos = {"motoristas_com_notificacao": a["inscritos"],
+                  "avisos_24h": a["avisos_24h"]}
+    except Exception as exc:  # noqa: BLE001
+        if not pglocal.sem_tabela(exc):
+            raise
+    return {"instalado": True, **avisos,
+            **dict(r or {"vinculados": 0, "ativos_30d": 0,
                                             "mestre_30d": 0, "com_multa": 0,
                                             "conversas_abertas": 0,
                                             "conversas_paradas": 0,

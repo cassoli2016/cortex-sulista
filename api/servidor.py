@@ -769,6 +769,23 @@ def _app_motorista() -> dict:
     except Exception as exc:  # noqa: BLE001
         log.info("saude: canal do RH indisponivel (%s)", type(exc).__name__)
 
+    # OS AVISOS (11/09/2026): quantos motoristas ligaram a notificação e se a
+    # VARREDURA de novidades está rodando. Varredura parada não tem sintoma
+    # nenhum no app — o motorista só deixa de ser avisado —, e por isso a idade
+    # e o erro dela vêm aqui.
+    try:
+        from api.motorista import avisos as _av
+        a = _av.contagem()
+        partes.append("avisos: %d motorista(s) com notificação ligada · "
+                      "%d aviso(s) em 24 h" % (a["inscritos"], a["avisos_24h"]))
+        if a["varredura_em"]:
+            partes.append("varredura de novidades %s" % _ha_quanto(
+                _idade_min(a["varredura_em"].isoformat())))
+        if a["varredura_erro"]:
+            partes.append("⚠ varredura: %s" % a["varredura_erro"])
+    except Exception as exc:  # noqa: BLE001
+        log.info("saude: avisos do motorista indisponiveis (%s)", type(exc).__name__)
+
     return {"nome": nome, "status": "ok", "detalhe": " · ".join(partes)}
 
 

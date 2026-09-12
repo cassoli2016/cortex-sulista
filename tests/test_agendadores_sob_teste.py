@@ -56,7 +56,12 @@ from api import push, sob_teste as st
 # `radar-coleta` (11/09/2026) e a coleta da pagina inicial: nao manda mensagem
 # para ninguem, mas baixa quatro sites de terceiro, gasta cota da TomTom e
 # ESCREVE no banco — dentro de uma suite, no schema de producao.
-AGENDADORES = ("push-digest", "rastreio-aviso", "saude-em-fundo", "radar-coleta")
+#
+# `motorista-avisos` (11/09/2026) e o relogio dos avisos do app do motorista:
+# le o ERP de producao, ESCREVE no banco e manda notificacao REAL para o
+# celular de motorista — a pior das quatro portas numa rodada de testes.
+AGENDADORES = ("push-digest", "rastreio-aviso", "saude-em-fundo", "radar-coleta",
+               "motorista-avisos")
 
 
 def _threads_vivas() -> set[str]:

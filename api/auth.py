@@ -532,6 +532,9 @@ def rota_sem_tela(path: str) -> bool:
 
 def _rota_publica(path: str) -> bool:
     return (path == "/" or path == "/sw.js" or path.startswith("/static/")
+            # o service worker do app do motorista (só notificação, sem
+            # cache): o navegador o baixa sem cookie nenhum
+            or path == "/motorista-sw.js"
             or path in _PUBLICAS
             # A pagina do rastreio e as duas consultas dela. `/rastreio` sem
             # barra e com barra: quem digita o endereco a mao erra os dois

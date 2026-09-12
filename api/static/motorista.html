@@ -187,7 +187,7 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
    fecha a faixa, como no cartao de entrada. `min-width:0` para que um SVG
    largo nao force a faixa a rolar para o lado. */
 .appbar .sulista{height:15px;margin-left:auto;flex:0 1 auto;min-width:0;
-  opacity:.95}
+  opacity:.95;object-fit:contain;object-position:right center}
 .conta-btn{flex:0 0 auto;width:36px;height:36px;border-radius:50%;cursor:pointer;
   background:transparent;border:1px solid rgba(255,255,255,.28);
   color:rgba(255,255,255,.9);display:grid;place-items:center;padding:0}
@@ -195,6 +195,12 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
   stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .conta-btn[aria-current="page"]{color:#fff;border-color:#fff;
   background:rgba(255,255,255,.14)}
+/* O NUMERO DO SINO: contorno na cor da faixa para destacar do botao. */
+.conta-btn{position:relative}
+.conta-btn .num{position:absolute;top:-6px;right:-7px;min-width:18px;height:18px;
+  padding:0 5px;border-radius:9px;background:var(--erro);color:#fff;
+  font-size:11px;font-weight:700;font-style:normal;line-height:14px;
+  text-align:center;border:2px solid var(--navy-900)}
 .saudacao{margin:var(--e2) 0 var(--e1);font-size:14px;color:var(--ink2)}
 .saudacao b{color:var(--ink);font-weight:600}
 .card{background:var(--papel);border:1px solid var(--linha);
@@ -333,6 +339,18 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
 .rh-item .tit{font-weight:600;font-size:15px}
 .rh-item .quando{font-size:12px;color:var(--ink2);white-space:nowrap}
 .rh-item .meta{font-size:12.5px;color:var(--ink2);margin-top:3px}
+/* ================================ os avisos ========================== */
+/* O NAO LIDO leva a bolinha do semaforo (a mesma da barra de baixo); o lido
+   fica cinza, e a lista se le de relance: o que tem bolinha e o que falta. */
+.av-item .tit{display:flex;align-items:center;gap:var(--e1)}
+.av-item.novo .tit::before{content:"";width:8px;height:8px;border-radius:50%;
+  background:var(--erro);flex:0 0 auto}
+.av-item:not(.novo) .tit{font-weight:500;color:var(--ink2)}
+.app button.btn-av{display:block;width:100%;min-height:48px;font:inherit;
+  font-size:15px;font-weight:600;background:var(--navy-700);color:#fff;
+  border:1px solid var(--navy-700);border-radius:var(--radius);cursor:pointer;
+  margin-top:var(--e1)}
+.app button.btn-av:disabled{opacity:.6;cursor:default}
 /* O texto do comunicado preserva a quebra de linha de quem escreveu: o
    RH separa paragrafo, e colapsar isso vira um bloco que ninguem le. */
 .rh-comunicado{white-space:pre-wrap;font-size:14.5px;line-height:1.5;
@@ -457,6 +475,14 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
          itens em 375 px de tela: 53 px cada, e "Registros" ja nao cabe no
          rotulo. A barra e para o que se usa todo dia; conta e sair sao coisa
          de uma vez por mes. -->
+    <!-- O SINO: os avisos (resposta do RH, recado do mural, multa, registro,
+         viagem nova). O numero e do SERVIDOR — o `/api/motorista/eu` e a
+         recarga de minuto em minuto —, nao um estado que a pagina inventa. -->
+    <button class="conta-btn" id="b-avisos" type="button" aria-label="Avisos">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/>
+        <path d="M10 20.5a2 2 0 0 0 4 0"/></svg>
+      <i class="num" id="num-avisos" hidden></i>
+    </button>
     <button class="conta-btn" id="b-conta" type="button" aria-label="Minha conta">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="3.5"/>
         <path d="M5 20a7 7 0 0 1 14 0"/></svg>
@@ -489,6 +515,10 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
 
   <section id="tela-rh" hidden>
     <div id="card-rh"></div>
+  </section>
+
+  <section id="tela-avisos" hidden>
+    <div id="card-avisos"></div>
   </section>
 
   <section id="tela-conta" hidden>
@@ -568,7 +598,8 @@ const ENTRADA = ["tela-entrar", "tela-codigo", "tela-escolha", "tela-mestre"];
 
 // As seis secoes do app logado. A ordem AQUI e a ordem da barra de baixo.
 const SECOES = ["tela-viagem", "tela-desempenho", "tela-multas",
-                "tela-registros", "tela-jornada", "tela-rh", "tela-conta"];
+                "tela-registros", "tela-jornada", "tela-rh", "tela-avisos",
+                "tela-conta"];
 
 function mostrar(qual) {
   ENTRADA.forEach((id) => { $(id).hidden = (id !== qual); });
@@ -877,6 +908,10 @@ const ABAS = [
   // `conta` NAO ENTRA NA BARRA (ver o comentario do botao no cabecalho): ela
   // e uma aba de verdade — abre pelo mesmo `abrirAba`, tem secao propria —,
   // so nao ocupa um dos lugares do polegar.
+  // `avisos` TAMBEM FICA FORA DA BARRA, pelo mesmo motivo da conta: abre pelo
+  // sino do cabecalho, e a barra continua com o que se usa todo dia.
+  { id: "avisos",        rotulo: "Avisos",   url: "/api/motorista/avisos",
+    forade: true, alvo: "card-avisos", desenhar: desenharAvisos },
   { id: "conta",         rotulo: "Conta",    url: "", forade: true,
     alvo: "linhas-conta",        desenhar: null }
 ];
@@ -909,7 +944,7 @@ function montarBarra(secoes) {
     b.innerHTML = "<svg viewBox='0 0 24 24' aria-hidden='true'>" +
       ICON[a.id] + "</svg><span>" + esc(a.rotulo) + "</span>" +
       (n ? "<i class='pip' aria-label='" + n + " novidade(s)'></i>" : "");
-    b.addEventListener("click", () => abrirAba(a.id));
+    b.addEventListener("click", () => { abrirAba(a.id); lerAba(a.id); });
     nav.appendChild(b);
   });
   nav.hidden = false;
@@ -927,12 +962,17 @@ async function abrirAba(id) {
   });
   if (id === "conta") $("b-conta").setAttribute("aria-current", "page");
   else $("b-conta").removeAttribute("aria-current");
+  if (id === "avisos") $("b-avisos").setAttribute("aria-current", "page");
+  else $("b-avisos").removeAttribute("aria-current");
   window.scrollTo(0, 0);
 
   // A TARJA É DA ABA ABERTA, e a conta não tem leitura nenhuma: deixá-la
   // acesa aqui seria tarja grudada — que é pior que tarja nenhuma, porque
   // some com a confiança na tela inteira.
   if (id === "conta") { $("tarja-velha").hidden = true; desenharConta(); return; }
+  // A LISTA DE AVISOS NAO SE GUARDA: e a unica aba que existe para dizer o que
+  // mudou, e guardada ela mostraria o "novo" que o motorista acabou de ler.
+  if (id === "avisos") delete cache.avisos;
   if (cache[id]) { pintar(aba, cache[id]); return; }
 
   $(aba.alvo).innerHTML = "<div class='card carregando'>Carregando…</div>";
@@ -1578,6 +1618,228 @@ function desenharConta() {
     "</b></div>").join("");
 }
 
+// ------------------------------------------------------------------- avisos
+// O SINO E A ABA AVISOS (`api/motorista/avisos.py`). A LISTA E A FONTE, e a
+// notificacao do celular e so o mensageiro: quem nao a ligou — ou esta num
+// iPhone sem o app na Tela de Inicio, onde o Safari nao entrega notificacao —
+// ve aqui o mesmo aviso.
+const ABAS_COM_AVISO = ["rh", "multas", "registros", "viagem"];
+let novosAtual = 0, sinoTimer = null, sinoSeq = 0;
+
+function pintarSino(n) {
+  const antes = novosAtual;
+  novosAtual = Math.max(0, parseInt(n, 10) || 0);
+  const num = $("num-avisos");
+  num.textContent = novosAtual > 9 ? "9+" : String(novosAtual);
+  num.hidden = !novosAtual;
+  $("b-avisos").setAttribute("aria-label", novosAtual
+    ? "Avisos: " + novosAtual + (novosAtual === 1 ? " novo" : " novos") : "Avisos");
+  // CHEGOU COISA NOVA: o que as abas guardaram pode ser de antes dela.
+  if (novosAtual > antes) Object.keys(cache).forEach((k) => delete cache[k]);
+}
+
+// RECARGA ENCADEADA, nunca `setInterval` (regra da casa): o proximo pedido so
+// sai depois que o anterior voltou, e com a aba do navegador escondida nao sai
+// pedido nenhum. So o NUMERO — o `/eu` inteiro consultaria as secoes (jornada,
+// ERP) a cada volta.
+function agendarSino() {
+  clearTimeout(sinoTimer);
+  sinoTimer = setTimeout(vigiarSino, 60000);
+}
+
+async function vigiarSino() {
+  const meu = ++sinoSeq;
+  if ($("app").hidden) return;
+  if (!document.hidden) {
+    const r = await pedir("/api/motorista/avisos/novos");
+    if (meu !== sinoSeq || $("app").hidden) return;
+    if (r.ok) pintarSino((r.dados || {}).novos);
+    else if (r.status === 401) return;   // a proxima aba aberta leva a entrada
+  }
+  agendarSino();
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && !$("app").hidden) { clearTimeout(sinoTimer); vigiarSino(); }
+});
+
+// A PESSOA ABRIU A ABA: o que era novo ali passa a lido. So quando ELA abriu —
+// toque na barra, no aviso ou na notificacao —; a aba que o app abre sozinho
+// ao entrar nao conta. E o acesso mestre nao marca nada (o servidor tambem
+// recusa): quem confere nao pode apagar o "novo" do motorista.
+async function lerAba(id) {
+  if (!novosAtual || euAtual.mestre || ABAS_COM_AVISO.indexOf(id) < 0) return;
+  const r = await pedir("/api/motorista/avisos/lidos",
+    { method: "POST", body: JSON.stringify({ aba: id }) });
+  if (r.ok) pintarSino(novosAtual - ((r.dados || {}).marcados || 0));
+}
+
+function desenharAvisos(d) {
+  d = d || {};
+  const itens = d.itens || [];
+  const p = d.push || {};
+  pintarSino(d.nao_lidos);
+  let h = "<div class='card'><h2>Avisos</h2>";
+  if (!itens.length) {
+    h += "<p class='vaziomsg'>Nenhum aviso por enquanto. Resposta do RH, recado " +
+      "do mural, multa, registro e viagem nova aparecem aqui.</p>";
+  } else {
+    h += itens.map((i) =>
+      "<button type='button' class='rh-item av-item" + (i.lido ? "" : " novo") +
+      "' data-aba='" + esc(i.aba) + "'>" +
+      "<div class='top'><span class='tit'>" + esc(i.rotulo) + "</span>" +
+      "<span class='quando'>" + esc(horarioCurto(i.quando)) + "</span></div>" +
+      (i.detalhe ? "<div class='meta'>" + esc(i.detalhe) + "</div>" : "") +
+      "</button>").join("");
+    if (d.nao_lidos && !p.mestre)
+      h += "<button type='button' class='linksec' id='av-todos'>Marcar todos como lidos</button>";
+  }
+  h += "</div><div class='card' id='av-push'><h2>Notificações neste celular</h2>" +
+    "<p class='vaziomsg'>Conferindo…</p></div>";
+  $("card-avisos").innerHTML = h;
+  $("card-avisos").querySelectorAll(".av-item").forEach((b) => {
+    b.addEventListener("click", () => { abrirAba(b.dataset.aba); lerAba(b.dataset.aba); });
+  });
+  const todos = $("av-todos");
+  if (todos) todos.addEventListener("click", async () => {
+    todos.disabled = true;
+    const r = await pedir("/api/motorista/avisos/lidos", { method: "POST", body: "{}" });
+    if (r.ok) { pintarSino(0); abrirAba("avisos"); } else todos.disabled = false;
+  });
+  pintarPush(p);
+}
+
+// ------------------------------------------------ a notificacao no celular
+function suportaPush() {
+  return "serviceWorker" in navigator && "PushManager" in window &&
+    "Notification" in window;
+}
+
+function iphoneFora() {
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const instalado = window.navigator.standalone === true ||
+    (window.matchMedia && matchMedia("(display-mode: standalone)").matches);
+  return ios && !instalado;
+}
+
+// A chave publica do servidor vem em base64 de URL; o `PushManager` a quer em
+// bytes.
+function chaveBytes(b64) {
+  const p = (b64 + "===".slice((b64.length + 3) % 4))
+    .replace(/-/g, "+").replace(/_/g, "/");
+  return Uint8Array.from(atob(p), (c) => c.charCodeAt(0));
+}
+
+async function inscricaoAtual() {
+  if (!suportaPush()) return null;
+  try {
+    const reg = await navigator.serviceWorker.getRegistration("/motorista");
+    return reg ? await reg.pushManager.getSubscription() : null;
+  } catch (e) { return null; }
+}
+
+// O `subscribe` exige o service worker ATIVO, e o `ready` nao serve aqui: ele
+// espera um worker que controle ESTA pagina, e o escopo e `/motorista`.
+function ativo(reg) {
+  return new Promise((ok) => {
+    const w = reg.installing || reg.waiting;
+    if (reg.active || !w) return ok(reg);
+    w.addEventListener("statechange", () => { if (w.state === "activated") ok(reg); });
+  });
+}
+
+async function pintarPush(p) {
+  const alvo = $("av-push");
+  if (!alvo) return;
+  const msg = (t) => { alvo.innerHTML = "<h2>Notificações neste celular</h2>" + t; };
+  if (p.mestre) return msg("<p class='nota'>No acesso da administração as " +
+    "notificações ficam desligadas: elas iriam para o celular de quem está " +
+    "conferindo, e não para o do motorista.</p>");
+  if (!p.habilitado) return msg("<p class='nota'>As notificações ainda não estão " +
+    "ligadas no servidor. Os avisos continuam aparecendo aqui.</p>");
+  if (!suportaPush()) return msg(iphoneFora()
+    ? "<p class='nota'>No iPhone, a notificação só chega com o app na Tela de " +
+      "Início: toque em <b>Compartilhar</b>, depois em <b>Adicionar à Tela de " +
+      "Início</b>, e abra o app por lá.</p>"
+    : "<p class='nota'>Este navegador não recebe notificações. Os avisos " +
+      "continuam aparecendo aqui.</p>");
+  if (Notification.permission === "denied") return msg("<p class='nota'>As " +
+    "notificações estão bloqueadas para este app nas configurações do " +
+    "navegador. Libere por lá para receber os avisos no celular.</p>");
+  const sub = await inscricaoAtual();
+  if (!$("av-push")) return;              // a pessoa ja saiu da aba
+  if (sub) {
+    msg("<p class='vaziomsg'>Ligadas: quando houver aviso novo, o celular " +
+      "avisa. O conteúdo não aparece na notificação, só aqui dentro.</p>" +
+      "<button type='button' class='linksec' id='av-desligar'>Desligar neste celular</button>");
+    $("av-desligar").addEventListener("click", async () => {
+      await desligarAvisos(); abrirAba("avisos");
+    });
+  } else {
+    msg("<p class='vaziomsg'>Receba um aviso no celular quando o RH responder ou " +
+      "quando chegar multa, registro ou viagem nova. A notificação não mostra o " +
+      "conteúdo, só que há novidade.</p>" +
+      "<button type='button' class='btn-av' id='av-ligar'>Ligar notificações</button>" +
+      "<p class='nota' id='av-msg'></p>");
+    $("av-ligar").addEventListener("click", () => ligarAvisos(p.chave));
+  }
+}
+
+async function ligarAvisos(chave) {
+  const b = $("av-ligar"), m = $("av-msg");
+  b.disabled = true; m.textContent = "";
+  try {
+    if (await Notification.requestPermission() !== "granted") {
+      m.textContent = "Sem a permissão do navegador a notificação não chega. " +
+        "Os avisos continuam aparecendo aqui.";
+      b.disabled = false;
+      return;
+    }
+    const reg = await ativo(await navigator.serviceWorker.register(
+      "/motorista-sw.js", { scope: "/motorista" }));
+    const sub = await reg.pushManager.subscribe(
+      { userVisibleOnly: true, applicationServerKey: chaveBytes(chave) });
+    const r = await pedir("/api/motorista/avisos/inscrever",
+      { method: "POST", body: JSON.stringify({ subscription: sub.toJSON() }) });
+    if (!r.ok) {
+      try { await sub.unsubscribe(); } catch (e) { /* ja estava fora */ }
+      m.textContent = r.mensagem;
+      b.disabled = false;
+      return;
+    }
+    abrirAba("avisos");
+  } catch (e) {
+    m.textContent = "Não consegui ligar neste celular agora. Tente de novo.";
+    b.disabled = false;
+  }
+}
+
+// DESLIGAR TIRA O APARELHO DO SERVIDOR ANTES: depois do "Sair" ja nao ha
+// sessao para dizer de quem era o aparelho, e o celular continuaria recebendo
+// os avisos de quem saiu.
+async function desligarAvisos() {
+  const sub = await inscricaoAtual();
+  if (!sub) return;
+  await pedir("/api/motorista/avisos/desinscrever",
+    { method: "POST", body: JSON.stringify({ endpoint: sub.endpoint }) });
+  try { await sub.unsubscribe(); } catch (e) { /* ja estava fora */ }
+}
+
+// O TOQUE NA NOTIFICACAO abre o app na aba do aviso (`/motorista#multas`). O
+// hash e texto que qualquer link pode mandar: so vale aba que existe, e a que
+// existe mas nao e desta pessoa cai na lista de avisos. Sai da barra de
+// endereco depois de lido, para um recarregar nao repetir a abertura.
+function abaDoHash() {
+  const h = decodeURIComponent((location.hash || "").slice(1));
+  if (!h) return "";
+  try { history.replaceState(null, "", location.pathname + location.search); }
+  catch (e) { /* sem history: fica o hash */ }
+  if (!ABAS.some((a) => a.id === h)) return "";
+  if (h === "avisos" || h === "conta") return h;
+  const naBarra = Array.from($("navbar").children).some((b) => b.dataset.aba === h);
+  return naBarra ? h : "avisos";
+}
+
 // -------------------------------------------------------------- abrir o app
 async function abrirApp() {
   const r = await pedir("/api/motorista/eu");
@@ -1607,13 +1869,29 @@ async function abrirApp() {
     : "";
 
   const visiveis = montarBarra(euAtual.secoes || {});
-  await abrirAba(visiveis.length ? visiveis[0].id : "conta");
+  pintarSino((euAtual.avisos || {}).novos);
+  const pedida = abaDoHash();
+  await abrirAba(pedida || (visiveis.length ? visiveis[0].id : "conta"));
+  if (pedida) lerAba(pedida);
+  agendarSino();
   return true;
 }
 
 $("b-conta").addEventListener("click", () => abrirAba("conta"));
+$("b-avisos").addEventListener("click", () => abrirAba("avisos"));
+
+// Com o app JA ABERTO, o toque na notificacao so troca o hash (o service worker
+// navega a janela que existe, em vez de abrir outra).
+window.addEventListener("hashchange", () => {
+  if ($("app").hidden) return;
+  const pedida = abaDoHash();
+  if (pedida) { abrirAba(pedida); lerAba(pedida); }
+});
 
 $("b-sair").addEventListener("click", async () => {
+  clearTimeout(sinoTimer); sinoSeq++;
+  if (!euAtual.mestre) { try { await desligarAvisos(); } catch (e) { /* segue */ } }
+  pintarSino(0);
   await pedir("/api/motorista/sair", { method: "POST" });
   foneAtual = ""; codigoAtual = ""; euAtual = {};
   Object.keys(cache).forEach((k) => delete cache[k]);

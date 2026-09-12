@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.57.0] — 11/09/2026  ·  CX-11/09/2026-v1.57.0
+
+### Adicionado
+- O app do motorista ganhou avisos. Um sino no alto da tela mostra quantas novidades há e abre a lista: resposta do RH, recado novo no mural, multa nova, registro novo e viagem nova programada. Tocando no aviso, o app vai direto para a aba certa, e o que foi aberto deixa de contar como novo.
+- O motorista pode ligar a notificação no celular, na própria lista de avisos. Ela avisa que há novidade ("Há uma nova multa no seu app"), sem mostrar o conteúdo, que só aparece dentro do app. No iPhone ela só chega com o app adicionado à Tela de Início, e a tela explica como. No acesso da administração a notificação fica desligada e nada é marcado como lido.
+- O que já existia antes de hoje não vira aviso: a primeira busca de cada motorista serve de ponto de partida. A Saúde do Servidor passa a mostrar quantos motoristas ligaram a notificação e se a busca de novidades está rodando.
+
 ## [1.56.0] — 11/09/2026  ·  CX-11/09/2026-v1.56.0
 
 ### Adicionado
