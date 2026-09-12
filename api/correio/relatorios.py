@@ -624,7 +624,289 @@ def ponto_do_dia() -> dict:
         return _falhou(titulo, exc)
 
 
+# ------------------------------------------------------------ inadimplência
+
+_SEM = ("seg", "ter", "qua", "qui", "sex", "sáb", "dom")
+
+
+def _mil(v) -> str:
+    """Dinheiro na escala de quem lê de relance: R$ 698 mil, R$ 1,08 mi."""
+    if v is None:
+        return "—"
+    v = float(v)
+    s = "−" if v < 0 else ""
+    a = abs(v)
+    if a >= 1_000_000:
+        return f"{s}R$ " + f"{a / 1_000_000:.2f}".replace(".", ",") + " mi"
+    if a >= 1_000:
+        return f"{s}R$ {a / 1_000:.0f} mil"
+    return s + p.brl(a)
+
+
+def _variacao(v) -> str:
+    if v is None:
+        return "—"
+    if abs(v) < 0.5:
+        return "sem mudança"
+    return ("+" if v > 0 else "") + _mil(v)
+
+
+def _dia_sem(iso) -> str:
+    d = date.fromisoformat(str(iso)[:10])
+    return f"{_SEM[d.weekday()]} {d.strftime('%d/%m')}"
+
+
+def _idade_min(iso) -> float | None:
+    """Minutos desde a leitura do ERP. `resumo()` guarda a última leitura boa
+    por duas horas: se o ERP cair na hora do envio, o número sai — e o e-mail
+    TEM de dizer de quando ele é."""
+    if not iso:
+        return None
+    try:
+        lido = datetime.fromisoformat(str(iso))
+    except ValueError:
+        return None
+    agora = datetime.now(lido.tzinfo) if lido.tzinfo else datetime.now()
+    return (agora - lido).total_seconds() / 60
+
+
+def inadimplencia() -> dict:
+    """A inadimplência do dia, para as 13h de dia útil.
+
+    RESPONDE TRÊS PERGUNTAS, NESTA ORDEM: quanto está vencido e se isso é
+    muito (o estoque e a taxa); se está piorando ou melhorando (o que entrou
+    em atraso contra o que foi recuperado, por dia útil); e onde agir hoje
+    (maiores devedores, o atraso fresco e o que vence nos próximos dias). O
+    desenho de cada número está em `api/financeiro/inadimplencia.py`.
+
+    NUNCA VAZIO: "nada vencido" é exatamente a notícia que o financeiro quer
+    receber, e sumir nesse dia faria duvidar do envio no seguinte.
+    """
+    titulo = "Inadimplência — o dia"
+    try:
+        from api.financeiro import inadimplencia as fi
+
+        r = fi.resumo()
+        hoje = date.fromisoformat(r["hoje"])
+        venc, taxa, n = r["vencido"], r["taxa"], r["janela_dias_uteis"]
+        taxa_pct = taxa * 100 if taxa is not None else None
+        var = r.get("variacao")
+        ult = r.get("ultimo_fechamento")
+        conc = r.get("concentracao")
+        blocos = []
+
+        idade = _idade_min(r.get("lido_em"))
+        if idade is not None and idade > 30:
+            lido = datetime.fromisoformat(str(r["lido_em"]))
+            blocos.append(p.paragrafo(
+                f"O ERP não respondeu na hora do envio. Os números abaixo são da "
+                f"última leitura boa, das {lido.strftime('%H:%M')} "
+                f"({idade / 60:.1f} h atrás).".replace(".", ",", 1), destaque=True))
+
+        av = r["a_vencer"]
+        blocos.append(p.kpis([
+            {"rotulo": "Vencido agora", "valor": p.brl(venc),
+             "estado": r["estado_taxa"],
+             "sub": f"{p.inteiro(r['titulos'])} títulos de "
+                    f"{p.inteiro(r['clientes'])} clientes"},
+            {"rotulo": "Taxa de inadimplência", "valor": _pct(taxa_pct),
+             "estado": r["estado_taxa"],
+             "sub": f"do total em aberto ({_mil(r['aberto'])}) · atenção acima "
+                    "de 5%, alta acima de 10%"},
+            {"rotulo": "Desde o último fechamento", "valor": _variacao(var),
+             "estado": ("neutro" if var is None or abs(var) < 0.5
+                        else "warn" if var > 0 else "ok"),
+             "sub": (f"fechamento de {_dia_sem(ult['dia'])}: {_mil(ult['vencido'])}"
+                     if ult else "sem fechamento anterior para comparar")},
+            {"rotulo": "Vencido há mais de 90 dias", "valor": p.brl(r["mais_90"]),
+             "estado": "warn" if r["mais_90"] else "ok",
+             "sub": f"{_pct(100 * r['mais_90'] / venc if venc else None)} do "
+                    f"vencido · {p.inteiro(r['titulos_mais_90'])} títulos · "
+                    "risco de perda"},
+            {"rotulo": f"Entrou em atraso · {n} dias úteis",
+             "valor": _mil(r["entrou"]), "estado": "neutro",
+             "sub": "venceu e não foi pago no dia"},
+            {"rotulo": f"Recuperado · {n} dias úteis",
+             "valor": _mil(r["recuperado"]),
+             "estado": "ok" if r["recuperado"] >= r["entrou"] else "warn",
+             "sub": "pago depois do vencimento"},
+            {"rotulo": f"Vence em {n} dias úteis", "valor": _mil(av["valor"]),
+             "estado": "neutro",
+             "sub": f"{p.inteiro(av['titulos'])} títulos de "
+                    f"{p.inteiro(av['clientes'])} clientes, até "
+                    f"{_dia_br(r['a_vencer_ate'])}"},
+            {"rotulo": "Concentração", "valor": _pct(conc * 100 if conc is not None else None),
+             "estado": "neutro",
+             "sub": f"do vencido está nos {len(r['devedores'])} maiores devedores"},
+        ]))
+
+        pontos = r.get("pontos") or []
+        if pontos:
+            blocos.append(p.secao("Vencido no fechamento de cada dia útil",
+                                  f"últimos {len(pontos)} e agora"))
+            itens = [{"rotulo": _dia_sem(x["dia"]), "valor": x["vencido"] or 0,
+                      "texto": _mil(x["vencido"])} for x in pontos]
+            itens.append({"rotulo": "agora", "valor": venc, "texto": _mil(venc),
+                          "cor": p.MARCA})
+            blocos.append(p.barras(itens))
+
+            ult10 = pontos[-10:]
+            blocos.append(p.secao("Entrou em atraso por dia útil",
+                                  "venceu e não foi pago · o fim de semana entra na segunda"))
+            blocos.append(p.barras([
+                {"rotulo": _dia_sem(x["dia"]), "valor": x["entrou"],
+                 "texto": _mil(x["entrou"]) if x["entrou"] else "—", "cor": p.VERMELHO}
+                for x in ult10]))
+            blocos.append(p.secao("Recuperado por dia útil", "pago depois do vencimento"))
+            blocos.append(p.barras([
+                {"rotulo": _dia_sem(x["dia"]), "valor": x["recuperado"],
+                 "texto": _mil(x["recuperado"]) if x["recuperado"] else "—",
+                 "cor": p.VERDE}
+                for x in ult10]))
+            vj = r.get("variacao_janela")
+            rumo = ("" if vj is None else
+                    " O vencido ficou estável no período." if abs(vj) < 0.5 else
+                    f" O vencido {'subiu' if vj > 0 else 'caiu'} {_mil(abs(vj))} "
+                    "no período.")
+            canc = (f", e {_mil(r['cancelado'])} vencidos foram cancelados"
+                    if r.get("cancelado") else "")
+            blocos.append(p.paragrafo(
+                f"Nos últimos {n} dias úteis entraram {_mil(r['entrou'])} em "
+                f"atraso e foram recuperados {_mil(r['recuperado'])}{canc}.{rumo}"))
+
+        blocos.append(p.secao("Por faixa de atraso",
+                              f"{_mil(venc)} em {p.inteiro(r['titulos'])} títulos"))
+        cores = {"2_vencido_ate_30": p.AMBAR, "3_vencido_31_90": p.LARANJA,
+                 "4_vencido_91_365": p.VERMELHO, "5_vencido_mais_365": p.MARCA}
+        blocos.append(p.barras([
+            {"rotulo": f["rotulo"], "valor": f["valor"], "cor": cores[f["faixa"]],
+             "texto": _pct(f["pct"] * 100) if f["pct"] is not None else "—"}
+            for f in r["faixas"]]))
+        blocos.append(p.tabela(
+            ["Faixa", "Valor", "Títulos"],
+            [[f["rotulo"], p.brl(f["valor"]), p.inteiro(f["titulos"])]
+             for f in r["faixas"]], alinha_dir=(1, 2)))
+
+        dev = r["devedores"]
+        if dev:
+            blocos.append(p.secao(
+                "Maiores devedores",
+                f"{len(dev)} de {r['clientes']} clientes · "
+                f"{_pct(conc * 100 if conc is not None else None)} do vencido"))
+
+            def _antigo(d):
+                x = d["dias_mais_antigo"]
+                if x is None:
+                    return "—"
+                return p.chip(f"{x} dias", "bad" if x > 90 else "warn" if x > 30 else "neutro")
+            blocos.append(p.tabela(
+                ["Cliente", "Vencido", "Do total", "Títulos", "Mais antigo"],
+                [[d["cliente"][:30], p.brl(d["vencido"]),
+                  _pct(d["pct"] * 100 if d["pct"] is not None else None),
+                  p.inteiro(d["titulos"]), _antigo(d)] for d in dev],
+                alinha_dir=(1, 2, 3)))
+
+        def _residuo(lista) -> None:
+            # QUEM SAIU DA LISTA SE DIZ: "10 clientes" no total e 7 linhas na
+            # tabela, sem explicação, se lê como defeito do relatório.
+            if lista.get("residuais"):
+                blocos.append(p.paragrafo(
+                    f"Fora da lista: {lista['residuais']} cliente(s) só com saldo "
+                    f"abaixo de {p.brl(fi.RESIDUO, 2)} — o centavo que sobra de "
+                    "pagamento parcial no ERP. Eles continuam nos totais."))
+
+        nv = r["novos"]
+        blocos.append(p.secao(
+            "Entraram em atraso e continuam em aberto",
+            (f"{len(nv['itens'])} de {nv['clientes']} clientes · " if nv["clientes"] > len(nv["itens"])
+             else "") + f"últimos {n} dias úteis · cobrança fresca"))
+        if nv["itens"]:
+            blocos.append(p.tabela(
+                ["Cliente", "Valor", "Títulos", "Venceu em"],
+                [[c["cliente"][:30], p.brl(c["valor"]), p.inteiro(c["titulos"]),
+                  _dia_br(c["data"])] for c in nv["itens"]], alinha_dir=(1, 2)))
+        else:
+            blocos.append(p.paragrafo(
+                f"Nada que venceu nos últimos {n} dias úteis continua em aberto."))
+        _residuo(nv)
+
+        blocos.append(p.secao(
+            f"Vencem nos próximos {n} dias úteis",
+            (f"{len(av['itens'])} de {av['clientes']} clientes · " if av["clientes"] > len(av["itens"])
+             else "") + f"até {_dia_br(r['a_vencer_ate'])} · para lembrar antes"))
+        if av["itens"]:
+            blocos.append(p.tabela(
+                ["Cliente", "Valor", "Títulos", "Primeiro vence"],
+                [[c["cliente"][:30], p.brl(c["valor"]), p.inteiro(c["titulos"]),
+                  _dia_br(c["data"])] for c in av["itens"]], alinha_dir=(1, 2)))
+        else:
+            blocos.append(p.paragrafo(
+                f"Nenhum título vence nos próximos {n} dias úteis."))
+        _residuo(av)
+
+        pf = r["pendente_faturamento"]
+        if pf["valor"]:
+            blocos.append(p.secao("Fora desta conta"))
+            blocos.append(p.paragrafo(
+                f"{p.brl(pf['valor'])} em {p.inteiro(pf['docs'])} documentos "
+                "vencidos estão marcados no ERP como PENDENTES DE FATURAMENTO. "
+                "Eles ficam fora do vencido e da taxa — a mesma regra das telas "
+                "Contas a Receber e Régua de Cobrança, que os mostram à parte."))
+
+        blocos.append(p.secao("Como se mede"))
+        blocos.append(p.paragrafo(
+            "Vencido é a regra oficial das telas Contas a Receber e Régua de "
+            "Cobrança: só o faturado, pelo saldo pendente de cada documento. O "
+            "fechamento de cada dia é reconstruído do ERP — o que estava vencido "
+            "e em aberto ao fim daquele dia —, e o título pago depois entra pelo "
+            "valor dele. Entrou e recuperado contam só dias úteis FECHADOS: às 13h "
+            "boa parte dos pagamentos de hoje ainda não foi lançada. Dia útil é "
+            "de segunda a sexta; feriado não é descontado."))
+
+        linhas = [f"Inadimplência — {hoje.strftime('%d/%m/%Y')}", "",
+                  f"Vencido agora ......... {p.brl(venc)} ({_pct(taxa_pct)} do aberto)",
+                  f"Títulos / clientes .... {r['titulos']} / {r['clientes']}",
+                  f"Desde o fechamento .... {_variacao(var)}",
+                  f"Mais de 90 dias ....... {p.brl(r['mais_90'])}",
+                  f"Entrou ({n} dias úteis)  {_mil(r['entrou'])}",
+                  f"Recuperado ({n} d. úteis) {_mil(r['recuperado'])}",
+                  f"Vence em {n} dias úteis . {_mil(av['valor'])}", ""]
+        if dev:
+            linhas.append("Maiores devedores:")
+            linhas += [f"  {d['cliente'][:40]} — {p.brl(d['vencido'])}" for d in dev[:5]]
+
+        assunto = (f"[CÓRTEX] Inadimplência {hoje.strftime('%d/%m')} — "
+                   + (f"{_mil(venc)} vencidos ({_pct(taxa_pct)})" if venc
+                      else "nada vencido"))
+        if var is not None and abs(var) >= 0.5 and ult:
+            assunto += f" · {_variacao(var)} desde {_dia_sem(ult['dia'])}"
+
+        return {
+            "assunto": assunto,
+            "html": p.documento(titulo, blocos,
+                                subtitulo=f"{_dia_sem(hoje.isoformat())} · leitura "
+                                          f"das {datetime.fromisoformat(str(r['lido_em'])).strftime('%H:%M')}",
+                                origem=r.get("fonte") or "ERP AVA"),
+            "texto": "\n".join(linhas),
+            "vazio": False,
+        }
+    except Exception as exc:  # noqa: BLE001
+        log.warning("inadimplencia falhou: %s", exc)
+        return _falhou(titulo, exc)
+
+
 CATALOGO = {
+    "inadimplencia": {
+        "nome": "Inadimplência — o dia",
+        "descricao": "Vencido agora e a taxa sobre o aberto, o que entrou em "
+                     "atraso e o que foi recuperado por dia útil, faixas de "
+                     "atraso, maiores devedores e o que vence nos próximos "
+                     "dias. Pensado para as 13h, só em dia útil.",
+        "monta": inadimplencia,
+        # "Nada vencido" é a notícia que o financeiro quer receber; sumir
+        # nesse dia faria duvidar do envio no dia seguinte.
+        "pular_vazio": False,
+    },
     "ponto_do_dia": {
         "nome": "Ponto — o dia de ontem",
         "descricao": "Quem bateu, quem não bateu e onde caíram as batidas do "

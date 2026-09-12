@@ -85,9 +85,16 @@ def validar(dados: dict) -> dict:
     else:
         dia_semana = dia_mes = None
 
+    # SO EM DIA UTIL vale para o DIARIO e mais nada: um semanal marcado no
+    # sabado com a caixa ligada nunca sairia, e ninguem saberia por que. A
+    # caixa desligada e o padrao — agendamento que ja existe continua saindo
+    # todo dia, como foi decidido.
+    dias_uteis = bool(dados.get("dias_uteis")) and freq == "diario"
+
     return {"relatorio": rel, "destinatarios": ", ".join(dest),
             "frequencia": freq, "hora": f"{h:02d}:{m:02d}",
             "dia_semana": dia_semana, "dia_mes": dia_mes,
+            "dias_uteis": dias_uteis,
             "ativo": bool(dados.get("ativo"))}
 
 
@@ -95,7 +102,7 @@ def listar(esquema: str | None = None) -> list[dict]:
     init_db(esquema)
     return pglocal.query(
         "SELECT id, relatorio, destinatarios, frequencia, hora, dia_semana,"
-        " dia_mes, ativo, ultima_execucao, ultimo_resultado, criado_por,"
+        " dia_mes, dias_uteis, ativo, ultima_execucao, ultimo_resultado, criado_por,"
         " criado_em, alterado_por, alterado_em"
         " FROM correio_agenda ORDER BY id", (), esquema=_esq(esquema))
 
@@ -110,21 +117,21 @@ def gravar(dados: dict, quem: str, esquema: str | None = None) -> dict:
     if ident:
         r = pglocal.um(
             "UPDATE correio_agenda SET relatorio=%s, destinatarios=%s,"
-            " frequencia=%s, hora=%s, dia_semana=%s, dia_mes=%s, ativo=%s,"
-            " alterado_por=%s, alterado_em=%s WHERE id=%s RETURNING id",
+            " frequencia=%s, hora=%s, dia_semana=%s, dia_mes=%s, dias_uteis=%s,"
+            " ativo=%s, alterado_por=%s, alterado_em=%s WHERE id=%s RETURNING id",
             (v["relatorio"], v["destinatarios"], v["frequencia"], v["hora"],
-             v["dia_semana"], v["dia_mes"], v["ativo"], quem, agora,
-             int(ident)), esquema=_esq(esquema))
+             v["dia_semana"], v["dia_mes"], v["dias_uteis"], v["ativo"], quem,
+             agora, int(ident)), esquema=_esq(esquema))
         if not r:
             raise ValueError(f"Agendamento {ident} não existe.")
         novo_id = int(r["id"])
     else:
         r = pglocal.um(
             "INSERT INTO correio_agenda(relatorio, destinatarios,"
-            " frequencia, hora, dia_semana, dia_mes, ativo, criado_por)"
-            " VALUES(%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+            " frequencia, hora, dia_semana, dia_mes, dias_uteis, ativo,"
+            " criado_por) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
             (v["relatorio"], v["destinatarios"], v["frequencia"], v["hora"],
-             v["dia_semana"], v["dia_mes"], v["ativo"], quem),
+             v["dia_semana"], v["dia_mes"], v["dias_uteis"], v["ativo"], quem),
             esquema=_esq(esquema))
         novo_id = int(r["id"])
     return {**v, "id": novo_id}

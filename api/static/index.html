@@ -8559,6 +8559,15 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                 </select>
               </div>
               <div><label for="ag-hora">Horário</label><input type="time" id="ag-hora" value="07:00"></div>
+              <!-- SO NO DIARIO: um semanal marcado no sabado com "so dias uteis"
+                   nunca sairia. O servidor zera a escolha fora do diario. Id
+                   proprio (ag-dutil) porque a agenda do WhatsApp ja usa ag-uteis. -->
+              <div id="ag-box-dutil"><label for="ag-dutil">Dias</label>
+                <select id="ag-dutil">
+                  <option value="0">Todos os dias</option>
+                  <option value="1">Só dias úteis (segunda a sexta)</option>
+                </select>
+              </div>
               <div id="ag-box-sem" hidden><label for="ag-sem">Dia da semana</label>
                 <select id="ag-sem">
                   <option value="1">Segunda</option><option value="2">Terça</option>
@@ -40033,6 +40042,7 @@ function agFreqMudou(){
   const f=document.getElementById('ag-freq').value;
   document.getElementById('ag-box-sem').hidden = (f!=='semanal');
   document.getElementById('ag-box-mes').hidden = (f!=='mensal');
+  document.getElementById('ag-box-dutil').hidden = (f!=='diario');
 }
 function agErro(t){ const e=document.getElementById('ag-err'); if(e) e.textContent=t||''; }
 
@@ -40042,6 +40052,7 @@ function agEditar(bt){
   const V=(id,v)=>{const e=document.getElementById(id); if(e) e.value=(v==null?'':v);};
   V('ag-rel',d.relatorio); V('ag-dest',d.destinatarios); V('ag-freq',d.frequencia);
   V('ag-hora',d.hora); V('ag-sem',d.dia_semana||1); V('ag-mes',d.dia_mes||1);
+  V('ag-dutil', d.dias_uteis?'1':'0');
   V('ag-ativo', d.ativo?'1':'0');
   agFreqMudou();
   document.getElementById('ag-salvar').textContent='Salvar alterações';
@@ -40110,6 +40121,7 @@ async function agSalvar(){
   const corpo={ id:AG_EDIT, relatorio:V('ag-rel'), destinatarios:V('ag-dest'),
                 frequencia:V('ag-freq'), hora:V('ag-hora'),
                 dia_semana:parseInt(V('ag-sem'),10), dia_mes:parseInt(V('ag-mes'),10),
+                dias_uteis:V('ag-dutil')==='1',
                 ativo:V('ag-ativo')==='1' };
   const bt=document.getElementById('ag-salvar');
   bt.disabled=true; bt.textContent='Salvando…'; agErro('');

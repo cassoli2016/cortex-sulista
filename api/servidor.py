@@ -650,6 +650,85 @@ def _servico_monitoramentos(d: dict) -> dict:
     return {"nome": nome, "status": "ok", "detalhe": " · ".join(partes)}
 
 
+def _relatorios_email(agora=None, itens=None) -> dict:
+    """Os relatórios por e-mail estão SAINDO na hora? A prova é o DADO da agenda.
+
+    A tarefa 'Relatorios por e-mail' continua fora de `_TAREFAS`, pelo motivo
+    escrito lá. Mas a agenda grava a PASSAGEM de cada envio
+    (`correio_agenda.ultima_execucao`), e ela responde a pergunta que importa:
+    o relatório que devia ter saído, saiu? Medido em 12/09/2026: os
+    agendamentos ligados passaram às 07:01 e às 08:01 — a tarefa dispara de 15
+    em 15 minutos. Entrou com o e-mail da inadimplência das 13h, que é o que um
+    silêncio aqui mais custaria: ninguém reclama do e-mail que não chegou.
+
+    ERRO quando um agendamento ligado deixou passar a hora marcada (mais 45
+    min, três disparos da tarefa) sem marcar a passagem — é a tarefa parada, e
+    nada mais avisa. ALERTA quando passou e o envio falhou. Agendamento criado
+    ou alterado depois da hora devida não conta: ele ainda não teve a chance.
+    """
+    import re as _re
+    from datetime import datetime as _dt, timedelta as _td
+
+    from .agendamento import marcado_para
+    nome = "Relatórios por e-mail (agenda)"
+    try:
+        if itens is None:
+            from .correio import agenda as _ag
+            itens = _ag.listar()
+    except Exception as exc:  # noqa: BLE001
+        if pglocal.sem_tabela(exc):
+            return {"nome": nome, "status": "info",
+                    "detalhe": "agenda ainda não criada neste banco"}
+        log.warning("saude: relatorios por e-mail: %s", type(exc).__name__)
+        return {"nome": nome, "status": "info", "detalhe": "conferência indisponível"}
+    ligados = [a for a in itens if a.get("ativo")]
+    if not ligados:
+        return {"nome": nome, "status": "info",
+                "detalhe": "nenhum relatório agendado ligado"}
+    agora = agora or _dt.now()
+    folga = _td(minutes=45)
+
+    def _q(v):
+        try:
+            return _dt.fromisoformat(str(v).replace(" ", "T")) if v else None
+        except ValueError:
+            return None
+
+    try:
+        from .correio.relatorios import CATALOGO
+    except Exception:  # noqa: BLE001
+        CATALOGO = {}
+    parados, falhos, passagens = [], [], []
+    for a in ligados:
+        rot = (CATALOGO.get(a.get("relatorio")) or {}).get("nome") or a.get("relatorio")
+        devido = None
+        for d in range(0, 32):                  # 32 cobre o mensal
+            m = marcado_para(a, agora - _td(days=d))
+            if m and m + folga <= agora:
+                devido = m
+                break
+        ult = _q(a.get("ultima_execucao"))
+        mudou = max((x for x in (_q(a.get("criado_em")), _q(a.get("alterado_em"))) if x),
+                    default=None)
+        if ult:
+            passagens.append(ult)
+        if devido and (mudou is None or mudou < devido) and (ult is None or ult < devido):
+            parados.append("%s (devia ter saído %s)" % (rot, devido.strftime("%d/%m %H:%M")))
+        elif _re.search(r"falh|erro", str(a.get("ultimo_resultado") or ""), _re.I):
+            falhos.append("%s: %s" % (rot, str(a.get("ultimo_resultado"))[:80]))
+    base = "%d ligado(s)" % len(ligados)
+    if passagens:
+        base += " · última passagem %s" % max(passagens).strftime("%d/%m %H:%M")
+    if parados:
+        return {"nome": nome, "status": "erro",
+                "detalhe": base + " · ⚠ não passou na hora: " + "; ".join(parados)
+                + " — a tarefa 'Relatorios por e-mail' pode ter parado"}
+    if falhos:
+        return {"nome": nome, "status": "alerta",
+                "detalhe": base + " · último envio falhou: " + "; ".join(falhos)}
+    return {"nome": nome, "status": "ok", "detalhe": base}
+
+
 def _app_motorista() -> dict:
     """O app do motorista existe do lado de FORA, e por isso ele precisa disto.
 
@@ -2137,6 +2216,14 @@ def _servicos() -> list[dict]:
         servicos.append({"nome": "App do motorista", "status": "info",
                          "detalhe": "conferência indisponível"})
         log.warning("saude: app do motorista: %s", exc)
+    # RELATORIOS POR E-MAIL. A prova de que a tarefa roda e o DADO que ela deixa
+    # na agenda, nao a lista de tarefas do Windows (ver `_relatorios_email`).
+    try:
+        servicos.append(_relatorios_email())
+    except Exception as exc:  # noqa: BLE001
+        servicos.append({"nome": "Relatórios por e-mail (agenda)", "status": "info",
+                         "detalhe": "conferência indisponível"})
+        log.warning("saude: relatorios por e-mail: %s", exc)
 
     # MAPA CONTÁBIL do ERP. Vem logo depois dos bancos porque é a mesma
     # pergunta um nível acima: o banco responde, mas o que ele responde ainda

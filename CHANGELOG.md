@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.59.0] — 12/09/2026  ·  CX-12/09/2026-v1.59.0
+
+### Adicionado
+- Novo relatório por e-mail: "Inadimplência — o dia". Traz o vencido de agora e a taxa sobre o total em aberto (com o mesmo semáforo da tela Contas a Receber), quanto mudou desde o fechamento do último dia útil, o vencido há mais de 90 dias, e os gráficos do vencido no fechamento de cada dia útil, do que entrou em atraso e do que foi recuperado por dia. Fecha com as faixas de atraso, os maiores devedores, quem entrou em atraso nos últimos dias e continua devendo, e o que vence nos próximos cinco dias úteis — para lembrar antes de vencer. Os números seguem a mesma regra das telas Contas a Receber e Régua de Cobrança.
+- Os relatórios agendados por e-mail (Gestão › E-mail) ganharam a opção "Só dias úteis (segunda a sexta)" na frequência diária. Os agendamentos que já existem continuam saindo todo dia.
+- A Saúde do Servidor ganhou o cartão "Relatórios por e-mail (agenda)": ele fica vermelho quando um relatório ligado deixou passar a hora sem sair, que é o sinal de que a tarefa agendada parou.
+
 ## [1.58.0] — 12/09/2026  ·  CX-12/09/2026-v1.58.0
 
 ### Adicionado

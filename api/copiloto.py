@@ -96,6 +96,7 @@ _FONTES_ROTULO = {
     "integracoes": "Integrações (estado de cada fornecedor)",
     "auditoria_uso": "Auditoria — acessos e uso do painel",
     "financeiro_caixa": "Fluxo de Caixa e Bancos",
+    "inadimplencia": "Inadimplência — o dia (vencido, fluxo e concentração)",
     "analise_km_ano": "Análise de KM",
     "agregados_terceiros_ano": "Agregados e Terceiros",
     "make_vs_buy_12m": "Make vs Buy",
@@ -919,6 +920,12 @@ def _fontes_do_snapshot() -> dict:
             "api.auditoria", fromlist=["snapshot_copiloto"]).snapshot_copiloto(),
         "faturamento_detalhado": _faturamento_detalhado,
         "financeiro_caixa": lambda: queries.get_overview(),
+        # A INADIMPLENCIA DO DIA (a do e-mail das 13h): o que o
+        # `financeiro_caixa` nao tem -- o que ENTROU em atraso e o que foi
+        # RECUPERADO nos dias uteis fechados, e a concentracao. So escalares:
+        # os nomes dos devedores ficam no e-mail, atras do destinatario.
+        "inadimplencia": lambda: __import__(
+            "api.financeiro.inadimplencia", fromlist=["resumo_copiloto"]).resumo_copiloto(),
         "analise_km_ano": lambda: queries.get_analise_km(None, ini_ano, fim),
         "agregados_terceiros_ano": lambda: queries.get_agregados(None, ini_ano, fim),
         "make_vs_buy_12m": lambda: queries.get_make_vs_buy(comp_de, comp_ate),
