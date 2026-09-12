@@ -1,3 +1,17 @@
+- versao: "1.58.0"
+  data: "2026-09-12"
+  adicionado:
+    - >-
+      O app do motorista ganhou o botão "Instalar o app no celular", na tela de
+      entrada e na aba Conta — nesta porque quem já entrou fica logado por 30
+      dias e não vê mais a entrada. No Android, um toque e o celular pergunta se
+      quer instalar: o ícone Motorista vai para a tela inicial e o app abre como
+      os outros, sem a barra do navegador. No iPhone, onde a Apple não deixa
+      página nenhuma se instalar sozinha, o botão mostra o passo a passo do
+      Safari (Compartilhar → Adicionar à Tela de Início) e avisa que, na
+      primeira vez pelo ícone, é preciso entrar de novo. Quem já abre pelo
+      ícone não vê o botão.
+
 - versao: "1.57.0"
   data: "2026-09-11"
   adicionado:

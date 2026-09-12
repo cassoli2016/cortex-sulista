@@ -420,6 +420,20 @@ está em `api/motorista/avisos.py`, e são três decisões:
   Recado do RH (resposta na conversa e comunicado do mural) nasce na própria
   rota do RH. O acesso mestre não marca como lido nem liga notificação.
 
+**O botão de instalar (12/09/2026)** fica na tela de entrada e na aba Conta —
+na Conta porque a sessão dura 30 dias e quem já usa não vê mais a entrada.
+Instalar "automaticamente" não existe: nenhum navegador deixa a página se
+instalar sem a pessoa confirmar. No Android o botão usa o convite do próprio
+navegador (`beforeinstallprompt`): um toque e o celular pergunta "Instalar?".
+Quando o navegador não oferece (ou a pessoa já recusou), o botão mostra o
+caminho pelo menu, que sempre existe. No iPhone a Apple não dá esse convite a
+página nenhuma: o botão mostra o caminho do Safari (Compartilhar → Adicionar à
+Tela de Início), e na primeira vez pelo ícone é preciso entrar de novo — o iOS
+dá ao app da Tela de Início um armazenamento separado do Safari. Aberto pelo
+ícone, o botão não aparece. A instalação lê o manifesto próprio
+(`manifest-motorista.json`), e um teste confere o tamanho REAL de cada ícone
+contra o declarado.
+
 ---
 
 ## 4. O que a casa JÁ tem — e que este app NÃO refaz

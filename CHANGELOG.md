@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.58.0] — 12/09/2026  ·  CX-12/09/2026-v1.58.0
+
+### Adicionado
+- O app do motorista ganhou o botão "Instalar o app no celular", na tela de entrada e na aba Conta — nesta porque quem já entrou fica logado por 30 dias e não vê mais a entrada. No Android, um toque e o celular pergunta se quer instalar: o ícone Motorista vai para a tela inicial e o app abre como os outros, sem a barra do navegador. No iPhone, onde a Apple não deixa página nenhuma se instalar sozinha, o botão mostra o passo a passo do Safari (Compartilhar → Adicionar à Tela de Início) e avisa que, na primeira vez pelo ícone, é preciso entrar de novo. Quem já abre pelo ícone não vê o botão.
+
 ## [1.57.0] — 11/09/2026  ·  CX-11/09/2026-v1.57.0
 
 ### Adicionado

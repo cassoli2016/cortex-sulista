@@ -351,6 +351,22 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
   border:1px solid var(--navy-700);border-radius:var(--radius);cursor:pointer;
   margin-top:var(--e1)}
 .app button.btn-av:disabled{opacity:.6;cursor:default}
+/* ============================== instalar o app ======================= */
+/* DEPOIS do `.app button.btn-av`, e qualificado do mesmo jeito: mesma
+   especificidade, e quem vem depois vence — com o `display:block` de la, o
+   icone e o rotulo sairiam um embaixo do outro. */
+.lg-body button.inst-btn, .app button.inst-btn{display:flex;align-items:center;
+  justify-content:center;gap:var(--e1)}
+.inst-ico{width:19px;height:19px;flex:0 0 auto;stroke:currentColor;fill:none;
+  stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.lg-body .instalar{margin-top:var(--e2);padding-top:var(--e1);
+  border-top:1px solid var(--n300)}
+.inst-nota{font-size:12.5px;color:var(--n500);margin:var(--e1) 0 0;line-height:1.45}
+.lg-body .inst-nota{text-align:center}
+.inst-passos{margin:var(--e1) 0 0;padding-left:22px;font-size:14px;line-height:1.5}
+.inst-passos li{margin-bottom:6px}
+.inst-passos svg{width:16px;height:16px;vertical-align:-3px;stroke:currentColor;
+  fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 /* O texto do comunicado preserva a quebra de linha de quem escreveu: o
    RH separa paragrafo, e colapsar isso vira um bloco que ninguem le. */
 .rh-comunicado{white-space:pre-wrap;font-size:14.5px;line-height:1.5;
@@ -397,6 +413,9 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
              autocomplete="tel" placeholder="(47) 99999-8888">
       <button class="lg-btn" id="b-pedir">Receber código</button>
       <div class="msg" id="m-entrar" hidden></div>
+      <!-- INSTALAR O APP: desenhado por `desenharInstalar` (o que aparece
+           depende do celular e de o navegador oferecer a instalacao). -->
+      <div class="instalar" id="instalar-entrada" data-botao="lg-btn claro" hidden></div>
     </div>
 
     <div class="lg-body" id="tela-codigo" hidden>
@@ -526,6 +545,10 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
       <h2>Minha conta</h2>
       <div class="linhas" id="linhas-conta"></div>
     </div>
+    <!-- O MESMO BOTAO DA ENTRADA, e aqui ele e o que alcanca quem ja usa: a
+         sessao dura 30 dias, e quem entrou nao ve a tela de entrada de novo. -->
+    <div class="card instalar" id="instalar-conta" data-botao="btn-av"
+         data-titulo="App no celular" hidden></div>
     <button class="sair" id="b-sair">Sair</button>
     <p class="rodape">CÓRTEX · Transportadora Sulista</p>
   </section>
@@ -1616,6 +1639,7 @@ function desenharConta() {
   $("linhas-conta").innerHTML = l.map(([r, v]) =>
     "<div class='linha'><span>" + esc(r) + "</span><b>" + esc(v) +
     "</b></div>").join("");
+  pintarInstalar();
 }
 
 // ------------------------------------------------------------------- avisos
@@ -1716,10 +1740,7 @@ function suportaPush() {
 }
 
 function iphoneFora() {
-  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
-  const instalado = window.navigator.standalone === true ||
-    (window.matchMedia && matchMedia("(display-mode: standalone)").matches);
-  return ios && !instalado;
+  return ehIphone() && !jaInstalado();
 }
 
 // A chave publica do servidor vem em base64 de URL; o `PushManager` a quer em
@@ -1840,6 +1861,111 @@ function abaDoHash() {
   return naBarra ? h : "avisos";
 }
 
+// ---------------------------------------------------------- instalar o app
+// PEDIDO DE QUEM OPERA (12/09/2026): "criar um atalho no celular
+// automaticamente, para ficar como um app de verdade". AUTOMATICO NAO EXISTE:
+// nenhum navegador deixa a pagina se instalar sem a pessoa confirmar. O que
+// existe e por celular:
+// - ANDROID: o navegador oferece a instalacao (`beforeinstallprompt`) quando o
+//   manifesto serve; segurado aqui, ele vira UM toque no nosso botao e a
+//   pergunta "Instalar?" do proprio celular. O convite vale UMA vez.
+// - IPHONE: a Apple nao da esse convite a pagina nenhuma. O botao mostra o
+//   caminho do Safari (Compartilhar → Adicionar a Tela de Inicio).
+// - SEM CONVITE no Android (recusou, ou o navegador nao ofereceu): o mesmo
+//   caminho pelo menu do navegador, que sempre existe.
+// Aberto PELO ICONE, nada aparece: oferecer instalar o que ja esta instalado
+// ensina a ignorar o botao.
+let convite = null;          // o `beforeinstallprompt` guardado
+let instaladoAgora = false;
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();        // sem isto o Chrome mostra a faixa dele, e o
+  convite = e;               // convite se gasta antes de a pessoa ver o botao
+  pintarInstalar();
+});
+window.addEventListener("appinstalled", () => {
+  convite = null; instaladoAgora = true; pintarInstalar();
+});
+
+function jaInstalado() {
+  return window.navigator.standalone === true ||
+    !!(window.matchMedia && matchMedia("(display-mode: standalone)").matches);
+}
+
+function ehIphone() {
+  // iPad com iPadOS se anuncia como Mac: o toque e o que o denuncia.
+  return /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+function ehAndroid() { return /Android/i.test(navigator.userAgent); }
+
+const INST_ICONE = "<svg class='inst-ico' viewBox='0 0 24 24' aria-hidden='true'>" +
+  "<rect x='6.5' y='2.5' width='11' height='19' rx='2'/>" +
+  "<path d='M12 7.5v6.5M9.5 11.5 12 14l2.5-2.5'/></svg>";
+const INST_COMPARTILHAR = "<svg viewBox='0 0 24 24' aria-hidden='true'>" +
+  "<path d='M8 9H6.5v11h11V9H16'/><path d='M12 3v11M8.5 6.5 12 3l3.5 3.5'/></svg>";
+const INST_NOTA = {
+  convite: "Fica o ícone Motorista na tela inicial, e o app abre como os " +
+           "outros, sem a barra do navegador.",
+  iphone: "No iPhone é pelo Safari. Na primeira vez que abrir pelo ícone, " +
+          "entre de novo com o seu celular.",
+  android: "Se já pôs, abra pelo ícone Motorista na tela inicial."
+};
+const INST_PASSOS = {
+  iphone: ["Toque em <b>Compartilhar</b> " + INST_COMPARTILHAR + " na barra do Safari.",
+           "Role a lista e toque em <b>Adicionar à Tela de Início</b>.",
+           "Toque em <b>Adicionar</b>. O ícone Motorista aparece junto dos outros apps."],
+  android: ["Toque no menu <b>⋮</b> do navegador, no canto de cima.",
+            "Toque em <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.",
+            "Confirme. O ícone Motorista aparece junto dos outros apps."]
+};
+
+function pintarInstalar() {
+  ["instalar-entrada", "instalar-conta"].forEach((id) => desenharInstalar($(id)));
+}
+
+function desenharInstalar(el) {
+  if (!el) return;
+  const modo = instaladoAgora ? "pronto" : jaInstalado() ? "" : convite ? "convite"
+    : ehIphone() ? "iphone" : ehAndroid() ? "android" : "";
+  el.hidden = !modo;
+  if (!modo) { el.innerHTML = ""; return; }
+  const tit = el.dataset.titulo ? "<h2>" + esc(el.dataset.titulo) + "</h2>" : "";
+  if (modo === "pronto") {
+    el.innerHTML = tit + "<p class='inst-nota'>Pronto: o app Motorista está na " +
+      "tela inicial do celular. Daqui em diante, abra por lá.</p>";
+    return;
+  }
+  const passos = INST_PASSOS[modo];
+  el.innerHTML = tit +
+    "<button type='button' class='" + el.dataset.botao + " inst-btn'" +
+    (passos ? " aria-expanded='false'" : "") + ">" + INST_ICONE +
+    esc(modo === "convite" ? "Instalar o app no celular" : "Pôr o app na tela inicial") +
+    "</button><p class='inst-nota'>" + INST_NOTA[modo] + "</p>" +
+    (passos ? "<ol class='inst-passos' hidden>" +
+      passos.map((p) => "<li>" + p + "</li>").join("") + "</ol>" : "");
+  const b = el.querySelector(".inst-btn");
+  b.addEventListener("click", () => {
+    if (modo === "convite") { instalar(); return; }
+    const ol = el.querySelector(".inst-passos");
+    ol.hidden = !ol.hidden;
+    b.setAttribute("aria-expanded", String(!ol.hidden));
+  });
+}
+
+async function instalar() {
+  const c = convite;
+  if (!c) return;
+  convite = null;            // o convite vale UMA vez: depois do prompt() ele morre
+  try {
+    await c.prompt();
+    const r = await c.userChoice;
+    if (r && r.outcome === "accepted") instaladoAgora = true;
+  } catch (e) { /* o navegador recusou abrir: fica o passo a passo */ }
+  pintarInstalar();
+}
+
 // -------------------------------------------------------------- abrir o app
 async function abrirApp() {
   const r = await pedir("/api/motorista/eu");
@@ -1904,6 +2030,7 @@ $("b-sair").addEventListener("click", async () => {
 // -------------------------------------------------------------------- boot
 (async function () {
   anelLigar();
+  pintarInstalar();
   if (!(await abrirApp())) { mostrar("tela-entrar"); $("fone").focus(); }
 })();
 </script>
