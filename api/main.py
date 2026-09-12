@@ -6585,7 +6585,7 @@ def _hp_falha(exc: Exception, oque: str) -> JSONResponse:
         return JSONResponse(status_code=HTTP_RECUSA, content={
             "erro": "instalacao_incompleta",
             "mensagem": ("As tabelas de horas paradas ainda não existem no banco "
-                         "do CÓRTEX — falta aplicar a migration 0084 "
+                         "do CÓRTEX — falta aplicar a migration 0088 "
                          "(uv run python scripts/migrar_schema.py).")})
     if isinstance(exc, psycopg.OperationalError):
         log.warning("horas paradas: banco inacessivel (%s)", type(exc).__name__)

@@ -568,7 +568,7 @@ def _horas_paradas() -> dict:
         if pglocal.sem_tabela(exc):
             return {"nome": nome, "status": "erro",
                     "detalhe": ("as tabelas `hp_*` não existem — falta aplicar a "
-                                "migration 0084 (uv run python scripts/migrar_schema.py)")}
+                                "migration 0088 (uv run python scripts/migrar_schema.py)")}
         raise
     if not c["perfis"]:
         return {"nome": nome, "status": "info",

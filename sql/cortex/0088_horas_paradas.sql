@@ -1,4 +1,4 @@
--- 0084 · Horas paradas: a estadia que se COBRA, cliente a cliente, do jeito
+-- 0088 · Horas paradas: a estadia que se COBRA, cliente a cliente, do jeito
 -- que cada um recebe.
 --
 -- Pedido de quem opera (12/09/2026): "um controle de horas paradas; cada
