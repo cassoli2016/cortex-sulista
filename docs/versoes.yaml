@@ -1,3 +1,13 @@
+- versao: "1.65.1"
+  data: "2026-09-13"
+  corrigido:
+    - >-
+      WMS: no Painel do Armazém, no Recebimento, em Estoque e Inventário e em
+      Separação e Expedição, enquanto não há armazém cadastrado, o espaço entre
+      a barra do armazém e o resto da tela ficava maior que o das outras telas —
+      a faixa de indicadores, vazia, continuava ocupando lugar. Agora ela some
+      quando não tem o que mostrar.
+
 - versao: "1.65.0"
   data: "2026-09-13"
   adicionado:

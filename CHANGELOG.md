@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.65.1] — 13/09/2026  ·  CX-13/09/2026-v1.65.1
+
+### Corrigido
+- WMS: no Painel do Armazém, no Recebimento, em Estoque e Inventário e em Separação e Expedição, enquanto não há armazém cadastrado, o espaço entre a barra do armazém e o resto da tela ficava maior que o das outras telas — a faixa de indicadores, vazia, continuava ocupando lugar. Agora ela some quando não tem o que mostrar.
+
 ## [1.65.0] — 13/09/2026  ·  CX-13/09/2026-v1.65.0
 
 ### Adicionado

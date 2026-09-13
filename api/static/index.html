@@ -707,6 +707,12 @@ tr:last-child td{border-bottom:0}
 .wms-grade td.num input{text-align:right}
 .wms-duas{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px}
 @media (max-width:640px){.wms-duas{grid-template-columns:minmax(0,1fr)}}
+/* A banda de KPI VAZIA sai da coluna. Sem armazém cadastrado (ou com a leitura
+   falhando) o loader limpa os indicadores, e a banda de altura zero continuaria
+   item da coluna, consumindo DOIS gaps mais o margin-top dela: 18+7+18 = 43px
+   entre a barra do armazém e o conteúdo (test_espacos, 13/09/2026). Tirar o
+   placeholder, não compensar com margin. */
+.wms-kband:has(>.kpis:empty){display:none}
 /* Transmissão recusada: fundo leve, porque a coluna de situação já carrega o
    vermelho. Pintar a linha inteira forte competiria com ela e cansaria numa
    lista longa. */
@@ -7756,7 +7762,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <select id="wmspan-arm" onchange="wmsArmTrocar('wmspan',this.value)"></select>
           <span class="hint" id="wmspan-hint"></span>
         </div>
-        <div class="kband"><div class="kpis k4" id="wmspan-kpis"></div></div>
+        <div class="kband wms-kband"><div class="kpis k4" id="wmspan-kpis"></div></div>
         <div class="grid2">
           <div class="card"><div class="head"><h2>Recebido × expedido — 30 dias <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: wms_recebimento (conferências fechadas por dia) e wms_pedido (expedições por dia), no banco da casa. Conta DOCUMENTOS, não quantidade: um recebimento de 3 paletes e um de 300 caixas pesam igual, porque somar palete com caixa não dá número nenhum. Os 30 dias são GERADOS — dia sem movimento aparece como zero, em vez de sumir e emendar segunda com quinta. Hoje é parcial e vem hachurado.">ⓘ</span></h2></div>
             <div id="wmspan-serie" style="width:100%;height:220px"></div></div>
@@ -7777,7 +7783,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <button class="btn" onclick="wmsRecNovo()">Novo recebimento</button>
           <span class="hint" id="wmsrec-hint"></span>
         </div>
-        <div class="kband"><div class="kpis k4" id="wmsrec-kpis"></div></div>
+        <div class="kband wms-kband"><div class="kpis k4" id="wmsrec-kpis"></div></div>
         <div class="subtabs" role="tablist" data-abas="wmsrec" aria-label="Seções desta tela">
           <button role="tab" id="tabwmsrec-conf" data-aba="conf" aria-controls="aba-wmsrec-conf"
                   aria-selected="true" onclick="abaTrocar('wmsrec','conf')">A conferir <span class="aban" id="wmsrec-n-conf"></span></button>
@@ -7805,7 +7811,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <select id="wmsest-arm" onchange="wmsArmTrocar('wmsest',this.value)"></select>
           <span class="hint" id="wmsest-hint"></span>
         </div>
-        <div class="kband"><div class="kpis k4" id="wmsest-kpis"></div></div>
+        <div class="kband wms-kband"><div class="kpis k4" id="wmsest-kpis"></div></div>
         <div class="subtabs" role="tablist" data-abas="wmsest" aria-label="Seções desta tela">
           <button role="tab" id="tabwmsest-saldo" data-aba="saldo" aria-controls="aba-wmsest-saldo"
                   aria-selected="true" onclick="abaTrocar('wmsest','saldo')">Saldo por endereço <span class="aban" id="wmsest-n-saldo"></span></button>
@@ -7867,7 +7873,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <button class="btn" onclick="wmsExpNovo()">Novo pedido</button>
           <span class="hint" id="wmsexp-hint"></span>
         </div>
-        <div class="kband"><div class="kpis k4" id="wmsexp-kpis"></div></div>
+        <div class="kband wms-kband"><div class="kpis k4" id="wmsexp-kpis"></div></div>
         <div class="subtabs" role="tablist" data-abas="wmsexp" aria-label="Seções desta tela">
           <button role="tab" id="tabwmsexp-ped" data-aba="ped" aria-controls="aba-wmsexp-ped"
                   aria-selected="true" onclick="abaTrocar('wmsexp','ped')">Pedidos <span class="aban" id="wmsexp-n-ped"></span></button>
