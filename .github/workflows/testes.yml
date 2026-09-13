@@ -2,22 +2,59 @@ name: testes
 
 # Nenhum teste toca o AVA nem o GLOBUS: os puros são cálculo em memória e os de
 # frontend sobem um http.server servindo api/ com todas as rotas /api/**
-# interceptadas pelo Playwright. Por isso o CI roda sem túnel, sem .env e sem
-# banco — o mesmo que um clone limpo enxerga.
+# interceptadas pelo Playwright. Por isso o CI roda sem túnel e sem .env.
+#
+# O BANCO DA CASA, ele tem: um Postgres 17 descartável (a mesma versão da
+# produção). Até 12/09/2026 o CI rodava sem banco, e os ~87 arquivos de teste
+# que usam `esquema_pg` eram PULADOS aqui — justamente os que exercitam as
+# migrations, que entram sozinhas no banco de produção quando a API reinicia.
+# Com desenvolvedor de fora abrindo PR, este job é o único portão que não
+# depende do ambiente de quem escreveu o código (docs/DESENVOLVIMENTO.md).
+#
+# `suite` é o nome da verificação exigida pela proteção da `main`: renomear o
+# job faz a regra esperar para sempre por uma verificação que não existe mais.
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
 
+# Cancelar a execução anterior só em PR (o push novo a torna obsoleta). Na
+# `main` cancelar era o padrão, e com ~20 pushes por dia NENHUMA execução
+# terminava: de 05 a 12/09/2026 foram 100 cancelamentos seguidos, e o CI não
+# dizia nada sobre o que estava no ar.
 concurrency:
   group: testes-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   suite:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Era 20, e a suíte passou dos 20 em 05/09/2026: dali em diante toda
+    # execução foi cortada no meio do pytest, sem resultado. O `--durations`
+    # abaixo mostra quem está crescendo antes de o teto ser alcançado de novo.
+    timeout-minutes: 50
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: cortex
+          POSTGRES_PASSWORD: cortex_ci
+          POSTGRES_DB: cortex
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cortex -d cortex"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      # banco descartável deste job — não é segredo, morre com ele
+      CORTEX_PG_HOST: 127.0.0.1
+      CORTEX_PG_PORT: "5432"
+      CORTEX_PG_DB: cortex
+      CORTEX_PG_USER: cortex
+      CORTEX_PG_PASSWORD: cortex_ci
     steps:
       - uses: actions/checkout@v4
 
@@ -48,7 +85,7 @@ jobs:
         run: uv run --group test playwright install-deps chromium
 
       - name: Suíte Python
-        run: uv run --group test pytest -q
+        run: uv run --group test pytest -q --durations=25
 
       - name: Núcleo do indicador de carregamento
         # node --test com o GLOB entre aspas: passar o diretório faz o Node

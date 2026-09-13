@@ -29,8 +29,15 @@ Toda tela segue `.claude/skills/dashboard-builder` — anatomia, design system e
 torre/área. Tempo real via WebSocket (LISTEN/NOTIFY); analítico via views materializadas.
 
 ## Começar a desenvolver
-Siga `docs/GUIA_CLAUDE_CODE.md` (ou rode `bash scripts/bootstrap.sh`).
-Roadmap em CLAUDE.md §10. Fase 1 = auth + RBAC + RLS + audit + financeiro.
+1. `CLAUDE.md` — o estado REAL do sistema e as regras da casa.
+2. **`docs/DESENVOLVIMENTO.md`** — para quem desenvolve fora da máquina de
+   produção: o que você recebe de acesso, como montar o ambiente, o caminho do
+   PR até a produção e o que não se faz. **A `main` é a produção** e é protegida:
+   tudo entra por PR.
+
+O `docs/GUIA_CLAUDE_CODE.md`, o `scripts/bootstrap.sh` e as seções acima sobre
+TimescaleDB, Redis e RLS descrevem a arquitetura PLANEJADA original, que nunca
+foi implementada — não use como roteiro.
 
 ## Rodar nesta máquina (Windows — produção local)
 1. Túnel SSH ao ERP AVA. **Uma vez**, instale a chave (pede a senha só nesta vez):

@@ -21,6 +21,15 @@ reinicia a API. Consequências, todas já vividas (crônicas em `docs/LICOES.md`
 
 - **Commit sem push TRAVA o deploy de todo mundo** (`DIVERGENCIA: local=…`).
   Commit e push andam juntos, no mesmo minuto. Sem perguntar.
+  - **Isto vale para ESTA árvore, não para quem desenvolve de fora.** A partir
+    de 12/09/2026 a casa recebe desenvolvedores em clone próprio: lá o destino
+    é SEMPRE uma branch e um PR, e quem faz o merge é o responsável. Agente de
+    IA num clone de desenvolvedor NUNCA empurra na `main`, nem "para não travar
+    o deploy": não há deploy nenhum a travar ali. Quem segura isso de verdade é
+    a proteção da `main` no GitHub (PR + CI `suite` + aprovação do responsável
+    via CODEOWNERS) — **confira que ela está LIGADA em Settings › Branches antes
+    de acreditar nela**; regra que ninguém ligou não protege nada. Regras,
+    acesso e fluxo: **`docs/DESENVOLVIMENTO.md`**.
 - **Arquivo editado sem commit** bloqueia o pull (`Your local changes…`).
   Editar durante a sessão derruba rota no ar.
 - **Rebase no meio** deixa marcador de conflito que o `uv sync` do AutoDeploy
@@ -1207,6 +1216,13 @@ overlay `uv run --no-sync --with pytest --with playwright==<lock> pytest …`.
 Commit + push no mesmo minuto (seção 1). Rótulo: `CX-DD/MM/AAAA-vX.Y.Z` (data
 DA VERSÃO), no rodapé da sidebar e em `GET /api/versao` (autenticado).
 
+**PR de desenvolvedor não traz os passos 1–3** — o número de versão é dado por
+QUEM FAZ O MERGE, na hora do merge, contra o topo do `origin` (a trava da
+seção 1). O PR traz só o TEXTO do bloco, no modelo de PR. Com três frentes, o
+número combinado antes seria o errado quase sempre, e cada PR conflitaria na
+mesma linha do `pyproject`. O passo 4 continua sendo de quem escreve a tela.
+Como liberar um PR: `docs/DESENVOLVIMENTO.md`, seção 7.
+
 **O `1.0.0` FOI DECLARADO em 06/09/2026**, por decisão de quem opera, com os
 três critérios conferidos NA HORA — e não pela afirmação que estava escrita
 aqui. Os verificadores são `scripts/testar_restauracao.py` (o backup restaura,
@@ -1243,6 +1259,7 @@ DESENVOLVIMENTO — não há agente em runtime no painel.
 | Documento | O que tem |
 |---|---|
 | `docs/LICOES.md` | **As crônicas completas** — toda lição citada aqui, com o que foi medido |
+| `docs/DESENVOLVIMENTO.md` | **Para quem desenvolve fora da máquina de produção**: acesso, ambiente, o caminho do PR até o ar, o que não se faz, e como o responsável libera um PR |
 | `docs/MIGRACAO_POSTGRES.md` | A migração SQLite→Postgres: plano, decisões, armadilhas |
 | `docs/RECONCILIACAO.md` | O que se confere contra o ERP e onde já divergiu |
 | `docs/manual.yaml` | Grupos, resumos e glossário da tela `#doc` |

@@ -1,0 +1,12 @@
+# Todo PR precisa da aprovação do responsável pelo CÓRTEX.
+#
+# Por que o repositório inteiro, e não só as pastas sensíveis: a `main` É a
+# produção (o AutoDeploy a puxa a cada 2 minutos) e a migration entra no banco
+# de produção sozinha quando a API reinicia. Não há arquivo "inofensivo" o
+# bastante para entrar sem ninguém olhar — um `index.html` quebrado derruba o
+# painel da empresa inteira tão bem quanto um `auth.py` quebrado.
+#
+# Com a proteção da `main` exigindo "review from Code Owners", esta linha é o
+# que impede um desenvolvedor de aprovar o PR do outro e fazer o merge sozinho.
+# Regras e o porquê: docs/DESENVOLVIMENTO.md.
+*       @cassoli2016

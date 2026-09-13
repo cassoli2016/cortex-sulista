@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.59.1] — 12/09/2026  ·  CX-12/09/2026-v1.59.1
+
+### Alterado
+- Nada muda nas telas. O CÓRTEX passa a receber desenvolvedores de fora da equipe: toda mudança deles entra por um pedido de revisão no GitHub e só vai para o ar depois de passar pelos testes automáticos e pela aprovação do responsável. Eles trabalham com um banco próprio, sem acesso às credenciais das integrações (WhatsApp, e-mail, SEFAZ), e as regras estão em docs/DESENVOLVIMENTO.md.
+- Os testes automáticos do GitHub ganharam tempo para terminar — desde 05/09 eram cortados no meio, sem resultado — e passam a cobrir também o banco da casa.
+
 ## [1.59.0] — 12/09/2026  ·  CX-12/09/2026-v1.59.0
 
 ### Adicionado
