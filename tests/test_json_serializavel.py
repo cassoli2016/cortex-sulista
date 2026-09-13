@@ -101,19 +101,38 @@ def test_a_leitura_do_banco_local_vira_JSON(rotulo, ler):
           "500 em text/plain que não aponta para lugar nenhum.")
 
 
-def test_a_rota_da_premiacao_RENDERIZA():
+def test_a_rota_da_premiacao_RENDERIZA(esquema_pg, monkeypatch):
     """A reprodução exata do defeito: é o `render()` que estourava.
 
     Chamar a função e olhar o tipo do campo não bastaria — passaria de novo no
     dia em que outra coluna `numeric` entrasse no payload.
+
+    NO SCHEMA DO TESTE, com uma classe de ocorrência gravada (13/09/2026). A
+    rota lia as `prem_*` do schema PADRÃO: aqui ele é o de produção e o teste
+    passava; no banco descartável do CI as tabelas só existiam se um teste
+    ANTERIOR da mesma fatia tivesse aplicado as migrations no padrão — e
+    quando a divisão das fatias mudou, virou 500 (tabela ausente, dentro do
+    try da rota). Num schema vazio o teste passaria sem nada a serializar,
+    então grava uma classe com peso FRACIONÁRIO (`numeric` -> `Decimal`), que
+    é o caminho do defeito, e confere que ela chegou ao JSON.
     """
     from api.main import premiacao_config
+    from api.premiacao import classificacao, config
+    monkeypatch.setattr(config, "ESQUEMA", esquema_pg)
+    monkeypatch.setattr(classificacao, "ESQUEMA", esquema_pg)
+    pglocal.executar(
+        "INSERT INTO prem_ocorrencia_classe(codigo, descricao, classe, peso) "
+        "VALUES (%s, %s, %s, %s)",
+        (901, "OCORRENCIA DE TESTE", "demerito", Decimal("1.5")),
+        esquema=esquema_pg)
     r = premiacao_config("2026-08")
     assert r.status_code == 200
     corpo = r.body            # `render()` já rodou aqui: é o que estourava
     assert len(corpo) > 100
     d = json.loads(corpo)
     assert "params" in d and "ocorrencias" in d
+    assert [(o["codigo"], o["peso"]) for o in d["ocorrencias"]] == [(901, 1.5)], (
+        "a classe gravada no schema do teste não chegou ao JSON")
 
 
 def test_o_detector_ACHA_um_Decimal_plantado():

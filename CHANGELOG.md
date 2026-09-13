@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.71.3] — 13/09/2026  ·  CX-13/09/2026-v1.71.3
+
+### Corrigido
+- Nada muda nas telas. O último teste automático que só passava na máquina de produção — o da tela de Premiação — passa a criar o que precisa, e o resultado dos testes do GitHub deixa de depender da ordem em que eles rodam.
+
 ## [1.71.2] — 13/09/2026  ·  CX-13/09/2026-v1.71.2
 
 ### Corrigido

@@ -1,3 +1,12 @@
+- versao: "1.71.3"
+  data: "2026-09-13"
+  corrigido:
+    - >-
+      Nada muda nas telas. O último teste automático que só passava na
+      máquina de produção — o da tela de Premiação — passa a criar o que
+      precisa, e o resultado dos testes do GitHub deixa de depender da ordem
+      em que eles rodam.
+
 - versao: "1.71.2"
   data: "2026-09-13"
   corrigido:
