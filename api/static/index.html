@@ -1808,6 +1808,7 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
 .tv-legenda i{width:0.7vw;height:0.7vw;min-width:9px;min-height:9px;border-radius:0.2vw;display:inline-block;
   border:1px solid rgba(255,255,255,.9)}
 .tv-legenda i.al{background:transparent;border:2px solid #F87171}
+.tv-legenda i.dst{width:1.6vw;min-width:20px;height:0;border:0;border-top:2px dashed #F87171;border-radius:0}
 .tv-legenda i.tt{width:1.6vw;min-width:20px;border:0;background:linear-gradient(90deg,#4ADE80,#FBBF24,#F87171)}
 .tv-legenda u{text-decoration:none;width:1.1vw;height:1.1vw;min-width:14px;min-height:14px;border-radius:50%;
   background:#0B1926;border:2px solid #E5EDF4;display:inline-flex;align-items:center;justify-content:center;
@@ -1840,7 +1841,9 @@ body.tvfull .tv-head a{display:none}
 @keyframes tvTick{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 .tv-vmk.mov{animation:tvResp 2.8s infinite}
 @keyframes tvResp{0%,100%{box-shadow:0 0.15vw 0.5vw rgba(0,0,0,.55)}50%{box-shadow:0 0 1vw 0.2vw rgba(255,255,255,.4)}}
-.tvw-gauge{display:flex;align-items:center;justify-content:center;gap:0.9vw;margin-top:0.45vw;border-top:1px solid #1E3A54;padding-top:0.55vw}
+/* os medidores de meta vao para o CHAO do cartao (margin-top:auto): antes
+   ficavam logo abaixo das modalidades e sobrava um vao escuro embaixo */
+.tvw-gauge{display:flex;align-items:center;justify-content:center;gap:2.2vw;margin-top:auto;border-top:1px solid #1E3A54;padding-top:0.55vw}
 .tvw-gauge .glab{font-size:clamp(9px,0.75vw,14px);color:#8FA6BC;text-transform:uppercase;letter-spacing:.06em}
 .tvw-gauge .gtxt .gnum{font-size:clamp(16px,1.7vw,36px);font-weight:800}
 body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
@@ -1863,12 +1866,34 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
 .tvw-km .mod .trk{flex:1;height:clamp(4px,0.95vw,18px);background:#1E3A54;border-radius:0.5vw;overflow:hidden}
 .tvw-km .mod .trk i{display:block;height:100%;transition:width .9s cubic-bezier(.2,.6,.2,1)}
 .tvw-km .mod span{width:clamp(48px,6.2vw,120px);flex-shrink:0;text-align:right;font-variant-numeric:tabular-nums;color:#A9BCCD;font-size:clamp(10px,0.85vw,16px)}
-/* barra do retorno vazio, com marca do limite de 20% */
-.tvw-km .kmvz{position:relative;height:clamp(5px,0.7vw,12px);background:#1E3A54;
+/* CARREGADO x VAZIO NUMA BARRA SO: a composicao do km do mes de um olhar,
+   com a marca do limite de vazio (20%) contada da direita */
+.tvw-km .kmstack{position:relative;display:flex;height:clamp(8px,0.9vw,16px);background:#1E3A54;
   border-radius:999px;overflow:hidden;flex-shrink:0}
-.tvw-km .kmvz i{display:block;height:100%;transition:width .9s cubic-bezier(.2,.6,.2,1)}
-.tvw-km .kmvz u{position:absolute;top:0;bottom:0;width:2px;background:#E5EDF4;opacity:.75}
+.tvw-km .kmstack i{display:block;height:100%;transition:width .9s cubic-bezier(.2,.6,.2,1)}
+.tvw-km .kmstack u{position:absolute;top:0;bottom:0;width:0.16vw;min-width:2px;background:#E5EDF4}
 .tvw-km .kmvz-lab{font-size:clamp(9px,0.72vw,14px);color:#8FA6BC;flex-shrink:0}
+/* CHEGADAS E ATRASOS COMPACTA (pedido de quem opera, 13/09/2026): letra
+   menor e UMA LINHA por carga -- o destino longo quebrava em duas e cada
+   quebra custava uma carga a menos no cartao. O destino corta com
+   reticencias no proprio CSS, na largura que a coluna tiver. */
+#view-tvope .tv-tab{font-size:clamp(10px,0.78vw,15px);table-layout:fixed}
+#view-tvope .tv-tab th{font-size:clamp(8px,0.6vw,12px);padding:0.22vw 0.45vw}
+#view-tvope .tv-tab td{padding:0.26vw 0.45vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#view-tvope .tv-tab th:nth-child(1){width:25%}
+#view-tvope .tv-tab th:nth-child(3){width:20%}
+#view-tvope .tv-tab th:nth-child(4){width:17%}
+#view-tvope .tv-tab .tv-badge{font-size:clamp(8px,0.58vw,11px);padding:0.1vw 0.5vw}
+.tv-label .tv-cont{float:right;color:#8FA6BC;font-weight:600;letter-spacing:0;text-transform:none}
+/* DESTAQUE DO CARTAO: a borda acende na cor da faixa, sem piscar (o que
+   pisca vira ruido numa parede que fica ligada o dia inteiro) */
+.tv-card.destaque-warn{box-shadow:inset 0 0 0 0.16vw #FBBF24;background:linear-gradient(rgba(251,191,36,.08),rgba(251,191,36,.08)),#132A40}
+.tv-card.destaque-ruim{box-shadow:inset 0 0 0 0.16vw #F87171;background:linear-gradient(rgba(248,113,113,.10),rgba(248,113,113,.10)),#132A40}
+/* O MAPA DE FUNDO ESMAECIDO: o OSM desenha borda de parque e de area de
+   protecao em tracejado verde e divisa em tracejado roxo, que na parede
+   brigavam com os caminhoes e com o tracejado das atrasadas. So a camada de
+   fundo perde cor; marcadores, grupos e o transito da TomTom ficam intactos. */
+.tv-base{filter:grayscale(.85) contrast(.9) brightness(1.05)}
 #view-tvope .tv-head{margin-bottom:0.7vw}
 #view-tvope .tv-head h2{font-size:clamp(16px,1.5vw,30px)}
 #view-tvope .tv-head .tv-clock{font-size:clamp(16px,1.5vw,30px)}
@@ -4581,11 +4606,11 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="tv-card tvw-mapa"><div id="tvMapa"></div><div class="tv-regiao" id="tv-regiao">Visão geral da frota</div><div class="tv-legenda" id="tvope-legenda"></div></div>
           <div class="tvw-kpis" id="tvope-k2"></div>
           <div class="tv-card">
-            <div class="tv-label">KM do mês · vazio × carregado · modalidades</div>
+            <div class="tv-label">KM do mês e metas</div>
             <div class="tvw-km" id="tvope-km"></div>
           </div>
           <div class="tv-card">
-            <div class="tv-label">Chegadas e atrasos</div>
+            <div class="tv-label">Chegadas e atrasos <span class="tv-cont" id="tvope-cheg-n"></span></div>
             <table class="tv-tab"><thead><tr><th>Frota</th><th>Destino</th><th class="num">Chegada</th><th></th></tr></thead>
             <tbody id="tvope-cheg"></tbody></table>
           </div>
@@ -15219,14 +15244,45 @@ const TV_BARRA_COR={ok:'#4ADE80', warn:'#FBBF24', ruim:'#F87171'};
 function tvBarra(b){
   if(!b || b.pct==null || !isFinite(b.pct)) return '';
   const w=Math.max(0, Math.min(100, b.pct));
-  return `<div class="tv-barra"><i style="width:${w.toFixed(1)}%;background:${TV_BARRA_COR[b.cls]||'#A9BCCD'}"></i></div>`;
+  /* `zonas`: as faixas da meta desenhadas APAGADAS no trilho, para quem olha
+     ver onde o numero esta em relacao a elas -- nao so a cor final */
+  const fundo=b.zonas ? ' style="background:linear-gradient(90deg,'
+    + b.zonas.map(z=>z.cor+'4D '+z.de.toFixed(1)+'% '+z.ate.toFixed(1)+'%').join(',') + ')"' : '';
+  return `<div class="tv-barra"${fundo}><i style="width:${w.toFixed(1)}%;background:${TV_BARRA_COR[b.cls]||'#A9BCCD'}"></i></div>`;
+}
+/* AS REGUAS DE CONDUCAO (decisao de quem opera, 13/09/2026):
+     motor ligado parado e pedal critico: ate 5% verde, acima de 5 amarelo,
+       acima de 10 vermelho (menos e melhor);
+     faixa extra-economica: abaixo de 90% vermelho, de 90 a 95 amarelo,
+       acima de 95 verde (mais e melhor).
+   A barra usa uma ESCALA que da espaco as faixas -- 0 a 20% nas duas
+   primeiras, 70 a 100% na terceira. Em 0 a 100% a faixa de 90 a 95 teria
+   meia letra de largura e o verde da de motor parado nem apareceria. Valor
+   fora da escala encosta na ponta. Na medicao do dia: 14,3% / 14,5%
+   (vermelho) e 93,9% (amarelo). */
+const TV_REGUAS={
+  motor_parado:{menor:true, amarelo:5, vermelho:10, escala:[0,20]},
+  pedal_critico:{menor:true, amarelo:5, vermelho:10, escala:[0,20]},
+  faixa_extra_eco:{menor:false, vermelho:90, amarelo:95, escala:[70,100]},
+};
+function tvRegua(v, r){
+  if(v==null || !isFinite(v)) return {cls:'', barra:null};
+  const [lo,hi]=r.escala, pos=x=>Math.max(0,Math.min(100,100*(x-lo)/(hi-lo)));
+  const V='#4ADE80', A='#FBBF24', R='#F87171';
+  const cls = r.menor ? (v>r.vermelho?'ruim':(v>r.amarelo?'warn':'ok'))
+                      : (v<r.vermelho?'ruim':(v<=r.amarelo?'warn':'ok'));
+  const zonas = r.menor
+    ? [{cor:V,de:0,ate:pos(r.amarelo)},{cor:A,de:pos(r.amarelo),ate:pos(r.vermelho)},{cor:R,de:pos(r.vermelho),ate:100}]
+    : [{cor:R,de:0,ate:pos(r.vermelho)},{cor:A,de:pos(r.vermelho),ate:pos(r.amarelo)},{cor:V,de:pos(r.amarelo),ate:100}];
+  return {cls, barra:{pct:pos(v), cls, zonas}};
 }
 /* CARTAO DE DOIS NUMEROS: um rotulo que cobre dois universos que nao se somam
    (frota x agregado). Cada numero e o seu proprio `.tv-num` porque
    tvAnimarNums reescreve o textContent do elemento: dois numeros no mesmo
-   elemento deixariam o segundo como texto morto. */
-function tvCardDuo(label,partes){
-  return `<div class="tv-card"><div class="tv-label">${label}</div><div class="tv-duo">${
+   elemento deixariam o segundo como texto morto. `destaque` acende a borda
+   do cartao inteiro ('warn' ou 'ruim'). */
+function tvCardDuo(label,partes,destaque){
+  return `<div class="tv-card${destaque?' destaque-'+destaque:''}"><div class="tv-label">${label}</div><div class="tv-duo">${
     partes.map(p=>`<div><div class="tv-num ${p.cls||''}">${p.num}</div>${tvBarra(p.barra)}<div class="tv-sub">${p.sub||''}</div></div>`).join('')
   }</div></div>`;
 }
@@ -16494,7 +16550,8 @@ async function tvMapa(t){
   if(!el) return;
   if(!tvMap){
     tvMap=L.map('tvMapa',{scrollWheelZoom:false,zoomControl:false,attributionControl:false}).setView([-24.8,-49.2],6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(tvMap);
+    // className: e so a camada de FUNDO que o CSS esmaece (.tv-base)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18, className:'tv-base'}).addTo(tvMap);
     if(TV_ESTRADAS===null){
       try{
         const r=await fetch('/api/tv/estradas',{cache:'no-store'});
@@ -16526,10 +16583,18 @@ async function tvMapa(t){
     tvPontos.push({lat:p.lat, lng:p.lng, cor:tvCorMod(p.utilizacao), alerta,
       mov:!alerta && p.velocidade>0, viagem:!!v, atrasada:!!(v&&v.atrasada),
       rot:p.frota||p.placa||'?', tracao:p.tracao||null});
+    /* O TRACEJADO DA ATRASADA: do caminhao ate o destino, em linha reta (e
+       direcao, nao rota). Sozinho ele terminava no nada; agora termina num
+       PONTO no destino, e a legenda diz o que e. O destino e geocodificado
+       pelo nome: conferido em 13/09/2026, os 18 destinos em transito cairam
+       no estado certo. */
     if(v && v.atrasada && v.destino){
       tvGeo(v.destino).then(geo=>{
-        if(geo && tvLinhas) L.polyline([[p.lat,p.lng],geo],
-          {color:'#F87171',weight:2,dashArray:'8 10',opacity:.75}).addTo(tvLinhas);
+        if(!geo || !tvLinhas) return;
+        L.polyline([[p.lat,p.lng],geo],
+          {color:'#F87171',weight:2.5,dashArray:'6 8',opacity:.9}).addTo(tvLinhas);
+        L.circleMarker(geo,{radius:5,color:'#F87171',weight:2.5,
+          fillColor:'#FFFFFF',fillOpacity:1}).addTo(tvLinhas);
       });
     }
   });
@@ -16608,6 +16673,7 @@ function tvLegenda(){
     +`<span><i style="background:${tvCorMod('TERCEIROS')}"></i>Terceiro</span>`
     +(semCad?`<span><i style="background:${tvCorMod(null)}"></i>Sem cadastro</span>`:'')
     +`<span><i class="al"></i>Atrasada ou acima de 90 km/h</span>`
+    +(tvPontos.some(p=>p.atrasada)?'<span><i class="dst"></i>Atrasada até o destino</span>':'')
     +`<span><u>5</u>Grupo de até 5 próximos</span>`
     +(tvTrafego?'<span><i class="tt"></i>Trânsito: verde livre, vermelho parado</span>':'')
     +(tr?`<span class="tr">Tração no mapa: ${tr}</span>`:'');
@@ -17010,6 +17076,15 @@ async function loadTvOpe(){
        proprio. A RasterJOR nao entra aqui: ela nao enxerga agregado nenhum e
        so os proprios logados no aparelho (4 a 14 num dia util). */
     const pctLivre=pk.pct_proprios_disp;
+    /* MUITOS OCIOSOS ACENDEM O CARTAO (pedido de quem opera, 13/09/2026).
+       O corte saiu da distribuicao REAL de 28 dias: em dia util das 8 as 17h
+       a mediana e 88% de proprios sem viagem aberta (p75 91%, p90 93%) -- a
+       viagem propria e curta, e so uns 8 dos 68 rodam a cada instante; no fim
+       de semana a mediana e 93%. Amarelo a partir de 90%, vermelho a partir
+       de 93%: acende numa hora util em cada quatro, e vermelho numa em dez. */
+    const TV_OCIOSO={amarelo:90, vermelho:93};
+    const clsOcio = pctLivre==null ? ''
+      : (pctLivre>=TV_OCIOSO.vermelho ? 'ruim' : (pctLivre>=TV_OCIOSO.amarelo ? 'warn' : ''));
     const aTot=pk.agr_ativos_30d||0, fCls=(fTot && fDisp/fTot<0.15)?'warn':'ok';
     const nTr=(t.transito||[]).length;
     document.getElementById('tvope-k1').innerHTML=[
@@ -17024,8 +17099,8 @@ async function loadTvOpe(){
       tvCard('Chegando 72h', pk.chegando_72h, pk.sem_retorno>0?'warn':'ok', pk.sem_retorno+' sem retorno'),
       tvCardDuo('Motoristas', [
           {num:pk.mot_viagem, sub:'em viagem'},
-          {num:pctLivre==null?'—':Math.round(pctLivre)+'%', sub:'próprios livres',
-           barra:{pct:pctLivre}}]),
+          {num:pctLivre==null?'—':Math.round(pctLivre)+'%', cls:clsOcio, sub:'próprios ociosos',
+           barra:{pct:pctLivre, cls:clsOcio}}], clsOcio),
       tvCard('Sem sinal há +6h', mudos, mudos>0?'warn':'ok', 'de '+nTr+' em viagem', '',
         {pct:nTr?100*mudos/nTr:null, cls:mudos>0?'warn':'ok'}),
     ].join('');
@@ -17079,19 +17154,21 @@ async function loadTvOpe(){
          ("41 veic." com 47 rodando). */
       const velha = d => (d!=null && d>0) ? ' · coleta de '+d+'d atrás' : '';
       const pctTel = v => v==null ? 'n/d' : v.toFixed(1).replace('.',',')+'%';
+      const rMot=tvRegua(tel.motor_parado_pct, TV_REGUAS.motor_parado),
+            rEco=tvRegua(tel.faixa_extra_eco_pct, TV_REGUAS.faixa_extra_eco),
+            rPed=tvRegua(tel.pedal_critico_pct, TV_REGUAS.pedal_critico);
       document.getElementById('tvope-k2').innerHTML=[
         tvCard('Consumo da frota', kml!=null?kml.toFixed(1).replace('.',','):'n/d',
                kml==null?'warn':(kml>=alvo?'ok':'ruim'),
                kml==null ? 'leitura fora da faixa física'+velha(tel.dias_atras)
                  : ('km/l · alvo '+alvo.toFixed(1).replace('.',',')+' · '
                     +(tel.com_consumo_valido||0)+' veíc.'+velha(tel.dias_atras))),
-        tvCard('Motor ligado parado', pctTel(tel.motor_parado_pct), '',
-               'do tempo de motor'+velha(tel.conducao_dias_atras), '',
-               {pct:tel.motor_parado_pct}),
-        tvCard('Faixa extra econômica', pctTel(tel.faixa_extra_eco_pct), '',
-               'do tempo andando', '', {pct:tel.faixa_extra_eco_pct}),
-        tvCard('Pedal crítico', pctTel(tel.pedal_critico_pct), '',
-               'do tempo de pedal', '', {pct:tel.pedal_critico_pct}),
+        tvCard('Motor ligado parado', pctTel(tel.motor_parado_pct), rMot.cls,
+               'do tempo de motor · meta ≤5%'+velha(tel.conducao_dias_atras), '', rMot.barra),
+        tvCard('Faixa extra econômica', pctTel(tel.faixa_extra_eco_pct), rEco.cls,
+               'do tempo andando · meta >95%', '', rEco.barra),
+        tvCard('Pedal crítico', pctTel(tel.pedal_critico_pct), rPed.cls,
+               'do tempo de pedal · meta ≤5%', '', rPed.barra),
         /* A razão sai da INTERSEÇÃO (freadas e km do mesmo conjunto) --
            api/gobrax/torre.py. */
         tvCard('Freada brusca', fr!=null?fr.toFixed(1).replace('.',','):'—',
@@ -17119,17 +17196,20 @@ async function loadTvOpe(){
         (CONHECIDAS.includes(b.utilizacao)-CONHECIDAS.includes(a.utilizacao))
         || (b.km_total-a.km_total)).slice(0,3);
       const maxT=Math.max(1,...mods.map(m=>m.km_total||0));
+      const corV=pctV>20?'#F87171':'#FBBF24';
+      const mil=v=>((v||0)/1000).toLocaleString('pt-BR',{maximumFractionDigits:0})+' mil';
+      /* CARREGADO x VAZIO numa barra so, com a marca do limite (80% do
+         comprimento = 20% de vazio contado da direita): passar da marca e o
+         vazio estourando. Os dois numeros ficam em cima, cada um na cor da
+         sua parte da barra. */
       document.getElementById('tvope-km').innerHTML=`
         <div class="duo">
-          <div><div class="klab">Km carregado</div><div class="knum" style="color:#4ADE80">${(kk.km_carregado/1000).toLocaleString('pt-BR',{maximumFractionDigits:0})} mil</div></div>
-          <div><div class="klab">Km vazio · ${pctV.toFixed(0)}%</div><div class="knum" style="color:${pctV>20?'#F87171':'#FBBF24'}">${(kk.km_vazio/1000).toLocaleString('pt-BR',{maximumFractionDigits:0})} mil</div></div>
+          <div><div class="klab">Carregado</div><div class="knum" style="color:#4ADE80">${mil(kk.km_carregado)}</div></div>
+          <div><div class="klab">Vazio · ${pctV.toFixed(0)}%</div><div class="knum" style="color:${corV}">${mil(kk.km_vazio)}</div></div>
+          <div><div class="klab">Total</div><div class="knum">${mil(kk.km_total)}</div></div>
         </div>
-        <!-- o % de vazio virou BARRA: como terceiro numero grande ele competia
-             com os dois que importam e estourava a altura da celula. Aqui ele
-             e comparado com o limite de 20% de um olhar so. -->
-        <div class="kmvz"><i style="width:${Math.min(100,pctV).toFixed(1)}%;background:${pctV>20?'#F87171':'#FBBF24'}"></i>
-          <u style="left:20%"></u></div>
-        <div class="kmvz-lab">retorno vazio ${pctV.toFixed(0)}% · limite 20%</div>
+        <div class="kmstack"><i style="width:${(100-Math.min(100,pctV)).toFixed(1)}%;background:#4ADE80"></i><i style="width:${Math.min(100,pctV).toFixed(1)}%;background:${corV}"></i><u style="left:80%"></u></div>
+        <div class="kmvz-lab">marca = limite de 20% de vazio</div>
         ${mods.map(m=>{
           const cor=tvCorMod(m.utilizacao);
           return `<div class="mod"><b>${esc(utLbl(m.utilizacao)[0])}</b>
@@ -17153,7 +17233,9 @@ async function loadTvOpe(){
     const atrasadas=(t.transito||[]).filter(v=>v.atrasada && !v.critica).sort(porPrev);
     const futuras=(t.transito||[]).filter(v=>v.previsao_chegada && !v.atrasada && !v.critica)
       .sort(porPrev);
-    const linhas=[...criticas, ...atrasadas, ...futuras].slice(0,10);
+    // 20 e teto de montagem, nao de tela: o laco la embaixo tira pelo FIM o que
+    // nao couber no cartao, e o contador do rotulo diz quantas ficaram
+    const linhas=[...criticas, ...atrasadas, ...futuras].slice(0,20);
     /* CONDIÇÃO DA ESTRADA POR VEÍCULO (servidor, TomTom Traffic Flow).
        É outra coisa do que o `tvEstradas()` do ticker, que traz incidente numa
        REGIÃO: aqui é o trecho onde CADA caminhão está agora.
@@ -17179,7 +17261,7 @@ async function loadTvOpe(){
     }catch(e){ /* silêncio: painel de TV não tem quem leia mensagem de erro */ }
     document.getElementById('tvope-cheg').innerHTML=linhas.map(v=>`<tr${v.critica?' class="crit"':''}>
       <td style="font-family:var(--mono);font-weight:700;${v.atrasada?'color:#F87171':''}">${esc(idV(v))}${v.critica?' <span class="tv-badge crit">CRÍTICA</span>':''}</td>
-      <td>${esc((v.destino||'—').length>22?v.destino.slice(0,22)+'…':(v.destino||'—'))}</td>
+      <td>${esc(v.destino||'—')}</td>
       <td class="num" ${v.atrasada?'style="color:#F87171"':''}>${v.previsao_chegada?v.previsao_chegada.slice(8,10)+'/'+v.previsao_chegada.slice(5,7)+' '+v.previsao_chegada.slice(11,16):'—'}</td>
       <td>${tvBadgeChegada(v, est[(v.placa||'').toUpperCase()])}</td></tr>`).join('')
       || '<tr><td colspan="4" style="color:#8FA6BC">sem viagens em trânsito</td></tr>';
@@ -17188,6 +17270,11 @@ async function loadTvOpe(){
     let guarda=30;
     while(guarda-- && tb.rows.length>1 && cardCheg.scrollHeight>cardCheg.clientHeight+2)
       tb.deleteRow(-1);
+    /* TOP-N LEVA CONTADOR: "12 de 67" -- sem ele a lista cortada passa por
+       todas as viagens em transito */
+    const contCheg=document.getElementById('tvope-cheg-n');
+    if(contCheg) contCheg.textContent = linhas.length
+      ? Math.min(tb.rows.length, linhas.length)+' de '+(t.transito||[]).length : '';
     Array.from(tb.rows).forEach((tr,i)=>{
       const v=linhas[i]; if(!v||!v.destino) return;
       tvClima(v.destino).then(emoji=>{
@@ -17225,7 +17312,7 @@ async function loadTvOpe(){
         const len=pct==null ? 0 : Math.min(100,pct)*1.319;
         return `<div class="tvw-meta" style="text-align:center">
             <div class="glab" style="margin-bottom:0.3vw">${rot} · ${data}</div>
-            <svg viewBox="0 0 100 55" style="width:8.5vw">
+            <svg viewBox="0 0 100 55" style="width:10.5vw">
               <path d="M8 50 A42 42 0 0 1 92 50" fill="none" stroke="#1E3A54" stroke-width="9" stroke-linecap="round"/>
               ${len>0?`<path d="M8 50 A42 42 0 0 1 92 50" fill="none" stroke="${cor}" stroke-width="9" stroke-linecap="round" stroke-dasharray="${len.toFixed(1)} 300"/>`:''}
               <text x="50" y="48" text-anchor="middle" font-size="${pct==null?13:19}" font-weight="800" fill="${cor}">${pct==null?'sem meta':Math.min(150,pct).toFixed(0)+'%'}</text>

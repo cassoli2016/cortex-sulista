@@ -1,3 +1,35 @@
+- versao: "1.73.0"
+  data: "2026-09-13"
+  novo:
+    - >-
+      Painel de TV da Operação — motor ligado parado, faixa extra econômica e
+      pedal crítico ganharam meta e cor: motor parado e pedal crítico ficam
+      verdes até 5%, amarelos acima de 5% e vermelhos acima de 10%; a faixa
+      extra econômica fica vermelha abaixo de 90%, amarela de 90% a 95% e
+      verde acima de 95%. A barra de cada um mostra as três faixas, para se
+      ver de longe onde o número está.
+    - >-
+      Painel de TV da Operação — o cartão de motoristas acende (borda amarela
+      a partir de 90% de motoristas próprios ociosos, vermelha a partir de
+      93%). Os cortes saíram do histórico de 28 dias: num dia útil normal,
+      88% dos próprios estão sem viagem aberta a cada instante.
+  alterado:
+    - >-
+      Painel de TV da Operação — o cartão de km e metas foi reorganizado:
+      carregado, vazio e total em cima, a composição numa barra só com a
+      marca do limite de 20% de vazio, e os medidores de meta maiores,
+      apoiados no fim do cartão.
+    - >-
+      Painel de TV da Operação — "Chegadas e atrasos" usa letra menor e uma
+      linha por carga (o destino longo é cortado com reticências), então
+      cabem mais cargas; o título diz quantas aparecem de quantas estão em
+      trânsito.
+    - >-
+      Painel de TV da Operação — o mapa de fundo ficou esmaecido, para as
+      bordas tracejadas de parques e divisas não brigarem com os caminhões; e
+      o tracejado vermelho da viagem atrasada termina num ponto no destino e
+      aparece na legenda.
+
 - versao: "1.72.0"
   data: "2026-09-13"
   novo:

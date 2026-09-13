@@ -22,6 +22,8 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta
 
+import pytest
+
 from tests.frontend.conftest import USUARIO
 
 ADMIN = {**USUARIO, "admin": True, "perfil": "Administrador"}
@@ -67,6 +69,9 @@ POSICOES = MESMO_PONTO + [
     _pos(2, "LOCACAO", "6x2", -26.30, -48.85),
     _pos(3, "TERCEIROS", "truck", -22.90, -47.06),
     _pos(4, "AGREGADOS", "3/4", -29.70, -51.10, vel=95),   # alerta: >90 km/h
+    # a atrasada B020 no mapa, longe de qualquer polo: é dela que sai o
+    # tracejado até o destino (geocodificado de antemão no localStorage)
+    {**_pos(5, "AGREGADOS", "4x2", -21.00, -44.00), "placa": "BBB2B20"},
 ]
 
 TELEMETRIA = {"disponivel": True, "escopo": "frota", "veiculos": 47,
@@ -105,7 +110,7 @@ def _visao(com_hoje: bool) -> dict:
             "atualizado_em": AGORA.isoformat(), "kpis": {}}
 
 
-def _abre(pg, base, *, com_hoje=False):
+def _abre(pg, base, *, com_hoje=False, prog=None):
     pedidos = []
 
     def rota(r):
@@ -121,7 +126,7 @@ def _abre(pg, base, *, com_hoje=False):
                      "posicoes": POSICOES, "transito": TRANSITO,
                      "telemetria": TELEMETRIA}
         elif "/api/operacao/programacao" in url:
-            corpo = {"kpis": PROG_KPIS}
+            corpo = {"kpis": prog or PROG_KPIS}
         elif "/api/operacao/seguranca" in url:
             corpo = {"kpis": {"cercas_24h": 0}}
         elif "/api/operacao/analise-km" in url:
@@ -136,6 +141,10 @@ def _abre(pg, base, *, com_hoje=False):
     pg.route("**/tile.openstreetmap.org/**", lambda r: r.abort())
     pg.route("**/geocoding-api.open-meteo.com/**", lambda r: r.abort())
     pg.route("**/api.open-meteo.com/**", lambda r: r.abort())
+    # o geocoder externo está bloqueado no teste: o destino da atrasada vem
+    # do cache que o próprio tvGeo lê
+    pg.add_init_script("try{localStorage.setItem('geo.DESTINO 20/SP',"
+                       "JSON.stringify([-23.55,-46.63]))}catch(e){}")
     # reduced-motion: tvAnimarNums deixa o número FINAL na tela, sem contagem
     pg.emulate_media(reduced_motion="reduce")
     pg.set_viewport_size({"width": 1920, "height": 1080})
@@ -283,6 +292,79 @@ def test_motoristas_traz_o_percentual_de_proprios_livres(pagina):
     assert _barras(pg, "tvope-k1", "Motoristas") == [94]
 
 
+@pytest.mark.parametrize("pct, destaque", [
+    (94.1, "destaque-ruim"),     # o dia do pedido: acima do p90 de dia útil
+    (91.0, "destaque-warn"),     # entre 90 e 93
+    (85.0, None),                # dentro do normal de dia útil (mediana 88)
+])
+def test_muitos_ociosos_acendem_o_cartao(pagina, pct, destaque):
+    """Os cortes (90 amarelo, 93 vermelho) saíram da distribuição de 28 dias:
+    o cartão inteiro ganha a borda, e o número a cor — e no normal, nada."""
+    pg, base = pagina
+    _abre(pg, base, prog={**PROG_KPIS, "pct_proprios_disp": pct})
+    classe = pg.evaluate("""() => [...document.querySelectorAll('#tvope-k1 .tv-card')]
+        .find(c => c.querySelector('.tv-label').innerText.trim().toUpperCase()
+                   === 'MOTORISTAS').className""")
+    if destaque:
+        assert destaque in classe, classe
+    else:
+        assert "destaque" not in classe, classe
+
+
+def test_as_reguas_de_conducao_pintam_numero_e_barra(pagina):
+    pg, base = pagina
+    _abre(pg, base)
+    cls = pg.evaluate("""() => Object.fromEntries([...document.querySelectorAll('#tvope-k2 .tv-card')]
+        .map(c => [c.querySelector('.tv-label').innerText.trim().toUpperCase(),
+                   c.querySelector('.tv-num').className]))""")
+    assert "ruim" in cls["MOTOR LIGADO PARADO"]      # 14,3% > 10
+    assert "ruim" in cls["PEDAL CRÍTICO"]            # 14,5% > 10
+    assert "warn" in cls["FAIXA EXTRA ECONÔMICA"]    # 93,9% entre 90 e 95
+    # as fronteiras, pela própria função da tela
+    casos = pg.evaluate("""() => [
+        [4.9, 5, 5.1, 10, 10.1].map(v => tvRegua(v, TV_REGUAS.pedal_critico).cls),
+        [89.9, 90, 95, 95.1].map(v => tvRegua(v, TV_REGUAS.faixa_extra_eco).cls),
+        tvRegua(null, TV_REGUAS.motor_parado).cls]""")
+    assert casos[0] == ["ok", "ok", "warn", "warn", "ruim"], casos[0]
+    assert casos[1] == ["ruim", "warn", "warn", "ok"], casos[1]
+    assert casos[2] == "", "sem leitura não pode ganhar cor"
+    # a barra desenha as faixas no trilho
+    trilho = pg.evaluate("""() => [...document.querySelectorAll('#tvope-k2 .tv-card')]
+        .find(c => c.innerText.toUpperCase().includes('PEDAL CRÍTICO'))
+        .querySelector('.tv-barra').getAttribute('style') || ''""")
+    assert "linear-gradient" in trilho, trilho
+
+
+def test_carregado_e_vazio_numa_barra_so(pagina):
+    pg, base = pagina
+    _abre(pg, base)
+    larg = pg.evaluate("""() => [...document.querySelectorAll('#tvope-km .kmstack i')]
+                               .map(i => Math.round(parseFloat(i.style.width)))""")
+    # 91 mil de 454 mil = 20% de vazio
+    assert larg == [80, 20], larg
+
+
+def test_chegadas_uma_linha_por_carga_e_com_contador(pagina):
+    pg, base = pagina
+    _abre(pg, base)
+    alturas = pg.evaluate("""() => [...document.querySelectorAll('#tvope-cheg tr')]
+                                  .map(tr => tr.getBoundingClientRect().height)""")
+    assert max(alturas) < 1.3 * min(alturas), "alguma linha quebrou: %r" % alturas
+    cont = pg.evaluate("() => document.getElementById('tvope-cheg-n').innerText")
+    assert cont.endswith("de %d" % len(TRANSITO)), cont
+    assert int(cont.split()[0]) == len(alturas)
+
+
+def test_a_atrasada_tem_tracejado_ate_um_ponto_no_destino(pagina):
+    pg, base = pagina
+    _abre(pg, base)
+    tipos = pg.evaluate("""() => tvLinhas.getLayers().map(l =>
+        l instanceof L.CircleMarker ? 'ponto' : (l instanceof L.Polyline ? 'linha' : '?'))""")
+    assert sorted(tipos) == ["linha", "ponto"], tipos
+    # e o mapa de fundo é a camada esmaecida
+    assert pg.evaluate("() => !!document.querySelector('#tvMapa .tv-base')")
+
+
 def test_sem_sinal_traz_o_denominador(pagina):
     pg, base = pagina
     _abre(pg, base)
@@ -301,7 +383,8 @@ def test_telemetria_troca_os_cartoes_confusos_pelos_de_conducao(pagina):
     for velho in ("ABAIXO DO ALVO", "LEITURA DESCARTADA", "CARGA SEM VEÍCULO"):
         assert velho not in rotulos, rotulos
     assert _cartao(pg, "tvope-k2", "Motor ligado parado")["nums"] == ["14,3%"]
-    assert _barras(pg, "tvope-k2", "Motor ligado parado") == [14]
+    # a barra vai na escala de 0 a 20% (a régua é 5/10): 14,3% = 72% do trilho
+    assert _barras(pg, "tvope-k2", "Motor ligado parado") == [72]
     consumo = _cartao(pg, "tvope-k2", "Consumo da frota")["texto"]
     assert "41 veíc." in consumo
     # coleta de hoje não se anuncia; só a velha é dita
@@ -332,8 +415,6 @@ def test_nenhum_cartao_estoura_a_propria_celula(pagina):
 
 
 # ------------------------------------------------------------ a marca
-
-import pytest  # noqa: E402
 
 
 @pytest.mark.parametrize("tela", ["tvope", "tvfat", "tvdir", "tvcom", "tvcli", "tvjor"])
@@ -384,7 +465,8 @@ def test_a_legenda_explica_cor_e_tracao(pagina):
     leg = pg.evaluate("() => document.getElementById('tvope-legenda').innerText")
     for termo in ("Frota e locação", "Agregado", "Terceiro", "90 km/h", "até 5"):
         assert termo in leg, (termo, leg)
-    assert "4x2 1" in leg and "6x2 7" in leg and "truck 1" in leg, leg
+    assert "4x2 2" in leg and "6x2 7" in leg and "truck 1" in leg, leg
+    assert "Atrasada até o destino" in leg, leg
     # locação pinta igual à frota
     cores = pg.evaluate("""() => [...document.querySelectorAll('#tvope-legenda i')]
                                   .map(i => i.style.background)""")

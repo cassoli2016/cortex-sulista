@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.73.0] — 13/09/2026  ·  CX-13/09/2026-v1.73.0
+
+### Alterado
+- Painel de TV da Operação — o cartão de km e metas foi reorganizado: carregado, vazio e total em cima, a composição numa barra só com a marca do limite de 20% de vazio, e os medidores de meta maiores, apoiados no fim do cartão.
+- Painel de TV da Operação — "Chegadas e atrasos" usa letra menor e uma linha por carga (o destino longo é cortado com reticências), então cabem mais cargas; o título diz quantas aparecem de quantas estão em trânsito.
+- Painel de TV da Operação — o mapa de fundo ficou esmaecido, para as bordas tracejadas de parques e divisas não brigarem com os caminhões; e o tracejado vermelho da viagem atrasada termina num ponto no destino e aparece na legenda.
+
 ## [1.72.0] — 13/09/2026  ·  CX-13/09/2026-v1.72.0
 
 ### Alterado
