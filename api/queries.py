@@ -3738,14 +3738,48 @@ SELECT um.veiculo AS placa, coalesce(u.descricao,'(sem)') AS utilizacao,
        -- cavalos junto -- 71 deles so porque a PLACA foi copiada no campo
        -- de frota e comeca com essas letras.
        (v.possuimotor = 1) AS com_motor,
-       (vp.dt >= current_timestamp - interval '24 hours') AS recente
+       (vp.dt >= current_timestamp - interval '24 hours') AS recente,
+       -- o tipo do cadastro ("CAVALO TRUCADO 6X2 PJ"); a classe de tracao
+       -- que a TV mostra (6x2, 4x2, 3/4...) sai dele em _tracao(), em Python
+       tv.descricao AS tipo_veiculo
 FROM rastreamento.veiculo_ultimaposicaomacro um
 JOIN veiculo_posicao vp ON vp.veiculo = um.veiculo
   AND vp.sequenciaposicaoveiculo = um.sequenciaposicaoveiculo
 LEFT JOIN veiculo v ON v.placa = um.veiculo
 LEFT JOIN utilizacaoveiculo u ON u.codigo = v.utilizacaoveiculo
+LEFT JOIN tipoveiculo tv ON tv.codigo = v.tipoveiculo
 WHERE vp.latituderastreadora IS NOT NULL AND vp.longituderastreadora IS NOT NULL
 """
+
+# As placas da FROTA DA CASA (propria + locacao), para a telemetria da torre
+# medir so a frota -- e nao os poucos agregados que a Gobrax tambem enxerga.
+TORRE_FROTA_SQL = """
+SELECT placa FROM veiculo
+WHERE utilizacaoveiculo IN ('TRA','LOC') AND placa IS NOT NULL
+"""
+
+# CLASSE DE TRACAO a partir do tipo do cadastro. A ORDEM importa: "3/4" antes
+# de "4X2" (o 3/4 sider e 4x2 na caracteristica), e "TRUCK" nao casa com
+# "TRUCADO" -- o cavalo trucado e 6x2, nao caminhao truck. Medido em
+# 13/09/2026 nos ativos com motor de frota, locacao e agregado: so CAVALO
+# 4X2, CAVALO TRUCADO 6X2 e 3/4. Toco e truck ficam para o terceiro e para o
+# cadastro que vier; tipo que nao casa com nenhum volta None e a TV nao
+# inventa rotulo.
+_TRACAO = (("3/4", "3/4"), ("6X4", "6x4"), ("8X2", "8x2"), ("6X2", "6x2"),
+           ("4X2", "4x2"), ("TOCO", "toco"), ("TRUCK", "truck"))
+
+
+def _tracao(tipo: str | None) -> str | None:
+    t = (tipo or "").upper()
+    for marca, classe in _TRACAO:
+        if marca in t:
+            return classe
+    return None
+
+#: Ocorrência do ERP lançada no PEDIDO DE COLETA para marcar a carga como
+#: crítica — "CARGA CRITICA" no cadastro `ocorrencia`. É ela que põe a viagem
+#: no topo das chegadas da TV de operação, com a linha destacada.
+OCORRENCIA_CARGA_CRITICA = 261
 
 TORRE_TRANSITO_SQL = """
 SELECT p.numero, p.filial, p.veiculo AS placa, coalesce(u.descricao,'(sem)') AS utilizacao,
@@ -3758,7 +3792,23 @@ SELECT p.numero, p.filial, p.veiculo AS placa, coalesce(u.descricao,'(sem)') AS 
        (co.dtprevisaochegadaviagem IS NOT NULL AND co.dtprevisaochegadaviagem < current_timestamp) AS atrasada,
        (p.tipo = 3) AS vazio,
        coalesce(p.kmfretecompra,0)::float8 AS km,
-       coalesce(p.valorfrete,0)::float8 AS valorfrete
+       coalesce(p.valorfrete,0)::float8 AS valorfrete,
+       -- CRU, como em TORRE_POS_SQL: quem monta a identidade e
+       -- frota_identidade.rotulo(), em Python.
+       nullif(trim(v.numerofrota),'') AS numerofrota,
+       -- CARGA CRITICA: a ocorrencia lancada no pedido de coleta da viagem.
+       -- EXISTS e nao JOIN: a pergunta e sim ou nao, e a mesma coleta pode ter
+       -- a ocorrencia lancada mais de uma vez. A chave e a da coleta INTEIRA,
+       -- com a serie. Medido em 13/09/2026: 1.008 lancamentos desde 06/2023,
+       -- nenhum com dtcancelar; dos 15 dos ultimos 90 dias, 14 casam com uma
+       -- programacao por esta chave (o outro ainda nao tinha sido programado).
+       EXISTS (SELECT 1 FROM coleta_ocorrencia oc
+                WHERE oc.grupo = co.grupo AND oc.empresa = co.empresa
+                  AND oc.filial = co.filial AND oc.unidade = co.unidade
+                  AND oc.diferenciadornumero = co.diferenciadornumero
+                  AND oc.serie = co.serie AND oc.numero = co.numero
+                  AND oc.ocorrencia = %(ocorrencia_critica)s
+                  AND oc.dtcancelar IS NULL) AS critica
 FROM programacaoembarque p
 LEFT JOIN veiculo v ON v.placa = p.veiculo
 LEFT JOIN utilizacaoveiculo u ON u.codigo = v.utilizacaoveiculo
@@ -3783,10 +3833,23 @@ def get_torre(filial: int | None = None) -> dict:
     with db.get_conn() as conn, conn.cursor() as cur:
         cur.execute(TORRE_POS_SQL)
         posicoes = cur.fetchall()
-        cur.execute(TORRE_TRANSITO_SQL, {"filial": filial})
+        cur.execute(TORRE_TRANSITO_SQL, {
+            "filial": filial, "ocorrencia_critica": OCORRENCIA_CARGA_CRITICA})
         transito = cur.fetchall()
+        cur.execute(TORRE_FROTA_SQL)
+        frota_placas = cur.fetchall()
         cur.execute("SELECT current_timestamp AS ts")
         meta = cur.fetchone()
+
+    def _identidade(d: dict) -> None:
+        # IDENTIDADE PELO MODULO DA CASA. `frota` so existe quando e numero de
+        # frota DE VERDADE: vazio ou igual a placa nao e numero, e publicar a
+        # placa nesse campo e o que fazia metade da frota PARECER numerada.
+        # `rotulo` traz a identidade completa para quem precisa das duas.
+        num = (d.pop("numerofrota", None) or "").strip()
+        placa = (d.get("placa") or "").strip()
+        d["frota"] = num if num and num.upper() != placa.upper() else None
+        d["rotulo"] = frota_identidade.rotulo(num, placa)
 
     pos_por_placa = {p["placa"]: p for p in posicoes}
     em_viagem = set()
@@ -3797,21 +3860,18 @@ def get_torre(filial: int | None = None) -> dict:
         t["lng"] = p["lng"] if p else None
         t["posicao_em"] = p["posicao_em"] if p else None
         t["velocidade"] = p["velocidade"] if p else None
+        t["critica"] = bool(t.get("critica"))
+        _identidade(t)
     for p in posicoes:
         p["em_viagem"] = p["placa"] in em_viagem
-        # IDENTIDADE PELO MODULO DA CASA. `frota` so existe quando e numero de
-        # frota DE VERDADE: vazio ou igual a placa nao e numero, e publicar a
-        # placa nesse campo e o que fazia metade da frota PARECER numerada.
-        # `rotulo` traz a identidade completa para quem precisa das duas.
-        num = (p.pop("numerofrota", None) or "").strip()
-        placa = (p.get("placa") or "").strip()
-        p["frota"] = num if num and num.upper() != placa.upper() else None
-        p["rotulo"] = frota_identidade.rotulo(num, placa)
+        _identidade(p)
+        p["tracao"] = _tracao(p.pop("tipo_veiculo", None))
 
     hoje = str(date.today())
     kpis = {
         "em_transito": len(transito),
         "atrasadas": sum(1 for t in transito if t["atrasada"]),
+        "criticas": sum(1 for t in transito if t["critica"]),
         "com_posicao_24h": sum(1 for p in posicoes if p["recente"]),
         "veiculos_monitorados": len(posicoes),
         "saidas_hoje": sum(1 for t in transito if (t["saida"] or "").startswith(hoje)),
@@ -3822,8 +3882,8 @@ def get_torre(filial: int | None = None) -> dict:
     # recarrega a cada 2 min e a coleta na Gobrax leva 73 s. Falha aqui não pode
     # derrubar a torre, que é tela de operação ao vivo.
     try:
-        from api.gobrax.torre import resumo as _tel
-        telemetria = _tel()
+        from api.gobrax.torre import placa_norm, resumo as _tel
+        telemetria = _tel(frota={placa_norm(r["placa"]) for r in frota_placas})
     except Exception:  # noqa: BLE001
         telemetria = {"disponivel": False, "motivo": "telemetria indisponível"}
 
@@ -4643,14 +4703,51 @@ PROG_MOT_DISP_SQL = """
 SELECT coalesce(nullif(trim(c.razaosocial),''),'(sem nome)') AS motorista,
        max(p.dtsaida)::date AS ult_saida,
        sum(CASE WHEN p.dtchegada IS NULL THEN 1 ELSE 0 END)::int AS em_viagem,
-       min(cc.dtvencimentocarteirahabilitacao)::date AS venc_cnh
+       min(cc.dtvencimentocarteirahabilitacao)::date AS venc_cnh,
+       -- A MODALIDADE DO MOTORISTA e a do veiculo da viagem ABERTA, ou, sem
+       -- ela, da ultima. Sem isto "em viagem" e "disponivel" misturavam
+       -- proprio com agregado: medido em 13/09/2026, 63 dos 67 em viagem eram
+       -- agregados, e os 157 "disponiveis" incluiam 64 agregados e 29
+       -- terceiros que so estavam livres por nao terem viagem CONOSCO.
+       (array_agg(v.utilizacaoveiculo
+                  ORDER BY (p.dtchegada IS NULL) DESC, p.dtsaida DESC))[1] AS utilizacao
 FROM programacaoembarque p
 LEFT JOIN cadastro c ON c.codigo = p.motorista
 LEFT JOIN cadastro_continua cc ON cc.cnpjcpfcodigo = p.motorista
+LEFT JOIN veiculo v ON v.placa = p.veiculo
 WHERE p.dtcancelamento IS NULL AND p.semaforo = 1
   AND p.motorista IS NOT NULL AND p.dtsaida >= current_date - 30
 GROUP BY p.motorista, c.razaosocial
 """
+
+# TRACAO AGREGADA. A disponibilidade de tracao so contava frota e locacao
+# (PROG_VEIC_DISP_SQL), e o agregado e a maior parte da operacao: em
+# 13/09/2026, 120 agregados ativos com motor contra 80 da frota, e 64 em
+# viagem contra 4. "Em viagem" e a MESMA regra da frota (programacao aberta
+# nos ultimos 120 dias), para as duas metades do cartao falarem igual. O
+# universo do agregado e quem RODOU conosco em 30 dias: agregado parado ha
+# meses nao e tracao disponivel -- esta rodando para outro. Oficina nao entra:
+# a OS do agregado nao passa pelo nosso ERP (0 de 120 com OS aberta).
+PROG_AGR_DISP_SQL = """
+SELECT count(*)::int AS total,
+       sum(CASE WHEN coalesce(t.em_viagem,0) > 0 THEN 1 ELSE 0 END)::int AS em_viagem,
+       sum(CASE WHEN t.ult_saida >= current_date - 30
+                  OR coalesce(t.em_viagem,0) > 0 THEN 1 ELSE 0 END)::int AS ativos_30d,
+       sum(CASE WHEN t.ult_saida >= current_date - 30
+                 AND coalesce(t.em_viagem,0) = 0 THEN 1 ELSE 0 END)::int AS disponiveis
+FROM veiculo v
+LEFT JOIN (SELECT veiculo, max(dtsaida) AS ult_saida,
+                  sum(CASE WHEN dtchegada IS NULL THEN 1 ELSE 0 END) AS em_viagem
+           FROM programacaoembarque
+           WHERE dtcancelamento IS NULL AND semaforo = 1
+             AND dtsaida >= current_date - 120
+           GROUP BY veiculo) t ON t.veiculo = v.placa
+WHERE v.utilizacaoveiculo = 'AGR' AND v.dtinativo IS NULL AND v.possuimotor = 1
+"""
+
+# Modalidade do veiculo -> classe do motorista no cartao da TV.
+_CLASSE_MOT = {"TRA": "proprio", "LOC": "proprio", "AGR": "agregado",
+               "TER": "terceiro"}
 
 
 def _descarga_med_h(cidade: str | None, uf: str | None) -> float:
@@ -4690,6 +4787,8 @@ def get_programacao() -> dict:
         veic_disp = cur.fetchall()
         cur.execute(PROG_MOT_DISP_SQL)
         mot_disp = cur.fetchall()
+        cur.execute(PROG_AGR_DISP_SQL)
+        agr = cur.fetchone() or {}
         cur.execute("SELECT current_timestamp AS ts")
         meta = cur.fetchone()
 
@@ -4799,6 +4898,15 @@ def get_programacao() -> dict:
     # ---- disponibilidade de motoristas (rodaram nos últimos 30 dias) ----
     mot_total = len(mot_disp)
     mot_viagem = sum(1 for m in mot_disp if m["em_viagem"] > 0)
+    classe = lambda m: _CLASSE_MOT.get(m.get("utilizacao"), "outro")  # noqa: E731
+    mot_viagem_cls = {c: sum(1 for m in mot_disp
+                             if m["em_viagem"] > 0 and classe(m) == c)
+                      for c in ("proprio", "agregado", "terceiro", "outro")}
+    # O % DISPONIVEL E SO DO PROPRIO: agregado e terceiro "sem viagem" nao
+    # estao disponiveis para nos, estao sem viagem CONOSCO.
+    mot_proprios = sum(1 for m in mot_disp if classe(m) == "proprio")
+    mot_proprios_disp = sum(1 for m in mot_disp
+                            if classe(m) == "proprio" and m["em_viagem"] == 0)
     cnh_vencida = [m for m in mot_disp if m["venc_cnh"] and m["venc_cnh"] < hoje]
     cnh_vencendo = sum(1 for m in mot_disp
                        if m["venc_cnh"] and 0 <= (m["venc_cnh"] - hoje).days <= 30)
@@ -4835,8 +4943,19 @@ def get_programacao() -> dict:
             "frota_os": frota_os, "frota_disp": frota_disp,
             "tracao_total": tracao_total, "tracao_viagem": tracao_viagem,
             "tracao_os": tracao_os, "tracao_disp": tracao_disp,
+            "agr_total": agr.get("total") or 0,
+            "agr_viagem": agr.get("em_viagem") or 0,
+            "agr_ativos_30d": agr.get("ativos_30d") or 0,
+            "agr_disp": agr.get("disponiveis") or 0,
             "mot_total": mot_total, "mot_viagem": mot_viagem,
             "mot_parados": mot_total - mot_viagem,
+            "mot_viagem_proprio": mot_viagem_cls["proprio"],
+            "mot_viagem_agregado": mot_viagem_cls["agregado"],
+            "mot_viagem_terceiro": mot_viagem_cls["terceiro"],
+            "mot_proprios": mot_proprios,
+            "mot_proprios_disp": mot_proprios_disp,
+            "pct_proprios_disp": (round(100 * mot_proprios_disp / mot_proprios, 1)
+                                  if mot_proprios else None),
             "cnh_vencida": len(cnh_vencida), "cnh_vencendo": cnh_vencendo,
             "cnh_vencida_rodando": cnh_vencida_rodando,
         },

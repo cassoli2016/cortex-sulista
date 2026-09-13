@@ -1,3 +1,52 @@
+- versao: "1.72.0"
+  data: "2026-09-13"
+  novo:
+    - >-
+      Painel de TV da Operação — carga crítica: a viagem cujo pedido de
+      coleta tem a ocorrência 261 (CARGA CRÍTICA) aparece no topo de
+      "Chegadas e atrasos", antes até das atrasadas, com a linha em laranja e
+      o selo CRÍTICA — inclusive quando ainda não tem previsão de chegada.
+    - >-
+      Painel de TV da Operação — a tabela de chegadas e o rodapé passam a
+      chamar o veículo pelo número de frota, e não mais pela placa.
+    - >-
+      Painel de TV da Operação — o medidor de meta mostra o dia E o mês, cada
+      um com a data de referência. No dia sem meta (domingo, feriado) ele diz
+      "sem meta", em vez de repetir o percentual do dia anterior como se fosse
+      o de hoje.
+    - >-
+      Painel de TV da Operação — "Tração disponível" separa frota (própria e
+      locada) de agregado, cada um com o seu total; e "Motoristas" separa quem
+      está em viagem por modalidade e mostra o percentual de motoristas
+      próprios livres. O "disponíveis" antigo somava agregado e terceiro que
+      só estavam sem viagem conosco.
+    - >-
+      Painel de TV da Operação — a telemetria passa a medir só a frota que
+      está rodando, e traz motor ligado parado, faixa extra econômica e pedal
+      crítico no lugar de "Abaixo do alvo", "Leitura descartada" e "Carga sem
+      veículo".
+    - >-
+      Painel de TV da Operação — o mapa ganhou legenda (cores, alerta, grupos
+      e a contagem por tipo de tração), o número de cada veículo vem com a
+      tração (4x2, 6x2, 3/4, truck, toco), veículos próximos se juntam em
+      grupos de até 5 que se separam ao aproximar, e o passeio entre regiões
+      vai para onde a frota está agora, com a contagem de veículos de cada
+      uma.
+    - >-
+      Todos os painéis de TV mostram a logo da Sulista no cabeçalho, sempre.
+      Antes ela só aparecia em tela cheia, e a TV aberta em modo quiosque ou
+      numa janela maximizada ficava sem a marca.
+  alterado:
+    - >-
+      Painel de TV da Operação — sai o selo "CRÍTICO" que piscava no título;
+      o cabeçalho fica só com a bolinha e a idade da última posição, no mesmo
+      tamanho do relógio. Sai também o valor do combustível; a locação conta
+      como frota no cartão de km; e o terceiro, que ficava de fora da lista de
+      modalidades, volta a aparecer. "Sem posição há +6h" virou "Sem sinal há
+      +6h", com o total em viagem ao lado. Os cartões têm menos texto: o
+      subtítulo diz só a unidade e a base, e as proporções (disponibilidade,
+      motor parado, faixa econômica, pedal) viraram barras.
+
 - versao: "1.71.6"
   data: "2026-09-13"
   seguranca:

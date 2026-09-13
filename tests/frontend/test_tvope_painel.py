@@ -1,0 +1,403 @@
+# -*- coding: utf-8 -*-
+"""A TV de operação depois da revisão com quem opera (13/09/2026).
+
+Cada teste é um pedido dito na parede, e o dublê tem a ORDEM DE GRANDEZA do
+dia real (67 em trânsito, 63 agregados em viagem, 4 modalidades de km) —
+régua com dublê vazio mede o esqueleto, não a tela.
+
+1. frota no lugar da placa;
+2. carga crítica (ocorrência 261) no TOPO das chegadas, com a linha
+   destacada e o selo escrito — inclusive a que não tem previsão;
+3. sem o selo piscante no título e sem "frota reportando" no cabeçalho;
+4. sem valor de combustível, locação somada em frota, terceiro visível;
+5. meta do dia E do mês, cada uma com a sua data — e o dia sem meta DIZ
+   isso em vez de mostrar o dia anterior;
+6. tração e motoristas com frota e agregado separados;
+7. telemetria com os três indicadores de condução no lugar dos cartões que
+   ninguém sabia ler;
+8. mapa com legenda, tração no marcador e grupos de no máximo 5.
+"""
+from __future__ import annotations
+
+import json
+from datetime import datetime, timedelta
+
+from tests.frontend.conftest import USUARIO
+
+ADMIN = {**USUARIO, "admin": True, "perfil": "Administrador"}
+
+AGORA = datetime.now()
+
+
+def _fmt(d: datetime) -> str:
+    return d.strftime("%Y-%m-%d %H:%M")
+
+
+def _viagem(i, frota, placa, *, critica=False, atrasada=False, prev=True, horas=5):
+    return {"numero": 1000 + i, "placa": placa, "frota": frota,
+            "rotulo": f"{frota} · {placa}", "utilizacao": "AGREGADOS",
+            "destino": f"DESTINO {i}/SP", "saida": _fmt(AGORA - timedelta(hours=10)),
+            "previsao_chegada": (_fmt(AGORA + timedelta(hours=horas)) if prev else None),
+            "atrasada": atrasada, "critica": critica,
+            "posicao_em": _fmt(AGORA - timedelta(minutes=5)), "velocidade": 60}
+
+
+# 12 viagens: 2 atrasadas, 2 CRÍTICAS (uma sem previsão e a outra com a
+# previsão MAIS distante de todas -- sem a regra, as duas ficariam no fim)
+TRANSITO = (
+    [_viagem(i, f"A{i:03d}", f"AAA{i}A{i:02d}", horas=2 + i) for i in range(8)]
+    + [_viagem(20, "B020", "BBB2B20", atrasada=True, horas=-3),
+       _viagem(21, "B021", "BBB2B21", atrasada=True, horas=-1),
+       _viagem(30, "C030", "CCC3C30", critica=True, horas=90),
+       _viagem(31, "C031", "CCC3C31", critica=True, prev=False)]
+)
+
+
+def _pos(i, util, tracao, lat, lng, vel=0, frota=None):
+    return {"placa": f"POS{i:04d}", "frota": frota or f"{i}", "rotulo": f"{i}",
+            "utilizacao": util, "lat": lat, "lng": lng, "velocidade": vel,
+            "com_motor": True, "recente": True, "tracao": tracao,
+            "posicao_em": _fmt(AGORA - timedelta(minutes=3))}
+
+
+# 6 veículos NO MESMO PONTO: tem de dar um grupo de 5 e um avulso, nunca 6.
+MESMO_PONTO = [_pos(100 + i, "AGREGADOS", "6x2", -23.55, -46.63) for i in range(6)]
+POSICOES = MESMO_PONTO + [
+    _pos(1, "FROTA", "4x2", -25.43, -49.27),
+    _pos(2, "LOCACAO", "6x2", -26.30, -48.85),
+    _pos(3, "TERCEIROS", "truck", -22.90, -47.06),
+    _pos(4, "AGREGADOS", "3/4", -29.70, -51.10, vel=95),   # alerta: >90 km/h
+]
+
+TELEMETRIA = {"disponivel": True, "escopo": "frota", "veiculos": 47,
+              "km_l_frota": 3.18, "alvo_km_l": 2.5, "com_consumo_valido": 41,
+              "leitura_suspeita": 6, "dias_atras": 0, "vel_media": 43.4,
+              "freadas_alta": 120, "freadas_alta_por_mil_km": 2.27,
+              "motor_parado_pct": 14.3, "faixa_extra_eco_pct": 93.9,
+              "pedal_critico_pct": 14.5, "conducao_veiculos": 46,
+              "conducao_dias_atras": 0}
+
+PROG_KPIS = {"tracao_total": 80, "tracao_viagem": 4, "tracao_os": 4, "tracao_disp": 72,
+             "agr_total": 120, "agr_viagem": 64, "agr_ativos_30d": 116, "agr_disp": 52,
+             "mot_total": 224, "mot_viagem": 67, "mot_parados": 157,
+             "mot_viagem_proprio": 4, "mot_viagem_agregado": 63, "mot_viagem_terceiro": 0,
+             "mot_proprios": 68, "mot_proprios_disp": 64, "pct_proprios_disp": 94.1,
+             "chegando_72h": 30, "sem_retorno": 5, "cargas_sem_chegada": 3,
+             "cnh_vencida": 2, "cnh_vencida_rodando": 0}
+
+KM = {"kpis": {"km_total": 454000.0, "km_carregado": 363000.0, "km_vazio": 91000.0},
+      "modalidades": [
+          {"utilizacao": "AGREGADOS", "viagens": 1162, "km_total": 365000.0},
+          {"utilizacao": "LOCACAO", "viagens": 355, "km_total": 49000.0},
+          {"utilizacao": "FROTA", "viagens": 181, "km_total": 27000.0},
+          {"utilizacao": "TERCEIROS", "viagens": 25, "km_total": 12000.0}]}
+
+
+def _visao(com_hoje: bool) -> dict:
+    """DOMINGO: o dia sem meta NÃO entra no `diario` -- é exatamente o que fazia
+    a TV mostrar o sábado. O dia anterior tem realizado para a regra velha ter
+    onde cair."""
+    ontem = (AGORA - timedelta(days=1)).day
+    diario = [{"dia": ontem, "realizado": 50.0, "meta": 100.0}] if ontem < AGORA.day else []
+    if com_hoje:
+        diario.append({"dia": AGORA.day, "realizado": 30.0, "meta": 100.0})
+    return {"diario": diario, "atingimento_mes": 0.876,
+            "atualizado_em": AGORA.isoformat(), "kpis": {}}
+
+
+def _abre(pg, base, *, com_hoje=False):
+    pedidos = []
+
+    def rota(r):
+        url = r.request.url
+        pedidos.append(url)
+        if "/api/auth/me" in url:
+            corpo = ADMIN
+        elif "/api/operacao/torre/estradas" in url:
+            corpo = {}
+        elif "/api/operacao/torre" in url:
+            corpo = {"kpis": {"em_transito": len(TRANSITO), "atrasadas": 2, "criticas": 2,
+                              "saidas_hoje": 3, "chegadas_previstas_hoje": 1},
+                     "posicoes": POSICOES, "transito": TRANSITO,
+                     "telemetria": TELEMETRIA}
+        elif "/api/operacao/programacao" in url:
+            corpo = {"kpis": PROG_KPIS}
+        elif "/api/operacao/seguranca" in url:
+            corpo = {"kpis": {"cercas_24h": 0}}
+        elif "/api/operacao/analise-km" in url:
+            corpo = KM
+        elif "/api/visao-geral" in url:
+            corpo = _visao(com_hoje)
+        else:
+            corpo = {}
+        r.fulfill(status=200, content_type="application/json", body=json.dumps(corpo))
+
+    pg.route("**/api/**", rota)
+    pg.route("**/tile.openstreetmap.org/**", lambda r: r.abort())
+    pg.route("**/geocoding-api.open-meteo.com/**", lambda r: r.abort())
+    pg.route("**/api.open-meteo.com/**", lambda r: r.abort())
+    # reduced-motion: tvAnimarNums deixa o número FINAL na tela, sem contagem
+    pg.emulate_media(reduced_motion="reduce")
+    pg.set_viewport_size({"width": 1920, "height": 1080})
+    pg.goto(base + "/static/index.html#tvope")
+    pg.wait_for_function(
+        "() => document.querySelectorAll('#tvope-cheg tr').length > 1"
+        " && document.querySelector('#tvope-km .tvw-gauge')")
+    pg.wait_for_timeout(1500)       # o relógio do cabeçalho bate de 1 em 1 s
+    return pedidos
+
+
+def _linhas(pg):
+    return pg.evaluate("""() => [...document.querySelectorAll('#tvope-cheg tr')].map(tr => ({
+        classe: tr.className, texto: tr.innerText,
+        fundo: getComputedStyle(tr.cells[0]).backgroundColor}))""")
+
+
+# ------------------------------------------------------------ as chegadas
+
+def test_a_carga_critica_vem_primeiro_mesmo_sem_previsao(pagina):
+    pg, base = pagina
+    _abre(pg, base)
+    ls = _linhas(pg)
+    assert "C030" in ls[0]["texto"] or "C031" in ls[0]["texto"], ls[0]
+    topo = {ls[0]["texto"].split()[0], ls[1]["texto"].split()[0]}
+    assert topo == {"C030", "C031"}, (
+        "as duas críticas têm de ocupar o topo, antes das atrasadas: %r"
+        % [l["texto"][:20] for l in ls[:4]])
+    # e as atrasadas vêm logo depois, antes das que ainda estão no prazo
+    assert {ls[2]["texto"].split()[0], ls[3]["texto"].split()[0]} == {"B020", "B021"}
+
+
+def test_a_linha_critica_e_destacada_e_diz_por_que(pagina):
+    """Cor sem rótulo não se explica numa TV — o selo escrito vai junto."""
+    pg, base = pagina
+    _abre(pg, base)
+    ls = _linhas(pg)
+    assert "crit" in ls[0]["classe"] and "CRÍTICA" in ls[0]["texto"]
+    normal = next(l for l in ls if "crit" not in l["classe"])
+    assert ls[0]["fundo"] != normal["fundo"], (
+        "a linha crítica tem o mesmo fundo das outras: %s" % ls[0]["fundo"])
+    assert "CRÍTICA" not in normal["texto"]
+
+
+def test_a_tabela_mostra_a_frota_e_nao_a_placa(pagina):
+    pg, base = pagina
+    _abre(pg, base)
+    cab = pg.evaluate("() => document.querySelector('#view-tvope .tv-tab th').innerText")
+    assert cab.strip().upper() == "FROTA"
+    texto = " ".join(l["texto"] for l in _linhas(pg))
+    assert "A000" in texto or "B020" in texto
+    assert "AAA0A00" not in texto and "BBB2B20" not in texto, "placa na tabela"
+
+
+# ------------------------------------------------------------ o cabeçalho
+
+def test_o_cabecalho_nao_tem_selo_piscando_nem_frota_reportando(pagina):
+    pg, base = pagina
+    _abre(pg, base)
+    assert pg.evaluate("() => document.getElementById('tvope-farol')") is None
+    beat = pg.evaluate("() => document.getElementById('tvope-beat').innerText.trim()")
+    assert "reportando" not in beat.lower()
+    assert beat == "agora" or beat.startswith("há "), repr(beat)
+    assert pg.evaluate("() => !!document.querySelector('#tvope-beat i')"), "sem a bolinha"
+
+
+# ------------------------------------------------------------ km e meta
+
+def test_o_cartao_de_km_nao_tem_combustivel_e_mostra_o_terceiro(pagina):
+    pg, base = pagina
+    pedidos = _abre(pg, base)
+    km = pg.evaluate("() => document.getElementById('tvope-km').innerText")
+    assert "Combustível" not in km and "R$" not in km
+    mods = pg.evaluate("""() => [...document.querySelectorAll('#tvope-km .mod b')]
+                                 .map(b => b.innerText.trim())""")
+    assert mods == ["Agregado", "Frota", "Terceiro"], mods
+    # locação SOMADA em frota: 49 + 27 = 76 mil km
+    frota = pg.evaluate("""() => [...document.querySelectorAll('#tvope-km .mod')]
+                                  .find(m => m.innerText.includes('Frota')).innerText""")
+    assert "76 mil km" in frota, frota
+    assert not any("/api/frota/combustivel" in u for u in pedidos), (
+        "a TV ainda pede o combustível que não mostra")
+
+
+def _metas(pg):
+    # textContent e nao innerText: o percentual mora num <text> de SVG
+    return pg.evaluate("""() => [...document.querySelectorAll('#tvope-km .tvw-meta')]
+                                 .map(m => m.textContent.replace(/\\s+/g, ' ').trim())""")
+
+
+def test_dia_sem_meta_diz_isso_e_nao_mostra_o_dia_anterior(pagina):
+    pg, base = pagina
+    _abre(pg, base, com_hoje=False)
+    dia, mes = _metas(pg)
+    hoje = AGORA.strftime("%d/%m")
+    assert hoje in dia and "sem meta" in dia.lower(), dia
+    assert "50%" not in dia, "voltou a mostrar o dia anterior: %r" % dia
+    assert "88%" in mes and "META DO MÊS" in mes.upper(), mes
+
+
+def test_dia_com_meta_mostra_o_percentual_de_hoje(pagina):
+    pg, base = pagina
+    _abre(pg, base, com_hoje=True)
+    dia, _ = _metas(pg)
+    assert AGORA.strftime("%d/%m") in dia and "30%" in dia, dia
+
+
+# ------------------------------------------------------------ os cartões
+
+def _cartao(pg, raiz, rotulo):
+    return pg.evaluate("""([raiz, rotulo]) => {
+        const c = [...document.querySelectorAll('#' + raiz + ' .tv-card')]
+          .find(x => x.querySelector('.tv-label').innerText.trim().toUpperCase()
+                     === rotulo.toUpperCase());
+        return c ? {nums: [...c.querySelectorAll('.tv-num')].map(n => n.innerText.trim()),
+                    texto: c.innerText} : null; }""", [raiz, rotulo])
+
+
+def _barras(pg, raiz, rotulo):
+    """As larguras (%) das barras do cartão — a proporção que se lê de longe."""
+    return pg.evaluate("""([raiz, rotulo]) => {
+        const c = [...document.querySelectorAll('#' + raiz + ' .tv-card')]
+          .find(x => x.querySelector('.tv-label').innerText.trim().toUpperCase()
+                     === rotulo.toUpperCase());
+        return c ? [...c.querySelectorAll('.tv-barra i')]
+                     .map(i => Math.round(parseFloat(i.style.width))) : null; }""",
+        [raiz, rotulo])
+
+
+def test_tracao_separa_frota_de_agregado(pagina):
+    pg, base = pagina
+    _abre(pg, base)
+    c = _cartao(pg, "tvope-k1", "Tração disponível")
+    assert c and c["nums"] == ["72", "52"], c
+    assert "de 80" in c["texto"] and "de 116" in c["texto"]
+    # 72 de 80 = 90%; 52 de 116 = 45%
+    assert _barras(pg, "tvope-k1", "Tração disponível") == [90, 45]
+
+
+def test_motoristas_traz_o_percentual_de_proprios_livres(pagina):
+    pg, base = pagina
+    _abre(pg, base)
+    c = _cartao(pg, "tvope-k1", "Motoristas")
+    assert c and c["nums"] == ["67", "94%"], c
+    assert _barras(pg, "tvope-k1", "Motoristas") == [94]
+
+
+def test_sem_sinal_traz_o_denominador(pagina):
+    pg, base = pagina
+    _abre(pg, base)
+    c = _cartao(pg, "tvope-k1", "Sem sinal há +6h")
+    assert c and "de %d em viagem" % len(TRANSITO) in c["texto"], c
+    assert "ocupação" not in c["texto"].lower()
+
+
+def test_telemetria_troca_os_cartoes_confusos_pelos_de_conducao(pagina):
+    pg, base = pagina
+    _abre(pg, base)
+    rotulos = pg.evaluate("""() => [...document.querySelectorAll('#tvope-k2 .tv-label')]
+                                   .map(l => l.innerText.trim().toUpperCase())""")
+    for novo in ("MOTOR LIGADO PARADO", "FAIXA EXTRA ECONÔMICA", "PEDAL CRÍTICO"):
+        assert novo in rotulos, rotulos
+    for velho in ("ABAIXO DO ALVO", "LEITURA DESCARTADA", "CARGA SEM VEÍCULO"):
+        assert velho not in rotulos, rotulos
+    assert _cartao(pg, "tvope-k2", "Motor ligado parado")["nums"] == ["14,3%"]
+    assert _barras(pg, "tvope-k2", "Motor ligado parado") == [14]
+    consumo = _cartao(pg, "tvope-k2", "Consumo da frota")["texto"]
+    assert "41 veíc." in consumo
+    # coleta de hoje não se anuncia; só a velha é dita
+    assert "coleta" not in consumo.lower()
+
+
+def test_subtitulos_curtos(pagina):
+    """"Menos informação escrita, fácil de interpretar": nenhum subtítulo
+    passa de uma linha curta. O teto sai do cartão mais estreito da parede."""
+    pg, base = pagina
+    _abre(pg, base)
+    longos = pg.evaluate("""() => [...document.querySelectorAll(
+        '#tvope-k1 .tv-sub, #tvope-k2 .tv-sub')].map(s => s.innerText.trim())
+        .filter(t => t.length > 28)""")
+    assert not longos, longos
+
+
+def test_nenhum_cartao_estoura_a_propria_celula(pagina):
+    """Os cartões de dois números e os subtítulos novos são mais altos: se não
+    couberem, o `overflow` corta o fim sem erro nenhum."""
+    pg, base = pagina
+    _abre(pg, base)
+    estouros = pg.evaluate("""() => [...document.querySelectorAll(
+        '#tvope-k1 .tv-card, #tvope-k2 .tv-card')]
+        .filter(c => c.scrollHeight > c.clientHeight + 1 || c.scrollWidth > c.clientWidth + 1)
+        .map(c => c.querySelector('.tv-label').innerText + ' ' + c.scrollHeight + '/' + c.clientHeight)""")
+    assert not estouros, estouros
+
+
+# ------------------------------------------------------------ a marca
+
+import pytest  # noqa: E402
+
+
+@pytest.mark.parametrize("tela", ["tvope", "tvfat", "tvdir", "tvcom", "tvcli", "tvjor"])
+def test_a_logo_aparece_em_todo_painel_de_tv_sem_tela_cheia(pagina, tela):
+    """A logo só acendia com `body.tvfull`; TV de parede em modo quiosque não
+    passa por lá. O guard abre cada painel SEM tela cheia e mede a imagem
+    renderizada — largura zero é logo escondida, mesmo com o <img> no HTML."""
+    pg, base = pagina
+
+    def rota(r):
+        corpo = ADMIN if "/api/auth/me" in r.request.url else {}
+        r.fulfill(status=200, content_type="application/json", body=json.dumps(corpo))
+    pg.route("**/api/**", rota)
+    pg.route("**/tile.openstreetmap.org/**", lambda r: r.abort())
+    # tvChecaFull chama de "tela cheia" a janela do tamanho da TELA, e o
+    # Chromium headless diz que a tela e do tamanho da janela -- o teste cairia
+    # sempre no modo cheio e nao mediria nada. A tela declarada maior que a
+    # janela e a TV em modo quiosque ou maximizada, que e o caso do defeito.
+    pg.add_init_script("Object.defineProperty(screen,'width',{get:()=>3840});"
+                       "Object.defineProperty(screen,'height',{get:()=>2160});")
+    pg.set_viewport_size({"width": 1600, "height": 900})
+    pg.goto(base + "/static/index.html#" + tela)
+    pg.wait_for_timeout(1200)
+    medida = pg.evaluate("""(tela) => {
+        const img = document.querySelector('#view-' + tela + ' .tv-head .tv-logo');
+        return img ? {largura: img.getBoundingClientRect().width,
+                      cheia: document.body.classList.contains('tvfull')} : null; }""", tela)
+    assert medida is not None, "o painel %s não tem a logo no cabeçalho" % tela
+    assert not medida["cheia"], "o teste caiu em tela cheia e não mede o caso real"
+    assert medida["largura"] > 0, "a logo está escondida no painel %s" % tela
+
+
+# ------------------------------------------------------------ o mapa
+
+def test_o_mapa_agrupa_no_maximo_cinco_e_nunca_o_alerta(pagina):
+    pg, base = pagina
+    _abre(pg, base)
+    grupos = pg.evaluate("""() => tvLayer.getLayers().map(l => l.options.veiculos || 1)""")
+    assert sum(grupos) == len(POSICOES), "o mapa perdeu veículo: %r" % grupos
+    assert max(grupos) == 5, "seis no mesmo ponto têm de virar 5 + 1: %r" % grupos
+    # o alerta (95 km/h) continua sozinho, com a borda de alerta
+    assert pg.evaluate("() => !!document.querySelector('#tvMapa .tv-vmk.alerta')")
+
+
+def test_a_legenda_explica_cor_e_tracao(pagina):
+    pg, base = pagina
+    _abre(pg, base)
+    leg = pg.evaluate("() => document.getElementById('tvope-legenda').innerText")
+    for termo in ("Frota e locação", "Agregado", "Terceiro", "90 km/h", "até 5"):
+        assert termo in leg, (termo, leg)
+    assert "4x2 1" in leg and "6x2 7" in leg and "truck 1" in leg, leg
+    # locação pinta igual à frota
+    cores = pg.evaluate("""() => [...document.querySelectorAll('#tvope-legenda i')]
+                                  .map(i => i.style.background)""")
+    assert "Locação" not in leg
+    assert len(set(cores[:3])) == 3
+
+
+def test_o_tour_nasce_de_onde_a_frota_esta(pagina):
+    pg, base = pagina
+    _abre(pg, base)
+    vistas = pg.evaluate("() => TV_VISTAS.map(v => v.nome)")
+    assert vistas[0].startswith("Visão geral · %d veículos" % len(POSICOES)), vistas
+    # 6 veículos na Grande São Paulo: o polo entra, com a contagem
+    assert any(v.startswith("Grande São Paulo · 6") for v in vistas), vistas
+    # polo com menos de 3 não gasta 20 s de parede
+    assert not any(v.startswith("Joinville") for v in vistas), vistas

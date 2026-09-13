@@ -85,10 +85,15 @@ def _abre(pg, base):
 def _marcadores(pg):
     """Quantos veiculos o MAPA recebeu. innerText nao serve: marcador de
     Leaflet nao e texto, e afirmar ausencia numa superficie onde nada aparece
-    e falso verde."""
+    e falso verde.
+
+    Desde 13/09/2026 o mapa AGRUPA ate 5 veiculos proximos num circulo, entao
+    camada nao e mais veiculo: cada uma leva `veiculos` (quantos representa),
+    e a conta e a soma."""
     return pg.evaluate(
         "() => (typeof tvLayer !== 'undefined' && tvLayer)"
-        " ? tvLayer.getLayers().length : -1")
+        " ? tvLayer.getLayers().reduce((s, l) => s + (l.options.veiculos || 1), 0)"
+        " : -1")
 
 
 def test_o_mapa_recebe_so_quem_tem_motor(pagina):

@@ -383,7 +383,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/frota/veiculos/identidade", frozenset({"veic"})),
     ("/api/frota/veiculos",           frozenset({"veic"})),
     ("/api/frota/veiculo",            frozenset({"veicf"})),
-    ("/api/frota/combustivel",        frozenset({"comb", "tvope"})),
+    ("/api/frota/combustivel",        frozenset({"comb"})),
     ("/api/frota/manutencao",         frozenset({"man"})),
     ("/api/frota/multas",             frozenset({"mul"})),
     ("/api/smartec",                  frozenset({"mul"})),

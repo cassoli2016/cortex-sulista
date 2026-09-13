@@ -1414,9 +1414,11 @@ body.tvfull #sidebar,body.tvfull aside,body.tvfull .topbar,body.tvfull #topbar,b
 .tv-head h2{text-align:center}
 .tv-head .tv-left{display:flex;align-items:center;gap:16px;justify-self:start}
 .tv-head h2{line-height:1}
-.tv-head .tv-logo{height:30px;display:none;flex-shrink:0}
-body.tvfull .tv-head .tv-logo{display:block}
-#view-tvope .tv-head .tv-logo{height:clamp(20px,1.5vw,30px)}
+/* A LOGO DA SULISTA EM TODO PAINEL DE TV, SEMPRE (pedido de quem opera,
+   13/09/2026). Ela so acendia em tela cheia (`body.tvfull`), e TV de parede
+   aberta em modo quiosque ou janela maximizada nao passa por la -- a parede
+   ficava sem a marca. */
+.tv-head .tv-logo{height:clamp(20px,1.5vw,30px);display:block;flex-shrink:0}
 .tv-head .tv-right{display:flex;align-items:center;gap:14px;justify-content:flex-end}
 .tv-head h2{font-size:30px;letter-spacing:.04em;margin:0;font-weight:800}
 .tv-head .tv-clock{font-size:30px;font-family:var(--mono);color:#F08A4B}
@@ -1489,6 +1491,14 @@ body.tvfull .tv-head .tv-logo{display:block}
    nenhum -- invisivel numa TV vista de longe, que e o unico jeito de ver
    essa tela. Mesmo par do err/ok: fundo escuro da familia, texto claro. */
 .tv-badge.warn{background:#78350F;color:#FDE68A}
+/* CARGA CRITICA (ocorrencia 261 no pedido de coleta). A cor e o ACCENT da
+   casa, nao o semaforo: critica e o TIPO da carga, nao o estado da viagem, e
+   o vermelho ja diz ATRASADA na mesma tabela. O selo escrito vai junto com a
+   cor -- numa TV nao ha tooltip, e cor sem rotulo nao se explica. Tinta
+   #1E172F sobre o laranja mede 4,9:1 (o branco daria 3,5). */
+.tv-badge.crit{background:#E85D10;color:#1E172F}
+.tv-tab tr.crit td{background:rgba(232,93,16,.22)}
+.tv-tab tr.crit td:first-child{box-shadow:inset 0.3vw 0 0 #E85D10}
 @media(max-width:1100px){.tv-grid{grid-template-columns:repeat(2,1fr)}.tv-num{font-size:44px}}
 /* no celular os cards de TV em 2 colunas cortam os números — coluna única */
 @media(max-width:640px){.tv-grid{grid-template-columns:1fr}.tv-num{font-size:40px}}
@@ -1780,6 +1790,40 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
   padding:0.22vw 0.4vw;border-radius:0.35vw;border:0.12vw solid rgba(255,255,255,.9);
   box-shadow:0 0.15vw 0.5vw rgba(0,0,0,.55);white-space:nowrap;text-align:center;display:inline-block}
 .tv-vmk.alerta{border-color:#F87171;animation:tvPisca 1s infinite}
+/* a tracao (6x2, 4x2, 3/4...) vai colada no numero, menor e mais apagada:
+   o numero de frota continua sendo a coisa lida */
+.tv-vmk small{margin-left:0.3em;font-size:.82em;font-weight:700;opacity:.8}
+/* grupo de ate 5 veiculos proximos: circulo escuro com a contagem, anel na
+   cor da modalidade que predomina nele */
+.tv-vgrp{transform:translate(-50%,-50%);width:1.9vw;height:1.9vw;min-width:22px;min-height:22px;
+  border-radius:50%;background:#0B1926;color:#fff;border:0.22vw solid;display:flex;align-items:center;
+  justify-content:center;font-family:var(--mono);font-weight:800;font-size:clamp(10px,0.78vw,15px);
+  box-shadow:0 0.15vw 0.5vw rgba(0,0,0,.55)}
+.tv-vgrp.mov{animation:tvResp 2.8s infinite}
+.tv-legenda{position:absolute;left:0.7vw;bottom:0.7vw;right:0.7vw;z-index:500;display:flex;flex-wrap:wrap;
+  gap:0.25vw 0.9vw;align-items:center;background:rgba(11,25,38,.85);color:#E5EDF4;padding:0.35vw 0.8vw;
+  border-radius:0.5vw;font-size:clamp(9px,0.62vw,12px);font-weight:600;line-height:1.3}
+.tv-legenda:empty{display:none}
+.tv-legenda span{display:inline-flex;align-items:center;gap:0.3vw;white-space:nowrap}
+.tv-legenda i{width:0.7vw;height:0.7vw;min-width:9px;min-height:9px;border-radius:0.2vw;display:inline-block;
+  border:1px solid rgba(255,255,255,.9)}
+.tv-legenda i.al{background:transparent;border:2px solid #F87171}
+.tv-legenda i.tt{width:1.6vw;min-width:20px;border:0;background:linear-gradient(90deg,#4ADE80,#FBBF24,#F87171)}
+.tv-legenda u{text-decoration:none;width:1.1vw;height:1.1vw;min-width:14px;min-height:14px;border-radius:50%;
+  background:#0B1926;border:2px solid #E5EDF4;display:inline-flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:.85em;font-weight:800}
+/* a tracao e TEXTO CORRIDO ("4x2 65 · 6x2 96"): como flex, cada <b> virava
+   item proprio e o espaco entre ele e a contagem sumia */
+.tv-legenda span.tr{display:inline;white-space:normal;color:#A9BCCD}
+.tv-legenda .tr b{color:#E5EDF4}
+/* cartao de dois numeros (tracao, motoristas): lado a lado, cada um com o seu
+   rotulo embaixo, e o subtitulo comum no fim */
+.tv-barra{height:clamp(4px,0.36vw,8px);background:#1E3A54;border-radius:999px;overflow:hidden;
+  margin:0.25vw 0 0.15vw;flex-shrink:0}
+.tv-barra i{display:block;height:100%;border-radius:999px;transition:width .9s cubic-bezier(.2,.6,.2,1)}
+.tv-duo{display:flex;gap:1vw}
+.tv-duo>div{flex:1;min-width:0}
+.tv-duo .tv-sub{margin-top:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @keyframes tvPisca{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(248,113,113,.75)}50%{opacity:.5;box-shadow:0 0 0 0.6vw rgba(248,113,113,0)}}
 body.tvfull .tv-head a{display:none}
 .tv-title{display:flex;align-items:center;justify-content:center;gap:1vw}
@@ -1830,6 +1874,11 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
 #view-tvope .tv-head .tv-clock{font-size:clamp(16px,1.5vw,30px)}
 #view-tvope .tv-head .tv-next{font-size:clamp(14px,1.5vw,30px) !important}
 #view-tvope .tv-head .tv-upd{font-size:clamp(10px,0.8vw,15px)}
+/* A BOLINHA E A IDADE DA ULTIMA POSICAO, na MESMA medida do relogio e do
+   contador de recarga -- os tres numeros do cabecalho falam a mesma lingua.
+   Cinza, e nao o laranja do relogio, para "ha 3 min" nao se ler como hora. */
+#view-tvope .tv-head .tv-beat{font-size:clamp(14px,1.5vw,30px);gap:0.4em}
+#view-tvope .tv-head .tv-beat i{width:0.45em;height:0.45em}
 
 /* Painel TV Operação (tvope) no celular: sem viewport de parede, colapsa a
    grade 3x2 para coluna única e o mapa deixa de exigir 2 linhas fixas (as
@@ -4526,10 +4575,10 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
       </section>
       <section class="view" id="view-tvope">
-        <div class="tv-head"><div class="tv-left"><img class="tv-logo" src="/static/sulista-logo-branco.svg" alt="Sulista"><span class="tv-upd tv-next"></span></div><div class="tv-title"><h2>TORRE DE CONTROLE OPERACIONAL</h2><span class="tv-farol" id="tvope-farol" style="display:none"></span></div><div class="tv-right"><span class="tv-beat" id="tvope-beat"></span><span class="tv-clock"></span><a href="javascript:tvFull()" title="tela cheia" aria-label="Tela cheia">⛶</a><a href="#home" title="sair do modo TV" aria-label="Sair do modo TV">✕</a></div></div>
+        <div class="tv-head"><div class="tv-left"><img class="tv-logo" src="/static/sulista-logo-branco.svg" alt="Sulista"><span class="tv-upd tv-next"></span></div><div class="tv-title"><h2>TORRE DE CONTROLE OPERACIONAL</h2></div><div class="tv-right"><span class="tv-beat" id="tvope-beat"></span><span class="tv-clock"></span><a href="javascript:tvFull()" title="tela cheia" aria-label="Tela cheia">⛶</a><a href="#home" title="sair do modo TV" aria-label="Sair do modo TV">✕</a></div></div>
         <div class="tvw">
           <div class="tvw-kpis" id="tvope-k1"></div>
-          <div class="tv-card tvw-mapa"><div id="tvMapa"></div><div class="tv-regiao" id="tv-regiao">Visão geral da frota</div></div>
+          <div class="tv-card tvw-mapa"><div id="tvMapa"></div><div class="tv-regiao" id="tv-regiao">Visão geral da frota</div><div class="tv-legenda" id="tvope-legenda"></div></div>
           <div class="tvw-kpis" id="tvope-k2"></div>
           <div class="tv-card">
             <div class="tv-label">KM do mês · vazio × carregado · modalidades</div>
@@ -4537,7 +4586,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
           <div class="tv-card">
             <div class="tv-label">Chegadas e atrasos</div>
-            <table class="tv-tab"><thead><tr><th>Placa</th><th>Destino</th><th class="num">Chegada</th><th></th></tr></thead>
+            <table class="tv-tab"><thead><tr><th>Frota</th><th>Destino</th><th class="num">Chegada</th><th></th></tr></thead>
             <tbody id="tvope-cheg"></tbody></table>
           </div>
         </div>
@@ -10740,7 +10789,8 @@ function router(){
       const beat=document.getElementById('tvope-beat');
       if(beat && TV_LASTPOS){
         const min=Math.max(0, Math.round((Date.now()-TV_LASTPOS.getTime())/60000));
-        beat.innerHTML='<i></i>frota reportando · '+(min<1?'agora':('há '+min+' min'));
+        beat.innerHTML='<i></i>'+(min<1?'agora':('há '+min+' min'));
+        beat.title='última posição recebida da frota';
       }
     }, 1000);
   }
@@ -15157,8 +15207,28 @@ function tvAnimarNums(rootId){
   });
 }
 const tvBRLc = v => 'R$ '+(Math.abs(v)>=1e6?(v/1e6).toLocaleString('pt-BR',{maximumFractionDigits:1})+' mi':(v/1e3).toLocaleString('pt-BR',{maximumFractionDigits:0})+' mil');
-function tvCard(label,num,cls,sub,extra){
-  return `<div class="tv-card">${extra||''}<div class="tv-label">${label}</div><div class="tv-num ${cls||''}">${num}</div><div class="tv-sub">${sub||''}</div></div>`;
+function tvCard(label,num,cls,sub,extra,barra){
+  return `<div class="tv-card">${extra||''}<div class="tv-label">${label}</div><div class="tv-num ${cls||''}">${num}</div>${tvBarra(barra)}<div class="tv-sub">${sub||''}</div></div>`;
+}
+/* A BARRA E A PROPORCAO QUE SE LE DE LONGE (pedido de quem opera,
+   13/09/2026: "menos informacao escrita, facil de interpretar"). O
+   percentual ou o "72 de 80" viram comprimento, e o subtitulo pode encolher
+   para uma palavra. A cor e a do NUMERO do cartao -- neutra quando nao ha
+   meta, porque verde so existe quando havia meta a bater. */
+const TV_BARRA_COR={ok:'#4ADE80', warn:'#FBBF24', ruim:'#F87171'};
+function tvBarra(b){
+  if(!b || b.pct==null || !isFinite(b.pct)) return '';
+  const w=Math.max(0, Math.min(100, b.pct));
+  return `<div class="tv-barra"><i style="width:${w.toFixed(1)}%;background:${TV_BARRA_COR[b.cls]||'#A9BCCD'}"></i></div>`;
+}
+/* CARTAO DE DOIS NUMEROS: um rotulo que cobre dois universos que nao se somam
+   (frota x agregado). Cada numero e o seu proprio `.tv-num` porque
+   tvAnimarNums reescreve o textContent do elemento: dois numeros no mesmo
+   elemento deixariam o segundo como texto morto. */
+function tvCardDuo(label,partes){
+  return `<div class="tv-card"><div class="tv-label">${label}</div><div class="tv-duo">${
+    partes.map(p=>`<div><div class="tv-num ${p.cls||''}">${p.num}</div>${tvBarra(p.barra)}<div class="tv-sub">${p.sub||''}</div></div>`).join('')
+  }</div></div>`;
 }
 // Painéis de TV são telões sem operador — antes falhavam em silêncio
 // (catch vazio) e o skeleton ficava eterno até a API voltar. Só mostra o
@@ -16281,14 +16351,55 @@ async function loadTvDir(){
 
 let tvMap=null, tvLayer=null, tvLinhas=null, TV_LASTPOS=null;
 let TV_ESTRADAS=null, tvTrafego=null;
-const TV_VISTAS=[
-  {nome:'Visão geral da frota', fit:true},
-  {nome:'Curitiba · BR-116 / BR-376', c:[-25.45,-49.25], z:9},
-  {nome:'Grande São Paulo', c:[-23.60,-46.60], z:9},
-  {nome:'Vale do Paraíba · Dutra', c:[-23.05,-45.70], z:9},
-  {nome:'Joinville · BR-101', c:[-26.30,-48.85], z:9},
+/* O TOUR SAI DE ONDE A FROTA ESTA. Eram quatro regioes fixas mais uma visao
+   geral numa caixa fixa: regiao sem caminhao nenhum ganhava 20 s de parede, e
+   a que concentrava a frota podia nem estar na lista. Agora cada recarga monta
+   as vistas: 1) visao geral ENQUADRADA nos veiculos (percentis 5 a 95, para um
+   caminhao isolado longe nao afastar o mapa do resto); 2) as atrasadas, se
+   houver; 3) os polos com 3 ou mais veiculos AGORA, do mais cheio para o mais
+   vazio, com a contagem no chip. Os polos sao so nomes para os pontos do mapa;
+   cada veiculo conta no polo MAIS PROXIMO (ate 70 km), nunca em dois. */
+const TV_POLOS=[
+  {nome:'Curitiba · BR-116 / BR-376', c:[-25.45,-49.25]},
+  {nome:'Grande São Paulo', c:[-23.60,-46.60]},
+  {nome:'Vale do Paraíba · Dutra', c:[-23.05,-45.70]},
+  {nome:'Joinville · BR-101', c:[-26.30,-48.85]},
+  {nome:'Campinas · Anhanguera', c:[-22.90,-47.06]},
+  {nome:'Ponta Grossa · Campos Gerais', c:[-25.09,-50.16]},
+  {nome:'Vale do Itajaí · BR-470', c:[-27.00,-49.00]},
+  {nome:'Serra Gaúcha · Porto Alegre', c:[-29.75,-51.15]},
+  {nome:'Rio de Janeiro', c:[-22.85,-43.30]},
+  {nome:'Belo Horizonte', c:[-19.92,-43.94]},
 ];
+const TV_POLO_RAIO_KM=70, TV_POLO_MIN=3, TV_POLOS_MAX=4;
+let TV_VISTAS=[{nome:'Visão geral da frota', caixa:[[-27.2,-51.3],[-22.2,-44.2]]}];
 let TV_VIDX=0, tvTour=null;
+function tvKm(a,b,c,d){
+  const r=Math.PI/180, x=(d-b)*r*Math.cos((a+c)/2*r), y=(c-a)*r;
+  return 6371*Math.sqrt(x*x+y*y);
+}
+function tvEnquadre(ps){
+  if(ps.length<2) return [[-27.2,-51.3],[-22.2,-44.2]];
+  const la=ps.map(p=>p.lat).sort((a,b)=>a-b), lo=ps.map(p=>p.lng).sort((a,b)=>a-b);
+  const q=(a,f)=>a[Math.round((a.length-1)*f)];
+  return [[q(la,.05),q(lo,.05)],[q(la,.95),q(lo,.95)]];
+}
+function tvMontarVistas(){
+  const vs=[{nome:'Visão geral · '+tvPontos.length+' veículos', caixa:tvEnquadre(tvPontos)}];
+  const atr=tvPontos.filter(p=>p.atrasada);
+  if(atr.length) vs.push({nome:'Atrasadas · '+atr.length,
+    caixa:atr.length>1 ? tvEnquadre(atr) : [[atr[0].lat,atr[0].lng],[atr[0].lat,atr[0].lng]]});
+  const n=TV_POLOS.map(()=>0);
+  tvPontos.forEach(p=>{
+    let melhor=-1, dist=Infinity;
+    TV_POLOS.forEach((po,i)=>{ const d=tvKm(p.lat,p.lng,po.c[0],po.c[1]); if(d<dist){ dist=d; melhor=i; } });
+    if(melhor>=0 && dist<=TV_POLO_RAIO_KM) n[melhor]++;
+  });
+  TV_POLOS.map((po,i)=>({po, n:n[i]})).filter(x=>x.n>=TV_POLO_MIN)
+    .sort((a,b)=>b.n-a.n).slice(0,TV_POLOS_MAX)
+    .forEach(x=>vs.push({nome:x.po.nome+' · '+x.n+' veículos', c:x.po.c, z:9}));
+  TV_VISTAS=vs;
+}
 function tvTourPasso(){
   if(!tvMap || currentView()!=='tvope') return;
   TV_VIDX=(TV_VIDX+1)%TV_VISTAS.length;
@@ -16296,8 +16407,8 @@ function tvTourPasso(){
   const chip=document.getElementById('tv-regiao');
   if(chip) chip.textContent=vv.nome;
   try{
-    if(vv.fit){
-      tvMap.flyToBounds(L.latLngBounds([-27.2,-51.3],[-22.2,-44.2]),{padding:[10,10],duration:2.5});
+    if(vv.caixa){
+      tvMap.flyToBounds(L.latLngBounds(vv.caixa),{padding:[30,30],maxZoom:10,duration:2.5});
     } else tvMap.flyTo(vv.c, vv.z, {duration:2.5});
   }catch(e){}
 }
@@ -16396,27 +16507,25 @@ async function tvMapa(t){
       tvTrafego.setZIndex(3);
     }
     tvLayer=L.layerGroup().addTo(tvMap);
+    // o agrupamento e por DISTANCIA NA TELA, que muda com o zoom: refaz a cada um
+    tvMap.on('zoomend', tvAgrupar);
     setTimeout(()=>{ tvMap.invalidateSize();
-      try{ tvMap.fitBounds(L.latLngBounds([-27.2,-51.3],[-22.2,-44.2]),{padding:[10,10]}); }catch(e){}
+      try{ tvMap.fitBounds(L.latLngBounds(TV_VISTAS[0].caixa),{padding:[30,30],maxZoom:10}); }catch(e){}
+      tvAgrupar();
     }, 500);
   } else { tvMap.invalidateSize(); }
-  tvLayer.clearLayers();
   if(!tvLinhas) tvLinhas=L.layerGroup().addTo(tvMap);
   tvLinhas.clearLayers();
   const emViagem={};
   (t.transito||[]).forEach(v=>{ if(v.placa) emViagem[v.placa]=v; });
+  tvPontos=[];
   (t.posicoes||[]).forEach(p=>{
     if(!p.lat||!p.lng) return;
     const v=emViagem[p.placa];
-    const cor=MOD_COR[p.utilizacao]||'#6E7883';
-    const alerta=(v&&v.atrasada)||(p.velocidade>90);
-    const mov=!alerta && p.velocidade>0;
-    const rotulo=esc(p.frota||p.placa||'?');
-    L.marker([p.lat,p.lng],{
-      icon:L.divIcon({className:'', html:`<div class="tv-vmk ${alerta?'alerta':(mov?'mov':'')}" style="background:${cor}">${rotulo}</div>`,
-                      iconSize:null, iconAnchor:[18,9]}),
-      zIndexOffset: alerta?1000:(v?500:0),
-    }).addTo(tvLayer);
+    const alerta=!!((v&&v.atrasada)||(p.velocidade>90));
+    tvPontos.push({lat:p.lat, lng:p.lng, cor:tvCorMod(p.utilizacao), alerta,
+      mov:!alerta && p.velocidade>0, viagem:!!v, atrasada:!!(v&&v.atrasada),
+      rot:p.frota||p.placa||'?', tracao:p.tracao||null});
     if(v && v.atrasada && v.destino){
       tvGeo(v.destino).then(geo=>{
         if(geo && tvLinhas) L.polyline([[p.lat,p.lng],geo],
@@ -16424,6 +16533,84 @@ async function tvMapa(t){
       });
     }
   });
+  tvMontarVistas();
+  tvLegenda();
+  tvAgrupar();
+}
+/* LOCACAO E FROTA NA PAREDE (decisao de quem opera, 13/09/2026): mesma cor,
+   no mapa, na legenda e no cartao de km. A tela `torre` segue separando as
+   duas. E o tom e FIXO: MOD_COR.FROTA le --navy-700 do tema de quem abriu, e
+   no tema claro isso e #17344F -- invisivel no cartao escuro da TV (a barra
+   da frota sumia no trilho). Painel de TV nao muda com o tema; aqui vale o
+   --navy-500 da paleta clara, que aparece no escuro e segura o texto branco
+   do marcador no mapa (cerca de 6:1). */
+const TV_FROTA_COR='#38648D';
+function tvCorMod(u){
+  if(u==='FROTA' || u==='LOCACAO') return TV_FROTA_COR;
+  return MOD_COR[u] || '#6E7883';
+}
+/* AGRUPAMENTO DE NO MAXIMO 5 (pedido de quem opera): veiculos a menos de
+   TV_GRUPO_PX na tela viram um circulo com a contagem, e se separam ao
+   aproximar. Teto baixo de proposito -- grupo de 40 esconde a frota inteira
+   num circulo, e a parede existe para mostrar veiculo. O ALERTA NUNCA ENTRA
+   EM GRUPO: atrasada ou acima de 90 km/h e exatamente o que a parede tem de
+   mostrar sozinho. Cada camada leva `veiculos` (quantos representa), que e
+   como se conta a frota do mapa sem abrir os grupos. */
+const TV_GRUPO_PX=44, TV_GRUPO_MAX=5;
+let tvPontos=[];
+function tvAgrupar(){
+  if(!tvMap || !tvLayer) return;
+  tvLayer.clearLayers();
+  const pts=tvPontos.map(p=>Object.assign({px:tvMap.latLngToLayerPoint([p.lat,p.lng])}, p));
+  const usado=pts.map(p=>p.alerta);
+  pts.forEach(p=>{ if(p.alerta) tvMarcador(p); });
+  for(let i=0;i<pts.length;i++){
+    if(usado[i]) continue;
+    usado[i]=true;
+    const g=[pts[i]];
+    for(let j=i+1;j<pts.length && g.length<TV_GRUPO_MAX;j++){
+      if(!usado[j] && pts[i].px.distanceTo(pts[j].px)<=TV_GRUPO_PX){ usado[j]=true; g.push(pts[j]); }
+    }
+    if(g.length===1) tvMarcador(g[0]); else tvGrupo(g);
+  }
+}
+function tvMarcador(p){
+  L.marker([p.lat,p.lng],{
+    icon:L.divIcon({className:'', iconSize:null, iconAnchor:[18,9],
+      html:`<div class="tv-vmk ${p.alerta?'alerta':(p.mov?'mov':'')}" style="background:${p.cor}">${esc(p.rot)}${p.tracao?'<small>'+esc(p.tracao)+'</small>':''}</div>`}),
+    zIndexOffset: p.alerta?1000:(p.viagem?500:0), veiculos:1,
+  }).addTo(tvLayer);
+}
+function tvGrupo(g){
+  const lat=g.reduce((s,p)=>s+p.lat,0)/g.length, lng=g.reduce((s,p)=>s+p.lng,0)/g.length;
+  const conta={}; g.forEach(p=>{ conta[p.cor]=(conta[p.cor]||0)+1; });
+  const cor=Object.keys(conta).sort((a,b)=>conta[b]-conta[a])[0];
+  L.marker([lat,lng],{
+    icon:L.divIcon({className:'', iconSize:null, iconAnchor:[0,0],
+      html:`<div class="tv-vgrp${g.some(p=>p.mov)?' mov':''}" style="border-color:${cor}">${g.length}</div>`}),
+    zIndexOffset:300, veiculos:g.length,
+  }).addTo(tvLayer);
+}
+/* A LEGENDA DO MAPA: numa TV nao ha tooltip, e cor sem significado escrito
+   na tela nao significa nada. A tracao sai do tipo do cadastro (servidor,
+   _tracao) e vem com a contagem do que esta NO MAPA agora. */
+const TV_TRACOES=['4x2','6x2','6x4','8x2','3/4','toco','truck'];
+function tvLegenda(){
+  const el=document.getElementById('tvope-legenda');
+  if(!el) return;
+  const cont={};
+  tvPontos.forEach(p=>{ if(p.tracao) cont[p.tracao]=(cont[p.tracao]||0)+1; });
+  const tr=TV_TRACOES.filter(k=>cont[k]).map(k=>'<b>'+k+'</b> '+cont[k]).join(' · ');
+  const semCad=tvPontos.some(p=>p.cor===tvCorMod(null));
+  el.innerHTML=
+    `<span><i style="background:${tvCorMod('FROTA')}"></i>Frota e locação</span>`
+    +`<span><i style="background:${tvCorMod('AGREGADOS')}"></i>Agregado</span>`
+    +`<span><i style="background:${tvCorMod('TERCEIROS')}"></i>Terceiro</span>`
+    +(semCad?`<span><i style="background:${tvCorMod(null)}"></i>Sem cadastro</span>`:'')
+    +`<span><i class="al"></i>Atrasada ou acima de 90 km/h</span>`
+    +`<span><u>5</u>Grupo de até 5 próximos</span>`
+    +(tvTrafego?'<span><i class="tt"></i>Trânsito: verde livre, vermelho parado</span>':'')
+    +(tr?`<span class="tr">Tração no mapa: ${tr}</span>`:'');
 }
 let tvComSeq=0, tvComOk=false;
 /* PAINEL DE COMUNICAÇÃO. O número que este painel existe para mostrar não é
@@ -16773,14 +16960,16 @@ async function loadTvOpe(){
   try{
     const mesIni=new Date(); mesIni.setDate(1);
     const qMes='dt_de='+mesIni.toISOString().slice(0,10)+'&dt_ate='+new Date().toISOString().slice(0,10);
-    const [rt, rp, rs, rk, rc, rv]=await Promise.all([
+    /* SEM VALOR DE COMBUSTIVEL NA PAREDE (decisao de quem opera, 13/09/2026):
+       o custo em reais saiu do cartao de km e do bloco reserva, e com ele a
+       consulta -- a TV nao pede o que nao mostra. */
+    const [rt, rp, rs, rk, rv]=await Promise.all([
       fetch('/api/operacao/torre',{cache:'no-store'}),
       fetch('/api/operacao/programacao',{cache:'no-store'}),
       fetch('/api/operacao/seguranca',{cache:'no-store'}),
       fetch('/api/operacao/analise-km?'+qMes,{cache:'no-store'}),
-      fetch('/api/frota/combustivel?'+qMes,{cache:'no-store'}),
       fetch('/api/visao-geral',{cache:'no-store'})]);
-    const t=await rt.json(), p=await rp.json(), s=await rs.json(), km=await rk.json(), cb=await rc.json(), vg=await rv.json();
+    const t=await rt.json(), p=await rp.json(), s=await rs.json(), km=await rk.json(), vg=await rv.json();
     if(seq!==tvOpeSeq) return;
     if(!rt.ok||!rp.ok||!rs.ok){ tvErro('tvope-k1', tvOpeOk); return; }
     /* A TV DE OPERACAO SO MOSTRA QUEM TEM MOTOR. Implemento entra nas
@@ -16800,23 +16989,46 @@ async function loadTvOpe(){
        inclui carreta e terceiro): aqui é quem está EM VIAGEM agora e sumiu. */
     const _hAgo = s => { if(!s) return null; const [dt,hm]=s.split(' ');
       return (Date.now()-new Date(dt+'T'+hm+':00').getTime())/3600000; };
-    const mudos=(t.transito||[]).filter(v=>{ const hh=_hAgo(v.posicao_em); return hh==null||hh>6; }).length;
-    const ocup = pk.tracao_total ? Math.round(100*(pk.tracao_viagem||0)/pk.tracao_total) : null;
+    /* O subtitulo deste cartao dizia "ocupacao da tracao", que e outro
+       assunto e o deixava ilegivel. Agora ele traz o DENOMINADOR e a IDADE:
+       "3" sozinho nao decide, "3 de 67, 1 ha mais de um dia" decide. Nunca ter
+       reportado e faixa propria -- e ausencia de leitura, nao leitura velha.
+       Medido em 13/09/2026: 3 de 67, nenhuma sem posicao nenhuma. */
+    const idades=(t.transito||[]).map(v=>_hAgo(v.posicao_em));
+    const semPos=idades.filter(h=>h==null).length;
+    const ate24=idades.filter(h=>h!=null && h>6 && h<=24).length;
+    const mais24=idades.filter(h=>h!=null && h>24).length;
+    const mudos=semPos+ate24+mais24;
+    /* TRACAO: FROTA E AGREGADO SAO DOIS UNIVERSOS, e o cartao contava so o
+       primeiro (TRA+LOC), quando o agregado e a maior parte da operacao --
+       em 13/09/2026, 64 agregados em viagem contra 4 da frota. Somar os dois
+       num numero so esconderia justamente isso; cada um vai com o seu
+       denominador (o do agregado e quem rodou conosco em 30 dias). */
+    const fDisp=pk.tracao_disp!=null?pk.tracao_disp:pk.frota_disp, fTot=pk.tracao_total||0;
+    /* MOTORISTAS: o "disponiveis" somava agregado e terceiro que so estavam
+       sem viagem CONOSCO (157 "livres", 93 deles de fora). O % livre e so do
+       proprio. A RasterJOR nao entra aqui: ela nao enxerga agregado nenhum e
+       so os proprios logados no aparelho (4 a 14 num dia util). */
+    const pctLivre=pk.pct_proprios_disp;
+    const aTot=pk.agr_ativos_30d||0, fCls=(fTot && fDisp/fTot<0.15)?'warn':'ok';
+    const nTr=(t.transito||[]).length;
     document.getElementById('tvope-k1').innerHTML=[
       tvCard('Em trânsito', tk.em_transito, '', tk.atrasadas+' atrasadas'),
-      // o card mostrava 289 somando 227 carretas paradas com os cavalos: quem aloca
-      // carga precisa da TRAÇÃO disponível, o resto vai no rodapé do card
-      tvCard('Tração disponível', pk.tracao_disp!=null?pk.tracao_disp:pk.frota_disp,
-        (pk.tracao_total && (pk.tracao_disp/pk.tracao_total)<0.15) ? 'warn' : 'ok',
-        (pk.tracao_viagem||0)+' em viagem · '+(pk.tracao_os||0)+' oficina · de '+(pk.tracao_total||0)+' com motor'),
+      tvCardDuo('Tração disponível', [
+          {num:fDisp, cls:fCls, sub:'frota · de '+fTot,
+           barra:{pct:fTot?100*fDisp/fTot:null, cls:fCls}},
+          {num:pk.agr_disp!=null?pk.agr_disp:'—', sub:'agregados · de '+aTot,
+           barra:{pct:aTot?100*(pk.agr_disp||0)/aTot:null}}]),
       tvCard('Saíram hoje', tk.saidas_hoje, '',
-        (tk.chegadas_previstas_hoje||0)+' chegadas previstas hoje'),
+        (tk.chegadas_previstas_hoje||0)+' chegam hoje'),
       tvCard('Chegando 72h', pk.chegando_72h, pk.sem_retorno>0?'warn':'ok', pk.sem_retorno+' sem retorno'),
-      tvCard('Motoristas em viagem', pk.mot_viagem, '', pk.mot_parados+' disponíveis'),
-      tvCard('Sem posição há +6h', mudos, mudos>0?'warn':'ok',
-        'em viagem · ocupação da tração '+(ocup==null?'—':ocup+'%')),
+      tvCardDuo('Motoristas', [
+          {num:pk.mot_viagem, sub:'em viagem'},
+          {num:pctLivre==null?'—':Math.round(pctLivre)+'%', sub:'próprios livres',
+           barra:{pct:pctLivre}}]),
+      tvCard('Sem sinal há +6h', mudos, mudos>0?'warn':'ok', 'de '+nTr+' em viagem', '',
+        {pct:nTr?100*mudos/nTr:null, cls:mudos>0?'warn':'ok'}),
     ].join('');
-    const ck=(rc.ok && cb.kpis) ? cb.kpis : null;
     /* BLOCO SUPERIOR DIREITO = TELEMETRIA (Gobrax). Vem no proprio payload da
        torre (t.telemetria), lido do cache local — a coleta leva ~70 s e a TV
        recarrega a cada 60 s, entao buscar na Gobrax aqui penduraria o painel.
@@ -16828,14 +17040,15 @@ async function loadTvOpe(){
     if(!tel.disponivel){
       document.getElementById('tvope-k2').innerHTML=[
         tvCard('Telemetria', 'sem coleta', 'warn', 'Gobrax · nenhuma coleta gravada'),
-        tvCard('Combustível no mês', ck?tvBRLc(ck.custo):'—', '',
-               ck&&ck.rs_litro!=null?('R$ '+ck.rs_litro.toFixed(2)+'/l'):''),
+        tvCard('Cargas críticas', tk.criticas||0, (tk.criticas||0)>0?'warn':'ok',
+               'em trânsito · ocorrência 261'),
         tvCard('Km do mês', (rk.ok&&km.kpis)?((km.kpis.km_total/1000).toFixed(0)+' mil'):'—', '', 'carregado + vazio'),
         tvCard('Retorno vazio', (rk.ok&&km.kpis&&km.kpis.km_total>0)
                ? (100*km.kpis.km_vazio/km.kpis.km_total).toFixed(0)+'%' : '—',
                (rk.ok&&km.kpis&&km.kpis.km_total>0&&(100*km.kpis.km_vazio/km.kpis.km_total)>20)?'ruim':'ok',
                'no mês · limite 20%'),
-        tvCard('Cargas sem veículo', pk.cargas_sem_chegada, pk.cargas_sem_chegada>0?'warn':'ok', 'nas próximas 96h'),
+        tvCard('Atrasadas', tk.atrasadas||0, (tk.atrasadas||0)>0?'ruim':'ok',
+               'de '+(tk.em_transito||0)+' em trânsito'),
         tvCard('CNH vencida rodando', pk.cnh_vencida_rodando, pk.cnh_vencida_rodando>0?'ruim':'ok', pk.cnh_vencida+' no total'),
       ].join('');
     } else {
@@ -16850,63 +17063,97 @@ async function loadTvOpe(){
          TV não há tooltip, então o quanto se descartou tem de caber no
          subtítulo — senão o número parece medir a frota inteira. */
       const desc=(tel.leitura_suspeita||0);
+      /* O BLOCO E SO DA FROTA RODANDO (pedido de quem opera, 13/09/2026): o
+         servidor filtra frota + locacao com km no mes (api/gobrax/torre.py).
+         Sairam "Abaixo do alvo", "Leitura descartada" e "Carga sem veiculo",
+         que ninguem sabia ler; entraram tres indicadores de conducao da
+         coleta diaria de performance. Os tres sao RAZAO DE TEMPO somada na
+         frota e vao sem cor: nao ha meta nossa para eles, e verde so existe
+         quando havia meta a bater. O descarte de leitura fora da faixa fisica
+         continua dito, agora no proprio subtitulo do consumo. */
+      /* MENOS TEXTO (pedido de quem opera, 13/09/2026): o subtitulo diz a
+         UNIDADE e a base, e a proporcao vai na barra. A idade da coleta so
+         aparece quando NAO e de hoje -- fresca e o normal; velha e que
+         precisa ser dita, senao dado de dias atras se le como ao vivo. O
+         descarte da faixa fisica continua no numero de veiculos do consumo
+         ("41 veic." com 47 rodando). */
+      const velha = d => (d!=null && d>0) ? ' · coleta de '+d+'d atrás' : '';
+      const pctTel = v => v==null ? 'n/d' : v.toFixed(1).replace('.',',')+'%';
       document.getElementById('tvope-k2').innerHTML=[
         tvCard('Consumo da frota', kml!=null?kml.toFixed(1).replace('.',','):'n/d',
                kml==null?'warn':(kml>=alvo?'ok':'ruim'),
-               kml==null ? ('leitura fora da faixa física · '+idade)
-                 : ('km/l · alvo '+alvo.toFixed(1).replace('.',',')+' · '+idade)),
-        tvCard('Abaixo do alvo', tel.abaixo_do_alvo||0, (tel.abaixo_do_alvo||0)>0?'warn':'ok',
-               'veículos · de '+(tel.com_consumo_valido||0)+' com leitura válida'),
-        tvCard('Leitura descartada', desc, desc>0?'warn':'ok',
-               'de '+(tel.veiculos||0)+' telemetrados · fora da faixa física'),
-        /* A razão sai da INTERSEÇÃO (freadas e km do mesmo conjunto), e o
-           subtítulo diz sobre quantos veículos ela foi feita — o total
-           absoluto de freadas do mês inclui quem ficou fora da régua. */
+               kml==null ? 'leitura fora da faixa física'+velha(tel.dias_atras)
+                 : ('km/l · alvo '+alvo.toFixed(1).replace('.',',')+' · '
+                    +(tel.com_consumo_valido||0)+' veíc.'+velha(tel.dias_atras))),
+        tvCard('Motor ligado parado', pctTel(tel.motor_parado_pct), '',
+               'do tempo de motor'+velha(tel.conducao_dias_atras), '',
+               {pct:tel.motor_parado_pct}),
+        tvCard('Faixa extra econômica', pctTel(tel.faixa_extra_eco_pct), '',
+               'do tempo andando', '', {pct:tel.faixa_extra_eco_pct}),
+        tvCard('Pedal crítico', pctTel(tel.pedal_critico_pct), '',
+               'do tempo de pedal', '', {pct:tel.pedal_critico_pct}),
+        /* A razão sai da INTERSEÇÃO (freadas e km do mesmo conjunto) --
+           api/gobrax/torre.py. */
         tvCard('Freada brusca', fr!=null?fr.toFixed(1).replace('.',','):'—',
-               (fr||0)>15?'ruim':'ok',
-               'por 1.000 km · sobre '+(tel.com_consumo_valido||0)+' veículos · '
-                 +(tel.freadas_alta||0).toLocaleString('pt-BR')+' no mês'),
-        tvCard('Velocidade média', tel.vel_media!=null?tel.vel_media.toFixed(0):'—', '',
-               'km/h · '+(tel.veiculos||0)+' telemetrados'
-                 +((tel.vel_fora_da_faixa||0)>0?(' · '+tel.vel_fora_da_faixa+' fora da faixa'):'')),
-        /* NAO repetir o km do mes: o cartao ao lado ja o mostra quebrado em
-           carregado e vazio, e 850 + 215 e o mesmo 1.065. Aqui entra a lacuna
-           que a torre resolve HOJE e nao aparecia em lugar nenhum: carga
-           programada para as proximas 96h ainda sem veiculo alocado. */
-        tvCard('Carga sem veículo', pk.cargas_sem_chegada,
-               (pk.cargas_sem_chegada||0)>0?'warn':'ok', 'programada nas próximas 96h'),
+               (fr||0)>15?'ruim':'ok', 'por 1.000 km'),
+        tvCard('Velocidade média', tel.vel_media!=null?tel.vel_media.toFixed(0):'—', '', 'km/h'),
       ].join('');
     }
     if(rk.ok && km.kpis){
       const kk=km.kpis;
       const pctV=kk.km_total>0?(100*kk.km_vazio/kk.km_total):0;
-      // 3 e nao 4: a quarta modalidade era o que estourava a altura da celula
-      const mods=(km.modalidades||[]).slice(0,3);
+      /* LOCACAO CONTA COMO FROTA (decisao de quem opera, 13/09/2026), e com
+         as duas somadas cabem as TRES modalidades. O corte em 3 deixava o
+         TERCEIRO de fora: era a quarta em km no mes e sumia calado. O corte
+         continua (a quarta linha estoura a altura da celula), mas as
+         conhecidas vem antes de qualquer '(sem)' -- cadastro sem modalidade
+         nao pode empurrar o terceiro para fora de novo. */
+      const CONHECIDAS=['FROTA','AGREGADOS','TERCEIROS'];
+      const agrMod={};
+      (km.modalidades||[]).forEach(m=>{
+        const k=(m.utilizacao==='LOCACAO') ? 'FROTA' : m.utilizacao;
+        const a=agrMod[k] || (agrMod[k]={utilizacao:k, viagens:0, km_total:0});
+        a.viagens+=(m.viagens||0); a.km_total+=(m.km_total||0);
+      });
+      const mods=Object.values(agrMod).sort((a,b)=>
+        (CONHECIDAS.includes(b.utilizacao)-CONHECIDAS.includes(a.utilizacao))
+        || (b.km_total-a.km_total)).slice(0,3);
       const maxT=Math.max(1,...mods.map(m=>m.km_total||0));
       document.getElementById('tvope-km').innerHTML=`
         <div class="duo">
           <div><div class="klab">Km carregado</div><div class="knum" style="color:#4ADE80">${(kk.km_carregado/1000).toLocaleString('pt-BR',{maximumFractionDigits:0})} mil</div></div>
           <div><div class="klab">Km vazio · ${pctV.toFixed(0)}%</div><div class="knum" style="color:${pctV>20?'#F87171':'#FBBF24'}">${(kk.km_vazio/1000).toLocaleString('pt-BR',{maximumFractionDigits:0})} mil</div></div>
-          <div><div class="klab">Combustível</div><div class="knum">${ck?tvBRLc(ck.custo):'—'}</div></div>
         </div>
         <!-- o % de vazio virou BARRA: como terceiro numero grande ele competia
              com os dois que importam e estourava a altura da celula. Aqui ele
              e comparado com o limite de 20% de um olhar so. -->
         <div class="kmvz"><i style="width:${Math.min(100,pctV).toFixed(1)}%;background:${pctV>20?'#F87171':'#FBBF24'}"></i>
           <u style="left:20%"></u></div>
-        <div class="kmvz-lab">retorno vazio ${pctV.toFixed(0)}% · limite 20%${ck&&ck.rs_litro!=null?(' · R$ '+ck.rs_litro.toFixed(2)+'/l'):''}</div>
+        <div class="kmvz-lab">retorno vazio ${pctV.toFixed(0)}% · limite 20%</div>
         ${mods.map(m=>{
-          const cor=MOD_COR[m.utilizacao]||'#6E7883';
+          const cor=tvCorMod(m.utilizacao);
           return `<div class="mod"><b>${esc(utLbl(m.utilizacao)[0])}</b>
             <div class="trk"><i style="width:${(100*(m.km_total||0)/maxT).toFixed(1)}%;background:${cor}"></i></div>
-            <span>${m.viagens.toLocaleString('pt-BR')} viag · ${((m.km_total||0)/1000).toLocaleString('pt-BR',{maximumFractionDigits:0})} mil km</span></div>`;
+            <span>${((m.km_total||0)/1000).toLocaleString('pt-BR',{maximumFractionDigits:0})} mil km</span></div>`;
         }).join('')}`;
     }
-    const atrasadas=(t.transito||[]).filter(v=>v.atrasada)
-      .sort((a,b)=>(a.previsao_chegada||'')<(b.previsao_chegada||'')?-1:1);
-    const futuras=(t.transito||[]).filter(v=>v.previsao_chegada && !v.atrasada)
-      .sort((a,b)=>a.previsao_chegada<b.previsao_chegada?-1:1);
-    const linhas=[...atrasadas, ...futuras].slice(0,10);
+    /* O VEICULO SE CHAMA PELO NUMERO DE FROTA na parede (pedido de quem
+       opera, 13/09/2026). `frota` vem do servidor ja limpo por
+       frota_identidade: quando nao ha numero de verdade, sai a placa. */
+    const idV = v => v.frota || v.placa || '—';
+    /* CARGA CRITICA PRIMEIRO (ocorrencia 261 no pedido de coleta, ver
+       TORRE_TRANSITO_SQL), antes ate das atrasadas. Entra MESMO sem previsao
+       de chegada: a lista de futuras exige previsao, e a critica sem ela
+       sumiria justamente por falta de cadastro. E o topo tambem a protege do
+       laco la embaixo, que tira linha pelo FIM quando o cartao estoura. */
+    const porPrev=(x,y)=>{ const a=x.previsao_chegada||'9', b=y.previsao_chegada||'9';
+      return a<b?-1:(a>b?1:0); };
+    const criticas=(t.transito||[]).filter(v=>v.critica)
+      .sort((a,b)=>((b.atrasada?1:0)-(a.atrasada?1:0)) || porPrev(a,b));
+    const atrasadas=(t.transito||[]).filter(v=>v.atrasada && !v.critica).sort(porPrev);
+    const futuras=(t.transito||[]).filter(v=>v.previsao_chegada && !v.atrasada && !v.critica)
+      .sort(porPrev);
+    const linhas=[...criticas, ...atrasadas, ...futuras].slice(0,10);
     /* CONDIÇÃO DA ESTRADA POR VEÍCULO (servidor, TomTom Traffic Flow).
        É outra coisa do que o `tvEstradas()` do ticker, que traz incidente numa
        REGIÃO: aqui é o trecho onde CADA caminhão está agora.
@@ -16930,8 +17177,8 @@ async function loadTvOpe(){
         tvOpeEstradas = dd;
       }
     }catch(e){ /* silêncio: painel de TV não tem quem leia mensagem de erro */ }
-    document.getElementById('tvope-cheg').innerHTML=linhas.map(v=>`<tr>
-      <td style="font-family:var(--mono);font-weight:700;${v.atrasada?'color:#F87171':''}">${esc(v.placa||'—')}</td>
+    document.getElementById('tvope-cheg').innerHTML=linhas.map(v=>`<tr${v.critica?' class="crit"':''}>
+      <td style="font-family:var(--mono);font-weight:700;${v.atrasada?'color:#F87171':''}">${esc(idV(v))}${v.critica?' <span class="tv-badge crit">CRÍTICA</span>':''}</td>
       <td>${esc((v.destino||'—').length>22?v.destino.slice(0,22)+'…':(v.destino||'—'))}</td>
       <td class="num" ${v.atrasada?'style="color:#F87171"':''}>${v.previsao_chegada?v.previsao_chegada.slice(8,10)+'/'+v.previsao_chegada.slice(5,7)+' '+v.previsao_chegada.slice(11,16):'—'}</td>
       <td>${tvBadgeChegada(v, est[(v.placa||'').toUpperCase()])}</td></tr>`).join('')
@@ -16947,43 +17194,51 @@ async function loadTvOpe(){
         if(emoji && tr.cells[1]) tr.cells[1].innerHTML=emoji+' '+tr.cells[1].innerHTML;
       });
     });
-    const farol=document.getElementById('tvope-farol');
-    if(farol){
-      let nivel='norm', txt='OPERAÇÃO NORMAL';
-      if(tk.atrasadas>5 || sk.cercas_24h>150){ nivel='aten'; txt='ATENÇÃO'; }
-      if(sk.excesso_agora>0 || pk.cnh_vencida_rodando>0){ nivel='crit'; txt='CRÍTICO'; }
-      farol.className='tv-farol '+nivel; farol.textContent=txt; farol.style.display='inline-block';
-    }
+    /* SEM FAROL NO CABECALHO (pedido de quem opera, 13/09/2026): o selo
+       "CRITICO" piscando no titulo competia com a tabela e nao dizia o que
+       era critico. O que o acendia (CNH vencida rodando, cercas, excesso)
+       continua no rodape, com o motivo escrito. */
     let ultima=null;
     (t.posicoes||[]).forEach(pp=>{ if(pp.posicao_em && (!ultima || pp.posicao_em>ultima)) ultima=pp.posicao_em; });
     TV_LASTPOS = ultima ? new Date(ultima.replace(' ','T')) : null;
     const gaugeVelho=document.querySelector('#tvope-km .tvw-gauge');
     if(gaugeVelho) gaugeVelho.remove();
-    if(rv.ok && vg.diario){
-      const hoje=new Date().getDate();
-      const dia=(vg.diario||[]).find(x=>x.dia===hoje) || (vg.diario||[]).filter(x=>x.realizado>0).slice(-1)[0];
-      if(dia && dia.meta>0){
-        const pctD=Math.min(150, 100*dia.realizado/dia.meta);
-        const cor=pctD>=95?'#4ADE80':(pctD>=70?'#FBBF24':'#F87171');
-        const arco=Math.min(100,pctD)*1.319;
-        const kmEl=document.getElementById('tvope-km');
-        if(kmEl) kmEl.insertAdjacentHTML('beforeend', `
-          <div class="tvw-gauge">
-            <div style="text-align:center">
-              <div class="glab" style="margin-bottom:0.3vw">Meta do dia</div>
-              <svg viewBox="0 0 100 55" style="width:8.5vw">
-                <path d="M8 50 A42 42 0 0 1 92 50" fill="none" stroke="#1E3A54" stroke-width="9" stroke-linecap="round"/>
-                <path d="M8 50 A42 42 0 0 1 92 50" fill="none" stroke="${cor}" stroke-width="9" stroke-linecap="round"
-                      stroke-dasharray="${arco.toFixed(1)} 300"/>
-                <text x="50" y="48" text-anchor="middle" font-size="19" font-weight="800" fill="${cor}">${pctD.toFixed(0)}%</text>
-              </svg>
-            </div>
-          </div>`);
-      }
+    /* META DO DIA E DO MES, CADA UMA COM A SUA DATA. O dia era "o de hoje OU,
+       na falta, o ultimo com realizado" -- e dia sem meta (domingo, feriado)
+       nao entra em `diario`, entao no domingo a TV mostrava o sabado como se
+       fosse hoje, sem data nenhuma que denunciasse. Agora o dia e SEMPRE o do
+       payload (`atualizado_em`: o relogio do servidor que montou o `diario`);
+       sem meta, o arco fica apagado e diz "sem meta" -- verde so quando havia
+       meta a bater. O mes e o atingimento acumulado PRONTO do payload
+       (realizado_acumulado / meta_acumulada), nunca recalculado aqui. */
+    if(rv.ok && vg && (vg.diario || vg.atingimento_mes!=null)){
+      const ref=vg.atualizado_em ? new Date(vg.atualizado_em) : new Date();
+      const dRef=ref.getDate();
+      const rotDia=String(dRef).padStart(2,'0')+'/'+String(ref.getMonth()+1).padStart(2,'0');
+      const rotMes=ref.toLocaleDateString('pt-BR',{month:'short'}).replace('.','')
+                   +'/'+String(ref.getFullYear()).slice(2);
+      const dHoje=(vg.diario||[]).find(x=>x.dia===dRef);
+      const pctDia=(dHoje && dHoje.meta>0) ? 100*dHoje.realizado/dHoje.meta : null;
+      const pctMes=(vg.atingimento_mes!=null) ? 100*vg.atingimento_mes : null;
+      const arco=(pct, rot, data)=>{
+        const cor=pct==null ? '#4F6B85' : (pct>=95?'#4ADE80':(pct>=70?'#FBBF24':'#F87171'));
+        const len=pct==null ? 0 : Math.min(100,pct)*1.319;
+        return `<div class="tvw-meta" style="text-align:center">
+            <div class="glab" style="margin-bottom:0.3vw">${rot} · ${data}</div>
+            <svg viewBox="0 0 100 55" style="width:8.5vw">
+              <path d="M8 50 A42 42 0 0 1 92 50" fill="none" stroke="#1E3A54" stroke-width="9" stroke-linecap="round"/>
+              ${len>0?`<path d="M8 50 A42 42 0 0 1 92 50" fill="none" stroke="${cor}" stroke-width="9" stroke-linecap="round" stroke-dasharray="${len.toFixed(1)} 300"/>`:''}
+              <text x="50" y="48" text-anchor="middle" font-size="${pct==null?13:19}" font-weight="800" fill="${cor}">${pct==null?'sem meta':Math.min(150,pct).toFixed(0)+'%'}</text>
+            </svg>
+          </div>`;
+      };
+      const kmEl=document.getElementById('tvope-km');
+      if(kmEl) kmEl.insertAdjacentHTML('beforeend',
+        `<div class="tvw-gauge">${arco(pctDia,'Meta do dia',rotDia)}${arco(pctMes,'Meta do mês',rotMes)}</div>`);
     }
     const tick=[];
     (t.transito||[]).filter(v=>v.atrasada).slice(0,6).forEach(v=>
-      tick.push('⚠️ '+(v.placa||'?')+' atrasada — '+(v.destino||'')));
+      tick.push('⚠️ '+idV(v)+' atrasada — '+(v.destino||'')));
     (t.posicoes||[]).filter(pp=>pp.velocidade>90).forEach(pp=>
       tick.push('🚨 '+(pp.rotulo||pp.frota||pp.placa)+' a '+pp.velocidade+' km/h'));
     if(pk.cnh_vencida_rodando>0) tick.push('🚫 '+pk.cnh_vencida_rodando+' motorista(s) com CNH vencida em viagem');
@@ -16996,7 +17251,7 @@ async function loadTvOpe(){
        So entra quando os dois numeros existem de verdade. */
     if(km.kpis && km.kpis.km_carregado != null && km.kpis.km_total) tick.push('🛣️ Mês: '+(km.kpis.km_carregado/1000).toFixed(0)+' mil km carregado · '+(100*(km.kpis.km_vazio||0)/Math.max(1,km.kpis.km_total)).toFixed(0)+'% vazio');
     (t.transito||[]).filter(v=>!v.atrasada && v.previsao_chegada).slice(0,4).forEach(v=>
-      tick.push('🚛 '+(v.placa||'?')+' chega em '+(v.destino||'')+' '+v.previsao_chegada.slice(11,16)));
+      tick.push('🚛 '+idV(v)+' chega em '+(v.destino||'')+' '+v.previsao_chegada.slice(11,16)));
     try{
       const estradas=await tvEstradas();
       estradas.forEach(x=>tick.unshift('🛣️ '+x));

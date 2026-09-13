@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.72.0] — 13/09/2026  ·  CX-13/09/2026-v1.72.0
+
+### Alterado
+- Painel de TV da Operação — sai o selo "CRÍTICO" que piscava no título; o cabeçalho fica só com a bolinha e a idade da última posição, no mesmo tamanho do relógio. Sai também o valor do combustível; a locação conta como frota no cartão de km; e o terceiro, que ficava de fora da lista de modalidades, volta a aparecer. "Sem posição há +6h" virou "Sem sinal há +6h", com o total em viagem ao lado. Os cartões têm menos texto: o subtítulo diz só a unidade e a base, e as proporções (disponibilidade, motor parado, faixa econômica, pedal) viraram barras.
+
 ## [1.71.6] — 13/09/2026  ·  CX-13/09/2026-v1.71.6
 
 ### Segurança

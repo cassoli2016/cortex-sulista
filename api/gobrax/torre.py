@@ -12,6 +12,7 @@ faria o operador ler telemetria velha como se fosse do momento — por isso
 """
 from __future__ import annotations
 
+import re
 from datetime import datetime
 
 from api.gobrax import armazenamento as arm
@@ -33,9 +34,97 @@ def _num(v):
         return None
 
 
-def resumo() -> dict:
+def placa_norm(s) -> str:
+    """A placa como chave de comparação.
+
+    AS DUAS COLETAS DA GOBRAX NÃO ESCREVEM A PLACA IGUAL: `estatisticas` grava
+    "AAA1A11", e `performance` grava "AAA1A11 - FR1234" (placa e número de
+    frota juntos, no campo de identificação do veículo). Medido em 13/09/2026:
+    comparando o campo cru, 47 dos 49 veículos da performance ficavam "fora do
+    ERP" — só casavam os dois agregados, que vêm sem o número.
+    """
+    return re.sub(r"[^A-Z0-9]", "", str(s or "").split(" - ")[0].upper())
+
+
+def _dias_atras(quando):
+    if not quando:
+        return None
+    try:
+        return (datetime.now() - datetime.strptime(quando, "%Y-%m-%d %H:%M:%S")).days
+    except ValueError:
+        return None
+
+
+# A torta de pedal: as três pressões somam 100% do tempo de pedal.
+PEDAL = ("pedalPressureOnHig", "pedalPressureOnMid", "pedalPressureOnLow")
+
+
+def conducao(frota: set[str] | None = None) -> dict:
+    """Três indicadores de condução da frota, da coleta DIÁRIA de performance.
+
+    Cada um é uma RAZÃO DE TEMPO somada na frota — Σ numerador ÷ Σ base —, e
+    não a média dos percentuais: veículo que rodou 10 h pesaria igual a um que
+    rodou 200 h. A base de cada um foi conferida contra o percentual que o
+    próprio fornecedor dá por veículo (diferença 0,0 nos 46 da frota, em
+    13/09/2026):
+
+      motor ligado parado  = idle ÷ (idle + movement)     — do tempo de motor
+      faixa extra-econômica = extraEconomicRange ÷ movement — do tempo andando
+      pedal crítico         = pressão alta ÷ as três pressões — do tempo de pedal
+
+    A DURAÇÃO NÃO VAI PARA A TELA: o campo se chama `h`, mas um veículo soma
+    6.649 dele em treze dias, o que não é hora. Na razão a unidade se cancela;
+    como número absoluto seria um valor sem unidade conhecida.
+    """
+    try:
+        log = arm.competencia_atual("performance")
+        linhas = arm.ler("performance", log["competencia"]) if log else []
+    except Exception:  # noqa: BLE001
+        log, linhas = None, []
+    if frota is not None:
+        linhas = [l for l in linhas if placa_norm(l.get("placa")) in frota]
+
+    def dur(l, chave):
+        d = l.get(chave)
+        return _num(d.get("h")) if isinstance(d, dict) else None
+
+    def razao(numerador: str, base: tuple) -> tuple:
+        n = d = 0.0
+        veic = 0
+        for l in linhas:
+            partes = [dur(l, k) for k in base]
+            num = dur(l, numerador)
+            if num is None or any(p is None for p in partes) or sum(partes) <= 0:
+                continue
+            n += num
+            d += sum(partes)
+            veic += 1
+        return (round(100 * n / d, 1) if d > 0 else None), veic
+
+    parado, v1 = razao("idle", ("idle", "movement"))
+    extra, v2 = razao("extraEconomicRange", ("movement",))
+    pedal, v3 = razao("pedalPressureOnHig", PEDAL)
+    quando = (log or {}).get("quando")
+    return {
+        "motor_parado_pct": parado,
+        "faixa_extra_eco_pct": extra,
+        "pedal_critico_pct": pedal,
+        "conducao_veiculos": max(v1, v2, v3),
+        "conducao_coletado_em": quando,
+        "conducao_dias_atras": _dias_atras(quando),
+    }
+
+
+def resumo(frota: set[str] | None = None) -> dict:
     """Agregado da última coleta. Nunca levanta: a Torre não pode cair porque
-    a telemetria está indisponível — devolve `disponivel: False`."""
+    a telemetria está indisponível — devolve `disponivel: False`.
+
+    `frota`: placas (já em `placa_norm`) da frota da casa — próprios e
+    locados. Com ela, o agregado é SÓ da frota que está rodando (km no mês),
+    pedido de quem opera em 13/09/2026: os agregados telemetrados são poucos
+    (2 de 49 na medição do dia) e não têm alvo nosso de consumo. Sem ela, o
+    comportamento antigo: tudo o que a Gobrax trouxe.
+    """
     try:
         # competencia_atual e nao ultima(): `ultima` ordena por INSERCAO, e o
         # coletor agendado busca o mes corrente E o anterior — gravando o
@@ -47,6 +136,12 @@ def resumo() -> dict:
 
     if not linhas:
         return {"disponivel": False, "motivo": "nenhuma coleta de telemetria gravada"}
+    if frota is not None:
+        linhas = [r for r in linhas if placa_norm(r.get("placa")) in frota
+                  and (_num(r.get("km")) or 0) > 0]
+        if not linhas:
+            return {"disponivel": False,
+                    "motivo": "nenhum veículo da frota rodando na coleta"}
 
     km_tot = lit_tot = 0.0
     km_ok = lit_ok = 0.0
@@ -93,15 +188,12 @@ def resumo() -> dict:
     if km_l_frota is not None and not plausivel(km_l_frota):
         km_l_frota = None
     quando = (log or {}).get("quando")
-    dias = None
-    if quando:
-        try:
-            dias = (datetime.now() - datetime.strptime(quando, "%Y-%m-%d %H:%M:%S")).days
-        except ValueError:
-            pass
+    dias = _dias_atras(quando)
 
     return {
         "disponivel": True,
+        "escopo": "frota" if frota is not None else "todos",
+        **conducao(frota),
         "veiculos": len(linhas),
         "km_total": round(km_ok, 1),
         "litros_total": round(lit_ok, 1),
