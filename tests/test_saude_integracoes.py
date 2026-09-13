@@ -138,7 +138,26 @@ def test_monkey_configurada_sem_coleta_diz_que_a_tupy_segue_por_planilha():
     assert "planilha" in s["detalhe"]
 
 
-def test_monkey_em_producao_e_recente_e_ok():
+def _curva(monkeypatch, origem: str) -> None:
+    """A curva de deságio é lida dos títulos GRAVADOS: existe na máquina de
+    produção e não num clone limpo — e enquanto este teste a lia de verdade,
+    ele só passava lá (no CI dava 'alerta' e parecia defeito da Saúde)."""
+    import api.financeiro.plano as plano
+    monkeypatch.setattr(plano, "_curva_de_taxa",
+                        lambda *a, **k: (None, {"origem": origem, "base": 120}))
+
+
+def test_monkey_sem_curva_de_desagio_medida_e_alerta(monkeypatch):
+    """Sem medição o Plano de Caixa cai na taxa de segurança — o custo passa a
+    ser teto, não preço — e é aqui que quem vigia integração fica sabendo."""
+    _curva(monkeypatch, "seguranca")
+    s = sv._servico_monkey(diag_monkey())
+    assert s["status"] == "alerta"
+    assert "SEM curva" in s["detalhe"]
+
+
+def test_monkey_em_producao_e_recente_e_ok(monkeypatch):
+    _curva(monkeypatch, "medida")
     s = sv._servico_monkey(diag_monkey())
     assert s["status"] == "ok"
     assert "42 títulos" in s["detalhe"]

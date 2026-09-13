@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.70.1] — 13/09/2026  ·  CX-13/09/2026-v1.70.1
+
+### Corrigido
+- Nada muda nas telas. Os testes automáticos do GitHub deixam de depender da máquina de produção: sem o ERP configurado, a consulta recusa na hora em vez de esperar 15 segundos, e os testes que liam dados que só existem aqui passaram a criar o que precisam. Quem desenvolve sem acesso ao ERP vê as telas que o leem responderem na hora "ERP não configurado".
+
 ## [1.70.0] — 13/09/2026  ·  CX-13/09/2026-v1.70.0
 
 ### Corrigido

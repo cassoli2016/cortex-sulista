@@ -86,6 +86,37 @@ ENQ = doc.Enquadramento(cfop_interno="5351", cfop_interestadual="6351",
                         toma="4", referenciar_original=True)
 
 
+@pytest.fixture(autouse=True)
+def _ibge_sem_erp(monkeypatch):
+    """O ÚNICO ponto em que a montagem consulta o ERP é o código IBGE do
+    município (`ibge()`, tabela `cidade_ibge` da réplica). Na máquina de
+    produção ele respondia de verdade; no CI e num clone limpo cada montagem
+    esperava o pool do ERP desistir — dez testes que só rodavam aqui.
+
+    O dublê responde com os pares município/código que o próprio `DADOS` traz
+    (copiados do CT-e piloto). Qualquer OUTRA consulta ao ERP levanta: montagem
+    que passe a ler o ERP aparece neste arquivo em vez de sumir num timeout.
+    Os testes de `ibge()` trazem o próprio dublê, aplicado depois deste."""
+    pares = [("emit_uf", "emit_cidade", "emit"),
+             ("ufcoleta", "cidadecoleta", "ini"),
+             ("ufentrega", "cidadeentrega", "fim"),
+             ("rem_uf", "rem_cidade", "rem"),
+             ("dest_uf", "dest_cidade", "dest")]
+    tabela = {(DADOS[uf], DADOS[cid].upper()): {"codigoibge": DADOS[f"{p}_cmun"],
+                                                "municipio": DADOS[f"{p}_xmun"]}
+              for uf, cid, p in pares}
+
+    def query(sql, params=None):
+        if sql is not doc.IBGE_SQL:
+            raise AssertionError(
+                "a montagem do documento consultou o ERP fora do IBGE: "
+                + " ".join(sql.split())[:90])
+        linha = tabela.get((params["uf"], params["cidade"].upper()))
+        return [linha] if linha else []
+
+    monkeypatch.setattr(doc.db, "query", query)
+
+
 # --- as guardas ------------------------------------------------------------
 
 def test_nao_assina_e_nao_transmite():

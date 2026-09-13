@@ -124,7 +124,7 @@ def test_o_desvio_e_orientado_pelo_que_e_BOM():
 
 # ─────────────────────────────────── a discordância é ato, não estado normal
 
-def test_faixa_invertida_e_recusada():
+def test_faixa_invertida_e_recusada(esquema_pg):
     """Vermelho acima do verde não deixa faixa para o amarelo — o painel teria
     duas cores e ninguém entenderia por quê.
 
@@ -135,19 +135,31 @@ def test_faixa_invertida_e_recusada():
     gerência", nunca chegando à regra das faixas.)
 
     A exceção estoura antes de qualquer INSERT, então nada é gravado.
+
+    As gerências vêm da migration (a `0067` as semeia), no schema DO TESTE.
+    Antes eram lidas do schema de PRODUÇÃO: o teste só existia na máquina que
+    tem o banco cheio, e em qualquer outra caía em "tabela não existe".
     """
-    gers = ritual.gerencias()
-    if not gers:
-        pytest.skip("nenhuma gerência cadastrada nesta instalação")
+    gers = ritual.gerencias(esquema_pg)
+    assert gers, "a migration 0067 semeia as gerências — o schema veio vazio?"
     with pytest.raises(ritual.DadoInvalido, match="MENOR"):
         ritual.salvar_indicador({"nome": "prova de faixa invertida",
                                  "gerencia_id": gers[0]["id"],
-                                 "tol_verde": "-20", "tol_vermelho": "0"})
+                                 "tol_verde": "-20", "tol_vermelho": "0"},
+                                esquema=esquema_pg)
 
 
 def test_o_catalogo_de_fontes_continua_executavel():
     """Chave de fonte errada NÃO levanta erro: `ler_fonte` captura e devolve
     `None`, e o indicador fica vazio para sempre. Por isso o guard EXECUTA em
-    vez de conferir a grafia — foi assim que três fontes nasceram mudas."""
+    vez de conferir a grafia — foi assim que três fontes nasceram mudas.
+
+    As fontes leem o ERP: sem ele configurado (clone limpo, CI) TODAS dariam
+    `None`, e o teste acusaria o catálogo inteiro por falta de infraestrutura
+    — então pula dizendo por quê. Que cada fonte RODA sem levantar, em
+    qualquer lugar, é `test_toda_fonte_registrada_EXECUTA_sem_levantar`."""
+    from api import db
+    if not db.configurado():
+        pytest.skip("ERP não configurado nesta instalação — as fontes leem o ERP")
     mudas = [c for c in ritual.FONTES if ritual.ler_fonte(c) is None]
     assert not mudas, f"fontes que nao devolvem numero: {mudas}"

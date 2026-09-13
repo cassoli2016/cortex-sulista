@@ -87,14 +87,21 @@ def test_o_nucleo_NAO_nomeia_tabela_do_ERP_em_SQL(arq):
         % (arq.name, sorted(set(culpados))))
 
 
-def test_a_TELA_sobrevive_ao_ERP_fora_do_ar(monkeypatch):
+def test_a_TELA_sobrevive_ao_ERP_fora_do_ar(monkeypatch, esquema_pg):
     """A prova pelo comportamento, e nao pela estrutura: com o ERP inteiro
     caindo, o panorama da recolha continua respondendo.
 
     E o cartao da conciliacao vira "nao sei" (None), e nao ZERO -- zero diria
     "conferi e nao ha nenhum sem par", que e uma afirmacao que ninguem fez.
+
+    As caixas vem do banco DA CASA, no schema do teste e com uma caixa de
+    verdade -- sem ela o panorama "sobreviveria" por nao ter o que ler. (Lia o
+    schema de PRODUCAO: so passava na maquina que tem as caixas cadastradas.)
     """
-    from api.sefaz import conciliacao, painel
+    from api.sefaz import armazenamento as arm, conciliacao, painel
+
+    monkeypatch.setattr(arm, "ESQUEMA", esquema_pg)
+    arm.abrir_caixa("76104397000123", "FIL MTZ")
 
     def cai(*a, **k):
         raise RuntimeError("o AVA nao respondeu")
@@ -102,6 +109,7 @@ def test_a_TELA_sobrevive_ao_ERP_fora_do_ar(monkeypatch):
     monkeypatch.setattr("api.db.query", cai)
     d = painel.panorama()
     assert "caixas" in d and "total" in d, "o panorama caiu junto com o ERP"
+    assert [c["cnpj"] for c in d["caixas"]] == ["76104397000123"]
     assert conciliacao.no_erp(["4" * 44]) == {}
     r = conciliacao.marcar([{"tipo": "nfe", "chave": "4" * 44}])
     assert r["comparaveis"] == 1

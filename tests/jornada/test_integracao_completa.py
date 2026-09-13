@@ -174,7 +174,28 @@ def test_a_escrita_e_uma_porta_SEPARADA_da_leitura():
     assert set(cliente.ESCRITAS) == {"criar_ausencia", "apagar_ausencia"}
 
 
-def test_a_tela_NUNCA_manda_o_caminho():
+class _SaiuRequisicao(BaseException):
+    """BaseException DE PROPÓSITO: `enviar` converte qualquer `Exception` em
+    `RasterIndisponivel` — um AssertionError no lugar da rede seria engolido e
+    o teste passaria pelo motivo errado (a requisição saiu e falhou)."""
+
+
+@pytest.fixture
+def raster_sem_rede(monkeypatch):
+    """Configurada de mentira, e sem rede nenhuma.
+
+    Sem `configurado()` verdadeiro, `enviar` recusa por "não configurado" ANTES
+    de olhar a ação — e estes testes só passavam na máquina que tem a
+    credencial, provando a coisa certa ali e a errada em todo o resto."""
+    monkeypatch.setattr(cliente, "configurado", lambda: True)
+
+    def urlopen(*a, **k):
+        raise _SaiuRequisicao("a requisição SAIU — a recusa tinha de vir antes")
+
+    monkeypatch.setattr(cliente.urllib.request, "urlopen", urlopen)
+
+
+def test_a_tela_NUNCA_manda_o_caminho(raster_sem_rede):
     """A regra do playground de fornecedor: a tela manda a AÇÃO, o servidor
     monta a URL. Caminho vindo de fora é o que transforma um endpoint de leitura
     em qualquer endpoint."""
@@ -197,7 +218,7 @@ def test_criar_ausencia_RECUSA_enquanto_o_codigo_do_tipo_for_desconhecido():
     assert "type_id" in str(e.value), "a recusa precisa dizer o que falta"
 
 
-def test_apagar_valida_o_id_ANTES_de_virar_segmento_de_URL():
+def test_apagar_valida_o_id_ANTES_de_virar_segmento_de_URL(raster_sem_rede):
     with pytest.raises(cliente.RasterIndisponivel):
         cliente.enviar("apagar_ausencia", external_pk="../../outra-coisa")
 

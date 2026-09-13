@@ -1,3 +1,13 @@
+- versao: "1.70.1"
+  data: "2026-09-13"
+  corrigido:
+    - >-
+      Nada muda nas telas. Os testes automáticos do GitHub deixam de depender
+      da máquina de produção: sem o ERP configurado, a consulta recusa na hora
+      em vez de esperar 15 segundos, e os testes que liam dados que só existem
+      aqui passaram a criar o que precisam. Quem desenvolve sem acesso ao ERP
+      vê as telas que o leem responderem na hora "ERP não configurado".
+
 - versao: "1.70.0"
   data: "2026-09-13"
   corrigido:

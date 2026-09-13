@@ -181,8 +181,29 @@ def fechar_pool() -> None:
         _pool = None
 
 
+class ErpNaoConfigurado(RuntimeError):
+    """Sem `POSTGRES_PASSWORD` o ERP não está FORA DO AR: ele não foi instalado
+    aqui (clone de desenvolvedor, CI). É a regra das integrações da casa — sem
+    credencial não é falha, é instalação incompleta."""
+
+
+def configurado() -> bool:
+    return bool((os.environ.get("POSTGRES_PASSWORD") or "").strip())
+
+
 @contextmanager
 def get_conn():
+    # SEM CREDENCIAL, RECUSA NA HORA (12/09/2026). Antes, o pool tentava o
+    # 127.0.0.1:15432 padrão e só desistia no `timeout` de 15 s — POR CONSULTA.
+    # No CI isso somava minutos em cada teste que toca o ERP (o catálogo de 34
+    # fontes do ritual levava 315 s sozinho) e uma fatia inteira estourava o
+    # teto; num clone de desenvolvedor, cada tela que lê o ERP pendurava 15 s
+    # para dizer o que já se sabia. A produção tem a senha no `.env` e não
+    # passa por aqui. A trava fica no CONSUMO, não na criação do pool.
+    if not configurado():
+        raise ErpNaoConfigurado(
+            "ERP (AVA) não configurado nesta instalação — falta "
+            "POSTGRES_PASSWORD no .env (ver docs/DESENVOLVIMENTO.md)")
     if ConnectionPool is None:
         with psycopg.connect(_conninfo(), row_factory=dict_row) as conn:
             yield conn

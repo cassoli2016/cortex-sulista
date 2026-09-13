@@ -103,6 +103,10 @@ APP_SECRET=<texto-longo-aleatorio-so-seu>
 **E é só isso.** Não acrescente Z-API, SMTP, Gobrax, `GITHUB_TOKEN`, VAPID,
 `MOTORISTA_CODIGO_MESTRE` nem nada de `data/` — veja a seção 1.
 
+Enquanto o seu usuário do ERP não chega, deixe o bloco do ERP de fora: o resto
+funciona, e toda tela que lê o ERP responde na hora "ERP não configurado" —
+em vez de esperar 15 segundos para dizer a mesma coisa.
+
 Subir:
 
 ```bash
