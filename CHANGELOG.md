@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.71.0] — 13/09/2026  ·  CX-13/09/2026-v1.71.0
+
+### Adicionado
+- Horas Paradas: a aba Regras do cliente pode ser tirada de um usuário em Gestão › Usuários. Quem não tem a aba continua vendo as cargas, ajustando horários com motivo e enviando o e-mail, mas não muda a regra de cobrança, não cadastra cliente novo e não guarda destinatários no perfil.
+
+### Alterado
+- Horas Paradas: no e-mail ao cliente, as respostas vão sempre para o e-mail de quem está enviando — o campo "Responder para" saiu do envio e das regras do cliente, e o envio mostra para qual endereço as dúvidas vão voltar.
+
 ## [1.70.1] — 13/09/2026  ·  CX-13/09/2026-v1.70.1
 
 ### Corrigido

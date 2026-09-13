@@ -1,3 +1,18 @@
+- versao: "1.71.0"
+  data: "2026-09-13"
+  adicionado:
+    - >-
+      Horas Paradas: a aba Regras do cliente pode ser tirada de um usuário em
+      Gestão › Usuários. Quem não tem a aba continua vendo as cargas, ajustando
+      horários com motivo e enviando o e-mail, mas não muda a regra de cobrança,
+      não cadastra cliente novo e não guarda destinatários no perfil.
+  alterado:
+    - >-
+      Horas Paradas: no e-mail ao cliente, as respostas vão sempre para o
+      e-mail de quem está enviando — o campo "Responder para" saiu do envio e
+      das regras do cliente, e o envio mostra para qual endereço as dúvidas
+      vão voltar.
+
 - versao: "1.70.1"
   data: "2026-09-13"
   corrigido:
