@@ -314,7 +314,9 @@ def test_muitos_ociosos_acendem_o_cartao(pagina, pct, destaque):
     if destaque:
         assert destaque in classe, classe
     else:
-        assert "destaque" not in classe, classe
+        # no normal, nenhuma borda de ALERTA -- só a branca de número sem cor
+        assert "destaque-warn" not in classe and "destaque-ruim" not in classe, classe
+        assert "destaque-neutro" in classe, classe
 
 
 def test_as_reguas_de_conducao_pintam_numero_e_barra(pagina):
@@ -394,12 +396,14 @@ def test_todo_cartao_tem_borda_na_cor_do_numero(pagina):
         assert "destaque-warn" in info[rot]["cls"], (rot, info[rot])
     for rot in ("CONSUMO DA FROTA", "SEM SINAL HÁ +6H", "FREADA BRUSCA", "TRAÇÃO DISPONÍVEL"):
         assert "destaque-ok" in info[rot]["cls"], (rot, info[rot])
+    # número branco: borda BRANCA (e não a discreta azul-acinzentada)
     for rot in ("EM TRÂNSITO", "VELOCIDADE MÉDIA", "SAÍRAM HOJE"):
-        assert "destaque" not in info[rot]["cls"], (rot, info[rot])
+        assert "destaque-neutro" in info[rot]["cls"], (rot, info[rot])
+        assert "229, 237, 244" in info[rot]["sombra"], (rot, info[rot]["sombra"])
     # e TODOS têm borda de verdade no navegador (a regra pode existir e perder)
     sem = [r for r, v in info.items() if v["sombra"] in ("none", "")]
     assert not sem, sem
-    # as bordas de estado não são a mesma cor da neutra
+    # as bordas de estado não são a mesma cor da branca
     assert info["CONSUMO DA FROTA"]["sombra"] != info["EM TRÂNSITO"]["sombra"]
 
 

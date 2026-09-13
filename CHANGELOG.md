@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.73.6] — 13/09/2026  ·  CX-13/09/2026-v1.73.6
+
+### Alterado
+- Painel de TV da Operação — os cartões de número branco (sem meta, como Em trânsito, Saíram hoje e Velocidade média) também ganham borda, branca, na mesma espessura das coloridas.
+
 ## [1.73.5] — 13/09/2026  ·  CX-13/09/2026-v1.73.5
 
 ### Alterado

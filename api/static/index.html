@@ -1907,6 +1907,7 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
    pisca vira ruido numa parede que fica ligada o dia inteiro) */
 /* max(2px,...): em vw puro a borda tinha 0,6 px no celular e sumia */
 .tv-card.destaque-ok{box-shadow:inset 0 0 0 max(2px,0.16vw) #4ADE80}
+.tv-card.destaque-neutro{box-shadow:inset 0 0 0 max(2px,0.16vw) rgba(229,237,244,.85)}
 .tv-card.destaque-warn{box-shadow:inset 0 0 0 max(2px,0.16vw) #FBBF24;background:linear-gradient(rgba(251,191,36,.08),rgba(251,191,36,.08)),#132A40}
 .tv-card.destaque-ruim{box-shadow:inset 0 0 0 max(2px,0.16vw) #F87171;background:linear-gradient(rgba(248,113,113,.10),rgba(248,113,113,.10)),#132A40}
 #view-tvope .tv-head{margin-bottom:0.7vw}
@@ -15361,8 +15362,11 @@ function tvDestacar(rootId){
   document.querySelectorAll('#'+rootId+' .tv-card').forEach(c=>{
     const nums=[...c.querySelectorAll('.tv-num')];
     const tem=k=>nums.some(n=>n.classList.contains(k));
-    const pior=tem('ruim') ? 'ruim' : (tem('warn') ? 'warn' : (tem('ok') ? 'ok' : ''));
-    c.classList.remove('destaque-ok','destaque-warn','destaque-ruim');
+    // numero BRANCO (sem meta) tambem ganha a borda da sua cor -- branca
+    // (quem opera, 13/09/2026: "os brancos tambem pode colocar bordas")
+    const pior=tem('ruim') ? 'ruim' : (tem('warn') ? 'warn' : (tem('ok') ? 'ok'
+      : (nums.length ? 'neutro' : '')));
+    c.classList.remove('destaque-ok','destaque-warn','destaque-ruim','destaque-neutro');
     if(pior) c.classList.add('destaque-'+pior);
   });
 }

@@ -1,3 +1,11 @@
+- versao: "1.73.6"
+  data: "2026-09-13"
+  alterado:
+    - >-
+      Painel de TV da Operação — os cartões de número branco (sem meta, como
+      Em trânsito, Saíram hoje e Velocidade média) também ganham borda,
+      branca, na mesma espessura das coloridas.
+
 - versao: "1.73.5"
   data: "2026-09-13"
   alterado:
