@@ -13,7 +13,9 @@ respondeu, nem o valor que o ERP daria.
 
 O ENVIO é o do módulo de correio da casa (`api/correio/envio.py`), que nunca
 levanta, grava toda tentativa na trilha de e-mails e transforma
-`responder_para` em `Reply-To`. Aqui fica a outra pergunta — "a planilha
+`responder_para` em `Reply-To`. E o `responder_para` é o e-mail de QUEM
+ENVIA (decisão de quem opera, 13/09/2026): a rota o tira da sessão e ignora o
+que vier no pedido — a dúvida do cliente volta para quem mandou a planilha. Aqui fica a outra pergunta — "a planilha
 desta semana deste cliente já foi mandada, para quem, e por quem?" —, em
 `hp_envio`, com a linha aberta ANTES do envio e fechada depois.
 """
@@ -192,7 +194,7 @@ def enviar(perfil_id: int, de: str, ate: str, destinatarios, responder_para,
     # LEMBRAR só depois de o e-mail ter SAÍDO: lista que falhou não vira padrão.
     if ok and lembrar:
         cfg = dict(e["config"])
-        cfg["email"] = dict(cfg["email"], destinatarios=dests, responder_para=resp)
+        cfg["email"] = dict(cfg["email"], destinatarios=dests)
         cadastro.salvar_config(perfil_id, cfg, autor, esquema=esquema)
     return {"ok": ok, "erro": res.get("erro") or "", "id": rid, "destinatarios": dests,
             "responder_para": resp, "assunto": assunto, "arquivo": e["arquivo"]}

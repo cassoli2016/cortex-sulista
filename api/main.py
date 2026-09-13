@@ -6869,7 +6869,7 @@ def horas_paradas_planilha(perfil: int, de: str | None = None,
                  % (ascii_.replace('"', ""), quote(nome))})
 
 
-@app.post("/api/operacao/horas-paradas/perfis")
+@app.post("/api/operacao/horas-paradas/perfis/novo")
 async def horas_paradas_perfil_criar(req: Request) -> JSONResponse:
     from api.horas_paradas import cadastro
     quem = _hp_quem(req)
@@ -6948,11 +6948,13 @@ async def horas_paradas_desfazer(req: Request) -> JSONResponse:
 
 
 @app.get("/api/operacao/horas-paradas/email/previa")
-def horas_paradas_email_previa(perfil: int, de: str | None = None,
+def horas_paradas_email_previa(req: Request, perfil: int, de: str | None = None,
                                ate: str | None = None) -> JSONResponse:
-    """O e-mail como o cliente vai receber, sem enviar — e os padrões do
-    perfil (destinatários, resposta) e os últimos envios, para o modal."""
+    """O e-mail como o cliente vai receber, sem enviar — os destinatários do
+    perfil, o endereço que vai receber as respostas (o de quem está logado)
+    e os últimos envios, para o modal."""
     from api.horas_paradas import email as hpe
+    quem = _hp_quem(req)
     try:
         d0, d1 = _hp_periodo(de, ate)
         e = hpe.montar(perfil, d0, d1)
@@ -6961,7 +6963,7 @@ def horas_paradas_email_previa(perfil: int, de: str | None = None,
             "de": d0, "ate": d1,
             "cargas": e["resumo"]["cargas"], "valor_total": e["resumo"]["valor_total"],
             "destinatarios": e["config_email"]["destinatarios"],
-            "responder_para": e["config_email"]["responder_para"],
+            "responder_para": [quem] if quem else [],
             "envios": hpe.envios(perfil)})
     except Exception as exc:  # noqa: BLE001
         return _hp_falha(exc, "montar o e-mail")
@@ -6982,12 +6984,24 @@ async def horas_paradas_email_enviar(req: Request) -> JSONResponse:
     except (TypeError, ValueError):
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido", "mensagem": "Perfil ou período inválido."})
+    # "LEMBRAR" GRAVA NO PERFIL — é mexer na regra do cliente, e quem teve a
+    # aba Regras tirada não entra por esta porta lateral. Recusa ANTES de
+    # enviar: nada sai com uma metade do pedido negada.
+    sess = getattr(req.state, "sessao", None) or {}
+    if (body.get("lembrar") and not sess.get("admin")
+            and "hp.regras" in (sess.get("abas_tiradas") or [])):
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "sem_acesso", "mensagem": ("Guardar destinatários mexe nas regras do "
+                                               "cliente, e essa aba não está liberada para "
+                                               "você. Desmarque “lembrar” e envie de novo.")})
+    # O REPLY-TO É QUEM ENVIA (decisão de quem opera, 13/09/2026): a dúvida do
+    # cliente volta para quem mandou a planilha, e o que vem no corpo é ignorado.
     await sem_travar(auth.audit, quem, "hp_email", alvo="perfil %d · %s a %s" % (pid, d0, d1),
                      detalhe=("para: %s · resposta: %s" % (body.get("destinatarios") or "",
-                                                           body.get("responder_para") or ""))[:180])
+                                                           quem))[:180])
     try:
         r = await sem_travar(hpe.enviar, pid, d0, d1, body.get("destinatarios") or "",
-                             body.get("responder_para") or "", str(body.get("assunto") or ""),
+                             quem, str(body.get("assunto") or ""),
                              str(body.get("mensagem") or ""), quem,
                              lembrar=bool(body.get("lembrar")))
     except Exception as exc:  # noqa: BLE001

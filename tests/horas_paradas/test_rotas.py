@@ -78,7 +78,7 @@ def test_rota_mapeada_para_a_tela_hp():
 
 
 def test_ciclo_perfil_regra_ajuste_planilha(cliente):
-    r = cliente.post("/api/operacao/horas-paradas/perfis",
+    r = cliente.post("/api/operacao/horas-paradas/perfis/novo",
                      json={"cliente_codigo": 8, "cliente_nome": "CLIENTE A"})
     assert r.status_code == 200, r.text
     pid = r.json()["perfil"]["id"]
@@ -120,19 +120,23 @@ def test_ciclo_perfil_regra_ajuste_planilha(cliente):
 def test_e_mail_AUDITADO_antes_e_falha_do_servidor_e_409(cliente, monkeypatch):
     from api.correio import envio
     enviados = []
-    monkeypatch.setattr(envio, "enviar", lambda d, a, c, **kw: enviados.append(d) or
+    monkeypatch.setattr(envio, "enviar", lambda d, a, c, **kw:
+                        enviados.append((d, kw.get("responder_para"))) or
                         {"ok": True, "erro": "", "destinatarios": d})
-    pid = cliente.post("/api/operacao/horas-paradas/perfis",
+    pid = cliente.post("/api/operacao/horas-paradas/perfis/novo",
                        json={"cliente_codigo": 8, "cliente_nome": "A"}).json()["perfil"]["id"]
     prev = cliente.get("/api/operacao/horas-paradas/email/previa",
                        params={"perfil": pid, "de": "2026-09-07", "ate": "2026-09-13"})
     assert prev.status_code == 200 and prev.json()["cargas"] == 1
     assert prev.json()["html"].startswith("<!DOCTYPE") and prev.json()["envios"] == []
+    # a resposta vai para QUEM ESTÁ LOGADO (decisão de 13/09/2026)
+    assert prev.json()["responder_para"] == ["chefe@sulista.com.br"]
     r = cliente.post("/api/operacao/horas-paradas/email", json={
         "perfil": pid, "de": "2026-09-07", "ate": "2026-09-13",
         "destinatarios": "cliente@empresa.com", "responder_para": "torre@sulista.com.br"})
     assert r.status_code == 200, r.text
-    assert enviados == [["cliente@empresa.com"]]
+    # o "responder_para" do pedido é IGNORADO: o Reply-To é quem enviou
+    assert enviados == [(["cliente@empresa.com"], ["chefe@sulista.com.br"])]
     with auth._conn() as c:
         acoes = [x["acao"] for x in c.execute(
             "SELECT acao FROM audit_log WHERE acao = 'hp_email'").fetchall()]
@@ -149,9 +153,9 @@ def test_e_mail_AUDITADO_antes_e_falha_do_servidor_e_409(cliente, monkeypatch):
 
 
 def test_recusas_sao_4xx_legiveis(cliente):
-    pid = cliente.post("/api/operacao/horas-paradas/perfis",
+    pid = cliente.post("/api/operacao/horas-paradas/perfis/novo",
                        json={"cliente_codigo": 8, "cliente_nome": "A"}).json()["perfil"]["id"]
-    r = cliente.post("/api/operacao/horas-paradas/perfis",
+    r = cliente.post("/api/operacao/horas-paradas/perfis/novo",
                      json={"cliente_codigo": 8, "cliente_nome": "A"})
     assert r.status_code == 409 and "já tem perfil" in r.json()["mensagem"]
     r = cliente.post("/api/operacao/horas-paradas/perfis/salvar",

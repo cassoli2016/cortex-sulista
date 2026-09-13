@@ -68,9 +68,8 @@ MAX_AJUSTES = 400
 # (é a aba padrão e o erro vira banner na tela), Decidir/Plano do Fluxo
 # Consolidado (o cartão de premissas de outra aba sai dele), a Condução da
 # frota (outras abas reusam o cache), Ordens sem nota (alimenta indicadores de
-# outras abas), Horas Paradas › Regras (a tela mudou no mesmo dia em outra
-# frente), as abas do WMS carregadas no Promise.all da base e todas as que só
-# desenham o payload da tela.
+# outras abas), as abas do WMS carregadas no Promise.all da base e todas as que
+# só desenham o payload da tela.
 #
 # REGRA PARA ENTRAR AQUI, conferida por `tests/test_acessos_abas.py`:
 #   - cada rota existe no app e cada aba existe no index.html;
@@ -111,6 +110,18 @@ ABAS: dict[str, dict] = {
                       acoes=["pedTagEnviarUma"]),
     "pedagio.aud": _u("pedagio", "Auditoria", [("ped", "aud")],
                       ["/api/operacao/pedagio/auditoria"], leitores=["loadPedAud"]),
+    # A REGRA DE COBRANÇA de cada cliente move dinheiro (13/09/2026, pedido de
+    # quem opera). Junto da aba vai o CADASTRO de cliente (`/perfis/novo`,
+    # `/clientes`): nascer um perfil também é decidir como se cobra. A lista
+    # de perfis (GET `/perfis`) fica fora de propósito — é dela que a aba das
+    # cargas precisa.
+    "hp.regras": _u("hp", "Regras do cliente (e cadastro de cliente)", [("hp", "regras")],
+                    ["/api/operacao/horas-paradas/catalogo",
+                     "/api/operacao/horas-paradas/perfis/salvar",
+                     "/api/operacao/horas-paradas/perfis/novo",
+                     "/api/operacao/horas-paradas/clientes"],
+                    leitores=["hpRegrasAbrir"],
+                    acoes=["hpSalvar", "hpNovoPerfil", "hpCriarPerfil"]),
     # ── Frota ──
     "man.compras": _u("man", "Compras da OS e recompra de peça",
                       [("man", "comp"), ("man", "rec")], ["/api/frota/compras-os"],

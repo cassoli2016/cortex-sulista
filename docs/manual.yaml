@@ -37,7 +37,7 @@ glossario:
     UM cliente, com a regra dele e os ajustes manuais, que vira a planilha
     que ele recebe. O botão "Enviar por e-mail" manda ao cliente o resumo do
     período e a planilha anexada; como o e-mail sai do endereço do sistema, a
-    resposta do cliente vai para o endereço informado em "Responder para".
+    resposta do cliente vai para o e-mail de quem enviou.
 - termo: Início do relógio
   definicao: >-
     O horário a partir do qual a permanência conta, e ele é do cliente. Três

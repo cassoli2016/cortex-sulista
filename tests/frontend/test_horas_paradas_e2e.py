@@ -92,14 +92,14 @@ CATALOGO = {"mercadorias": [{"codigo": "CAIXAS", "nome": "CAIXAS", "n": 40}],
 PREVIA = {"assunto": "Horas paradas · CLIENTE EXEMPLO · semana 37", "arquivo": "HP 37.xlsx",
           "html": "<!DOCTYPE html><html><body><p>e-mail de teste</p></body></html>",
           "de": "2026-09-07", "ate": "2026-09-13", "cargas": 1, "valor_total": 100.0,
-          "destinatarios": ["cliente@empresa.com"], "responder_para": ["torre@sulista.com.br"],
+          "destinatarios": ["cliente@empresa.com"], "responder_para": ["chefe@sulista.com.br"],
           "envios": [{"em": "2026-09-12T10:00:00", "de": "2026-08-31", "ate": "2026-09-06",
                       "destinatarios": "cliente@empresa.com", "autor": "a@x", "ok": True,
                       "erro": ""}]}
 ENVIADO = []
 
 
-def _abrir(pg, base_url):
+def _abrir(pg, base_url, usuario=None):
     def rota(route):
         u = route.request.url
         if route.request.method == "POST" and u.endswith("/horas-paradas/email"):
@@ -109,7 +109,7 @@ def _abrir(pg, base_url):
         elif "/horas-paradas/email/previa" in u:
             corpo = PREVIA
         elif "/api/auth/me" in u:
-            corpo = CASA
+            corpo = usuario or CASA
         elif "/horas-paradas/perfis" in u:
             corpo = PERFIS
         elif "/horas-paradas/catalogo" in u:
@@ -201,7 +201,9 @@ def test_o_e_mail_vem_PREENCHIDO_e_manda_o_que_esta_na_tela(pagina):
     pg.click("#btnHpEmail")
     pg.wait_for_selector("#hpe-para", timeout=10000)
     assert pg.input_value("#hpe-para") == "cliente@empresa.com"
-    assert pg.input_value("#hpe-resp") == "torre@sulista.com.br"
+    # a resposta vai para quem está logado — não é campo que se edite
+    assert pg.locator("#hpe-resp").count() == 0
+    assert "chefe@sulista.com.br" in pg.inner_text("#modalBox")
     assert "HP 37.xlsx" in pg.inner_text("#modalBox")
     assert "enviado" in pg.inner_text("#modalBox")          # o histórico
     pg.fill("#hpe-para", "cliente@empresa.com, outro@empresa.com")
@@ -211,10 +213,23 @@ def test_o_e_mail_vem_PREENCHIDO_e_manda_o_que_esta_na_tela(pagina):
     pg.wait_for_selector("#hpe-ok", timeout=10000)
     corpo = ENVIADO[-1]
     assert corpo["destinatarios"] == "cliente@empresa.com, outro@empresa.com"
-    assert corpo["responder_para"] == "torre@sulista.com.br"
+    assert "responder_para" not in corpo
     assert corpo["mensagem"] == "Segue a planilha da semana." and corpo["lembrar"] is True
     assert (corpo["de"], corpo["ate"]) == ("2026-09-07", "2026-09-13")
     assert "torre@sulista.com.br" in pg.inner_text("#modalBox")
+
+
+def test_sem_a_aba_REGRAS_nao_ha_regra_cadastro_nem_lembrar(pagina):
+    """A aba tirada leva junto o que mexe na regra do cliente: o botão de
+    cadastrar cliente e o "lembrar" do e-mail. O resto da tela continua."""
+    pg, base = pagina
+    _abrir(pg, base, usuario={**CASA, "abas_ocultas": [["hp", "regras"]]})
+    assert pg.locator("#tabhp-regras").is_hidden()
+    assert pg.locator("#btnHpConfig").is_hidden()
+    assert pg.locator("#hp-cargas tr td button").count() >= 1     # o Ajustar continua
+    pg.click("#btnHpEmail")
+    pg.wait_for_selector("#hpe-para", timeout=10000)
+    assert pg.locator("#hpe-lembrar").count() == 0
 
 
 def test_a_previa_abre_o_e_mail_isolado(pagina):

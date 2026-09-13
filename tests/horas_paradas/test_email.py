@@ -78,7 +78,8 @@ def test_LEMBRAR_grava_no_perfil_so_se_o_e_mail_saiu(perfil):
     hpe.enviar(pid, DE, ATE, "x@cliente.com", "t@sulista.com.br", "", "", "op@x",
                lembrar=True, esquema=esq, enviar_=Servidor())
     e = cadastro.perfil(pid, esquema=esq)["config"]["email"]
-    assert e["destinatarios"] == ["x@cliente.com"] and e["responder_para"] == ["t@sulista.com.br"]
+    # só os destinatários: a resposta é sempre de quem envia, e não se guarda
+    assert e["destinatarios"] == ["x@cliente.com"] and "responder_para" not in e
 
 
 def test_falha_do_servidor_fica_REGISTRADA(perfil):

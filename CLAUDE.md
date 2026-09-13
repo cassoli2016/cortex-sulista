@@ -414,11 +414,15 @@ moram em arquivos que não falam do assunto.
   referência do cliente na planilha é regra do perfil (formato, fontes
   pedido/ocorrência, exceção, modelo), com a origem na linha: o FORMATO é o
   que separa o código inteiro do digitado pela metade. O e-mail ao cliente
-  (`email.py`) sai pelo correio da casa com o `Reply-To` que quem envia
-  informa (o remetente é o noreply, que ninguém lê), anexa a MESMA planilha
+  (`email.py`) sai pelo correio da casa com o `Reply-To` no e-mail de QUEM
+  ENVIA, tirado da sessão (decisão de quem opera; o remetente é o noreply,
+  que ninguém lê), anexa a MESMA planilha
   do botão, abre a linha em `hp_envio` ANTES do envio e a fecha depois, e
-  nunca leva ajuste, motivo ou o valor que o ERP daria. Guards:
-  `tests/horas_paradas/`.
+  nunca leva ajuste, motivo ou o valor que o ERP daria. A aba Regras é
+  BLOQUEÁVEL por usuário (`acessos.ABAS["hp.regras"]`), e leva junto o que
+  mexe na regra do cliente: o cadastro de cliente (`/perfis/novo`, fora de
+  `/perfis`, que a aba das cargas lê) e o "lembrar" do e-mail, recusado no
+  servidor. Guards: `tests/horas_paradas/`.
 - Integração é **módulo por fornecedor** em `api/<fornecedor>/` (gobrax,
   smartec, tomtom, whatsapp, monkey, jornada/RasterJOR, pedagio/QualP) — não
   existe hub genérico de conectores.

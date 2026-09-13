@@ -62,7 +62,9 @@ PADRAO = {
     "arquivo": "",
     "referencia": {"formato": "", "fontes": ["pedido"], "padrao": "", "excecoes": []},
     # Os PADRÕES do botão "Enviar por e-mail": quem envia muda tudo na hora.
-    "email": {"destinatarios": [], "responder_para": [], "assunto": ASSUNTO_PADRAO},
+    # (O "responder para" não mora aqui: é o e-mail de quem ENVIA, decidido
+    # por quem opera em 13/09/2026 — ver `api/main.horas_paradas_email_enviar`.)
+    "email": {"destinatarios": [], "assunto": ASSUNTO_PADRAO},
 }
 FONTES_REFERENCIA = ("pedido", "ocorrencia")
 _RE_FORMATO = re.compile(r"^[A-Z#]{1,20}$")
@@ -144,8 +146,6 @@ def _validar_email_cfg(e) -> dict:
         raise Recusa("Configuração de e-mail inválida.")
     return {"destinatarios": emails_validos(e.get("destinatarios"), "Destinatário",
                                             LIMITE_DESTINATARIOS),
-            "responder_para": emails_validos(e.get("responder_para"),
-                                             "Endereço de resposta", LIMITE_RESPOSTA),
             "assunto": _texto(e.get("assunto"), 150) or ASSUNTO_PADRAO}
 
 
