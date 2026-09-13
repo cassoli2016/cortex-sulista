@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.65.0] — 13/09/2026  ·  CX-13/09/2026-v1.65.0
+
+### Adicionado
+- Horas Paradas: a referência do cliente na planilha (por exemplo, o código do pedido dele) passou a ser regra do perfil, na aba Regras do cliente — em que formato ela vem, onde procurar (no pedido do ERP e nas ocorrências da coleta), o que pôr quando não há nada (inclusive montada com o número da coleta, se o cliente usa assim) e as exceções por mercadoria ou destinatário. Passando o mouse sobre a referência, a linha diz de onde ela veio.
+- O nome da aba da planilha aceita os mesmos marcadores do nome do arquivo ({{semana}}, {{de}}, {{ate}}), e os dois ganharam {{de_dm}} e {{ate_dm}}, com só o dia e o mês.
+
+### Alterado
+- Cliente novo em Horas Paradas passa a contar o relógio a partir da janela, como o relatório Monitoramento SAC do ERP. Cliente que conta de outro jeito declara na aba Regras do cliente.
+
 ## [1.64.0] — 12/09/2026  ·  CX-12/09/2026-v1.64.0
 
 ### Adicionado
