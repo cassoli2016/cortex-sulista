@@ -42,11 +42,13 @@ COLUNAS = [("FROTA", 16), ("PLACAS TRAÇÃO/CARRETA", 20), ("MOTORISTA", 13),
            ("JANELA CARREGAMENTO", 18), ("JANELA ENTREGA", 18),
            ("DATA E HORA CHEGADA NO CLIENTE", 20), ("DATA E HORA SAÍDA DO CLIENTE", 20),
            ("TOTAL", 9), ("CARÊNCIA", 10), ("TOTAL DE HORAS PARADAS", 13),
-           ("NÚMERO DO PEDIDO", 12), ("CVA", 13), ("STATUS DO VEÍCULO", 62)]
+           ("NÚMERO DO PEDIDO", 12), ("CVA", 13), ("ONDE ESTÁ", 13),
+           ("STATUS DO VEÍCULO", 62)]
 N = len(COLUNAS)
 COL_SIT = N                  # a última
 COL_PARADAS = next(i for i, (n, _) in enumerate(COLUNAS, start=1)
                    if n == "TOTAL DE HORAS PARADAS")
+COL_LINK = next(i for i, (n, _) in enumerate(COLUNAS, start=1) if n == "ONDE ESTÁ")
 DATA = "dd/mm/yyyy hh:mm"
 DURACAO = "[h]:mm"
 
@@ -120,14 +122,21 @@ def gerar(d: dict) -> bytes:
                     _dt(c["chegada"]), _dt(c["saida"]),
                     ("n/d" if c["permanencia_nd"] else _dur(c["permanencia_h"])),
                     _dur(c["carencia_h"]), _dur(c["paradas_h"]),
-                    c["coleta"], c["cva"] or None, _situacao(c)]
+                    c["coleta"], c["cva"] or None,
+                    "abrir" if c.get("link") else None, _situacao(c)]
             fmts = [None, None, None, DATA, DATA, DATA, DATA, DURACAO, DURACAO,
-                    DURACAO, None, None, None]
+                    DURACAO, None, None, None, None]
             assert len(vals) == len(fmts) == N
             for i, (v, f) in enumerate(zip(vals, fmts), start=1):
                 _cel(ws, lin, i, v, fmt=f,
                      fill=(SALMAO if i <= 2 else AZUL if i == COL_PARADAS
                            else SITUACAO if i == COL_SIT else None))
+            if c.get("link"):
+                # HIPERLINK DE VERDADE, e não o endereço escrito na célula: o
+                # token tem 26 caracteres e a URL inteira ocuparia a coluna.
+                cel = ws.cell(row=lin, column=COL_LINK)
+                cel.hyperlink = c["link"]
+                cel.font = Font(color="FF0563C1", underline="single")
             lin += 1
             # O HISTÓRICO embaixo, uma linha por registro — é o que a torre
             # escreve à mão na coluna de situação ("Pátio carregado!!", "Em

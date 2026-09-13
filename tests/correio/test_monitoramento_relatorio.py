@@ -28,6 +28,7 @@ VAZIO = {k: None for k in (
 
 
 def _r(**kw):
+    kw.setdefault("coleta_chave", "1|1|2|1|0|1|%s" % kw.get("coleta"))
     base = {**VAZIO, "emissao": "2026-09-10", "origem": "CRUZEIRO", "uf_origem": "SP",
             "destino": "RESENDE", "uf_destino": "RJ", "mdfe_encerrado": 0,
             "mdfe_autorizado": 0, "carreta": "", "ref_cliente": "6100416533"}
@@ -86,6 +87,20 @@ LINHAS = [
        janela_carga="2026-09-11 16:00", janela_entrega="2026-09-11 22:00"),
 ]
 
+# A ponte coleta -> CT-e: a 20271 tem DOIS CT-es (o mesmo veículo, números
+# seguidos — vale o mais novo), a 11930 tem um, e as outras ainda nenhum.
+PONTE = [
+    {"coleta_chave": "1|1|2|1|0|1|20271", "grupo": 1, "empresa": 1, "filial": 2,
+     "numero": 102629, "serie": 1},
+    {"coleta_chave": "1|1|2|1|0|1|20271", "grupo": 1, "empresa": 1, "filial": 2,
+     "numero": 102630, "serie": 1},
+    {"coleta_chave": "1|1|2|1|0|1|11930", "grupo": 1, "empresa": 1, "filial": 3,
+     "numero": 55120, "serie": 1},
+    # coleta de OUTRO dia, fora do e-mail: não pode virar link de ninguém
+    {"coleta_chave": "1|1|2|1|0|1|20200", "grupo": 1, "empresa": 1, "filial": 2,
+     "numero": 102001, "serie": 1},
+]
+
 CONTRATO = [
     {"mercadoria": "", "ft_carga_h": 3.0, "ft_descarga_h": 3.0},
     {"mercadoria": "CONJUNTOS", "ft_carga_h": 3.0, "ft_descarga_h": 6.5},
@@ -99,12 +114,17 @@ def erp(monkeypatch):
     """Dublê do ERP inteiro que `dados()` toca. Devolve a lista de linhas,
     que o teste pode trocar."""
     from api import db, frota_identidade, portal_cliente as pc, raster_eventos
-    estado = {"linhas": list(LINHAS), "falha": None}
+    estado = {"linhas": list(LINHAS), "falha": None, "ponte": list(PONTE),
+              "ponte_falha": None}
 
     def query(sql, params=None):
+        assert params and params["raiz"] == "12345678"
+        if "ponte coleta -> CT-e" in sql:
+            if estado["ponte_falha"]:
+                raise estado["ponte_falha"]
+            return [dict(r) for r in estado["ponte"]]
         if estado["falha"]:
             raise estado["falha"]
-        assert params and params["raiz"] == "12345678"
         return [dict(r) for r in estado["linhas"]]
 
     monkeypatch.setattr(db, "query", query)
@@ -229,7 +249,7 @@ def test_planilha_no_formato_da_torre(erp):
     assert [c.value for c in ws[1]] == [n for n, _ in pm.COLUNAS]
     assert ws.freeze_panes == "A2"
     assert ws["A2"].value and "→" in ws["A2"].value     # faixa do fluxo
-    assert any(str(m) == "A2:M2" for m in ws.merged_cells.ranges)
+    assert any(str(m) == "A2:N2" for m in ws.merged_cells.ranges)
     linha = next(r for r in ws.iter_rows(min_row=2) if r[10].value == 20271)
     assert linha[2].value == "Joel"
     total, carencia, paradas = linha[7], linha[8], linha[9]
@@ -245,7 +265,7 @@ def test_planilha_deixa_em_branco_o_que_nao_foi_registrado(erp):
     linha = next(r for r in ws.iter_rows(min_row=2) if r[10].value == 11930)
     assert linha[5].value is not None                   # chegada
     assert linha[6].value is None and linha[7].value is None and linha[9].value is None
-    assert "não registrado" in linha[12].value
+    assert "não registrado" in linha[13].value
 
 
 # ─────────────────────────────────────────────────────────── a rodada ──────
@@ -345,3 +365,52 @@ def test_gravar_listar_e_remover(esquema_pg):
     assert mo.listar(esquema=esquema_pg)[0]["ultimo_resultado"] == "enviado"
     mo.remover(v["id"], esquema=esquema_pg)
     assert mo.listar(esquema=esquema_pg) == []
+
+
+# ───────────────────────────────────────── o link "Ver onde está a carga" ──
+
+def _abre(link):
+    from api import url_publica
+    from api.rastreio import consulta
+    assert link.startswith(url_publica.base() + "/r#c="), link
+    return consulta.link_abrir(link.split("#c=", 1)[1])
+
+
+def test_o_link_abre_o_CT_e_MAIS_NOVO_da_coleta(erp):
+    """Pedido de quem opera (13/09/2026). É o MESMO link assinado do aviso de
+    WhatsApp, e ele tem de abrir a carga certa: dois CT-es da mesma coleta são
+    o mesmo veículo, e vale o mais recente."""
+    c = _por(_d())
+    assert _abre(c[20271]["link"]) == {"g": 1, "e": 1, "f": 2, "n": 102630, "s": 1}
+    assert _abre(c[11930]["link"]) == {"g": 1, "e": 1, "f": 3, "n": 55120, "s": 1}
+
+
+def test_carga_sem_CT_e_fica_sem_link(erp):
+    """Carga programada ainda não tem CT-e, e o rastreio só conhece CT-e: um
+    link para a página vazia seria pior que nenhum."""
+    c = _por(_d())
+    assert c[20250]["link"] is None and c[20299]["link"] is None
+
+
+def test_ponte_fora_do_ar_NAO_derruba_o_email(erp):
+    """O link é acréscimo: sem ele o e-mail sai igual, só sem o botão."""
+    erp["ponte_falha"] = RuntimeError("timeout")
+    r = mo.montar("12345678", agora=AGORA)
+    # o ENDEREÇO, e não a frase: o "Como ler" explica o link com as mesmas
+    # palavras e continua lá mesmo quando nenhum link sai
+    assert r["vazio"] is False and "/r#c=" not in r["html"]
+    assert "Onde está: " not in r["texto"]
+    assert all(c["link"] is None for c in _d()["cargas"])
+
+
+def test_o_link_vai_no_email_no_texto_e_na_planilha(erp):
+    d = _d()
+    link = _por(d)[20271]["link"]
+    r = mo.montar("12345678", dados_=d)
+    assert 'href="%s"' % link in r["html"] and "Ver onde está a carga" in r["html"]
+    assert "Onde está: " + link in r["texto"]
+    ws = openpyxl.load_workbook(io.BytesIO(r["anexos"][0]["conteudo"])).active
+    linha = next(x for x in ws.iter_rows(min_row=2) if x[10].value == 20271)
+    assert linha[12].value == "abrir" and linha[12].hyperlink.target == link
+    sem = next(x for x in ws.iter_rows(min_row=2) if x[10].value == 20250)
+    assert sem[12].value is None and sem[12].hyperlink is None

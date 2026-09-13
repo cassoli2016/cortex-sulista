@@ -490,6 +490,11 @@ SELECT c.numero AS coleta,
        -- O NOME do motorista, e nunca o código: `coleta.motorista` É o CPF.
        coalesce(nullif(trim(mt.nomefantasia),''),
                 nullif(trim(mt.razaosocial),''), '') AS motorista_nome,
+       -- A CHAVE INTEIRA da coleta, num campo só: é por ela que o e-mail
+       -- acha o CT-e que abre o rastreio. O número sozinho não basta — ele se
+       -- repete entre filiais e séries (8 casos em 45 dias de um cliente).
+       concat_ws('|', c.grupo, c.empresa, c.filial, c.unidade,
+                 c.diferenciadornumero, c.serie, c.numero) AS coleta_chave,
        -- ONDE A CARGA SAI E ONDE ELA VAI, em coordenada. (A cobertura medida
        -- está no comentário de `_ponto`, em Python: sinal de porcentagem
        -- dentro de constante SQL vira placeholder do psycopg e derruba a

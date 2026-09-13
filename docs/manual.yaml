@@ -988,7 +988,8 @@ glossario:
     relatórios agendados, que passa de 15 em 15 minutos, é quem dispara. Cada rodada traz as cargas do
     dia agrupadas por mercadoria e destino: as que estão no cliente, em viagem, carregando, programadas
     para as próximas 24 horas e as descarregadas hoje, com frota, placas, janelas, chegada e saída no
-    cliente, carência do contrato, horas paradas, número do pedido e CVA; a planilha anexa tem o formato
+    cliente, carência do contrato, horas paradas, número do pedido, CVA e o link "Ver onde está a carga" (a página pública de rastreio, sem senha,
+    válida por 20 dias, para a carga que já tem CT-e); a planilha anexa tem o formato
     de sempre. Três regras: horas paradas só contam quando a chegada E o fim da descarga estão
     registrados (o fim da descarga chega com atraso, e contar antes diria que um caminhão que já saiu
     ainda está parado); o motorista aparece só pelo primeiro nome; e se o sistema de gestão não responder, nada vai ao

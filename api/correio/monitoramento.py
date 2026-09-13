@@ -38,6 +38,28 @@ cliente chama o veículo. Sai o PRIMEIRO NOME, como a torre escreve ("Joel",
 próprio `coleta.motorista`. A consulta traz o nome do cadastro e nunca o
 código, e há teste para os três.
 
+O LINK "VER ONDE ESTÁ A CARGA" (13/09/2026)
+==========================================
+Pedido de quem opera. Cada carga que já tem CT-e leva o link da página pública
+de rastreio ("Onde está minha carga?", `api/rastreio`) — o MESMO link assinado
+que o aviso de WhatsApp manda: HMAC sobre a chave do CT-e, 20 dias de prazo,
+no fragmento da URL. Quem recebe este e-mail é gente do cliente, sem login no
+CÓRTEX; a tela Minha Operação pediria um cadastro que ainda não existe.
+
+A PONTE é coleta → `conhecimento_composicao` → CT-e, pela chave INTEIRA da
+coleta (o número se repete entre filiais e séries). Medido em 13/09/2026, 45
+dias de um cliente de linha: 723 de 744 coletas com um CT-e, 11 com dois (o
+mesmo veículo, números seguidos — vale o mais recente), 10 sem nenhum ainda.
+`tipodocumento` vale 27 em 100% da composição, então não há nota fiscal
+misturada e não se filtra por um código que nunca varia.
+
+A página mostra o que o rastreio decidiu mostrar no detalhe — inclusive
+placas e o nome COMPLETO do motorista. É mais que o primeiro nome deste
+e-mail, e é a mesma coisa que o link do WhatsApp já entrega ao cliente.
+
+O LINK É ACRÉSCIMO: se a ponte falhar, o e-mail sai sem ele, e não deixa de
+sair.
+
 O QUE ACONTECE QUANDO O ERP NÃO RESPONDE
 =======================================
 NADA VAI PARA O CLIENTE. Os relatórios internos mandam "não consegui ler o
@@ -291,6 +313,55 @@ def _frotas(placas: set) -> tuple[dict, bool]:
     return fora, False
 
 
+def _ponte_sql() -> str:
+    """Coleta → CT-e, pela chave inteira da coleta. Função e não constante
+    porque o filtro de cliente mora no portal, e importá-lo no carregamento
+    deste módulo o amarraria ao portal a cada `import`."""
+    from api import portal_cliente as pc
+    return """
+-- monitoramento: ponte coleta -> CT-e (o link do rastreio)
+SELECT concat_ws('|', c.grupo, c.empresa, c.filial, c.unidade,
+                 c.diferenciadornumero, c.serie, c.numero) AS coleta_chave,
+       k.grupo, k.empresa, k.filial, k.numero, k.serie
+FROM coleta c
+JOIN conhecimento_composicao cc
+  ON cc.grupo=c.grupo AND cc.empresa=c.empresa AND cc.filialdocumento=c.filial
+ AND cc.unidadedocumento=c.unidade
+ AND cc.diferenciadornumerodocumento=c.diferenciadornumero
+ AND cc.seriedocumento=c.serie AND cc.numerodocumento=c.numero
+JOIN conhecimento k
+  ON k.grupo=cc.grupo AND k.empresa=cc.empresa AND k.filial=cc.filial
+ AND k.unidade=cc.unidade AND k.diferenciadornumero=cc.diferenciadornumero
+ AND k.serie=cc.serie AND k.numero=cc.numero
+WHERE c.dtcancelamento IS NULL AND k.dtcancelamento IS NULL
+  AND c.dtemissao >= current_date - %(dias)s
+  AND """ + pc.FILTRO_CLIENTE
+
+
+def _links(raiz: str, chaves: set) -> tuple[dict, bool]:
+    """Chave da coleta → link do rastreio. Devolve também se a ponte FALHOU.
+
+    Nunca levanta: o link é acréscimo (ver o cabeçalho). Dois CT-es para a
+    mesma coleta são o mesmo veículo em números seguidos — vale o mais novo.
+    """
+    if not chaves:
+        return {}, False
+    try:
+        from api import db
+        from api.rastreio import consulta, mensagem
+        melhor: dict[str, dict] = {}
+        for r in db.query(_ponte_sql(), {"raiz": raiz, "dias": JANELA_DIAS}):
+            k = r["coleta_chave"]
+            if k in chaves and (k not in melhor or r["numero"] > melhor[k]["numero"]):
+                melhor[k] = r
+        return {k: mensagem.link({"link_token": consulta.link_token(
+                    r["grupo"], r["empresa"], r["filial"], r["numero"], r["serie"])})
+                for k, r in melhor.items()}, False
+    except Exception as exc:  # noqa: BLE001
+        log.warning("monitoramento: ponte coleta->CT-e falhou: %s", type(exc).__name__)
+        return {}, True
+
+
 def _historico(r: dict, cod: int, quando: str, fonte: str, onde) -> list[dict]:
     """A coluna "situação" da planilha, que a torre digita linha a linha,
     montada pelos registros — cada um com a hora e a testemunha."""
@@ -430,7 +501,7 @@ def dados(raiz: str, mercs=(), agora: datetime | None = None) -> dict:
 
         m = RE_CVA.search(r.get("ref_cliente") or "")
         cargas.append({
-            "coleta": r["coleta"],
+            "coleta": r["coleta"], "_chave": r.get("coleta_chave") or "",
             "mercadoria": (r.get("mercadoria") or "").strip().upper() or "(sem mercadoria)",
             "destinatario": r.get("destinatario_nome") or "(sem destinatário)",
             "destino": r.get("destino") or "", "uf_destino": r.get("uf_destino") or "",
@@ -450,10 +521,12 @@ def dados(raiz: str, mercs=(), agora: datetime | None = None) -> dict:
 
     frotas, frota_falhou = _frotas({c[k] for c in cargas for k in ("placa", "carreta")
                                     if c[k]})
+    links, links_falhou = _links(raiz, {c["_chave"] for c in cargas if c["_chave"]})
     for c in cargas:
         c["frota"] = " / ".join(x for x in (frotas.get(c["placa"]),
                                             frotas.get(c["carreta"])) if x)
         c["placas"] = " / ".join(x for x in (c["placa"], c["carreta"]) if x)
+        c["link"] = links.get(c["_chave"])
 
     # GRUPOS NA ORDEM DO DICIONÁRIO, e não por volume: a mensagem chega de
     # duas em duas horas, e quem a lê aprende onde fica o seu destino. Ordem
@@ -484,6 +557,7 @@ def dados(raiz: str, mercs=(), agora: datetime | None = None) -> dict:
         "cargas": cargas, "grupos": grupos, "resumo": resumo,
         "agora": agora.strftime("%Y-%m-%d %H:%M"),
         "contrato_lido": contrato_ok, "frota_falhou": frota_falhou,
+        "links_falhou": links_falhou,
         "bordo_indisponivel": bool(rast.get("indisponivel")),
         "fonte": ("Sistema de gestão · coleta, registros da operação, manifesto "
                   "eletrônico e computador de bordo · carência do contrato por "
@@ -550,6 +624,10 @@ def _celulas(c: dict) -> list:
     if c["eta"]:
         sit += (f'<br><span style="{cinza}">previsão de chegada {e(_dm(c["eta"]))} '
                 f'(pelo histórico da rota)</span>')
+    if c.get("link"):
+        sit += (f'<br><a href="{e(c["link"])}" style="font:700 12.5px/1.8 {p.FONTE};'
+                f'color:{p.LARANJA};text-decoration:underline">'
+                f'Ver onde está a carga →</a>')
 
     if not c["chegada"]:
         cli = "—"
@@ -582,6 +660,8 @@ def _linha_texto(c: dict) -> list[str]:
             + ")"]
     if c["eta"]:
         fora.append(f"    Previsão de chegada: {_dm(c['eta'])} (pelo histórico da rota)")
+    if c.get("link"):
+        fora.append(f"    Onde está: {c['link']}")
     if c["chegada"] and not c["saida"]:
         fora.append(f"    No cliente: chegou {_dm(c['chegada'])} · fim da descarga "
                     "não registrado")
@@ -670,7 +750,9 @@ def montar(raiz: str, mercs=(), *, anexar: bool = True,
         "combinada na programação. No cliente: da chegada ao fim da descarga, "
         "contra a carência do contrato para aquela mercadoria; horas paradas "
         "são o que passa da carência, e só são contadas quando o fim da "
-        "descarga está registrado. Permanência acima de 24 h aparece como n/d."
+        "descarga está registrado. Permanência acima de 24 h aparece como n/d. "
+        "O link “Ver onde está a carga” abre a página de rastreio da Sulista, "
+        "sem senha, e vale 20 dias; ele aparece quando a carga já tem CT-e."
         + (" A planilha anexa traz as mesmas cargas no formato de sempre."
            if anexar else "")))
 

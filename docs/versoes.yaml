@@ -1,3 +1,15 @@
+- versao: "1.66.0"
+  data: "2026-09-13"
+  adicionado:
+    - >-
+      No e-mail de monitoramento de cliente, cada carga que já tem CT-e ganhou
+      o link "Ver onde está a carga", que abre a página de rastreio da Sulista
+      direto naquela carga, sem senha — a mesma página e o mesmo link do aviso
+      de carga por WhatsApp, válido por 20 dias. Na planilha anexa, a coluna
+      nova "ONDE ESTÁ" traz o mesmo link. A página mostra as placas e o nome
+      completo do motorista, como já mostrava pelo WhatsApp; o corpo do e-mail
+      continua só com o primeiro nome.
+
 - versao: "1.65.1"
   data: "2026-09-13"
   corrigido:

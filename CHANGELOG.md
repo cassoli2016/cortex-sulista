@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.66.0] — 13/09/2026  ·  CX-13/09/2026-v1.66.0
+
+### Adicionado
+- No e-mail de monitoramento de cliente, cada carga que já tem CT-e ganhou o link "Ver onde está a carga", que abre a página de rastreio da Sulista direto naquela carga, sem senha — a mesma página e o mesmo link do aviso de carga por WhatsApp, válido por 20 dias. Na planilha anexa, a coluna nova "ONDE ESTÁ" traz o mesmo link. A página mostra as placas e o nome completo do motorista, como já mostrava pelo WhatsApp; o corpo do e-mail continua só com o primeiro nome.
+
 ## [1.65.1] — 13/09/2026  ·  CX-13/09/2026-v1.65.1
 
 ### Corrigido
