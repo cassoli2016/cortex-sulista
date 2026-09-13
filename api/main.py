@@ -8729,10 +8729,10 @@ def operacao_milkrun_chat(payload: dict) -> StreamingResponse:
 
 
 @app.get("/api/copiloto/status")
-def copiloto_status() -> JSONResponse:
+def copiloto_status(request: Request) -> JSONResponse:
     # contexto = procedência do snapshot (telas, idade, fontes que falharam);
-    # o front mostra no ⓘ da tela do copiloto
-    ctx = copiloto.contexto()
+    # o front mostra no ⓘ da tela do copiloto — as fontes DA PESSOA (13/09/2026)
+    ctx = copiloto.contexto(request.state.sessao)
     st = copiloto.ollama_status()
     if st["ok"]:
         return JSONResponse({"configurado": True, "local": True,
@@ -8768,8 +8768,9 @@ def _mensagens_invalidas(mensagens: object) -> bool:
 
 
 @app.post("/api/copiloto/chat-stream")
-def copiloto_chat_stream(payload: dict) -> StreamingResponse:
+def copiloto_chat_stream(payload: dict, request: Request) -> StreamingResponse:
     import json as _json
+    sess = request.state.sessao   # o Copiloto responde com o recorte DA PESSOA
     mensagens = payload.get("mensagens")
     if _mensagens_invalidas(mensagens):
         def _erro():
@@ -8778,7 +8779,7 @@ def copiloto_chat_stream(payload: dict) -> StreamingResponse:
 
     def gen():
         try:
-            for ev in copiloto.stream(mensagens):
+            for ev in copiloto.stream(mensagens, sess):
                 yield "data: " + _json.dumps(ev, ensure_ascii=False) + "\n\n"
         except Exception as exc:  # noqa: BLE001
             log.warning("stream falhou: %s", exc)
@@ -8789,14 +8790,14 @@ def copiloto_chat_stream(payload: dict) -> StreamingResponse:
 
 
 @app.post("/api/copiloto/chat")
-def copiloto_chat(payload: dict) -> JSONResponse:
+def copiloto_chat(payload: dict, request: Request) -> JSONResponse:
     mensagens = payload.get("mensagens")
     if _mensagens_invalidas(mensagens):
         return JSONResponse(status_code=422, content={
             "erro": "parametro_invalido",
             "mensagem": "Envie 'mensagens' como lista de {role, content} (máx. 24)."})
     try:
-        r = copiloto.chat(mensagens)
+        r = copiloto.chat(mensagens, request.state.sessao)
     except Exception as exc:  # noqa: BLE001
         log.warning("copiloto falhou: %s", exc)
         return JSONResponse(status_code=500, content={

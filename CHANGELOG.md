@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.70.0] — 13/09/2026  ·  CX-13/09/2026-v1.70.0
+
+### Corrigido
+- O Copiloto passa a responder só com os números das telas que a pessoa pode abrir. Antes, quem tinha a tela do Copiloto recebia os indicadores de todas as áreas — perguntava sobre a DRE, a folha ou o caixa sem ter nenhuma dessas telas, e tirar uma tela de alguém não tirava o número dela do chat. Agora valem o perfil e os ajustes de acesso da pessoa, inclusive as abas tiradas; perguntado sobre uma área fora do acesso, o Copiloto diz que ela está fora do acesso e que quem libera é o administrador. O ⓘ da tela do Copiloto lista só as fontes da pessoa. Quem tem perfil administrador continua vendo tudo, e login de cliente só recebe o que é público.
+- No menu do celular, o item "Usuários e acesso" da Administração passa a se chamar "Gestão", como no computador.
+
 ## [1.69.0] — 13/09/2026  ·  CX-13/09/2026-v1.69.0
 
 ### Corrigido

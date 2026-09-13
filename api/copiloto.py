@@ -74,7 +74,7 @@ PREFERIDOS = [
 ]
 
 _CATALOGO = {"ts": 0.0, "lista": []}
-_SNAP: dict = {"ts": 0.0, "texto": "", "falhas": []}
+_SNAP: dict = {"ts": 0.0, "texto": "", "falhas": [], "dados": {}}
 _SNAP_TTL = 600      # 10 min: o snapshot custa ~12 consultas no ERP
 
 # Telas do painel que compõem o snapshot enviado ao modelo, no rótulo que o
@@ -145,6 +145,114 @@ _FONTES_ROTULO = {
     "radar_mercado": "Radar do Transporte — diesel, Brent, dólar, ANTT, rodovias e notícias",
     "wms_armazem": "WMS — ocupação, doca, recebimento, separação, expedição e inventário",
 }
+
+
+# ─────────────────────────────────────────────── QUEM VÊ CADA FONTE ────────
+#
+# 13/09/2026, pedido de quem opera: "o copiloto precisa restringir". Até aqui o
+# snapshot era UM para todo mundo: quem tinha a tela do Copiloto perguntava
+# sobre a DRE, a folha ou o caixa sem ter nenhuma dessas telas — e tirar uma
+# tela de alguém (api/acessos.py) não tirava o número dela do chat.
+#
+# Cada fonte declara as TELAS que a enxergam (basta uma) e as ABAS
+# bloqueáveis de onde o dado dela sai (tirar QUALQUER uma tira a fonte). Não há
+# padrão: fonte nova sem entrada aqui reprova `tests/copiloto/test_acesso.py`,
+# porque o padrão "todo mundo vê" é o furo que isto fecha. As telas de TV
+# entram como alternativa quando mostram o MESMO número (a Visão Geral e o
+# painel da Diretoria leem a mesma rota).
+def _t(*telas, abas=()):
+    return (tuple(telas), tuple(abas))
+
+
+FONTE_TELAS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
+    "produtividade_veiculos": _t("prodveic"),
+    "faturamento_detalhado": _t("fat", "tvfat"),
+    "portal_tupy": _t("antport"),
+    "visao_geral": _t("home", "tvdir"),
+    "ordens_compra": _t("oc"),
+    "precos_pecas": _t("pecas"),
+    "compras_da_os": _t("man", abas=("man.compras",)),
+    "suporte": _t("supfila"),
+    # SOMA as contas de TODOS os clientes com login: fica com quem vê a tela
+    # por dentro, e login de cliente não recebe (ver `fontes_visiveis`)
+    "portal_cliente": _t("cliop", "tvcli"),
+    "app_motorista": _t("rhmot"),
+    "monitoramentos_carga": _t("mon"),
+    "aplicativos": _t("apps"),
+    "integracoes": _t("integ"),
+    "auditoria_uso": _t("aud"),
+    "financeiro_caixa": _t("fluxo"),
+    "inadimplencia": _t("receber", "cob"),
+    "calendario": _t("radar"),
+    "analise_km_ano": _t("km"),
+    "agregados_terceiros_ano": _t("agr"),
+    "make_vs_buy_12m": _t("mvb"),
+    "comercial_ano": _t("com"),
+    "combustivel_ano": _t("comb"),
+    "manutencao_ano": _t("man"),
+    "multas_ano": _t("mul"),
+    "smartec": _t("mul"),
+    "comunicacao_rastreadoras": _t("comrast", "tvcom"),
+    "dre_excluidos": _t("dre", abas=("dre.exc",)),
+    "onde_atacar": _t("dre", abas=("dre.atk",)),
+    # a 3S não tem tela própria: é o rastreamento das carretas, que aparece
+    # na frota, na torre e no estado das integrações
+    "rastreamento_3s": _t("veic", "torre", "integ"),
+    "torre_seguranca": _t("tvope"),
+    "estradas_transito": _t("torre", "tvope"),
+    "programacao_disponibilidade": _t("prog", "tvope"),
+    "frota": _t("veic"),
+    "antt_piso": _t("anpiso"),
+    "antt_rntrc": _t("anrntrc"),
+    "telemetria_consumo": _t("telcon"),
+    "telemetria_evolucao": _t("telcon", abas=("telcon.evo",)),
+    "telemetria_motoristas": _t("telcond", abas=("telcond.mot",)),
+    "programacao_ciclos": _t("prog", abas=("prog.cic",)),
+    "gerenciamento_risco": _t("gr"),
+    "telemetria_conducao": _t("telcond"),
+    "telemetria_comunicacao": _t("telcon", abas=("telcon.com",)),
+    "premiacao": _t("prem"),
+    "dre_fechamento": _t("fech"),
+    "pneus": _t("pneus"),
+    "pneus_cpk": _t("pneus", abas=("pneus.cpk", "pneus.troca")),
+    "people": _t("people"),
+    "ferias": _t("ferias"),
+    "ferias_custo": _t("ferias", abas=("ferias.custo",)),
+    "cnh_motoristas": _t("cnh"),
+    "frequencia_ponto": _t("freq"),
+    "gestao_acoes": _t("gesacao"),
+    "ritual_semanal": _t("gesrit"),
+    "jornada_raster": _t("jorn", "tvjor"),
+    "crm_funil": _t("crm"),
+    "pedagio_tag": _t("pedagio", abas=("pedagio.tag",)),
+    "desempenho": _t("des", abas=("des.mat",)),
+    "recolha_fiscal": _t("dfe"),
+    "projecao_caixa": _t("fluxcon", abas=("fluxcon.plano",)),
+    "horas_paradas": _t("hp"),
+    "plano_de_caixa": _t("fluxcon"),
+    "radar_mercado": _t("radar"),
+    "wms_armazem": _t("wmspan", "wmsrec", "wmsest", "wmsexp", "wmscad"),
+}
+
+
+def fontes_visiveis(sess: dict | None) -> set[str]:
+    """As fontes do snapshot que ESTA pessoa pode ver — o mesmo acesso
+    efetivo que o servidor aplica às rotas (perfil + ajustes, api/acessos.py).
+
+    Sem sessão, nada. Admin, tudo. LOGIN DE CLIENTE (vínculo de CNPJ) só vê o
+    que é de todo logado: o portal soma a operação de todos os clientes, e o
+    resto do painel não é dele.
+    """
+    if not sess:
+        return set()
+    if sess.get("admin"):
+        return set(_FONTES_ROTULO)
+    from api.auth import TELAS_TODO_LOGADO
+    publicas = set(TELAS_TODO_LOGADO)
+    telas = publicas if sess.get("cliente_cnpj_raiz") else (set(sess.get("telas") or []) | publicas)
+    tiradas = set(sess.get("abas_tiradas") or [])
+    return {f for f, (ts, abas) in FONTE_TELAS.items()
+            if f in _FONTES_ROTULO and telas & set(ts) and not tiradas & set(abas)}
 
 
 def api_key() -> str:
@@ -1180,38 +1288,73 @@ def _snapshot() -> str:
         snap["fontes_indisponiveis"] = falhas
     import json
     _SNAP.update(ts=time.time(), texto=json.dumps(snap, ensure_ascii=False),
-                 falhas=falhas)
+                 falhas=falhas, dados=snap)
     return _SNAP["texto"]
 
 
-def contexto() -> dict:
+def _snapshot_para(sess: dict | None) -> str:
+    """O retrato CORTADO para esta pessoa (13/09/2026).
+
+    O retrato continua UM, montado uma vez para todos (custa ~12 consultas no
+    ERP); o que muda por pessoa é o que sai dele. Vai junto quantas fontes
+    ficaram FORA do acesso — só o número, nunca o nome —, para o modelo
+    responder "isto não está no seu acesso" em vez de "não há dado".
+    """
+    import json
+    _snapshot()
+    dados = _SNAP.get("dados") or (json.loads(_SNAP["texto"]) if _SNAP.get("texto") else {})
+    ver = fontes_visiveis(sess)
+    corte = {k: v for k, v in dados.items() if k in ("hoje", "periodo_padrao") or k in ver}
+    falhas = [f for f in _SNAP.get("falhas", []) if f in ver]
+    if falhas:
+        corte["fontes_indisponiveis"] = falhas
+    fora = len(set(_FONTES_ROTULO) - ver)
+    if fora:
+        corte["fora_do_acesso"] = fora
+    return json.dumps(corte, ensure_ascii=False)
+
+
+def contexto(sess: dict | None) -> dict:
     """Procedência do que o modelo enxerga — some no /status para o front.
 
     Antes a falha de uma fonte ia só para o log e para o prompt: o gestor lia
-    uma resposta sem saber que faltava uma tela dentro dela.
+    uma resposta sem saber que faltava uma tela dentro dela. E é a procedência
+    DA PESSOA (13/09/2026): listar para ela uma fonte que ela não vê diria que
+    a IA a consultou.
     """
     ts = _SNAP["ts"]
+    ver = fontes_visiveis(sess)
+    fontes = [r for f, r in _FONTES_ROTULO.items() if f in ver]
     return {
-        "telas": len(_FONTES_ROTULO),
-        "fontes": list(_FONTES_ROTULO.values()),
+        "telas": len(fontes),
+        "fontes": fontes,
         "snapshot_em": (datetime.fromtimestamp(ts).isoformat(timespec="seconds")
                         if ts else None),
         "idade_s": int(time.time() - ts) if ts else None,
         "ttl_s": _SNAP_TTL,
-        "indisponiveis": [_FONTES_ROTULO.get(f, f) for f in _SNAP.get("falhas", [])],
+        "indisponiveis": [_FONTES_ROTULO.get(f, f) for f in _SNAP.get("falhas", [])
+                          if f in ver],
         "so_escalares": True,
     }
 
 
-def _telas_do_painel() -> list[str]:
+def _telas_do_painel(sess: dict | None = None) -> list[str]:
     """Rótulos das telas, lidos do RBAC.
 
     Antes essa lista era escrita à mão dentro do prompt e envelheceu: quem
     perguntava sobre ANTT, Telemetria, Orçamento ou Extrato ouvia que a tela não
     existia. api.auth.TELAS é a fonte real do que o painel tem.
+
+    Com a sessão, são as telas DA PESSOA (13/09/2026): contar a quem não tem a
+    DRE que ela existe e onde fica é convite a pedir o número por outro canal.
     """
     try:
-        from api.auth import TELAS
+        from api.auth import TELAS, TELAS_SEM_MENU
+        if sess is not None and not sess.get("admin"):
+            if sess.get("cliente_cnpj_raiz"):
+                return []
+            return sorted({TELAS[t][0] for t in (sess.get("telas") or [])
+                           if t in TELAS and t not in TELAS_SEM_MENU})
         return sorted({rotulo for rotulo, _grupo in TELAS.values()})
     except Exception:  # noqa: BLE001
         return []
@@ -1226,6 +1369,9 @@ Regras:
 - Responda SEMPRE em português do Brasil, de forma executiva e direta.
 - Use apenas números do snapshot; nunca invente valores. Se o dado não estiver no \
 snapshot, diga em qual tela do painel está o detalhe.
+- O snapshot traz só as áreas do acesso de quem pergunta ("fora_do_acesso" conta as \
+que ficaram de fora). Se a pergunta for sobre uma área que não está nele, diga que ela \
+está fora do acesso desta pessoa e que quem libera é o administrador — nunca estime.
 - O snapshot é um RETRATO com até 10 minutos, não tempo real. Quando a pergunta for \
 sobre "agora", diga que o número é do último retrato.
 - NÃO afirme tendência (subiu, caiu, está melhorando) a partir de um retrato único: \
@@ -1252,9 +1398,10 @@ SNAPSHOT (JSON):
 """
 
 
-def prompt_sistema() -> str:
-    """Prompt com a lista de telas montada na hora, a partir do RBAC."""
-    telas = _telas_do_painel()
+def prompt_sistema(sess: dict | None = None) -> str:
+    """Prompt com a lista de telas montada na hora, a partir do RBAC — as da
+    PESSOA quando há sessão."""
+    telas = _telas_do_painel(sess)
     return _SISTEMA_BASE.replace("{telas}", ", ".join(telas) if telas else "(indisponível)")
 
 
@@ -1291,8 +1438,10 @@ def status_chave() -> dict:
         return {}
 
 
-def _mensagens(mensagens: list[dict]) -> list[dict]:
-    msgs = [{"role": "system", "content": prompt_sistema() + _snapshot()}]
+def _mensagens(mensagens: list[dict], sess: dict | None) -> list[dict]:
+    # o recorte da PESSOA: é este texto que sai da casa quando o chat cai no
+    # modelo externo, e ele só leva o que ela pode abrir no painel
+    msgs = [{"role": "system", "content": prompt_sistema(sess) + _snapshot_para(sess)}]
     for m in mensagens[-12:]:
         if m.get("role") in ("user", "assistant") and isinstance(m.get("content"), str):
             msgs.append({"role": m["role"], "content": m["content"][:4000]})
@@ -1349,7 +1498,7 @@ def _chat_ollama(msgs: list[dict]) -> dict:
             "tokens": {"entrada": ent, "saida": sai, "total": (ent or 0) + (sai or 0)}}
 
 
-def stream(mensagens: list[dict]):
+def stream(mensagens: list[dict], sess: dict | None):
     """Gera eventos {tipo: modelo|delta|fim|erro} com a resposta em streaming.
 
     Ordem: Ollama local (gemma4) primeiro; se indisponível/falhar sem emitir
@@ -1357,7 +1506,7 @@ def stream(mensagens: list[dict]):
     """
     if not (_SNAP["texto"] and time.time() - _SNAP["ts"] < _SNAP_TTL):
         yield {"tipo": "status", "texto": "consultando o ERP para montar o contexto…"}
-    msgs = _mensagens(mensagens)
+    msgs = _mensagens(mensagens, sess)
     yield {"tipo": "status", "texto": "pensando…"}
     st = ollama_status()
     if st["ok"]:
@@ -1440,9 +1589,9 @@ def stream(mensagens: list[dict]):
     yield {"tipo": "erro", "erro": "todos_falharam", "detalhe": "; ".join(erros[-6:])}
 
 
-def chat(mensagens: list[dict]) -> dict:
+def chat(mensagens: list[dict], sess: dict | None) -> dict:
     """Resposta completa: Ollama local primeiro; fallback OpenRouter free."""
-    msgs = _mensagens(mensagens)
+    msgs = _mensagens(mensagens, sess)
     st = ollama_status()
     if st["ok"]:
         try:
