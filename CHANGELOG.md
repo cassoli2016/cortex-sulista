@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.71.1] — 13/09/2026  ·  CX-13/09/2026-v1.71.1
+
+### Corrigido
+- No menu do celular, o item "Gestão" da Administração volta para a ordem alfabética (logo depois de "Auditoria e Uso"). Ele tinha ficado no fim do grupo quando deixou de se chamar "Usuários e acesso".
+
 ## [1.71.0] — 13/09/2026  ·  CX-13/09/2026-v1.71.0
 
 ### Adicionado

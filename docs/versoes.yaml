@@ -1,3 +1,11 @@
+- versao: "1.71.1"
+  data: "2026-09-13"
+  corrigido:
+    - >-
+      No menu do celular, o item "Gestão" da Administração volta para a ordem
+      alfabética (logo depois de "Auditoria e Uso"). Ele tinha ficado no fim
+      do grupo quando deixou de se chamar "Usuários e acesso".
+
 - versao: "1.71.0"
   data: "2026-09-13"
   adicionado:
