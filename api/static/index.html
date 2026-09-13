@@ -17340,38 +17340,40 @@ async function loadTvOpe(){
       if(kmEl) kmEl.insertAdjacentHTML('beforeend',
         `<div class="tvw-gauge">${arco(pctDia,'Meta do dia',rotDia)}${arco(pctMes,'Meta do mês',rotMes)}</div>`);
     }
+    /* O RODAPE E SO O QUE E DE HOJE E PEDE ACAO (pedido de quem opera,
+       13/09/2026). Sairam: violacoes de cerca (a contagem de 24h nao diz quem
+       nem onde), "sem retorno em 72h" (e assunto de amanha), meta e km do mes
+       (os cartoes ja mostram), chegada de outro dia, ocorrencia de rodovia
+       que nao fecha a via e o "estradas livres". Ficou, nesta ordem: nossa
+       frota em transito ruim, cargas criticas, atrasadas, excesso de
+       velocidade agora, CNH vencida rodando, via fechada e as chegadas
+       previstas para HOJE. Rodape vazio diz "sem ocorrencia" (tvTicker). */
     const tick=[];
-    (t.transito||[]).filter(v=>v.atrasada).slice(0,6).forEach(v=>
+    const hojeYmd=_iso(new Date());
+    (t.transito||[]).filter(v=>v.critica).forEach(v=>
+      tick.push('🔥 '+idV(v)+' carga crítica'+(v.atrasada?' atrasada':'')+' — '+(v.destino||'')));
+    (t.transito||[]).filter(v=>v.atrasada && !v.critica).slice(0,6).forEach(v=>
       tick.push('⚠️ '+idV(v)+' atrasada — '+(v.destino||'')));
     (t.posicoes||[]).filter(pp=>pp.velocidade>90).forEach(pp=>
       tick.push('🚨 '+(pp.rotulo||pp.frota||pp.placa)+' a '+pp.velocidade+' km/h'));
     if(pk.cnh_vencida_rodando>0) tick.push('🚫 '+pk.cnh_vencida_rodando+' motorista(s) com CNH vencida em viagem');
-    if(sk.cercas_24h>0) tick.push('🔔 '+sk.cercas_24h+' violações de cerca nas últimas 24h');
-    if(pk.sem_retorno>0) tick.push('🔄 '+pk.sem_retorno+' veículos chegam em 72h sem retorno casado');
-    if(rv.ok && vg.atingimento_mes!=null) tick.push('🎯 Meta do mês: '+(100*vg.atingimento_mes).toFixed(0)+'%');
-    /* NaN NA PAREDE E PIOR QUE LINHA A MENOS. Com o KPI de km ausente,
-       `undefined/1000` vira NaN e o rodape publicava
-       "NaN mil km carregado - NaN% vazio" para a operacao inteira ler.
-       So entra quando os dois numeros existem de verdade. */
-    if(km.kpis && km.kpis.km_carregado != null && km.kpis.km_total) tick.push('🛣️ Mês: '+(km.kpis.km_carregado/1000).toFixed(0)+' mil km carregado · '+(100*(km.kpis.km_vazio||0)/Math.max(1,km.kpis.km_total)).toFixed(0)+'% vazio');
-    (t.transito||[]).filter(v=>!v.atrasada && v.previsao_chegada).slice(0,4).forEach(v=>
-      tick.push('🚛 '+idV(v)+' chega em '+(v.destino||'')+' '+v.previsao_chegada.slice(11,16)));
     try{
+      // do Radar, so a via FECHADA: lentidao numa rodovia qualquer e contexto
       const estradas=await tvEstradas();
-      estradas.forEach(x=>tick.unshift('🛣️ '+x));
+      estradas.filter(x=>x.startsWith('⛔')).forEach(x=>tick.push('🛣️ '+x));
     }catch(e){}
-    /* O RESUMO DA NOSSA FROTA vai na FRENTE do resto: incidente numa rodovia
-       qualquer é contexto; caminhão nosso parado é o assunto. E o denominador
-       vem junto — "2 de 69" decide, "2" sozinho não. */
+    (t.transito||[]).filter(v=>!v.atrasada && !v.critica
+                              && (v.previsao_chegada||'').startsWith(hojeYmd))
+      .sort(porPrev).slice(0,6).forEach(v=>
+        tick.push('🚛 '+idV(v)+' chega hoje em '+(v.destino||'')+' às '+v.previsao_chegada.slice(11,16)));
+    /* O RESUMO DA NOSSA FROTA vai na FRENTE do resto: caminhão nosso parado
+       é o assunto. E o denominador vem junto — "2 de 69" decide, "2"
+       sozinho não. */
     const rEst = tvOpeEstradas && tvOpeEstradas.resumo;
-    if(rEst && rEst.medidos){
-      if(rEst.com_problema > 0){
-        tick.unshift('🚧 ' + rEst.com_problema + ' de ' + rEst.medidos
-          + ' em trânsito ruim' + (rEst.atraso_total_min
-            ? ' · ' + Math.round(rEst.atraso_total_min) + ' min perdidos' : ''));
-      }else{
-        tick.push('🛣️ Estradas livres nos ' + rEst.medidos + ' em viagem');
-      }
+    if(rEst && rEst.medidos && rEst.com_problema > 0){
+      tick.unshift('🚧 ' + rEst.com_problema + ' de ' + rEst.medidos
+        + ' em trânsito ruim' + (rEst.atraso_total_min
+          ? ' · ' + Math.round(rEst.atraso_total_min) + ' min perdidos' : ''));
     }
     tvTicker('tvope-ticker', tick);
     tvAnimarNums('tvope-k1'); tvAnimarNums('tvope-k2'); tvAnimarNums('tvope-km');

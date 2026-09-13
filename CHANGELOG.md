@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.73.2] — 13/09/2026  ·  CX-13/09/2026-v1.73.2
+
+### Alterado
+- Painel de TV da Operação — o rodapé passa a trazer só o que é de hoje e pede ação: frota nossa em trânsito ruim, cargas críticas, atrasadas, excesso de velocidade agora, CNH vencida em viagem, rodovia fechada e as chegadas previstas para hoje. Saíram as violações de cerca, os "sem retorno em 72h", a meta e o km do mês (que os cartões já mostram), as chegadas de outros dias e as ocorrências de rodovia que não fecham a via.
+
 ## [1.73.1] — 13/09/2026  ·  CX-13/09/2026-v1.73.1
 
 ### Alterado

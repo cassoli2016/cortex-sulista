@@ -128,7 +128,8 @@ def _abre(pg, base, *, com_hoje=False, prog=None):
         elif "/api/operacao/programacao" in url:
             corpo = {"kpis": prog or PROG_KPIS}
         elif "/api/operacao/seguranca" in url:
-            corpo = {"kpis": {"cercas_24h": 0}}
+            # cercas > 0 de propósito: o rodapé não pode mais publicá-las
+            corpo = {"kpis": {"cercas_24h": 7}}
         elif "/api/operacao/analise-km" in url:
             corpo = KM
         elif "/api/visao-geral" in url:
@@ -449,6 +450,32 @@ def test_nenhum_cartao_estoura_a_propria_celula(pagina):
         .filter(c => c.scrollHeight > c.clientHeight + 1 || c.scrollWidth > c.clientWidth + 1)
         .map(c => c.querySelector('.tv-label').innerText + ' ' + c.scrollHeight + '/' + c.clientHeight)""")
     assert not estouros, estouros
+
+
+# ------------------------------------------------------------ o rodapé
+
+def test_o_rodape_so_tem_o_que_e_de_hoje_e_pede_acao(pagina):
+    """O dublê TEM cerca (7), "sem retorno" (5) e meta do mês (88%): com a
+    regra antiga os três estariam no rodapé. E as chegadas vão de hoje até
+    depois da meia-noite, então a de amanhã existe para ser recusada."""
+    pg, base = pagina
+    _abre(pg, base)
+    rod = pg.evaluate("() => document.getElementById('tvope-ticker').textContent")
+    for fora in ("cerca", "72h", "Meta do mês", "Mês:", "Estradas livres"):
+        assert fora not in rod, (fora, rod[:200])
+    # a crítica abre o rodapé, antes das atrasadas, e não se repete nelas
+    assert "C030 carga crítica" in rod and rod.index("C030") < rod.index("B020"), rod[:200]
+    # chegada: só as de HOJE (no máximo 6, das mais cedo), nunca a de amanhã
+    hoje = AGORA.strftime("%Y-%m-%d")
+    de_hoje = sorted((v for v in TRANSITO if not v["atrasada"] and not v["critica"]
+                      and (v["previsao_chegada"] or "").startswith(hoje)),
+                     key=lambda v: v["previsao_chegada"])
+    outros = [v for v in TRANSITO if not v["atrasada"] and not v["critica"]
+              and not (v["previsao_chegada"] or "").startswith(hoje)]
+    for v in de_hoje[:6]:
+        assert v["frota"] + " chega hoje" in rod, (v["frota"], rod[:300])
+    for v in outros:
+        assert v["frota"] + " chega" not in rod, (v["frota"], rod[:300])
 
 
 # ------------------------------------------------------------ a marca

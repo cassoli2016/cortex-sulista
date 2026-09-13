@@ -1,3 +1,15 @@
+- versao: "1.73.2"
+  data: "2026-09-13"
+  alterado:
+    - >-
+      Painel de TV da Operação — o rodapé passa a trazer só o que é de hoje e
+      pede ação: frota nossa em trânsito ruim, cargas críticas, atrasadas,
+      excesso de velocidade agora, CNH vencida em viagem, rodovia fechada e as
+      chegadas previstas para hoje. Saíram as violações de cerca, os "sem
+      retorno em 72h", a meta e o km do mês (que os cartões já mostram), as
+      chegadas de outros dias e as ocorrências de rodovia que não fecham a
+      via.
+
 - versao: "1.73.1"
   data: "2026-09-13"
   alterado:
