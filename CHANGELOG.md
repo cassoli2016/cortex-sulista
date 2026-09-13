@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.73.1] — 13/09/2026  ·  CX-13/09/2026-v1.73.1
+
+### Alterado
+- Painel de TV da Operação — o zoom do mapa: cada região do passeio passa a enquadrar os veículos que estão nela, em vez de abrir num ponto fixo sempre com a mesma aproximação. Região com a frota concentrada aproxima até os grupos se separarem, e região espalhada afasta até caber inteira. O enquadramento também ficou mais justo, sem a borda larga de mapa vazio em volta.
+- Painel de TV da Operação — todo cartão com número em amarelo ou vermelho ganha o contorno na mesma cor, como já acontecia com o de motoristas; os verdes ficam sem contorno.
+- Painel de TV da Operação — o cartão de km e metas ficou mais espaçado: números, modalidades e medidores dividem a altura do cartão.
+
+### Removido
+- Painel de TV da Operação — o tracejado vermelho que ligava a viagem atrasada ao destino saiu do mapa; a atrasada continua marcada com a borda vermelha no próprio veículo e na tabela de chegadas.
+- Painel de TV da Operação — o mapa de fundo volta às cores originais; o esmaecimento da versão anterior saiu.
+
 ## [1.73.0] — 13/09/2026  ·  CX-13/09/2026-v1.73.0
 
 ### Alterado

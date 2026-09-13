@@ -1808,7 +1808,6 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
 .tv-legenda i{width:0.7vw;height:0.7vw;min-width:9px;min-height:9px;border-radius:0.2vw;display:inline-block;
   border:1px solid rgba(255,255,255,.9)}
 .tv-legenda i.al{background:transparent;border:2px solid #F87171}
-.tv-legenda i.dst{width:1.6vw;min-width:20px;height:0;border:0;border-top:2px dashed #F87171;border-radius:0}
 .tv-legenda i.tt{width:1.6vw;min-width:20px;border:0;background:linear-gradient(90deg,#4ADE80,#FBBF24,#F87171)}
 .tv-legenda u{text-decoration:none;width:1.1vw;height:1.1vw;min-width:14px;min-height:14px;border-radius:50%;
   background:#0B1926;border:2px solid #E5EDF4;display:inline-flex;align-items:center;justify-content:center;
@@ -1841,9 +1840,14 @@ body.tvfull .tv-head a{display:none}
 @keyframes tvTick{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 .tv-vmk.mov{animation:tvResp 2.8s infinite}
 @keyframes tvResp{0%,100%{box-shadow:0 0.15vw 0.5vw rgba(0,0,0,.55)}50%{box-shadow:0 0 1vw 0.2vw rgba(255,255,255,.4)}}
-/* os medidores de meta vao para o CHAO do cartao (margin-top:auto): antes
-   ficavam logo abaixo das modalidades e sobrava um vao escuro embaixo */
-.tvw-gauge{display:flex;align-items:center;justify-content:center;gap:2.2vw;margin-top:auto;border-top:1px solid #1E3A54;padding-top:0.55vw}
+/* O CARTAO DE KM E METAS E TRES BLOCOS -- numeros com a barra, modalidades,
+   medidores -- e a altura que sobra se DIVIDE entre eles (space-between),
+   pedido de quem opera em 13/09/2026: antes os medidores iam para o chao e
+   todo o respiro virava um vao so, com os dois blocos de cima apertados. */
+.tvw-gauge{display:flex;align-items:center;justify-content:center;gap:2.2vw;border-top:1px solid #1E3A54;padding-top:0.55vw}
+#tvope-km{justify-content:space-between}
+.tvw-km .kmgrp{display:flex;flex-direction:column;gap:0.6vw;min-height:0}
+.tvw-km .kmgrp.kmmods{gap:0.95vw}
 .tvw-gauge .glab{font-size:clamp(9px,0.75vw,14px);color:#8FA6BC;text-transform:uppercase;letter-spacing:.06em}
 .tvw-gauge .gtxt .gnum{font-size:clamp(16px,1.7vw,36px);font-weight:800}
 body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
@@ -1889,11 +1893,6 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
    pisca vira ruido numa parede que fica ligada o dia inteiro) */
 .tv-card.destaque-warn{box-shadow:inset 0 0 0 0.16vw #FBBF24;background:linear-gradient(rgba(251,191,36,.08),rgba(251,191,36,.08)),#132A40}
 .tv-card.destaque-ruim{box-shadow:inset 0 0 0 0.16vw #F87171;background:linear-gradient(rgba(248,113,113,.10),rgba(248,113,113,.10)),#132A40}
-/* O MAPA DE FUNDO ESMAECIDO: o OSM desenha borda de parque e de area de
-   protecao em tracejado verde e divisa em tracejado roxo, que na parede
-   brigavam com os caminhoes e com o tracejado das atrasadas. So a camada de
-   fundo perde cor; marcadores, grupos e o transito da TomTom ficam intactos. */
-.tv-base{filter:grayscale(.85) contrast(.9) brightness(1.05)}
 #view-tvope .tv-head{margin-bottom:0.7vw}
 #view-tvope .tv-head h2{font-size:clamp(16px,1.5vw,30px)}
 #view-tvope .tv-head .tv-clock{font-size:clamp(16px,1.5vw,30px)}
@@ -15281,6 +15280,20 @@ function tvRegua(v, r){
    tvAnimarNums reescreve o textContent do elemento: dois numeros no mesmo
    elemento deixariam o segundo como texto morto. `destaque` acende a borda
    do cartao inteiro ('warn' ou 'ruim'). */
+/* O CONTORNO DO ESTADO (pedido de quem opera, 13/09/2026, depois de ver o do
+   cartao de motoristas): todo cartao com numero em amarelo ou vermelho ganha
+   a borda na mesma cor -- vale o PIOR numero do cartao. Verde fica sem
+   borda: contorno em tudo e contorno em nada. Chamado so pela TV de
+   operacao; as outras TVs usam o mesmo tvCard e nao pediram. */
+function tvDestacar(rootId){
+  document.querySelectorAll('#'+rootId+' .tv-card').forEach(c=>{
+    const nums=[...c.querySelectorAll('.tv-num')];
+    const pior=nums.some(n=>n.classList.contains('ruim')) ? 'ruim'
+      : (nums.some(n=>n.classList.contains('warn')) ? 'warn' : '');
+    c.classList.remove('destaque-warn','destaque-ruim');
+    if(pior) c.classList.add('destaque-'+pior);
+  });
+}
 function tvCardDuo(label,partes,destaque){
   return `<div class="tv-card${destaque?' destaque-'+destaque:''}"><div class="tv-label">${label}</div><div class="tv-duo">${
     partes.map(p=>`<div><div class="tv-num ${p.cls||''}">${p.num}</div>${tvBarra(p.barra)}<div class="tv-sub">${p.sub||''}</div></div>`).join('')
@@ -16445,15 +16458,22 @@ function tvMontarVistas(){
   const atr=tvPontos.filter(p=>p.atrasada);
   if(atr.length) vs.push({nome:'Atrasadas · '+atr.length,
     caixa:atr.length>1 ? tvEnquadre(atr) : [[atr[0].lat,atr[0].lng],[atr[0].lat,atr[0].lng]]});
-  const n=TV_POLOS.map(()=>0);
+  const membros=TV_POLOS.map(()=>[]);
   tvPontos.forEach(p=>{
     let melhor=-1, dist=Infinity;
     TV_POLOS.forEach((po,i)=>{ const d=tvKm(p.lat,p.lng,po.c[0],po.c[1]); if(d<dist){ dist=d; melhor=i; } });
-    if(melhor>=0 && dist<=TV_POLO_RAIO_KM) n[melhor]++;
+    if(melhor>=0 && dist<=TV_POLO_RAIO_KM) membros[melhor].push(p);
   });
-  TV_POLOS.map((po,i)=>({po, n:n[i]})).filter(x=>x.n>=TV_POLO_MIN)
-    .sort((a,b)=>b.n-a.n).slice(0,TV_POLOS_MAX)
-    .forEach(x=>vs.push({nome:x.po.nome+' · '+x.n+' veículos', c:x.po.c, z:9}));
+  /* O ZOOM DO POLO SAI DOS VEICULOS DELE, e nao de um centro fixo com zoom 9
+     (pedido de quem opera, 13/09/2026). Com zoom fixo, os 64 veiculos de
+     Curitiba -- boa parte no patio -- viravam circulos empilhados, e um polo
+     espalhado ficava cortado. Enquadrando os pontos (percentis 5 a 95, com
+     teto de zoom 12), o polo concentrado aproxima ate os grupos se
+     separarem, e o espalhado afasta ate caber. */
+  TV_POLOS.map((po,i)=>({po, pts:membros[i]})).filter(x=>x.pts.length>=TV_POLO_MIN)
+    .sort((a,b)=>b.pts.length-a.pts.length).slice(0,TV_POLOS_MAX)
+    .forEach(x=>vs.push({nome:x.po.nome+' · '+x.pts.length+' veículos',
+                         caixa:tvEnquadre(x.pts), maxZoom:12}));
   TV_VISTAS=vs;
 }
 function tvTourPasso(){
@@ -16464,7 +16484,7 @@ function tvTourPasso(){
   if(chip) chip.textContent=vv.nome;
   try{
     if(vv.caixa){
-      tvMap.flyToBounds(L.latLngBounds(vv.caixa),{padding:[30,30],maxZoom:10,duration:2.5});
+      tvMap.flyToBounds(L.latLngBounds(vv.caixa),{padding:[40,40],maxZoom:vv.maxZoom||10,duration:2.5});
     } else tvMap.flyTo(vv.c, vv.z, {duration:2.5});
   }catch(e){}
 }
@@ -16549,9 +16569,14 @@ async function tvMapa(t){
   const el=document.getElementById('tvMapa');
   if(!el) return;
   if(!tvMap){
-    tvMap=L.map('tvMapa',{scrollWheelZoom:false,zoomControl:false,attributionControl:false}).setView([-24.8,-49.2],6);
-    // className: e so a camada de FUNDO que o CSS esmaece (.tv-base)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18, className:'tv-base'}).addTo(tvMap);
+    /* zoomSnap 0.25: o enquadramento ajusta em quartos de nivel. Com nivel
+       inteiro, o fitBounds arredondava para BAIXO e cada vista abria com uma
+       borda larga de mapa vazio em volta dos veiculos. */
+    tvMap=L.map('tvMapa',{scrollWheelZoom:false,zoomControl:false,attributionControl:false,
+                          zoomSnap:0.25, zoomDelta:0.25}).setView([-24.8,-49.2],6);
+    /* o fundo fica nas CORES ORIGINAIS do OSM: o esmaecido (1.73.0) durou uma
+       versao -- quem opera preferiu o mapa colorido (13/09/2026) */
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(tvMap);
     if(TV_ESTRADAS===null){
       try{
         const r=await fetch('/api/tv/estradas',{cache:'no-store'});
@@ -16583,20 +16608,12 @@ async function tvMapa(t){
     tvPontos.push({lat:p.lat, lng:p.lng, cor:tvCorMod(p.utilizacao), alerta,
       mov:!alerta && p.velocidade>0, viagem:!!v, atrasada:!!(v&&v.atrasada),
       rot:p.frota||p.placa||'?', tracao:p.tracao||null});
-    /* O TRACEJADO DA ATRASADA: do caminhao ate o destino, em linha reta (e
-       direcao, nao rota). Sozinho ele terminava no nada; agora termina num
-       PONTO no destino, e a legenda diz o que e. O destino e geocodificado
-       pelo nome: conferido em 13/09/2026, os 18 destinos em transito cairam
-       no estado certo. */
-    if(v && v.atrasada && v.destino){
-      tvGeo(v.destino).then(geo=>{
-        if(!geo || !tvLinhas) return;
-        L.polyline([[p.lat,p.lng],geo],
-          {color:'#F87171',weight:2.5,dashArray:'6 8',opacity:.9}).addTo(tvLinhas);
-        L.circleMarker(geo,{radius:5,color:'#F87171',weight:2.5,
-          fillColor:'#FFFFFF',fillOpacity:1}).addTo(tvLinhas);
-      });
-    }
+    /* SEM TRACEJADO ATE O DESTINO (pedido de quem opera, 13/09/2026). A
+       linha reta do caminhao atrasado ate a cidade de destino cruzava o mapa
+       por cima de grupos e rodovias sem dizer nada que a tabela de chegadas
+       ja nao diga -- e reta nao e rota. A atrasada continua com a borda
+       vermelha piscando no marcador. `tvLinhas` segue limpa a cada recarga
+       para nao sobrar linha de uma versao anterior aberta na parede. */
   });
   tvMontarVistas();
   tvLegenda();
@@ -16673,7 +16690,6 @@ function tvLegenda(){
     +`<span><i style="background:${tvCorMod('TERCEIROS')}"></i>Terceiro</span>`
     +(semCad?`<span><i style="background:${tvCorMod(null)}"></i>Sem cadastro</span>`:'')
     +`<span><i class="al"></i>Atrasada ou acima de 90 km/h</span>`
-    +(tvPontos.some(p=>p.atrasada)?'<span><i class="dst"></i>Atrasada até o destino</span>':'')
     +`<span><u>5</u>Grupo de até 5 próximos</span>`
     +(tvTrafego?'<span><i class="tt"></i>Trânsito: verde livre, vermelho parado</span>':'')
     +(tr?`<span class="tr">Tração no mapa: ${tr}</span>`:'');
@@ -17176,6 +17192,7 @@ async function loadTvOpe(){
         tvCard('Velocidade média', tel.vel_media!=null?tel.vel_media.toFixed(0):'—', '', 'km/h'),
       ].join('');
     }
+    tvDestacar('tvope-k1'); tvDestacar('tvope-k2');
     if(rk.ok && km.kpis){
       const kk=km.kpis;
       const pctV=kk.km_total>0?(100*kk.km_vazio/kk.km_total):0;
@@ -17203,19 +17220,19 @@ async function loadTvOpe(){
          vazio estourando. Os dois numeros ficam em cima, cada um na cor da
          sua parte da barra. */
       document.getElementById('tvope-km').innerHTML=`
-        <div class="duo">
+        <div class="kmgrp"><div class="duo">
           <div><div class="klab">Carregado</div><div class="knum" style="color:#4ADE80">${mil(kk.km_carregado)}</div></div>
           <div><div class="klab">Vazio · ${pctV.toFixed(0)}%</div><div class="knum" style="color:${corV}">${mil(kk.km_vazio)}</div></div>
           <div><div class="klab">Total</div><div class="knum">${mil(kk.km_total)}</div></div>
         </div>
         <div class="kmstack"><i style="width:${(100-Math.min(100,pctV)).toFixed(1)}%;background:#4ADE80"></i><i style="width:${Math.min(100,pctV).toFixed(1)}%;background:${corV}"></i><u style="left:80%"></u></div>
-        <div class="kmvz-lab">marca = limite de 20% de vazio</div>
-        ${mods.map(m=>{
+        <div class="kmvz-lab">marca = limite de 20% de vazio</div></div>
+        <div class="kmgrp kmmods">${mods.map(m=>{
           const cor=tvCorMod(m.utilizacao);
           return `<div class="mod"><b>${esc(utLbl(m.utilizacao)[0])}</b>
             <div class="trk"><i style="width:${(100*(m.km_total||0)/maxT).toFixed(1)}%;background:${cor}"></i></div>
             <span>${((m.km_total||0)/1000).toLocaleString('pt-BR',{maximumFractionDigits:0})} mil km</span></div>`;
-        }).join('')}`;
+        }).join('')}</div>`;
     }
     /* O VEICULO SE CHAMA PELO NUMERO DE FROTA na parede (pedido de quem
        opera, 13/09/2026). `frota` vem do servidor ja limpo por

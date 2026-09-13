@@ -69,8 +69,8 @@ POSICOES = MESMO_PONTO + [
     _pos(2, "LOCACAO", "6x2", -26.30, -48.85),
     _pos(3, "TERCEIROS", "truck", -22.90, -47.06),
     _pos(4, "AGREGADOS", "3/4", -29.70, -51.10, vel=95),   # alerta: >90 km/h
-    # a atrasada B020 no mapa, longe de qualquer polo: é dela que sai o
-    # tracejado até o destino (geocodificado de antemão no localStorage)
+    # a atrasada B020 no mapa, longe de qualquer polo, com o destino
+    # geocodificado de antemão: é o caso em que o tracejado (removido) nasceria
     {**_pos(5, "AGREGADOS", "4x2", -21.00, -44.00), "placa": "BBB2B20"},
 ]
 
@@ -355,14 +355,51 @@ def test_chegadas_uma_linha_por_carga_e_com_contador(pagina):
     assert int(cont.split()[0]) == len(alturas)
 
 
-def test_a_atrasada_tem_tracejado_ate_um_ponto_no_destino(pagina):
+def test_o_mapa_nao_desenha_tracejado_da_atrasada(pagina):
+    """Quem opera pediu para tirar: a reta até o destino cruzava o mapa sem
+    dizer nada que a tabela não diga. O dublê tem uma atrasada NO MAPA e com
+    o destino já geocodificado — sem a remoção, a linha seria desenhada."""
     pg, base = pagina
     _abre(pg, base)
-    tipos = pg.evaluate("""() => tvLinhas.getLayers().map(l =>
-        l instanceof L.CircleMarker ? 'ponto' : (l instanceof L.Polyline ? 'linha' : '?'))""")
-    assert sorted(tipos) == ["linha", "ponto"], tipos
-    # e o mapa de fundo é a camada esmaecida
-    assert pg.evaluate("() => !!document.querySelector('#tvMapa .tv-base')")
+    pg.wait_for_timeout(800)          # o geocoder é assíncrono
+    assert pg.evaluate("() => tvLinhas.getLayers().length") == 0
+    assert pg.evaluate("() => !!document.querySelector('#tvMapa .tv-vmk.alerta')"), (
+        "a atrasada tem de continuar marcada no próprio veículo")
+    leg = pg.evaluate("() => document.getElementById('tvope-legenda').innerText")
+    assert "destino" not in leg.lower(), leg
+    # e o mapa de fundo voltou às cores originais (sem o filtro de 1.73.0)
+    filtros = pg.evaluate("""() => [...document.querySelectorAll('#tvMapa .leaflet-tile-pane > *')]
+                                   .map(e => getComputedStyle(e).filter)""")
+    assert filtros and all(f in ("none", "") for f in filtros), filtros
+
+
+def test_o_contorno_vale_para_todo_cartao_em_alerta(pagina):
+    """O contorno do cartão de motoristas estendido aos demais: número
+    amarelo ou vermelho acende a borda na mesma cor; verde e neutro, não."""
+    pg, base = pagina
+    _abre(pg, base)
+    cls = pg.evaluate("""() => Object.fromEntries([...document.querySelectorAll(
+        '#tvope-k1 .tv-card, #tvope-k2 .tv-card')].map(c => [
+          c.querySelector('.tv-label').innerText.trim().toUpperCase(), c.className]))""")
+    for rot in ("MOTOR LIGADO PARADO", "PEDAL CRÍTICO", "MOTORISTAS"):
+        assert "destaque-ruim" in cls[rot], (rot, cls[rot])
+    for rot in ("FAIXA EXTRA ECONÔMICA", "CHEGANDO 72H"):
+        assert "destaque-warn" in cls[rot], (rot, cls[rot])
+    for rot in ("EM TRÂNSITO", "CONSUMO DA FROTA", "VELOCIDADE MÉDIA", "SEM SINAL HÁ +6H"):
+        assert "destaque" not in cls[rot], (rot, cls[rot])
+
+
+def test_o_cartao_de_km_divide_a_altura_entre_os_blocos(pagina):
+    """Três blocos (números, modalidades, medidores) e o respiro dividido
+    entre eles — antes todo o vão ia para cima dos medidores."""
+    pg, base = pagina
+    _abre(pg, base)
+    r = pg.evaluate("""() => {
+        const b = [...document.querySelectorAll('#tvope-km > *')].map(e => e.getBoundingClientRect());
+        return {n: b.length, vaos: b.slice(1).map((x, i) => Math.round(x.top - b[i].bottom))}; }""")
+    assert r["n"] == 3, r
+    # os dois vãos entre blocos existem e são parecidos (space-between)
+    assert min(r["vaos"]) > 8 and max(r["vaos"]) - min(r["vaos"]) <= 2, r
 
 
 def test_sem_sinal_traz_o_denominador(pagina):
@@ -466,7 +503,6 @@ def test_a_legenda_explica_cor_e_tracao(pagina):
     for termo in ("Frota e locação", "Agregado", "Terceiro", "90 km/h", "até 5"):
         assert termo in leg, (termo, leg)
     assert "4x2 2" in leg and "6x2 7" in leg and "truck 1" in leg, leg
-    assert "Atrasada até o destino" in leg, leg
     # locação pinta igual à frota
     cores = pg.evaluate("""() => [...document.querySelectorAll('#tvope-legenda i')]
                                   .map(i => i.style.background)""")
@@ -483,3 +519,18 @@ def test_o_tour_nasce_de_onde_a_frota_esta(pagina):
     assert any(v.startswith("Grande São Paulo · 6") for v in vistas), vistas
     # polo com menos de 3 não gasta 20 s de parede
     assert not any(v.startswith("Joinville") for v in vistas), vistas
+
+
+def test_o_zoom_do_polo_enquadra_os_veiculos_dele(pagina):
+    """O polo abria num centro fixo com zoom 9: concentrado virava pilha de
+    círculos, espalhado ficava cortado. Agora a vista é a CAIXA dos veículos
+    do polo, com teto de zoom — e o zoom anda em quartos de nível."""
+    pg, base = pagina
+    _abre(pg, base)
+    polo = pg.evaluate("""() => TV_VISTAS.find(v => v.nome.startsWith('Grande São Paulo'))""")
+    assert polo and polo.get("caixa") and polo.get("maxZoom") == 12, polo
+    assert "z" not in polo, "o polo voltou a ter zoom fixo: %r" % polo
+    # os 6 veículos do polo estão no mesmo ponto: a caixa é o próprio ponto
+    (la1, lo1), (la2, lo2) = polo["caixa"]
+    assert abs(la1 - la2) < 0.01 and abs(lo1 - lo2) < 0.01, polo["caixa"]
+    assert pg.evaluate("() => tvMap.options.zoomSnap") == 0.25
