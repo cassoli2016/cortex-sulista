@@ -94,7 +94,7 @@ def test_toda_rota_de_aplicativo_responde(app):
 
 def test_o_endereco_sai_com_a_origem_de_quem_pediu():
     """O CORTEX responde por mais de um caminho ao mesmo tempo (o tunel
-    Cloudflare, o ngrok ao lado dele, o 127.0.0.1 da bancada). Endereco fixo
+    Cloudflare e o 127.0.0.1 da bancada). Endereco fixo
     faria a pessoa copiar um link que nao e o dela."""
     lista = aplicativos.listar("https://cortex.exemplo.com.br")
     assert lista, "o registro esta vazio"

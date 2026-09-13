@@ -226,7 +226,7 @@ moram em arquivos que não falam do assunto.
   o painel e não esteja no registro reprova a suíte nomeando o arquivo.
   Aplicativo fora do menu não dá erro nenhum, por isso a ausência tem alarme
   próprio. O endereço e o QR saem da origem de QUEM PEDIU (o CÓRTEX responde
-  pelo túnel, pelo ngrok e por `127.0.0.1`).
+  pelo túnel e por `127.0.0.1`).
 - **O ESTADO de uma integração tem DUAS metades, e a tela `integ` é a junção.**
   `api/credenciais.py` diz se está CONFIGURADA (e o que falta); os cartões de
   `api/servidor.py` dizem se está CHEGANDO DADO. Uma integração configurada

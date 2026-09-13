@@ -121,7 +121,7 @@ def listar(base: str = "") -> list[dict]:
 
     `base` é a origem que o navegador está usando (`https://cortex…`), e vem de
     QUEM PEDIU, não de configuração: o CÓRTEX responde por mais de um caminho
-    (o túnel Cloudflare, o ngrok ao lado dele, e `127.0.0.1` na bancada), e um
+    (o túnel Cloudflare e `127.0.0.1` na bancada), e um
     endereço fixo aqui mandaria a pessoa copiar um link que não é o dela.
     """
     saida = []

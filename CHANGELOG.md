@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.71.4] — 13/09/2026  ·  CX-13/09/2026-v1.71.4
+
+### Removido
+- O acesso ao CÓRTEX pelo ngrok foi desligado de vez: o painel passa a ser aberto só pelo endereço oficial. Com isso a Saúde do Servidor deixa de mostrar o cartão "Túnel ngrok (porta secundária)" e de vigiar a tarefa agendada dele.
+
 ## [1.71.3] — 13/09/2026  ·  CX-13/09/2026-v1.71.3
 
 ### Corrigido

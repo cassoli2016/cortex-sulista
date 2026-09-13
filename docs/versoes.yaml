@@ -1,3 +1,12 @@
+- versao: "1.71.4"
+  data: "2026-09-13"
+  removido:
+    - >-
+      O acesso ao CÓRTEX pelo ngrok foi desligado de vez: o painel passa a ser
+      aberto só pelo endereço oficial. Com isso a Saúde do Servidor deixa de
+      mostrar o cartão "Túnel ngrok (porta secundária)" e de vigiar a tarefa
+      agendada dele.
+
 - versao: "1.71.3"
   data: "2026-09-13"
   corrigido:
