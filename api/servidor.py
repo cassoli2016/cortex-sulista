@@ -1850,6 +1850,57 @@ def _servico_suporte() -> dict:
         return {"nome": "Suporte (chamados)", "status": "info", "detalhe": "módulo indisponível"}
 
 
+def _servico_wms_de(d: dict) -> dict:
+    """Função pura sobre `api.wms.painel.diagnostico()` — testável sem banco.
+
+    ALERTA só para o que já passou do ponto: pedido com data prevista vencida,
+    lote VENCIDO em estoque, mercadoria parada na doca há mais de 24 h. Nenhum
+    armazém cadastrado é `info` — recurso ainda não usado não é falha — e a
+    tabela ausente é `erro`, porque tela vazia por migration faltando é
+    indistinguível de tela vazia por falta de uso, e esta linha é o que separa
+    as duas.
+    """
+    nome = "WMS (armazém)"
+    if not d.get("ok"):
+        if d.get("sem_tabela"):
+            return {"nome": nome, "status": "erro",
+                    "detalhe": "tabelas ausentes — rode scripts/migrar_schema.py (migration 0090)"}
+        return {"nome": nome, "status": "info", "detalhe": "módulo indisponível"}
+    if not d.get("armazens"):
+        return {"nome": nome, "status": "info",
+                "detalhe": "nenhum armazém cadastrado — o módulo está pronto para uso"}
+    ocup = d.get("ocupacao_pct")
+    partes = [f"{d['armazens']} armazém(ns)",
+              f"ocupação {ocup:.0f}%" if ocup is not None else "sem endereço de armazenagem",
+              f"{d.get('posicoes', 0)} posição(ões) em estoque",
+              f"{d.get('tarefas_pendentes', 0)} tarefa(s) de separação"]
+    if d.get("ultimo_movimento"):
+        partes.append("último movimento " + str(d["ultimo_movimento"])[:16].replace("T", " "))
+    problemas = []
+    if d.get("ped_atrasados"):
+        problemas.append(f"{d['ped_atrasados']} pedido(s) atrasado(s)")
+    if d.get("vencidos"):
+        problemas.append(f"{d['vencidos']} posição(ões) com lote vencido")
+    if d.get("doca_24h"):
+        problemas.append(f"{d['doca_24h']} posição(ões) na doca há mais de 24 h")
+    if problemas:
+        return {"nome": nome, "status": "alerta", "detalhe": " · ".join(problemas + partes)}
+    return {"nome": nome, "status": "ok", "detalhe": " · ".join(partes)}
+
+
+def _servico_wms() -> dict:
+    try:
+        from . import pglocal
+        if not pglocal.configurado():
+            return {"nome": "WMS (armazém)", "status": "info",
+                    "detalhe": "banco local não configurado nesta instalação"}
+        from .wms import painel as _wms_painel
+        return _servico_wms_de(_wms_painel.diagnostico())
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: wms: %s", type(exc).__name__)
+        return {"nome": "WMS (armazém)", "status": "info", "detalhe": "módulo indisponível"}
+
+
 def _servico_gobrax(d: dict) -> dict:
     """Linha da Gobrax na Saúde, a partir do diagnóstico do CACHE.
 
@@ -2308,6 +2359,8 @@ def _servicos() -> list[dict]:
     # migration faltando é indistinguível de tela vazia por falta de uso.
     servicos.append(_servico_crm())
     servicos.append(_servico_suporte())
+    # WMS: mora no banco local, pelo mesmo motivo dos três de cima.
+    servicos.append(_servico_wms())
     servicos.append(_servico_premiacao())
 
     # Jornada: vem do AVA, não do banco local — mas a pergunta é a mesma

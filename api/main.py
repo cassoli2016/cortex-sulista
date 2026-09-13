@@ -340,6 +340,10 @@ from api.suporte.rotas import router as router_suporte  # noqa: E402
 app.include_router(router_suporte)
 from api.equipamentos.rotas import router as router_equipamentos  # noqa: E402
 app.include_router(router_equipamentos)
+# WMS: router próprio pelo mesmo motivo do CRM (são ~45 rotas). O acesso é por
+# tela, pelos prefixos `/api/wms/*` em `ROTA_TELAS`.
+from api.wms.rotas import router as router_wms  # noqa: E402
+app.include_router(router_wms)
 # a raiz do repositorio -- usada por rota que grava arquivo temporario
 ROOT = Path(__file__).resolve().parent.parent
 STATIC = Path(__file__).resolve().parent / "static"

@@ -4,6 +4,18 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.62.0] — 12/09/2026  ·  CX-12/09/2026-v1.62.0
+
+### Adicionado
+- Menu novo: WMS, o armazém. São cinco telas. Em Cadastros do Armazém se criam os armazéns, os endereços (gerados em lote por rua, prédio, nível e posição — A-01-02-03), as docas, a área de expedição e a de avaria; os depositantes, que são os clientes do Avacorp trazidos pela busca; e os produtos, com o código do próprio cliente.
+- Recebimento: lê-se a chave de acesso da nota e o CÓRTEX busca no Avacorp a nota com os itens — o depositante e os produtos novos se cadastram sozinhos. A conferência é cega: quem confere digita o que contou, lote, validade e avaria, sem ver a quantidade da nota; ao fechar, aparece a divergência item a item e a mercadoria entra na doca. A aba Armazenar mostra o que está parado na doca, há quanto tempo, e sugere o endereço de destino. Sem a nota no Avacorp, o recebimento é aberto à mão.
+- Estoque e Inventário: o saldo de cada endereço com o físico, o reservado para separação e o disponível; o kardex com cada movimento, o documento e quem fez; mover, ajustar (com motivo obrigatório) e bloquear endereço; e o inventário, que bloqueia a rua, é contado às cegas, exige todos os endereços contados e, ao fechar, ajusta a diferença e mostra a acurácia.
+- Separação e Expedição: o pedido nasce à mão ou da nota do Avacorp; liberar reserva o estoque pelo lote que vence primeiro, e só libera se houver tudo; a lista de separação sai na ordem da rua; confirmar com menos é corte; expedir exige a placa. Cancelar devolve ao endereço o que já tinha sido separado.
+- Painel do Armazém: ocupação, o que está parado na doca, separação e expedição do dia, recebido × expedido em 30 dias, ocupação por rua, estoque por depositante e a lista do que pede ação agora (pedido atrasado, lote vencido, doca parada há mais de 24 h). O Copiloto e a Saúde do Servidor já enxergam o armazém.
+
+### Corrigido
+- Ao abrir uma tela do TMS pela busca ou por um link, o grupo TMS do menu agora abre sozinho, como os outros grupos.
+
 ## [1.61.0] — 13/09/2026  ·  CX-13/09/2026-v1.61.0
 
 ### Adicionado

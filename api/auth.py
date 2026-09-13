@@ -138,6 +138,16 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     # o TMS deixe de depender do Avacorp -- e um cadastro proprio de frota
     # e a primeira peca de que isso depende.
     "eqp":     ("Equipamentos", "TMS"),
+    # GRUPO WMS: o armazém (pedido de quem opera, 12/09/2026). Cinco telas, e
+    # não uma com cinco abas, porque o PÚBLICO é diferente: quem confere na
+    # doca não cadastra endereço nem expede, e sub-aba herdaria o acesso da
+    # tela inteira. A pergunta que separa ("o roteador abre por hash?")
+    # responde sim nas cinco.
+    "wmspan":  ("Painel do Armazém", "WMS"),
+    "wmsrec":  ("Recebimento", "WMS"),
+    "wmsest":  ("Estoque e Inventário", "WMS"),
+    "wmsexp":  ("Separação e Expedição", "WMS"),
+    "wmscad":  ("Cadastros do Armazém", "WMS"),
     "anpiso":  ("Piso Mínimo de Frete", "ANTT"),
     "anrntrc": ("RNTRC dos Transportadores", "ANTT"),
     "telcon":  ("Consumo e Estatísticas", "Telemetria"),
@@ -199,6 +209,19 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/dfe/xml",                  frozenset({"dfe"})),
     ("/api/dfe",                      frozenset({"dfe"})),
     ("/api/equipamentos",             frozenset({"eqp"})),
+    # WMS — o desenho de acesso É a divisão dos prefixos. O catálogo e a lista
+    # de produtos servem de seletor a várias telas; o SALDO é lido por três
+    # (e vem ANTES de `/api/wms/estoque`, que o engoliria); movimentar,
+    # bloquear e inventariar ficam só com a tela de estoque.
+    ("/api/wms/catalogo",             frozenset({"wmspan", "wmsrec", "wmsest", "wmsexp", "wmscad"})),
+    ("/api/wms/produtos",             frozenset({"wmsrec", "wmsest", "wmsexp", "wmscad"})),
+    ("/api/wms/erp",                  frozenset({"wmsrec", "wmsexp", "wmscad"})),
+    ("/api/wms/painel",               frozenset({"wmspan"})),
+    ("/api/wms/cadastro",             frozenset({"wmscad"})),
+    ("/api/wms/recebimento",          frozenset({"wmsrec"})),
+    ("/api/wms/estoque/saldo",        frozenset({"wmsest", "wmspan", "wmsexp"})),
+    ("/api/wms/estoque",              frozenset({"wmsest"})),
+    ("/api/wms/expedicao",            frozenset({"wmsexp"})),
     ("/api/monitoramentos",           frozenset({"mon"})),
     ("/api/documentacao",             frozenset(TELAS)),
     ("/api/versao",                   frozenset(TELAS)),

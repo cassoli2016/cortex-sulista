@@ -683,6 +683,30 @@ tr:last-child td{border-bottom:0}
 .b-warn{background:var(--yellow-100);color:var(--yellow-700)}
 .b-dang{background:var(--red-100);color:var(--red)}
 .b-ok{background:var(--green-100);color:var(--green)}
+/* WMS — o armazém. A barra do armazém fica no topo das quatro telas de
+   operação: o armazém escolhido vale para as cinco e fica no navegador de quem
+   escolheu. Distâncias só da escala da casa (9/18). */
+.wms-barra{display:flex;flex-wrap:wrap;gap:9px;align-items:center}
+.wms-barra label{font-size:12px;font-weight:600;color:var(--n600)}
+.wms-barra select{height:34px;border:1px solid var(--n300);border-radius:6px;padding:0 9px;font:inherit;font-size:13px;background:var(--n0);color:var(--n900);min-width:0;max-width:100%}
+.wms-barra .hint{font-size:12px;color:var(--n500)}
+.wms-barra .hint.wms-erro,.wms-fil+.hint.wms-erro{color:var(--red)}
+.wms-fil{display:flex;flex-wrap:wrap;gap:9px;align-items:center;padding:9px 18px}
+.wms-fil select,.wms-fil input[type=search]{height:32px;border:1px solid var(--n300);border-radius:6px;padding:0 9px;font:inherit;font-size:13px;background:var(--n0);color:var(--n900);min-width:0}
+.wms-fil input[type=search]{flex:1 1 220px}
+.wms-sub{font-size:11.5px;color:var(--n500);white-space:normal}
+.wms-acoes{display:flex;gap:9px;justify-content:flex-end;flex-wrap:wrap}
+.wms-linha{display:flex;gap:9px;align-items:center}
+.wms-linha input{flex:1 1 auto;min-width:0}
+.wms-nf{font-size:13px;color:var(--n700)}
+.wms-nf:empty{display:none}
+.wms-grade{width:100%;border-collapse:collapse;font-size:13px}
+.wms-grade th{padding:9px;font-size:10.5px}
+.wms-grade td{padding:9px;border-bottom:1px solid var(--n100);vertical-align:top}
+.wms-grade input,.wms-grade select{width:100%;box-sizing:border-box;padding:9px;border:1px solid var(--n300);border-radius:6px;font:inherit;font-size:13px;background:var(--n0);color:var(--n900)}
+.wms-grade td.num input{text-align:right}
+.wms-duas{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px}
+@media (max-width:640px){.wms-duas{grid-template-columns:minmax(0,1fr)}}
 /* Transmissão recusada: fundo leve, porque a coluna de situação já carrega o
    vermelho. Pintar a linha inteira forte competiria com ela e cansaria numa
    lista longa. */
@@ -3304,6 +3328,16 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#dfe" class="sub" data-view="dfe" title="Central de Documentos — todo XML fiscal da casa num lugar só: o que a SEFAZ entrega, o acervo do ERP e o que chega por e-mail"><span class="ic" data-ic="dfeic"></span><span>Central de Documentos</span></a>
         <a href="#ctecp" class="sub" data-view="ctecp" title="CT-e de Contrapartida — conciliação dos CT-e de agregado que aguardam documento do transportador"><span class="ic" data-ic="ctb"></span><span>CT-e de Contrapartida</span></a>
         <a href="#eqp" class="sub" data-view="eqp" title="Equipamentos — o cadastro de frota do CÓRTEX: identidade, documentação e situação no Detran de cada placa"><span class="ic" data-ic="eqpic"></span><span>Equipamentos</span></a>
+      </div>
+      <button class="group" id="grpWms" aria-expanded="false" aria-controls="subsWms" onclick="toggleGroup('grpWms','subsWms','cs.wmsGroup')" title="WMS — o armazém: recebimento, estoque por endereço, separação e expedição">
+        <span class="ic" data-ic="wmsic"></span><span>WMS</span><span class="ic chev" data-ic="chev"></span>
+      </button>
+      <div class="subs closed" id="subsWms">
+        <a href="#wmscad" class="sub" data-view="wmscad" title="Cadastros do Armazém — armazéns, endereços, depositantes (clientes do Avacorp) e produtos"><span class="ic" data-ic="wmscadic"></span><span>Cadastros do Armazém</span></a>
+        <a href="#wmsest" class="sub" data-view="wmsest" title="Estoque e Inventário — saldo por endereço, kardex, bloqueios e inventário cego"><span class="ic" data-ic="wmsestic"></span><span>Estoque e Inventário</span></a>
+        <a href="#wmspan" class="sub" data-view="wmspan" title="Painel do Armazém — ocupação, doca, separação, expedição e o que pede ação agora"><span class="ic" data-ic="gauge"></span><span>Painel do Armazém</span></a>
+        <a href="#wmsrec" class="sub" data-view="wmsrec" title="Recebimento — a nota do Avacorp, a conferência cega e a armazenagem"><span class="ic" data-ic="wmsrecic"></span><span>Recebimento</span></a>
+        <a href="#wmsexp" class="sub" data-view="wmsexp" title="Separação e Expedição — pedido, separação FEFO na ordem da rua e expedição com placa"><span class="ic" data-ic="wmsexpic"></span><span>Separação e Expedição</span></a>
       </div>
       <div class="navsep" role="separator"></div>
       <button class="group" id="grpAdm" aria-expanded="false" aria-controls="subsAdm" onclick="toggleGroup('grpAdm','subsAdm','cs.admGroup')" title="Administração">
@@ -7663,6 +7697,192 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
       </section>
+      <section class="view" id="view-wmspan">
+        <div class="wms-barra">
+          <label for="wmspan-arm">Armazém</label>
+          <select id="wmspan-arm" onchange="wmsArmTrocar('wmspan',this.value)"></select>
+          <span class="hint" id="wmspan-hint"></span>
+        </div>
+        <div class="kband"><div class="kpis k4" id="wmspan-kpis"></div></div>
+        <div class="grid2">
+          <div class="card"><div class="head"><h2>Recebido × expedido — 30 dias <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: wms_recebimento (conferências fechadas por dia) e wms_pedido (expedições por dia), no banco da casa. Conta DOCUMENTOS, não quantidade: um recebimento de 3 paletes e um de 300 caixas pesam igual, porque somar palete com caixa não dá número nenhum. Os 30 dias são GERADOS — dia sem movimento aparece como zero, em vez de sumir e emendar segunda com quinta. Hoje é parcial e vem hachurado.">ⓘ</span></h2></div>
+            <div id="wmspan-serie" style="width:100%;height:220px"></div></div>
+          <div class="card"><div class="head"><h2>Ocupação por rua <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: wms_endereco × wms_saldo. Endereço OCUPADO é o que tem saldo de qualquer produto — o WMS ainda não mede volume nem palete dentro da posição, então meio palete ocupa o endereço inteiro. Só entram os endereços de ARMAZENAGEM (porta-palete, picking, blocado): doca, expedição e avaria são passagem, e somá-los aqui faria um armazém com a doca cheia parecer lotado.">ⓘ</span></h2></div>
+            <div id="wmspan-ruas" style="width:100%;height:220px"></div></div>
+        </div>
+        <div class="grid2">
+          <div class="card"><div class="head"><h2>O que pede ação agora <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Tudo aqui é CALCULADO a cada leitura, nenhum status gravado: pedido com data prevista vencida e não expedido, lote vencido em estoque, mercadoria parada na doca há mais de 24 h (vermelho — já passou do ponto); recebimento aberto há mais de 24 h, validade nos próximos 30 dias, inventário aberto há mais de 3 dias com endereços bloqueados e mercadoria na área de avaria (amarelo — vai passar). O link leva à tela onde se resolve.">ⓘ</span></h2></div>
+            <div class="tabroll" style="max-height:230px"><table><thead><tr><th>Situação</th><th class="num">Qtd</th><th>Onde resolver</th></tr></thead><tbody id="wmspan-alertas"></tbody></table></div></div>
+          <div class="card"><div class="head"><h2>Estoque por depositante <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: wms_saldo por dono da mercadoria (o depositante é o cliente do Avacorp copiado para o cadastro do WMS). Ordenado por endereços ocupados — é o que o cliente consome do armazém. Mostra os 8 maiores e diz quantos são no total.">ⓘ</span></h2><span class="hint" id="wmspan-dep-hint"></span></div>
+            <div class="tabroll" style="max-height:230px"><table><thead><tr><th>Depositante</th><th class="num">Endereços</th><th class="num">Produtos</th><th class="num">Posições</th></tr></thead><tbody id="wmspan-deps"></tbody></table></div></div>
+        </div>
+      </section>
+      <section class="view" id="view-wmsrec">
+        <div class="wms-barra">
+          <label for="wmsrec-arm">Armazém</label>
+          <select id="wmsrec-arm" onchange="wmsArmTrocar('wmsrec',this.value)"></select>
+          <button class="btn" onclick="wmsRecNovo()">Novo recebimento</button>
+          <span class="hint" id="wmsrec-hint"></span>
+        </div>
+        <div class="kband"><div class="kpis k4" id="wmsrec-kpis"></div></div>
+        <div class="subtabs" role="tablist" data-abas="wmsrec" aria-label="Seções desta tela">
+          <button role="tab" id="tabwmsrec-conf" data-aba="conf" aria-controls="aba-wmsrec-conf"
+                  aria-selected="true" onclick="abaTrocar('wmsrec','conf')">A conferir <span class="aban" id="wmsrec-n-conf"></span></button>
+          <button role="tab" id="tabwmsrec-arm" data-aba="arm" aria-controls="aba-wmsrec-arm"
+                  aria-selected="false" onclick="abaTrocar('wmsrec','arm')">Armazenar <span class="aban" id="wmsrec-n-arm"></span></button>
+          <button role="tab" id="tabwmsrec-hist" data-aba="hist" aria-controls="aba-wmsrec-hist"
+                  aria-selected="false" onclick="abaTrocar('wmsrec','hist')">Histórico <span class="aban" id="wmsrec-n-hist"></span></button>
+        </div>
+        <div class="aba" data-abas="wmsrec" data-aba="conf" id="aba-wmsrec-conf" role="tabpanel" aria-labelledby="tabwmsrec-conf">
+          <div class="card"><div class="head"><h2>Recebimentos a conferir <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: wms_recebimento. A nota vem do Avacorp pela chave de acesso (coleta_notafiscal e coleta_notafiscal_item — os itens com o código do produto DO CLIENTE); sem a nota lá, o recebimento nasce à mão. A CONFERÊNCIA É CEGA: enquanto o recebimento está aberto, o servidor não entrega a quantidade da nota — quem confere conta o que está na frente dele, em vez de confirmar o número impresso. A nota reaparece quando a conferência fecha, lado a lado com o contado.">ⓘ</span></h2></div>
+            <div class="tabroll"><table><thead><tr><th>Nº</th><th>Nota</th><th>Depositante</th><th>Doca</th><th class="num">Itens</th><th>Conferidos</th><th>Aberto há</th><th></th></tr></thead><tbody id="wmsrec-abertos"></tbody></table></div></div>
+        </div>
+        <div class="aba" data-abas="wmsrec" data-aba="arm" id="aba-wmsrec-arm" role="tabpanel" aria-labelledby="tabwmsrec-arm" hidden>
+          <div class="card"><div class="head"><h2>Parado na doca <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: wms_saldo nos endereços do tipo Doca. Fechar a conferência dá entrada na doca; armazenar é levar dali para um endereço de guarda. A SUGESTÃO junta primeiro com o mesmo produto e lote (consolidar libera posição) e só depois abre um endereço vazio — porta-palete, blocado, picking, na ordem da rua. Um endereço vazio nunca é sugerido a duas linhas. &quot;Na doca há&quot; conta desde a entrada mais antiga ainda somada ali.">ⓘ</span></h2></div>
+            <div class="tabroll"><table><thead><tr><th>Doca</th><th>Produto</th><th>Depositante</th><th>Lote</th><th class="num">Qtd</th><th>Na doca há</th><th>Sugestão</th><th></th></tr></thead><tbody id="wmsrec-doca"></tbody></table></div></div>
+        </div>
+        <div class="aba" data-abas="wmsrec" data-aba="hist" id="aba-wmsrec-hist" role="tabpanel" aria-labelledby="tabwmsrec-hist" hidden>
+          <div class="card"><div class="head"><h2>Conferidos e cancelados — 30 dias <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: wms_recebimento e wms_recebimento_item. A DIVERGÊNCIA não é coluna gravada: é conferido − nota, calculada na leitura, item a item. Avaria é parte do conferido e entrou na área de avaria, não na doca.">ⓘ</span></h2></div>
+            <div class="tabroll"><table><thead><tr><th>Nº</th><th>Nota</th><th>Depositante</th><th>Situação</th><th class="num">Qtd nota</th><th class="num">Conferido</th><th class="num">Avaria</th><th>Divergência</th><th>Quando</th></tr></thead><tbody id="wmsrec-hist"></tbody></table></div></div>
+        </div>
+      </section>
+      <section class="view" id="view-wmsest">
+        <div class="wms-barra">
+          <label for="wmsest-arm">Armazém</label>
+          <select id="wmsest-arm" onchange="wmsArmTrocar('wmsest',this.value)"></select>
+          <span class="hint" id="wmsest-hint"></span>
+        </div>
+        <div class="kband"><div class="kpis k4" id="wmsest-kpis"></div></div>
+        <div class="subtabs" role="tablist" data-abas="wmsest" aria-label="Seções desta tela">
+          <button role="tab" id="tabwmsest-saldo" data-aba="saldo" aria-controls="aba-wmsest-saldo"
+                  aria-selected="true" onclick="abaTrocar('wmsest','saldo')">Saldo por endereço <span class="aban" id="wmsest-n-saldo"></span></button>
+          <button role="tab" id="tabwmsest-kdx" data-aba="kdx" aria-controls="aba-wmsest-kdx"
+                  aria-selected="false" onclick="abaTrocar('wmsest','kdx')">Kardex <span class="aban" id="wmsest-n-kdx"></span></button>
+          <button role="tab" id="tabwmsest-blq" data-aba="blq" aria-controls="aba-wmsest-blq"
+                  aria-selected="false" onclick="abaTrocar('wmsest','blq')">Bloqueios <span class="aban" id="wmsest-n-blq"></span></button>
+          <button role="tab" id="tabwmsest-inv" data-aba="inv" aria-controls="aba-wmsest-inv"
+                  aria-selected="false" onclick="abaTrocar('wmsest','inv')">Inventário <span class="aban" id="wmsest-n-inv"></span></button>
+        </div>
+        <div class="aba" data-abas="wmsest" data-aba="saldo" id="aba-wmsest-saldo" role="tabpanel" aria-labelledby="tabwmsest-saldo">
+          <div class="card"><div class="head"><h2>Saldo por endereço <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: wms_saldo, que NÃO é tabela — é a soma do kardex (wms_movimento) por endereço, produto e lote. O banco recusa qualquer movimento que deixe um saldo negativo, e o kardex não se edita nem se apaga. TRÊS NÚMEROS: físico (o que está lá), reservado (o que uma tarefa de separação pendente já prometeu a um pedido) e disponível (físico − reservado) — só o disponível pode ser movimentado. Os quatro cartões de cima seguem os filtros desta aba.">ⓘ</span></h2><span class="hint" id="wmsest-saldo-hint"></span></div>
+            <div class="wms-fil">
+              <select id="wmsest-dep" onchange="loadWmsEst()"><option value="">todos os depositantes</option></select>
+              <select id="wmsest-tipo" onchange="loadWmsEst()">
+                <option value="">todos os tipos de endereço</option>
+                <option value="porta_palete">porta-palete</option><option value="picking">picking</option>
+                <option value="blocado">blocado</option><option value="doca">doca</option>
+                <option value="expedicao">expedição</option><option value="avaria">avaria</option>
+              </select>
+              <input type="search" id="wmsest-q" placeholder="produto, descrição, endereço ou lote" onkeydown="if(event.key==='Enter')loadWmsEst()">
+              <button class="ghost" onclick="loadWmsEst()">Filtrar</button>
+            </div>
+            <div class="tabroll"><table><thead><tr><th>Endereço</th><th>Produto</th><th>Depositante</th><th>Lote</th><th>Validade</th><th class="num">Físico</th><th class="num">Reservado</th><th class="num">Disponível</th><th></th></tr></thead><tbody id="wmsest-saldo"></tbody></table></div></div>
+        </div>
+        <div class="aba" data-abas="wmsest" data-aba="kdx" id="aba-wmsest-kdx" role="tabpanel" aria-labelledby="tabwmsest-kdx" hidden>
+          <div class="card"><div class="head"><h2>Kardex — cada movimento, com o documento <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: wms_movimento. É o histórico imutável do estoque: o banco recusa UPDATE e DELETE, e movimento errado se corrige com outro (ajuste, estorno). A transferência tem duas pernas — saída de um endereço, entrada no outro — com o mesmo documento. Toda linha diz quem fez.">ⓘ</span></h2><span class="hint" id="wmsest-kdx-hint"></span></div>
+            <div class="wms-fil">
+              <select id="wmsest-kdoc" onchange="wmsEstKardex()">
+                <option value="">todos os documentos</option>
+                <option value="recebimento">recebimento</option><option value="armazenagem">armazenagem</option>
+                <option value="movimentacao">movimentação interna</option><option value="separacao">separação</option>
+                <option value="expedicao">expedição</option><option value="inventario">inventário</option>
+                <option value="ajuste">ajuste</option>
+              </select>
+              <select id="wmsest-kdias" onchange="wmsEstKardex()">
+                <option value="7">7 dias</option><option value="30" selected>30 dias</option><option value="90">90 dias</option>
+              </select>
+              <input type="search" id="wmsest-kq" placeholder="produto, endereço, lote ou usuário" onkeydown="if(event.key==='Enter')wmsEstKardex()">
+              <button class="ghost" onclick="wmsEstKardex()">Filtrar</button>
+            </div>
+            <div class="tabroll"><table><thead><tr><th>Quando</th><th>Documento</th><th>Endereço</th><th>Produto</th><th>Lote</th><th class="num">Qtd</th><th>Quem</th><th>Motivo</th></tr></thead><tbody id="wmsest-kdx"></tbody></table></div></div>
+        </div>
+        <div class="aba" data-abas="wmsest" data-aba="blq" id="aba-wmsest-blq" role="tabpanel" aria-labelledby="tabwmsest-blq" hidden>
+          <div class="card"><div class="head"><h2>Endereços bloqueados <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: wms_endereco. Endereço bloqueado não recebe nem entrega mercadoria — a regra é do banco, não da tela —, e a separação não o escolhe. Só o ajuste com motivo passa. Os bloqueados por um INVENTÁRIO só são liberados quando ele fecha ou é cancelado.">ⓘ</span></h2>
+              <button class="ghost" onclick="wmsEstBloquearNovo()">Bloquear endereço</button></div>
+            <div class="tabroll"><table><thead><tr><th>Endereço</th><th>Tipo</th><th>Motivo</th><th>Desde</th><th>Por</th><th class="num">Itens</th><th></th></tr></thead><tbody id="wmsest-blq"></tbody></table></div></div>
+        </div>
+        <div class="aba" data-abas="wmsest" data-aba="inv" id="aba-wmsest-inv" role="tabpanel" aria-labelledby="tabwmsest-inv" hidden>
+          <div class="card"><div class="head"><h2>Inventários <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: wms_inventario e as contagens. Abrir BLOQUEIA os endereços do escopo — contar enquanto alguém mexe mede um número que já não existe. A CONTAGEM É CEGA (quem conta não vê o saldo) e fechar exige TODOS os endereços contados: &quot;não contei&quot; e &quot;contei zero&quot; são afirmações diferentes, e endereço vazio se registra como vazio. Fechar gera o ajuste da diferença; a ACURÁCIA é o percentual de endereços sem ajuste.">ⓘ</span></h2>
+              <button class="ghost" onclick="wmsInvNovo()">Abrir inventário</button></div>
+            <div class="tabroll"><table><thead><tr><th>Nº</th><th>Descrição</th><th>Situação</th><th class="num">Endereços</th><th>Contados</th><th class="num">Acurácia</th><th>Aberto em</th><th></th></tr></thead><tbody id="wmsest-inv"></tbody></table></div></div>
+        </div>
+      </section>
+      <section class="view" id="view-wmsexp">
+        <div class="wms-barra">
+          <label for="wmsexp-arm">Armazém</label>
+          <select id="wmsexp-arm" onchange="wmsArmTrocar('wmsexp',this.value)"></select>
+          <button class="btn" onclick="wmsExpNovo()">Novo pedido</button>
+          <span class="hint" id="wmsexp-hint"></span>
+        </div>
+        <div class="kband"><div class="kpis k4" id="wmsexp-kpis"></div></div>
+        <div class="subtabs" role="tablist" data-abas="wmsexp" aria-label="Seções desta tela">
+          <button role="tab" id="tabwmsexp-ped" data-aba="ped" aria-controls="aba-wmsexp-ped"
+                  aria-selected="true" onclick="abaTrocar('wmsexp','ped')">Pedidos <span class="aban" id="wmsexp-n-ped"></span></button>
+          <button role="tab" id="tabwmsexp-sep" data-aba="sep" aria-controls="aba-wmsexp-sep"
+                  aria-selected="false" onclick="abaTrocar('wmsexp','sep')">Lista de separação <span class="aban" id="wmsexp-n-sep"></span></button>
+          <button role="tab" id="tabwmsexp-fim" data-aba="fim" aria-controls="aba-wmsexp-fim"
+                  aria-selected="false" onclick="abaTrocar('wmsexp','fim')">Expedidos <span class="aban" id="wmsexp-n-fim"></span></button>
+        </div>
+        <div class="aba" data-abas="wmsexp" data-aba="ped" id="aba-wmsexp-ped" role="tabpanel" aria-labelledby="tabwmsexp-ped">
+          <div class="card"><div class="head"><h2>Pedidos em andamento <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: wms_pedido e wms_tarefa. LIBERAR É RESERVAR: cria as tarefas de separação na ordem FEFO (o lote que vence primeiro sai primeiro; sem validade, o que entrou primeiro), e cada tarefa pendente sai do disponível do endereço. A liberação é tudo-ou-nada — se falta estoque de um item, nada é reservado e a recusa diz o que falta. &quot;Em separação&quot; e &quot;separado&quot; não são status gravados: saem das tarefas. Pedido pode nascer da nota do Avacorp, casando os itens pelo código do produto do cliente.">ⓘ</span></h2></div>
+            <div class="tabroll"><table><thead><tr><th>Nº</th><th>Pedido</th><th>Depositante</th><th>Destinatário</th><th>Previsto</th><th class="num">Itens</th><th>Situação</th><th>Separação</th><th></th></tr></thead><tbody id="wmsexp-ped"></tbody></table></div></div>
+        </div>
+        <div class="aba" data-abas="wmsexp" data-aba="sep" id="aba-wmsexp-sep" role="tabpanel" aria-labelledby="tabwmsexp-sep" hidden>
+          <div class="card"><div class="head"><h2>Lista de separação — na ordem da rua <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: wms_tarefa pendentes. A ordem é a do ENDEREÇO, que é a ordem da rua — separar na ordem em que os pedidos chegaram faria o separador cruzar o armazém a cada linha. Confirmar leva a mercadoria à área de expedição; quantidade menor que a prevista é CORTE (faltou no endereço) e fica registrado.">ⓘ</span></h2></div>
+            <div class="tabroll"><table><thead><tr><th>Endereço</th><th>Produto</th><th>Lote</th><th>Validade</th><th class="num">Qtd</th><th>Pedido</th><th></th></tr></thead><tbody id="wmsexp-sep"></tbody></table></div></div>
+        </div>
+        <div class="aba" data-abas="wmsexp" data-aba="fim" id="aba-wmsexp-fim" role="tabpanel" aria-labelledby="tabwmsexp-fim" hidden>
+          <div class="card"><div class="head"><h2>Expedidos e cancelados — 30 dias <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: wms_pedido. Expedir tira da área de expedição o que foi separado e exige a placa do veículo. Cancelar devolve o que já estava separado para o endereço de origem com movimento novo — o kardex guarda a ida e a volta.">ⓘ</span></h2></div>
+            <div class="tabroll"><table><thead><tr><th>Nº</th><th>Pedido</th><th>Depositante</th><th>Situação</th><th>Quando</th><th>Placa</th><th>Motorista</th><th class="num">Corte</th></tr></thead><tbody id="wmsexp-fim"></tbody></table></div></div>
+        </div>
+      </section>
+      <section class="view" id="view-wmscad">
+        <div class="subtabs" role="tablist" data-abas="wmscad" aria-label="Seções desta tela">
+          <button role="tab" id="tabwmscad-arm" data-aba="arm" aria-controls="aba-wmscad-arm"
+                  aria-selected="true" onclick="abaTrocar('wmscad','arm')">Armazéns <span class="aban" id="wmscad-n-arm"></span></button>
+          <button role="tab" id="tabwmscad-end" data-aba="end" aria-controls="aba-wmscad-end"
+                  aria-selected="false" onclick="abaTrocar('wmscad','end')">Endereços <span class="aban" id="wmscad-n-end"></span></button>
+          <button role="tab" id="tabwmscad-dep" data-aba="dep" aria-controls="aba-wmscad-dep"
+                  aria-selected="false" onclick="abaTrocar('wmscad','dep')">Depositantes <span class="aban" id="wmscad-n-dep"></span></button>
+          <button role="tab" id="tabwmscad-prod" data-aba="prod" aria-controls="aba-wmscad-prod"
+                  aria-selected="false" onclick="abaTrocar('wmscad','prod')">Produtos <span class="aban" id="wmscad-n-prod"></span></button>
+        </div>
+        <div class="aba" data-abas="wmscad" data-aba="arm" id="aba-wmscad-arm" role="tabpanel" aria-labelledby="tabwmscad-arm">
+          <div class="card"><div class="head"><h2>Armazéns <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: wms_armazem, no banco da casa. O WMS do Avacorp (public.wms_*) existe e está VAZIO — medido em 12/09/2026, só os catálogos têm linha —, então o cadastro nasce aqui. Para operar, um armazém precisa de ao menos uma DOCA (onde a conferência dá entrada), uma área de EXPEDIÇÃO (para onde a separação leva) e endereços de guarda; a área de AVARIA é exigida no dia em que um recebimento tiver avaria.">ⓘ</span></h2>
+              <button class="ghost" onclick="wmsCadArmNovo()">Novo armazém</button></div>
+            <div class="tabroll"><table><thead><tr><th>Código</th><th>Nome</th><th>Filial ERP</th><th>Cidade</th><th class="num">Guarda</th><th class="num">Docas</th><th class="num">Expedição</th><th class="num">Avaria</th><th>Situação</th><th></th></tr></thead><tbody id="wmscad-arm"></tbody></table></div></div>
+        </div>
+        <div class="aba" data-abas="wmscad" data-aba="end" id="aba-wmscad-end" role="tabpanel" aria-labelledby="tabwmscad-end" hidden>
+          <div class="card"><div class="head"><h2>Endereços <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: wms_endereco. O endereço de guarda se GERA EM LOTE a partir de uma faixa — ruas, prédios, níveis e posições — e o código sai sempre no formato RUA-PRÉDIO-NÍVEL-POSIÇÃO (A-01-02-03): ordenar pelo código é ordenar pela rota de separação. Doca, expedição e avaria são endereços avulsos. Endereço com mercadoria não muda de tipo nem é inativado.">ⓘ</span></h2><span class="hint" id="wmscad-end-hint"></span></div>
+            <div class="wms-fil">
+              <select id="wmscad-arm-sel" onchange="wmsCadEnderecos()"></select>
+              <select id="wmscad-end-sit" onchange="wmsCadEnderecos()">
+                <option value="">todas as situações</option><option value="livre">livres</option>
+                <option value="ocupado">ocupados</option><option value="bloqueado">bloqueados</option><option value="inativo">inativos</option>
+              </select>
+              <input type="search" id="wmscad-end-q" placeholder="código do endereço" onkeydown="if(event.key==='Enter')wmsCadEnderecos()">
+              <button class="ghost" onclick="wmsCadEndGerar()">Gerar em lote</button>
+              <button class="ghost" onclick="wmsCadEndNovo()">Endereço avulso</button>
+            </div>
+            <div class="tabroll"><table><thead><tr><th>Código</th><th>Tipo</th><th>Situação</th><th class="num">Itens</th><th class="num">Capacidade</th><th></th></tr></thead><tbody id="wmscad-end"></tbody></table></div></div>
+        </div>
+        <div class="aba" data-abas="wmscad" data-aba="dep" id="aba-wmscad-dep" role="tabpanel" aria-labelledby="tabwmscad-dep" hidden>
+          <div class="card"><div class="head"><h2>Depositantes — os donos da mercadoria <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: wms_depositante. O depositante é o CLIENTE do Avacorp (public.cadastro), copiado para cá no cadastro com a origem dita — o WMS precisa do nome mesmo quando o ERP não responde. Um recebimento pela nota do Avacorp cadastra o remetente sozinho, se ele ainda não existir; o cadastro daqui, uma vez feito, vence a cópia.">ⓘ</span></h2>
+              <button class="ghost" onclick="wmsCadDepErp()">Trazer do Avacorp</button>
+              <button class="ghost" onclick="wmsCadDepManual()">Cadastrar à mão</button></div>
+            <div class="tabroll"><table><thead><tr><th>CNPJ</th><th>Razão social</th><th>Cidade</th><th>Origem</th><th class="num">Produtos</th><th class="num">Posições</th><th>Situação</th><th></th></tr></thead><tbody id="wmscad-dep"></tbody></table></div></div>
+        </div>
+        <div class="aba" data-abas="wmscad" data-aba="prod" id="aba-wmscad-prod" role="tabpanel" aria-labelledby="tabwmscad-prod" hidden>
+          <div class="card"><div class="head"><h2>Produtos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: wms_produto. O produto é DO DEPOSITANTE e o código é o do cliente — o produtocliente que vem na nota —, porque dois clientes usam o mesmo código para coisas diferentes. Os produtos de uma nota do Avacorp se cadastram sozinhos no recebimento. Controla lote/validade torna os dois campos obrigatórios na conferência e é o que dá à separação o FEFO.">ⓘ</span></h2><span class="hint" id="wmscad-prod-hint"></span></div>
+            <div class="wms-fil">
+              <select id="wmscad-prod-dep" onchange="wmsCadProdutos()"><option value="">todos os depositantes</option></select>
+              <input type="search" id="wmscad-prod-q" placeholder="código, descrição ou EAN" onkeydown="if(event.key==='Enter')wmsCadProdutos()">
+              <button class="ghost" onclick="wmsCadProdutos()">Filtrar</button>
+              <button class="ghost" onclick="wmsCadProdNovo()">Novo produto</button>
+            </div>
+            <div class="tabroll"><table><thead><tr><th>Código</th><th>Descrição</th><th>Depositante</th><th>Un.</th><th>Controla</th><th>Origem</th><th class="num">Saldo</th><th></th></tr></thead><tbody id="wmscad-prod"></tbody></table></div></div>
+        </div>
+      </section>
       <section class="view" id="view-dfe">
         <div class="kband"><div class="kpis k4" id="dfe-kpis"></div></div>
         <div class="subtabs" role="tablist" data-abas="dfe" aria-label="Seções desta tela">
@@ -9664,6 +9884,12 @@ const ICONS = {
   gesindic: IC('<path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M3 20h18"/><circle cx="20" cy="7" r="2"/>'),
   dfeic: IC('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 14h6"/><path d="M9 17.5h3.5"/>'),
   tmsic: IC('<path d="M3 7h11v8H3z"/><path d="M14 10h4l3 3v2h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>'),
+  /* WMS: o armazém (prateleira), e as quatro telas de operação */
+  wmsic: IC('<path d="M3 21V9l9-5 9 5v12"/><path d="M7 21v-8h10v8"/><path d="M7 17h10"/>'),
+  wmsrecic: IC('<path d="M12 3v10"/><path d="M8 9l4 4 4-4"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>'),
+  wmsexpic: IC('<path d="M12 13V3"/><path d="M8 7l4-4 4 4"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/>'),
+  wmsestic: IC('<path d="M4 4v16"/><path d="M20 4v16"/><path d="M4 9h16"/><path d="M4 15h16"/><rect x="7" y="5.5" width="4" height="3"/><rect x="13" y="11.5" width="4" height="3"/>'),
+  wmscadic: IC('<rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><path d="M13 16.5h7"/><path d="M16.5 13v7"/>'),
   pecasic: IC('<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0l-7.2-7.2A2 2 0 0 1 3 12V4a1 1 0 0 1 1-1h8a2 2 0 0 1 1.4.6l7.2 7.2a2 2 0 0 1 0 2.6Z"/><circle cx="7.5" cy="7.5" r="1.5"/>'),
   custosic: IC('<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v5c0 1.6 3.1 3 7 3s7-1.4 7-3V6M5 11v5c0 1.6 3.1 3 7 3s7-1.4 7-3v-5"/>'),
   cexic: IC('<path d="M6 3h12v18l-2.5-1.5L13 21l-2.5-1.5L8 21l-2-1.5z"/><path d="M9 8h6M9 11.5h4"/><path d="M15 15.5h3.5M16.75 13.75v3.5"/>'),
@@ -9806,7 +10032,7 @@ function tvRecarregar(v){
   if(esTv(v) && mapa[v]) mapa[v]();
 }
 
-const VIEWS = { radar:'Radar do Transporte', tvcom:'Painel TV — Comunicação', tvjor:'Painel TV — Jornada', home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Central de Documentos', eqp:'Equipamentos', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', freq:'Frequência e Banco de Horas', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', gesind:'Ritual — Indicadores e Metas', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { radar:'Radar do Transporte', tvcom:'Painel TV — Comunicação', tvjor:'Painel TV — Jornada', home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Central de Documentos', eqp:'Equipamentos', wmspan:'Painel do Armazém', wmsrec:'Recebimento', wmsest:'Estoque e Inventário', wmsexp:'Separação e Expedição', wmscad:'Cadastros do Armazém', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', freq:'Frequência e Banco de Horas', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', gesind:'Ritual — Indicadores e Metas', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -10081,6 +10307,7 @@ const VIEW_GROUP = {radar:'',home:'',cop:'',apps:'',
   fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',banc:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',antport:'Fin',fluxcon:'Fin',rec:'Fin',
   dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',
   ctecp:'Tms',eqp:'Tms',dfe:'Tms',
+  wmspan:'Wms',wmsrec:'Wms',wmsest:'Wms',wmsexp:'Wms',wmscad:'Wms',
   torre:'Ope',milkrun:'Ope',poli:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',cliop:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',pedagio:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',pecas:'Sup',
@@ -10100,7 +10327,7 @@ function syncGroups(v){
   if(ativo===undefined) return;
   // 'Spt' e o SUPORTE; 'Sup' ja era SUPRIMENTOS. Sigla nova tem de entrar
   // AQUI tambem, senao o acordeao nao abre no grupo da tela ativa.
-  ['Bi','Com','Fin','Ctr','Ope','Fro','Sup','Rh','Ges','Spt','Adm','Tel','Antt'].forEach(k=>{
+  ['Bi','Com','Fin','Ctr','Ope','Fro','Sup','Rh','Ges','Spt','Adm','Tel','Antt','Tms','Wms'].forEach(k=>{
     const btn=document.getElementById('grp'+k), subs=document.getElementById('subs'+k);
     if(!btn||!subs) return;
     const open = (k===ativo);
@@ -10336,7 +10563,8 @@ function semFilterbar(v){
   // como estão porque mexer neles não foi pedido, mas têm o mesmo defeito.)
   return v==='radar'||v==='tvjor'||v==='cop'||v==='mon'||v==='aud'||v==='integ'||v==='apps'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='gesind'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
-         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='freq'||v==='custos'||v==='pecas'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='antport'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='rhmot'||v==='pneus'||v==='people'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='eqp';
+         v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='freq'||v==='custos'||v==='pecas'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='antport'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='rhmot'||v==='pneus'||v==='people'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='eqp'||
+         v==='wmspan'||v==='wmsrec'||v==='wmsest'||v==='wmsexp'||v==='wmscad';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','').split('?')[0];   // `#sup?chamado=12` é a tela sup
@@ -10457,7 +10685,7 @@ function router(){
   document.getElementById('grpFluxcon').style.display = fluxcon ? 'flex' : 'none';
   const ges = (v==='gestao');
   const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = semFilterbar(v) ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (v==='tvjor'||cop||ges||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='gesind'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='prem'||v==='doc'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='apps') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (v==='tvjor'||cop||ges||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='gesind'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='prem'||v==='doc'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='apps'||v==='wmscad') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', semFilterbar(v)); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -10481,7 +10709,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,freq:DATAFREQ,custos:DATACUSTOS,pecas:DATAPECAS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={radar:loadRadar,apps:loadApps,integ:loadInteg,dfe:loadDfe,eqp:loadEqp,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,freq:loadFreq,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+  const LOADMAP={radar:loadRadar,apps:loadApps,integ:loadInteg,dfe:loadDfe,eqp:loadEqp,wmspan:loadWmsPan,wmsrec:loadWmsRec,wmsest:loadWmsEst,wmsexp:loadWmsExp,wmscad:loadWmsCad,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,freq:loadFreq,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -10556,6 +10784,11 @@ const NAV_KW={
   aud:'auditoria uso acessos sessao tempo login trilha log seguranca telas',
   gesind:'indicador meta ritual semanal regua farol semaforo gerencia gestor fonte automatica tolerancia verde amarelo vermelho cadastro configuracao',
   gesrit:'ritual semanal reuniao execucao resultados painel unico semana meta realizado desvio acao compromisso prioridade gerencia gerente indicador semaforo verde amarelo vermelho cobranca combinado 30 minutos',
+  wmspan:'wms armazem deposito painel ocupacao doca separacao expedicao alerta validade',
+  wmsrec:'wms armazem recebimento conferencia cega nota fiscal chave doca entrada armazenagem divergencia avaria',
+  wmsest:'wms armazem estoque saldo endereco kardex movimentacao ajuste bloqueio inventario contagem acuracia',
+  wmsexp:'wms armazem pedido separacao picking fefo expedicao carregamento placa corte',
+  wmscad:'wms armazem cadastro endereco rua predio nivel posicao depositante cliente produto sku doca',
   integ:'integracoes integracao fornecedor fornecedores conector conectores api token credencial gobrax smartec tomtom qualp rasterjor rasterintegra prolog monkey zapi whatsapp 3s tress smtp coleta parada sem dado status',
   mon:'monitoramento monitoramentos rastreio carga acompanhar aviso whatsapp inscricao inscricoes cliente telefone publica onde esta minha carga',
   doc:'documentacao manual ajuda versao changelog historico novidades glossario mudancas',
@@ -36582,7 +36815,7 @@ const BUSCA_SINONIMOS = {
 };
 const BUSCA_GRUPO_LBL = {Com:'Comercial',Fin:'Financeiro',Ctr:'Controladoria',Ope:'Operação',
   Fro:'Frota',Sup:'Suprimentos',Rh:'Recursos Humanos',Bi:'Business Intelligence',Adm:'Administração',Spt:'Suporte',
-  Tel:'Telemetria',Antt:'ANTT'};
+  Tel:'Telemetria',Antt:'ANTT',Wms:'WMS'};
 // ABC1234 (antiga) e ABC1D23 (Mercosul) — a busca não valida placa, só
 // reconhece o formato para OFERECER o atalho; quem valida é a tela de destino
 const BUSCA_RE_PLACA = /^[A-Z]{3}[0-9][0-9A-Z][0-9]{2}$/;
@@ -42632,6 +42865,1152 @@ async function eqpJSON(r){
 
 function eqpRot(v, mapa){ return (mapa && mapa[v]) || v || '—'; }
 
+/* ══════════════════════════════════════════════════════════════════════
+   WMS — o armazém (grupo WMS do menu, 12/09/2026)
+
+   Cinco telas e UM estado compartilhado: o armazém escolhido. Ele vale para
+   as cinco (quem opera um armazém não quer escolhê-lo de novo a cada tela) e
+   mora no navegador de quem escolheu — é conveniência de quem vê, não dado.
+
+   A tela repete o que o servidor CALCULOU (situação do pedido, idade na doca,
+   disponível, divergência) e não inventa nada. A conferência do recebimento e
+   a contagem do inventário são CEGAS no servidor: ele não manda a quantidade
+   da nota nem o saldo enquanto se conta, e esta tela não tem de onde tirá-los.
+   ══════════════════════════════════════════════════════════════════════ */
+let WMS_CAT = null;
+const WMS_SEQ = {};
+let WMS_REC = null, WMS_REC_DOCA = [], WMS_NF = null, WMS_MAN_PRODS = [];
+let WMS_EST = [], WMS_INV = null, WMS_PRODS = null, WMS_CONF = null;
+let WMS_EXP = [], WMS_TAR = [], WMS_PED_PRODS = [];
+let WMS_CAD = {arm: [], end: [], dep: [], prod: [], erp: []};
+
+function wmsArmId(){ try{ return parseInt(localStorage.getItem('cs.wmsArm') || '0', 10) || 0; }catch(e){ return 0; } }
+function wmsArmGuardar(v){ try{ localStorage.setItem('cs.wmsArm', String(v || '')); }catch(e){} }
+async function wmsJSON(r){
+  const d = await respostaJSON(r);
+  if(!d.ok) throw new Error((d.dados || {}).mensagem || ('HTTP ' + r.status));
+  return d.dados || {};
+}
+function wmsGet(url){ return fetch(url, {cache: 'no-store'}).then(wmsJSON); }
+function wmsPost(url, corpo){
+  return fetch(url, {method: 'POST', headers: {'Content-Type': 'application/json'},
+                     body: JSON.stringify(corpo || {})}).then(wmsJSON);
+}
+async function wmsCat(forcar){
+  if(!WMS_CAT || forcar) WMS_CAT = await wmsGet('/api/wms/catalogo');
+  return WMS_CAT;
+}
+function wmsArmazens(){ return (WMS_CAT && WMS_CAT.armazens) || []; }
+function wmsDepositantes(){ return (WMS_CAT && WMS_CAT.depositantes) || []; }
+function wmsArmAtual(){ const id = wmsArmId(); return wmsArmazens().find(a => a.id === id) || null; }
+/* Preenche o seletor de armazém da tela e devolve o escolhido (0 = nenhum). */
+function wmsArmSelect(tela){
+  const sel = document.getElementById(tela + '-arm');
+  const arms = wmsArmazens();
+  let id = wmsArmId();
+  if(!arms.some(a => a.id === id)){ id = arms.length ? arms[0].id : 0; if(id) wmsArmGuardar(id); }
+  if(sel) sel.innerHTML = arms.length
+    ? arms.map(a => '<option value="' + a.id + '"' + (a.id === id ? ' selected' : '') + '>'
+                    + esc(a.codigo + ' — ' + a.nome) + '</option>').join('')
+    : '<option value="">nenhum armazém cadastrado</option>';
+  return id;
+}
+function wmsArmTrocar(tela, v){ wmsArmGuardar(v); wmsRecarregar(tela); }
+function wmsRecarregar(tela){
+  const f = {wmspan: loadWmsPan, wmsrec: loadWmsRec, wmsest: loadWmsEst,
+             wmsexp: loadWmsExp, wmscad: loadWmsCad}[tela];
+  if(f) f();
+}
+function wmsN(v){ return (v == null || v === '') ? '—' : Number(v).toLocaleString('pt-BR', {maximumFractionDigits: 3}); }
+function wmsNumIn(v){ return v == null ? '' : String(v).replace('.', ','); }
+function wmsCnpj(c){
+  c = String(c || '');
+  return c.length === 14 ? c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : c;
+}
+function wmsD(iso){
+  if(!iso) return '—';
+  const p = String(iso).slice(0, 10).split('-');
+  return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : '—';
+}
+function wmsDH(iso){
+  if(!iso) return '—';
+  const d = new Date(iso);
+  if(isNaN(d)) return '—';
+  return d.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'}) + ' '
+       + d.toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'});
+}
+function wmsIdade(h){
+  if(h == null) return '—';
+  h = Number(h);
+  return h < 1 ? Math.max(1, Math.round(h * 60)) + ' min' : h < 48 ? Math.round(h) + ' h' : Math.round(h / 24) + ' d';
+}
+function wmsDep(x){ return esc(x.nome_fantasia || x.razao_social || x.depositante || wmsCnpj(x.depositante_cnpj || x.cnpj)); }
+function wmsBadge(cls, txt, tit){ return '<span class="badge ' + cls + '"' + (tit ? ' title="' + esc(tit) + '"' : '') + '>' + esc(txt) + '</span>'; }
+function wmsVazio(n, txt){ return '<tr><td colspan="' + n + '" class="vazio">' + esc(txt) + '</td></tr>'; }
+function wmsMeta(){
+  const m = document.getElementById('meta'); if(!m) return;
+  const t = new Date();
+  m.innerHTML = '<b>Atualizado ' + t.toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})
+              + '</b><br>' + t.toLocaleDateString('pt-BR');
+}
+function wmsHint(id, txt, erro){
+  const h = document.getElementById(id); if(!h) return;
+  h.textContent = txt || '';
+  h.classList.toggle('wms-erro', !!erro);
+}
+function wmsTbody(id, html){ const el = document.getElementById(id); if(el) el.innerHTML = html; }
+/* Sem armazém cadastrado a tela diz ONDE começar, em vez de abrir vazia —
+   tela vazia sem motivo se lê como defeito. */
+function wmsSemArmazem(tela, kpisId, tabelas){
+  const k = document.getElementById(kpisId); if(k) k.innerHTML = '';
+  const h = document.getElementById(tela + '-hint');
+  if(h) h.innerHTML = 'Nenhum armazém cadastrado — comece em <a href="#wmscad">Cadastros do Armazém</a>.';
+  (tabelas || []).forEach(([id, n]) => wmsTbody(id, wmsVazio(n, 'Cadastre um armazém para começar.')));
+  wmsMeta();
+}
+function wmsModal(titulo, corpo, botoes, larga){
+  abrirModal('<h3>' + esc(titulo) + '</h3>' + corpo + '<div class="m-err" id="m-err"></div>'
+    + '<div class="m-foot"><button class="ghost" onclick="fecharModal()">Fechar</button>' + (botoes || '') + '</div>');
+  if(larga){ const b = document.getElementById('modalBox'); if(b) b.classList.add('larga'); }
+}
+function wmsErroModal(e){
+  abrirModal('<h3>Não foi possível</h3><p>' + esc(e.message || String(e)) + '</p>'
+    + '<div class="m-foot"><button class="ghost" onclick="fecharModal()">Fechar</button></div>');
+}
+async function wmsAcao(btn, fn){
+  if(btn) btn.disabled = true;
+  mErro('');
+  try{ return await fn(); }
+  catch(e){ mErro(e.message || String(e)); return null; }
+  finally{ if(btn) btn.disabled = false; }
+}
+function wmsVal(id){ const el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
+function wmsConfirmar(titulo, texto, rotulo, fn, campo){
+  WMS_CONF = fn;
+  wmsModal(titulo, '<p>' + esc(texto) + '</p>' + (campo
+    ? '<div class="ges-form"><div><label for="' + campo.id + '">' + esc(campo.rotulo) + '</label>'
+      + '<input type="text" id="' + campo.id + '" placeholder="' + esc(campo.placeholder || '') + '"></div></div>'
+    : ''), '<button class="btn" onclick="wmsConfirmarOk(this)">' + esc(rotulo) + '</button>');
+}
+async function wmsConfirmarOk(btn){ if(WMS_CONF) await wmsAcao(btn, WMS_CONF); }
+function wmsOpcoes(lista, valor, rotulo, vazio){
+  return (vazio != null ? '<option value="">' + esc(vazio) + '</option>' : '')
+    + lista.map(x => '<option value="' + esc(valor(x)) + '">' + esc(rotulo(x)) + '</option>').join('');
+}
+
+/* ─────────────────────────────────────────────── Painel do Armazém */
+async function loadWmsPan(){
+  const seq = WMS_SEQ.pan = (WMS_SEQ.pan || 0) + 1;
+  const kb = document.getElementById('wmspan-kpis'); if(!kb) return;
+  try{
+    await wmsCat();
+    const arm = wmsArmSelect('wmspan');
+    if(!arm){
+      wmsSemArmazem('wmspan', 'wmspan-kpis', [['wmspan-alertas', 3], ['wmspan-deps', 4]]);
+      ecDesenhar('wmspan-serie', null, 'sem armazém cadastrado');
+      ecDesenhar('wmspan-ruas', null, 'sem armazém cadastrado');
+      return;
+    }
+    const d = await wmsGet('/api/wms/painel?armazem=' + arm);
+    if(seq !== WMS_SEQ.pan) return;
+    wmsHint('wmspan-hint', '');
+    const k = d.kpis || {};
+    const doca24 = k.doca_24h ? statChip('bad', k.doca_24h + ' há +24 h', 'posições paradas na doca há mais de 24 horas') : '';
+    const atras = k.ped_atrasados ? statChip('bad', k.ped_atrasados + ' atrasado(s)', 'pedidos com a data prevista vencida') : '';
+    kb.innerHTML =
+      kpi('Ocupação', k.ocupacao_pct == null ? 'n/d' : wmsN(k.ocupacao_pct) + '%',
+          k.enderecos_guarda ? wmsN(k.enderecos_ocupados) + ' de ' + wmsN(k.enderecos_guarda) + ' endereços de guarda'
+                             : 'nenhum endereço de guarda cadastrado', '',
+          'Endereços de armazenagem (porta-palete, picking, blocado) com saldo, sobre os ativos. Doca, expedição e avaria são passagem e não entram.') +
+      kpi('Parado na doca', wmsN(k.doca_posicoes || 0),
+          k.doca_posicoes ? 'o mais antigo há ' + wmsIdade(k.doca_idade_max_h) : 'nada aguardando armazenagem', '',
+          'Posições (produto e lote) com saldo nos endereços de doca: conferidas e ainda não armazenadas.', doca24) +
+      kpi('Em separação', wmsN(k.ped_em_separacao || 0),
+          wmsN(k.tarefas_pendentes || 0) + ' tarefa(s) · ' + wmsN(k.ped_a_liberar || 0) + ' pedido(s) a liberar', '',
+          'Pedidos liberados que ainda têm tarefa de separação pendente.', atras) +
+      kpi('Expedidos hoje', wmsN(k.ped_expedidos_hoje || 0),
+          wmsN(k.ped_aguardando_expedicao || 0) + ' separado(s) aguardando o veículo', '',
+          'Pedidos expedidos hoje, e os já separados na área de expedição esperando a placa.');
+    const serie = d.serie || [];
+    const tot = serie.reduce((a, s) => a + (s.recebimentos || 0) + (s.expedicoes || 0), 0);
+    ecDesenhar('wmspan-serie', tot ? () => {
+      const max = Math.max(1, ...serie.map(s => Math.max(s.recebimentos || 0, s.expedicoes || 0)));
+      const o = ecOpcoes(serie.map(s => wmsD(s.dia).slice(0, 5)), max,
+                         {legenda: ['Recebidos', 'Expedidos'], sombra: true, eixoY: {name: 'DOCUMENTOS POR DIA'}});
+      const parcial = serie.map((s, i) => i === serie.length - 1);
+      o.series = [ecBarras('Recebidos', serie.map(s => s.recebimentos || 0), CC.navy500, {parcial}),
+                  ecBarras('Expedidos', serie.map(s => s.expedicoes || 0), CC.laranja, {parcial})];
+      return o;
+    } : null, 'nenhum recebimento nem expedição nos últimos 30 dias');
+    const ruas = d.ruas || [];
+    ecDesenhar('wmspan-ruas', ruas.length ? () => {
+      const o = ecOpcoes(ruas.map(r => 'Rua ' + r.rua), Math.max(1, ...ruas.map(r => r.ativos || 0)),
+                         {legenda: ['Ocupados', 'Livres'], sombra: true, eixoY: {name: 'ENDEREÇOS'}});
+      o.series = [ecBarras('Ocupados', ruas.map(r => r.ocupados || 0), CC.navy500, {empilhar: 'e', raio: false}),
+                  ecBarras('Livres', ruas.map(r => Math.max(0, (r.ativos || 0) - (r.ocupados || 0))), CC.n300, {empilhar: 'e'})];
+      return o;
+    } : null, 'nenhuma rua de armazenagem cadastrada');
+    const al = d.alertas || [];
+    wmsTbody('wmspan-alertas', al.length ? al.map(a =>
+      '<tr><td>' + wmsBadge(a.nivel === 'alerta' ? 'b-dang' : 'b-warn', a.nivel === 'alerta' ? 'agora' : 'atenção')
+      + ' ' + esc(a.texto) + '</td><td class="num">' + wmsN(a.n) + '</td><td><a href="#' + esc(a.tela) + '">'
+      + esc(VIEWS[a.tela] || a.tela) + '</a></td></tr>').join('')
+      : wmsVazio(3, 'Nada pedindo ação agora.'));
+    const deps = d.depositantes || [];
+    wmsTbody('wmspan-deps', deps.length ? deps.map(x =>
+      '<tr><td>' + wmsDep(x) + '</td><td class="num">' + wmsN(x.enderecos) + '</td><td class="num">'
+      + wmsN(x.produtos) + '</td><td class="num">' + wmsN(x.posicoes) + '</td></tr>').join('')
+      : wmsVazio(4, 'Armazém sem estoque.'));
+    wmsHint('wmspan-dep-hint', (d.depositantes_total || 0) > deps.length
+      ? deps.length + ' de ' + d.depositantes_total : '');
+    wmsMeta();
+  }catch(e){
+    wmsHint('wmspan-hint', 'Não foi possível ler o painel: ' + (e.message || e), true);
+  }
+}
+
+/* ─────────────────────────────────────────────── Recebimento */
+async function loadWmsRec(){
+  const seq = WMS_SEQ.rec = (WMS_SEQ.rec || 0) + 1;
+  const kb = document.getElementById('wmsrec-kpis'); if(!kb) return;
+  try{
+    await wmsCat();
+    const arm = wmsArmSelect('wmsrec');
+    if(!arm){ wmsSemArmazem('wmsrec', 'wmsrec-kpis', [['wmsrec-abertos', 8], ['wmsrec-doca', 8], ['wmsrec-hist', 9]]); return; }
+    const [lista, doca] = await Promise.all([
+      wmsGet('/api/wms/recebimento?armazem=' + arm),
+      wmsGet('/api/wms/recebimento/doca?armazem=' + arm)]);
+    if(seq !== WMS_SEQ.rec) return;
+    wmsHint('wmsrec-hint', '');
+    const r = lista.resumo || {}, recs = lista.recebimentos || [];
+    WMS_REC_DOCA = doca.doca || [];
+    kb.innerHTML =
+      kpi('A conferir', wmsN(r.a_conferir || 0), r.abertos_24h ? r.abertos_24h + ' aberto(s) há mais de 24 h' : 'recebimentos abertos', '',
+          'Recebimentos abertos, esperando a conferência.',
+          r.abertos_24h ? statChip('bad', r.abertos_24h + ' há +24 h') : '') +
+      kpi('Parado na doca', wmsN(doca.total || 0),
+          doca.total ? 'o mais antigo há ' + wmsIdade(doca.idade_max_h) : 'nada aguardando armazenagem', '',
+          'Posições com saldo na doca: conferidas e ainda não armazenadas.') +
+      kpi('Conferidos hoje', wmsN(r.conferidos_hoje || 0), wmsN(r.conferidos_30d || 0) + ' nos últimos 30 dias', '',
+          'Conferências fechadas hoje — é o fechamento que dá entrada no estoque.') +
+      kpi('Com divergência', r.conferidos_30d ? wmsN(r.divergentes_30d || 0) : 'n/d',
+          r.conferidos_30d ? 'de ' + wmsN(r.conferidos_30d) + ' conferidos em 30 dias' : 'nenhuma conferência em 30 dias', '',
+          'Recebimentos em que ao menos um item foi contado diferente da nota. Sem conferência no período é n/d, nunca zero.');
+    const abertos = recs.filter(x => x.status === 'aberto');
+    const hist = recs.filter(x => x.status !== 'aberto');
+    const nota = x => (x.nf_numero ? 'NF ' + esc(x.nf_numero) + (x.nf_serie ? '/' + esc(x.nf_serie) : '') : 'sem número')
+      + ' ' + wmsBadge(x.origem === 'erp' ? 'b-info' : 'b-warn', x.origem === 'erp' ? 'Avacorp' : 'manual');
+    wmsTbody('wmsrec-abertos', abertos.length ? abertos.map(x =>
+      '<tr><td>' + x.id + '</td><td>' + nota(x) + '</td><td>' + wmsDep(x) + '</td><td>' + esc(x.doca)
+      + '</td><td class="num">' + wmsN(x.itens) + '</td><td>' + wmsN(x.conferidos) + ' de ' + wmsN(x.itens)
+      + '</td><td>' + wmsIdade(x.aberto_ha_h) + '</td><td><button class="ghost mini" data-id="' + x.id
+      + '" onclick="wmsRecConferir(+this.dataset.id)">Conferir</button></td></tr>').join('')
+      : wmsVazio(8, 'Nenhum recebimento aberto.'));
+    wmsTbody('wmsrec-doca', WMS_REC_DOCA.length ? WMS_REC_DOCA.map((x, i) =>
+      '<tr><td>' + esc(x.endereco) + '</td><td><b>' + esc(x.produto) + '</b><div class="wms-sub">' + esc(x.descricao)
+      + '</div></td><td>' + wmsDep(x) + '</td><td>' + esc(x.lote || '—') + '</td><td class="num">' + wmsN(x.qtd)
+      + ' ' + esc(x.unidade) + '</td><td>' + wmsIdade(x.idade_h) + '</td><td>'
+      + (x.sugestao ? '<b>' + esc(x.sugestao.codigo) + '</b><div class="wms-sub">' + esc(x.sugestao.motivo) + '</div>'
+                    : '<span class="wms-sub">sem endereço livre</span>')
+      + '</td><td><button class="ghost mini" data-i="' + i + '" onclick="wmsRecArmazenar(+this.dataset.i)">Armazenar</button></td></tr>').join('')
+      : wmsVazio(8, 'Nada parado na doca.'));
+    wmsTbody('wmsrec-hist', hist.length ? hist.map(x =>
+      '<tr><td>' + x.id + '</td><td>' + nota(x) + '</td><td>' + wmsDep(x) + '</td><td>'
+      + (x.status === 'cancelado' ? wmsBadge('b-dang', 'cancelado', x.motivo_cancelamento) : wmsBadge('b-ok', 'conferido'))
+      + '</td><td class="num">' + wmsN(x.qtd_nf) + '</td><td class="num">' + wmsN(x.qtd_conferida)
+      + '</td><td class="num">' + wmsN(x.qtd_avaria) + '</td><td>'
+      + (x.status === 'cancelado' ? '—' : x.itens_divergentes
+          ? '<a href="#" data-id="' + x.id + '" onclick="event.preventDefault();wmsRecVer(+this.dataset.id)">'
+            + wmsBadge('b-warn', x.itens_divergentes + ' item(ns)') + '</a>'
+          : wmsBadge('b-ok', 'sem divergência'))
+      + '</td><td>' + wmsDH(x.conferido_em || x.cancelado_em) + '</td></tr>').join('')
+      : wmsVazio(9, 'Nenhuma conferência nos últimos 30 dias.'));
+    abaContador('wmsrec-n-conf', abertos.length);
+    abaContador('wmsrec-n-arm', WMS_REC_DOCA.length);
+    abaContador('wmsrec-n-hist', hist.length);
+    wmsMeta();
+  }catch(e){
+    wmsHint('wmsrec-hint', 'Não foi possível ler o recebimento: ' + (e.message || e), true);
+  }
+}
+
+function wmsRecNovo(){
+  const a = wmsArmAtual();
+  if(!a){ wmsErroModal(new Error('Cadastre um armazém antes, em Cadastros do Armazém.')); return; }
+  if(!(a.docas || []).length){ wmsErroModal(new Error('O armazém ' + a.codigo + ' não tem doca — cadastre um endereço do tipo Doca em Cadastros do Armazém.')); return; }
+  WMS_NF = null;
+  wmsModal('Novo recebimento — ' + a.codigo,
+    '<div class="ges-form">'
+    + '<div><label for="wr-doca">Doca</label><select id="wr-doca">'
+    + wmsOpcoes(a.docas, x => x.id, x => x.codigo) + '</select></div>'
+    + '<div><label for="wr-chave">Chave de acesso da nota</label><div class="wms-linha">'
+    + '<input type="text" id="wr-chave" inputmode="numeric" maxlength="60" placeholder="44 dígitos — leia o código de barras da DANFE">'
+    + '<button class="ghost" onclick="wmsRecBuscarNf(this)">Buscar no Avacorp</button></div></div>'
+    + '<div id="wr-nf" class="wms-nf"></div>'
+    + '<div><label><input type="checkbox" id="wr-manual" onchange="wmsRecManual(this.checked)">'
+    + 'Sem a nota no Avacorp — recebimento manual</label></div>'
+    + '<div id="wr-man" hidden></div>'
+    + '<div><label for="wr-placa">Placa do veículo</label><input type="text" id="wr-placa" placeholder="ABC1D23 (opcional)"></div>'
+    + '</div>',
+    '<button class="btn" onclick="wmsRecAbrir(this)">Abrir recebimento</button>', true);
+}
+async function wmsRecBuscarNf(btn){
+  const chave = wmsVal('wr-chave').replace(/\D/g, '');
+  const alvo = document.getElementById('wr-nf');
+  await wmsAcao(btn, async () => {
+    WMS_NF = null; alvo.innerHTML = 'Buscando…';
+    try{ WMS_NF = await wmsGet('/api/wms/erp/nf/' + encodeURIComponent(chave)); }
+    catch(e){ alvo.innerHTML = ''; throw e; }
+    const n = WMS_NF;
+    /* OS ITENS APARECEM SEM QUANTIDADE: a conferência é cega, e mostrar o
+       número da nota para quem vai contar desfaria isso na abertura. */
+    alvo.innerHTML =
+      '<p><b>NF ' + esc(n.nf_numero) + (n.nf_serie ? '/' + esc(n.nf_serie) : '') + '</b> · emitida em ' + wmsD(n.nf_emissao)
+      + ' · ' + wmsN((n.itens || []).length) + ' item(ns) · ' + wmsN(n.volumes) + ' volume(s) · ' + wmsN(n.peso_kg) + ' kg</p>'
+      + (n.ja_recebida ? '<p class="hint wms-erro">Esta nota já tem o recebimento nº ' + esc(n.ja_recebida.id) + ' (' + esc(n.ja_recebida.status) + ').</p>' : '')
+      + (n.coletas > 1 ? '<p class="hint">A chave aparece em ' + n.coletas + ' coletas; usada a mais recente (' + esc(n.coleta) + ').</p>' : '')
+      + '<div><label>Depositante (dono da mercadoria)</label>'
+      + '<label><input type="radio" name="wr-dep" value="' + esc(n.remetente.cnpj) + '" checked> remetente — '
+      + esc(n.remetente.razao_social || wmsCnpj(n.remetente.cnpj)) + '</label>'
+      + '<label><input type="radio" name="wr-dep" value="' + esc(n.destinatario.cnpj) + '"> destinatário — '
+      + esc(n.destinatario.razao_social || wmsCnpj(n.destinatario.cnpj)) + '</label></div>'
+      + '<div class="tabroll" style="max-height:180px"><table class="wms-grade"><thead><tr><th>Código</th><th>Descrição</th><th>Un.</th></tr></thead><tbody>'
+      + (n.itens || []).map(i => '<tr><td>' + esc(i.codigo) + '</td><td>' + esc(i.descricao) + '</td><td>' + esc(i.unidade) + '</td></tr>').join('')
+      + '</tbody></table></div>';
+  });
+}
+async function wmsRecManual(ligado){
+  const box = document.getElementById('wr-man'); if(!box) return;
+  box.hidden = !ligado;
+  if(!ligado || box.innerHTML) return;
+  box.innerHTML = '<div class="ges-form">'
+    + '<div><label for="wr-dep-man">Depositante</label><select id="wr-dep-man" onchange="wmsRecManProdutos()">'
+    + wmsOpcoes(wmsDepositantes(), x => x.cnpj, x => (x.nome_fantasia || x.razao_social) + ' — ' + wmsCnpj(x.cnpj), 'escolha…') + '</select></div>'
+    + '<div class="wms-duas"><div><label for="wr-nfnum">Número da nota</label><input type="text" id="wr-nfnum" inputmode="numeric"></div>'
+    + '<div><label for="wr-nfserie">Série</label><input type="text" id="wr-nfserie"></div></div>'
+    + '<table class="wms-grade"><thead><tr><th>Produto</th><th>Qtd da nota</th></tr></thead><tbody id="wr-itens"></tbody></table>'
+    + '<button class="ghost" onclick="wmsRecManLinha()">+ item</button>'
+    + '<p class="hint">Produto que ainda não existe se cadastra em Cadastros do Armazém.</p></div>';
+}
+async function wmsRecManProdutos(){
+  const dep = wmsVal('wr-dep-man');
+  WMS_MAN_PRODS = [];
+  wmsTbody('wr-itens', '');
+  if(!dep) return;
+  try{ WMS_MAN_PRODS = (await wmsGet('/api/wms/produtos?depositante=' + dep + '&limite=3000')).produtos || []; }
+  catch(e){ mErro(e.message); }
+  wmsRecManLinha();
+}
+function wmsRecManLinha(){
+  const tb = document.getElementById('wr-itens'); if(!tb) return;
+  tb.insertAdjacentHTML('beforeend', '<tr><td><select class="wr-prod">'
+    + wmsOpcoes(WMS_MAN_PRODS, x => x.id, x => x.codigo + ' — ' + x.descricao, 'produto…')
+    + '</select></td><td class="num"><input type="text" class="wr-q" inputmode="decimal"></td></tr>');
+}
+async function wmsRecAbrir(btn){
+  const a = wmsArmAtual(); if(!a) return;
+  const manual = !!(document.getElementById('wr-manual') || {}).checked;
+  const corpo = {armazem_id: a.id, doca_id: +wmsVal('wr-doca'), placa: wmsVal('wr-placa')};
+  if(manual){
+    corpo.manual = true;
+    corpo.depositante_cnpj = wmsVal('wr-dep-man');
+    corpo.nf_chave = wmsVal('wr-chave').replace(/\D/g, '');
+    corpo.nf_numero = wmsVal('wr-nfnum');
+    corpo.nf_serie = wmsVal('wr-nfserie');
+    corpo.itens = [...document.querySelectorAll('#wr-itens tr')]
+      .map(tr => ({produto_id: tr.querySelector('.wr-prod').value, qtd_nf: tr.querySelector('.wr-q').value.trim()}))
+      .filter(i => i.produto_id);
+  }else{
+    if(!WMS_NF){ mErro('Busque a nota no Avacorp antes — ou marque o recebimento manual.'); return; }
+    corpo.nf_chave = WMS_NF.chave;
+    const r = document.querySelector('input[name="wr-dep"]:checked');
+    corpo.depositante_cnpj = r ? r.value : '';
+  }
+  const novo = await wmsAcao(btn, () => wmsPost('/api/wms/recebimento', corpo));
+  if(novo && novo.id){ loadWmsRec(); wmsRecConfDesenhar(novo); }
+}
+async function wmsRecConferir(id){
+  abrirModal('<h3>Carregando…</h3>');
+  try{ wmsRecConfDesenhar(await wmsGet('/api/wms/recebimento/' + id)); }
+  catch(e){ wmsErroModal(e); }
+}
+function wmsRecConfDesenhar(r){
+  WMS_REC = r;
+  const linhas = (r.itens || []).map(i =>
+    '<tr data-id="' + i.id + '"><td><b>' + esc(i.codigo) + '</b><div class="wms-sub">' + esc(i.descricao) + '</div></td>'
+    + '<td>' + esc(i.unidade) + '</td>'
+    + '<td class="num"><input type="text" inputmode="decimal" class="wc-q" value="' + esc(wmsNumIn(i.qtd_conferida)) + '"></td>'
+    + '<td class="num"><input type="text" inputmode="decimal" class="wc-av" value="' + esc(i.qtd_avaria ? wmsNumIn(i.qtd_avaria) : '') + '"></td>'
+    + '<td><input type="text" class="wc-lote" value="' + esc(i.lote || '') + '"' + (i.controla_lote ? ' placeholder="obrigatório"' : '') + '></td>'
+    + '<td><input type="date" class="wc-val" value="' + esc(i.validade || '') + '"></td></tr>').join('');
+  wmsModal('Conferência cega — recebimento nº ' + r.id,
+    '<p class="hint">' + wmsDep(r) + ' · doca ' + esc(r.doca) + (r.nf_numero ? ' · NF ' + esc(r.nf_numero) : '')
+    + '. Conte o que está na doca: a quantidade da nota aparece quando a conferência fecha. Avariado é parte do contado.</p>'
+    + '<div class="tabroll" style="max-height:360px"><table class="wms-grade"><thead><tr><th>Produto</th><th>Un.</th><th>Contado</th><th>Avariado</th><th>Lote</th><th>Validade</th></tr></thead><tbody>'
+    + linhas + '</tbody></table></div>',
+    '<button class="ghost" onclick="wmsRecCancelar()">Cancelar recebimento</button>'
+    + '<button class="ghost" onclick="wmsRecSalvar(this,false)">Salvar e continuar depois</button>'
+    + '<button class="btn" onclick="wmsRecSalvar(this,true)">Fechar conferência</button>', true);
+}
+async function wmsRecSalvar(btn, fechar){
+  const r = WMS_REC; if(!r) return;
+  const itens = [...document.querySelectorAll('#modalBox tr[data-id]')].map(tr => ({
+    id: +tr.dataset.id, qtd_conferida: tr.querySelector('.wc-q').value.trim(),
+    qtd_avaria: tr.querySelector('.wc-av').value.trim(), lote: tr.querySelector('.wc-lote').value.trim(),
+    validade: tr.querySelector('.wc-val').value}));
+  await wmsAcao(btn, async () => {
+    await wmsPost('/api/wms/recebimento/' + r.id + '/conferir', {itens});
+    if(fechar) wmsRecResultado(await wmsPost('/api/wms/recebimento/' + r.id + '/fechar'));
+    else fecharModal();
+    loadWmsRec();
+  });
+}
+async function wmsRecVer(id){
+  abrirModal('<h3>Carregando…</h3>');
+  try{ wmsRecResultado(await wmsGet('/api/wms/recebimento/' + id)); }
+  catch(e){ wmsErroModal(e); }
+}
+function wmsRecResultado(r){
+  const s = r.resumo || {};
+  const linhas = (r.itens || []).map(i =>
+    '<tr><td><b>' + esc(i.codigo) + '</b><div class="wms-sub">' + esc(i.descricao) + '</div></td>'
+    + '<td class="num">' + wmsN(i.qtd_nf) + '</td><td class="num">' + wmsN(i.qtd_conferida) + '</td>'
+    + '<td class="num">' + wmsN(i.qtd_avaria) + '</td><td>'
+    + (i.divergencia ? wmsBadge(i.divergencia < 0 ? 'b-dang' : 'b-warn', (i.divergencia > 0 ? '+' : '') + wmsN(i.divergencia)) : wmsBadge('b-ok', 'confere'))
+    + '</td><td>' + esc(i.lote || '—') + '</td></tr>').join('');
+  wmsModal('Recebimento nº ' + r.id + ' — ' + (r.status === 'conferido' ? 'conferido' : r.status),
+    '<p>' + (s.divergentes ? wmsN(s.divergentes) + ' item(ns) divergente(s): falta ' + wmsN(s.falta) + ', sobra ' + wmsN(s.sobra) + '.'
+                           : 'Tudo confere com a nota.')
+    + (s.avaria ? ' Avaria: ' + wmsN(s.avaria) + ' (na área de avaria).' : '') + '</p>'
+    + '<div class="tabroll" style="max-height:360px"><table class="wms-grade"><thead><tr><th>Produto</th><th>Nota</th><th>Contado</th><th>Avaria</th><th>Divergência</th><th>Lote</th></tr></thead><tbody>'
+    + linhas + '</tbody></table></div>',
+    r.status === 'conferido' ? '<button class="btn" onclick="fecharModal();abaTrocar(\'wmsrec\',\'arm\')">Ir para Armazenar</button>' : '', true);
+}
+function wmsRecCancelar(){
+  const r = WMS_REC; if(!r) return;
+  wmsConfirmar('Cancelar o recebimento nº ' + r.id,
+    'Nada entra no estoque, e a nota fica livre para um novo recebimento.', 'Cancelar recebimento',
+    async () => { await wmsPost('/api/wms/recebimento/' + r.id + '/cancelar', {motivo: wmsVal('wc-motivo')}); fecharModal(); loadWmsRec(); },
+    {id: 'wc-motivo', rotulo: 'Motivo', placeholder: 'ex.: carga devolvida na portaria'});
+}
+function wmsRecArmazenar(i){
+  const x = WMS_REC_DOCA[i]; if(!x) return;
+  wmsModal('Armazenar — ' + x.produto,
+    '<div class="ges-form"><p class="wms-sub">' + esc(x.descricao) + ' · lote ' + esc(x.lote || '—') + ' · na ' + esc(x.endereco)
+    + ' há ' + wmsIdade(x.idade_h) + '</p>'
+    + '<div><label for="wa-dest">Endereço de destino</label><input type="text" id="wa-dest" value="'
+    + esc((x.sugestao || {}).codigo || '') + '" placeholder="leia a etiqueta do endereço">'
+    + '<p class="hint">' + (x.sugestao ? 'Sugestão: ' + esc(x.sugestao.codigo) + ' — ' + esc(x.sugestao.motivo) + '.' : 'Nenhum endereço livre para sugerir — digite o destino.') + '</p></div>'
+    + '<div><label for="wa-qtd">Quantidade (' + esc(x.unidade) + ')</label><input type="text" inputmode="decimal" id="wa-qtd" value="'
+    + esc(wmsNumIn(x.disponivel)) + '"></div></div>',
+    '<button class="btn" data-i="' + i + '" onclick="wmsRecArmOk(this)">Armazenar</button>');
+}
+async function wmsRecArmOk(btn){
+  const x = WMS_REC_DOCA[+btn.dataset.i]; if(!x) return;
+  const ok = await wmsAcao(btn, () => wmsPost('/api/wms/recebimento/armazenar', {
+    origem_id: x.endereco_id, produto_id: x.produto_id, lote: x.lote,
+    qtd: wmsVal('wa-qtd'), destino_codigo: wmsVal('wa-dest')}));
+  if(ok){ fecharModal(); loadWmsRec(); }
+}
+
+/* ─────────────────────────────────────────────── Estoque e Inventário */
+async function loadWmsEst(){
+  const seq = WMS_SEQ.est = (WMS_SEQ.est || 0) + 1;
+  const kb = document.getElementById('wmsest-kpis'); if(!kb) return;
+  try{
+    await wmsCat();
+    const arm = wmsArmSelect('wmsest');
+    if(!arm){ wmsSemArmazem('wmsest', 'wmsest-kpis', [['wmsest-saldo', 9], ['wmsest-kdx', 8], ['wmsest-blq', 7], ['wmsest-inv', 8]]); return; }
+    const sd = document.getElementById('wmsest-dep');
+    if(sd && sd.options.length <= 1) sd.insertAdjacentHTML('beforeend',
+      wmsOpcoes(wmsDepositantes(), x => x.cnpj, x => x.nome_fantasia || x.razao_social));
+    const q = new URLSearchParams({armazem: arm});
+    if(wmsVal('wmsest-dep')) q.set('depositante', wmsVal('wmsest-dep'));
+    if(wmsVal('wmsest-tipo')) q.set('tipo', wmsVal('wmsest-tipo'));
+    if(wmsVal('wmsest-q')) q.set('busca', wmsVal('wmsest-q'));
+    const [s, b, inv] = await Promise.all([
+      wmsGet('/api/wms/estoque/saldo?' + q),
+      wmsGet('/api/wms/estoque/bloqueios?armazem=' + arm),
+      wmsGet('/api/wms/estoque/inventarios?armazem=' + arm)]);
+    if(seq !== WMS_SEQ.est) return;
+    wmsHint('wmsest-hint', '');
+    const r = s.resumo || {};
+    WMS_EST = s.saldo || [];
+    kb.innerHTML =
+      kpi('Posições em estoque', wmsN(r.posicoes || 0), wmsN(r.produtos || 0) + ' produto(s) em ' + wmsN(r.enderecos || 0) + ' endereço(s)', '',
+          'Combinações de endereço, produto e lote com saldo, dentro dos filtros desta aba.') +
+      kpi('Validade em 30 dias', wmsN(r.vencendo_30d || 0), r.vencidos ? r.vencidos + ' já vencida(s)' : 'nenhuma vencida', '',
+          'Posições cujo lote vence nos próximos 30 dias; as vencidas aparecem à parte. Produto sem controle de validade não entra.',
+          r.vencidos ? statChip('bad', r.vencidos + ' vencida(s)') : '') +
+      kpi('Reservadas', wmsN(r.reservadas || 0), 'posições com separação pendente', '',
+          'Posições em que uma tarefa de separação já prometeu parte do saldo a um pedido.') +
+      kpi('Em endereço bloqueado', wmsN(r.em_bloqueado || 0), 'saldo que não pode sair', '',
+          'Posições com saldo em endereço bloqueado (avaria, quarentena, inventário).');
+    wmsTbody('wmsest-saldo', WMS_EST.length ? WMS_EST.map((x, i) =>
+      '<tr><td><b>' + esc(x.endereco) + '</b>' + (x.bloqueado ? ' ' + wmsBadge('b-dang', 'bloqueado', x.motivo_bloqueio) : '')
+      + '</td><td><b>' + esc(x.produto) + '</b><div class="wms-sub">' + esc(x.descricao) + '</div></td><td>' + wmsDep(x)
+      + '</td><td>' + esc(x.lote || '—') + '</td><td>' + (x.validade
+          ? (x.dias_validade < 0 ? wmsBadge('b-dang', wmsD(x.validade), 'vencido') : x.dias_validade <= 30 ? wmsBadge('b-warn', wmsD(x.validade), 'vence em ' + x.dias_validade + ' dia(s)') : wmsD(x.validade))
+          : '—')
+      + '</td><td class="num">' + wmsN(x.qtd) + ' ' + esc(x.unidade) + '</td><td class="num">' + (x.reservado ? wmsN(x.reservado) : '—')
+      + '</td><td class="num">' + wmsN(x.disponivel) + '</td><td class="wms-acoes">'
+      + '<button class="ghost mini" data-i="' + i + '" onclick="wmsEstMover(+this.dataset.i)">Mover</button>'
+      + '<button class="ghost mini" data-i="' + i + '" onclick="wmsEstAjustar(+this.dataset.i)">Ajustar</button></td></tr>').join('')
+      : wmsVazio(9, 'Nenhum saldo com estes filtros.'));
+    wmsHint('wmsest-saldo-hint', s.mostrando < s.total ? 'mostrando ' + wmsN(s.mostrando) + ' de ' + wmsN(s.total) + ' — refine a busca' : '');
+    const bl = b.enderecos || [];
+    wmsTbody('wmsest-blq', bl.length ? bl.map(e =>
+      '<tr><td><b>' + esc(e.codigo) + '</b></td><td>' + esc(((WMS_CAT || {}).tipos || []).find(t => t.chave === e.tipo)?.rotulo || e.tipo)
+      + '</td><td>' + esc(e.motivo_bloqueio || '—') + '</td><td>' + wmsDH(e.bloqueado_em) + '</td><td>' + esc(e.bloqueado_por || '—')
+      + '</td><td class="num">' + wmsN(e.itens) + '</td><td>' + (e.inventario_id
+          ? '<span class="wms-sub">inventário #' + e.inventario_id + '</span>'
+          : '<button class="ghost mini" data-id="' + e.id + '" onclick="wmsEstDesbloquear(+this.dataset.id)">Desbloquear</button>')
+      + '</td></tr>').join('') : wmsVazio(7, 'Nenhum endereço bloqueado.'));
+    const invs = inv.inventarios || [];
+    WMS_INV = null;
+    wmsTbody('wmsest-inv', invs.length ? invs.map(v =>
+      '<tr><td>' + v.id + '</td><td>' + esc(v.descricao || '—') + '</td><td>'
+      + (v.status === 'aberto' ? wmsBadge('b-warn', 'aberto') : v.status === 'fechado' ? wmsBadge('b-ok', 'fechado') : wmsBadge('b-info', v.status))
+      + '</td><td class="num">' + wmsN(v.enderecos) + '</td><td>' + wmsN(v.contados) + ' de ' + wmsN(v.enderecos)
+      + '</td><td class="num">' + (v.acuracia == null ? '—' : wmsN(v.acuracia) + '%') + '</td><td>' + wmsDH(v.criado_em)
+      + '</td><td class="wms-acoes">' + (v.status === 'aberto'
+          ? '<button class="ghost mini" data-id="' + v.id + '" onclick="wmsInvContar(+this.dataset.id)">Contar</button>'
+            + '<button class="ghost mini" data-id="' + v.id + '" onclick="wmsInvFechar(+this.dataset.id)">Fechar</button>'
+            + '<button class="ghost mini" data-id="' + v.id + '" onclick="wmsInvCancelar(+this.dataset.id)">Cancelar</button>'
+          : '<button class="ghost mini" data-id="' + v.id + '" onclick="wmsInvVer(+this.dataset.id)">Ver</button>')
+      + '</td></tr>').join('') : wmsVazio(8, 'Nenhum inventário ainda.'));
+    abaContador('wmsest-n-saldo', s.total || 0);
+    abaContador('wmsest-n-blq', bl.length);
+    abaContador('wmsest-n-inv', invs.filter(v => v.status === 'aberto').length);
+    await wmsEstKardex();
+    wmsMeta();
+  }catch(e){
+    wmsHint('wmsest-hint', 'Não foi possível ler o estoque: ' + (e.message || e), true);
+  }
+}
+const WMS_DOC_ROT = {recebimento: 'recebimento', armazenagem: 'armazenagem', movimentacao: 'movimentação',
+                     separacao: 'separação', expedicao: 'expedição', inventario: 'inventário', ajuste: 'ajuste'};
+async function wmsEstKardex(){
+  const arm = wmsArmId(); if(!arm) return;
+  const q = new URLSearchParams({armazem: arm, dias: wmsVal('wmsest-kdias') || '30'});
+  if(wmsVal('wmsest-kdoc')) q.set('doc', wmsVal('wmsest-kdoc'));
+  if(wmsVal('wmsest-kq')) q.set('busca', wmsVal('wmsest-kq'));
+  try{
+    const k = await wmsGet('/api/wms/estoque/kardex?' + q);
+    const ms = k.movimentos || [];
+    wmsTbody('wmsest-kdx', ms.length ? ms.map(m =>
+      '<tr><td>' + wmsDH(m.criado_em) + '</td><td>' + esc(WMS_DOC_ROT[m.doc_tipo] || m.doc_tipo) + (m.doc_id ? ' #' + m.doc_id : '')
+      + '</td><td>' + esc(m.endereco) + '</td><td><b>' + esc(m.produto) + '</b><div class="wms-sub">' + esc(m.descricao)
+      + '</div></td><td>' + esc(m.lote || '—') + '</td><td class="num">' + (m.qtd > 0 ? '+' : '') + wmsN(m.qtd)
+      + '</td><td>' + esc(m.usuario || '—') + '</td><td>' + esc(m.motivo || '') + '</td></tr>').join('')
+      : wmsVazio(8, 'Nenhum movimento no período.'));
+    wmsHint('wmsest-kdx-hint', k.mostrando < k.total ? 'mostrando ' + wmsN(k.mostrando) + ' de ' + wmsN(k.total) : '');
+    abaContador('wmsest-n-kdx', k.total || 0);
+  }catch(e){ wmsHint('wmsest-kdx-hint', e.message || String(e), true); }
+}
+function wmsEstMover(i){
+  const x = WMS_EST[i]; if(!x) return;
+  wmsModal('Mover — ' + x.produto + ' de ' + x.endereco,
+    '<div class="ges-form"><p class="wms-sub">' + esc(x.descricao) + ' · lote ' + esc(x.lote || '—') + ' · disponível '
+    + wmsN(x.disponivel) + ' ' + esc(x.unidade) + '</p>'
+    + '<div><label for="wm-dest">Endereço de destino</label><input type="text" id="wm-dest" placeholder="ex.: A-01-02-03"></div>'
+    + '<div><label for="wm-qtd">Quantidade</label><input type="text" id="wm-qtd" inputmode="decimal" value="' + esc(wmsNumIn(x.disponivel)) + '"></div>'
+    + '<div><label for="wm-mot">Motivo (opcional)</label><input type="text" id="wm-mot"></div></div>',
+    '<button class="btn" data-i="' + i + '" onclick="wmsEstMoverOk(this)">Mover</button>');
+}
+async function wmsEstMoverOk(btn){
+  const x = WMS_EST[+btn.dataset.i]; if(!x) return;
+  const ok = await wmsAcao(btn, () => wmsPost('/api/wms/estoque/transferir', {
+    origem_id: x.endereco_id, produto_id: x.produto_id, lote: x.lote, qtd: wmsVal('wm-qtd'),
+    destino_codigo: wmsVal('wm-dest'), motivo: wmsVal('wm-mot')}));
+  if(ok){ fecharModal(); loadWmsEst(); }
+}
+function wmsEstAjustar(i){
+  const x = WMS_EST[i]; if(!x) return;
+  wmsModal('Ajustar — ' + x.produto + ' em ' + x.endereco,
+    '<div class="ges-form"><p class="wms-sub">Físico ' + wmsN(x.qtd) + ' ' + esc(x.unidade) + ' · lote ' + esc(x.lote || '—')
+    + '. Use sinal: <b>-2</b> retira duas, <b>3</b> acrescenta três. O motivo é obrigatório — é ele que explica o saldo depois.</p>'
+    + '<div><label for="wj-qtd">Ajuste</label><input type="text" id="wj-qtd" inputmode="decimal" placeholder="-1"></div>'
+    + '<div><label for="wj-mot">Motivo</label><input type="text" id="wj-mot" placeholder="ex.: avaria encontrada na movimentação"></div></div>',
+    '<button class="btn" data-i="' + i + '" onclick="wmsEstAjustarOk(this)">Ajustar</button>');
+}
+async function wmsEstAjustarOk(btn){
+  const x = WMS_EST[+btn.dataset.i]; if(!x) return;
+  const ok = await wmsAcao(btn, () => wmsPost('/api/wms/estoque/ajustar', {
+    endereco_id: x.endereco_id, produto_id: x.produto_id, lote: x.lote, qtd: wmsVal('wj-qtd'), motivo: wmsVal('wj-mot')}));
+  if(ok){ fecharModal(); loadWmsEst(); }
+}
+function wmsEstBloquearNovo(){
+  const motivos = (WMS_CAT || {}).motivos_bloqueio || [];
+  wmsModal('Bloquear endereço',
+    '<div class="ges-form"><p class="hint">Endereço bloqueado não recebe nem entrega mercadoria, e a separação não o escolhe.</p>'
+    + '<div><label for="wb-cod">Endereço</label><input type="text" id="wb-cod" placeholder="ex.: A-01-02-03"></div>'
+    + '<div><label for="wb-mot">Motivo</label><select id="wb-mot">' + wmsOpcoes(motivos, x => x, x => x) + '</select></div></div>',
+    '<button class="btn" onclick="wmsEstBloquearOk(this)">Bloquear</button>');
+}
+async function wmsEstBloquearOk(btn){
+  const arm = wmsArmId();
+  const ok = await wmsAcao(btn, async () => {
+    const cod = wmsVal('wb-cod').toUpperCase().replace(/\s/g, '');
+    const lista = await wmsGet('/api/wms/estoque/saldo?armazem=' + arm + '&busca=' + encodeURIComponent(cod));
+    let e = (lista.saldo || []).find(x => x.endereco === cod);
+    const id = e ? e.endereco_id : null;
+    if(!id) throw new Error('Endereço ' + cod + ' sem saldo — bloqueie pela tela de cadastro, ou confira o código.');
+    return wmsPost('/api/wms/estoque/enderecos/' + id + '/bloquear', {motivo: wmsVal('wb-mot')});
+  });
+  if(ok){ fecharModal(); loadWmsEst(); }
+}
+function wmsEstDesbloquear(id){
+  wmsConfirmar('Desbloquear endereço', 'O endereço volta a receber e entregar mercadoria.', 'Desbloquear',
+    async () => { await wmsPost('/api/wms/estoque/enderecos/' + id + '/desbloquear'); fecharModal(); loadWmsEst(); });
+}
+function wmsInvNovo(){
+  wmsModal('Abrir inventário',
+    '<div class="ges-form"><p class="hint">Abrir BLOQUEIA os endereços do escopo até o inventário fechar. A contagem é cega: quem conta não vê o saldo.</p>'
+    + '<div><label for="wi-rua">Rua ou prefixo</label><input type="text" id="wi-rua" placeholder="ex.: A, ou A-01 (vazio = o armazém inteiro)"></div>'
+    + '<div><label for="wi-desc">Descrição</label><input type="text" id="wi-desc" placeholder="ex.: cíclico da rua A — setembro"></div></div>',
+    '<button class="btn" onclick="wmsInvNovoOk(this)">Abrir e bloquear</button>');
+}
+async function wmsInvNovoOk(btn){
+  const inv = await wmsAcao(btn, () => wmsPost('/api/wms/estoque/inventarios',
+    {armazem_id: wmsArmId(), rua: wmsVal('wi-rua'), descricao: wmsVal('wi-desc')}));
+  if(inv){ loadWmsEst(); wmsInvDesenhar(inv); }
+}
+async function wmsInvContar(id){
+  abrirModal('<h3>Carregando…</h3>');
+  try{
+    const inv = await wmsGet('/api/wms/estoque/inventarios/' + id);
+    if(!WMS_PRODS) WMS_PRODS = (await wmsGet('/api/wms/produtos?limite=3000')).produtos || [];
+    wmsInvDesenhar(inv);
+  }catch(e){ wmsErroModal(e); }
+}
+function wmsInvDesenhar(inv){
+  WMS_INV = inv;
+  const cont = {};
+  (inv.contagens || []).forEach(c => { (cont[c.endereco_id] = cont[c.endereco_id] || []).push(c); });
+  const linhas = (inv.enderecos || []).map(e =>
+    '<tr><td><b>' + esc(e.codigo) + '</b></td><td>' + (e.contado_em
+      ? wmsBadge('b-ok', e.itens ? wmsN(e.itens) + ' item(ns)' : 'vazio') + ' <span class="wms-sub">' + esc(e.contado_por || '') + ' · ' + wmsDH(e.contado_em) + '</span>'
+      : wmsBadge('b-warn', 'a contar'))
+    + '</td><td>' + (inv.status === 'aberto'
+      ? '<button class="ghost mini" data-id="' + e.endereco_id + '" onclick="wmsInvEndereco(+this.dataset.id)">Contar</button>' : '')
+    + '</td></tr>').join('');
+  const s = inv.resumo || {};
+  wmsModal('Inventário nº ' + inv.id + (inv.descricao ? ' — ' + inv.descricao : ''),
+    '<p class="hint">' + wmsN(s.contados) + ' de ' + wmsN(s.enderecos) + ' endereços contados. Fechar exige todos — endereço sem mercadoria se registra como vazio.</p>'
+    + '<div class="tabroll" style="max-height:380px"><table class="wms-grade"><thead><tr><th>Endereço</th><th>Contagem</th><th></th></tr></thead><tbody>'
+    + linhas + '</tbody></table></div>',
+    inv.status === 'aberto' && s.contados === s.enderecos
+      ? '<button class="btn" data-id="' + inv.id + '" onclick="wmsInvFechar(+this.dataset.id)">Fechar inventário</button>' : '', true);
+  if(!document.getElementById('wms-prod-lista')){
+    document.body.insertAdjacentHTML('beforeend', '<datalist id="wms-prod-lista"></datalist>');
+  }
+  const dl = document.getElementById('wms-prod-lista');
+  if(dl && !dl.options.length) dl.innerHTML = (WMS_PRODS || []).map(p =>
+    '<option value="' + esc(p.codigo + ' · ' + (p.nome_fantasia || p.razao_social || '')) + '">' + esc(p.descricao) + '</option>').join('');
+}
+function wmsInvProdId(txt){
+  const p = (WMS_PRODS || []).find(x => (x.codigo + ' · ' + (x.nome_fantasia || x.razao_social || '')) === txt)
+         || (WMS_PRODS || []).find(x => x.codigo === txt);
+  return p ? p.id : null;
+}
+function wmsInvEndereco(endId){
+  const inv = WMS_INV; if(!inv) return;
+  const e = (inv.enderecos || []).find(x => x.endereco_id === endId); if(!e) return;
+  const ja = (inv.contagens || []).filter(c => c.endereco_id === endId);
+  const linha = c => '<tr><td><input type="text" class="wi-prod" list="wms-prod-lista" value="' + esc(c ? c.codigo : '')
+    + '" placeholder="código do produto"></td><td><input type="text" class="wi-lote" value="' + esc(c ? c.lote : '')
+    + '"></td><td class="num"><input type="text" class="wi-q" inputmode="decimal" value="' + esc(c ? wmsNumIn(c.qtd) : '') + '"></td></tr>';
+  wmsModal('Contagem cega — ' + e.codigo,
+    '<p class="hint">Conte o que está no endereço. Uma linha por produto e lote.</p>'
+    + '<table class="wms-grade"><thead><tr><th>Produto</th><th>Lote</th><th>Quantidade</th></tr></thead><tbody id="wi-linhas">'
+    + (ja.length ? ja.map(linha).join('') : linha(null)) + '</tbody></table>'
+    + '<button class="ghost" onclick="document.getElementById(\'wi-linhas\').insertAdjacentHTML(\'beforeend\', wmsInvLinhaVazia())">+ linha</button>',
+    '<button class="ghost" data-id="' + endId + '" onclick="wmsInvSalvar(this,true)">Endereço vazio</button>'
+    + '<button class="btn" data-id="' + endId + '" onclick="wmsInvSalvar(this,false)">Salvar contagem</button>', true);
+}
+function wmsInvLinhaVazia(){
+  return '<tr><td><input type="text" class="wi-prod" list="wms-prod-lista" placeholder="código do produto"></td>'
+       + '<td><input type="text" class="wi-lote"></td><td class="num"><input type="text" class="wi-q" inputmode="decimal"></td></tr>';
+}
+async function wmsInvSalvar(btn, vazio){
+  const inv = WMS_INV; if(!inv) return;
+  const endId = +btn.dataset.id;
+  let itens = [];
+  if(!vazio){
+    for(const tr of document.querySelectorAll('#wi-linhas tr')){
+      const txt = tr.querySelector('.wi-prod').value.trim();
+      const q = tr.querySelector('.wi-q').value.trim();
+      if(!txt && !q) continue;
+      const pid = wmsInvProdId(txt);
+      if(!pid){ mErro('Produto não reconhecido: ' + txt + ' — escolha da lista.'); return; }
+      itens.push({produto_id: pid, lote: tr.querySelector('.wi-lote').value.trim(), qtd: q});
+    }
+    if(!itens.length){ mErro('Nenhuma linha preenchida — se o endereço está vazio, use "Endereço vazio".'); return; }
+  }
+  const ok = await wmsAcao(btn, () => wmsPost('/api/wms/estoque/inventarios/' + inv.id + '/contar', {endereco_id: endId, itens}));
+  if(ok){ wmsInvDesenhar(await wmsGet('/api/wms/estoque/inventarios/' + inv.id)); loadWmsEst(); }
+}
+function wmsInvFechar(id){
+  wmsConfirmar('Fechar o inventário nº ' + id,
+    'O saldo de cada endereço passa a ser o contado — a diferença entra no kardex como ajuste de inventário — e os endereços são desbloqueados.',
+    'Fechar e ajustar', async () => {
+      const r = await wmsPost('/api/wms/estoque/inventarios/' + id + '/fechar');
+      loadWmsEst();
+      wmsModal('Inventário nº ' + id + ' fechado',
+        '<p>' + wmsN(r.enderecos) + ' endereço(s) contado(s), ' + wmsN(r.com_divergencia) + ' com divergência — acurácia <b>'
+        + (r.acuracia == null ? '—' : wmsN(r.acuracia) + '%') + '</b>. ' + wmsN(r.ajustes) + ' ajuste(s): sobra ' + wmsN(r.sobra)
+        + ', falta ' + wmsN(r.falta) + '.</p>');
+    });
+}
+function wmsInvCancelar(id){
+  wmsConfirmar('Cancelar o inventário nº ' + id, 'Nenhum ajuste é feito e os endereços são desbloqueados.', 'Cancelar inventário',
+    async () => { await wmsPost('/api/wms/estoque/inventarios/' + id + '/cancelar'); fecharModal(); loadWmsEst(); });
+}
+async function wmsInvVer(id){
+  abrirModal('<h3>Carregando…</h3>');
+  try{
+    const inv = await wmsGet('/api/wms/estoque/inventarios/' + id);
+    const aj = inv.ajustes || [];
+    wmsModal('Inventário nº ' + id + ' — ' + inv.status,
+      '<p>Acurácia: <b>' + (inv.acuracia == null ? '—' : wmsN(inv.acuracia) + '%') + '</b> · '
+      + wmsN((inv.resumo || {}).enderecos) + ' endereço(s).</p>'
+      + '<div class="tabroll" style="max-height:360px"><table class="wms-grade"><thead><tr><th>Endereço</th><th>Produto</th><th>Lote</th><th>Ajuste</th></tr></thead><tbody>'
+      + (aj.length ? aj.map(a => '<tr><td>' + esc(a.endereco) + '</td><td><b>' + esc(a.codigo) + '</b><div class="wms-sub">' + esc(a.descricao)
+        + '</div></td><td>' + esc(a.lote || '—') + '</td><td class="num">' + (a.qtd > 0 ? '+' : '') + wmsN(a.qtd) + '</td></tr>').join('')
+        : '<tr><td colspan="4">Nenhum ajuste: tudo conferiu.</td></tr>') + '</tbody></table></div>', '', true);
+  }catch(e){ wmsErroModal(e); }
+}
+
+/* ─────────────────────────────────────────────── Separação e Expedição */
+const WMS_SIT_PED = {aberto: ['b-info', 'a liberar'], em_separacao: ['b-warn', 'em separação'],
+                     separado: ['b-ok', 'separado'], expedido: ['b-ok', 'expedido'], cancelado: ['b-dang', 'cancelado']};
+async function loadWmsExp(){
+  const seq = WMS_SEQ.exp = (WMS_SEQ.exp || 0) + 1;
+  const kb = document.getElementById('wmsexp-kpis'); if(!kb) return;
+  try{
+    await wmsCat();
+    const arm = wmsArmSelect('wmsexp');
+    if(!arm){ wmsSemArmazem('wmsexp', 'wmsexp-kpis', [['wmsexp-ped', 9], ['wmsexp-sep', 7], ['wmsexp-fim', 8]]); return; }
+    const [p, t] = await Promise.all([
+      wmsGet('/api/wms/expedicao/pedidos?armazem=' + arm),
+      wmsGet('/api/wms/expedicao/tarefas?armazem=' + arm)]);
+    if(seq !== WMS_SEQ.exp) return;
+    wmsHint('wmsexp-hint', '');
+    const r = p.resumo || {};
+    WMS_EXP = p.pedidos || [];
+    WMS_TAR = t.tarefas || [];
+    kb.innerHTML =
+      kpi('A liberar', wmsN(r.a_liberar || 0), 'pedidos sem reserva ainda', '', 'Pedidos abertos: nada foi reservado para eles.') +
+      kpi('Em separação', wmsN(r.em_separacao || 0), wmsN(t.total || 0) + ' tarefa(s) na lista', '',
+          'Pedidos liberados com tarefa pendente. A lista de separação sai na ordem da rua.') +
+      kpi('Aguardando expedição', wmsN(r.aguardando_expedicao || 0), 'separados na área de expedição', '',
+          'Tudo separado, esperando o veículo.') +
+      kpi('Expedidos hoje', wmsN(r.expedidos_hoje || 0), r.atrasados ? r.atrasados + ' pedido(s) atrasado(s)' : 'nenhum atrasado', '',
+          'Expedidos hoje. Atrasado é o pedido aberto ou liberado com a data prevista vencida.',
+          r.atrasados ? statChip('bad', r.atrasados + ' atrasado(s)') : '');
+    const ativos = WMS_EXP.filter(x => x.status === 'aberto' || x.status === 'liberado');
+    const fim = WMS_EXP.filter(x => x.status === 'expedido' || x.status === 'cancelado');
+    const sit = x => { const s = WMS_SIT_PED[x.situacao] || ['b-info', x.situacao]; return wmsBadge(s[0], s[1]); };
+    wmsTbody('wmsexp-ped', ativos.length ? ativos.map(x => {
+      const tot = (x.tarefas_pendentes || 0) + (x.tarefas_separadas || 0);
+      let acoes = '<button class="ghost mini" data-id="' + x.id + '" onclick="wmsExpVer(+this.dataset.id)">Ver</button>';
+      if(x.situacao === 'aberto') acoes += '<button class="ghost mini" data-id="' + x.id + '" onclick="wmsExpLiberar(+this.dataset.id)">Liberar</button>';
+      if(x.situacao === 'separado') acoes += '<button class="ghost mini" data-id="' + x.id + '" onclick="wmsExpExpedir(+this.dataset.id)">Expedir</button>';
+      acoes += '<button class="ghost mini" data-id="' + x.id + '" onclick="wmsExpCancelar(+this.dataset.id)">Cancelar</button>';
+      return '<tr><td>' + x.id + '</td><td>' + esc(x.numero || '—') + (x.origem === 'erp' ? ' ' + wmsBadge('b-info', 'Avacorp') : '')
+        + '</td><td>' + wmsDep(x) + '</td><td>' + esc(x.destinatario || '—') + '</td><td>'
+        + (x.atrasado ? wmsBadge('b-dang', wmsD(x.previsto_para), 'data prevista vencida') : wmsD(x.previsto_para))
+        + '</td><td class="num">' + wmsN(x.itens) + '</td><td>' + sit(x) + '</td><td>'
+        + (tot ? wmsN(x.tarefas_separadas) + ' de ' + wmsN(tot) + ' tarefa(s)' : '—')
+        + '</td><td class="wms-acoes">' + acoes + '</td></tr>';
+    }).join('') : wmsVazio(9, 'Nenhum pedido em andamento.'));
+    wmsTbody('wmsexp-sep', WMS_TAR.length ? WMS_TAR.map((x, i) =>
+      '<tr><td><b>' + esc(x.endereco) + '</b>' + (x.bloqueado ? ' ' + wmsBadge('b-dang', 'bloqueado') : '') + '</td><td><b>' + esc(x.codigo)
+      + '</b><div class="wms-sub">' + esc(x.descricao) + '</div></td><td>' + esc(x.lote || '—') + '</td><td>' + wmsD(x.validade)
+      + '</td><td class="num">' + wmsN(x.qtd) + ' ' + esc(x.unidade) + '</td><td>nº ' + x.pedido_id + (x.pedido_numero ? ' · ' + esc(x.pedido_numero) : '')
+      + '<div class="wms-sub">' + wmsDep(x) + '</div></td><td><button class="ghost mini" data-i="' + i
+      + '" onclick="wmsExpConfirmar(+this.dataset.i)">Confirmar</button></td></tr>').join('')
+      : wmsVazio(7, 'Nenhuma tarefa de separação pendente.'));
+    wmsTbody('wmsexp-fim', fim.length ? fim.map(x =>
+      '<tr><td>' + x.id + '</td><td>' + esc(x.numero || '—') + '</td><td>' + wmsDep(x) + '</td><td>' + sit(x)
+      + '</td><td>' + wmsDH(x.expedido_em || x.cancelado_em) + '</td><td>' + esc(x.placa || '—') + '</td><td>' + esc(x.motorista || '—')
+      + '</td><td class="num">' + (x.corte ? wmsN(x.corte) : '—') + '</td></tr>').join('')
+      : wmsVazio(8, 'Nenhuma expedição nos últimos 30 dias.'));
+    abaContador('wmsexp-n-ped', ativos.length);
+    abaContador('wmsexp-n-sep', WMS_TAR.length);
+    abaContador('wmsexp-n-fim', fim.length);
+    wmsMeta();
+  }catch(e){
+    wmsHint('wmsexp-hint', 'Não foi possível ler a expedição: ' + (e.message || e), true);
+  }
+}
+function wmsExpNovo(){
+  const a = wmsArmAtual();
+  if(!a){ wmsErroModal(new Error('Cadastre um armazém antes, em Cadastros do Armazém.')); return; }
+  WMS_PED_PRODS = [];
+  wmsModal('Novo pedido — ' + a.codigo,
+    '<div class="ges-form">'
+    + '<div><label for="wp-dep">Depositante</label><select id="wp-dep" onchange="wmsExpProdutos()">'
+    + wmsOpcoes(wmsDepositantes(), x => x.cnpj, x => (x.nome_fantasia || x.razao_social) + ' — ' + wmsCnpj(x.cnpj), 'escolha…') + '</select></div>'
+    + '<div><label for="wp-chave">Nota do cliente no Avacorp (opcional)</label><div class="wms-linha">'
+    + '<input type="text" id="wp-chave" inputmode="numeric" maxlength="60" placeholder="chave de acesso — preenche os itens">'
+    + '<button class="ghost" onclick="wmsExpDaNf(this)">Preencher pela nota</button></div><div id="wp-nf" class="wms-nf"></div></div>'
+    + '<div class="wms-duas"><div><label for="wp-num">Pedido do cliente</label><input type="text" id="wp-num"></div>'
+    + '<div><label for="wp-prev">Previsto para</label><input type="date" id="wp-prev"></div></div>'
+    + '<div><label for="wp-dest">Destinatário</label><input type="text" id="wp-dest"></div>'
+    + '<table class="wms-grade"><thead><tr><th>Produto (disponível)</th><th>Qtd</th><th>Lote exigido</th></tr></thead><tbody id="wp-itens"></tbody></table>'
+    + '<button class="ghost" onclick="wmsExpLinha()">+ item</button></div>',
+    '<button class="btn" onclick="wmsExpCriar(this)">Criar pedido</button>', true);
+}
+async function wmsExpProdutos(){
+  const dep = wmsVal('wp-dep');
+  WMS_PED_PRODS = [];
+  wmsTbody('wp-itens', '');
+  if(!dep) return;
+  try{
+    WMS_PED_PRODS = (await wmsGet('/api/wms/produtos?depositante=' + dep + '&armazem=' + wmsArmId() + '&limite=3000')).produtos || [];
+  }catch(e){ mErro(e.message); }
+  wmsExpLinha();
+}
+function wmsExpLinha(item){
+  const tb = document.getElementById('wp-itens'); if(!tb) return;
+  tb.insertAdjacentHTML('beforeend', '<tr><td><select class="wp-prod">'
+    + wmsOpcoes(WMS_PED_PRODS, x => x.id, x => x.codigo + ' — ' + x.descricao + ' (' + wmsN(x.disponivel) + ' ' + x.unidade + ')', 'produto…')
+    + '</select></td><td class="num"><input type="text" class="wp-q" inputmode="decimal" value="' + esc(item ? wmsNumIn(item.qtd) : '')
+    + '"></td><td><input type="text" class="wp-lote"></td></tr>');
+  if(item){ const s = tb.lastElementChild.querySelector('.wp-prod'); if(s) s.value = String(item.produto_id); }
+}
+async function wmsExpDaNf(btn){
+  const chave = wmsVal('wp-chave').replace(/\D/g, '');
+  const dep = wmsVal('wp-dep');
+  const alvo = document.getElementById('wp-nf');
+  await wmsAcao(btn, async () => {
+    const p = await wmsGet('/api/wms/expedicao/nf/' + encodeURIComponent(chave) + (dep ? '?depositante=' + dep : ''));
+    const sel = document.getElementById('wp-dep');
+    if(sel && sel.value !== p.depositante_cnpj){
+      sel.value = p.depositante_cnpj;
+      if(sel.value !== p.depositante_cnpj) throw new Error('O remetente da nota (' + wmsCnpj(p.depositante_cnpj) + ') não é depositante cadastrado.');
+      WMS_PED_PRODS = (await wmsGet('/api/wms/produtos?depositante=' + p.depositante_cnpj + '&armazem=' + wmsArmId() + '&limite=3000')).produtos || [];
+    }else if(!WMS_PED_PRODS.length){
+      WMS_PED_PRODS = (await wmsGet('/api/wms/produtos?depositante=' + p.depositante_cnpj + '&armazem=' + wmsArmId() + '&limite=3000')).produtos || [];
+    }
+    wmsTbody('wp-itens', '');
+    (p.itens || []).forEach(i => wmsExpLinha(i));
+    if(!document.getElementById('wp-dest').value) document.getElementById('wp-dest').value = p.destinatario || '';
+    WMS_NF = p;
+    /* O QUE NÃO CASOU É DITO: pedido montado em silêncio sem um item da nota
+       é pedido errado com cara de certo. */
+    alvo.innerHTML = 'NF ' + esc(p.nf_numero || '') + ': ' + wmsN((p.itens || []).length) + ' item(ns) casado(s) pelo código do cliente'
+      + ((p.faltando || []).length ? '<p class="hint wms-erro">Sem cadastro neste depositante: '
+        + p.faltando.map(f => esc(f.codigo) + ' (' + wmsN(f.qtd) + ')').join(', ') + '.</p>' : '.');
+  });
+}
+async function wmsExpCriar(btn){
+  const itens = [...document.querySelectorAll('#wp-itens tr')]
+    .map(tr => ({produto_id: tr.querySelector('.wp-prod').value, qtd: tr.querySelector('.wp-q').value.trim(),
+                 lote: tr.querySelector('.wp-lote').value.trim()}))
+    .filter(i => i.produto_id);
+  const chave = wmsVal('wp-chave').replace(/\D/g, '');
+  const ok = await wmsAcao(btn, () => wmsPost('/api/wms/expedicao/pedidos', {
+    armazem_id: wmsArmId(), depositante_cnpj: wmsVal('wp-dep'), numero: wmsVal('wp-num'),
+    destinatario: wmsVal('wp-dest'), previsto_para: wmsVal('wp-prev'), nf_chave: chave,
+    origem: (WMS_NF && WMS_NF.nf_chave === chave) ? 'erp' : 'manual', itens}));
+  if(ok){ fecharModal(); loadWmsExp(); }
+}
+function wmsExpLiberar(id){
+  wmsConfirmar('Liberar o pedido nº ' + id + ' para separação',
+    'Liberar RESERVA o estoque: cria as tarefas na ordem FEFO (o lote que vence primeiro sai primeiro). Se faltar estoque de um item, nada é reservado.',
+    'Liberar', async () => { await wmsPost('/api/wms/expedicao/pedidos/' + id + '/liberar'); fecharModal(); loadWmsExp(); });
+}
+function wmsExpConfirmar(i){
+  const t = WMS_TAR[i]; if(!t) return;
+  wmsModal('Confirmar separação — ' + t.codigo + ' em ' + t.endereco,
+    '<div class="ges-form"><p class="wms-sub">' + esc(t.descricao) + ' · lote ' + esc(t.lote || '—') + ' · pedido nº ' + t.pedido_id + '</p>'
+    + '<div><label for="wt-qtd">Quantidade separada (prevista ' + wmsN(t.qtd) + ' ' + esc(t.unidade) + ')</label>'
+    + '<input type="text" id="wt-qtd" inputmode="decimal" value="' + esc(wmsNumIn(t.qtd)) + '">'
+    + '<p class="hint">Menos que o previsto é CORTE: faltou no endereço, e o pedido sai com o que foi separado.</p></div></div>',
+    '<button class="btn" data-id="' + t.id + '" onclick="wmsExpConfirmarOk(this)">Confirmar</button>');
+}
+async function wmsExpConfirmarOk(btn){
+  const ok = await wmsAcao(btn, () => wmsPost('/api/wms/expedicao/tarefas/' + btn.dataset.id + '/confirmar', {qtd: wmsVal('wt-qtd')}));
+  if(ok){ fecharModal(); loadWmsExp(); }
+}
+function wmsExpExpedir(id){
+  wmsModal('Expedir o pedido nº ' + id,
+    '<div class="ges-form"><div><label for="we-placa">Placa do veículo</label><input type="text" id="we-placa" placeholder="ABC1D23"></div>'
+    + '<div><label for="we-mot">Motorista</label><input type="text" id="we-mot"></div>'
+    + '<div><label for="we-nf">Chave da nota de saída (opcional)</label><input type="text" id="we-nf" inputmode="numeric" maxlength="60"></div></div>',
+    '<button class="btn" data-id="' + id + '" onclick="wmsExpExpedirOk(this)">Expedir</button>');
+}
+async function wmsExpExpedirOk(btn){
+  const ok = await wmsAcao(btn, () => wmsPost('/api/wms/expedicao/pedidos/' + btn.dataset.id + '/expedir',
+    {placa: wmsVal('we-placa'), motorista: wmsVal('we-mot'), nf_chave: wmsVal('we-nf').replace(/\D/g, '')}));
+  if(ok){ fecharModal(); loadWmsExp(); }
+}
+function wmsExpCancelar(id){
+  wmsConfirmar('Cancelar o pedido nº ' + id,
+    'A reserva é desfeita, e o que já tinha sido separado volta para o endereço de origem.', 'Cancelar pedido',
+    async () => { await wmsPost('/api/wms/expedicao/pedidos/' + id + '/cancelar', {motivo: wmsVal('wx-motivo')}); fecharModal(); loadWmsExp(); },
+    {id: 'wx-motivo', rotulo: 'Motivo', placeholder: 'ex.: cliente desistiu'});
+}
+async function wmsExpVer(id){
+  abrirModal('<h3>Carregando…</h3>');
+  try{
+    const p = await wmsGet('/api/wms/expedicao/pedidos/' + id);
+    wmsModal('Pedido nº ' + id + (p.numero ? ' — ' + p.numero : ''),
+      '<p>' + wmsDep(p) + (p.destinatario ? ' → ' + esc(p.destinatario) : '') + '</p>'
+      + '<table class="wms-grade"><thead><tr><th>Produto</th><th>Pedido</th><th>Separado</th><th>Lote</th></tr></thead><tbody>'
+      + (p.itens || []).map(i => '<tr><td><b>' + esc(i.codigo) + '</b><div class="wms-sub">' + esc(i.descricao) + '</div></td><td class="num">'
+        + wmsN(i.qtd) + '</td><td class="num">' + wmsN(i.separado) + '</td><td>' + esc(i.lote || '—') + '</td></tr>').join('')
+      + '</tbody></table>'
+      + ((p.tarefas || []).length ? '<p class="hint">Tarefas: ' + p.tarefas.map(t => esc(t.endereco) + ' ' + wmsN(t.qtd) + ' (' + esc(t.status) + ')').join(' · ') + '</p>' : ''),
+      '', true);
+  }catch(e){ wmsErroModal(e); }
+}
+
+/* ─────────────────────────────────────────────── Cadastros do Armazém */
+async function loadWmsCad(){
+  const seq = WMS_SEQ.cad = (WMS_SEQ.cad || 0) + 1;
+  const tb = document.getElementById('wmscad-arm'); if(!tb) return;
+  try{
+    const [a, d] = await Promise.all([wmsGet('/api/wms/cadastro/armazens'), wmsGet('/api/wms/cadastro/depositantes'), wmsCat(true)]);
+    if(seq !== WMS_SEQ.cad) return;
+    WMS_CAD.arm = a.armazens || [];
+    WMS_CAD.dep = d.depositantes || [];
+    wmsTbody('wmscad-arm', WMS_CAD.arm.length ? WMS_CAD.arm.map((x, i) =>
+      '<tr><td><b>' + esc(x.codigo) + '</b></td><td>' + esc(x.nome) + '</td><td>' + esc(x.filial_erp || '—') + '</td><td>'
+      + esc([x.cidade, x.uf].filter(Boolean).join('/') || '—') + '</td><td class="num">' + wmsN(x.enderecos_guarda)
+      + '</td><td class="num">' + (x.docas ? wmsN(x.docas) : wmsBadge('b-warn', 'falta', 'sem doca o armazém não recebe'))
+      + '</td><td class="num">' + (x.areas_expedicao ? wmsN(x.areas_expedicao) : wmsBadge('b-warn', 'falta', 'sem área de expedição o armazém não separa'))
+      + '</td><td class="num">' + wmsN(x.areas_avaria) + '</td><td>' + (x.ativo ? wmsBadge('b-ok', 'ativo') : wmsBadge('b-info', 'inativo'))
+      + '</td><td><button class="ghost mini" data-i="' + i + '" onclick="wmsCadArmEditar(+this.dataset.i)">Editar</button></td></tr>').join('')
+      : wmsVazio(10, 'Nenhum armazém. Comece por "Novo armazém".'));
+    wmsTbody('wmscad-dep', WMS_CAD.dep.length ? WMS_CAD.dep.map((x, i) =>
+      '<tr><td>' + esc(wmsCnpj(x.cnpj)) + '</td><td><b>' + esc(x.razao_social) + '</b>' + (x.nome_fantasia ? '<div class="wms-sub">' + esc(x.nome_fantasia) + '</div>' : '')
+      + '</td><td>' + esc([x.cidade, x.uf].filter(Boolean).join('/') || '—') + '</td><td>' + wmsBadge(x.origem === 'erp' ? 'b-info' : 'b-warn', x.origem === 'erp' ? 'Avacorp' : 'manual')
+      + '</td><td class="num">' + wmsN(x.produtos) + '</td><td class="num">' + wmsN(x.posicoes) + '</td><td>'
+      + (x.ativo ? wmsBadge('b-ok', 'ativo') : wmsBadge('b-info', 'inativo')) + '</td><td><button class="ghost mini" data-i="' + i
+      + '" onclick="wmsCadDepAtivo(+this.dataset.i)">' + (x.ativo ? 'Inativar' : 'Reativar') + '</button></td></tr>').join('')
+      : wmsVazio(8, 'Nenhum depositante. Traga do Avacorp — o recebimento pela nota também cadastra sozinho.'));
+    const sa = document.getElementById('wmscad-arm-sel');
+    if(sa){
+      const atual = wmsArmId();
+      sa.innerHTML = wmsOpcoes(WMS_CAD.arm, x => x.id, x => x.codigo + ' — ' + x.nome);
+      if(WMS_CAD.arm.some(x => x.id === atual)) sa.value = String(atual);
+    }
+    const sd = document.getElementById('wmscad-prod-dep');
+    if(sd){ const v = sd.value; sd.innerHTML = wmsOpcoes(WMS_CAD.dep, x => x.cnpj, x => x.nome_fantasia || x.razao_social, 'todos os depositantes'); sd.value = v; }
+    abaContador('wmscad-n-arm', WMS_CAD.arm.length);
+    abaContador('wmscad-n-dep', WMS_CAD.dep.length);
+    await Promise.all([wmsCadEnderecos(), wmsCadProdutos()]);
+  }catch(e){
+    wmsTbody('wmscad-arm', wmsVazio(10, 'Não foi possível ler o cadastro: ' + (e.message || e)));
+  }
+}
+async function wmsCadEnderecos(){
+  const arm = wmsVal('wmscad-arm-sel');
+  if(!arm){ wmsTbody('wmscad-end', wmsVazio(6, 'Cadastre um armazém para gerar endereços.')); return; }
+  const q = new URLSearchParams({armazem: arm});
+  if(wmsVal('wmscad-end-sit')) q.set('situacao', wmsVal('wmscad-end-sit'));
+  if(wmsVal('wmscad-end-q')) q.set('busca', wmsVal('wmscad-end-q'));
+  try{
+    const d = await wmsGet('/api/wms/cadastro/enderecos?' + q);
+    WMS_CAD.end = d.enderecos || [];
+    const rot = t => ((d.tipos || []).find(x => x.chave === t) || {}).rotulo || t;
+    const sitb = {livre: ['b-ok', 'livre'], ocupado: ['b-info', 'ocupado'], bloqueado: ['b-dang', 'bloqueado'], inativo: ['b-warn', 'inativo']};
+    wmsTbody('wmscad-end', WMS_CAD.end.length ? WMS_CAD.end.map((e, i) =>
+      '<tr><td><b>' + esc(e.codigo) + '</b></td><td>' + esc(rot(e.tipo)) + '</td><td>' + wmsBadge((sitb[e.situacao] || ['b-info'])[0], (sitb[e.situacao] || [0, e.situacao])[1], e.motivo_bloqueio)
+      + '</td><td class="num">' + wmsN(e.itens) + '</td><td class="num">' + (e.capacidade_paletes ? wmsN(e.capacidade_paletes) + ' pal.' : '—')
+      + '</td><td><button class="ghost mini" data-i="' + i + '" onclick="wmsCadEndAtivo(+this.dataset.i)">' + (e.ativo ? 'Inativar' : 'Reativar') + '</button></td></tr>').join('')
+      : wmsVazio(6, 'Nenhum endereço com estes filtros.'));
+    const rs = d.resumo || {};
+    const guarda = ['porta_palete', 'picking', 'blocado'].reduce((a, t) => a + ((rs[t] || {}).ativos || 0), 0);
+    wmsHint('wmscad-end-hint', (d.mostrando < d.total ? 'mostrando ' + wmsN(d.mostrando) + ' de ' + wmsN(d.total) + ' · ' : '')
+      + wmsN(guarda) + ' de guarda · ' + wmsN((rs.doca || {}).ativos || 0) + ' doca(s) · ' + wmsN((rs.expedicao || {}).ativos || 0) + ' expedição');
+    abaContador('wmscad-n-end', d.total || 0);
+  }catch(e){ wmsHint('wmscad-end-hint', e.message || String(e), true); }
+}
+async function wmsCadProdutos(){
+  const q = new URLSearchParams({ativos: '0'});
+  if(wmsVal('wmscad-prod-dep')) q.set('depositante', wmsVal('wmscad-prod-dep'));
+  if(wmsVal('wmscad-prod-q')) q.set('busca', wmsVal('wmscad-prod-q'));
+  try{
+    const d = await wmsGet('/api/wms/cadastro/produtos?' + q);
+    WMS_CAD.prod = d.produtos || [];
+    wmsTbody('wmscad-prod', WMS_CAD.prod.length ? WMS_CAD.prod.map((p, i) =>
+      '<tr><td><b>' + esc(p.codigo) + '</b></td><td>' + esc(p.descricao) + (p.ativo ? '' : ' ' + wmsBadge('b-warn', 'inativo'))
+      + '</td><td>' + wmsDep(p) + '</td><td>' + esc(p.unidade) + '</td><td>'
+      + [p.controla_lote ? 'lote' : '', p.controla_validade ? 'validade' : ''].filter(Boolean).join(' · ') + '</td><td>'
+      + wmsBadge(p.origem === 'erp' ? 'b-info' : 'b-warn', p.origem === 'erp' ? 'nota do Avacorp' : 'manual')
+      + '</td><td class="num">' + wmsN(p.saldo) + '</td><td><button class="ghost mini" data-i="' + i + '" onclick="wmsCadProdEditar(+this.dataset.i)">Editar</button></td></tr>').join('')
+      : wmsVazio(8, 'Nenhum produto com estes filtros.'));
+    wmsHint('wmscad-prod-hint', d.mostrando < d.total ? 'mostrando ' + wmsN(d.mostrando) + ' de ' + wmsN(d.total) : '');
+    abaContador('wmscad-n-prod', d.total || 0);
+  }catch(e){ wmsHint('wmscad-prod-hint', e.message || String(e), true); }
+}
+function wmsCadArmForm(x){
+  return '<div class="ges-form">'
+    + (x ? '' : '<div><label for="wca-cod">Código (2 a 10 letras/números)</label><input type="text" id="wca-cod" placeholder="ex.: JVE1"></div>')
+    + '<div><label for="wca-nome">Nome</label><input type="text" id="wca-nome" value="' + esc(x ? x.nome : '') + '"></div>'
+    + '<div class="wms-duas"><div><label for="wca-cid">Cidade</label><input type="text" id="wca-cid" value="' + esc(x ? x.cidade : '') + '"></div>'
+    + '<div><label for="wca-uf">UF</label><input type="text" id="wca-uf" maxlength="2" value="' + esc(x ? x.uf : '') + '"></div></div>'
+    + '<div><label for="wca-fil">Filial no Avacorp (opcional)</label><input type="text" id="wca-fil" inputmode="numeric" value="' + esc(x && x.filial_erp ? x.filial_erp : '') + '"></div>'
+    + (x ? '<div><label><input type="checkbox" id="wca-ativo"' + (x.ativo ? ' checked' : '') + '>Ativo</label></div>' : '')
+    + '</div>';
+}
+function wmsCadArmNovo(){
+  wmsModal('Novo armazém', wmsCadArmForm(null)
+    + '<p class="hint">Depois de criar: gere os endereços de guarda e cadastre ao menos uma doca e uma área de expedição.</p>',
+    '<button class="btn" onclick="wmsCadArmSalvar(this,null)">Criar</button>');
+}
+function wmsCadArmEditar(i){
+  const x = WMS_CAD.arm[i]; if(!x) return;
+  wmsModal('Armazém ' + x.codigo, wmsCadArmForm(x), '<button class="btn" data-id="' + x.id + '" onclick="wmsCadArmSalvar(this,+this.dataset.id)">Salvar</button>');
+}
+async function wmsCadArmSalvar(btn, id){
+  const corpo = {nome: wmsVal('wca-nome'), cidade: wmsVal('wca-cid'), uf: wmsVal('wca-uf'), filial_erp: wmsVal('wca-fil')};
+  if(id) corpo.ativo = !!(document.getElementById('wca-ativo') || {}).checked;
+  else corpo.codigo = wmsVal('wca-cod');
+  const ok = await wmsAcao(btn, () => wmsPost('/api/wms/cadastro/armazens' + (id ? '/' + id : ''), corpo));
+  if(ok){ if(!id && ok.id) wmsArmGuardar(ok.id); fecharModal(); loadWmsCad(); }
+}
+function wmsCadEndGerar(){
+  const arm = wmsVal('wmscad-arm-sel');
+  if(!arm){ wmsErroModal(new Error('Cadastre um armazém antes.')); return; }
+  const n = (id, ph) => '<input type="text" id="' + id + '" inputmode="numeric" placeholder="' + ph + '" oninput="wmsCadEndConta()">';
+  wmsModal('Gerar endereços de guarda',
+    '<div class="ges-form">'
+    + '<div><label for="wce-ruas">Ruas</label><input type="text" id="wce-ruas" placeholder="A-C, ou A,B,F" oninput="wmsCadEndConta()"></div>'
+    + '<div class="wms-duas"><div><label for="wce-p1">Prédio de</label>' + n('wce-p1', '1') + '</div><div><label for="wce-p2">até</label>' + n('wce-p2', '20') + '</div></div>'
+    + '<div class="wms-duas"><div><label for="wce-n1">Nível de</label>' + n('wce-n1', '1') + '</div><div><label for="wce-n2">até</label>' + n('wce-n2', '5') + '</div></div>'
+    + '<div class="wms-duas"><div><label for="wce-a1">Posição de</label>' + n('wce-a1', '1') + '</div><div><label for="wce-a2">até</label>' + n('wce-a2', '2') + '</div></div>'
+    + '<div class="wms-duas"><div><label for="wce-tipo">Tipo</label><select id="wce-tipo"><option value="porta_palete">porta-palete</option>'
+    + '<option value="blocado">blocado (chão)</option><option value="picking">picking</option></select></div>'
+    + '<div><label for="wce-cap">Paletes por posição (opcional)</label><input type="text" id="wce-cap" inputmode="numeric"></div></div>'
+    + '<p class="hint" id="wce-conta">O código sai no formato RUA-PRÉDIO-NÍVEL-POSIÇÃO: A-01-02-03.</p></div>',
+    '<button class="btn" onclick="wmsCadEndGerarOk(this)">Gerar</button>', true);
+}
+function wmsCadEndConta(){
+  const ruas = wmsVal('wce-ruas').toUpperCase().split(',').map(s => s.trim()).filter(Boolean).reduce((a, t) => {
+    const m = t.match(/^([A-Z])-([A-Z])$/), k = t.match(/^(\d+)-(\d+)$/);
+    return a + (m ? Math.max(0, m[2].charCodeAt(0) - m[1].charCodeAt(0) + 1) : k ? Math.max(0, +k[2] - +k[1] + 1) : 1);
+  }, 0);
+  const f = (a, b) => { const x = parseInt(wmsVal(a), 10), y = parseInt(wmsVal(b) || wmsVal(a), 10); return (isFinite(x) && isFinite(y) && y >= x) ? y - x + 1 : 0; };
+  const tot = ruas * f('wce-p1', 'wce-p2') * f('wce-n1', 'wce-n2') * f('wce-a1', 'wce-a2');
+  wmsHint('wce-conta', tot ? 'Serão ' + wmsN(tot) + ' endereço(s) — os que já existem ficam como estão.' : 'O código sai no formato RUA-PRÉDIO-NÍVEL-POSIÇÃO: A-01-02-03.');
+}
+async function wmsCadEndGerarOk(btn){
+  const r = await wmsAcao(btn, () => wmsPost('/api/wms/cadastro/enderecos/gerar', {
+    armazem_id: +wmsVal('wmscad-arm-sel'), ruas: wmsVal('wce-ruas'), predio_de: wmsVal('wce-p1'), predio_ate: wmsVal('wce-p2'),
+    nivel_de: wmsVal('wce-n1'), nivel_ate: wmsVal('wce-n2'), posicao_de: wmsVal('wce-a1'), posicao_ate: wmsVal('wce-a2'),
+    tipo: wmsVal('wce-tipo'), capacidade_paletes: wmsVal('wce-cap')}));
+  if(r){
+    wmsModal('Endereços gerados', '<p>' + wmsN(r.criados) + ' criado(s), de ' + esc(r.primeiro) + ' a ' + esc(r.ultimo)
+      + (r.ja_existiam ? '; ' + wmsN(r.ja_existiam) + ' já existiam e ficaram como estavam' : '') + '.</p>');
+    loadWmsCad();
+  }
+}
+function wmsCadEndNovo(){
+  const arm = wmsVal('wmscad-arm-sel');
+  if(!arm){ wmsErroModal(new Error('Cadastre um armazém antes.')); return; }
+  wmsModal('Endereço avulso',
+    '<div class="ges-form"><div><label for="wcn-cod">Código</label><input type="text" id="wcn-cod" placeholder="ex.: DOCA1, EXP1, AVARIA"></div>'
+    + '<div><label for="wcn-tipo">Tipo</label><select id="wcn-tipo"><option value="doca">doca — onde a conferência dá entrada</option>'
+    + '<option value="expedicao">expedição — para onde a separação leva</option><option value="avaria">avaria / quarentena</option>'
+    + '<option value="porta_palete">porta-palete</option><option value="blocado">blocado (chão)</option><option value="picking">picking</option></select></div></div>',
+    '<button class="btn" onclick="wmsCadEndNovoOk(this)">Criar</button>');
+}
+async function wmsCadEndNovoOk(btn){
+  const ok = await wmsAcao(btn, () => wmsPost('/api/wms/cadastro/enderecos',
+    {armazem_id: +wmsVal('wmscad-arm-sel'), codigo: wmsVal('wcn-cod'), tipo: wmsVal('wcn-tipo')}));
+  if(ok){ fecharModal(); loadWmsCad(); }
+}
+function wmsCadEndAtivo(i){
+  const e = WMS_CAD.end[i]; if(!e) return;
+  wmsConfirmar((e.ativo ? 'Inativar ' : 'Reativar ') + e.codigo,
+    e.ativo ? 'Endereço inativo não recebe mercadoria. Só se inativa endereço vazio.' : 'O endereço volta a receber mercadoria.',
+    e.ativo ? 'Inativar' : 'Reativar',
+    async () => { await wmsPost('/api/wms/cadastro/enderecos/' + e.id, {ativo: !e.ativo}); fecharModal(); wmsCadEnderecos(); });
+}
+function wmsCadDepErp(){
+  WMS_CAD.erp = [];
+  wmsModal('Trazer depositante do Avacorp',
+    '<div class="ges-form"><div><label for="wcd-q">Nome ou CNPJ do cliente</label><div class="wms-linha">'
+    + '<input type="text" id="wcd-q" placeholder="ex.: SCHULZ, ou 84.693.183" onkeydown="if(event.key===\'Enter\')wmsCadDepBuscar(null)">'
+    + '<button class="ghost" onclick="wmsCadDepBuscar(this)">Buscar</button></div></div>'
+    + '<div class="tabroll" style="max-height:320px"><table class="wms-grade"><tbody id="wcd-res"></tbody></table></div></div>', '', true);
+}
+async function wmsCadDepBuscar(btn){
+  await wmsAcao(btn, async () => {
+    const d = await wmsGet('/api/wms/erp/cadastro?q=' + encodeURIComponent(wmsVal('wcd-q')));
+    WMS_CAD.erp = d.resultados || [];
+    const ja = new Set(WMS_CAD.dep.map(x => x.cnpj));
+    wmsTbody('wcd-res', WMS_CAD.erp.length ? WMS_CAD.erp.map((x, i) =>
+      '<tr><td>' + esc(wmsCnpj(x.cnpj)) + '</td><td><b>' + esc(x.razao_social) + '</b><div class="wms-sub">' + esc(x.nome_fantasia || '')
+      + ' · ' + esc([x.cidade, x.uf].filter(Boolean).join('/')) + '</div></td><td>' + (ja.has(x.cnpj) ? wmsBadge('b-ok', 'já cadastrado')
+        : '<button class="ghost mini" data-i="' + i + '" onclick="wmsCadDepTrazer(this)">Cadastrar</button>') + '</td></tr>').join('')
+      : '<tr><td>Nada encontrado no Avacorp.</td></tr>');
+  });
+}
+async function wmsCadDepTrazer(btn){
+  const x = WMS_CAD.erp[+btn.dataset.i]; if(!x) return;
+  const ok = await wmsAcao(btn, () => wmsPost('/api/wms/cadastro/depositantes', {...x, origem: 'erp'}));
+  if(ok){ btn.outerHTML = wmsBadge('b-ok', 'cadastrado'); loadWmsCad(); }
+}
+function wmsCadDepManual(){
+  wmsModal('Cadastrar depositante à mão',
+    '<div class="ges-form"><p class="hint">Prefira trazer do Avacorp — o cadastro manual existe para quando o ERP não responde.</p>'
+    + '<div><label for="wcm-cnpj">CNPJ</label><input type="text" id="wcm-cnpj" inputmode="numeric"></div>'
+    + '<div><label for="wcm-razao">Razão social</label><input type="text" id="wcm-razao"></div>'
+    + '<div><label for="wcm-fant">Nome fantasia</label><input type="text" id="wcm-fant"></div>'
+    + '<div class="wms-duas"><div><label for="wcm-cid">Cidade</label><input type="text" id="wcm-cid"></div>'
+    + '<div><label for="wcm-uf">UF</label><input type="text" id="wcm-uf" maxlength="2"></div></div></div>',
+    '<button class="btn" onclick="wmsCadDepManualOk(this)">Cadastrar</button>');
+}
+async function wmsCadDepManualOk(btn){
+  const ok = await wmsAcao(btn, () => wmsPost('/api/wms/cadastro/depositantes', {
+    cnpj: wmsVal('wcm-cnpj'), razao_social: wmsVal('wcm-razao'), nome_fantasia: wmsVal('wcm-fant'),
+    cidade: wmsVal('wcm-cid'), uf: wmsVal('wcm-uf')}));
+  if(ok){ fecharModal(); loadWmsCad(); }
+}
+function wmsCadDepAtivo(i){
+  const x = WMS_CAD.dep[i]; if(!x) return;
+  wmsConfirmar((x.ativo ? 'Inativar ' : 'Reativar ') + (x.nome_fantasia || x.razao_social),
+    x.ativo ? 'Depositante inativo não recebe nem abre pedido; o estoque dele continua onde está.' : 'O depositante volta a operar.',
+    x.ativo ? 'Inativar' : 'Reativar',
+    async () => { await wmsPost('/api/wms/cadastro/depositantes/' + x.cnpj, {ativo: !x.ativo}); fecharModal(); loadWmsCad(); });
+}
+function wmsCadProdForm(p){
+  return '<div class="ges-form">'
+    + (p ? '' : '<div><label for="wcp-dep">Depositante</label><select id="wcp-dep">'
+       + wmsOpcoes(WMS_CAD.dep.filter(x => x.ativo), x => x.cnpj, x => (x.nome_fantasia || x.razao_social) + ' — ' + wmsCnpj(x.cnpj), 'escolha…') + '</select></div>'
+       + '<div><label for="wcp-cod">Código do produto (o do cliente)</label><input type="text" id="wcp-cod"></div>')
+    + '<div><label for="wcp-desc">Descrição</label><input type="text" id="wcp-desc" value="' + esc(p ? p.descricao : '') + '"></div>'
+    + '<div class="wms-duas"><div><label for="wcp-un">Unidade</label><input type="text" id="wcp-un" maxlength="6" value="' + esc(p ? p.unidade : 'UN') + '"></div>'
+    + '<div><label for="wcp-ean">EAN / GTIN</label><input type="text" id="wcp-ean" inputmode="numeric" value="' + esc(p ? p.ean : '') + '"></div></div>'
+    + '<div><label><input type="checkbox" id="wcp-lote"' + (p && p.controla_lote ? ' checked' : '') + '>Controla lote</label></div>'
+    + '<div><label><input type="checkbox" id="wcp-val"' + (p && p.controla_validade ? ' checked' : '') + '>Controla validade (FEFO na separação)</label></div>'
+    + (p ? '<div><label><input type="checkbox" id="wcp-ativo"' + (p.ativo ? ' checked' : '') + '>Ativo</label></div>' : '')
+    + '</div>';
+}
+function wmsCadProdNovo(){
+  wmsModal('Novo produto', wmsCadProdForm(null), '<button class="btn" onclick="wmsCadProdSalvar(this,null)">Cadastrar</button>');
+}
+function wmsCadProdEditar(i){
+  const p = WMS_CAD.prod[i]; if(!p) return;
+  wmsModal('Produto ' + p.codigo, wmsCadProdForm(p), '<button class="btn" data-id="' + p.id + '" onclick="wmsCadProdSalvar(this,+this.dataset.id)">Salvar</button>');
+}
+async function wmsCadProdSalvar(btn, id){
+  const corpo = {descricao: wmsVal('wcp-desc'), unidade: wmsVal('wcp-un'), ean: wmsVal('wcp-ean'),
+                 controla_lote: !!(document.getElementById('wcp-lote') || {}).checked,
+                 controla_validade: !!(document.getElementById('wcp-val') || {}).checked};
+  if(id) corpo.ativo = !!(document.getElementById('wcp-ativo') || {}).checked;
+  else { corpo.depositante_cnpj = wmsVal('wcp-dep'); corpo.codigo = wmsVal('wcp-cod'); }
+  const ok = await wmsAcao(btn, () => wmsPost('/api/wms/cadastro/produtos' + (id ? '/' + id : ''), corpo));
+  if(ok){ fecharModal(); WMS_PRODS = null; wmsCadProdutos(); }
+}
+
 async function loadEqp(){
   const seq = ++eqpSeq;
   try{
@@ -45143,6 +46522,16 @@ boot();
         <a href="#dfe" onclick="fecharDrawer()"><span class="ic" data-ic="dfeic"></span>Central de Documentos</a>
         <a href="#ctecp" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>CT-e de Contrapartida</a>
         <a href="#eqp" onclick="fecharDrawer()"><span class="ic" data-ic="eqpic"></span>Equipamentos</a>
+      </div>
+    </div>
+    <div class="dgrp" data-grp="Wms">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>WMS</span><span class="dchev">›</span></button>
+      <div class="dgrp-b">
+        <a href="#wmscad" onclick="fecharDrawer()"><span class="ic" data-ic="wmscadic"></span>Cadastros do Armazém</a>
+        <a href="#wmsest" onclick="fecharDrawer()"><span class="ic" data-ic="wmsestic"></span>Estoque e Inventário</a>
+        <a href="#wmspan" onclick="fecharDrawer()"><span class="ic" data-ic="gauge"></span>Painel do Armazém</a>
+        <a href="#wmsrec" onclick="fecharDrawer()"><span class="ic" data-ic="wmsrecic"></span>Recebimento</a>
+        <a href="#wmsexp" onclick="fecharDrawer()"><span class="ic" data-ic="wmsexpic"></span>Separação e Expedição</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Adm">

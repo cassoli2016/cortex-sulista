@@ -158,7 +158,7 @@ a ACL em vez de afirmar a proteção.
 ## 3. Telas e módulos
 
 **O registro canônico das telas é `api/auth.py`** (`TELAS`, `ROTA_TELAS`,
-`VIEW_GROUP` no `index.html`). Hoje: **87 telas em `auth.TELAS`** + 3 fora
+`VIEW_GROUP` no `index.html`). Hoje: **92 telas em `auth.TELAS`** + 3 fora
 (`srv`, `gestao`, `jornf`, que não estão em `TELAS`). Duas das 83 — `sup` e
 `apps` — são de TODO usuário logado (`TELAS_TODO_LOGADO`): entram por sessão
 além do perfil. Organizadas assim:
@@ -178,6 +178,7 @@ além do perfil. Organizadas assim:
 | Business Intelligence | prodveic, tvfat, tvope, tvdir | AVA (tvdir lê a mesma /api/visao-geral da home) |
 | Gestão | gesacao, gesata, gesrit | `ges_*` (banco local) |
 | TMS | ctecp, dfe | a frente FISCAL: documento eletrônico direto com a SEFAZ. Emite (`api/contrapartida/`) e recolhe (`api/sefaz/`, `dfe_*`) com o mesmo certificado A1 — quando ele vence, as duas param no mesmo dia |
+| WMS | wmspan, wmsrec, wmsest, wmsexp, wmscad | o ARMAZÉM, no banco da casa (`wms_*`, `api/wms/`); do Avacorp só a nota do cliente com os itens (`coleta_notafiscal_item`) e o cadastro de clientes, por uma porta só (`api/wms/erp.py`) |
 | Suporte | sup, supfila | `sup_*` no banco local + espelho opcional no GitHub |
 | Administração | doc, aud, integ | `index.html` (doc); `aud_*` + `audit_log` (auditoria de uso, `api/auditoria.py`); `integ` junta o cofre de credenciais com os cartões da Saúde (`api/integracoes.py`) |
 
@@ -376,6 +377,23 @@ moram em arquivos que não falam do assunto.
   que originou a frente: com a distância ainda se recalibra raio. O guard é
   ESTRUTURAL e lê o `information_schema`, não o texto do SQL — guard que lê
   texto-fonte protege contra apagar, não contra acrescentar a coluna.
+- **O WMS MORA NO CÓRTEX PORQUE O DO AVACORP ESTÁ VAZIO** (12/09/2026):
+  `public.wms_*` tem ~90 tabelas e só os catálogos têm linha. O ERP entra por
+  UMA porta (`api/wms/erp.py`) e só para buscar — e o armazém opera com ele
+  fora do ar (`tests/wms/test_independencia.py` cobra pelos dois lados).
+  **O saldo NÃO é tabela**: é a soma do kardex (`wms_movimento`, view
+  `wms_saldo`), e as duas regras que não podem falhar são do BANCO — saldo
+  nunca negativo (trigger com `pg_advisory_xact_lock` por produto; o Python
+  pega a MESMA trava antes de ler o disponível, e o guard dispara duas
+  retiradas simultâneas) e kardex imutável. Cada posição tem TRÊS números:
+  físico, reservado (tarefa de separação pendente) e disponível — só o
+  disponível se movimenta. Conferência e contagem de inventário são CEGAS no
+  SERVIDOR (a quantidade da nota e o saldo não saem enquanto se conta, e a
+  tela não tem de onde tirá-los). A mesma chave de NF aparece em mais de uma
+  coleta (~8% em 90 dias): vale a mais recente, com desempate pela PK inteira,
+  e os itens casam pelas 8 colunas da PK da nota (com `sequencianotafiscal`)
+  — pelas 7 da coleta viriam os itens de todas as notas dela. "Rua A" é o
+  código `A` ou `A-…`, nunca o prefixo cru: ele casava a área `AVARIA`.
 - Integração é **módulo por fornecedor** em `api/<fornecedor>/` (gobrax,
   smartec, tomtom, whatsapp, monkey, jornada/RasterJOR, pedagio/QualP) — não
   existe hub genérico de conectores.

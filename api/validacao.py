@@ -22,6 +22,7 @@ importava de lá não precisa saber que mudou de casa.
 from __future__ import annotations
 
 from datetime import date, datetime
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from . import pglocal
 
@@ -116,22 +117,59 @@ def valor_br(valor, rotulo: str):
         return None
     if isinstance(valor, (int, float)):
         return round(float(valor), 2)
-    s = str(valor).strip().replace("R$", "").replace(" ", "")
-    if not s:
+    s = _numero_digitado(valor)
+    if s is None:
         return None
-    if "," in s:                      # vírgula manda: ponto vira milhar
-        s = s.replace(".", "").replace(",", ".")
-    elif s.count(".") > 1:            # 1.234.567 — todos milhar
-        s = s.replace(".", "")
-    else:
-        inteira, _, dec = s.partition(".")
-        if dec and len(dec) == 3 and inteira.lstrip("-").isdigit():
-            s = inteira + dec         # 1.234 é milhar, não 1,234
     try:
         return round(float(s), 2)
     except ValueError:
         raise DadoInvalido(f"{rotulo[0].upper()}{rotulo[1:]} não é um valor "
                            f"válido. Use 1.234,56.") from None
+
+
+def _numero_digitado(valor) -> str | None:
+    """A regra de leitura de número digitado (a do `numBR()`), num lugar só.
+
+    Vírgula manda: ponto vira milhar. Sem vírgula, mais de um ponto é milhar
+    (1.234.567), e um ponto seguido de EXATAMENTE três dígitos também é
+    (1.234 é mil duzentos e trinta e quatro, não 1,234).
+    """
+    s = str(valor).strip().replace("R$", "").replace(" ", "")
+    if not s:
+        return None
+    if "," in s:
+        return s.replace(".", "").replace(",", ".")
+    if s.count(".") > 1:
+        return s.replace(".", "")
+    inteira, _, dec = s.partition(".")
+    if dec and len(dec) == 3 and inteira.lstrip("-").isdigit():
+        return inteira + dec
+    return s
+
+
+def quantidade_br(valor, rotulo: str, *, casas: int = 3):
+    """Quantidade digitada por gente: a MESMA regra do `valor_br`, com três
+    casas e em `Decimal` (quantidade de estoque somada em float erra na
+    terceira casa, e o kardex soma milhares delas). Vazio devolve None — "não
+    informado" —, nunca zero: zero conferido é uma afirmação."""
+    if valor is None or valor == "":
+        return None
+    if isinstance(valor, bool):
+        raise DadoInvalido(f"{rotulo[0].upper()}{rotulo[1:]} não é uma quantidade.")
+    if isinstance(valor, (int, float, Decimal)):
+        s = str(valor)
+    else:
+        s = _numero_digitado(valor)
+        if s is None:
+            return None
+    try:
+        d = Decimal(s)
+    except InvalidOperation:
+        raise DadoInvalido(f"{rotulo[0].upper()}{rotulo[1:]} não é uma quantidade "
+                           f"válida. Use 1.234,5.") from None
+    if not d.is_finite():
+        raise DadoInvalido(f"{rotulo[0].upper()}{rotulo[1:]} não é uma quantidade válida.")
+    return d.quantize(Decimal(1).scaleb(-casas), rounding=ROUND_HALF_UP)
 
 
 def iso(linha: dict, *campos: str) -> dict:

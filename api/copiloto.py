@@ -142,6 +142,7 @@ _FONTES_ROTULO = {
     "projecao_caixa": "Fluxo Consolidado — projeção de caixa de 12 meses",
     "plano_de_caixa": "Fluxo Consolidado — quanto antecipar, e o que a antecipação não resolve",
     "radar_mercado": "Radar do Transporte — diesel, Brent, dólar, ANTT, rodovias e notícias",
+    "wms_armazem": "WMS — ocupação, doca, recebimento, separação, expedição e inventário",
 }
 
 
@@ -1087,6 +1088,11 @@ def _fontes_do_snapshot() -> dict:
         # acabou de abrir o CORTEX.
         "radar_mercado": lambda: __import__(
             "api.radar.painel", fromlist=["resumo_copiloto"]).resumo_copiloto(),
+        # O ARMAZÉM (12/09/2026). So contagens e percentuais: nome de
+        # depositante, CNPJ, codigo de produto e placa ficam na tela, atras do
+        # RBAC. Le o banco local, nunca o ERP.
+        "wms_armazem": lambda: __import__(
+            "api.wms.painel", fromlist=["resumo_copiloto"]).resumo_copiloto(),
     }
 
 
