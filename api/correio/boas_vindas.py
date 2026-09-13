@@ -136,8 +136,11 @@ def montar(nome: str, email: str, senha: str, url: str,
     texto = chr(10).join(linhas)
 
     # ── HTML, todo em blocos do layout compartilhado ────────────────────────
-    blocos = [p.cabecalho(f"Bem-vindo, {primeiro}.",
-                          "Seu acesso ao painel de gestão da Sulista")]
+    # O CABEÇALHO É O DO ENVELOPE (`documento`, com título e subtítulo): um
+    # `p.cabecalho` aqui dentro era uma SEGUNDA faixa da marca, empilhada sobre
+    # a primeira — visto ao pôr a logo da Sulista em todos os modelos
+    # (12/09/2026), quando ela teria saído duas vezes.
+    blocos = []
     if teste:
         blocos.append(p.paragrafo(
             "Este é um e-mail de teste. A senha abaixo é um exemplo e não dá "
@@ -176,9 +179,9 @@ def montar(nome: str, email: str, senha: str, url: str,
     blocos.append(p.paragrafo(
         "Se não foi você quem pediu este acesso, avise a área de TI e não use "
         "a senha deste e-mail."))
-    html = p.documento(assunto, blocos, origem="cadastro de usuário",
-                       # disparado pelo cadastro, nao por agendamento
-                       )
+    html = p.documento(f"Bem-vindo, {primeiro}.", blocos,
+                       subtitulo="Seu acesso ao painel de gestão da Sulista",
+                       origem="cadastro de usuário")
     return assunto, texto, html
 
 

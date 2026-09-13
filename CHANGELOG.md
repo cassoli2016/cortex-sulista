@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.61.0] — 13/09/2026  ·  CX-13/09/2026-v1.61.0
+
+### Adicionado
+- Todos os e-mails do CÓRTEX passam a trazer a logo da Sulista, à direita da faixa vermelha do cabeçalho, ao lado da logo do CÓRTEX: relatórios agendados, boas-vindas, redefinição de senha, avisos de chamado do Suporte e as mensagens do CRM. A logo vai dentro da própria mensagem (não é buscada na internet), e quem bloqueia imagens continua lendo "Sulista" em texto no lugar dela.
+
+### Corrigido
+- O envio de e-mail para contato de cliente pelo CRM voltou a funcionar: desde 11/09 ele falhava antes de sair. E os e-mails de boas-vindas e de aviso de chamado do Suporte deixam de sair com duas faixas de cabeçalho empilhadas.
+
 ## [1.60.0] — 12/09/2026  ·  CX-12/09/2026-v1.60.0
 
 ### Adicionado

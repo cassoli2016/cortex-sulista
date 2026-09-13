@@ -80,10 +80,14 @@ LARANJA = "#E85D10"
 # Como ÁREA os dois continuam proibidos: uma faixa cheia é o bloco escuro que a
 # regra da casa veta, e o teste de luminância a barraria.
 #
-# Não há LOGO, e não é por esquecimento: o único arquivo é
-# `sulista-logo-branco.svg`, branco puro e invisível aqui; imagem em e-mail vem
-# bloqueada por padrão em boa parte dos clientes; e o Outlook não renderiza
-# SVG. A identidade fica no TIPOGRÁFICO e na COR, que chegam em 100% dos casos.
+# A LOGO DA SULISTA (12/09/2026, pedido de quem opera: "todos os modelos de
+# e-mail precisam da logo da Sulista, hoje só temos a do CÓRTEX"). Ela não
+# existia por dois motivos que caíram: o único arquivo é BRANCO e o e-mail era
+# todo branco — desde 03/09 o cabeçalho é a FAIXA tijolo, onde ela aparece; e o
+# Outlook não desenha SVG — então ela vai como PNG gerado do SVG oficial por
+# `scripts/gerar_logo_sulista_email.py`, embutido como o selo do CÓRTEX. Imagem
+# embutida continua podendo vir bloqueada: por isso o nome segue em TEXTO na
+# faixa, e o `alt` sai em branco sobre o tijolo.
 MARCA = "#942821"                # vermelho do símbolo — filete, olho, accent
 MARCA_INK = "#1E172F"            # o segundo tom do símbolo — tinta de título
 NAVY = "#17344F"                 # navy-700: tinta de título, nunca fundo
@@ -114,6 +118,13 @@ BRANCO = "#FFFFFF"
 LOGO_CID = "cortex-selo"
 LOGO_ARQUIVO = Path(__file__).resolve().parent.parent / "static" / "cortex-selo.png"
 
+# A logo da Sulista: o PNG tem 3x o tamanho de exibição (327x72 para 109x24),
+# gerado do SVG oficial — ver `scripts/gerar_logo_sulista_email.py`.
+SULISTA_CID = "sulista-logo"
+SULISTA_ARQUIVO = Path(__file__).resolve().parent.parent / "static" / "sulista-logo-email.png"
+SULISTA_ALTURA = 24
+SULISTA_LARGURA = 109
+
 
 def logo_bytes() -> bytes:
     """O PNG do selo. Devolve vazio se o arquivo sumir — e-mail sem logo é uma
@@ -124,11 +135,23 @@ def logo_bytes() -> bytes:
         return b""
 
 
+def logo_sulista_bytes() -> bytes:
+    """O PNG da Sulista, ou vazio se o arquivo sumir — e aí o cabeçalho sai sem
+    a imagem, em vez de com um quadrado quebrado."""
+    try:
+        return SULISTA_ARQUIVO.read_bytes()
+    except OSError:
+        return b""
+
+
 # Imagens que o layout pode referenciar por `cid:`. `api/correio/envio.py` lê
 # este mapa e embute só as que o HTML realmente usa.
 def imagens_embutidas() -> dict:
-    dados = logo_bytes()
-    return {LOGO_CID: dados} if dados else {}
+    out = {}
+    for cid, dados in ((LOGO_CID, logo_bytes()), (SULISTA_CID, logo_sulista_bytes())):
+        if dados:
+            out[cid] = dados
+    return out
 
 # Pilha com fallback: nenhum cliente de e-mail baixa fonte da web, então a
 # Saira do painel não chega aqui. O que se pode garantir é a família.
@@ -178,7 +201,12 @@ FAIXA_SUB = "#EFD3CF"
 
 
 def cabecalho(titulo: str, subtitulo: str = "") -> str:
-    """Cabeçalho com a FAIXA da marca, a logo do CÓRTEX e o título.
+    """Cabeçalho com a FAIXA da marca, a logo do CÓRTEX, o título e a logo da
+    Sulista à direita.
+
+    É O ÚNICO CABEÇALHO DE CADA MENSAGEM, e quem o monta é `documento()`.
+    Modelo que o põe também nos blocos sai com DUAS faixas — foi o que o
+    boas-vindas, o aviso do Suporte e o e-mail do CRM faziam até 12/09/2026.
 
     MUDOU EM 03/09/2026, a pedido de quem é dono da marca: "as cores parecem
     muito apagadas". A versão anterior punha a identidade só num filete de 4 px
@@ -200,6 +228,16 @@ def cabecalho(titulo: str, subtitulo: str = "") -> str:
     """
     sub = (f'<div style="font:400 12.5px/1.4 {FONTE};color:{FAIXA_SUB};'
            f'margin-top:4px">{_esc(subtitulo)}</div>') if subtitulo else ""
+    # A logo da Sulista fecha a faixa pela direita. `align` no <td> e não
+    # `margin:auto` na imagem: o Outlook (motor do Word) ignora margem
+    # automática. O `color` e o `font` da <img> são para o `alt` — com a
+    # imagem bloqueada, o nome sai em branco sobre o tijolo, e não em preto.
+    sul = (f'<td width="{SULISTA_LARGURA + 22}" align="right" '
+           f'style="padding:18px 22px 18px 0;vertical-align:middle">'
+           f'<img src="cid:{SULISTA_CID}" width="{SULISTA_LARGURA}" '
+           f'height="{SULISTA_ALTURA}" alt="Sulista" style="border:0;'
+           f'display:inline-block;color:{BRANCO};font:700 14px/1 {FONTE}"></td>'
+           if logo_sulista_bytes() else "")
     return f"""
 <tr><td class="faixa" style="background:{MARCA};padding:0">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
@@ -212,6 +250,7 @@ def cabecalho(titulo: str, subtitulo: str = "") -> str:
      <div style="font:700 21px/1.25 {FONTE};color:{BRANCO};margin-top:6px">
        {_esc(titulo)}</div>{sub}
    </td>
+   {sul}
   </tr></table>
 </td></tr>
 <tr><td style="border-top:3px solid {MARCA_INK};font-size:0;line-height:0">&nbsp;</td></tr>"""

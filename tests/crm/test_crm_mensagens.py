@@ -156,6 +156,10 @@ def test_email_passa_pelo_envelope_do_layout_da_casa(esq, monkeypatch):
     assert html.startswith("<!DOCTYPE html>")
     assert "</html>" in html
     assert html.count("<table") >= 1
+    # UMA faixa, com as duas logos: este envio passava o cabeçalho também nos
+    # blocos (duas faixas) e levantava TypeError antes de sair (12/09/2026)
+    assert html.count('class="faixa"') == 1
+    assert "cid:cortex-selo" in html and "cid:sulista-logo" in html
     # e as regras de e-mail da casa continuam valendo neste corpo
     assert "display:flex" not in html and "display:grid" not in html
     # o corpo em TEXTO PURO é o que garante ler a mensagem quando o HTML não

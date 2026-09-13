@@ -140,17 +140,15 @@ def _corpo_email(ch: dict, evento: str, texto: str) -> tuple[str, str, str]:
     linhas += [f"Veja e responda pelo painel: {link}", "",
                "Este e-mail não recebe resposta — responda pelo painel.", "", "— CÓRTEX · Sulista"]
     corpo = "\n".join(linhas)
-    blocos = [p.cabecalho(f"Chamado {ch['codigo']}", frase),
-              p.campos([("Assunto", ch["titulo"]), ("Status", comum.ROTULO_STATUS.get(ch["status"], ch["status"]))])]
+    # A faixa é a do ENVELOPE (`documento` com `subtitulo`): um `p.cabecalho`
+    # também aqui dava DUAS faixas da marca na mesma mensagem (12/09/2026).
+    blocos = [p.campos([("Assunto", ch["titulo"]), ("Status", comum.ROTULO_STATUS.get(ch["status"], ch["status"]))])]
     if texto:
         blocos.append(p.secao("Mensagem do suporte"))
         blocos.append(p.paragrafo(texto))
     blocos.append(p.botao("Abrir o chamado", link))
     blocos.append(p.paragrafo("Este e-mail não recebe resposta — responda pelo painel."))
-    try:
-        html = p.documento(f"Chamado {ch['codigo']}", blocos, subtitulo=frase)
-    except TypeError:
-        html = p.documento(f"Chamado {ch['codigo']}", blocos)
+    html = p.documento(f"Chamado {ch['codigo']}", blocos, subtitulo=frase)
     return assunto, corpo, html
 
 

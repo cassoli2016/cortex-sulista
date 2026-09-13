@@ -181,11 +181,15 @@ def email(contato_id: int, *, assunto: str, corpo: str,
     # existe dentro do envelope. Concatená-los direto produz `<tr>` órfão, que
     # o Outlook (motor do Word) descarta ou renderiza fora de ordem, e a
     # mensagem chega desmontada sem ninguém ficar sabendo.
+    #
+    # O CABEÇALHO É O DO ENVELOPE: `documento` já monta a faixa, com o assunto
+    # como título e a conta como subtítulo. Até 12/09/2026 este envio passava
+    # `cabecalho` também nos blocos (DUAS faixas) e `agendado=False`, parâmetro
+    # que saiu do layout em 11/09/2026 — o envio levantava `TypeError` antes de
+    # sair, e o teste deste arquivo estava vermelho no origin.
     html = layout.documento(
-        ass, [layout.cabecalho(ass, ct["conta_nome"])]
-        + [layout.paragrafo(p) for p in txt.split("\n") if p.strip()],
-        # Vai para CONTATO DE CLIENTE, que nao tem painel para entrar.
-        origem="CRM", agendado=False)
+        ass, [layout.paragrafo(p) for p in txt.split("\n") if p.strip()],
+        subtitulo=ct["conta_nome"], origem="CRM")
     r = ce.enviar([ct["email"]], ass, txt, corpo_html=html, usuario=usuario,
                   origem=ORIGEM)
 

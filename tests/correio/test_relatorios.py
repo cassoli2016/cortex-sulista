@@ -113,7 +113,7 @@ def test_e_mail_sem_a_logo_no_disco_continua_saindo():
     try:
         painel.LOGO_ARQUIVO = original.parent / "nao-existe-xyz.png"
         assert painel.logo_bytes() == b""
-        assert painel.imagens_embutidas() == {}
+        assert painel.LOGO_CID not in painel.imagens_embutidas()
         assert "CÓRTEX · SULISTA" in painel.documento("t", [])
     finally:
         painel.LOGO_ARQUIVO = original

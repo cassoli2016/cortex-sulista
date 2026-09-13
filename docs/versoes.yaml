@@ -1,3 +1,20 @@
+- versao: "1.61.0"
+  data: "2026-09-13"
+  adicionado:
+    - >-
+      Todos os e-mails do CÓRTEX passam a trazer a logo da Sulista, à direita
+      da faixa vermelha do cabeçalho, ao lado da logo do CÓRTEX: relatórios
+      agendados, boas-vindas, redefinição de senha, avisos de chamado do
+      Suporte e as mensagens do CRM. A logo vai dentro da própria mensagem (não
+      é buscada na internet), e quem bloqueia imagens continua lendo "Sulista"
+      em texto no lugar dela.
+  corrigido:
+    - >-
+      O envio de e-mail para contato de cliente pelo CRM voltou a funcionar:
+      desde 11/09 ele falhava antes de sair. E os e-mails de boas-vindas e de
+      aviso de chamado do Suporte deixam de sair com duas faixas de cabeçalho
+      empilhadas.
+
 - versao: "1.60.0"
   data: "2026-09-12"
   adicionado:
