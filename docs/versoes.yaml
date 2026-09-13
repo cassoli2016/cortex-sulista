@@ -1,3 +1,28 @@
+- versao: "1.67.0"
+  data: "2026-09-13"
+  adicionado:
+    - >-
+      Horas Paradas: o botão "Enviar por e-mail" monta o e-mail ao cliente com
+      o resumo do período — total a cobrar, cargas, tempo excedido e a tabela
+      das cargas que passaram do tempo — e a planilha anexada, a mesma do
+      botão "Baixar planilha". Quem envia escolhe os destinatários e o
+      "Responder para", que é para onde vão as dúvidas do cliente, já que o
+      e-mail sai do endereço do sistema. Dá para ver o e-mail antes de mandar,
+      escrever uma mensagem no começo e guardar os destinatários para as
+      próximas vezes. Os últimos envios de cada cliente aparecem no próprio
+      botão.
+    - >-
+      A aba Regras do cliente ganhou o cartão "E-mail ao cliente", com os
+      destinatários, o endereço de resposta e o modelo do assunto. A Saúde do
+      Servidor avisa quando o último e-mail de horas paradas não saiu.
+  alterado:
+    - >-
+      SAC / Freetime, Minha Operação e o e-mail de monitoramento de cargas: a
+      equivalência de mercadorias declarada em 11/09 foi desfeita, e a
+      mercadoria volta a usar a cláusula genérica do contrato — como faz o
+      relatório Monitoramento SAC do ERP e a planilha de horas paradas cobrada
+      do cliente. A estimativa de estadia do SAC em 60 dias sobe cerca de 0,8%.
+
 - versao: "1.66.0"
   data: "2026-09-13"
   adicionado:
