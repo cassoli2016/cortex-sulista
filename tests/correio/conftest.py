@@ -32,7 +32,8 @@ def _isola_correio(request, monkeypatch):
     if not ok:
         return None
     esquema = request.getfixturevalue("esquema_pg")
-    from api.correio import agenda, registro
+    from api.correio import agenda, monitoramento, registro
     monkeypatch.setattr(agenda, "ESQUEMA", esquema)
     monkeypatch.setattr(registro, "ESQUEMA", esquema)
+    monkeypatch.setattr(monitoramento, "ESQUEMA", esquema)
     return esquema

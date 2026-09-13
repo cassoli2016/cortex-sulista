@@ -478,6 +478,18 @@ SELECT c.numero AS coleta,
        upper(trim(coalesce(c.destino,''))) AS destino,
        coalesce(c.ufdestino,'')                  AS uf_destino,
        trim(coalesce(c.veiculo,''))              AS placa,
+       -- QUATRO CAMPOS QUE A TELA NÃO MOSTRA e o monitoramento por e-mail
+       -- (`api/correio/monitoramento`) precisa: são as colunas da planilha que
+       -- a torre manda ao cliente. Ficam AQUI, e não numa segunda consulta,
+       -- porque uma segunda grafia desta consulta é uma segunda regra de "em
+       -- curso" — e duas saídas que leem a mesma operação discordariam por
+       -- construção. O payload do portal é uma lista EXPLÍCITA e não os leva.
+       trim(coalesce(c.carreta1,''))             AS carreta,
+       btrim(coalesce(c.mercadorias,''))         AS mercadoria,
+       trim(coalesce(c.numerofatura,''))         AS ref_cliente,
+       -- O NOME do motorista, e nunca o código: `coleta.motorista` É o CPF.
+       coalesce(nullif(trim(mt.nomefantasia),''),
+                nullif(trim(mt.razaosocial),''), '') AS motorista_nome,
        -- ONDE A CARGA SAI E ONDE ELA VAI, em coordenada. (A cobertura medida
        -- está no comentário de `_ponto`, em Python: sinal de porcentagem
        -- dentro de constante SQL vira placeholder do psycopg e derruba a
@@ -535,6 +547,10 @@ LEFT JOIN mdf ON mdf.grupo=c.grupo AND mdf.empresa=c.empresa
 -- cadastro (ou em branco) não pode fazer a carga sumir da operação — ela
 -- aparece com o rótulo vazio, que a tela mostra como travessão.
 LEFT JOIN cadastro cdd ON cdd.codigo = c.destinatario
+-- O motorista, só para o monitoramento por e-mail (a tela não o mostra).
+-- `cadastro.codigo` é único (8.343 para 8.343, conferido em
+-- `api/rastreio/detalhe.py`): este join não multiplica a coleta.
+LEFT JOIN cadastro mt ON mt.codigo = c.motorista
 WHERE c.dtcancelamento IS NULL
   AND c.dtemissao >= current_date - %(dias)s
   AND """ + FILTRO_CLIENTE + """

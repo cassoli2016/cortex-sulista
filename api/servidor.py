@@ -803,6 +803,76 @@ def _relatorios_email(agora=None, itens=None) -> dict:
     return {"nome": nome, "status": "ok", "detalhe": base}
 
 
+def _monitoramento_email(agora=None, itens=None) -> dict:
+    """O monitoramento de cliente está SAINDO a cada rodada? A prova é a
+    PASSAGEM gravada (`correio_monitoramento.ultima_execucao`).
+
+    É o cartão irmão do de cima, com uma diferença que justifica cartão
+    próprio: este e-mail vai para o CLIENTE, de hora em hora. Um relatório
+    interno que não saiu custa uma pergunta de alguém da casa; este custa o
+    cliente ligando para a torre para saber onde está a carga — que é o
+    telefonema que a automação existe para tirar.
+
+    ERRO quando uma rodada devida passou há mais de 45 min (três disparos da
+    tarefa) sem passagem: é a tarefa parada. ALERTA quando a última passagem
+    falhou — inclusive quando falhou por não conseguir LER a operação, porque
+    aí nada foi ao cliente, de propósito, e alguém precisa saber. "Sem carga
+    no dia" não é falha: é a rotina calando porque não havia o que dizer.
+    """
+    import re as _re
+    from datetime import datetime as _dt, timedelta as _td
+
+    from .agendamento import rodada
+    nome = "Monitoramento de cliente por e-mail"
+    try:
+        if itens is None:
+            from .correio import monitoramento as _mo
+            itens = _mo.listar()
+    except Exception as exc:  # noqa: BLE001
+        if pglocal.sem_tabela(exc):
+            return {"nome": nome, "status": "info",
+                    "detalhe": "tabela ainda não criada neste banco"}
+        log.warning("saude: monitoramento de cliente: %s", type(exc).__name__)
+        return {"nome": nome, "status": "info", "detalhe": "conferência indisponível"}
+    ligados = [m for m in itens if m.get("ativo")]
+    if not ligados:
+        return {"nome": nome, "status": "info",
+                "detalhe": "nenhum monitoramento de cliente ligado"}
+    agora = agora or _dt.now()
+    folga = _td(minutes=45)
+
+    def _q(v):
+        try:
+            return _dt.fromisoformat(str(v).replace(" ", "T")) if v else None
+        except ValueError:
+            return None
+
+    parados, falhos, passagens = [], [], []
+    for m in ligados:
+        rot = m.get("cliente_nome") or m.get("cliente_raiz")
+        devida = rodada(m, agora - folga)
+        ult = _q(m.get("ultima_execucao"))
+        mudou = max((x for x in (_q(m.get("criado_em")), _q(m.get("alterado_em"))) if x),
+                    default=None)
+        if ult:
+            passagens.append(ult)
+        if devida and (mudou is None or mudou < devida) and (ult is None or ult < devida):
+            parados.append("%s (rodada das %s)" % (rot, devida.strftime("%d/%m %H:%M")))
+        elif _re.search(r"falh|erro", str(m.get("ultimo_resultado") or ""), _re.I):
+            falhos.append("%s: %s" % (rot, str(m.get("ultimo_resultado"))[:90]))
+    base = "%d ligado(s)" % len(ligados)
+    if passagens:
+        base += " · última passagem %s" % max(passagens).strftime("%d/%m %H:%M")
+    if parados:
+        return {"nome": nome, "status": "erro",
+                "detalhe": base + " · ⚠ rodada sem passagem: " + "; ".join(parados)
+                + " — a tarefa 'Relatorios por e-mail' pode ter parado"}
+    if falhos:
+        return {"nome": nome, "status": "alerta",
+                "detalhe": base + " · última rodada falhou: " + "; ".join(falhos)}
+    return {"nome": nome, "status": "ok", "detalhe": base}
+
+
 def _app_motorista() -> dict:
     """O app do motorista existe do lado de FORA, e por isso ele precisa disto.
 
@@ -2364,6 +2434,12 @@ def _servicos() -> list[dict]:
         servicos.append({"nome": "Calendário de feriados (BrasilAPI)", "status": "info",
                          "detalhe": "conferência indisponível"})
         log.warning("saude: calendario: %s", exc)
+    try:
+        servicos.append(_monitoramento_email())
+    except Exception as exc:  # noqa: BLE001
+        servicos.append({"nome": "Monitoramento de cliente por e-mail",
+                         "status": "info", "detalhe": "conferência indisponível"})
+        log.warning("saude: monitoramento de cliente: %s", type(exc).__name__)
 
     # MAPA CONTÁBIL do ERP. Vem logo depois dos bancos porque é a mesma
     # pergunta um nível acima: o banco responde, mas o que ele responde ainda

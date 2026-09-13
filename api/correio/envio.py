@@ -42,7 +42,12 @@ MAX_ANEXOS_BYTES = 15 * 1024 * 1024
 # renderizado no corpo em alguns clientes, e o importador não acha o arquivo.
 TIPOS = {".xml": ("application", "xml"), ".pdf": ("application", "pdf"),
          ".zip": ("application", "zip"), ".csv": ("text", "csv"),
-         ".txt": ("text", "plain")}
+         ".txt": ("text", "plain"),
+         # A planilha do monitoramento de cliente. Como octet-stream ela
+         # também chegaria, mas o Outlook deixa de oferecer "abrir no Excel"
+         # e o celular pergunta com que aplicativo abrir um arquivo "binário".
+         ".xlsx": ("application",
+                   "vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
 
 
 def _tipo_de(nome: str) -> tuple[str, str]:
@@ -84,12 +89,18 @@ def problema_de_anexo(anexos) -> str:
 
 def _mensagem(destinatarios: list[str], assunto: str, corpo: str,
               corpo_html: str | None, c: dict,
-              anexos: list[dict] | None = None) -> EmailMessage:
+              anexos: list[dict] | None = None,
+              responder_para: list[str] | None = None) -> EmailMessage:
     msg = EmailMessage()
     nome = (c.get("remetente_nome") or "").strip()
     msg["From"] = f"{nome} <{c['remetente']}>" if nome else c["remetente"]
     msg["To"] = ", ".join(destinatarios)
     msg["Subject"] = assunto
+    # REPLY-TO: e-mail que vai para FORA da casa é respondido. Sem ele a
+    # resposta do cliente volta para o remetente do CÓRTEX, que não é caixa de
+    # ninguém, e a pergunta dele se perde sem erro nenhum.
+    if responder_para:
+        msg["Reply-To"] = ", ".join(responder_para)
     # set_content antes de add_alternative: o texto puro é o fallback de quem
     # lê sem HTML, e a ordem define qual o cliente de e-mail prefere.
     msg.set_content(corpo or "")
@@ -171,14 +182,18 @@ def _erro_legivel(exc: Exception, c: dict | None = None) -> str:
 def enviar(destinatarios, assunto: str, corpo: str, *,
            corpo_html: str | None = None, usuario: str = "",
            origem: str = "", registrar: bool = True,
-           anexos: list[dict] | None = None) -> dict:
+           anexos: list[dict] | None = None,
+           responder_para=None) -> dict:
     """Envia e devolve {'ok', 'erro', 'destinatarios'}. Nunca levanta.
 
     `anexos` é uma lista de `{"nome": "arquivo.xml", "conteudo": str | bytes}`.
     O tipo MIME sai da extensão (`TIPOS`) — quem chama não precisa acertá-lo, e
     não pode errá-lo.
+
+    `responder_para` vira o `Reply-To` (mesmo formato dos destinatários).
     """
     dests = cfg.separar_destinatarios(destinatarios)
+    resp = cfg.separar_destinatarios(responder_para or "")
     resultado = {"ok": False, "erro": "", "destinatarios": dests}
 
     if not dests:
@@ -186,6 +201,9 @@ def enviar(destinatarios, assunto: str, corpo: str, *,
     elif [e for e in dests if not cfg.email_valido(e)]:
         invalidos = ", ".join(e for e in dests if not cfg.email_valido(e))
         resultado["erro"] = f"Destinatário inválido: {invalidos}"
+    elif [e for e in resp if not cfg.email_valido(e)]:
+        resultado["erro"] = ("Endereço de resposta inválido: "
+                             + ", ".join(e for e in resp if not cfg.email_valido(e)))
     elif not (assunto or "").strip():
         resultado["erro"] = "Informe o assunto."
     elif problema_de_anexo(anexos):
@@ -210,7 +228,7 @@ def enviar(destinatarios, assunto: str, corpo: str, *,
 
     c = cfg.ler()
     senha = cfg.senha()
-    msg = _mensagem(dests, assunto, corpo, corpo_html, c, anexos)
+    msg = _mensagem(dests, assunto, corpo, corpo_html, c, anexos, resp)
 
     try:
         if c["seguranca"] == "ssl":

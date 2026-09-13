@@ -1,3 +1,35 @@
+- versao: "1.64.0"
+  data: "2026-09-12"
+  adicionado:
+    - >-
+      Monitoramento de cliente por e-mail, automático. A planilha que a torre
+      manda ao cliente de duas em duas horas agora pode sair sozinha: em
+      Gestão › E-mail, no cartão "Monitoramento de cliente", escolhe-se o
+      cliente, as mercadorias (nenhuma marcada = todas), os destinatários,
+      para onde vão as respostas, a frequência (de 1 a 6 horas), a faixa do
+      dia e os dias da semana. Cada envio traz as cargas do dia agrupadas por
+      mercadoria e destino — no cliente, em viagem, carregando, programadas
+      para as próximas 24 horas e descarregadas hoje —, com frota, placas,
+      janelas de carregamento e de entrega, chegada e saída no cliente,
+      carência do contrato, horas paradas, número do pedido e CVA, e a
+      planilha anexa no formato de sempre. "Ver o e-mail", "Baixar a
+      planilha" e "Enviar teste para mim" mostram exatamente o que sairia,
+      antes de ligar. Nasce desligado.
+    - >-
+      Horas paradas só são contadas quando a chegada e o fim da descarga
+      estão registrados. O fim da descarga costuma ser registrado horas
+      depois, e contar o relógio antes disso diria ao cliente que um caminhão
+      que já saiu continua parado. O veículo que está no cliente aparece com a
+      hora da chegada e a indicação "fim da descarga não registrado". O
+      motorista aparece pelo primeiro nome, como na planilha da torre — sem
+      sobrenome e sem documento.
+    - >-
+      Se o sistema de gestão não responder na hora do envio, nada vai ao
+      cliente: a rodada fica registrada como falha e a seguinte tenta de novo.
+      A Saúde do Servidor ganhou o cartão "Monitoramento de cliente por
+      e-mail", que acende quando uma rodada passa sem sair ou quando a última
+      falhou.
+
 - versao: "1.63.0"
   data: "2026-09-13"
   adicionado:

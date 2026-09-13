@@ -3665,6 +3665,199 @@ async def gestao_agenda_testar(req: Request) -> JSONResponse:
     return JSONResponse({"ok": True, "destinatario": autor})
 
 
+# ── MONITORAMENTO DE CLIENTE POR E-MAIL ────────────────────────────────────
+# Sob /api/gestao DE PROPÓSITO: o prefixo é checado como ADMIN no middleware,
+# e é certo que seja — estas rotas configuram e-mail que sai para FORA da
+# empresa, para o cliente, de hora em hora.
+
+def _mon_mercs(req: Request) -> tuple:
+    from api import freetime as _ft
+    return _ft.canonizar(req.query_params.getlist("merc"))
+
+
+@app.get("/api/gestao/correio/monitoramento")
+def gestao_monitoramento() -> JSONResponse:
+    from api.correio import monitoramento as mo
+    try:
+        return JSONResponse(mo.estado())
+    except Exception as exc:  # noqa: BLE001
+        log.warning("gestao_monitoramento falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao ler os monitoramentos de cliente."})
+
+
+@app.get("/api/gestao/correio/monitoramento/clientes")
+def gestao_monitoramento_clientes() -> JSONResponse:
+    """A lista de clientes para escolher — a MESMA do portal (quem a operação
+    moveu em 12 meses, por raiz de CNPJ)."""
+    from api import portal_cliente as pc
+    try:
+        return JSONResponse(pc.get_clientes())
+    except Exception as exc:  # noqa: BLE001
+        log.warning("monitoramento: clientes falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "erp_indisponivel",
+            "mensagem": "O sistema de gestão não respondeu a lista de clientes."})
+
+
+@app.get("/api/gestao/correio/monitoramento/mercadorias")
+def gestao_monitoramento_mercadorias(raiz: str = "") -> JSONResponse:
+    from api import portal_cliente as pc
+    if not pc.RE_RAIZ.match(raiz or ""):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Escolha o cliente."})
+    try:
+        return JSONResponse(pc.get_mercadorias(raiz))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("monitoramento: mercadorias falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "erp_indisponivel",
+            "mensagem": "O sistema de gestão não respondeu as mercadorias."})
+
+
+@app.post("/api/gestao/correio/monitoramento")
+async def gestao_monitoramento_gravar(req: Request) -> JSONResponse:
+    """Cria ou altera. O autor sai da SESSÃO, nunca do corpo."""
+    from api.correio import monitoramento as mo
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = {}
+    body = body if isinstance(body, dict) else {}
+    sess = getattr(req.state, "sessao", None) or {}
+    autor = sess.get("email") or sess.get("nome") or ""
+    try:
+        r = await sem_travar(mo.gravar, body, autor)
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("gestao_monitoramento_gravar falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao", "mensagem": "Erro ao gravar o monitoramento."})
+    auth.audit(autor or "?", "correio_monitoramento",
+               alvo=f"{r['cliente_raiz']} -> {r['destinatarios']}"[:200],
+               detalhe=("ativo" if r["ativo"] else "desligado")
+               + f" · {r['intervalo_min']} min {r['hora_inicio']}-{r['hora_fim']}"
+               + f" · dias {r['dias_semana']}")
+    return JSONResponse(r)
+
+
+@app.delete("/api/gestao/correio/monitoramento/{ident}")
+def gestao_monitoramento_remover(ident: int, req: Request) -> JSONResponse:
+    from api.correio import monitoramento as mo
+    sess = getattr(req.state, "sessao", None) or {}
+    autor = sess.get("email") or sess.get("nome") or "?"
+    try:
+        mo.remover(ident)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("gestao_monitoramento_remover falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao", "mensagem": "Erro ao remover."})
+    auth.audit(autor, "correio_monitoramento_remover", alvo=str(ident))
+    return JSONResponse({"ok": True})
+
+
+def _mon_montar(req: Request, raiz: str):
+    """Monta a rodada pedida pela tela, ou devolve a resposta de recusa."""
+    from api import portal_cliente as pc
+    from api.correio import monitoramento as mo
+    if not pc.RE_RAIZ.match(raiz or ""):
+        return None, JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Escolha o cliente."})
+    try:
+        return mo.montar(raiz, _mon_mercs(req)), None
+    except Exception as exc:  # noqa: BLE001
+        log.warning("monitoramento: montar falhou: %s", type(exc).__name__)
+        # 4xx e não 5xx: é o ERP de terceiro que não respondeu, e o corpo
+        # precisa chegar à tela (o Cloudflare troca o corpo de 5xx).
+        return None, JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "erp_indisponivel",
+            "mensagem": "Não foi possível ler a operação agora. É exatamente o "
+                        "caso em que a rotina NÃO manda nada ao cliente."})
+
+
+@app.get("/api/gestao/correio/monitoramento/previa")
+def gestao_monitoramento_previa(req: Request, raiz: str = "") -> Response:
+    """O e-mail exatamente como sairia agora — antes de ligar."""
+    r, erro = _mon_montar(req, raiz)
+    if erro:
+        return erro
+    return Response(content=r["html"], media_type="text/html; charset=utf-8",
+                    headers={"Content-Security-Policy":
+                             "default-src 'none'; style-src 'unsafe-inline'",
+                             "X-Frame-Options": "SAMEORIGIN"})
+
+
+@app.get("/api/gestao/correio/monitoramento/planilha")
+def gestao_monitoramento_planilha(req: Request, raiz: str = "") -> Response:
+    """A planilha que iria anexada — para conferir contra a da torre."""
+    from api.correio import monitoramento as mo
+    from api.correio import planilha_monitoramento as pm
+    from api import portal_cliente as pc
+    if not pc.RE_RAIZ.match(raiz or ""):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Escolha o cliente."})
+    try:
+        d = mo.dados(raiz, _mon_mercs(req))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("monitoramento: planilha falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "erp_indisponivel",
+            "mensagem": "Não foi possível ler a operação agora."})
+    nome = mo.nome_arquivo(d)
+    return Response(
+        content=pm.gerar(d),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{nome}"'})
+
+
+@app.post("/api/gestao/correio/monitoramento/testar")
+async def gestao_monitoramento_testar(req: Request) -> JSONResponse:
+    """Manda a rodada de agora para o PRÓPRIO usuário logado, com a planilha.
+
+    Nunca para os destinatários configurados: testar não pode virar atalho
+    para disparar mensagem ao cliente fora da grade.
+    """
+    from api import freetime as _ft
+    from api import portal_cliente as pc
+    from api.correio import monitoramento as mo
+    from api.correio.envio import enviar
+    try:
+        body = await req.json()
+    except Exception:  # noqa: BLE001
+        body = {}
+    body = body if isinstance(body, dict) else {}
+    sess = getattr(req.state, "sessao", None) or {}
+    autor = sess.get("email") or ""
+    if not autor:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido",
+            "mensagem": "Sessão sem e-mail: não há para onde mandar o teste."})
+    raiz = str(body.get("cliente_raiz") or "")
+    if not pc.RE_RAIZ.match(raiz):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Escolha o cliente."})
+    try:
+        r = await sem_travar(mo.montar, raiz, _ft.canonizar(body.get("mercadorias") or []),
+                             anexar=bool(body.get("anexar_planilha", True)))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("monitoramento: teste falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "erp_indisponivel",
+            "mensagem": "Não foi possível ler a operação agora."})
+    res = await sem_travar(enviar, [autor], "[TESTE] " + r["assunto"], r["texto"],
+                           corpo_html=r["html"], usuario=autor,
+                           origem="monitoramento:teste", anexos=r["anexos"])
+    auth.audit(autor, "correio_monitoramento_teste", alvo=raiz,
+               detalhe=("ok" if res["ok"] else f"falha: {res['erro']}")[:200])
+    if not res["ok"]:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "falha_envio", "mensagem": res["erro"]})
+    return JSONResponse({"ok": True, "destinatario": autor, "vazio": r["vazio"]})
+
+
 @app.post("/api/gestao/email/enviar")
 async def gestao_email_enviar(req: Request) -> JSONResponse:
     """Envia um e-mail. `teste=true` manda para o próprio usuário logado.

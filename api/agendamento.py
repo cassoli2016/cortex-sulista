@@ -147,3 +147,129 @@ def descrever(ag: dict) -> str:
     if ag.get("dias_uteis"):
         return f"todo dia útil às {hora}"
     return f"todo dia às {hora}"
+
+
+# ─────────────────────────── A CADA N HORAS, NUMA FAIXA ────────────────────
+#
+# A agenda de relatórios recusou "a cada N horas" de propósito (ver o
+# comentário de `correio_agenda.frequencia`, migration 0009): relatório que
+# chega várias vezes por dia deixa de ser lido. O MONITORAMENTO DE CLIENTE é o
+# caso contrário, e é por isso que ele ganhou esta grade em vez de uma
+# frequência nova na agenda de relatórios: ele não é um resumo, é a posição da
+# operação, e quem o recebe hoje recebe a planilha da torre de duas em duas
+# horas — é o costume que ele substitui, não um que ele inventa.
+#
+# A GRADE É FIXA NO RELÓGIO (06:00, 08:00, 10:00…), não "duas horas depois do
+# último envio". Contada do último envio, uma máquina que acordou às 09:10
+# empurraria todos os envios do dia para 09:10, 11:10… e quem recebe deixaria
+# de saber a que horas procurar a mensagem. Com a grade fixa o atraso de UM
+# envio não contamina os seguintes.
+#
+# E NÃO HÁ JANELA DE ATRASO DE 4 H AQUI: a rodada seguinte já substitui a
+# atrasada. Se a máquina ficou desligada às 08:00 e voltou às 09:30, a rodada
+# das 08:00 ainda sai (a das 10:00 não chegou); se voltou às 10:05, sai só a
+# das 10:00 — duas posições da mesma operação em cinco minutos seria ruído.
+
+#: Os intervalos aceitos, em minutos. Lista curta de propósito: quinze minutos
+#: viraria spam, e oito horas já não é monitoramento.
+INTERVALOS_MIN = (60, 120, 180, 240, 360)
+
+
+def rodada(ag: dict, quando: datetime) -> datetime | None:
+    """A rodada da grade que vale em `quando`, ou None fora do dia/da faixa.
+
+    É o último horário da grade que já chegou — desde que a PRÓXIMA ainda não
+    tenha chegado. Depois do fim da faixa, a última rodada do dia continua
+    valendo por um intervalo inteiro (é a mesma regra do meio do dia), e
+    passado isso não há rodada pendente até o dia seguinte.
+    """
+    try:
+        h0, m0 = hhmm(ag.get("hora_inicio"))
+        h1, m1 = hhmm(ag.get("hora_fim"))
+        passo = int(ag.get("intervalo_min") or 0)
+    except (TypeError, ValueError):
+        log.warning("monitoramento %s com grade ilegivel", ag.get("id"))
+        return None
+    if passo <= 0:
+        return None
+    if str(quando.isoweekday()) not in str(ag.get("dias_semana") or ""):
+        return None
+    ini = quando.replace(hour=h0, minute=m0, second=0, microsecond=0)
+    fim = quando.replace(hour=h1, minute=m1, second=0, microsecond=0)
+    if quando < ini or fim < ini:
+        return None
+    k = int((min(quando, fim) - ini).total_seconds() // (passo * 60))
+    marcada = ini + timedelta(minutes=k * passo)
+    if quando - marcada >= timedelta(minutes=passo):
+        return None                       # passou do fim da faixa
+    return marcada
+
+
+def deve_rodar_intervalo(ag: dict, agora: datetime | None = None) -> tuple[bool, str]:
+    """Está na hora deste monitoramento? Devolve também o PORQUÊ, como
+    `deve_rodar` — é o que a tela e o log da rotina mostram."""
+    agora = agora or datetime.now()
+    if not ag.get("ativo"):
+        return False, "monitoramento desligado"
+    if str(agora.isoweekday()) not in str(ag.get("dias_semana") or ""):
+        return False, f"{DIAS[agora.isoweekday()]} não está entre os dias marcados"
+    marcada = rodada(ag, agora)
+    if marcada is None:
+        return False, (f"fora da faixa ({ag.get('hora_inicio')} às "
+                       f"{ag.get('hora_fim')})")
+    ult = ag.get("ultima_execucao")
+    if ult:
+        try:
+            quando = datetime.fromisoformat(str(ult).replace(" ", "T"))
+        except ValueError:
+            return True, "última execução com data ilegível"
+        if quando >= marcada:
+            return False, f"rodada das {marcada:%H:%M} já passou"
+    atraso = (agora - marcada).total_seconds() / 60
+    return True, f"rodada das {marcada:%H:%M} (atraso de {atraso:.0f} min)"
+
+
+def proxima_intervalo(ag: dict, agora: datetime | None = None) -> str | None:
+    """A próxima rodada da grade depois de `agora` — para a tela dizer."""
+    agora = agora or datetime.now()
+    if not ag.get("ativo"):
+        return None
+    try:
+        h0, m0 = hhmm(ag.get("hora_inicio"))
+        h1, m1 = hhmm(ag.get("hora_fim"))
+        passo = int(ag.get("intervalo_min") or 0)
+    except (TypeError, ValueError):
+        return None
+    if passo <= 0:
+        return None
+    for d in range(0, 8):
+        dia = agora + timedelta(days=d)
+        if str(dia.isoweekday()) not in str(ag.get("dias_semana") or ""):
+            continue
+        t = dia.replace(hour=h0, minute=m0, second=0, microsecond=0)
+        fim = dia.replace(hour=h1, minute=m1, second=0, microsecond=0)
+        while t <= fim:
+            if t > agora:
+                return t.strftime("%Y-%m-%d %H:%M")
+            t += timedelta(minutes=passo)
+    return None
+
+
+def _dias_frase(dias: str) -> str:
+    d = "".join(sorted(set(str(dias or "")) & set("1234567")))
+    if d == "1234567":
+        return "todos os dias"
+    if d == "12345":
+        return "de segunda a sexta"
+    if d == "123456":
+        return "de segunda a sábado"
+    return ", ".join(DIAS[int(c)] for c in d) or "nenhum dia"
+
+
+def descrever_intervalo(ag: dict) -> str:
+    """"a cada 2 h, das 06:00 às 22:00, de segunda a sábado"."""
+    passo = int(ag.get("intervalo_min") or 0)
+    ritmo = (f"a cada {passo // 60} h" if passo and passo % 60 == 0
+             else f"a cada {passo} min")
+    return (f"{ritmo}, das {ag.get('hora_inicio')} às {ag.get('hora_fim')}, "
+            f"{_dias_frase(ag.get('dias_semana'))}")

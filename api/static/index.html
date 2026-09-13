@@ -8866,6 +8866,49 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <button class="btn" id="ag-salvar" onclick="agSalvar()">Adicionar agendamento</button>
             </div>
           </div>
+          <div class="card" id="mon-card">
+            <div class="head"><h2>Monitoramento de cliente <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A planilha que a torre manda ao cliente de duas em duas horas, montada pelo CÓRTEX. Sai do mesmo lugar que a tela Minha Operação: a coleta, os registros da operação, o manifesto eletrônico e o computador de bordo dizem em que pé está cada carga; a carência é a do contrato para a mercadoria; o número do pedido e o CVA vêm do sistema de gestão. Horas paradas só são contadas quando a chegada e o fim da descarga estão registrados — o fim da descarga chega com atraso, e contar o relógio antes disso diria ao cliente que um caminhão que já foi embora ainda está parado. O motorista aparece só pelo primeiro nome, como na planilha da torre. A grade é fixa no relógio (06:00, 08:00…): se a máquina estava desligada numa rodada, sai a rodada seguinte, uma vez. Se o sistema de gestão não responder, NADA vai ao cliente e a Saúde do Servidor acende.">i</span></h2><span class="hint" id="mon-status">—</span></div>
+            <div class="tablewrap tabroll"><table class="tab" id="mon-tab"></table></div>
+            <div class="ges-cfg" style="padding-top:14px">
+              <div><label for="mon-cli">Cliente</label><select id="mon-cli" onchange="monCliMudou()"><option value="">carregando…</option></select></div>
+              <div><label for="mon-dest">Destinatários (do cliente)</label><input type="text" id="mon-dest" placeholder="separe por vírgula"></div>
+              <div><label for="mon-resp">Respostas vão para</label><input type="text" id="mon-resp" placeholder="ex.: a caixa da torre"></div>
+              <div><label for="mon-int">Frequência</label>
+                <select id="mon-int">
+                  <option value="60">A cada 1 hora</option>
+                  <option value="120" selected>A cada 2 horas</option>
+                  <option value="180">A cada 3 horas</option>
+                  <option value="240">A cada 4 horas</option>
+                  <option value="360">A cada 6 horas</option>
+                </select>
+              </div>
+              <div><label for="mon-ini">Primeiro envio do dia</label><input type="time" id="mon-ini" value="06:00"></div>
+              <div><label for="mon-fim">Último envio do dia</label><input type="time" id="mon-fim" value="22:00"></div>
+              <div><label for="mon-anexo">Planilha</label>
+                <select id="mon-anexo">
+                  <option value="1">Anexar a planilha (formato da torre)</option>
+                  <option value="0">Só o e-mail</option>
+                </select>
+              </div>
+              <div><label for="mon-ativo">Situação</label>
+                <select id="mon-ativo">
+                  <option value="0">Desligado</option>
+                  <option value="1">Ligado — envia na grade</option>
+                </select>
+              </div>
+            </div>
+            <div class="ges-cfg">
+              <div><label>Dias da semana</label><div id="mon-dias" style="display:flex;flex-wrap:wrap;gap:9px 18px"></div></div>
+              <div><label>Mercadorias <span class="hint">nenhuma marcada = todas</span></label><div id="mon-merc" style="display:flex;flex-wrap:wrap;gap:9px 18px"><span class="hint">escolha o cliente</span></div></div>
+            </div>
+            <div class="m-foot">
+              <span class="m-err" id="mon-err"></span>
+              <button class="ghost" onclick="monPrevia()">Ver o e-mail</button>
+              <button class="ghost" onclick="monPlanilha()">Baixar a planilha</button>
+              <button class="ghost" onclick="monTestar()">Enviar teste para mim</button>
+              <button class="btn" id="mon-salvar" onclick="monSalvar()">Adicionar monitoramento</button>
+            </div>
+          </div>
           <div class="card">
             <div class="head"><h2>Senha do servidor <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Guardada no mesmo cofre do token da Gobrax. Depois de salva não é possível lê-la de volta — para trocar, basta digitar a nova. Em contas com verificação em duas etapas (Google, Microsoft) use uma senha de aplicativo, não a senha da conta.">i</span></h2><span class="hint" id="em-senha-status">—</span></div>
             <div class="ges-cfg">
@@ -41138,8 +41181,208 @@ async function agTestar(){
   }catch(e){ agErro('Falha de rede: '+e.message); }
 }
 
+/* ── MONITORAMENTO DE CLIENTE (a cada N horas, para FORA da empresa) ──────
+   Os itens ficam num mapa por id em vez de JSON num atributo: o objeto tem
+   lista de mercadorias e endereços, e JSON dentro de atributo HTML e o jeito
+   de quebrar a pagina inteira com uma aspa. */
+let MON_EDIT=null, MON_ITENS={}, MON_CLI_OK=false, MON_DIAS_OK=false;
+const MON_DIAS=[['1','seg'],['2','ter'],['3','qua'],['4','qui'],['5','sex'],['6','sáb'],['7','dom']];
+
+function monErro(t){ const e=document.getElementById('mon-err'); if(e) e.textContent=t||''; }
+
+function monChecks(id){
+  return Array.from(document.querySelectorAll('#'+id+' input[type=checkbox]:checked'))
+    .map(function(x){ return x.value; });
+}
+
+function monDiasDesenhar(sel){
+  const box=document.getElementById('mon-dias'); if(!box) return;
+  box.innerHTML=MON_DIAS.map(function(d){
+    return '<label style="display:inline-flex;align-items:center;gap:9px;font-weight:400">'
+      +'<input type="checkbox" value="'+d[0]+'"'+(String(sel||'').indexOf(d[0])>=0?' checked':'')
+      +'>'+esc(d[1])+'</label>'; }).join('');
+}
+
+async function monClientes(){
+  if(MON_CLI_OK) return;
+  const sel=document.getElementById('mon-cli'); if(!sel) return;
+  try{
+    const r=await fetch('/api/gestao/correio/monitoramento/clientes',{cache:'no-store'});
+    const rr=await respostaJSON(r); const d=rr.dados;
+    if(!rr.ok){ sel.innerHTML='<option value="">lista indisponível</option>';
+                monErro(d.mensagem||'Lista de clientes indisponível.'); return; }
+    sel.innerHTML='<option value="">— escolha —</option>'+(d.clientes||[]).map(function(c){
+      return '<option value="'+esc(c.raiz)+'" data-nome="'+esc(c.nome)+'">'+esc(c.nome)
+        +' · '+esc(c.cargas)+' cargas/ano</option>'; }).join('');
+    MON_CLI_OK=true;
+  }catch(e){ monErro('Falha de rede: '+e.message); }
+}
+
+async function monCliMudou(marcadas){
+  const raiz=document.getElementById('mon-cli').value;
+  const box=document.getElementById('mon-merc');
+  if(!raiz){ box.innerHTML='<span class="hint">escolha o cliente</span>'; return; }
+  box.innerHTML='<span class="hint">carregando…</span>';
+  try{
+    const r=await fetch('/api/gestao/correio/monitoramento/mercadorias?raiz='+encodeURIComponent(raiz),{cache:'no-store'});
+    const rr=await respostaJSON(r); const d=rr.dados;
+    if(!rr.ok){ box.innerHTML='<span class="hint">'+esc(d.mensagem||'indisponível')+'</span>'; return; }
+    const sel=marcadas||[];
+    const itens=d.mercadorias||[];
+    /* Marcada que nao aparece mais no ano do cliente continua na lista:
+       sumir com ela faria salvar de novo apagar a escolha, calado. */
+    sel.forEach(function(k){ if(!itens.some(function(x){return x.chave===k;}))
+      itens.push({chave:k, rotulo:k, cargas:0}); });
+    box.innerHTML=!itens.length ? '<span class="hint">nenhuma carga em 12 meses</span>'
+      : itens.map(function(x){
+          return '<label style="display:inline-flex;align-items:center;gap:9px;font-weight:400">'
+            +'<input type="checkbox" value="'+esc(x.chave)+'"'+(sel.indexOf(x.chave)>=0?' checked':'')
+            +'>'+esc(x.rotulo)+' <span class="hint">'+esc(x.cargas)+'</span></label>'; }).join('');
+  }catch(e){ box.innerHTML='<span class="hint">falha de rede</span>'; }
+}
+
+function monCorpo(){
+  const V=function(id){ const e=document.getElementById(id); return e?e.value:''; };
+  const sel=document.getElementById('mon-cli');
+  const op=sel && sel.selectedOptions && sel.selectedOptions[0];
+  return { id:MON_EDIT, cliente_raiz:V('mon-cli'),
+           cliente_nome:(op && op.dataset.nome) || '',
+           mercadorias:monChecks('mon-merc'), destinatarios:V('mon-dest'),
+           responder_para:V('mon-resp'), intervalo_min:parseInt(V('mon-int'),10),
+           hora_inicio:V('mon-ini'), hora_fim:V('mon-fim'),
+           dias_semana:monChecks('mon-dias').join(''),
+           anexar_planilha:V('mon-anexo')==='1', ativo:V('mon-ativo')==='1' };
+}
+
+async function monCarregar(){
+  const tab=document.getElementById('mon-tab'); if(!tab) return;
+  if(!MON_DIAS_OK){ monDiasDesenhar('123456'); MON_DIAS_OK=true; }
+  monClientes();
+  try{
+    const r=await fetch('/api/gestao/correio/monitoramento',{cache:'no-store'});
+    const rr=await respostaJSON(r); const d=rr.dados;
+    if(!rr.ok){ monErro(d.mensagem||'Erro ao ler os monitoramentos.'); return; }
+    const itens=d.monitoramentos||[];
+    MON_ITENS={}; itens.forEach(function(x){ MON_ITENS[x.id]=x; });
+    document.getElementById('mon-status').innerHTML = d.smtp_configurado
+      ? (itens.length ? itens.filter(function(x){return x.ativo;}).length
+           +' de '+itens.length+' ligado(s)' : 'nenhum monitoramento ainda')
+      : '<b style="color:var(--yellow-700)">SMTP não configurado</b> — nada sai';
+    tab.innerHTML = !itens.length
+      ? '<thead><tr><th>Cliente</th></tr></thead><tbody><tr><td class="hint">'
+        +'Nenhum monitoramento. Escolha o cliente abaixo para criar o primeiro.</td></tr></tbody>'
+      : '<thead><tr><th>Cliente</th><th>Mercadorias</th><th>Para</th><th>Quando</th>'
+        +'<th>Próximo envio</th><th>Última rodada</th><th>Situação</th><th></th></tr></thead><tbody>'
+      + itens.map(function(x){
+          const sit = x.ativo ? statChip('good','ligado','envia na grade')
+                              : statChip('warn','desligado','não envia — a tarefa passa e não faz nada');
+          const ult = x.ultima_execucao
+            ? esc(fmtDT(x.ultima_execucao))+' · '+esc(x.ultimo_resultado||'') : '—';
+          const falhou=/falh|erro/i.test(x.ultimo_resultado||'');
+          const merc=(x.mercadorias||[]).length ? x.mercadorias.join(', ') : 'todas';
+          return '<tr>'
+            +'<td>'+esc(x.cliente_nome||x.cliente_raiz)+'</td>'
+            +'<td title="'+esc(merc)+'">'+esc(merc.length>28?merc.slice(0,28)+'…':merc)+'</td>'
+            +'<td title="'+esc(x.destinatarios)+'">'+esc((x.destinatarios||'').length>28
+               ? x.destinatarios.slice(0,28)+'…' : x.destinatarios)+'</td>'
+            +'<td>'+esc(x.quando||'')+'</td>'
+            +'<td class="mono">'+(x.proxima?esc(fmtDT(x.proxima)):'—')+'</td>'
+            +'<td'+(falhou?' style="color:var(--red)"':'')+'>'+ult+'</td>'
+            +'<td>'+sit+'</td>'
+            +'<td><button class="gbtn" data-id="'+x.id+'" onclick="monEditar(this)">editar</button> '
+            +'<button class="gbtn" data-id="'+x.id+'" onclick="monRemover(this)" title="Remove o monitoramento. O histórico de envios continua na trilha abaixo.">remover</button></td>'
+            +'</tr>';
+        }).join('')+'</tbody>';
+  }catch(e){ monErro('Falha de rede: '+e.message); }
+}
+
+async function monEditar(bt){
+  const d=MON_ITENS[bt.dataset.id]; if(!d) return;
+  MON_EDIT=d.id;
+  await monClientes();
+  const sel=document.getElementById('mon-cli');
+  if(!Array.from(sel.options).some(function(o){return o.value===d.cliente_raiz;})){
+    const o=document.createElement('option'); o.value=d.cliente_raiz;
+    o.textContent=d.cliente_nome||d.cliente_raiz; o.dataset.nome=d.cliente_nome||'';
+    sel.appendChild(o);
+  }
+  const V=function(id,v){ const e=document.getElementById(id); if(e) e.value=(v==null?'':v); };
+  V('mon-cli',d.cliente_raiz); V('mon-dest',d.destinatarios); V('mon-resp',d.responder_para);
+  V('mon-int',d.intervalo_min); V('mon-ini',d.hora_inicio); V('mon-fim',d.hora_fim);
+  V('mon-anexo',d.anexar_planilha?'1':'0'); V('mon-ativo',d.ativo?'1':'0');
+  monDiasDesenhar(d.dias_semana);
+  monCliMudou(d.mercadorias||[]);
+  document.getElementById('mon-salvar').textContent='Salvar alterações';
+  monErro('');
+  document.getElementById('mon-cli').focus();
+}
+
+function monNovo(){
+  MON_EDIT=null;
+  document.getElementById('mon-dest').value='';
+  document.getElementById('mon-salvar').textContent='Adicionar monitoramento';
+  monErro('');
+}
+
+async function monSalvar(){
+  const bt=document.getElementById('mon-salvar');
+  bt.disabled=true; bt.textContent='Salvando…'; monErro('');
+  try{
+    const r=await fetch('/api/gestao/correio/monitoramento',{method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify(monCorpo())});
+    const rr=await respostaJSON(r); const d=rr.dados;
+    if(!rr.ok){ monErro(d.mensagem||'Erro ao gravar.'); return; }
+    monNovo(); monCarregar();
+  }catch(e){ monErro('Falha de rede: '+e.message); }
+  finally{ bt.disabled=false;
+           bt.textContent=MON_EDIT?'Salvar alterações':'Adicionar monitoramento'; }
+}
+
+async function monRemover(bt){
+  if(!confirm('Remover este monitoramento? O histórico de envios continua na trilha.')) return;
+  try{
+    const r=await fetch('/api/gestao/correio/monitoramento/'+bt.dataset.id,{method:'DELETE'});
+    const rr=await respostaJSON(r);
+    if(!rr.ok){ monErro((rr.dados||{}).mensagem||'Erro ao remover.'); return; }
+    monNovo(); monCarregar();
+  }catch(e){ monErro('Falha de rede: '+e.message); }
+}
+
+function monConsulta(){
+  const c=monCorpo();
+  if(!c.cliente_raiz){ monErro('Escolha o cliente.'); return null; }
+  return '?raiz='+encodeURIComponent(c.cliente_raiz)
+    +c.mercadorias.map(function(m){ return '&merc='+encodeURIComponent(m); }).join('');
+}
+
+function monPrevia(){
+  /* ABA NOVA, como a previa dos relatorios: o e-mail e documento inteiro. */
+  const q=monConsulta(); if(!q) return;
+  window.open('/api/gestao/correio/monitoramento/previa'+q,'_blank','noopener');
+}
+
+function monPlanilha(){
+  const q=monConsulta(); if(!q) return;
+  window.open('/api/gestao/correio/monitoramento/planilha'+q,'_blank','noopener');
+}
+
+async function monTestar(){
+  const c=monCorpo();
+  if(!c.cliente_raiz){ monErro('Escolha o cliente.'); return; }
+  monErro('Montando e enviando…');
+  try{
+    const r=await fetch('/api/gestao/correio/monitoramento/testar',{method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify(c)});
+    const rr=await respostaJSON(r); const d=rr.dados;
+    if(!rr.ok){ monErro(d.mensagem||'Não foi possível enviar.'); return; }
+    monErro('Enviado para '+(d.destinatario||'você')
+            +(d.vazio?' — sem carga no dia: na grade, esta rodada NÃO sairia.':'.'));
+  }catch(e){ monErro('Falha de rede: '+e.message); }
+}
+
 async function emailCarregar(){
   agCarregar();
+  monCarregar();
   const hist=document.getElementById('em-hist');
   hist.innerHTML='<div style="padding:12px;color:var(--n500)">carregando…</div>';
   try{
