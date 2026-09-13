@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.71.5] — 13/09/2026  ·  CX-13/09/2026-v1.71.5
+
+### Corrigido
+- Nada muda para quem usa o rastreio: o link recebido no WhatsApp continua abrindo igual. Variações dele com o último caractere trocado, que antes também abriam a mesma carga, passam a ser recusadas — e o teste automático que acusava isso ao acaso deixa de falhar por sorteio.
+
 ## [1.71.4] — 13/09/2026  ·  CX-13/09/2026-v1.71.4
 
 ### Removido

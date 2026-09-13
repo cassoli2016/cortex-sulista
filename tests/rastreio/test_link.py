@@ -54,6 +54,42 @@ def test_token_ADULTERADO_nao_abre_nada():
         assert consulta.link_abrir(falso) is None, falso
 
 
+def _apelidos(b64: str) -> list[str]:
+    """As outras grafias do mesmo base64: o ultimo caractere pode carregar bits
+    sem significado, e troca-los nao muda os bytes decodificados."""
+    import base64
+    import string
+    alfabeto = string.ascii_letters + string.digits + "-_"
+    pad = "=" * (-len(b64) % 4)
+    alvo = base64.urlsafe_b64decode(b64 + pad)
+    return [b64[:-1] + c for c in alfabeto
+            if c != b64[-1]
+            and base64.urlsafe_b64decode(b64[:-1] + c + pad) == alvo]
+
+
+def test_grafia_ALTERNATIVA_do_mesmo_token_nao_abre():
+    """O teste acima falhava por SORTEIO, e o defeito era real.
+
+    `urlsafe_b64decode` ignora os bits sem significado do ultimo caractere:
+    outras grafias viravam os MESMOS bytes, a assinatura batia e o link abria.
+    Nao e forjar carga alheia -- e apelido de um link que a pessoa ja tem --,
+    mas "adulterado nao abre" era promessa falsa, e a chave de cada instalacao
+    decidia se o teste acima via o caso. No CI a chave e nova a cada execucao:
+    em 13/09/2026 isso deixou vermelho um check OBRIGATORIO do PR, a toa.
+
+    Aqui os apelidos sao GERADOS, nao sorteados: um token curto de 26
+    caracteres sempre tem 15, entao o teste nao depende da chave.
+    """
+    curto = consulta.link_token(*CHAVES)
+    apelidos = _apelidos(curto)
+    assert apelidos, "token sem apelido possivel: este teste nao provaria nada"
+    dados, _, ass = consulta._link_token_longo(*CHAVES).partition(".")
+    apelidos += [a + "." + ass for a in _apelidos(dados)]
+    for a in apelidos:
+        assert consulta.link_abrir(a) is None, a
+    assert consulta.link_abrir(curto) is not None, "o token de verdade parou de abrir"
+
+
 def test_o_token_ENCURTOU_e_o_ANTIGO_continua_valendo():
     """Quando o token encurtou de 55 para 26 caracteres, já havia link de 20
     dias no WhatsApp de gente que não tem como saber disso. Recusar o formato

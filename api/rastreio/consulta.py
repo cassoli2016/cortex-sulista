@@ -157,7 +157,20 @@ def _b64(b: bytes) -> str:
 
 
 def _deb64(t: str) -> bytes:
-    return base64.urlsafe_b64decode(t + "=" * (-len(t) % 4))
+    """Base64 sem padding, e SO na grafia canonica.
+
+    O ultimo caractere pode carregar bits sem significado, e
+    `urlsafe_b64decode` os ignora: varias grafias do mesmo token viravam os
+    mesmos bytes, a assinatura batia e o link abria. Nao da para forjar carga
+    alheia com isso (a assinatura cobre o dado), mas "adulterado nao abre" era
+    promessa falsa -- e o teste que a guarda falhava por SORTEIO, conforme a
+    chave da instalacao decidia o ultimo caractere (no CI a chave e nova a cada
+    execucao). Recodificar e exigir a mesma grafia recusa o apelido.
+    """
+    b = base64.urlsafe_b64decode(t + "=" * (-len(t) % 4))
+    if _b64(b) != t.rstrip("="):
+        raise ValueError("grafia nao canonica")
+    return b
 
 
 def link_token(grupo, empresa, filial, numero, serie) -> str:
@@ -223,8 +236,8 @@ def link_abrir(token: str) -> dict | None:
         dados, _, ass = (token or "").partition(".")
         if not dados or not ass:
             return None
-        pad = "=" * (-len(dados) % 4)
-        cru = base64.urlsafe_b64decode(dados + pad).decode("utf-8")
+        # a mesma grafia canonica do curto: apelido do antigo tambem nao abre
+        cru = _deb64(dados).decode("utf-8")
         esperado = hmac.new(_segredo(), cru.encode("utf-8"),
                             hashlib.sha256).hexdigest()[:20]
         if not hmac.compare_digest(ass, esperado):
