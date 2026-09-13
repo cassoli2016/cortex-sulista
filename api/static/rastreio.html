@@ -362,6 +362,20 @@ const esc = s => (s ?? '').toString().replace(/[&<>"]/g,
    de oferecer um botão que responderia "informe o documento". */
 let ULTIMO = null;
 
+/* DE ONDE VEIO O LINK. Até 13/09/2026 a página só era aberta por link a partir
+   do aviso de WhatsApp, e por isso deduzia: "chegou por link = já recebe por
+   WhatsApp". O e-mail de monitoramento de cliente passou a mandar o MESMO link
+   (`#c=`), e a dedução virou mentira na tela de quem nunca se cadastrou: "Você
+   já recebe os avisos desta carga por WhatsApp. Para parar, responda SAIR".
+
+   O e-mail marca a origem no fragmento (`&o=email`). A marca NÃO é assinada, e
+   não precisa ser: ela só escolhe o TEXTO do cartão, não abre carga nem dá
+   acesso a nada — quem apagar ou trocar a marca vê o outro texto, e só. Sem
+   marca vale o comportamento de sempre, que é o do link do WhatsApp.
+   `DOC_LINK` guarda o número do documento da carga aberta pelo link, para o
+   botão "Quero receber por WhatsApp" levar a pessoa à busca já preenchida. */
+let ORIGEM_LINK = null, DOC_LINK = '';
+
 /* O mapa em cena, para poder remedi-lo quando a janela muda de largura.
    DECLARADO AQUI EM CIMA, junto dos outros: `let` no fim do arquivo lido por
    função definida antes é a zona morta temporal que já derrubou o script desta
@@ -594,6 +608,19 @@ function pintarDetalhe(c){
         </details>
         <div id="zapMsg"></div>
         <button class="sair" onclick="cancelarZap()">Já cadastrei e quero parar de receber</button>
+      </div>` : ORIGEM_LINK === 'email' ? `<div class="zap">
+        <!-- QUEM VEIO DO E-MAIL NAO ESTA CADASTRADO EM NADA. Cadastrar pede o
+             documento e os 4 digitos do CNPJ (o segundo fator da casa), que o
+             link nao carrega — entao o botao leva a busca ja com o documento,
+             e o resto e o caminho de sempre. -->
+        <p><b>Receber os avisos desta carga por WhatsApp</b><br>
+          Você abriu esta carga pelo e-mail de monitoramento. Para receber os
+          avisos no celular, confirme a carga com os 4 primeiros dígitos do
+          CNPJ e cadastre o telefone.</p>
+        ${janelaAviso(c)}
+        <div class="linha">
+          <button id="btnQuero" onclick="quererZap()">Quero receber por WhatsApp</button>
+        </div>
       </div>` : `<div class="zap">
         <p><b>Você já recebe os avisos desta carga por WhatsApp.</b><br>
           Para parar, responda <b>SAIR</b> na conversa.</p>
@@ -856,6 +883,20 @@ function restaurar(){
   novaBusca();
 }
 
+/* "Quero receber por WhatsApp", para quem abriu a carga pelo e-mail: volta à
+   busca com o documento já preenchido e o cursor nos 4 dígitos do CNPJ. A
+   partir daí é o caminho de sempre — a busca prova o CNPJ, a carga abre com o
+   formulário de cadastro, e nada do segundo fator é pulado. */
+function quererZap(){
+  const doc = DOC_LINK;
+  ORIGEM_LINK = null;
+  novaBusca();
+  $('doc').value = doc;
+  $('msg').innerHTML = '<div class="aviso">Confirme com os 4 primeiros dígitos '
+    + 'do CNPJ para abrir a carga e cadastrar o seu WhatsApp.</div>';
+  $('cnpj').focus();
+}
+
 function novaBusca(){
   $('resultado').innerHTML = '';
   $('msg').innerHTML = '';
@@ -890,7 +931,10 @@ async function abrirPorLink(t){
     const r = await fetch('/api/rastreio/link?t=' + encodeURIComponent(t),
                           {cache:'no-store'});
     const d = await r.json();
-    if(d.ok && d.carga){ pintarDetalhe(d.carga); return; }
+    if(d.ok && d.carga){
+      DOC_LINK = (d.carga.documento || '').replace(/\D/g, '');
+      pintarDetalhe(d.carga); return;
+    }
     /* LINK VENCIDO NAO E ERRO DA PESSOA. Ela volta para a busca com o motivo
        dito, em vez de olhar uma tela vazia. */
     $('form').hidden = false;
@@ -907,6 +951,9 @@ async function abrirPorLink(t){
 (function(){
   const m = /[#&]c=([A-Za-z0-9_.\-]+)/.exec(location.hash || '');
   if(!m) return;
+  /* A ORIGEM se lê ANTES de o fragmento sair da barra de endereços. */
+  const o = /[#&]o=([a-z]+)/.exec(location.hash || '');
+  ORIGEM_LINK = o ? o[1] : 'whatsapp';
   history.replaceState(null, '', location.pathname);
   abrirPorLink(m[1]);
 })();

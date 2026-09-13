@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.69.0] — 13/09/2026  ·  CX-13/09/2026-v1.69.0
+
+### Corrigido
+- Quem abria a página de rastreio pelo link do e-mail de monitoramento de cliente lia no fim "Você já recebe os avisos desta carga por WhatsApp. Para parar, responda SAIR" — sem nunca ter se cadastrado. Agora a página sabe que o link veio do e-mail e oferece "Quero receber por WhatsApp": o botão volta para a busca já com o número do CT-e, e basta confirmar os 4 primeiros dígitos do CNPJ para cadastrar o telefone. O link do aviso por WhatsApp continua mostrando o texto de antes.
+
 ## [1.68.0] — 13/09/2026  ·  CX-13/09/2026-v1.68.0
 
 ### Adicionado

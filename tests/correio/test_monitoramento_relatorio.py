@@ -374,7 +374,10 @@ def _abre(link):
     from api import url_publica
     from api.rastreio import consulta
     assert link.startswith(url_publica.base() + "/r#c="), link
-    return consulta.link_abrir(link.split("#c=", 1)[1])
+    # a marca de origem vai no fim do fragmento — sem ela a página diria
+    # "você já recebe por WhatsApp" a quem veio do e-mail
+    assert link.endswith("&o=email"), link
+    return consulta.link_abrir(link.split("#c=", 1)[1].split("&", 1)[0])
 
 
 def test_o_link_abre_o_CT_e_MAIS_NOVO_da_coleta(erp):
@@ -408,7 +411,9 @@ def test_o_link_vai_no_email_no_texto_e_na_planilha(erp):
     d = _d()
     link = _por(d)[20271]["link"]
     r = mo.montar("12345678", dados_=d)
-    assert 'href="%s"' % link in r["html"] and "Ver onde está a carga" in r["html"]
+    # no atributo HTML o `&` sai escapado, que é o certo — o navegador desfaz
+    assert 'href="%s"' % link.replace("&", "&amp;") in r["html"]
+    assert "Ver onde está a carga" in r["html"]
     assert "Onde está: " + link in r["texto"]
     ws = openpyxl.load_workbook(io.BytesIO(r["anexos"][0]["conteudo"])).active
     linha = next(x for x in ws.iter_rows(min_row=2) if x[10].value == 20271)

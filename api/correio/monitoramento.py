@@ -354,8 +354,13 @@ def _links(raiz: str, chaves: set) -> tuple[dict, bool]:
             k = r["coleta_chave"]
             if k in chaves and (k not in melhor or r["numero"] > melhor[k]["numero"]):
                 melhor[k] = r
+        # `&o=email` diz à página de onde o link veio: sem a marca ela deduz
+        # "chegou por link = já recebe por WhatsApp" e escreve isso para quem
+        # nunca se cadastrou (visto no primeiro teste, 13/09/2026). A marca
+        # só escolhe o texto do cartão; não é assinada e não abre nada.
         return {k: mensagem.link({"link_token": consulta.link_token(
                     r["grupo"], r["empresa"], r["filial"], r["numero"], r["serie"])})
+                   + "&o=email"
                 for k, r in melhor.items()}, False
     except Exception as exc:  # noqa: BLE001
         log.warning("monitoramento: ponte coleta->CT-e falhou: %s", type(exc).__name__)
