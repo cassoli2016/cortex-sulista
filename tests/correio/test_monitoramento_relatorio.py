@@ -45,7 +45,8 @@ LINHAS = [
        t_cheg_carga="2026-09-10 14:02", t_saiu_carga="2026-09-10 16:40",
        t_viagem="2026-09-10 16:45", t_cheg_desc="2026-09-11 07:45",
        t_fim_desc="2026-09-11 11:32", mdfe_encerrado=1, mdfe_em="2026-09-11 07:47"),
-    # B — conjunto phevus: a carência vem da EQUIVALÊNCIA com conjuntos (6h30)
+    # B — conjunto phevus: genérica de 3h (a equivalência com conjuntos, de
+    # 11/09/2026, foi revertida em 13/09 — o relatório SAC do ERP dá a genérica)
     _r(coleta=20250, placa="JJH4J10", carreta="AQJ9632", mercadoria="CONJUNTO PHEVUS",
        destinatario_nome="IOCHPE MAXION - RESENDE/RJ",
        janela_carga="2026-09-10 23:00", janela_entrega="2026-09-11 06:30",
@@ -157,7 +158,7 @@ def test_o_dia_e_o_da_aba_da_torre(erp):
 def test_carencia_e_a_do_contrato_pela_mercadoria(erp):
     c = _por(_d())
     assert c[20271]["carencia_h"] == 6.5                 # cláusula de escadas
-    assert c[20250]["carencia_h"] == 6.5                 # equivalência declarada
+    assert c[20250]["carencia_h"] == 3.0                 # genérica (equivalência revertida)
     assert c[20274]["carencia_h"] == 3.0                 # genérica
 
 

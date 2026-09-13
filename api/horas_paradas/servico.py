@@ -230,13 +230,24 @@ def resumo(linhas: list[dict], abertas: list[dict]) -> dict:
 
 def exportar(perfil_id: int, de: str, ate: str, esquema: str | None = None) -> tuple[str, bytes]:
     """(nome do arquivo, bytes do .xlsx) — das MESMAS linhas que a tela mostra."""
-    d = montar(perfil_id, de, ate, esquema=esquema)
+    return planilha_do(montar(perfil_id, de, ate, esquema=esquema))
+
+
+def contexto(d: dict) -> dict:
+    """Os marcadores do nome do arquivo, da aba e do assunto do e-mail."""
+    d0 = date.fromisoformat(d["periodo"]["de"])
+    d1 = date.fromisoformat(d["periodo"]["ate"])
+    return {"cliente": d["perfil"]["cliente_nome"], "semana": d["periodo"]["semana"],
+            "de": d0.strftime("%d-%m-%Y"), "ate": d1.strftime("%d-%m-%Y"),
+            "de_dm": d0.strftime("%d-%m"), "ate_dm": d1.strftime("%d-%m"),
+            "de_br": d0.strftime("%d/%m/%Y"), "ate_br": d1.strftime("%d/%m/%Y")}
+
+
+def planilha_do(d: dict) -> tuple[str, bytes]:
+    """A planilha de um controle JÁ MONTADO — é a mesma que o e-mail anexa e
+    a mesma que o botão baixa, porque sai das mesmas linhas."""
     cfg = d["perfil"]["config"]
-    d0, d1 = date.fromisoformat(de), date.fromisoformat(ate)
-    ctx = {"cliente": d["perfil"]["cliente_nome"],
-           "semana": d["periodo"]["semana"],
-           "de": d0.strftime("%d-%m-%Y"), "ate": d1.strftime("%d-%m-%Y"),
-           "de_dm": d0.strftime("%d-%m"), "ate_dm": d1.strftime("%d-%m")}
+    ctx = contexto(d)
     nome = planilha.nome_do_arquivo(cfg.get("arquivo"), ctx)
     aba = planilha.substituir(cfg.get("aba") or "", ctx)
     return nome, planilha.gerar(d["linhas"], cfg["colunas"], aba)

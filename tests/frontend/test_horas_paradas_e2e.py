@@ -89,10 +89,26 @@ CATALOGO = {"mercadorias": [{"codigo": "CAIXAS", "nome": "CAIXAS", "n": 40}],
             "versoes": [{"id": 1, "autor": "a@x", "em": "2026-09-12T10:00:00"}]}
 
 
+PREVIA = {"assunto": "Horas paradas · CLIENTE EXEMPLO · semana 37", "arquivo": "HP 37.xlsx",
+          "html": "<!DOCTYPE html><html><body><p>e-mail de teste</p></body></html>",
+          "de": "2026-09-07", "ate": "2026-09-13", "cargas": 1, "valor_total": 100.0,
+          "destinatarios": ["cliente@empresa.com"], "responder_para": ["torre@sulista.com.br"],
+          "envios": [{"em": "2026-09-12T10:00:00", "de": "2026-08-31", "ate": "2026-09-06",
+                      "destinatarios": "cliente@empresa.com", "autor": "a@x", "ok": True,
+                      "erro": ""}]}
+ENVIADO = []
+
+
 def _abrir(pg, base_url):
     def rota(route):
         u = route.request.url
-        if "/api/auth/me" in u:
+        if route.request.method == "POST" and u.endswith("/horas-paradas/email"):
+            ENVIADO.append(json.loads(route.request.post_data))
+            corpo = {"ok": True, "destinatarios": ["cliente@empresa.com", "outro@empresa.com"],
+                     "responder_para": ["torre@sulista.com.br"], "arquivo": "HP 37.xlsx"}
+        elif "/horas-paradas/email/previa" in u:
+            corpo = PREVIA
+        elif "/api/auth/me" in u:
             corpo = CASA
         elif "/horas-paradas/perfis" in u:
             corpo = PERFIS
@@ -174,6 +190,42 @@ def test_a_linha_diz_DE_ONDE_veio_a_referencia(pagina):
     span = pg.locator("#hp-cargas tr").first.locator("td").first.locator("span")
     assert span.inner_text() == "CIF0000501"
     assert span.get_attribute("title") == "referência do pedido no ERP"
+
+
+def test_o_e_mail_vem_PREENCHIDO_e_manda_o_que_esta_na_tela(pagina):
+    """Destinatários e resposta vêm do perfil; o que for mudado no modal é o
+    que vai. O período é o da tela, e o anexo e os envios anteriores à vista."""
+    pg, base = pagina
+    ENVIADO.clear()
+    _abrir(pg, base)
+    pg.click("#btnHpEmail")
+    pg.wait_for_selector("#hpe-para", timeout=10000)
+    assert pg.input_value("#hpe-para") == "cliente@empresa.com"
+    assert pg.input_value("#hpe-resp") == "torre@sulista.com.br"
+    assert "HP 37.xlsx" in pg.inner_text("#modalBox")
+    assert "enviado" in pg.inner_text("#modalBox")          # o histórico
+    pg.fill("#hpe-para", "cliente@empresa.com, outro@empresa.com")
+    pg.fill("#hpe-msg", "Segue a planilha da semana.")
+    pg.check("#hpe-lembrar")
+    pg.click("#hpe-enviar")
+    pg.wait_for_selector("#hpe-ok", timeout=10000)
+    corpo = ENVIADO[-1]
+    assert corpo["destinatarios"] == "cliente@empresa.com, outro@empresa.com"
+    assert corpo["responder_para"] == "torre@sulista.com.br"
+    assert corpo["mensagem"] == "Segue a planilha da semana." and corpo["lembrar"] is True
+    assert (corpo["de"], corpo["ate"]) == ("2026-09-07", "2026-09-13")
+    assert "torre@sulista.com.br" in pg.inner_text("#modalBox")
+
+
+def test_a_previa_abre_o_e_mail_isolado(pagina):
+    pg, base = pagina
+    _abrir(pg, base)
+    pg.click("#btnHpEmail")
+    pg.wait_for_selector("#hpe-para", timeout=10000)
+    pg.click("text=Ver o e-mail como o cliente recebe")
+    f = pg.locator("#hpe-iframe")
+    assert f.is_visible() and f.get_attribute("sandbox") == ""
+    assert "e-mail de teste" in f.get_attribute("srcdoc")
 
 
 def test_nenhuma_aba_empurra_a_pagina_para_o_lado(pagina):

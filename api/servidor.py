@@ -577,7 +577,29 @@ def _horas_paradas() -> dict:
         c["perfis"], c["ajustes"])
     if c["ultimo_ajuste"]:
         detalhe += " · último ajuste em %s" % c["ultimo_ajuste"][:16].replace("T", " ")
-    return {"nome": nome, "status": "ok", "detalhe": detalhe}
+    # O ÚLTIMO E-MAIL AO CLIENTE: falha de envio é o que acende — o cliente
+    # só descobre que não recebeu quando cobram dele a planilha.
+    status = "ok"
+    try:
+        from .horas_paradas import email as _hpe
+        u = _hpe.ultimo_envio()
+    except Exception as exc:  # noqa: BLE001
+        if pglocal.sem_tabela(exc):
+            return {"nome": nome, "status": "erro",
+                    "detalhe": ("a tabela `hp_envio` não existe — falta aplicar a "
+                                "migration 0092 (uv run python scripts/migrar_schema.py)")}
+        raise
+    if u:
+        quando = u["em"][:16].replace("T", " ")
+        if u["ok"] is False:
+            status = "alerta"
+            detalhe += " · ÚLTIMO E-MAIL FALHOU em %s: %s" % (quando, (u["erro"] or "")[:120])
+        elif u["ok"] is None:
+            status = "alerta"
+            detalhe += " · último e-mail sem resposta do envio (%s)" % quando
+        else:
+            detalhe += " · último e-mail enviado em %s" % quando
+    return {"nome": nome, "status": status, "detalhe": detalhe}
 
 
 def _portal_cliente() -> dict:

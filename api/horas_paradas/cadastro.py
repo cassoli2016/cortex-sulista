@@ -44,6 +44,11 @@ PERIODOS = ("dia", "semana", "mes")
 #: mercadoria/destinatário; do modelo padrão. O formato é o que separa um
 #: código inteiro de um digitado pela metade — sem ele, "…CIF010" no pedido
 #: venceria o "CIF0103939" completo de uma ocorrência.
+#: O assunto do e-mail ao cliente, quando o perfil não diz outro.
+ASSUNTO_PADRAO = "Horas paradas · {{cliente}} · semana {{semana}} ({{de_br}} a {{ate_br}})"
+LIMITE_DESTINATARIOS = 30
+LIMITE_RESPOSTA = 5
+
 PADRAO = {
     "inicio_carga": regras.JANELA,
     "inicio_descarga": regras.JANELA,
@@ -56,6 +61,8 @@ PADRAO = {
     "aba": "",
     "arquivo": "",
     "referencia": {"formato": "", "fontes": ["pedido"], "padrao": "", "excecoes": []},
+    # Os PADRÕES do botão "Enviar por e-mail": quem envia muda tudo na hora.
+    "email": {"destinatarios": [], "responder_para": [], "assunto": ASSUNTO_PADRAO},
 }
 FONTES_REFERENCIA = ("pedido", "ocorrencia")
 _RE_FORMATO = re.compile(r"^[A-Z#]{1,20}$")
@@ -120,6 +127,28 @@ def _validar_referencia(r) -> dict:
             "padrao": _texto(r.get("padrao", ""), 40), "excecoes": excecoes}
 
 
+def emails_validos(valor, rotulo: str, teto: int) -> list[str]:
+    """Lista de e-mails normalizada, pela régua ÚNICA do correio da casa."""
+    from ..correio import config as ccfg
+    lista = ccfg.separar_destinatarios(valor or [])
+    ruins = [x for x in lista if not ccfg.email_valido(x)]
+    if ruins:
+        raise Recusa("%s inválido: %s." % (rotulo, ", ".join(ruins[:5])))
+    if len(lista) > teto:
+        raise Recusa("%s: até %d endereços." % (rotulo, teto))
+    return list(dict.fromkeys(x.strip().lower() for x in lista))
+
+
+def _validar_email_cfg(e) -> dict:
+    if not isinstance(e, dict):
+        raise Recusa("Configuração de e-mail inválida.")
+    return {"destinatarios": emails_validos(e.get("destinatarios"), "Destinatário",
+                                            LIMITE_DESTINATARIOS),
+            "responder_para": emails_validos(e.get("responder_para"),
+                                             "Endereço de resposta", LIMITE_RESPOSTA),
+            "assunto": _texto(e.get("assunto"), 150) or ASSUNTO_PADRAO}
+
+
 def validar_config(cfg: dict | None) -> dict:
     """A configuração normalizada, ou `Recusa` com o motivo.
 
@@ -150,6 +179,7 @@ def validar_config(cfg: dict | None) -> dict:
     out["aba"] = _texto(cfg.get("aba", ""), 40)
     out["arquivo"] = _texto(cfg.get("arquivo", ""), 100)
     out["referencia"] = _validar_referencia(cfg.get("referencia", PADRAO["referencia"]))
+    out["email"] = _validar_email_cfg(cfg.get("email", PADRAO["email"]))
 
     rs = cfg.get("regras", [])
     if not isinstance(rs, list) or len(rs) > LIMITE_REGRAS:

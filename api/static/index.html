@@ -6742,6 +6742,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <button class="btn" onclick="hpPeriodo(1)" title="Próximo período" aria-label="Próximo período">›</button>
           <button class="btn" onclick="loadHp()">Atualizar</button>
           <button class="btn primary" id="btnHpPlanilha" onclick="hpBaixar()">Baixar planilha do cliente</button>
+          <button class="btn" id="btnHpEmail" onclick="hpEmailAbrir()">Enviar por e-mail</button>
           <button class="btn" onclick="hpNovoPerfil()">Configurar cliente</button>
         </div>
         <div class="banner-inline" id="hpAviso" style="display:none;margin:0"></div>
@@ -26865,7 +26866,7 @@ function renderSac(d){
                  que tem. E decisao de PESSOA, entao a linha DIZ -- quem
                  confere a conta tem direito de ver que ela existe, em vez de
                  achar que o contrato fala de "CONJUNTO PHEVUS". */
-              equivalencia:['clausula de CONJUNTOS por equivalencia declarada',
+              equivalencia:['clausula por equivalencia declarada',
                             'color:var(--orange-500)'],
               generico:['clausula generica','color:var(--n500)'],
               sem_clausula:['sem clausula — maior freetime do contrato',
@@ -26891,7 +26892,7 @@ function renderSac(d){
    motivo obrigatório, fica marcado na linha com o valor do ERP ao lado, e o
    topo diz quanto os ajustes mudaram o total — número que pode ser mexido
    sem aparecer não é número. */
-let HP_PERFIS=null, HP_COLCAT=[], DATAHP=null, HP_CFG=null, HP_CAT=null, hpSeq=0, HP_SUJO=false, HP_SEL=null;
+let HP_PERFIS=null, HP_COLCAT=[], DATAHP=null, HP_CFG=null, HP_CAT=null, hpSeq=0, HP_SUJO=false, HP_SEL=null, HP_EMAIL=null;
 const HP_INICIO={maior:'o que vier depois — janela ou chegada', chegada:'a chegada do veículo',
                  janela:'a janela, sempre (fórmula do relatório do ERP)'};
 const HP_RECORTE={fim_descarga:'fim da descarga', chegada_descarga:'chegada na descarga',
@@ -27279,6 +27280,7 @@ function hpRenderRegras(){
     + `<div style="display:flex;gap:9px;margin:9px 0 0"><select id="hpc-novacol" style="flex:1;min-width:0" aria-label="Coluna a acrescentar">${opcCol}</select><button class="btn sm" onclick="hpColAdd()">Acrescentar coluna</button></div></div>`
     + `</div>`
     + hpCardReferencia(c, destNome)
+    + hpCardEmail(c)
     + `<div class="card"><div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">`
     + `<button class="btn primary" id="hp-salvar" onclick="hpSalvar()">Salvar regras do cliente</button>`
     + `<button class="btn" onclick="hpDescartar()">Descartar alterações</button>`
@@ -27308,6 +27310,22 @@ function hpCardReferencia(c, destNome){
     + `<div style="display:flex;gap:18px">${ch('pedido','no pedido do ERP')}${ch('ocorrencia','nas ocorrências da coleta')}</div>`
     + `<div style="flex:1;min-width:0"><label for="hpc-rpad">Quando não achar ({{coleta|7}} = coleta com 7 dígitos)</label><input type="text" id="hpc-rpad" maxlength="40" value="${esc(r.padrao||'')}" placeholder="vazio" oninput="hpRefAtual().padrao=this.value;hpSujo()" style="width:100%"></div></div>`
     + `<div class="tablewrap tabroll" style="max-height:180px"><table><thead><tr><th>Quando</th><th>Referência</th><th></th></tr></thead><tbody>${exc}</tbody></table></div></div>`;
+}
+/* OS PADRÕES DO E-MAIL AO CLIENTE. Quem envia muda tudo na hora; marcar
+   "lembrar" no envio grava aqui (só se o e-mail saiu). */
+function hpEmailCfg(){
+  if(!HP_CFG.email) HP_CFG.email={destinatarios:[], responder_para:[], assunto:''};
+  return HP_CFG.email;
+}
+function hpCardEmail(c){
+  const e=c.email||{destinatarios:[], responder_para:[], assunto:''};
+  const j=v=>Array.isArray(v)?v.join(', '):(v||'');
+  return `<div class="card"><div class="head"><h2>E-mail ao cliente <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os padrões do botão Enviar por e-mail: para quem vai, para onde a resposta volta — o e-mail sai do endereço do sistema, que ninguém lê — e o modelo do assunto (aceita {{cliente}}, {{semana}}, {{de_br}}, {{ate_br}}). Quem envia pode mudar tudo na hora; marcar “lembrar” no envio grava aqui.">i</span></h2></div>`
+    + `<div class="ges-form">`
+    + `<div><label for="hpc-edest">Destinatários (separados por vírgula)</label><textarea id="hpc-edest" rows="2" style="width:100%" oninput="hpEmailCfg().destinatarios=this.value;hpSujo()">${esc(j(e.destinatarios))}</textarea></div>`
+    + `<div style="display:flex;gap:18px;flex-wrap:wrap"><div style="flex:1;min-width:0"><label for="hpc-eresp">Responder para</label><input type="text" id="hpc-eresp" style="width:100%" value="${esc(j(e.responder_para))}" oninput="hpEmailCfg().responder_para=this.value;hpSujo()"></div>`
+    + `<div style="flex:2;min-width:0"><label for="hpc-eass">Modelo do assunto</label><input type="text" id="hpc-eass" maxlength="150" style="width:100%" value="${esc(e.assunto||'')}" oninput="hpEmailCfg().assunto=this.value;hpSujo()"></div></div>`
+    + `</div></div>`;
 }
 function hpRefFonte(el){
   const r=hpRefAtual(), f=el.dataset.fonte;
@@ -27455,6 +27473,78 @@ async function hpCriarPerfil(){
     fecharModal();
     HP_PERFIS=null; HP_SEL=novo.id; HP_CFG=null; HP_CAT=null;
     abaTrocar('hp','regras');
+    loadHp();
+  }
+}
+// ── o e-mail ao cliente ─────────────────────────────────────────────────
+/* O e-mail vai do endereço do sistema, que ninguém lê: o "Responder para" é
+   o que faz a dúvida do cliente chegar a alguém. O período é o da tela — o
+   mesmo da planilha anexa. Enviar é ação EXTERNA: o botão só existe dentro
+   do modal, com os destinatários à vista. */
+async function hpEmailAbrir(){
+  if(!hpPerfilAtual()) return;
+  abrirModal('<h3 style="margin:0 0 9px">Enviar por e-mail</h3><p class="hint" style="margin:0">montando o e-mail e a planilha…</p>');
+  let e;
+  try{
+    const j=await respostaJSON(await fetch('/api/operacao/horas-paradas/email/previa?'+qsView('hp'),{cache:'no-store'}));
+    if(!j.ok) throw new Error((j.dados||{}).mensagem || 'Não foi possível montar o e-mail.');
+    e=j.dados;
+  }catch(x){
+    abrirModal(`<h3 style="margin:0 0 9px">Enviar por e-mail</h3><p class="hint">${esc(x.message)}</p>`
+      + `<div style="display:flex;justify-content:flex-end"><button class="btn" onclick="fecharModal()">Fechar</button></div>`);
+    return;
+  }
+  HP_EMAIL=e;
+  const quando=v=>new Date(v.em).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
+  const hist=(e.envios||[]).slice(0,5).map(v=>
+    `<li>${esc(quando(v))} · ${fmtD(v.de)} a ${fmtD(v.ate)} · para ${esc(v.destinatarios)} · ${esc(v.autor)} · `
+    + (v.ok===true?'enviado':(v.ok===false?`<b style="color:var(--red)">falhou</b>: ${esc(v.erro||'')}`:'sem resposta do envio'))+'</li>').join('');
+  abrirModal(`<h3 style="margin:0 0 3px">Enviar por e-mail</h3>`
+    + `<p class="hint" style="margin:0 0 18px">Período da tela: ${fmtD(e.de)} a ${fmtD(e.ate)} · ${e.cargas} carga(s) · ${hpR(e.valor_total)} · anexo <b>${esc(e.arquivo)}</b>. O e-mail sai do endereço do sistema; a resposta do cliente vai para o “Responder para”.</p>`
+    + `<div class="ges-form">`
+    + `<div><label for="hpe-para">Para (separe por vírgula)</label><textarea id="hpe-para" rows="2" style="width:100%">${esc((e.destinatarios||[]).join(', '))}</textarea></div>`
+    + `<div><label for="hpe-resp">Responder para (quem atende as dúvidas)</label><input type="text" id="hpe-resp" style="width:100%" value="${esc((e.responder_para||[]).join(', '))}"></div>`
+    + `<div><label for="hpe-assunto">Assunto</label><input type="text" id="hpe-assunto" maxlength="200" style="width:100%" value="${esc(e.assunto)}"></div>`
+    + `<div><label for="hpe-msg">Mensagem (opcional, vai no começo do e-mail)</label><textarea id="hpe-msg" rows="3" style="width:100%" maxlength="2000"></textarea></div>`
+    + `<label style="display:flex;gap:9px;align-items:center"><input type="checkbox" id="hpe-lembrar"> Lembrar destinatários e resposta para este cliente</label>`
+    + `<div><button class="btn sm" onclick="hpEmailPrevia()">Ver o e-mail como o cliente recebe</button>`
+    + `<iframe id="hpe-iframe" title="Prévia do e-mail" sandbox="" style="width:100%;height:420px;border:1px solid var(--n200);border-radius:6px;margin:9px 0 0" hidden></iframe></div>`
+    + (hist ? `<div><label>Últimos envios deste cliente</label><ul class="hint" style="margin:0;padding-left:18px">${hist}</ul></div>` : '')
+    + `<p id="m-err" class="hint" style="color:var(--red);margin:0"></p>`
+    + `<div style="display:flex;gap:9px;justify-content:flex-end"><button class="btn" onclick="fecharModal()">Cancelar</button>`
+    + `<button class="btn primary" id="hpe-enviar" onclick="hpEmailEnviar()">Enviar</button></div></div>`);
+  document.getElementById('modalBox').classList.add('larga');
+}
+function hpEmailPrevia(){
+  const f=document.getElementById('hpe-iframe'); if(!f || !HP_EMAIL) return;
+  if(f.hidden){ f.srcdoc=HP_EMAIL.html; f.hidden=false; } else f.hidden=true;
+}
+async function hpEmailEnviar(){
+  const p=hpPerfilAtual(); if(!p || !HP_EMAIL) return;
+  const g=id=>document.getElementById(id);
+  const para=g('hpe-para').value.trim();
+  if(!para){ mErro('Informe ao menos um destinatário.'); return; }
+  const bt=g('hpe-enviar'); bt.disabled=true;
+  const lembrar=g('hpe-lembrar').checked;
+  let r=null;
+  try{
+    const j=await hpPost('/api/operacao/horas-paradas/email',{
+      perfil:p.id, de:HP_EMAIL.de, ate:HP_EMAIL.ate, destinatarios:para,
+      responder_para:g('hpe-resp').value.trim(), assunto:g('hpe-assunto').value.trim(),
+      mensagem:g('hpe-msg').value, lembrar});
+    if(!j.ok) mErro((j.dados||{}).mensagem || 'O e-mail não saiu.');
+    else r=j.dados;
+  }catch(x){ mErro(x.message); }
+  finally{ bt.disabled=false; }
+  if(r){
+    const agora=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    abrirModal(`<h3 style="margin:0 0 9px">E-mail enviado</h3>`
+      + `<p style="margin:0 0 9px">Enviado às ${agora} para ${esc(r.destinatarios.join(', '))}, com a planilha <b>${esc(r.arquivo)}</b>.</p>`
+      + (r.responder_para.length?`<p class="hint" style="margin:0 0 18px">As respostas vão para ${esc(r.responder_para.join(', '))}.</p>`:`<p class="hint" style="margin:0 0 18px">Sem “Responder para”: uma resposta do cliente volta para o endereço do sistema.</p>`)
+      + `<div style="display:flex;justify-content:flex-end"><button class="btn primary" id="hpe-ok" onclick="fecharModal()">Fechar</button></div>`);
+    // "Lembrar" gravou destinatários no perfil: relê a lista, senão a aba
+    // Regras mostraria o perfil de antes do envio.
+    if(lembrar){ HP_PERFIS=null; HP_CFG=null; HP_CAT=null; }
     loadHp();
   }
 }

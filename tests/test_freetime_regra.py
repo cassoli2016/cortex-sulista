@@ -482,33 +482,46 @@ def test_o_filtro_de_varias_usa_PARAMETRO_e_nao_texto_montado():
 
 # ─────────────────── as equivalências declaradas (11/09/2026) ──────────────
 
-def test_a_equivalencia_e_DECLARADA_e_nao_uma_heuristica():
+def test_a_equivalencia_e_DECLARADA_e_nao_uma_heuristica(monkeypatch):
     """A tabela é o mecanismo inteiro: sem `LIKE`, sem prefixo, sem distância
     de texto. Cada linha é uma decisão de pessoa, e o que ela cobre é
     exatamente o que está escrito — nem uma grafia a mais.
+
+    Com uma linha INVENTADA: a tabela real está vazia desde 13/09/2026, e o
+    mecanismo precisa continuar provado para a próxima.
     """
     from api import freetime
 
     assert isinstance(freetime.EQUIVALENCIAS, dict)
+    assert freetime.sql_equivalente("X") == "X", "tabela vazia devolve a coluna crua"
+    monkeypatch.setattr(freetime, "EQUIVALENCIAS", {"CAIXA PEQUENA": "CAIXA"})
     sql = freetime.sql_equivalente("X")
     assert "LIKE" not in sql.upper() and "%" not in sql, (
         "a equivalência virou aproximação de texto: %s" % sql)
     assert sql.startswith("CASE ") and " ELSE X END" in sql
 
 
-def test_CONJUNTO_PHEVUS_vale_como_CONJUNTOS():
-    """A decisão de quem negocia o contrato, 11/09/2026.
+def test_CONJUNTO_PHEVUS_voltou_para_a_GENERICA():
+    """A equivalência de 11/09/2026 foi REVERTIDA em 13/09, por quem opera.
 
-    764 coletas/ano da IOCHPE MAXION saem da cláusula genérica (3h) para a de
-    CONJUNTOS (6,5h na descarga). Medido pela consulta real: a estadia
-    estimada em 60 dias vai de R$ 959.814,37 para R$ 952.489,63.
+    O relatório Monitoramento SAC do ERP casa a cláusula pela mercadoria
+    escrita igual e dá a genérica ao CONJUNTO PHEVUS, e a planilha de horas
+    paradas que se cobra do cliente faz o mesmo. Manter a linha deixava a
+    estimativa do SAC e o portal discordando do que se cobra.
+
+    Medido pela consulta real, 60 dias (15/07 a 12/09/2026): a estimativa do
+    SAC vai de R$ 940.512,97 (com a equivalência) para o valor sem ela —
+    registrado em `docs/versoes.yaml` na versão que fez a troca.
     """
-    assert ft.equivalente("CONJUNTO PHEVUS") == ft.normalizar("CONJUNTOS")
+    assert "CONJUNTO PHEVU" not in ft.EQUIVALENCIAS, (
+        "a equivalência revertida em 13/09 voltou — a cobrança e o relatório "
+        "do ERP dão a genérica a esta mercadoria")
+    assert ft.equivalente("CONJUNTO PHEVUS") == ft.normalizar("CONJUNTO PHEVUS")
     r = ft.resolver([{"mercadoria": "CONJUNTOS", "ft_carga_h": 3.0,
                       "ft_descarga_h": 6.5},
                      {"mercadoria": "", "ft_carga_h": 3.0, "ft_descarga_h": 3.0}],
                     "CONJUNTO PHEVUS")
-    assert r["ft_descarga_h"] == 6.5, "a equivalência não alcançou a cláusula"
+    assert r["origem"] == ft.GENERICO and r["ft_descarga_h"] == 3.0
 
 
 def test_LONGARINA_PHEVUS_ficou_de_FORA_e_isso_foi_perguntado():
@@ -540,21 +553,25 @@ def test_a_tela_sabe_que_foi_EQUIVALENCIA_e_nao_clausula_propria():
     confere a conta tem direito de ver que ela existe, em vez de achar que o
     contrato fala de "CONJUNTO PHEVUS".
     """
-    contrato = [{"mercadoria": "CONJUNTOS", "ft_carga_h": 3.0, "ft_descarga_h": 6.5}]
-    assert ft.resolver(contrato, "CONJUNTOS")["origem"] == ft.MERCADORIA
-    assert ft.resolver(contrato, "CONJUNTO PHEVUS")["origem"] == ft.EQUIVALENCIA
+    # Uma equivalência INVENTADA: a tabela real está vazia desde 13/09/2026.
+    ft_eq = dict(ft.EQUIVALENCIAS, **{"CAIXA PEQUENA": "CAIXA"})
+    contrato = [{"mercadoria": "CAIXAS", "ft_carga_h": 3.0, "ft_descarga_h": 6.5}]
+    import unittest.mock as um
+    with um.patch.object(ft, "EQUIVALENCIAS", ft_eq):
+        assert ft.resolver(contrato, "CAIXAS")["origem"] == ft.MERCADORIA
+        assert ft.resolver(contrato, "CAIXAS PEQUENAS")["origem"] == ft.EQUIVALENCIA
 
     from api import queries as q
     assert "'equivalencia'" in q.SAC_DET_SQL, (
         "o SQL não publica o quarto estado — a tela do SAC não tem como dizer")
-    # E O JOIN TEM DE USAR A EQUIVALÊNCIA, não só o `CASE` que a rotula. Com o
-    # join na expressão CRUA, a cláusula de CONJUNTOS nunca casa com "CONJUNTO
-    # PHEVUS": o `CASE` continua escrito, nunca dispara, e a estadia volta aos
-    # R$ 959.814,37 sem nada na tela mudar de aparência. Esta linha nasceu de
-    # uma sabotagem que passou VERDE.
-    assert q.SAC_DET_SQL.count("AND esp.merc = CASE ") == 1, (
+    # E O JOIN TEM DE USAR A EXPRESSÃO COM AS EQUIVALÊNCIAS, não a coluna
+    # crua — senão o `CASE` que rotula continua escrito e nunca dispara, sem
+    # nada na tela mudar de aparência. Esta linha nasceu de uma sabotagem que
+    # passou VERDE. (Com a tabela vazia a expressão é a coluna crua, e o
+    # guard continua valendo para a próxima linha que entrar.)
+    assert ("AND esp.merc = " + q.SQL_MERC_EQUIV) in q.SAC_DET_SQL, (
         "o join da cláusula específica não passa pelas equivalências — elas "
-        "existem no SQL e não alcançam linha nenhuma")
+        "existiriam no SQL e não alcançariam linha nenhuma")
 
 
 def test_os_DOIS_sotaques_aplicam_a_MESMA_tabela_de_equivalencia(pg_disponivel):

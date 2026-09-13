@@ -35,7 +35,9 @@ glossario:
     tela Horas Paradas, e difere do SAC/Freetime de propósito — o SAC é a
     ESTIMATIVA de toda a carteira pela regra do contrato; aqui é a conta de
     UM cliente, com a regra dele e os ajustes manuais, que vira a planilha
-    que ele recebe.
+    que ele recebe. O botão "Enviar por e-mail" manda ao cliente o resumo do
+    período e a planilha anexada; como o e-mail sai do endereço do sistema, a
+    resposta do cliente vai para o endereço informado em "Responder para".
 - termo: Início do relógio
   definicao: >-
     O horário a partir do qual a permanência conta, e ele é do cliente. Três
@@ -363,7 +365,7 @@ glossario:
     não escolhe: a permanência entra em "depende da mercadoria", entre o menor
     e o maior freetime contratado. Há ainda um quarto caso: quando quem negocia
     o contrato declara que duas mercadorias de nomes diferentes são a mesma
-    carga ("CONJUNTO PHEVUS" é "CONJUNTOS", decidido em 11/09/2026), a tela
+    carga (a primeira, de 11/09/2026, foi revertida em 13/09 — hoje não há nenhuma), a tela
     aplica a cláusula e DIZ que foi por equivalência declarada — é decisão de
     pessoa, registrada com data e efeito medido, e pode ser revista. Permanência acima de 24h vira "não medido":
     é apontamento atravessando dias, não veículo parado.

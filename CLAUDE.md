@@ -413,7 +413,11 @@ moram em arquivos que não falam do assunto.
   JANELA — a fórmula do relatório do ERP (quem opera, 13/09/2026) — e a
   referência do cliente na planilha é regra do perfil (formato, fontes
   pedido/ocorrência, exceção, modelo), com a origem na linha: o FORMATO é o
-  que separa o código inteiro do digitado pela metade. Guards:
+  que separa o código inteiro do digitado pela metade. O e-mail ao cliente
+  (`email.py`) sai pelo correio da casa com o `Reply-To` que quem envia
+  informa (o remetente é o noreply, que ninguém lê), anexa a MESMA planilha
+  do botão, abre a linha em `hp_envio` ANTES do envio e a fecha depois, e
+  nunca leva ajuste, motivo ou o valor que o ERP daria. Guards:
   `tests/horas_paradas/`.
 - Integração é **módulo por fornecedor** em `api/<fornecedor>/` (gobrax,
   smartec, tomtom, whatsapp, monkey, jornada/RasterJOR, pedagio/QualP) — não
@@ -767,6 +771,14 @@ barra empilhada, não donut.
     resposta foi a estreita. Decisão comercial se confirma no ALCANCE, não só
     no princípio — e o guard registra o que ficou de fora, porque a leitura
     ampla é a natural e alguém vai querer "completar" a tabela.
+  - **E ela foi REVERTIDA em 13/09/2026** — pela mesma pessoa, com o dado
+    na mesa: o relatório Monitoramento SAC do ERP dá a cláusula GENÉRICA ao
+    CONJUNTO PHEVUS (casa a cláusula pela mercadoria escrita igual), e a
+    planilha de horas paradas que se cobra do cliente também. A tabela está
+    vazia, com a história escrita nela. **Antes de declarar que duas
+    mercadorias são a mesma, conferir como o relatório oficial já as trata**:
+    uma régua da casa que discorda dele produz duas estimativas certas e
+    incompatíveis.
 - **Filtro cuja marca no SQL é um COMENTÁRIO precisa de recusa explícita.**
   `--{FILTRO_MERC}` perdido não quebra consulta nenhuma: ela roda, responde e
   ignora o filtro — a tela mostra "ESPUMA" no seletor e devolve a operação

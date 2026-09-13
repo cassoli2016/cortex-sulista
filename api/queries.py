@@ -5414,8 +5414,9 @@ SQL_MERC_CONTRATO = _ft.sql_normalizar("observacao")
 SQL_MERC_COLETA = _ft.sql_normalizar("c.mercadorias")
 # A MESMA COLUNA, com as EQUIVALÊNCIAS DECLARADAS aplicadas. A
 # normalização continua fazendo só aritmética de texto; o julgamento
-# comercial ("CONJUNTO PHEVUS é CONJUNTOS") mora na tabela de
-# `api/freetime.EQUIVALENCIAS`, com data e efeito medido.
+# comercial mora na tabela de `api/freetime.EQUIVALENCIAS`, com data e
+# efeito medido (vazia desde 13/09/2026 — a de 11/09 foi revertida, e a
+# história está lá). Com a tabela vazia, esta expressão é a própria coluna.
 SQL_MERC_EQUIV = _ft.sql_equivalente(SQL_MERC_COLETA)
 
 SAC_FT_REP = """

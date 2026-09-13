@@ -6947,6 +6947,57 @@ async def horas_paradas_desfazer(req: Request) -> JSONResponse:
     return JSONResponse({"ok": True, "desfeito": achou})
 
 
+@app.get("/api/operacao/horas-paradas/email/previa")
+def horas_paradas_email_previa(perfil: int, de: str | None = None,
+                               ate: str | None = None) -> JSONResponse:
+    """O e-mail como o cliente vai receber, sem enviar — e os padrões do
+    perfil (destinatários, resposta) e os últimos envios, para o modal."""
+    from api.horas_paradas import email as hpe
+    try:
+        d0, d1 = _hp_periodo(de, ate)
+        e = hpe.montar(perfil, d0, d1)
+        return JSONResponse({
+            "assunto": e["assunto"], "html": e["html"], "arquivo": e["arquivo"],
+            "de": d0, "ate": d1,
+            "cargas": e["resumo"]["cargas"], "valor_total": e["resumo"]["valor_total"],
+            "destinatarios": e["config_email"]["destinatarios"],
+            "responder_para": e["config_email"]["responder_para"],
+            "envios": hpe.envios(perfil)})
+    except Exception as exc:  # noqa: BLE001
+        return _hp_falha(exc, "montar o e-mail")
+
+
+@app.post("/api/operacao/horas-paradas/email")
+async def horas_paradas_email_enviar(req: Request) -> JSONResponse:
+    """Manda a planilha ao cliente. AÇÃO EXTERNA: a auditoria vem ANTES."""
+    from api.horas_paradas import email as hpe
+    quem = _hp_quem(req)
+    body = await _hp_corpo(req)
+    if not quem or body is None:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Corpo ou sessão inválidos."})
+    try:
+        d0, d1 = _hp_periodo(body.get("de"), body.get("ate"))
+        pid = int(body.get("perfil") or 0)
+    except (TypeError, ValueError):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Perfil ou período inválido."})
+    await sem_travar(auth.audit, quem, "hp_email", alvo="perfil %d · %s a %s" % (pid, d0, d1),
+                     detalhe=("para: %s · resposta: %s" % (body.get("destinatarios") or "",
+                                                           body.get("responder_para") or ""))[:180])
+    try:
+        r = await sem_travar(hpe.enviar, pid, d0, d1, body.get("destinatarios") or "",
+                             body.get("responder_para") or "", str(body.get("assunto") or ""),
+                             str(body.get("mensagem") or ""), quem,
+                             lembrar=bool(body.get("lembrar")))
+    except Exception as exc:  # noqa: BLE001
+        return _hp_falha(exc, "enviar o e-mail")
+    if not r["ok"]:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "envio_falhou", "mensagem": r["erro"] or "O e-mail não saiu."})
+    return JSONResponse({**r, "ok": True})
+
+
 @app.get("/api/jornada/motorista")
 def jornada_motorista(doc: str | None = None, de: str | None = None,
                       ate: str | None = None) -> JSONResponse:

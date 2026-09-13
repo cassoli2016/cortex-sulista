@@ -117,6 +117,37 @@ def test_ciclo_perfil_regra_ajuste_planilha(cliente):
     assert acoes == ["hp_perfil_criar", "hp_perfil_salvar", "hp_ajuste"]
 
 
+def test_e_mail_AUDITADO_antes_e_falha_do_servidor_e_409(cliente, monkeypatch):
+    from api.correio import envio
+    enviados = []
+    monkeypatch.setattr(envio, "enviar", lambda d, a, c, **kw: enviados.append(d) or
+                        {"ok": True, "erro": "", "destinatarios": d})
+    pid = cliente.post("/api/operacao/horas-paradas/perfis",
+                       json={"cliente_codigo": 8, "cliente_nome": "A"}).json()["perfil"]["id"]
+    prev = cliente.get("/api/operacao/horas-paradas/email/previa",
+                       params={"perfil": pid, "de": "2026-09-07", "ate": "2026-09-13"})
+    assert prev.status_code == 200 and prev.json()["cargas"] == 1
+    assert prev.json()["html"].startswith("<!DOCTYPE") and prev.json()["envios"] == []
+    r = cliente.post("/api/operacao/horas-paradas/email", json={
+        "perfil": pid, "de": "2026-09-07", "ate": "2026-09-13",
+        "destinatarios": "cliente@empresa.com", "responder_para": "torre@sulista.com.br"})
+    assert r.status_code == 200, r.text
+    assert enviados == [["cliente@empresa.com"]]
+    with auth._conn() as c:
+        acoes = [x["acao"] for x in c.execute(
+            "SELECT acao FROM audit_log WHERE acao = 'hp_email'").fetchall()]
+    assert acoes == ["hp_email"]
+    monkeypatch.setattr(envio, "enviar", lambda d, a, c, **kw:
+                        {"ok": False, "erro": "Servidor recusou", "destinatarios": d})
+    r = cliente.post("/api/operacao/horas-paradas/email", json={
+        "perfil": pid, "de": "2026-09-07", "ate": "2026-09-13",
+        "destinatarios": "cliente@empresa.com"})
+    assert r.status_code == 409 and "recusou" in r.json()["mensagem"]
+    r = cliente.post("/api/operacao/horas-paradas/email", json={
+        "perfil": pid, "de": "2026-09-07", "ate": "2026-09-13", "destinatarios": "fulano"})
+    assert r.status_code == 409 and "inválido" in r.json()["mensagem"]
+
+
 def test_recusas_sao_4xx_legiveis(cliente):
     pid = cliente.post("/api/operacao/horas-paradas/perfis",
                        json={"cliente_codigo": 8, "cliente_nome": "A"}).json()["perfil"]["id"]

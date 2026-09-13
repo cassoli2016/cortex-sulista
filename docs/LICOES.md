@@ -86,10 +86,15 @@ ERP, o trecho de freetime da própria consulta dele põe a mercadoria em
 dúvida na cláusula GENÉRICA — ele casa a cláusula pela observação IGUAL à
 mercadoria, sem normalizar, e só dá cláusula própria a quem tem o nome
 exato. A planilha de cobrança concorda com ele e discorda da equivalência
-declarada em 11/09 (`api/freetime.EQUIVALENCIAS`), que continua valendo na
-ESTIMATIVA do SAC e no portal. Por isso, em Horas Paradas, a divergência é
-uma regra declarada no perfil, e a pergunta "a equivalência deve cair também
-na estimativa?" ficou para quem opera.
+declarada em 11/09 (`api/freetime.EQUIVALENCIAS`). Levada a quem opera — "a
+equivalência deve cair também na estimativa do SAC e no portal?" —, a
+resposta foi sim, e a tabela ficou VAZIA com a história escrita nela. A
+decisão de 11/09 não estava errada no princípio (equivalência é decisão
+comercial, e mora numa tabela); estava errada no FATO, e o fato estava na
+tela que a própria operação usa. **Antes de declarar que duas mercadorias
+são a mesma, conferir como o relatório oficial já as trata** — ele é o que a
+operação vê todo dia, e uma régua da casa que discorda dele produz duas
+estimativas certas e incompatíveis.
 
 **A referência do cliente não mora onde a planilha sugere.** O código
 colado no pedido do ERP cobria quase todas as cargas que o têm, mas algumas

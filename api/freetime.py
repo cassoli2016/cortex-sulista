@@ -188,18 +188,25 @@ def canonizar(mercs) -> tuple:
 # Quem acrescentar uma linha: meça o efeito ANTES e escreva na linha. Sem o
 # número, a próxima pessoa não tem como saber se a equivalência é detalhe de
 # cadastro ou um item de R$ 200 mil por ano.
-EQUIVALENCIAS = {
-    # 11/09/2026, decisão de quem opera: "Phevus também é conjuntos".
-    # 764 coletas/ano da IOCHPE MAXION saem da cláusula genérica (3h) para a
-    # de CONJUNTOS (6,5h na descarga). Efeito medido: R$ 7.324,75 A MENOS de
-    # estadia estimada em 60 dias, sobre 63 permanências.
+EQUIVALENCIAS: dict[str, str] = {
+    # VAZIA DESDE 13/09/2026 — e a história fica, porque a próxima pessoa vai
+    # propor a mesma linha.
     #
-    # LONGARINA PHEVUS (998 coletas/ano) FICA DE FORA, e isso foi perguntado e
-    # respondido no mesmo dia: ela continua na genérica, junto com a LONGARINA
-    # comum. Incluí-la levaria o efeito a R$ 45.210,51 em 60 dias — a
-    # diferença entre as duas leituras era de R$ 37,9 mil, e por isso não foi
-    # deduzida daqui.
-    "CONJUNTO PHEVU": "CONJUNTO",
+    # 11/09: quem opera respondeu "Phevus também é conjuntos", e entrou
+    # "CONJUNTO PHEVU" → "CONJUNTO" (a cláusula de CONJUNTOS, mais longa na
+    # descarga, no lugar da genérica). LONGARINA PHEVUS ficou de fora, e isso
+    # foi perguntado.
+    #
+    # 13/09: revertida pela mesma pessoa, com o dado na mesa. O relatório
+    # Monitoramento SAC do ERP — a tela que a operação usa — casa a cláusula
+    # pela mercadoria ESCRITA IGUAL e dá a genérica ao CONJUNTO PHEVUS; a
+    # planilha de horas paradas que a casa COBRA do cliente faz o mesmo.
+    # Manter a equivalência deixava a estimativa do SAC e o portal discordando
+    # do que se cobra. Efeito medido na estimativa do SAC em 60 dias: ver
+    # `tests/test_freetime_regra.py`.
+    #
+    # O MECANISMO continua: a próxima equivalência entra aqui, com data e
+    # efeito medido, e nunca como aproximação de texto na consulta.
 }
 
 
