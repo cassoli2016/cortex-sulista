@@ -1,3 +1,14 @@
+- versao: "1.73.3"
+  data: "2026-09-13"
+  corrigido:
+    - >-
+      CNH vencida (painel de TV da Operação, rodapé, programação e alertas):
+      a validade da CNH do motorista próprio passa a vir do Globus, a folha
+      que o RH mantém em dia — o cadastro do ERP ficava para trás e acusava
+      como vencida CNH já renovada. Para agregado e terceiro, que não estão na
+      folha, continua valendo o cadastro do ERP. Se o Globus não responder,
+      vale o cadastro e a tela avisa.
+
 - versao: "1.73.2"
   data: "2026-09-13"
   alterado:

@@ -4701,6 +4701,9 @@ WHERE v.utilizacaoveiculo IN ('TRA','LOC') AND v.dtinativo IS NULL
 
 PROG_MOT_DISP_SQL = """
 SELECT coalesce(nullif(trim(c.razaosocial),''),'(sem nome)') AS motorista,
+       -- o codigo do motorista E o CPF (11 digitos em 224 de 224, 13/09/2026):
+       -- serve so para casar com a CNH do Globus e NAO sai do servidor
+       p.motorista AS codigo,
        max(p.dtsaida)::date AS ult_saida,
        sum(CASE WHEN p.dtchegada IS NULL THEN 1 ELSE 0 END)::int AS em_viagem,
        min(cc.dtvencimentocarteirahabilitacao)::date AS venc_cnh,
@@ -4748,6 +4751,42 @@ WHERE v.utilizacaoveiculo = 'AGR' AND v.dtinativo IS NULL AND v.possuimotor = 1
 # Modalidade do veiculo -> classe do motorista no cartao da TV.
 _CLASSE_MOT = {"TRA": "proprio", "LOC": "proprio", "AGR": "agregado",
                "TER": "terceiro"}
+
+
+@cached(ttl=1800)
+def _cnh_globus_cache() -> dict:
+    from api import queries_folha
+    return queries_folha.venc_cnh_por_cpf()
+
+
+# Depois de uma falha do Oracle, 10 min sem tentar de novo: a programacao e
+# lida pela TV a cada 2 min, e cada tentativa contra um Oracle fora pode
+# segurar a resposta ate o call_timeout (60 s) -- a TV nao pode pagar isso
+# toda vez para, no fim, cair no AVA do mesmo jeito.
+_CNH_GLOBUS_PAUSA_S = 600
+_cnh_globus_falhou_em = 0.0
+
+
+def _cnh_globus() -> dict | None:
+    """Validade da CNH por CPF, da folha; None quando nao ha Globus.
+
+    None e "nao sei pelo Globus", e quem chama cai no cadastro do AVA e DIZ
+    isso no payload (`cnh_globus_ok`). Sob pytest e sempre None: a suite nao
+    pode ler a folha de producao.
+    """
+    global _cnh_globus_falhou_em
+    from api.sob_teste import sob_teste
+    if sob_teste():
+        return None
+    if _time.time() - _cnh_globus_falhou_em < _CNH_GLOBUS_PAUSA_S:
+        return None
+    try:
+        return _cnh_globus_cache()
+    except Exception as exc:  # noqa: BLE001
+        _cnh_globus_falhou_em = _time.time()
+        log.warning("cnh do globus indisponivel (%s); vale o cadastro do AVA",
+                    type(exc).__name__)
+        return None
 
 
 def _descarga_med_h(cidade: str | None, uf: str | None) -> float:
@@ -4907,6 +4946,29 @@ def get_programacao() -> dict:
     mot_proprios = sum(1 for m in mot_disp if classe(m) == "proprio")
     mot_proprios_disp = sum(1 for m in mot_disp
                             if classe(m) == "proprio" and m["em_viagem"] == 0)
+    # CNH DO PROPRIO PELO GLOBUS, DO AGREGADO E DO TERCEIRO PELO CADASTRO
+    # (pedido de quem opera, 13/09/2026: "valide as CNHs vencidas pelo
+    # Globus"). Medido no dia: das 4 "vencidas rodando", a unica de proprio
+    # estava renovada no Globus ate 2030; das 22 no total, as 11 de proprio
+    # estavam todas renovadas. O agregado e o terceiro NAO estao na folha --
+    # 8 agregados aparecem la como ex-funcionarios, com ficha parada, e por
+    # isso a folha so vale para quem e proprio. Vale a data MAIS RECENTE das
+    # duas fontes: o Globus foi mais novo em 13 de 68, o AVA em nenhum.
+    globus = _cnh_globus()
+    cnh_renovada_globus = 0
+    for m in mot_disp:
+        cpf = "".join(ch for ch in str(m.pop("codigo", "") or "") if ch.isdigit())
+        m["fonte_cnh"] = "cadastro"
+        if globus is None or classe(m) != "proprio":
+            continue
+        g = globus.get(cpf)
+        ava = m["venc_cnh"]
+        if g is None or (ava is not None and ava > g):
+            continue
+        if ava is not None and ava < hoje <= g:
+            cnh_renovada_globus += 1
+        m["venc_cnh"] = g
+        m["fonte_cnh"] = "globus"
     cnh_vencida = [m for m in mot_disp if m["venc_cnh"] and m["venc_cnh"] < hoje]
     cnh_vencendo = sum(1 for m in mot_disp
                        if m["venc_cnh"] and 0 <= (m["venc_cnh"] - hoje).days <= 30)
@@ -4925,6 +4987,7 @@ def get_programacao() -> dict:
                 "em_viagem": m["em_viagem"] > 0,
                 "venc_cnh": m["venc_cnh"].isoformat() if m["venc_cnh"] else None,
                 "cnh_vencida": bool(m["venc_cnh"] and m["venc_cnh"] < hoje),
+                "fonte_cnh": m.get("fonte_cnh", "cadastro"),
             })
         return out
 
@@ -4958,6 +5021,14 @@ def get_programacao() -> dict:
                                   if mot_proprios else None),
             "cnh_vencida": len(cnh_vencida), "cnh_vencendo": cnh_vencendo,
             "cnh_vencida_rodando": cnh_vencida_rodando,
+            "cnh_vencida_rodando_por_classe": {
+                c: sum(1 for m in cnh_vencida if m["em_viagem"] > 0 and classe(m) == c)
+                for c in ("proprio", "agregado", "terceiro", "outro")},
+            # False = o Globus nao respondeu e TODA CNH saiu do cadastro do AVA
+            "cnh_globus_ok": globus is not None,
+            # vencida no cadastro do ERP e valida no Globus: e a lista de
+            # "atualizar o cadastro", nao motorista irregular
+            "cnh_renovada_no_globus": cnh_renovada_globus,
         },
         "ociosos": ociosos[:20],
         "motoristas_parados": _mot_out(mot_parados[:20]),

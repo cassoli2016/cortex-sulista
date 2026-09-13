@@ -6694,7 +6694,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </div>
           </div>
   <div class="card">
-            <div class="head"><h2>Alertas de CNH vencida <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Motoristas ativos nos últimos 30 dias com habilitação vencida no cadastro. Quem está EM VIAGEM aparece primeiro e em vermelho: dirigir com CNH vencida é infração gravíssima e pode levar a seguradora a negar cobertura.">i</span></h2><span class="hint">motoristas ativos nos últimos 30 dias com habilitação vencida</span></div>
+            <div class="head"><h2>Alertas de CNH vencida <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Motoristas ativos nos últimos 30 dias com habilitação vencida. A validade do motorista PRÓPRIO vem do Globus (a folha, que o RH mantém em dia) ou do cadastro do ERP, o que for mais recente; a do agregado e do terceiro, só do cadastro do ERP, que é onde ela existe. Quem está EM VIAGEM aparece primeiro e em vermelho: dirigir com CNH vencida é infração gravíssima e pode levar a seguradora a negar cobertura.">i</span></h2><span class="hint">motoristas ativos nos últimos 30 dias com habilitação vencida</span></div>
             <div class="tablewrap tabroll"><table><thead><tr>
               <th>Motorista</th><th class="num">Vencimento</th><th>Situação</th><th class="num">Última viagem</th>
             </tr></thead><tbody id="prog-cnh"></tbody></table></div>
@@ -11704,7 +11704,7 @@ const KPI_HELP = {
   '% pago s/ frete peso': 'Valor pago ao agregado/terceiro (frete compra, incluindo deslocamentos vazios) dividido pelo frete peso cobrado do cliente nas mesmas viagens. Margem retida = 100% menos esse percentual, antes de impostos e custos administrativos.',
   'Frota própria disponível': 'Veículos próprios e locados ativos, sem viagem em aberto e sem ordem de serviço aberta. Base: viagens dos últimos 120 dias.',
   'Motoristas parados': 'Motoristas que rodaram nos últimos 30 dias e não estão em viagem no momento.',
-  'CNH vencida': 'Motoristas ativos (rodaram em 30 dias) com carteira de habilitação vencida no cadastro. Rodar com CNH vencida é infração gravíssima e risco de seguro.',
+  'CNH vencida': 'Motoristas ativos (rodaram em 30 dias) com carteira de habilitação vencida. Próprio: a validade mais recente entre o Globus (folha) e o cadastro do ERP. Agregado e terceiro: só o cadastro do ERP. Rodar com CNH vencida é infração gravíssima e risco de seguro.',
   'Em manutenção': 'Veículos próprios sem viagem em aberto e com ordem de serviço aberta na oficina.',
 
   'Km vazio evitável (90d)': 'Km rodado vazio saindo de uma cidade em dia no qual também saiu carga daquela mesma cidade — ou seja, havia demanda que poderia ter sido casada com o veículo antes de ele partir vazio.',
@@ -17356,7 +17356,9 @@ async function loadTvOpe(){
       tick.push('⚠️ '+idV(v)+' atrasada — '+(v.destino||'')));
     (t.posicoes||[]).filter(pp=>pp.velocidade>90).forEach(pp=>
       tick.push('🚨 '+(pp.rotulo||pp.frota||pp.placa)+' a '+pp.velocidade+' km/h'));
-    if(pk.cnh_vencida_rodando>0) tick.push('🚫 '+pk.cnh_vencida_rodando+' motorista(s) com CNH vencida em viagem');
+    // o proprio sai do Globus; sem ele (Oracle fora), o numero e so do cadastro e o rodape DIZ
+    if(pk.cnh_vencida_rodando>0) tick.push('🚫 '+pk.cnh_vencida_rodando+' motorista(s) com CNH vencida em viagem'
+      +(pk.cnh_globus_ok===false?' (sem conferir no Globus)':''));
     try{
       // do Radar, so a via FECHADA: lentidao numa rodovia qualquer e contexto
       const estradas=await tvEstradas();
@@ -25327,7 +25329,8 @@ function renderProg(d){
     kpi('Cargas programadas (96h)', k.cargas_72h.toLocaleString('pt-BR'), k.cargas_sem_chegada+' saem de cidade sem veículo descarregando', ''),
     kpi('Frota própria disponível', k.frota_disp.toLocaleString('pt-BR')+' de '+k.frota_total, k.frota_viagem+' em viagem · '+k.frota_os+' em manutenção', ''),
     kpi('Motoristas parados', k.mot_parados.toLocaleString('pt-BR')+' de '+k.mot_total, 'ativos nos últimos 30 dias · '+k.mot_viagem+' em viagem', ''),
-    kpi('CNH vencida', k.cnh_vencida.toLocaleString('pt-BR'), k.cnh_vencida_rodando+' em viagem agora · '+k.cnh_vencendo+' vencem em 30 dias', k.cnh_vencida_rodando>0?'neg':(k.cnh_vencida>0?'neg':'pos')),
+    kpi('CNH vencida', k.cnh_vencida.toLocaleString('pt-BR'), k.cnh_vencida_rodando+' em viagem agora · '+k.cnh_vencendo+' vencem em 30 dias'
+      +(k.cnh_globus_ok===false?' · Globus fora, só o cadastro':''), k.cnh_vencida_rodando>0?'neg':(k.cnh_vencida>0?'neg':'pos')),
     kpi('Em manutenção', k.frota_os.toLocaleString('pt-BR'), 'veículos próprios com OS aberta e sem viagem', ''),
   ].join('');
   const diasTxt = o => o.dias_parado==null ? '120+' : o.dias_parado.toLocaleString('pt-BR');

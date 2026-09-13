@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.73.3] — 13/09/2026  ·  CX-13/09/2026-v1.73.3
+
+### Corrigido
+- CNH vencida (painel de TV da Operação, rodapé, programação e alertas): a validade da CNH do motorista próprio passa a vir do Globus, a folha que o RH mantém em dia — o cadastro do ERP ficava para trás e acusava como vencida CNH já renovada. Para agregado e terceiro, que não estão na folha, continua valendo o cadastro do ERP. Se o Globus não responder, vale o cadastro e a tela avisa.
+
 ## [1.73.2] — 13/09/2026  ·  CX-13/09/2026-v1.73.2
 
 ### Alterado

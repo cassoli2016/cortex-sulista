@@ -453,6 +453,33 @@ def _qb(sql: str, params: dict) -> list[dict]:
     return _q(sql, {k: v for k, v in params.items() if k in usados})
 
 
+def venc_cnh_por_cpf() -> dict:
+    """Validade da CNH de cada motorista ATIVO na folha, por CPF (só dígitos).
+
+    Para o painel de operação conferir a CNH do motorista PRÓPRIO. Medido em
+    13/09/2026: o cadastro do AVA dava 22 motoristas com CNH vencida, e 11
+    eram próprios com a CNH já renovada no Globus (validades de 2029 a 2036);
+    entre os 68 próprios do mês, o Globus era mais novo em 13 e o AVA nunca.
+    O RH atualiza a folha; o cadastro do ERP fica para trás.
+
+    Mesma base da tela de CNH (`_CNH_BASE`: ativo nas duas views, função de
+    motorista). O CPF é CHAVE e não sai do servidor: quem chama usa para
+    casar com o motorista da viagem e publica só a data. Havendo mais de uma
+    linha para o mesmo CPF, vale a validade mais longa.
+    """
+    linhas = _q("SELECT c.cpfcnpj cpf, c.vencimento_cnh venc " + _CNH_BASE
+                + " AND c.cpfcnpj IS NOT NULL AND c.vencimento_cnh IS NOT NULL",
+                {"emp": EMPRESA})
+    fora: dict = {}
+    for r in linhas:
+        cpf = "".join(ch for ch in str(r.get("cpf") or "") if ch.isdigit())
+        v = r.get("venc")
+        d = v.date() if hasattr(v, "date") else v
+        if len(cpf) == 11 and d and (cpf not in fora or d > fora[cpf]):
+            fora[cpf] = d
+    return fora
+
+
 def get_cnh(dias: int = 90, filial: str = "", categoria: str = "") -> dict:
     """Vencimento de CNH dos motoristas ativos, com a cobertura em primeiro
     plano. `dias` é o horizonte do alerta de "vence em breve"."""

@@ -18,11 +18,25 @@ do payload. As SQL foram executadas contra o ERP real antes da entrega.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 import pytest
 
-from api import queries
+from api import queries, queries_folha
+
+# a função de verdade, guardada ANTES de o fixture abaixo trocá-la
+_CNH_GLOBUS_REAL = queries._cnh_globus
+
+HOJE = date.today()
+VENCIDA = HOJE - timedelta(days=100)
+VALIDA = HOJE + timedelta(days=1500)
+
+
+@pytest.fixture(autouse=True)
+def sem_globus(monkeypatch):
+    """A suíte nunca lê a folha de produção: por padrão, "Globus fora". Quem
+    precisa do Globus põe um dublê no teste."""
+    monkeypatch.setattr(queries, "_cnh_globus", lambda: None)
 
 
 @pytest.fixture(autouse=True)
@@ -181,19 +195,24 @@ def test_a_telemetria_recebe_as_placas_da_frota_normalizadas(monkeypatch):
 
 # ------------------------------------------------------------ a programação
 
-def _mot(cod_util, em_viagem):
-    return {"motorista": "X", "ult_saida": datetime(2026, 9, 10).date(),
-            "em_viagem": em_viagem, "venc_cnh": None, "utilizacao": cod_util}
+def _mot(cod_util, em_viagem, venc=None, codigo="00000000000"):
+    return {"motorista": "X", "codigo": codigo,
+            "ult_saida": datetime(2026, 9, 10).date(),
+            "em_viagem": em_viagem, "venc_cnh": venc, "utilizacao": cod_util}
 
 
-def _programacao(monkeypatch, motoristas, agr):
+def _prog_completo(monkeypatch, motoristas, agr):
     _banco(monkeypatch, {
         queries.PROG_DIESEL_SQL: {"custo": 0.0},
         queries.PROG_KM_PROPRIO_SQL: {"km": 0.0},
         queries.PROG_MOT_DISP_SQL: motoristas,
         queries.PROG_AGR_DISP_SQL: agr,
     })
-    return queries.get_programacao()["kpis"]
+    return queries.get_programacao()
+
+
+def _programacao(monkeypatch, motoristas, agr):
+    return _prog_completo(monkeypatch, motoristas, agr)["kpis"]
 
 
 def test_motorista_em_viagem_se_separa_por_modalidade(monkeypatch):
@@ -226,3 +245,90 @@ def test_a_tracao_agregada_vem_ao_lado_da_frota(monkeypatch):
 def test_a_tracao_agregada_ausente_vira_zero_sem_derrubar(monkeypatch):
     k = _programacao(monkeypatch, [], None)
     assert k["agr_disp"] == 0 and k["agr_ativos_30d"] == 0
+
+
+# ------------------------------------------------------- a CNH pelo Globus
+
+def _motoristas_cnh():
+    return [
+        # próprio rodando, vencido no cadastro e RENOVADO no Globus: o caso real
+        _mot("TRA", 1, VENCIDA, "11111111111"),
+        # agregado rodando, vencido no cadastro; o CPF está no Globus como
+        # EX-FUNCIONÁRIO com validade futura -- e mesmo assim não vale
+        _mot("AGR", 1, VENCIDA, "22222222222"),
+        # próprio parado, vencido no cadastro e sem linha no Globus
+        _mot("LOC", 0, VENCIDA, "33333333333"),
+        # próprio sem data no cadastro, com data no Globus
+        _mot("TRA", 0, None, "44444444444"),
+    ]
+
+
+def test_a_cnh_do_proprio_sai_do_globus_e_a_do_agregado_do_cadastro(monkeypatch):
+    monkeypatch.setattr(queries, "_cnh_globus", lambda: {
+        "11111111111": VALIDA, "22222222222": VALIDA, "44444444444": VALIDA})
+    d = _prog_completo(monkeypatch, _motoristas_cnh(), {"total": 0})
+    k = d["kpis"]
+    # vencidas: o agregado (Globus não vale para ele) e o próprio sem Globus
+    assert (k["cnh_vencida"], k["cnh_vencida_rodando"]) == (2, 1)
+    assert k["cnh_vencida_rodando_por_classe"]["agregado"] == 1
+    assert k["cnh_vencida_rodando_por_classe"]["proprio"] == 0
+    assert k["cnh_globus_ok"] is True
+    assert k["cnh_renovada_no_globus"] == 1      # só o que ERA vencido
+    assert {a["fonte_cnh"] for a in d["cnh_alertas"]} == {"cadastro"}
+
+
+def test_sem_globus_vale_o_cadastro_e_o_payload_diz(monkeypatch):
+    k = _programacao(monkeypatch, _motoristas_cnh(), {"total": 0})
+    assert (k["cnh_vencida"], k["cnh_vencida_rodando"]) == (3, 2)
+    assert k["cnh_globus_ok"] is False and k["cnh_renovada_no_globus"] == 0
+
+
+def test_cadastro_mais_novo_que_o_globus_continua_valendo(monkeypatch):
+    """A mais recente das duas. Nunca aconteceu na medição (o AVA nunca foi o
+    mais novo), mas renovar no ERP antes do RH não pode virar vencida."""
+    monkeypatch.setattr(queries, "_cnh_globus", lambda: {"11111111111": VENCIDA})
+    k = _programacao(monkeypatch, [_mot("TRA", 1, VALIDA, "11111111111")], {"total": 0})
+    assert k["cnh_vencida"] == 0
+
+
+def test_o_cpf_nao_sai_do_servidor(monkeypatch):
+    monkeypatch.setattr(queries, "_cnh_globus", lambda: {"11111111111": VALIDA})
+    d = _prog_completo(monkeypatch, _motoristas_cnh(), {"total": 0})
+    for lista in ("cnh_alertas", "motoristas_parados"):
+        for linha in d[lista]:
+            assert "codigo" not in linha and "33333333333" not in str(linha), linha
+
+
+def test_a_suite_nunca_le_a_folha_de_producao():
+    """Sob pytest a função de verdade devolve None sem abrir o Oracle."""
+    assert _CNH_GLOBUS_REAL() is None
+
+
+def test_oracle_fora_pausa_as_tentativas(monkeypatch):
+    """Cada tentativa contra um Oracle fora pode segurar a resposta até 60 s;
+    depois de uma falha, 10 min sem tentar -- e cai no cadastro."""
+    import api.sob_teste as st
+    monkeypatch.setattr(st, "sob_teste", lambda: False)
+    chamadas = []
+
+    def falha():
+        chamadas.append(1)
+        raise RuntimeError("oracle fora")
+    monkeypatch.setattr(queries, "_cnh_globus_cache", falha)
+    monkeypatch.setattr(queries, "_cnh_globus_falhou_em", 0.0)
+    assert _CNH_GLOBUS_REAL() is None and len(chamadas) == 1
+    assert _CNH_GLOBUS_REAL() is None and len(chamadas) == 1, "tentou de novo na pausa"
+
+
+def test_a_folha_devolve_a_validade_mais_longa_por_cpf(monkeypatch):
+    vistos = {}
+
+    def q(sql, params=None):
+        vistos["sql"], vistos["params"] = sql, params
+        return [{"cpf": "111.111.111-11", "venc": datetime(2027, 1, 1)},
+                {"cpf": "11111111111", "venc": datetime(2030, 1, 1)},
+                {"cpf": "123", "venc": datetime(2030, 1, 1)},          # CPF torto
+                {"cpf": "22222222222", "venc": None}]
+    monkeypatch.setattr(queries_folha, "_q", q)
+    assert queries_folha.venc_cnh_por_cpf() == {"11111111111": date(2030, 1, 1)}
+    assert "vencimento_cnh" in vistos["sql"] and vistos["params"] == {"emp": queries_folha.EMPRESA}
