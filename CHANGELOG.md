@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.71.2] — 13/09/2026  ·  CX-13/09/2026-v1.71.2
+
+### Corrigido
+- Nada muda nas telas. Os testes automáticos do GitHub passam a rodar no fuso de Brasília, como o servidor da empresa — antes, nota emitida no último dia do mês depois das 21h caía no mês seguinte só lá. Sem o ERP configurado, as telas que degradam quando ele falha voltam a degradar (em vez de dar erro), e três testes que só passavam na máquina de produção foram corrigidos.
+
 ## [1.71.1] — 13/09/2026  ·  CX-13/09/2026-v1.71.1
 
 ### Corrigido

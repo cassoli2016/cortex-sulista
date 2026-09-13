@@ -181,10 +181,16 @@ def fechar_pool() -> None:
         _pool = None
 
 
-class ErpNaoConfigurado(RuntimeError):
+class ErpNaoConfigurado(psycopg.OperationalError):
     """Sem `POSTGRES_PASSWORD` o ERP não está FORA DO AR: ele não foi instalado
     aqui (clone de desenvolvedor, CI). É a regra das integrações da casa — sem
-    credencial não é falha, é instalação incompleta."""
+    credencial não é falha, é instalação incompleta.
+
+    HERDA DE `OperationalError` DE PROPÓSITO: é a família do `PoolTimeout` que
+    ela substitui, e o `api/main.py` tem dezenas de `except
+    psycopg.OperationalError` que degradam a tela quando o ERP falha. Como
+    `RuntimeError` ela escapava de todos, e a rota da premiação virou 500 no CI
+    onde antes respondia sem a metade que depende do ERP."""
 
 
 def configurado() -> bool:

@@ -26,6 +26,14 @@ def test_sem_senha_o_erp_recusa_na_hora_dizendo_o_que_falta(monkeypatch):
     assert time.monotonic() - t0 < 2, "recusou, mas depois de esperar o pool"
 
 
+def test_a_recusa_e_da_familia_da_falha_de_conexao():
+    """As rotas tratam ERP fora com `except psycopg.OperationalError` — a
+    família do `PoolTimeout` que esta recusa substitui. Fora dela, toda tela que
+    hoje degrada sem o ERP passaria a responder 500."""
+    import psycopg
+    assert issubclass(db.ErpNaoConfigurado, psycopg.OperationalError)
+
+
 def test_senha_em_branco_conta_como_ausente(monkeypatch):
     """`POSTGRES_PASSWORD=` com espaço é o `.env` recém-copiado do modelo."""
     monkeypatch.setenv("POSTGRES_PASSWORD", "   ")

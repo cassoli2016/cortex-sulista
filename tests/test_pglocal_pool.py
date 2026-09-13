@@ -110,14 +110,35 @@ def test_as_conexoes_sao_reusadas(esquema_pg):
 
     `pg_backend_pid()` e o processo do lado do servidor — a evidencia de que a
     conexao e a mesma nao vem do nosso codigo, vem do PostgreSQL.
+
+    A PERGUNTA E "ABRIU PROCESSO NOVO?", NAO "QUANTOS DISTINTOS?" (13/09/2026).
+    O psycopg_pool retira do COMECO da fila e devolve no FIM (`popleft` /
+    `append`): se testes anteriores fizeram o pool crescer, 30 chamadas
+    seguidas GIRAM por todas as conexoes ociosas. Medido: pool crescido a 8,
+    30 chamadas, 8 processos distintos e ZERO conexoes novas. A versao anterior
+    contava distintos (<= 3) e reprovou no CI com 9 — numa fatia em que o pool
+    ja tinha crescido, reuso perfeito lido como "nao reusa nada". Agora todo
+    processo usado tem de ser um backend que JA EXISTIA antes do laco, com
+    folga de 2 para o pool completar o minimo dele.
+
+    O backend se identifica por (pid, backend_start), e nao so pelo pid: o
+    sistema pode reaproveitar numero de processo, e a hora de nascimento do
+    backend separa os dois. Sabotado (pool desligado, conexao nova a cada
+    chamada), este teste acusa 30 processos novos em 30 chamadas.
     """
-    processos = set()
+    identidade = ("SELECT pid, backend_start FROM pg_stat_activity "
+                  "WHERE datname = current_database()")
+    antes = {(r["pid"], r["backend_start"]) for r in pglocal.query(identidade)}
+    usados = set()
     for _ in range(30):
         with pglocal.get_conn(esquema_pg) as conn:
-            processos.add(conn.execute("SELECT pg_backend_pid() AS p").fetchone()["p"])
-    assert len(processos) <= 3, (
-        f"{len(processos)} conexoes distintas em 30 chamadas sequenciais — "
-        "o pool nao esta reusando nada")
+            r = conn.execute("SELECT pid, backend_start FROM pg_stat_activity "
+                             "WHERE pid = pg_backend_pid()").fetchone()
+            usados.add((r["pid"], r["backend_start"]))
+    novos = usados - antes
+    assert len(novos) <= 2, (
+        f"{len(novos)} processos NOVOS no servidor em 30 chamadas sequenciais — "
+        "o pool nao esta reusando conexao")
 
 
 # --------------------------------------------------- a saude nao pode ser enganada

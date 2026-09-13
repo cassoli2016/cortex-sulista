@@ -1,3 +1,14 @@
+- versao: "1.71.2"
+  data: "2026-09-13"
+  corrigido:
+    - >-
+      Nada muda nas telas. Os testes automáticos do GitHub passam a rodar no
+      fuso de Brasília, como o servidor da empresa — antes, nota emitida no
+      último dia do mês depois das 21h caía no mês seguinte só lá. Sem o ERP
+      configurado, as telas que degradam quando ele falha voltam a degradar
+      (em vez de dar erro), e três testes que só passavam na máquina de
+      produção foram corrigidos.
+
 - versao: "1.71.1"
   data: "2026-09-13"
   corrigido:

@@ -36,7 +36,7 @@ from api.whatsapp import registro as zreg
 
 SENHA = "senha-de-teste-123"
 DEMORA = 2.0          # cada ida à Z-API; a real chega a 20 s
-TETO_HEALTH = 1.0     # o health é trivial: acima disso o loop está travado
+TETO_HEALTH = 1.0     # a sonda é trivial: acima disso o loop está travado
 
 
 def _porta_livre() -> int:
@@ -107,9 +107,15 @@ def servidor(esquema_pg, monkeypatch, tmp_path):
 def test_envio_lento_de_whatsapp_nao_para_o_resto_do_sistema(servidor):
     """O teste que o defeito relatado deixou.
 
-    `/api/health` é pública, trivial e não toca banco. Se ela demora enquanto
-    um envio está em curso, o event loop está bloqueado — e nesse estado o
-    túnel devolve 502 para qualquer um que esteja usando o painel.
+    Se uma rota trivial demora enquanto um envio está em curso, o event loop
+    está bloqueado — e nesse estado o túnel devolve 502 para qualquer um que
+    esteja usando o painel.
+
+    A SONDA É UM ARQUIVO DE `/static/`: público, sem banco nenhum, servido pelo
+    mesmo event loop. Era o `/api/health`, que este teste chamava de "trivial e
+    sem banco" — e ele consulta o ERP (`SELECT 1` pelo `api.db`). O teste só
+    passava onde o ERP existe; no CI dava 503 com o loop perfeitamente livre,
+    e o tempo medido aqui incluía a ida ao ERP, que não é o que se quer medir.
     """
     base, httpx = servidor
     cli = httpx.Client(base_url=base, timeout=120)
@@ -130,14 +136,14 @@ def test_envio_lento_de_whatsapp_nao_para_o_resto_do_sistema(servidor):
     piores = []
     for _ in range(3):
         ini = time.monotonic()
-        assert httpx.get(base + "/api/health", timeout=60).status_code == 200
+        assert httpx.get(base + "/static/anel.js", timeout=60).status_code == 200
         piores.append(time.monotonic() - ini)
     th.join()
 
     assert envio["status"] == 200, envio
     pior = max(piores)
     assert pior < TETO_HEALTH, (
-        f"/api/health levou {pior:.2f}s durante o envio — o event loop está "
+        f"um arquivo estático levou {pior:.2f}s durante o envio — o event loop está "
         f"travado. Toda rota `async def` que faz I/O precisa passar por "
         f"`sem_travar()` (api/main.py).")
 

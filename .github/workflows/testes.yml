@@ -60,6 +60,13 @@ jobs:
           --health-timeout 5s
           --health-retries 20
     env:
+      # O FUSO DA PRODUÇÃO. O Postgres de lá roda em America/Sao_Paulo e a
+      # máquina em horário de Brasília; o runner nasce em UTC. Nota emitida em
+      # 31/08 às 23h59 é 01/09 em UTC, e a competência de setembro passava a
+      # levá-la (tests/sefaz, 13/09/2026). `TZ` vale para o Python, `PGTZ` para
+      # toda sessão que o libpq abre — o mesmo que a produção enxerga.
+      TZ: America/Sao_Paulo
+      PGTZ: America/Sao_Paulo
       # banco descartável deste job — não é segredo, morre com ele
       CORTEX_PG_HOST: 127.0.0.1
       CORTEX_PG_PORT: "5432"
