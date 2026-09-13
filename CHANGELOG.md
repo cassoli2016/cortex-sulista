@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.73.7] — 13/09/2026  ·  CX-13/09/2026-v1.73.7
+
+### Alterado
+- Painel de TV da Operação — "Tração disponível" mostra o percentual disponível da frota e dos agregados, com a contagem embaixo ("72 de 80"). A cor da frota passa a acusar frota PARADA: vermelha a partir de 50% disponível, amarela a partir de 30%, verde abaixo disso. Antes ela só acendia quando faltava tração.
+
 ## [1.73.6] — 13/09/2026  ·  CX-13/09/2026-v1.73.6
 
 ### Alterado

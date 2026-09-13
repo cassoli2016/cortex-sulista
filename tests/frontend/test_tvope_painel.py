@@ -284,10 +284,30 @@ def test_tracao_separa_frota_de_agregado(pagina):
     pg, base = pagina
     _abre(pg, base)
     c = _cartao(pg, "tvope-k1", "Tração disponível")
-    assert c and c["nums"] == ["72", "52"], c
-    assert "de 80" in c["texto"] and "de 116" in c["texto"]
-    # 72 de 80 = 90%; 52 de 116 = 45%
+    # o número grande é o % DISPONÍVEL; a contagem vai no subtítulo
+    assert c and c["nums"] == ["90%", "45%"], c
+    assert "72 de 80" in c["texto"] and "52 de 116" in c["texto"], c["texto"]
     assert _barras(pg, "tvope-k1", "Tração disponível") == [90, 45]
+
+
+@pytest.mark.parametrize("disp, esperado", [
+    (72, "ruim"),     # 90% da frota parada: o dia do pedido
+    (40, "ruim"),     # 50%: o corte do vermelho
+    (32, "warn"),     # 40%
+    (24, "warn"),     # 30%: o corte do amarelo
+    (16, "ok"),       # 20%: a frota rodando
+])
+def test_frota_parada_acende_o_cartao(pagina, disp, esperado):
+    """Quanto MAIS frota disponível (parada), pior: a regra antiga acendia só
+    a FALTA de tração. O agregado mostra o % sem cor."""
+    pg, base = pagina
+    _abre(pg, base, prog={**PROG_KPIS, "tracao_disp": disp})
+    cls = pg.evaluate("""() => {
+        const c = [...document.querySelectorAll('#tvope-k1 .tv-card')]
+          .find(x => x.querySelector('.tv-label').innerText.trim().toUpperCase() === 'TRAÇÃO DISPONÍVEL');
+        return [...c.querySelectorAll('.tv-num')].map(n => n.className); }""")
+    assert esperado in cls[0], cls
+    assert not any(k in cls[1] for k in ("ok", "warn", "ruim")), "o agregado ganhou cor: %r" % cls
 
 
 def test_motoristas_traz_o_percentual_de_proprios_livres(pagina):
@@ -390,11 +410,11 @@ def test_todo_cartao_tem_borda_na_cor_do_numero(pagina):
         '#tvope-k1 .tv-card, #tvope-k2 .tv-card')].map(c => [
           c.querySelector('.tv-label').innerText.trim().toUpperCase(),
           {cls: c.className, sombra: getComputedStyle(c).boxShadow}]))""")
-    for rot in ("MOTOR LIGADO PARADO", "PEDAL CRÍTICO", "MOTORISTAS"):
+    for rot in ("MOTOR LIGADO PARADO", "PEDAL CRÍTICO", "MOTORISTAS", "TRAÇÃO DISPONÍVEL"):
         assert "destaque-ruim" in info[rot]["cls"], (rot, info[rot])
     for rot in ("FAIXA EXTRA ECONÔMICA", "CHEGANDO 72H"):
         assert "destaque-warn" in info[rot]["cls"], (rot, info[rot])
-    for rot in ("CONSUMO DA FROTA", "SEM SINAL HÁ +6H", "FREADA BRUSCA", "TRAÇÃO DISPONÍVEL"):
+    for rot in ("CONSUMO DA FROTA", "SEM SINAL HÁ +6H", "FREADA BRUSCA"):
         assert "destaque-ok" in info[rot]["cls"], (rot, info[rot])
     # número branco: borda BRANCA (e não a discreta azul-acinzentada)
     for rot in ("EM TRÂNSITO", "VELOCIDADE MÉDIA", "SAÍRAM HOJE"):

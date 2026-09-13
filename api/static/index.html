@@ -17210,15 +17210,28 @@ async function loadTvOpe(){
     const TV_OCIOSO={amarelo:90, vermelho:93};
     const clsOcio = pctLivre==null ? ''
       : (pctLivre>=TV_OCIOSO.vermelho ? 'ruim' : (pctLivre>=TV_OCIOSO.amarelo ? 'warn' : ''));
-    const aTot=pk.agr_ativos_30d||0, fCls=(fTot && fDisp/fTot<0.15)?'warn':'ok';
+    /* TRACAO PARADA E O PROBLEMA, NAO A FALTA DELA (quem opera, 13/09/2026:
+       "quanto mais frota nao utilizada, pior"). A regra antiga pintava de
+       amarelo so a falta de tracao (menos de 15% livre). Agora o % disponivel
+       e o numero grande, e a frota acende quando fica PARADA: vermelho a
+       partir de 50% disponivel, amarelo a partir de 30%. Cortes de partida,
+       a confirmar com quem opera -- o historico de 28 dias (dia util, 8 as
+       17h) nunca teve a frota abaixo de 81% disponivel (mediana 90%), entao
+       o vermelho e o retrato de hoje, nao um pico. O agregado leva o % mas
+       fica sem cor: a regra pedida e a da frota. */
+    const TV_FROTA_PARADA={amarelo:30, vermelho:50};
+    const aTot=pk.agr_ativos_30d||0;
+    const fPct=fTot ? 100*fDisp/fTot : null, aPct=aTot ? 100*(pk.agr_disp||0)/aTot : null;
+    const fCls=fPct==null ? '' : (fPct>=TV_FROTA_PARADA.vermelho ? 'ruim'
+      : (fPct>=TV_FROTA_PARADA.amarelo ? 'warn' : 'ok'));
     const nTr=(t.transito||[]).length;
     document.getElementById('tvope-k1').innerHTML=[
       tvCard('Em trânsito', tk.em_transito, '', tk.atrasadas+' atrasadas'),
       tvCardDuo('Tração disponível', [
-          {num:fDisp, cls:fCls, sub:'frota · de '+fTot,
-           barra:{pct:fTot?100*fDisp/fTot:null, cls:fCls}},
-          {num:pk.agr_disp!=null?pk.agr_disp:'—', sub:'agregados · de '+aTot,
-           barra:{pct:aTot?100*(pk.agr_disp||0)/aTot:null}}]),
+          {num:fPct==null?'—':Math.round(fPct)+'%', cls:fCls,
+           sub:fDisp+' de '+fTot+' · frota', barra:{pct:fPct, cls:fCls}},
+          {num:aPct==null?'—':Math.round(aPct)+'%',
+           sub:(pk.agr_disp||0)+' de '+aTot+' · agregados', barra:{pct:aPct}}]),
       tvCard('Saíram hoje', tk.saidas_hoje, '',
         (tk.chegadas_previstas_hoje||0)+' chegam hoje'),
       tvCard('Chegando 72h', pk.chegando_72h, pk.sem_retorno>0?'warn':'ok', pk.sem_retorno+' sem retorno'),
