@@ -379,20 +379,28 @@ def test_o_mapa_nao_desenha_tracejado_da_atrasada(pagina):
     assert filtros and all(f in ("none", "") for f in filtros), filtros
 
 
-def test_o_contorno_vale_para_todo_cartao_em_alerta(pagina):
-    """O contorno do cartão de motoristas estendido aos demais: número
-    amarelo ou vermelho acende a borda na mesma cor; verde e neutro, não."""
+def test_todo_cartao_tem_borda_na_cor_do_numero(pagina):
+    """Borda em todos os cartões, pela cor do PIOR número: vermelha, amarela,
+    verde; o número neutro fica com a borda discreta — mas fica com borda."""
     pg, base = pagina
     _abre(pg, base)
-    cls = pg.evaluate("""() => Object.fromEntries([...document.querySelectorAll(
+    info = pg.evaluate("""() => Object.fromEntries([...document.querySelectorAll(
         '#tvope-k1 .tv-card, #tvope-k2 .tv-card')].map(c => [
-          c.querySelector('.tv-label').innerText.trim().toUpperCase(), c.className]))""")
+          c.querySelector('.tv-label').innerText.trim().toUpperCase(),
+          {cls: c.className, sombra: getComputedStyle(c).boxShadow}]))""")
     for rot in ("MOTOR LIGADO PARADO", "PEDAL CRÍTICO", "MOTORISTAS"):
-        assert "destaque-ruim" in cls[rot], (rot, cls[rot])
+        assert "destaque-ruim" in info[rot]["cls"], (rot, info[rot])
     for rot in ("FAIXA EXTRA ECONÔMICA", "CHEGANDO 72H"):
-        assert "destaque-warn" in cls[rot], (rot, cls[rot])
-    for rot in ("EM TRÂNSITO", "CONSUMO DA FROTA", "VELOCIDADE MÉDIA", "SEM SINAL HÁ +6H"):
-        assert "destaque" not in cls[rot], (rot, cls[rot])
+        assert "destaque-warn" in info[rot]["cls"], (rot, info[rot])
+    for rot in ("CONSUMO DA FROTA", "SEM SINAL HÁ +6H", "FREADA BRUSCA", "TRAÇÃO DISPONÍVEL"):
+        assert "destaque-ok" in info[rot]["cls"], (rot, info[rot])
+    for rot in ("EM TRÂNSITO", "VELOCIDADE MÉDIA", "SAÍRAM HOJE"):
+        assert "destaque" not in info[rot]["cls"], (rot, info[rot])
+    # e TODOS têm borda de verdade no navegador (a regra pode existir e perder)
+    sem = [r for r, v in info.items() if v["sombra"] in ("none", "")]
+    assert not sem, sem
+    # as bordas de estado não são a mesma cor da neutra
+    assert info["CONSUMO DA FROTA"]["sombra"] != info["EM TRÂNSITO"]["sombra"]
 
 
 def test_o_cartao_de_km_divide_a_altura_entre_os_blocos(pagina):

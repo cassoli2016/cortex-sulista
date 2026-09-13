@@ -1512,7 +1512,11 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
 /* Borda e respiro enxutos: 0.9vw de raio davam 17px numa TV de 1080p e o
    cartao ficava com cara de botao; o padding de 1.1vw comia a altura util que
    os numeros novos precisam. */
-.tvw .tv-card{border-radius:0.42vw;padding:0.62vw 0.8vw;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.tvw .tv-card{border-radius:0.42vw;padding:0.62vw 0.8vw;display:flex;flex-direction:column;min-height:0;overflow:hidden;
+  /* todo cartao da TV de operacao tem borda (quem opera, 13/09/2026): a
+     discreta aqui e a do numero NEUTRO; a de estado (verde, amarela,
+     vermelha) vem de .destaque-*, mais abaixo na folha, e vence por ordem */
+  box-shadow:inset 0 0 0 max(1px,0.1vw) #2A4A68}
 /* TRES linhas de dois cartoes, nao duas: com o numero menor cabem seis
    indicadores por bloco em vez de quatro, e a TV da operacao passa a mostrar
    saidas, chegadas e silencio de rastreador, que antes nao apareciam. */
@@ -1901,8 +1905,10 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
 .tv-label .tv-cont{float:right;color:#8FA6BC;font-weight:600;letter-spacing:0;text-transform:none}
 /* DESTAQUE DO CARTAO: a borda acende na cor da faixa, sem piscar (o que
    pisca vira ruido numa parede que fica ligada o dia inteiro) */
-.tv-card.destaque-warn{box-shadow:inset 0 0 0 0.16vw #FBBF24;background:linear-gradient(rgba(251,191,36,.08),rgba(251,191,36,.08)),#132A40}
-.tv-card.destaque-ruim{box-shadow:inset 0 0 0 0.16vw #F87171;background:linear-gradient(rgba(248,113,113,.10),rgba(248,113,113,.10)),#132A40}
+/* max(2px,...): em vw puro a borda tinha 0,6 px no celular e sumia */
+.tv-card.destaque-ok{box-shadow:inset 0 0 0 max(2px,0.16vw) #4ADE80}
+.tv-card.destaque-warn{box-shadow:inset 0 0 0 max(2px,0.16vw) #FBBF24;background:linear-gradient(rgba(251,191,36,.08),rgba(251,191,36,.08)),#132A40}
+.tv-card.destaque-ruim{box-shadow:inset 0 0 0 max(2px,0.16vw) #F87171;background:linear-gradient(rgba(248,113,113,.10),rgba(248,113,113,.10)),#132A40}
 #view-tvope .tv-head{margin-bottom:0.7vw}
 #view-tvope .tv-head h2{font-size:clamp(16px,1.5vw,30px)}
 #view-tvope .tv-head .tv-clock{font-size:clamp(16px,1.5vw,30px)}
@@ -15345,17 +15351,18 @@ function tvRegua(v, r){
    tvAnimarNums reescreve o textContent do elemento: dois numeros no mesmo
    elemento deixariam o segundo como texto morto. `destaque` acende a borda
    do cartao inteiro ('warn' ou 'ruim'). */
-/* O CONTORNO DO ESTADO (pedido de quem opera, 13/09/2026, depois de ver o do
-   cartao de motoristas): todo cartao com numero em amarelo ou vermelho ganha
-   a borda na mesma cor -- vale o PIOR numero do cartao. Verde fica sem
-   borda: contorno em tudo e contorno em nada. Chamado so pela TV de
-   operacao; as outras TVs usam o mesmo tvCard e nao pediram. */
+/* O CONTORNO DO ESTADO (pedido de quem opera, 13/09/2026): todo cartao ganha
+   a borda na cor do seu numero -- verde, amarela ou vermelha, e vale o PIOR
+   numero do cartao. Numero neutro (sem meta) fica com a borda discreta de
+   `.tvw .tv-card`. Comecou so com amarelo e vermelho; quem opera pediu o
+   verde tambem ("bordas em todos os cards de acordo com a cor"). Chamado so
+   pela TV de operacao; as outras TVs usam o mesmo tvCard e nao pediram. */
 function tvDestacar(rootId){
   document.querySelectorAll('#'+rootId+' .tv-card').forEach(c=>{
     const nums=[...c.querySelectorAll('.tv-num')];
-    const pior=nums.some(n=>n.classList.contains('ruim')) ? 'ruim'
-      : (nums.some(n=>n.classList.contains('warn')) ? 'warn' : '');
-    c.classList.remove('destaque-warn','destaque-ruim');
+    const tem=k=>nums.some(n=>n.classList.contains(k));
+    const pior=tem('ruim') ? 'ruim' : (tem('warn') ? 'warn' : (tem('ok') ? 'ok' : ''));
+    c.classList.remove('destaque-ok','destaque-warn','destaque-ruim');
     if(pior) c.classList.add('destaque-'+pior);
   });
 }

@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.73.5] — 13/09/2026  ·  CX-13/09/2026-v1.73.5
+
+### Alterado
+- Painel de TV da Operação — todos os cartões têm borda: verde, amarela ou vermelha conforme a cor do número (vale o pior número do cartão), e uma borda discreta nos cartões sem meta. No celular a borda deixa de sumir.
+
 ## [1.73.4] — 13/09/2026  ·  CX-13/09/2026-v1.73.4
 
 ### Alterado
