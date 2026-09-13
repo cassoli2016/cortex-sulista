@@ -1,3 +1,32 @@
+- versao: "1.63.0"
+  data: "2026-09-13"
+  adicionado:
+    - >-
+      Tela nova em Operação: Horas Paradas. É a estadia a cobrar de cada
+      cliente, montada a partir do Monitoramento SAC do ERP — chegada e saída
+      no carregamento e na descarga, o freetime do contrato, o tempo excedido
+      e o valor — e sai como a planilha que o cliente recebe, no layout dele,
+      pelo botão "Baixar planilha do cliente".
+    - >-
+      Cada cliente tem a sua regra, na aba Regras do cliente: quando o relógio
+      começa (na janela, na chegada, ou no que vier depois dos dois), como o
+      excedente é cobrado (por minuto ou arredondado para cima), por qual
+      horário a carga entra no período, as colunas da planilha e as exceções
+      que o contrato do ERP não diz, por mercadoria e por destinatário. A
+      linha de cada carga diz qual regra respondeu, e toda versão da regra
+      fica guardada com quem mudou.
+    - >-
+      Horário corrigido à mão tem lugar próprio: o botão Ajustar de cada carga
+      corrige chegada, saída ou janela só na conta das horas paradas (o ERP
+      não muda), com motivo obrigatório. A linha mostra o valor do ERP ao
+      lado, o topo da tela diz quanto os ajustes mudaram o total, e uma carga
+      pode sair da planilha do cliente sem sumir da tela. As cargas que ainda
+      não terminaram a descarga ficam na aba Em aberto e não somam.
+    - >-
+      A Saúde do Servidor mostra quantos clientes estão configurados e quantos
+      ajustes manuais existem, e o Copiloto passa a responder quanto há a
+      cobrar de horas paradas na semana passada.
+
 - versao: "1.62.0"
   data: "2026-09-12"
   adicionado:
