@@ -8,11 +8,17 @@ name: testes
 # produção). Até 12/09/2026 o CI rodava sem banco, e os ~87 arquivos de teste
 # que usam `esquema_pg` eram PULADOS aqui — justamente os que exercitam as
 # migrations, que entram sozinhas no banco de produção quando a API reinicia.
-# Com desenvolvedor de fora abrindo PR, este job é o único portão que não
+# Com desenvolvedor de fora abrindo PR, este workflow é o único portão que não
 # depende do ambiente de quem escreveu o código (docs/DESENVOLVIMENTO.md).
 #
-# `suite` é o nome da verificação exigida pela proteção da `main`: renomear o
-# job faz a regra esperar para sempre por uma verificação que não existe mais.
+# A SUÍTE RODA EM FATIAS PARALELAS. Num job só ela passou dos 20 min em
+# 05/09/2026 (e de 05 a 12/09 nenhuma execução terminou) e, com o banco, dos
+# 50. Repositório público não paga minuto de Actions; o que se divide é o
+# relógio. A divisão e a regra de não perder arquivo: scripts/ci_fatia.py.
+#
+# `suite` é o nome da verificação exigida pela proteção da `main` — é o juiz
+# que junta as fatias. Renomear o job faz a regra esperar para sempre por uma
+# verificação que não existe mais.
 on:
   push:
     branches: [main]
@@ -21,19 +27,24 @@ on:
 
 # Cancelar a execução anterior só em PR (o push novo a torna obsoleta). Na
 # `main` cancelar era o padrão, e com ~20 pushes por dia NENHUMA execução
-# terminava: de 05 a 12/09/2026 foram 100 cancelamentos seguidos, e o CI não
-# dizia nada sobre o que estava no ar.
+# terminava: o CI não dizia nada sobre o que estava no ar.
 concurrency:
   group: testes-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  suite:
+  fatia:
+    name: fatia ${{ matrix.k }}
     runs-on: ubuntu-latest
-    # Era 20, e a suíte passou dos 20 em 05/09/2026: dali em diante toda
-    # execução foi cortada no meio do pytest, sem resultado. O `--durations`
-    # abaixo mostra quem está crescendo antes de o teto ser alcançado de novo.
-    timeout-minutes: 50
+    timeout-minutes: 30
+    strategy:
+      # todas as fatias vão até o fim: parar na primeira falha esconderia as
+      # outras, e quem corrige quer a lista inteira de uma vez
+      fail-fast: false
+      matrix:
+        # o NÚMERO de fatias é o tamanho desta lista; o script lê
+        # strategy.job-total, então mexer aqui é o único lugar
+        k: [0, 1, 2, 3, 4, 5, 6, 7]
     services:
       postgres:
         image: postgres:17
@@ -84,8 +95,41 @@ jobs:
         if: steps.cache-navegador.outputs.cache-hit == 'true'
         run: uv run --group test playwright install-deps chromium
 
-      - name: Suíte Python
-        run: uv run --group test pytest -q --durations=25
+      - name: Arquivos desta fatia
+        run: |
+          uv run --group test python scripts/ci_fatia.py listar \
+            ${{ strategy.job-index }} ${{ strategy.job-total }} > fatia.txt
+          echo "$(wc -l < fatia.txt) arquivos na fatia ${{ strategy.job-index }} de ${{ strategy.job-total }}"
+          test -s fatia.txt
+
+      - name: Suíte Python (fatia)
+        run: >-
+          uv run --group test pytest -q --durations=15
+          --junitxml=resultado.xml $(cat fatia.txt)
+
+      - name: Falhas como anotação
+        # o log exige login mesmo em repo público; a anotação aparece no PR
+        if: failure() && hashFiles('resultado.xml') != ''
+        run: uv run --group test python scripts/ci_fatia.py anotar resultado.xml
+
+  suite:
+    needs: fatia
+    # roda mesmo com fatia vermelha: é ele que dá o veredito, e um job pulado
+    # conta como APROVADO para a proteção da branch
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Instalar dependências
+        run: uv sync
 
       - name: Núcleo do indicador de carregamento
         # node --test com o GLOB entre aspas: passar o diretório faz o Node
@@ -101,3 +145,10 @@ jobs:
           uv run python scripts/gerar_changelog.py
           git diff --exit-code CHANGELOG.md \
             || { echo "::error::CHANGELOG.md desatualizado — rode: uv run python scripts/gerar_changelog.py"; exit 1; }
+
+      - name: Todas as fatias passaram
+        if: always()
+        run: |
+          echo "resultado das fatias: ${{ needs.fatia.result }}"
+          test "${{ needs.fatia.result }}" = "success" \
+            || { echo "::error::alguma fatia não passou (${{ needs.fatia.result }}) — as anotações de cada fatia dizem qual teste"; exit 1; }

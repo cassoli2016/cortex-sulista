@@ -149,9 +149,10 @@ git fetch → branch a partir de origin/main → commits → PR
    quem USA, na língua de quem usa.
 4. **Abra o PR** preenchendo o modelo. Use rascunho (draft) enquanto não
    estiver pronto.
-5. **CI verde é obrigatório.** O job `suite` roda a suíte inteira com um
-   Postgres descartável e leva dezenas de minutos: rode localmente antes, para
-   não descobrir a falha lá.
+5. **CI verde é obrigatório.** O CI divide a suíte em fatias paralelas, cada
+   uma com um Postgres descartável, e o job `suite` junta o veredito. Quando
+   um teste falha, o nome e a mensagem aparecem como anotação na própria
+   página do PR. Rode localmente antes, para não descobrir a falha lá.
 6. **A aprovação do responsável é obrigatória** (`.github/CODEOWNERS`). Todo PR
    passa também por uma revisão automática do Claude. Responda a cada
    apontamento com a correção ou com o motivo para não corrigir.
@@ -291,15 +292,24 @@ protection rule**, padrão `main`:
   - [x] Require approvals: **1**
   - [x] Dismiss stale pull request approvals when new commits are pushed
   - [x] Require review from Code Owners
-- [x] Require status checks to pass before merging → procure e marque **`suite`**
 - [x] Require conversation resolution before merging
 - [ ] Do not allow bypassing the above settings — **DESMARCADO**: é o que deixa
   você e as sessões da máquina de produção seguirem empurrando direto
 - [ ] Allow force pushes — desmarcado
 - [ ] Allow deletions — desmarcado
 
-A verificação `suite` só aparece na lista depois de ter TERMINADO pelo menos
-uma vez; ligue a regra depois do primeiro CI verde.
+**Ligue isto JÁ**, antes de dar acesso a qualquer pessoa: essas opções bastam
+para impedir push direto na `main` e merge sem a sua aprovação.
+
+**Depois**, quando o CI tiver terminado VERDE na `main` pelo menos uma vez,
+volte à mesma regra e marque também:
+
+- [x] Require status checks to pass before merging → procure e marque **`suite`**
+
+Nessa ordem por dois motivos: a verificação só aparece na lista depois de ter
+rodado, e exigi-la enquanto a `main` está vermelha travaria todo PR num
+vermelho que não é dele. Esperar o CI para ligar o resto deixaria a `main`
+sem trava nenhuma nesse meio tempo.
 
 Na máquina de produção, para o Claude ler e revisar PRs:
 `winget install --id GitHub.cli` e depois `gh auth login` (conta `cassoli2016`).

@@ -1,3 +1,12 @@
+- versao: "1.59.2"
+  data: "2026-09-12"
+  corrigido:
+    - >-
+      Nada muda nas telas. Os testes automáticos do GitHub continuavam sem
+      terminar mesmo com mais tempo: agora eles rodam em oito partes ao mesmo
+      tempo, e quando um teste falha o nome dele e o motivo aparecem no
+      próprio pedido de revisão, sem precisar abrir o registro da execução.
+
 - versao: "1.59.1"
   data: "2026-09-12"
   alterado:

@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.59.2] — 12/09/2026  ·  CX-12/09/2026-v1.59.2
+
+### Corrigido
+- Nada muda nas telas. Os testes automáticos do GitHub continuavam sem terminar mesmo com mais tempo: agora eles rodam em oito partes ao mesmo tempo, e quando um teste falha o nome dele e o motivo aparecem no próprio pedido de revisão, sem precisar abrir o registro da execução.
+
 ## [1.59.1] — 12/09/2026  ·  CX-12/09/2026-v1.59.1
 
 ### Alterado
