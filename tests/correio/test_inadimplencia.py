@@ -142,13 +142,16 @@ def test_a_variacao_e_contra_o_FECHAMENTO_do_ultimo_dia_util():
     assert len(r["pontos"]) == fi.DIAS_UTEIS_SERIE
 
 
-def test_a_janela_soma_o_fluxo_dos_ultimos_5_dias_uteis():
+def test_a_janela_soma_o_fluxo_dos_ultimos_5_dias_uteis_e_o_FERIADO_sai():
+    """Segunda, 7 de setembro de 2026, é feriado: os 5 úteis antes de 14/09 são
+    sex 4, ter 8, qua 9, qui 10 e sex 11. O que venceu no sábado 5, no domingo
+    6 e no feriado 7 entra na terça 8 — como o fim de semana entra na segunda."""
+    assert fi.uteis_antes(SEG, 5) == [date(2026, 9, 4), date(2026, 9, 8), date(2026, 9, 9),
+                                      date(2026, 9, 10), SEX]
     r = _dia()
-    # 5 úteis (seg 7 a sex 11) + o sábado 12 e o domingo 13? Não: a janela
-    # termina no último dia útil FECHADO (sex 11); o sábado 5 e o domingo 6
-    # entram na segunda 7, que é o primeiro da janela.
-    assert r["entrou"] == pytest.approx(5 * 5_000.0 + 7_000.0)
-    assert r["recuperado"] == pytest.approx(5 * 3_000.0)
+    # dublê: 5 mil vencem por dia de semana (o feriado incluído), 7 mil no sábado
+    assert r["entrou"] == pytest.approx(6 * 5_000.0 + 7_000.0)
+    assert r["recuperado"] == pytest.approx(6 * 3_000.0)
 
 
 def test_mais_antigo_concentracao_e_listas():

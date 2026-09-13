@@ -650,6 +650,51 @@ def _servico_monitoramentos(d: dict) -> dict:
     return {"nome": nome, "status": "ok", "detalhe": " · ".join(partes)}
 
 
+def _calendario(hoje=None) -> dict:
+    """O calendário de feriados está buscado? E a web concorda com a lei?
+
+    SEM BUSCA NÃO É FALHA (`info`): o ano vale pela lista federal da lei, então
+    "dia útil" não ignora feriado nacional — só faltam os nomes da web e os
+    pontos facultativos. ALERTA é o que pede gente: data que a web chama de
+    feriado e a lei não confirma (ou o contrário), e a última busca que falhou.
+    """
+    from datetime import date as _date
+
+    from . import calendario
+    nome = "Calendário de feriados (BrasilAPI)"
+    hoje = hoje or _date.today()
+    try:
+        s = calendario.situacao(hoje)
+    except Exception as exc:  # noqa: BLE001
+        if pglocal.sem_tabela(exc):
+            return {"nome": nome, "status": "info",
+                    "detalhe": "migration 0084 ainda não aplicada — vale a lista da lei"}
+        log.warning("saude: calendario: %s", type(exc).__name__)
+        return {"nome": nome, "status": "info", "detalhe": "conferência indisponível"}
+    atual, prox = s.get(hoje.year), s.get(hoje.year + 1)
+    partes, alertas = [], []
+    for ano, c in ((hoje.year, atual), (hoje.year + 1, prox)):
+        if c and c.get("ok_em"):
+            partes.append("%d: %d datas" % (ano, c["itens"]))
+            alertas += ["%d · %s" % (ano, d) for d in c["divergencias"]]
+        else:
+            partes.append("%d: ainda não buscado (vale a lei)" % ano)
+        if c and c.get("erro"):
+            alertas.append("%d · última busca falhou: %s" % (ano, c["erro"]))
+    try:
+        p = calendario.proxima_folga(hoje)
+        if p:
+            partes.append("próximo: %s %s" % (p[0].strftime("%d/%m"), p[1]))
+    except Exception:  # noqa: BLE001
+        pass
+    if alertas:
+        return {"nome": nome, "status": "alerta",
+                "detalhe": " · ".join(partes) + " · ⚠ " + "; ".join(alertas[:4])}
+    if not (atual and atual.get("ok_em")):
+        return {"nome": nome, "status": "info", "detalhe": " · ".join(partes)}
+    return {"nome": nome, "status": "ok", "detalhe": " · ".join(partes)}
+
+
 def _relatorios_email(agora=None, itens=None) -> dict:
     """Os relatórios por e-mail estão SAINDO na hora? A prova é o DADO da agenda.
 
@@ -2224,6 +2269,13 @@ def _servicos() -> list[dict]:
         servicos.append({"nome": "Relatórios por e-mail (agenda)", "status": "info",
                          "detalhe": "conferência indisponível"})
         log.warning("saude: relatorios por e-mail: %s", exc)
+    # CALENDARIO DE FERIADOS. E ele que decide "dia util" para a agenda de cima.
+    try:
+        servicos.append(_calendario())
+    except Exception as exc:  # noqa: BLE001
+        servicos.append({"nome": "Calendário de feriados (BrasilAPI)", "status": "info",
+                         "detalhe": "conferência indisponível"})
+        log.warning("saude: calendario: %s", exc)
 
     # MAPA CONTÁBIL do ERP. Vem logo depois dos bancos porque é a mesma
     # pergunta um nível acima: o banco responde, mas o que ele responde ainda

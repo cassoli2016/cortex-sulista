@@ -32,7 +32,9 @@ O QUE FICOU DE FORA, e por quê:
   jurídico, extrajudicial): as colunas existem no ERP e estão VAZIAS em 12
   meses. Mostrá-las diria "nada feito" sobre toda a carteira — e o que falta é
   o lançamento, não necessariamente a cobrança.
-- FERIADO: a casa não tem calendário; dia útil é de segunda a sexta.
+- (Feriado ENTROU em 12/09/2026: dia útil é segunda a sexta fora das folgas do
+  calendário da casa, `api/calendario.py`. O que vence num feriado entra no
+  dia útil seguinte, como o fim de semana.)
 - o DIA EM CURSO nos fluxos: às 13h metade dos pagamentos de hoje ainda não
   foi lançada. Entrou e recuperado medem dias úteis FECHADOS; o estoque de
   agora é o único número de hoje.
@@ -163,8 +165,9 @@ SELECT dias.d AS dia,
 # ------------------------------------------------------------------- dias úteis
 
 def dia_util(d: date) -> bool:
-    """Segunda a sexta. Sem feriado — a casa não tem calendário."""
-    return d.isoweekday() <= 5
+    """Segunda a sexta, fora das folgas do calendário da casa."""
+    from api import calendario
+    return calendario.dia_util(d)
 
 
 def uteis_antes(hoje: date, n: int) -> list[date]:

@@ -3488,6 +3488,100 @@ async def gestao_agenda_gravar(req: Request) -> JSONResponse:
     return JSONResponse(r)
 
 
+# ------------------------------------------------------ o calendário de feriados
+#
+# Sob `/api/gestao`: só administrador (o middleware cobra antes do mapa de
+# telas). O desenho — a web popula, a LEI decide a folga — está em
+# `api/calendario.py`. Toda escrita vai para a trilha, com o autor da SESSÃO.
+
+@app.get("/api/gestao/calendario")
+def gestao_calendario(req: Request, ano: int | None = None) -> JSONResponse:
+    from datetime import date as _date
+
+    from api import calendario
+    try:
+        return JSONResponse(calendario.estado(int(ano or _date.today().year)))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("gestao_calendario falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_leitura", "mensagem": "Não consegui ler o calendário."})
+
+
+def _autor_gestao(req: Request) -> str:
+    sess = getattr(req.state, "sessao", None) or {}
+    return sess.get("email") or sess.get("nome") or ""
+
+
+@app.post("/api/gestao/calendario/buscar")
+async def gestao_calendario_buscar(req: Request) -> JSONResponse:
+    """Busca o ano na web. Web fora é RECUSA legível (4xx), não 5xx: a falha é
+    do fornecedor, e o ano segue valendo pela lista da lei."""
+    from datetime import date as _date
+
+    from api import calendario
+    corpo = await _corpo_json(req)
+    try:
+        ano = int(corpo.get("ano") or _date.today().year)
+    except (TypeError, ValueError):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Ano inválido."})
+    autor = _autor_gestao(req)
+    auth.audit(autor or "?", "calendario_buscar", alvo=str(ano))
+    try:
+        r = await sem_travar(calendario.popular, ano)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("calendario: busca de %s falhou: %s", ano, type(exc).__name__)
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "fonte_indisponivel",
+            "mensagem": (f"A BrasilAPI não respondeu ({type(exc).__name__}). "
+                         f"{ano} segue valendo pela lista federal da lei.")})
+    return JSONResponse(r)
+
+
+@app.post("/api/gestao/calendario")
+async def gestao_calendario_gravar(req: Request) -> JSONResponse:
+    from api import calendario
+    corpo = await _corpo_json(req)
+    autor = _autor_gestao(req)
+    try:
+        r = await sem_travar(calendario.gravar_manual, corpo, autor)
+    except ValueError as exc:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": str(exc)})
+    auth.audit(autor or "?", "calendario_feriado",
+               alvo=f"{r['data']} {r['nome']}"[:200],
+               detalhe=f"{r['tipo']} {r['uf']} {r['municipio']}".strip())
+    return JSONResponse(r)
+
+
+@app.post("/api/gestao/calendario/{ident}/folga")
+async def gestao_calendario_folga(ident: int, req: Request) -> JSONResponse:
+    from api import calendario
+    corpo = await _corpo_json(req)
+    autor = _autor_gestao(req)
+    try:
+        r = await sem_travar(calendario.marcar_folga, ident, bool(corpo.get("folga")), autor)
+    except ValueError as exc:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "recusa", "mensagem": str(exc)})
+    auth.audit(autor or "?", "calendario_folga", alvo=f"{r['data']} {r['nome']}"[:200],
+               detalhe="folga" if r["folga"] else "dia útil")
+    return JSONResponse(r)
+
+
+@app.delete("/api/gestao/calendario/{ident}")
+async def gestao_calendario_remover(ident: int, req: Request) -> JSONResponse:
+    from api import calendario
+    autor = _autor_gestao(req)
+    try:
+        await sem_travar(calendario.remover_manual, ident)
+    except ValueError as exc:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "recusa", "mensagem": str(exc)})
+    auth.audit(autor or "?", "calendario_remover", alvo=str(ident))
+    return JSONResponse({"ok": True})
+
+
 @app.delete("/api/gestao/correio/agenda/{ident}")
 def gestao_agenda_remover(ident: int, req: Request) -> JSONResponse:
     from api.correio import agenda

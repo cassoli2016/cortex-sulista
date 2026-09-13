@@ -67,6 +67,18 @@ def main() -> int:
                     help="envia este agendamento agora, fora do horário")
     a = ap.parse_args()
 
+    # O CALENDÁRIO SE MANTÉM SOZINHO: esta rotina já roda de 15 em 15 minutos,
+    # e é ela que decide "dia útil". Busca na web o ano corrente e o próximo
+    # quando faltam (uma tentativa por dia); falha aqui NUNCA segura o envio —
+    # sem a busca, vale a lista federal da lei.
+    if not a.ensaio:
+        try:
+            from api import calendario
+            for linha in calendario.garantir():
+                print(linha)
+        except Exception as exc:  # noqa: BLE001
+            print(f"calendario: {type(exc).__name__}: {exc}")
+
     try:
         itens = agenda.listar()
     except Exception as exc:  # noqa: BLE001

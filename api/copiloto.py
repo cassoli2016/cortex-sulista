@@ -97,6 +97,7 @@ _FONTES_ROTULO = {
     "auditoria_uso": "Auditoria — acessos e uso do painel",
     "financeiro_caixa": "Fluxo de Caixa e Bancos",
     "inadimplencia": "Inadimplência — o dia (vencido, fluxo e concentração)",
+    "calendario": "Calendário de feriados (dias úteis)",
     "analise_km_ano": "Análise de KM",
     "agregados_terceiros_ano": "Agregados e Terceiros",
     "make_vs_buy_12m": "Make vs Buy",
@@ -926,6 +927,11 @@ def _fontes_do_snapshot() -> dict:
         # os nomes dos devedores ficam no e-mail, atras do destinatario.
         "inadimplencia": lambda: __import__(
             "api.financeiro.inadimplencia", fromlist=["resumo_copiloto"]).resumo_copiloto(),
+        # O CALENDARIO: "quantos dias uteis faltam no mes?" e "quando e o
+        # proximo feriado?" sao perguntas de quem projeta faturamento. Le o
+        # banco local e a lei -- nunca a web.
+        "calendario": lambda: __import__(
+            "api.calendario", fromlist=["resumo_copiloto"]).resumo_copiloto(),
         "analise_km_ano": lambda: queries.get_analise_km(None, ini_ano, fim),
         "agregados_terceiros_ano": lambda: queries.get_agregados(None, ini_ano, fim),
         "make_vs_buy_12m": lambda: queries.get_make_vs_buy(comp_de, comp_ate),

@@ -8420,6 +8420,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <button class="ghost" id="gtab-contrapartida" aria-pressed="false" onclick="gesTab('contrapartida')">CT-e de contrapartida</button>
             <button class="ghost" id="gtab-email" aria-pressed="false" onclick="gesTab('email')">E-mail</button>
             <button class="ghost" id="gtab-whatsapp" aria-pressed="false" onclick="gesTab('whatsapp')">WhatsApp</button>
+            <button class="ghost" id="gtab-feriados" aria-pressed="false" onclick="gesTab('feriados')">Feriados</button>
           </div>
         </div>
         <div id="gpane-usuarios">
@@ -8703,6 +8704,39 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="head"><h2>Playground da API Z-API <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Para descobrir o que a Z-API responde DE VERDADE. Tres defeitos desta integracao vieram de supor a resposta em vez de olhar - o /status que devolve 'error: You are already connected' quando esta tudo bem foi um deles, e o formato do id de grupo foi outro. Nao ha URL livre: so o que esta no catalogo e chamavel, porque um proxy generico daria acesso a /send-text sem o limite diario, sem a janela de horario e sem a trilha. Envio fica listado mas BLOQUEADO, apontando para o formulario certo. Escrita pede confirmacao e vai para a auditoria. A resposta e sanitizada: o token viaja na URL desta API.">i</span></h2>
               <span class="hint">explora a API do fornecedor · sem URL livre, sem atalho de envio</span></div>
             <div class="wa-pg" id="wa-pg"></div>
+          </div>
+        </div>
+        <div id="gpane-feriados" style="display:none">
+          <div class="card">
+            <div class="head"><h2>Calendário de feriados <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os feriados nacionais vêm da web (BrasilAPI), e a LEI FEDERAL decide o que conta como folga: Carnaval e Corpus Christi a web chama de feriado, mas são ponto facultativo — entram desmarcados, e você marca aqui se a casa não trabalha. Data que a web chama de feriado sem a lei confirmar entra como “a conferir”, sem folga. Ano ainda não buscado usa a lista da lei. Vale para “só dias úteis” nos relatórios por e-mail e no WhatsApp, e para os dias úteis do e-mail da inadimplência.">i</span></h2><span class="hint" id="fer-status">—</span></div>
+            <div class="ges-cfg">
+              <div><label for="fer-ano">Ano</label><select id="fer-ano" onchange="ferCarregar()"></select></div>
+            </div>
+            <div class="m-foot">
+              <span class="m-err" id="fer-err"></span>
+              <button class="ghost" id="fer-buscar" onclick="ferBuscar()">Buscar feriados nacionais na web</button>
+            </div>
+            <div class="tablewrap tabroll"><table class="tab" id="fer-tab"></table></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Acrescentar feriado da casa</h2><span class="hint">estadual, municipal ou da empresa — a web não traz</span></div>
+            <div class="ges-cfg">
+              <div><label for="fer-data">Data</label><input type="date" id="fer-data"></div>
+              <div><label for="fer-nome">Nome</label><input type="text" id="fer-nome" maxlength="80" placeholder="ex.: aniversário da cidade"></div>
+              <div><label for="fer-tipo">Tipo</label>
+                <select id="fer-tipo" onchange="ferTipoMudou()">
+                  <option value="municipal">Municipal</option>
+                  <option value="estadual">Estadual</option>
+                  <option value="empresa">Da empresa</option>
+                </select>
+              </div>
+              <div id="fer-box-uf"><label for="fer-uf">UF</label><input type="text" id="fer-uf" maxlength="2" placeholder="SC"></div>
+              <div id="fer-box-mun"><label for="fer-mun">Município</label><input type="text" id="fer-mun" maxlength="60"></div>
+            </div>
+            <div class="m-foot">
+              <span class="m-err" id="fer-err2"></span>
+              <button class="btn" id="fer-salvar" onclick="ferSalvar()">Acrescentar</button>
+            </div>
           </div>
         </div>
         <div id="gpane-config" style="display:none">
@@ -40017,7 +40051,7 @@ async function loadGestao(){
 }
 function gesTab(t){
   GES_TAB=t;
-  ['usuarios','perfis','auditoria','config','contrapartida','email','whatsapp'].forEach(x=>{
+  ['usuarios','perfis','auditoria','config','contrapartida','email','whatsapp','feriados'].forEach(x=>{
     document.getElementById('gpane-'+x).style.display = (x===t)?'':'none';
     document.getElementById('gtab-'+x).setAttribute('aria-pressed', String(x===t));
   });
@@ -40025,6 +40059,107 @@ function gesTab(t){
   if(t==='contrapartida') cpcfgCarregar();
   if(t==='email') emailCarregar();
   if(t==='whatsapp') whatsCarregar();
+  if(t==='feriados') ferCarregar();
+}
+/* O CALENDARIO DE FERIADOS (api/calendario.py). A web popula e a LEI decide a
+   folga: ponto facultativo entra desmarcado, e marcar aqui grava QUEM decidiu
+   -- a proxima busca na web nao desfaz a decisao. */
+const FER_TIPO={nacional:'Nacional (lei)', facultativo:'Ponto facultativo',
+  comemorativa:'Data comemorativa', a_conferir:'A conferir', estadual:'Estadual',
+  municipal:'Municipal', empresa:'Da empresa'};
+function ferErro(id,t){ const e=document.getElementById(id); if(e) e.textContent=t||''; }
+function ferTipoMudou(){
+  const t=document.getElementById('fer-tipo').value;
+  document.getElementById('fer-box-uf').hidden=(t==='empresa');
+  document.getElementById('fer-box-mun').hidden=(t!=='municipal');
+}
+function ferDataBR(iso){ const p=String(iso||'').slice(0,10).split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:String(iso||''); }
+async function ferCarregar(){
+  const sel=document.getElementById('fer-ano'); if(!sel) return;
+  if(!sel.options.length){
+    const a=new Date().getFullYear();
+    sel.innerHTML=[a-1,a,a+1].map(function(x){
+      return '<option value="'+x+'"'+(x===a?' selected':'')+'>'+x+'</option>'; }).join('');
+  }
+  ferTipoMudou();
+  const ano=sel.value, tab=document.getElementById('fer-tab');
+  try{
+    const r=await fetch('/api/gestao/calendario?ano='+encodeURIComponent(ano),{cache:'no-store'});
+    const rr=await respostaJSON(r); const d=rr.dados;
+    if(!rr.ok){ ferErro('fer-err', d.mensagem||'Erro ao ler o calendário.'); return; }
+    ferErro('fer-err','');
+    const c=d.coleta, itens=d.itens||[];
+    const div=(c&&c.divergencias)||[];
+    document.getElementById('fer-status').innerHTML = (c&&c.ok_em)
+      ? esc(itens.length)+' data(s) · buscado na web em '+esc(fmtDT(c.ok_em))
+        +(div.length?' · <b style="color:var(--yellow-700)" title="'+esc(div.join(' | '))+'">'
+          +esc(div.length)+' a conferir</b>':'')
+        +(c.erro?' · última busca falhou: '+esc(c.erro):'')
+      : (c&&c.erro ? '<b style="color:var(--red)">busca falhou: '+esc(c.erro)+'</b> — '
+          +esc(ano)+' vale pela lista federal da lei'
+        : esc(ano)+' ainda não buscado — vale a lista federal da lei');
+    tab.innerHTML = !itens.length
+      ? '<tbody><tr><td class="hint">Nenhum feriado gravado para '+esc(ano)
+        +'. Use “Buscar feriados nacionais na web”.</td></tr></tbody>'
+      : '<thead><tr><th>Data</th><th>Dia</th><th>Feriado</th><th>Tipo</th><th>Onde</th>'
+        +'<th>Conta como folga</th><th></th></tr></thead><tbody>'
+        + itens.map(function(x){
+            const onde = x.municipio ? x.municipio+'/'+x.uf : (x.uf||'Brasil');
+            const manual = ['estadual','municipal','empresa'].indexOf(x.tipo)>=0;
+            return '<tr><td class="mono">'+esc(ferDataBR(x.data))+'</td><td>'+esc(x.dia_semana)+'</td>'
+              +'<td>'+esc(x.nome)+'</td><td>'+esc(FER_TIPO[x.tipo]||x.tipo)+'</td><td>'+esc(onde)+'</td>'
+              +'<td><label title="'+esc(x.folga_por?('decidido por '+x.folga_por):'regra da lei')+'">'
+              +'<input type="checkbox" class="fer-folga" data-id="'+x.id+'"'+(x.folga?' checked':'')
+              +' onchange="ferFolga(this)"> '+(x.folga?'sim':'não')+'</label></td>'
+              +'<td>'+(manual?'<button class="gbtn" data-id="'+x.id+'" onclick="ferRemover(this)">remover</button>':'')+'</td></tr>';
+          }).join('')+'</tbody>';
+  }catch(e){ ferErro('fer-err','Falha de rede: '+e.message); }
+}
+async function ferBuscar(){
+  const bt=document.getElementById('fer-buscar'), ano=document.getElementById('fer-ano').value;
+  bt.disabled=true; ferErro('fer-err','Buscando na web…');
+  try{
+    const r=await fetch('/api/gestao/calendario/buscar',{method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify({ano:parseInt(ano,10)})});
+    const rr=await respostaJSON(r); const d=rr.dados;
+    if(!rr.ok){ ferErro('fer-err', d.mensagem||'A busca falhou.'); return; }
+    ferErro('fer-err', d.itens+' datas, '+d.folgas+' contam como folga'
+      +((d.divergencias||[]).length?' · '+d.divergencias.length+' a conferir':''));
+    ferCarregar();
+  }catch(e){ ferErro('fer-err','Falha de rede: '+e.message); }
+  finally{ bt.disabled=false; }
+}
+async function ferFolga(cb){
+  try{
+    const r=await fetch('/api/gestao/calendario/'+cb.dataset.id+'/folga',{method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify({folga:cb.checked})});
+    const rr=await respostaJSON(r);
+    if(!rr.ok){ ferErro('fer-err',(rr.dados||{}).mensagem||'Não gravou.'); cb.checked=!cb.checked; return; }
+    ferCarregar();
+  }catch(e){ ferErro('fer-err','Falha de rede: '+e.message); cb.checked=!cb.checked; }
+}
+async function ferSalvar(){
+  const V=function(id){ const e=document.getElementById(id); return e?e.value:''; };
+  const corpo={data:V('fer-data'), nome:V('fer-nome'), tipo:V('fer-tipo'),
+               uf:V('fer-uf'), municipio:V('fer-mun')};
+  ferErro('fer-err2','');
+  try{
+    const r=await fetch('/api/gestao/calendario',{method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify(corpo)});
+    const rr=await respostaJSON(r); const d=rr.dados;
+    if(!rr.ok){ ferErro('fer-err2', d.mensagem||'Não gravou.'); return; }
+    ['fer-data','fer-nome','fer-mun'].forEach(function(id){ document.getElementById(id).value=''; });
+    ferCarregar();
+  }catch(e){ ferErro('fer-err2','Falha de rede: '+e.message); }
+}
+async function ferRemover(bt){
+  if(!confirm('Remover este feriado da casa?')) return;
+  try{
+    const r=await fetch('/api/gestao/calendario/'+bt.dataset.id,{method:'DELETE'});
+    const rr=await respostaJSON(r);
+    if(!rr.ok){ ferErro('fer-err',(rr.dados||{}).mensagem||'Não removeu.'); return; }
+    ferCarregar();
+  }catch(e){ ferErro('fer-err','Falha de rede: '+e.message); }
 }
 function renderGestao(){ renderGesUsuarios(); renderGesPerfis(); renderGesConfig(); gesTab(GES_TAB); }
 

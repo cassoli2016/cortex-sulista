@@ -752,7 +752,8 @@ def inadimplencia() -> dict:
 
             ult10 = pontos[-10:]
             blocos.append(p.secao("Entrou em atraso por dia útil",
-                                  "venceu e não foi pago · o fim de semana entra na segunda"))
+                                  "venceu e não foi pago · fim de semana e feriado "
+                                  "entram no dia útil seguinte"))
             blocos.append(p.barras([
                 {"rotulo": _dia_sem(x["dia"]), "valor": x["entrou"],
                  "texto": _mil(x["entrou"]) if x["entrou"] else "—", "cor": p.VERMELHO}
@@ -861,7 +862,8 @@ def inadimplencia() -> dict:
             "e em aberto ao fim daquele dia —, e o título pago depois entra pelo "
             "valor dele. Entrou e recuperado contam só dias úteis FECHADOS: às 13h "
             "boa parte dos pagamentos de hoje ainda não foi lançada. Dia útil é "
-            "de segunda a sexta; feriado não é descontado."))
+            "de segunda a sexta, fora os feriados do calendário da casa "
+            "(Gestão › Feriados)."))
 
         linhas = [f"Inadimplência — {hoje.strftime('%d/%m/%Y')}", "",
                   f"Vencido agora ......... {p.brl(venc)} ({_pct(taxa_pct)} do aberto)",

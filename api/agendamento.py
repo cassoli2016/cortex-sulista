@@ -24,8 +24,10 @@ AS TRÊS GUARDAS:
    janela, não sai: resumo de ontem chegando hoje à tarde é ruído que ensina a
    ignorar o remetente.
 
-Tudo aqui é FUNÇÃO PURA sobre um dicionário: não toca banco, não sabe de canal,
-e por isso serve ao e-mail e ao WhatsApp sem adaptação.
+Tudo aqui é FUNÇÃO sobre um dicionário e não sabe de canal, e por isso serve ao
+e-mail e ao WhatsApp sem adaptação. A única leitura de fora é o calendário de
+feriados (`api/calendario.py`), e só para quem marcou "só dias úteis": com
+cache, e com a lista federal como piso quando o banco não responde.
 """
 from __future__ import annotations
 
@@ -73,11 +75,14 @@ def marcado_para(ag: dict, quando: datetime) -> datetime | None:
         return None
     if freq == "mensal" and quando.day != (ag.get("dia_mes") or 0):
         return None
-    # `dias_uteis` é opcional e só o WhatsApp usa hoje: um resumo de faturamento
-    # no domingo sai com "sem meta no dia" e vira ruído que ensina a ignorar o
-    # remetente. Quem não passa a chave não muda de comportamento.
-    if ag.get("dias_uteis") and quando.isoweekday() > 5:
-        return None
+    # `dias_uteis` é opcional: um resumo de faturamento no domingo sai com "sem
+    # meta no dia" e vira ruído que ensina a ignorar o remetente. Desde
+    # 12/09/2026 o FERIADO do calendário da casa também não é dia útil. Quem não
+    # passa a chave não muda de comportamento.
+    if ag.get("dias_uteis"):
+        from api import calendario
+        if not calendario.dia_util(quando.date()):
+            return None
     return quando.replace(hour=h, minute=m, second=0, microsecond=0)
 
 
@@ -94,6 +99,11 @@ def deve_rodar(ag: dict, agora: datetime | None = None) -> tuple[bool, str]:
     if marcado is None:
         if ag.get("dias_uteis") and agora.isoweekday() > 5:
             return False, "fim de semana (marcado só para dias úteis)"
+        if ag.get("dias_uteis"):
+            from api import calendario
+            nome = calendario.feriado(agora.date())
+            if nome:
+                return False, f"feriado: {nome} (marcado só para dias úteis)"
         return False, "não é o dia deste agendamento"
     if agora < marcado:
         falta = (marcado - agora).total_seconds() / 60

@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.60.0] — 12/09/2026  ·  CX-12/09/2026-v1.60.0
+
+### Adicionado
+- O CÓRTEX ganhou um calendário de feriados (Gestão › Feriados). Os feriados nacionais são buscados na web e o sistema confere cada data com a lei federal: Carnaval e Corpus Christi, que a web chama de feriado mas são ponto facultativo, entram desmarcados — marque ali se a casa não trabalha. Feriado estadual, municipal ou da empresa se acrescenta na mesma aba. O calendário se mantém sozinho: o ano seguinte é buscado assim que faltar, e sem a busca vale a lista da lei.
+
+### Corrigido
+- "Só dias úteis" passa a pular os feriados: os relatórios por e-mail e as mensagens agendadas do WhatsApp não saem mais num 7 de setembro, e a agenda diz o nome do feriado quando não envia. No e-mail da inadimplência, o feriado sai da série de dias úteis e o que venceu nele entra no dia útil seguinte, como o fim de semana. A Saúde do Servidor ganhou o cartão do calendário, que avisa quando a web e a lei discordam.
+
 ## [1.59.2] — 12/09/2026  ·  CX-12/09/2026-v1.59.2
 
 ### Corrigido
