@@ -9,14 +9,41 @@ CH = "1|1|20|1|0|1|20234"
 
 
 def test_config_vazia_e_o_padrao_da_casa():
+    """O relógio de cliente novo começa na JANELA, como o relatório
+    Monitoramento SAC do ERP (decisão de 13/09/2026)."""
     cfg = cadastro.validar_config({})
-    assert cfg["inicio_carga"] == regras.MAIOR and cfg["recorte"] == "fim_descarga"
+    assert cfg["inicio_carga"] == regras.JANELA == cfg["inicio_descarga"]
+    assert cfg["recorte"] == "fim_descarga"
     assert cfg["regras"] == [] and cfg["colunas"]
+    assert cfg["referencia"] == {"formato": "", "fontes": ["pedido"], "padrao": "",
+                                 "excecoes": []}
 
 
 def test_chave_AUSENTE_herda_e_as_outras_valem():
-    cfg = cadastro.validar_config({"inicio_descarga": "janela"})
-    assert cfg["inicio_descarga"] == "janela" and cfg["inicio_carga"] == regras.MAIOR
+    cfg = cadastro.validar_config({"inicio_descarga": "maior"})
+    assert cfg["inicio_descarga"] == "maior" and cfg["inicio_carga"] == regras.JANELA
+
+
+def test_referencia_normalizada():
+    cfg = cadastro.validar_config({"referencia": {
+        "formato": "cif#######", "fontes": ["pedido", "ocorrencia", "pedido"],
+        "padrao": "CIF{{coleta|7}}",
+        "excecoes": [{"mercadorias": ["ITEM X"], "valor": "*"}]}})
+    r = cfg["referencia"]
+    assert r["formato"] == "CIF#######" and r["fontes"] == ["pedido", "ocorrencia"]
+    assert r["excecoes"] == [{"mercadorias": ["ITEM X"], "destinos": [], "valor": "*"}]
+
+
+@pytest.mark.parametrize("ref, trecho", [
+    ({"formato": "CIF-123"}, "Formato"),
+    ({"formato": "CIF"}, "Formato"),               # sem dígito nenhum não é formato
+    ({"fontes": ["planilha"]}, "Fontes"),
+    ({"excecoes": [{"valor": "*"}]}, "precisa de mercadoria"),
+    ("CIF", "inválida"),
+])
+def test_referencia_invalida_e_recusada(ref, trecho):
+    with pytest.raises(cadastro.Recusa, match=trecho):
+        cadastro.validar_config({"referencia": ref})
 
 
 @pytest.mark.parametrize("cfg, trecho", [

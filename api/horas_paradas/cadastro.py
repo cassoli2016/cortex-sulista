@@ -32,9 +32,21 @@ RECORTES = {
 }
 PERIODOS = ("dia", "semana", "mes")
 
+#: O RELÓGIO DE CLIENTE NOVO COMEÇA NA JANELA — a fórmula do relatório
+#: Monitoramento SAC do ERP, que conta de lá mesmo quando o caminhão chega
+#: depois. Decisão de quem opera (13/09/2026, "de acordo com a tela que te
+#: passei"). Cliente cuja planilha conta de outro jeito declara no perfil — a
+#: primeira configurada conta do que vier depois, e é isso que a reproduz.
+#:
+#: A REFERÊNCIA DO CLIENTE (o código dele que vai na planilha) sai, em ordem:
+#: do ajuste manual; do primeiro código no FORMATO declarado encontrado nas
+#: fontes (o pedido do ERP, as ocorrências da coleta); de uma exceção por
+#: mercadoria/destinatário; do modelo padrão. O formato é o que separa um
+#: código inteiro de um digitado pela metade — sem ele, "…CIF010" no pedido
+#: venceria o "CIF0103939" completo de uma ocorrência.
 PADRAO = {
-    "inicio_carga": regras.MAIOR,
-    "inicio_descarga": regras.MAIOR,
+    "inicio_carga": regras.JANELA,
+    "inicio_descarga": regras.JANELA,
     "arredondamento_min": 0,
     "recorte": "fim_descarga",
     "periodo": "semana",
@@ -43,7 +55,10 @@ PADRAO = {
                 for c in planilha.COLUNAS_PADRAO],
     "aba": "",
     "arquivo": "",
+    "referencia": {"formato": "", "fontes": ["pedido"], "padrao": "", "excecoes": []},
 }
+FONTES_REFERENCIA = ("pedido", "ocorrencia")
+_RE_FORMATO = re.compile(r"^[A-Z#]{1,20}$")
 
 CAMPOS_HORA = ("carga_janela", "carga_chegada", "carga_saida",
                "descarga_janela", "descarga_chegada", "descarga_saida")
@@ -77,6 +92,34 @@ def _opcional_num(v, nome: str, teto: float):
     return x
 
 
+def _validar_referencia(r) -> dict:
+    """A regra da referência do cliente, normalizada, ou `Recusa`."""
+    if not isinstance(r, dict):
+        raise Recusa("Referência do cliente inválida.")
+    fmt = _texto(r.get("formato", ""), 20).upper().replace(" ", "")
+    if fmt and (not _RE_FORMATO.match(fmt) or "#" not in fmt):
+        raise Recusa("Formato da referência: letras fixas e # para cada dígito "
+                     "(ex.: CIF#######).")
+    fontes = r.get("fontes", ["pedido"])
+    if not isinstance(fontes, list) or any(f not in FONTES_REFERENCIA for f in fontes):
+        raise Recusa("Fontes da referência: pedido e/ou ocorrência.")
+    exc = r.get("excecoes", [])
+    if not isinstance(exc, list) or len(exc) > 20:
+        raise Recusa("Exceções da referência: até 20, em lista.")
+    excecoes = []
+    for i, e in enumerate(exc, start=1):
+        e = e if isinstance(e, dict) else {}
+        mercs = [_texto(m, 80) for m in (e.get("mercadorias") or []) if _texto(m, 80)]
+        dests = [_texto(d, 20) for d in (e.get("destinos") or []) if _texto(d, 20)]
+        if not (mercs or dests):
+            raise Recusa("Exceção %d da referência precisa de mercadoria ou "
+                         "destinatário." % i)
+        excecoes.append({"mercadorias": mercs[:40], "destinos": dests[:40],
+                         "valor": _texto(e.get("valor"), 40)})
+    return {"formato": fmt, "fontes": list(dict.fromkeys(fontes)),
+            "padrao": _texto(r.get("padrao", ""), 40), "excecoes": excecoes}
+
+
 def validar_config(cfg: dict | None) -> dict:
     """A configuração normalizada, ou `Recusa` com o motivo.
 
@@ -104,8 +147,9 @@ def validar_config(cfg: dict | None) -> dict:
     if per not in PERIODOS:
         raise Recusa("Período inválido: %r." % per)
     out["periodo"] = per
-    out["aba"] = _texto(cfg.get("aba", ""), 31)
+    out["aba"] = _texto(cfg.get("aba", ""), 40)
     out["arquivo"] = _texto(cfg.get("arquivo", ""), 100)
+    out["referencia"] = _validar_referencia(cfg.get("referencia", PADRAO["referencia"]))
 
     rs = cfg.get("regras", [])
     if not isinstance(rs, list) or len(rs) > LIMITE_REGRAS:

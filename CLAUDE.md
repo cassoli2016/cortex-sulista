@@ -409,7 +409,12 @@ moram em arquivos que não falam do assunto.
   `api/freetime.resolver`; exceção de cliente é regra declarada, com nome, e a
   linha diz qual respondeu. **Cliente novo se confere do mesmo jeito antes de
   a planilha dele sair daqui**: a dele contra o ERP, e cada diferença vira
-  regra do perfil ou ajuste com motivo. Guards: `tests/horas_paradas/`.
+  regra do perfil ou ajuste com motivo. O relógio de cliente NOVO começa na
+  JANELA — a fórmula do relatório do ERP (quem opera, 13/09/2026) — e a
+  referência do cliente na planilha é regra do perfil (formato, fontes
+  pedido/ocorrência, exceção, modelo), com a origem na linha: o FORMATO é o
+  que separa o código inteiro do digitado pela metade. Guards:
+  `tests/horas_paradas/`.
 - Integração é **módulo por fornecedor** em `api/<fornecedor>/` (gobrax,
   smartec, tomtom, whatsapp, monkey, jornada/RasterJOR, pedagio/QualP) — não
   existe hub genérico de conectores.

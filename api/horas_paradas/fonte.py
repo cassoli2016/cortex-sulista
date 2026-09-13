@@ -127,6 +127,17 @@ SELECT col.grupo, col.empresa, col.filial, col.unidade,
                             ORDER BY x.sequencia LIMIT 1), col.dtprevisaochegadaviagem)
             END AS descarga_janela,
        (SELECT count(*) FROM coleta_cliente x WHERE """ + _k("x", "col") + """) AS paradas,
+       -- O CÓDIGO DO CLIENTE DIGITADO NUMA OCORRÊNCIA. Medido em 13/09/2026:
+       -- numa cliente, parte das cargas com código de pedido só o tinha ali
+       -- (na ocorrência de "identificação do cliente não informada"), e nunca
+       -- as fontes discordavam. Só sai o TRECHO com cara de código (letras
+       -- seguidas de dígitos): a observação é texto livre, e o resto dela não é
+       -- assunto desta conta.
+       (SELECT string_agg(substring(o.observacao FROM '[A-Za-z]{2,}[0-9]{4,}'), ' '
+                          ORDER BY o.sequenciaocorrencia)
+          FROM coleta_ocorrencia o
+         WHERE """ + _k("o", "col") + """
+           AND o.observacao ~ '[A-Za-z]{2,}[0-9]{4,}') AS ocorr_codigos,
        evc.carga_chegada, evc.carga_saida, evc.descarga_chegada, evc.descarga_saida,
        coalesce(evc.repeticoes, 0) AS repeticoes,
        (SELECT string_agg(DISTINCT k.numero::text, ' / ' ORDER BY k.numero::text)

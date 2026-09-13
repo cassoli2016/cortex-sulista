@@ -189,6 +189,14 @@ def test_freetime_do_ERP_em_timedelta_e_aceito():
     assert p["freetime_h"] == 2.0 and p["excedente_s"] == 3600
 
 
+def test_perfil_SEM_modo_conta_da_JANELA():
+    """O padrão da casa é a fórmula do relatório do ERP: da janela, mesmo com
+    o caminhão chegando depois."""
+    p = R.perna(carga(carga_chegada=h(10, 20), carga_saida=h(11, 10)),
+                "carga", CONTRATO, {"regras": []})
+    assert p["modo"] == R.JANELA and p["tempo_s"] == 70 * 60
+
+
 def test_total_da_carga_soma_as_duas_pernas():
     out = R.calcular(carga(carga_saida=h(13, 30), descarga_saida=h(19)), CONTRATO, PERFIL)
     assert out["carga"]["valor"] == 50.0 and out["descarga"]["valor"] == 100.0

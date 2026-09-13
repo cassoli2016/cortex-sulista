@@ -78,6 +78,33 @@ com ajustes não prova que os ajustes estão certos** — prova que o motor é
 capaz de representar a prática. Os ajustes continuam sendo decisões de
 alguém, e é por isso que eles aparecem.
 
+### O que as respostas de quem opera decidiram (13/09/2026)
+
+**"Valide na tela que te passei, lá já tem essa informação."** A tela era o
+relatório Monitoramento SAC, e a informação estava lá mesmo: rodado contra o
+ERP, o trecho de freetime da própria consulta dele põe a mercadoria em
+dúvida na cláusula GENÉRICA — ele casa a cláusula pela observação IGUAL à
+mercadoria, sem normalizar, e só dá cláusula própria a quem tem o nome
+exato. A planilha de cobrança concorda com ele e discorda da equivalência
+declarada em 11/09 (`api/freetime.EQUIVALENCIAS`), que continua valendo na
+ESTIMATIVA do SAC e no portal. Por isso, em Horas Paradas, a divergência é
+uma regra declarada no perfil, e a pergunta "a equivalência deve cair também
+na estimativa?" ficou para quem opera.
+
+**A referência do cliente não mora onde a planilha sugere.** O código
+colado no pedido do ERP cobria quase todas as cargas que o têm, mas algumas
+só o traziam numa OCORRÊNCIA da coleta (a de "identificação do cliente não
+informada", onde a torre o digita), e uma tinha no pedido o código pela
+metade. As fontes nunca discordaram. Nas cargas sem código em lugar nenhum,
+a planilha montava um com o número da coleta — convenção de quem monta, que
+virou o MODELO do perfil, e não uma regra escondida. O que decide é o
+FORMATO declarado: sem ele, o código truncado do pedido venceria o inteiro
+da ocorrência, e nenhuma das duas fontes estaria "errada".
+
+**E o padrão da casa para cliente novo é o do relatório do ERP** — contar da
+janela. A primeira cliente conta de outro jeito, e isso está no perfil dela,
+que é o lugar certo para a exceção.
+
 ---
 
 ## O freetime sorteado, e o dado que estava na porta ao lado (2026-09-11, v1.38.0)

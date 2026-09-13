@@ -43,6 +43,14 @@ def test_a_contagem_de_repeticoes_nao_e_a_acumulada():
     assert "wo AS (w ORDER BY" in sql
 
 
+def test_da_ocorrencia_sai_so_o_TRECHO_com_cara_de_codigo():
+    """Observação de ocorrência é texto livre; a conta só precisa do código."""
+    sql = fonte.CARGAS_SQL
+    assert "AS ocorr_codigos" in sql
+    assert "substring(o.observacao FROM '[A-Za-z]{2,}[0-9]{4,}')" in sql
+    assert "btrim(o.observacao)" not in sql
+
+
 def test_chave_tem_as_sete_colunas():
     r = {c: i for i, c in enumerate(fonte.CHAVE)}
     assert fonte.chave(r).count("|") == 6

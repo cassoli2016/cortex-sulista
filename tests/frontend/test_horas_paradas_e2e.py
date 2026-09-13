@@ -23,7 +23,10 @@ CFG = {"inicio_carga": "maior", "inicio_descarga": "maior", "arredondamento_min"
                    "mercadorias": ["CAIXAS"], "destinos": [], "inicio": "chegada",
                    "clausula": None, "freetime_h": None, "valor_h": None}],
        "colunas": [{"campo": "coleta", "titulo": "Coleta"},
-                   {"campo": "carga_valor", "titulo": "Total Carregamento"}]}
+                   {"campo": "carga_valor", "titulo": "Total Carregamento"}],
+       "referencia": {"formato": "ABC#######", "fontes": ["pedido", "ocorrencia"],
+                      "padrao": "ABC{{coleta|7}}",
+                      "excecoes": [{"mercadorias": ["CAIXAS"], "destinos": [], "valor": "*"}]}}
 PERFIS = {"perfis": [{"id": 1, "cliente_codigo": 99, "cliente_nome": "CLIENTE EXEMPLO",
                       "config": CFG}],
           "catalogo_colunas": [{"campo": "coleta", "titulo": "Coleta", "tipo": "numero"},
@@ -43,7 +46,7 @@ def _perna(janela, chegada, saida, tempo, ft, cobrado, valor, erp=None, regra=No
 
 LINHA = {"chave": "1|1|20|1|0|1|501", "coleta": 501, "filial": 20,
          "pedido": "6100000501CIF0000501", "pedido_num": "6100000501",
-         "pedido_comp": "CIF0000501", "referencia": "CIF0000501",
+         "pedido_comp": "CIF0000501", "referencia": "CIF0000501", "referencia_de": "pedido",
          "mercadoria": "CAIXAS", "origem": "PLANTA A", "destino": "PLANTA B",
          "destinatario_codigo": "111", "cidade_origem": "", "cidade_destino": "",
          "frota_cavalo": "T100", "placa_cavalo": "AAA0A00", "frota_carreta": None,
@@ -158,6 +161,19 @@ def test_a_aba_de_REGRAS_desenha_o_perfil(pagina):
     assert "Total Carregamento" in pg.eval_on_selector_all(
         "#hp-regras input[type=text]", "els => els.map(e => e.value).join('|')")
     assert pg.input_value("#hpc-ic") == "maior"
+    # a REFERÊNCIA do cliente: formato, fontes, modelo e a exceção
+    assert pg.input_value("#hpc-rfmt") == "ABC#######"
+    assert pg.input_value("#hpc-rpad") == "ABC{{coleta|7}}"
+    assert pg.is_checked("#hp-regras input[data-fonte=ocorrencia]")
+    assert "mercadoria: CAIXAS" in txt
+
+
+def test_a_linha_diz_DE_ONDE_veio_a_referencia(pagina):
+    pg, base = pagina
+    _abrir(pg, base)
+    span = pg.locator("#hp-cargas tr").first.locator("td").first.locator("span")
+    assert span.inner_text() == "CIF0000501"
+    assert span.get_attribute("title") == "referência do pedido no ERP"
 
 
 def test_nenhuma_aba_empurra_a_pagina_para_o_lado(pagina):

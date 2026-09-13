@@ -148,7 +148,8 @@ def perna(carga: dict, nome: str, contrato: list[dict], perfil: dict) -> dict:
 
     regra = primeira_regra(perfil.get("regras") or [], carga, nome)
     # `None` num campo da regra é HERDA, nunca zero (regra da casa).
-    modo = (regra or {}).get("inicio") or perfil.get("inicio_" + nome) or MAIOR
+    # Sem modo no perfil, a JANELA — o padrão da casa (ver `cadastro.PADRAO`).
+    modo = (regra or {}).get("inicio") or perfil.get("inicio_" + nome) or JANELA
     cl = clausula(contrato, carga.get("mercadoria"),
                   forcar_generica=(regra or {}).get("clausula") == "generica")
 

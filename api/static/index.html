@@ -26895,6 +26895,9 @@ const HP_ARRED={0:'por minuto (proporcional)', 15:'para cima, de 15 em 15 min',
                 30:'para cima, de 30 em 30 min', 60:'para cima, hora cheia'};
 const HP_CLAUS={mercadoria:'cláusula da mercadoria', equivalencia:'cláusula por equivalência declarada',
                 generico:'cláusula genérica', sem_clausula:'sem cláusula — maior freetime do contrato'};
+const HP_REFDE={ajuste:'referência ajustada à mão', pedido:'referência do pedido no ERP',
+                ocorrencia:'referência digitada numa ocorrência da coleta',
+                excecao:'referência por exceção do cliente', padrao:'referência montada pelo modelo do cliente'};
 const HP_CAMPOS={carga_janela:'Janela do carregamento', carga_chegada:'Chegada no carregamento',
                  carga_saida:'Saída do carregamento', descarga_janela:'Janela da descarga',
                  descarga_chegada:'Chegada na descarga', descarga_saida:'Fim da descarga'};
@@ -27061,7 +27064,7 @@ function renderHp(d){
     const fora=!l.incluida
       ? `<div class="hint" title="${esc(((l.ajustes||[]).find(a=>a.campo==='incluir')||{}).motivo||'')}">fora da planilha</div>` : '';
     return `<tr${l.incluida?'':' class="hp-fora"'}>`
-      + `<td class="num">${l.coleta}<div class="hint">${esc(l.pedido_num||'')}${l.referencia?' · '+esc(l.referencia):''}</div></td>`
+      + `<td class="num">${l.coleta}<div class="hint">${esc(l.pedido_num||'')}${l.referencia?` · <span title="${esc(HP_REFDE[l.referencia_de]||'')}">${esc(l.referencia)}</span>`:''}</div></td>`
       + `<td>${esc(l.frota_cavalo||l.placa_cavalo||'—')}<div class="hint">${esc(l.frota_cavalo?l.placa_cavalo:'')}${l.placa_carreta?' · '+esc(l.placa_carreta):''}</div></td>`
       + `<td>${esc(l.mercadoria||'—')}<div class="hint">→ ${esc(l.destino||'—')}</div></td>`
       + `<td>${hpCelPerna(l.carga)}</td><td class="num">${hpCelTempo(l.carga)}</td>`
@@ -27269,11 +27272,68 @@ function hpRenderRegras(){
     + `<div class="tablewrap tabroll" style="max-height:220px"><table><thead><tr><th class="num">#</th><th>Campo</th><th>Título na planilha</th><th></th></tr></thead><tbody>${cols}</tbody></table></div>`
     + `<div style="display:flex;gap:9px;margin:9px 0 0"><select id="hpc-novacol" style="flex:1;min-width:0" aria-label="Coluna a acrescentar">${opcCol}</select><button class="btn sm" onclick="hpColAdd()">Acrescentar coluna</button></div></div>`
     + `</div>`
+    + hpCardReferencia(c, destNome)
     + `<div class="card"><div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">`
     + `<button class="btn primary" id="hp-salvar" onclick="hpSalvar()">Salvar regras do cliente</button>`
     + `<button class="btn" onclick="hpDescartar()">Descartar alterações</button>`
     + `<span class="hint" id="hp-sujo">${HP_SUJO?'alterações não salvas — a conta da tela só muda depois de salvar':''}</span>`
     + `<span class="hint" style="margin-left:auto">${esc(ultima)}</span></div></div>`;
+}
+/* A REFERÊNCIA DO CLIENTE (o código dele que vai na planilha). A ordem é a
+   do servidor (`servico.referencia`): ajuste manual, o primeiro código no
+   FORMATO achado nas fontes, a exceção por mercadoria/destino, o modelo. */
+function hpRefAtual(){
+  if(!HP_CFG.referencia) HP_CFG.referencia={formato:'', fontes:['pedido'], padrao:'', excecoes:[]};
+  return HP_CFG.referencia;
+}
+function hpCardReferencia(c, destNome){
+  const r=c.referencia||{formato:'', fontes:['pedido'], padrao:'', excecoes:[]};
+  const ch=(f,rot)=>`<label style="display:flex;gap:9px;align-items:center"><input type="checkbox" data-fonte="${f}" onchange="hpRefFonte(this)"${(r.fontes||[]).includes(f)?' checked':''}> ${rot}</label>`;
+  const exc=(r.excecoes||[]).map((e,i)=>{
+    const q=[].concat((e.mercadorias||[]).length?['mercadoria: '+e.mercadorias.join(', ')]:[])
+              .concat((e.destinos||[]).length?['destino: '+e.destinos.map(destNome).join(', ')]:[]);
+    return `<tr><td>${esc(q.join(' · '))}</td><td>${esc(e.valor||'(vazio)')}</td>`
+      + `<td style="white-space:nowrap"><button class="btn sm" onclick="hpRefExcEditar(${i})">Editar</button> `
+      + `<button class="btn sm" onclick="hpRefExcRemover(${i})" aria-label="Remover">✕</button></td></tr>`;
+  }).join('') || '<tr><td colspan="3" style="color:var(--n500)">nenhuma exceção</td></tr>';
+  return `<div class="card"><div class="head"><h2>Referência do cliente na planilha <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O código do cliente que vai na coluna de referência (por exemplo, o número do pedido dele). Em ordem: o ajuste manual da linha; o primeiro código no FORMATO declarado achado nas fontes marcadas — o pedido do ERP e as ocorrências da coleta; a exceção por mercadoria ou destinatário; o modelo padrão. O formato é o que separa um código inteiro de um digitado pela metade. A linha diz de onde a referência veio.">i</span></h2><button class="btn sm" onclick="hpRefExcEditar(-1)">Nova exceção</button></div>`
+    + `<div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;margin:0 0 9px">`
+    + `<div><label for="hpc-rfmt">Formato (# = dígito)</label><input type="text" id="hpc-rfmt" maxlength="20" value="${esc(r.formato||'')}" placeholder="qualquer código" oninput="hpRefAtual().formato=this.value.toUpperCase();hpSujo()"></div>`
+    + `<div style="display:flex;gap:18px">${ch('pedido','no pedido do ERP')}${ch('ocorrencia','nas ocorrências da coleta')}</div>`
+    + `<div style="flex:1;min-width:0"><label for="hpc-rpad">Quando não achar ({{coleta|7}} = coleta com 7 dígitos)</label><input type="text" id="hpc-rpad" maxlength="40" value="${esc(r.padrao||'')}" placeholder="vazio" oninput="hpRefAtual().padrao=this.value;hpSujo()" style="width:100%"></div></div>`
+    + `<div class="tablewrap tabroll" style="max-height:180px"><table><thead><tr><th>Quando</th><th>Referência</th><th></th></tr></thead><tbody>${exc}</tbody></table></div></div>`;
+}
+function hpRefFonte(el){
+  const r=hpRefAtual(), f=el.dataset.fonte;
+  r.fontes=(r.fontes||[]).filter(x=>x!==f);
+  if(el.checked) r.fontes=['pedido','ocorrencia'].filter(x=>x===f||r.fontes.includes(x));
+  hpSujo();
+}
+function hpRefExcRemover(i){ hpRefAtual().excecoes.splice(i,1); hpSujo(); hpRenderRegras(); }
+function hpRefExcEditar(i){
+  const r=hpRefAtual(), e = i>=0 ? r.excecoes[i] : {mercadorias:[], destinos:[], valor:''};
+  const cat=HP_CAT||{mercadorias:[], destinos:[]};
+  const mercs=[...new Set([...(e.mercadorias||[]), ...(cat.mercadorias||[]).map(m=>m.codigo)])];
+  const dests=[...(cat.destinos||[])];
+  (e.destinos||[]).forEach(cod=>{ if(!dests.some(d=>d.codigo===cod)) dests.push({codigo:cod, nome:cod}); });
+  const chk=(nome,val,marc,rot)=>`<label style="display:block"><input type="checkbox" name="${nome}" value="${esc(val)}"${marc?' checked':''}> ${esc(rot)}</label>`;
+  const caixa='max-height:160px;overflow:auto;border:1px solid var(--n200);border-radius:6px;padding:9px';
+  abrirModal(`<h3 style="margin:0 0 3px">${i>=0?'Editar exceção da referência':'Nova exceção da referência'}</h3>`
+    + `<p class="hint" style="margin:0 0 18px">Vale quando nenhuma fonte trouxe um código no formato. Aceita {{coleta}}, {{coleta|7}} e {{pedido}}.</p>`
+    + `<div class="ges-form">`
+    + `<div><label>Mercadorias</label><div style="${caixa}">${mercs.map(m=>chk('hpx-merc',m,(e.mercadorias||[]).includes(m),m)).join('')||'<span class="hint">sem mercadorias em 180 dias</span>'}</div></div>`
+    + `<div><label>Destinatários</label><div style="${caixa}">${dests.map(d=>chk('hpx-dest',d.codigo,(e.destinos||[]).includes(d.codigo),d.nome||d.codigo)).join('')||'<span class="hint">sem destinatários em 180 dias</span>'}</div></div>`
+    + `<div><label for="hpx-valor">Referência</label><input id="hpx-valor" type="text" maxlength="40" value="${esc(e.valor||'')}" placeholder="ex.: *"></div>`
+    + `<p id="m-err" class="hint" style="color:var(--red);margin:0"></p>`
+    + `<div style="display:flex;gap:9px;justify-content:flex-end"><button class="btn" onclick="fecharModal()">Cancelar</button>`
+    + `<button class="btn primary" onclick="hpRefExcGravar(${i})">Aplicar</button></div></div>`);
+}
+function hpRefExcGravar(i){
+  const marc=n=>[...document.querySelectorAll('input[name="'+n+'"]:checked')].map(x=>x.value);
+  const e={mercadorias:marc('hpx-merc'), destinos:marc('hpx-dest'), valor:document.getElementById('hpx-valor').value.trim()};
+  if(!e.mercadorias.length && !e.destinos.length){ mErro('Marque ao menos uma mercadoria ou um destinatário.'); return; }
+  const r=hpRefAtual(); if(i>=0) r.excecoes[i]=e; else r.excecoes.push(e);
+  fecharModal(); hpSujo(); hpRenderRegras();
 }
 function hpRegraMover(i, d){
   const a=HP_CFG.regras, j=i+d; if(j<0 || j>=a.length) return;
@@ -27368,7 +27428,7 @@ async function hpNovoPerfil(){
   const opts=cls.filter(c=>!ja.has(c.codigo)).map(c=>
     `<option value="${c.codigo}" data-nome="${esc(c.nome)}">${esc(c.nome)}${c.tem_contrato?' — tem freetime no ERP':''}</option>`).join('');
   abrirModal(`<h3 style="margin:0 0 3px">Configurar cliente</h3>`
-    + `<p class="hint" style="margin:0 0 18px">O cliente é o agrupamento do ERP — o mesmo do Monitoramento SAC e do contrato de freetime, pelo pagador do frete. Ele nasce com o padrão da casa (relógio no que vier depois, cobrança por minuto, fechamento pelo fim da descarga) e a aba Regras ajusta ao jeito dele.</p>`
+    + `<p class="hint" style="margin:0 0 18px">O cliente é o agrupamento do ERP — o mesmo do Monitoramento SAC e do contrato de freetime, pelo pagador do frete. Ele nasce com o padrão da casa (relógio a partir da janela, como o relatório Monitoramento SAC do ERP; cobrança por minuto; fechamento pelo fim da descarga) e a aba Regras ajusta ao jeito dele.</p>`
     + `<div class="ges-form"><div><label for="hpn-cli">Cliente</label><select id="hpn-cli" style="width:100%">${opts}</select></div>`
     + `<p id="m-err" class="hint" style="color:var(--red);margin:0"></p>`
     + `<div style="display:flex;gap:9px;justify-content:flex-end"><button class="btn" onclick="fecharModal()">Cancelar</button>`

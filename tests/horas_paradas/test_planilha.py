@@ -75,6 +75,14 @@ def test_campo_fora_do_catalogo_NAO_entra():
     assert "x" not in rows[0]
 
 
+def test_marcador_com_ZEROS_a_esquerda():
+    ctx = {"coleta": 20234, "pedido": "ABC"}
+    assert planilha.substituir("CIF{{coleta|7}}", ctx) == "CIF0020234"
+    assert planilha.substituir("{{coleta}}-{{ pedido }}", ctx) == "20234-ABC"
+    assert planilha.substituir("{{pedido|7}}", ctx) == "ABC"          # só número recebe zero
+    assert planilha.substituir("{{nada}}", ctx) == "{{nada}}"
+
+
 def test_nome_do_arquivo_troca_marcadores_por_regex_e_nao_por_format():
     ctx = {"cliente": "CLIENTE A", "semana": 37, "de": "07-09-2026", "ate": "13-09-2026"}
     assert (planilha.nome_do_arquivo("HP semana - Semana {{semana}} - {{de}}", ctx)

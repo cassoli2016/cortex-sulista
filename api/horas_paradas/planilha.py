@@ -90,19 +90,29 @@ def _hhmm(segundos: float) -> str:
     return "%s%02d:%02d" % ("-" if segundos < 0 else "", m // 60, m % 60)
 
 
-def nome_do_arquivo(modelo: str | None, contexto: dict) -> str:
-    """O nome do arquivo, pelo modelo do perfil com `{{marcadores}}`.
+_RE_MARCA = re.compile(r"\{\{\s*([a-z_]+)(?:\s*\|\s*(\d{1,2}))?\s*\}\}")
 
-    Substituição por regex de `{{nome_simples}}`, NUNCA `str.format` sobre
-    texto escrito por usuário (regra da casa: `format` alcança atributo de
-    objeto). Marcador desconhecido fica como está — e aparece no nome, que é
-    onde quem escreveu vai perceber.
+
+def substituir(modelo: str | None, contexto: dict) -> str:
+    """Troca `{{marcador}}` e `{{marcador|N}}` (zeros à esquerda até N).
+
+    Substituição por regex, NUNCA `str.format` sobre texto escrito por usuário
+    (regra da casa: `format` alcança atributo de objeto). Marcador
+    desconhecido fica como está — e aparece no resultado, que é onde quem
+    escreveu vai perceber.
     """
-    modelo = (modelo or "").strip() or "Horas paradas - {{cliente}} - {{de}} a {{ate}}"
-
     def troca(m):
-        return str(contexto.get(m.group(1), m.group(0)))
-    nome = re.sub(r"\{\{\s*([a-z_]+)\s*\}\}", troca, modelo)
+        if m.group(1) not in contexto:
+            return m.group(0)
+        v = str(contexto[m.group(1)])
+        return v.zfill(int(m.group(2))) if m.group(2) and v.isdigit() else v
+    return _RE_MARCA.sub(troca, modelo or "")
+
+
+def nome_do_arquivo(modelo: str | None, contexto: dict) -> str:
+    """O nome do arquivo, pelo modelo do perfil com `{{marcadores}}`."""
+    modelo = (modelo or "").strip() or "Horas paradas - {{cliente}} - {{de}} a {{ate}}"
+    nome = substituir(modelo, contexto)
     nome = re.sub(r'[\\/:*?"<>|]+', "-", nome).strip(" .") or "horas-paradas"
     return nome[:120] + ".xlsx"
 

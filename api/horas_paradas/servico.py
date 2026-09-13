@@ -51,6 +51,42 @@ def pedido_partes(pedido: str) -> tuple[str, str]:
     return m.group(1), (comp.group(0) if comp else "")
 
 
+def regex_do_formato(formato: str):
+    """`CIF#######` → `CIF\\d{7}` literal; vazio → qualquer letra+dígito."""
+    if not formato:
+        return re.compile(r"[A-Z]{2,}\d+")
+    return re.compile("".join(r"\d" if ch == "#" else re.escape(ch) for ch in formato))
+
+
+def referencia(c: dict, ajs: dict, cfg: dict) -> tuple[str, str]:
+    """(a referência do cliente, DE ONDE ela veio).
+
+    A origem vai para a tela porque "o código veio do pedido" e "o código foi
+    montado pelo modelo do cliente" são o mesmo texto e afirmações diferentes
+    — e só a segunda pode estar errada sem que o ERP diga nada.
+    """
+    aj = (ajs.get("referencia") or {}).get("valor")
+    if aj:
+        return aj, "ajuste"
+    rc = cfg.get("referencia") or {}
+    rx = regex_do_formato(rc.get("formato") or "")
+    textos = {"pedido": c.get("pedido") or "", "ocorrencia": c.get("ocorr_codigos") or ""}
+    for fonte_ in rc.get("fontes") or []:
+        m = rx.search(textos.get(fonte_, "").upper())
+        if m:
+            return m.group(0), fonte_
+    for e in rc.get("excecoes") or []:
+        if regras.regra_casa({"mercadorias": e.get("mercadorias"),
+                              "destinos": e.get("destinos")}, c, "carga"):
+            return e.get("valor") or "", "excecao"
+    if rc.get("padrao"):
+        num, _ = pedido_partes(c.get("pedido") or "")
+        return planilha.substituir(rc["padrao"], {"coleta": c.get("numero"),
+                                                  "filial": c.get("filial"),
+                                                  "pedido": num}), "padrao"
+    return "", ""
+
+
 def _perna_payload(p: dict, erp: dict, nome: str, ajs: dict) -> dict:
     out = {k: p[k] for k in ("inicio_de", "modo", "freetime_h", "valor_h",
                              "clausula", "clausula_mercadoria", "regra",
@@ -112,6 +148,7 @@ def montar(perfil_id: int, de: str, ate: str, esquema: str | None = None) -> dic
         conta = regras.calcular(efet, contrato, cfg)
         conta_erp = regras.calcular(c, contrato, cfg) if ajs else conta
         num, comp = pedido_partes(c["pedido"])
+        ref, ref_de = referencia(c, ajs, cfg)
         avisos = []
         if c["repeticoes"] > 1:
             avisos.append("mais de um apontamento do mesmo evento — vale o primeiro")
@@ -120,7 +157,7 @@ def montar(perfil_id: int, de: str, ate: str, esquema: str | None = None) -> dic
         linhas.append({
             "chave": ch, "coleta": c["numero"], "filial": c["filial"],
             "pedido": c["pedido"], "pedido_num": num, "pedido_comp": comp,
-            "referencia": (ajs.get("referencia") or {}).get("valor") or comp,
+            "referencia": ref, "referencia_de": ref_de,
             "mercadoria": c["mercadoria"], "origem": c["origem"], "destino": c["destino"],
             "destinatario_codigo": c["destinatario_codigo"],
             "cidade_origem": c["cidade_origem"], "cidade_destino": c["cidade_destino"],
@@ -195,9 +232,11 @@ def exportar(perfil_id: int, de: str, ate: str, esquema: str | None = None) -> t
     """(nome do arquivo, bytes do .xlsx) — das MESMAS linhas que a tela mostra."""
     d = montar(perfil_id, de, ate, esquema=esquema)
     cfg = d["perfil"]["config"]
+    d0, d1 = date.fromisoformat(de), date.fromisoformat(ate)
     ctx = {"cliente": d["perfil"]["cliente_nome"],
            "semana": d["periodo"]["semana"],
-           "de": date.fromisoformat(de).strftime("%d-%m-%Y"),
-           "ate": date.fromisoformat(ate).strftime("%d-%m-%Y")}
+           "de": d0.strftime("%d-%m-%Y"), "ate": d1.strftime("%d-%m-%Y"),
+           "de_dm": d0.strftime("%d-%m"), "ate_dm": d1.strftime("%d-%m")}
     nome = planilha.nome_do_arquivo(cfg.get("arquivo"), ctx)
-    return nome, planilha.gerar(d["linhas"], cfg["colunas"], cfg.get("aba"))
+    aba = planilha.substituir(cfg.get("aba") or "", ctx)
+    return nome, planilha.gerar(d["linhas"], cfg["colunas"], aba)

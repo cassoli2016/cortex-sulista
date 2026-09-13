@@ -152,6 +152,41 @@ def test_pedido_e_o_complemento_colado_nele(pedido, esperado):
     assert servico.pedido_partes(pedido) == esperado
 
 
+REF = {"formato": "ABC#######", "fontes": ["pedido", "ocorrencia"],
+       "padrao": "ABC{{coleta|7}}",
+       "excecoes": [{"mercadorias": ["CAIXA"], "destinos": [], "valor": "*"}]}
+
+
+@pytest.mark.parametrize("carga, ajs, esperado", [
+    ({"pedido": "6100000123ABC0000456"}, {}, ("ABC0000456", "pedido")),
+    # o pedido tem o código PELA METADE: não serve, vale o da ocorrência
+    ({"pedido": "6100000123ABC000", "ocorr_codigos": "ABC0000789"}, {}, ("ABC0000789", "ocorrencia")),
+    ({"pedido": "6100000123", "mercadoria": "CAIXAS"}, {}, ("*", "excecao")),
+    ({"pedido": "6100000123", "numero": 20234}, {}, ("ABC0020234", "padrao")),
+    ({"pedido": "6100000123ABC0000456"}, {"referencia": {"valor": "X1"}}, ("X1", "ajuste")),
+])
+def test_referencia_em_ORDEM_e_diz_de_onde_veio(carga, ajs, esperado):
+    c = dict({"numero": 1, "filial": 20, "mercadoria": "PECAS", "destinatario_codigo": "1",
+              "pedido": "", "ocorr_codigos": None}, **carga)
+    assert servico.referencia(c, ajs, {"referencia": REF}) == esperado
+
+
+def test_referencia_sem_regra_e_o_codigo_colado_no_pedido():
+    cfg = cadastro.validar_config({})
+    c = {"numero": 1, "pedido": "6100000123ABC0000456", "mercadoria": "X"}
+    assert servico.referencia(c, {}, cfg) == ("ABC0000456", "pedido")
+    assert servico.referencia(dict(c, pedido="6100000123"), {}, cfg) == ("", "")
+
+
+def test_a_aba_da_planilha_aceita_marcadores(perfil):
+    pid, esq = perfil
+    cadastro.salvar_config(pid, {"aba": "SEMANA {{semana}}", "arquivo": "HP {{ate_dm}}"},
+                           "a@x", esquema=esq)
+    nome, xb = servico.exportar(pid, "2026-09-07", "2026-09-13", esquema=esq)
+    assert nome == "HP 13-09.xlsx"
+    assert load_workbook(io.BytesIO(xb)).active.title == "SEMANA 37"
+
+
 def test_linha_avisa_quando_a_coleta_tem_mais_de_um_apontamento(perfil, monkeypatch):
     monkeypatch.setattr(fonte, "cargas", lambda cli, de, ate: {
         "cargas": [dict(CARGAS[0], repeticoes=2, paradas=3)], "contrato": CONTRATO,

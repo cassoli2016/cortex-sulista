@@ -43,6 +43,15 @@ glossario:
     hora em que o caminhão ainda nem tinha chegado); a CHEGADA do veículo; ou
     o que vier DEPOIS dos dois — chegou antes da hora marcada, vale a janela
     (esperar a hora combinada não é estadia); chegou atrasado, vale a chegada.
+    Cliente novo nasce contando da JANELA, como o relatório Monitoramento SAC
+    do ERP; quem conta de outro jeito declara no perfil.
+- termo: Referência do cliente
+  definicao: >-
+    O código do cliente que vai na planilha de horas paradas (por exemplo, o
+    pedido dele). Sai do ajuste manual da linha; senão, do primeiro código no
+    FORMATO do cliente achado no pedido do ERP ou nas ocorrências da coleta;
+    senão, de uma exceção por mercadoria ou destinatário; senão, do modelo do
+    cliente (que pode usar o número da coleta). A linha diz de onde veio.
 - termo: Ajuste manual
   definicao: >-
     A correção de um horário de uma coleta só na conta das horas paradas —
