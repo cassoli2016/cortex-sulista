@@ -27,7 +27,7 @@ Sai `0` quando não há divergência e `1` quando há. O script fala com o AVA e
 leva alguns minutos.
 
 **Ele nasceu de um defeito real:** a Visão Geral e o Fluxo Consolidado mostravam
-**R$ 914 mil de diferença** para o mesmo saldo bancário — cada tela com a sua
+**R$ [valor omitido] de diferença** para o mesmo saldo bancário — cada tela com a sua
 regra, e ninguém percebeu por meses. As conferências abaixo são a varredura do
 resto dessa família.
 
@@ -35,7 +35,7 @@ resto dessa família.
 
 | # | Conferência | O que quebraria sem ela |
 |---|---|---|
-| 1 | Saldo inicial: Visão Geral × Fluxo Consolidado × Antecipação | o defeito de R$ 914 mil, de novo |
+| 1 | Saldo inicial: Visão Geral × Fluxo Consolidado × Antecipação | o defeito de R$ [valor omitido], de novo |
 | 2 | Saldo por banco soma o total | um banco fora da soma |
 | 3 | A receber em aberto: KPI × aging | o aging contando o que o KPI não conta |
 | 4 | A pagar: aging × total | idem |
@@ -67,10 +67,10 @@ dizer. Medição de **30/08/2026**:
 
 | recorte | valor | o que é |
 |---|---|---|
-| Faturas emitidas no mês | R$ 11.892.660,85 | o que foi faturado, por data de **emissão** |
-| Frete das viagens (CT-e) | R$ 10.998.976,10 | o frete das viagens do mês |
-| Realizado da régua da meta | R$ 11.337.232,16 | CT-e + KMM + NFS-e, que é a base da meta |
-| *(referência)* Receita bruta da DRE | R$ 11.359.446,61 | por **competência** |
+| Faturas emitidas no mês | R$ [valor omitido] | o que foi faturado, por data de **emissão** |
+| Frete das viagens (CT-e) | R$ [valor omitido] | o frete das viagens do mês |
+| Realizado da régua da meta | R$ [valor omitido] | CT-e + KMM + NFS-e, que é a base da meta |
+| *(referência)* Receita bruta da DRE | R$ [valor omitido] | por **competência** |
 
 Distâncias: faturas × DRE **4,5%**, faturas × régua da meta **4,7%**. Os quatro
 ficam dentro de ~8% entre si — diferença explicável pelo recorte, não por
@@ -92,11 +92,11 @@ existe para garantir que ninguém volte a recalculá-lo com o numerador errado.
 ### A mensagem do WhatsApp mede DIAS FECHADOS (06/09/2026)
 
 Até 06/09 a conferência 23 confrontava a mensagem com a **régua MTD** da tela e
-acusava divergência todo dia: 94,2% × 94,6%, R$ 2.127.689,67 × R$ 2.136.281,32.
+acusava divergência todo dia: 94,2% × 94,6%, R$ [valor omitido] × R$ [valor omitido].
 **Não era defeito.** A mensagem fecha por DIA de propósito — a régua MTD põe a
 meta CHEIA de hoje contra o realizado de alguns minutos e derruba o atingimento
-às 07:00 (a regra do veneno do dia em curso). Medido: R$ 2.127.689,67 é
-exatamente a soma dos dias fechados, e os R$ 8.591,65 de diferença são o dia em
+às 07:00 (a regra do veneno do dia em curso). Medido: R$ [valor omitido] é
+exatamente a soma dos dias fechados, e os R$ [valor omitido] de diferença são o dia em
 curso.
 
 A conferência passou a comparar **dias fechados com dias fechados**, e a régua

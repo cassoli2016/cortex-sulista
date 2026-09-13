@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.71.6] — 13/09/2026  ·  CX-13/09/2026-v1.71.6
+
+### Segurança
+- Nada muda nas telas. O repositório público do CÓRTEX deixa de mostrar os valores em reais e as taxas financeiras da empresa que estavam na documentação (caixa, custo de antecipação, horas extras, efeito de decisões comerciais), o endereço e o usuário do banco do ERP, e os dados reais que estavam em testes — o CPF de uma pessoa e as partes de um CT-e real. Um teste automático passa a recusar valor em reais em documento novo. O que já tinha sido publicado continua no histórico do repositório.
+
 ## [1.71.5] — 13/09/2026  ·  CX-13/09/2026-v1.71.5
 
 ### Corrigido

@@ -491,7 +491,7 @@ def _m(nome="FULANO", km=5200.0, nota=99.0, **kw):
 
 
 def test_formula_confere_com_o_exemplo_aprovado():
-    """JEAN LAURO, abril/2026: 5.200 km, nota 99, a R$ 0,10/km = R$ 514,80."""
+    """JEAN LAURO, abril/2026: 5.200 km, nota 99, a R$ [valor omitido]/km = R$ [valor omitido]."""
     r = calculo.calcular([_m(km=5200.0, nota=99.0)], PARAMS)
     assert r["linhas"][0]["premio"] == 514.80
 

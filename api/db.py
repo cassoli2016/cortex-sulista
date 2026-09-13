@@ -43,7 +43,7 @@ def _conninfo() -> str:
         host=os.environ.get("POSTGRES_HOST", "127.0.0.1"),
         port=os.environ.get("POSTGRES_PORT", "15432"),
         dbname=os.environ.get("POSTGRES_DB", "sulista"),
-        user=os.environ.get("POSTGRES_USER", "consulta_sulista"),
+        user=os.environ.get("POSTGRES_USER", ""),
         password=os.environ.get("POSTGRES_PASSWORD", ""),
         connect_timeout=8,
         # O servidor é UTF8, mas o libpq no Windows deriva o client_encoding da

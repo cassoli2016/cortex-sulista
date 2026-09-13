@@ -75,7 +75,7 @@ Não há edição/exclusão de lançamento individual (decidido).
 Lado extrato: soma de créditos, soma de débitos, líquido e **saldo derivado**
 (âncora = LEDGERBAL mais próximo + acumulado dos lançamentos; sem âncora, compara só
 fluxo e marca saldo como "sem âncora"). Lado ERP: `valorcredito`, `valordebito`,
-`valorsaldo` de `contacorrente_saldo`. Tolerância **R$ 0,01**.
+`valorsaldo` de `contacorrente_saldo`. Tolerância **R$ [valor omitido]**.
 
 Estado por dia: `OK` · `DIVERGE` (com delta de crédito/débito/saldo) · `SO_EXTRATO`
 (dia existe no extrato e não no ERP) · `SO_ERP`.

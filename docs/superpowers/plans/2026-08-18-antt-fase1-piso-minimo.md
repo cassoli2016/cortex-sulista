@@ -25,7 +25,7 @@
 
 ### Task 1: Coeficientes da ANTT em YAML, resolvidos por vigência
 
-O arquivo de coeficientes é o dado mais delicado da fase: um número errado acusa um transportador de pagar abaixo do piso quando ele não pagou. Por isso a transcrição é conferida contra a calculadora oficial, nunca contra blog — durante o levantamento, uma fonte de terceiros publicou CC de R$ 782,50 para carga geral 2 eixos, quando o texto oficial diz R$ 451,84.
+O arquivo de coeficientes é o dado mais delicado da fase: um número errado acusa um transportador de pagar abaixo do piso quando ele não pagou. Por isso a transcrição é conferida contra a calculadora oficial, nunca contra blog — durante o levantamento, uma fonte de terceiros publicou CC de R$ [valor omitido] para carga geral 2 eixos, quando o texto oficial diz R$ [valor omitido].
 
 **Files:**
 - Create: `config/antt_coeficientes.yaml`

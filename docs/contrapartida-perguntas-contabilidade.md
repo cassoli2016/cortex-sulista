@@ -18,7 +18,7 @@
 | 5 | Série e numeração por agregado | **Série 900 aprovada** (provisória) |
 | 6 | Os 17 com IE "ISENTO" emitem? | em análise |
 | 7 | Documentos de valor simbólico entram? | **Não, por ora** |
-| 8 | Passivo de R$ 108,7 mi | encaminhado ao Jurídico |
+| 8 | Passivo de R$ [valor omitido] | encaminhado ao Jurídico |
 
 Restam **duas** pendências, e só uma é da contabilidade:
 
@@ -88,7 +88,7 @@ está fechada e nada precisou ser alterado.
 
 *Registro da checagem feita antes de confirmar:* procuramos um valor de PEF
 próprio na base e nenhum campo serve — `programacaoembarque_pef` cobre 65% das
-viagens e seu campo de valor soma R$ 26,37 no total; o PEF do acerto cobre
+viagens e seu campo de valor soma R$ [valor omitido] no total; o PEF do acerto cobre
 4,4%; as parcelas de adiantamento estão vazias; e `transporte.valortotalfrete`
 chega a 3,7× o valor do CT-e sem relação estável. Emitir por qualquer um deles
 produziria documento várias vezes maior que a operação.
@@ -97,8 +97,8 @@ produziria documento várias vezes maior que a operação.
 
 Não é pendência, é consequência conhecida da definição. Emitindo pelo valor
 pago, os documentos passam a registrar formalmente o frete praticado — e no
-trimestre as viagens de agregado foram pagas em **R$ 14,7 milhões** contra um
-piso mínimo da ANTT de **R$ 18,7 milhões** para as mesmas viagens: **78,6% do
+trimestre as viagens de agregado foram pagas em **R$ [valor omitido]** contra um
+piso mínimo da ANTT de **R$ [valor omitido]** para as mesmas viagens: **78,6% do
 piso, com 5.081 de 5.735 viagens conferidas (89%) abaixo do mínimo legal**.
 
 Hoje isso só existe no controle interno. A partir da emissão, passa a existir
@@ -111,16 +111,16 @@ documento é **por CT-e**, os **3.159 de 6.594 CT-e (48%)** que dividem viagem
 precisavam de um critério. Ficou: **cada documento recebe a mesma fatia que
 teve no valor cobrado dos clientes naquela viagem**.
 
-Exemplo real já emitido em teste: viagem com **8 documentos** e R$ 1.591,50
-pagos ao agregado. O CT-e em questão respondeu por R$ 189,48 dos R$ 6.540,32
-cobrados na viagem — 2,90% — e saiu com **R$ 46,11**. Autorizado pela SEFAZ.
+Exemplo real já emitido em teste: viagem com **8 documentos** e R$ [valor omitido]
+pagos ao agregado. O CT-e em questão respondeu por R$ [valor omitido] dos R$ [valor omitido]
+cobrados na viagem — 2,90% — e saiu com **R$ [valor omitido]**. Autorizado pela SEFAZ.
 
 Registramos duas observações:
 
 - **Os outros critérios não foram implementados**, de propósito. Todos os
   quatro fecham a soma, então nenhum "erra" numa conferência — o que muda é
   quanto imposto cada documento carrega. Num caso de 3 CT-e numa viagem de
-  R$ 3.398,36, o mesmo documento valeria R$ 201,70 por peso e R$ 1.132,79 em
+  R$ [valor omitido], o mesmo documento valeria R$ [valor omitido] por peso e R$ [valor omitido] em
   partes iguais: **5,6 vezes**. Trocar o critério tem de ser decisão, não
   conveniência.
 - **O arredondamento é por documento.** A soma das fatias pode diferir do
@@ -227,7 +227,7 @@ com inscrição ausente ou marcada como "ISENTO" respondem por
 **1.872 dos 6.375 CT-e do trimestre — 29% da fila**.
 
 Os outros 30 agregados estão **prontos para emitir**: são cerca de
-**4.500 documentos** no trimestre, somando **R$ 13,4 milhões** de prestação.
+**4.500 documentos** no trimestre, somando **R$ [valor omitido]** de prestação.
 
 Precisamos saber, para cada um dos 17: **o cadastro está desatualizado** (e
 basta corrigir a inscrição) **ou ele é de fato não inscrito** — caso em que não
@@ -235,15 +235,15 @@ emite CT-e e sai da fila. Sugerimos conferência no SINTEGRA.
 
 ### 4.2 Documentos de valor simbólico
 
-Há agregados cujos CT-e do período somam **menos de R$ 1,00** (um deles, quatro
-documentos somando R$ 0,04). Valores assim costumam indicar anulação ou
+Há agregados cujos CT-e do período somam **menos de R$ [valor omitido]** (um deles, quatro
+documentos somando R$ [valor omitido]). Valores assim costumam indicar anulação ou
 complemento, não prestação.
 
 **Esses documentos puxam contrapartida?**
 
 ### 4.3 Passivo acumulado — decisão jurídica
 
-Desde 2022 são **34.188 CT-e** de agregado PJ, somando **R$ 108,7 milhões** de
+Desde 2022 são **34.188 CT-e** de agregado PJ, somando **R$ [valor omitido]** de
 prestação, sem o documento correspondente do agregado.
 
 **Isto não se resolve emitindo:** o CT-e não admite emissão retroativa, porque
@@ -288,11 +288,11 @@ Todas as definições fiscais estão tomadas, **menos uma**.
 | **Os 17 sem inscrição estadual** — 13 com cadastro contraditório, 4 possivelmente não inscritos | Cadastro / SINTEGRA | **29% da fila** (1.872 CT-e) |
 
 **Assim que a CST for definida, 30 agregados podem entrar em produção** — 4.524
-CT-e no trimestre, R$ 13,4 milhões, sem nenhuma pendência de cadastro. Não é
+CT-e no trimestre, R$ [valor omitido], sem nenhuma pendência de cadastro. Não é
 preciso esperar os 17.
 
 Uma sugestão para a definição da CST: o ERP **já calcula ICMS** nessa operação
-(o contrato de transporte traz R$ 1,38 milhão em 60 dias, e o PEF do acerto
+(o contrato de transporte traz R$ [valor omitido] em 60 dias, e o PEF do acerto
 traz ICMS a recolher em 254 de 267 registros). Pode ser que a resposta seja
 usar o que já existe, em vez de definir do zero.
 

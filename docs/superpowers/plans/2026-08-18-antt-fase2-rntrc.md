@@ -1019,7 +1019,7 @@ print('kpis:', json.dumps(d['kpis'], indent=1))
 "
 ```
 
-Expected: a sincronização baixa ~158 MB e grava ~222 linhas; os KPIs mostram cerca de 205 ativos, 16 pendentes e 1 não encontrado, com aproximadamente R$ 2,5 milhões em risco. **Se o número de "não encontrados" vier alto (dezenas), a normalização de zeros quebrou** — é o defeito conhecido desta fase, não um achado de compliance.
+Expected: a sincronização baixa ~158 MB e grava ~222 linhas; os KPIs mostram cerca de 205 ativos, 16 pendentes e 1 não encontrado, com aproximadamente R$ [valor omitido] em risco. **Se o número de "não encontrados" vier alto (dezenas), a normalização de zeros quebrou** — é o defeito conhecido desta fase, não um achado de compliance.
 
 - [ ] **Step 7: Commit**
 

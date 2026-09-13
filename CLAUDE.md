@@ -327,14 +327,14 @@ moram em arquivos que não falam do assunto.
 - **O SALDO DE `FRQ_BANCOHORAS` NÃO É PASSIVO — É UM ACUMULADOR QUE NINGUÉM
   ZERA.** A casa FECHA o semestre e paga como `H.E 50%` (picos em ago/2025,
   fev/2026 e ago/2026, contra ~400 h dos meses comuns), e **esse pagamento não
-  baixa o saldo no ERP**: em 24 meses foram pagas 27.516 h (R$ 573.134) e o
-  evento `DEBITO BANCO DE HORAS` movimentou 156,4 h — 0,6%. Nos três
+  baixa o saldo no ERP**: em 24 meses o evento `DEBITO BANCO DE HORAS`
+  movimentou 0,6% das horas pagas no mesmo período. Nos três
   fechamentos o saldo subiu 42 h, caiu 144 h e subiu 245 h. **O erro está na
   BAIXA, não no crédito**: seis pessoas que partiram do zero receberam 944,8 h
   em dinheiro e o banco lançou 950,7 h de crédito contra 85,8 h de débito —
   razão pagamento/saldo de **1,00** em quatro delas. `meses_compensar = 0`, e
   o fechamento não gera o débito.
-  A tela publicou isso como "Passivo — R$ 123 mil" em 09/09/2026, e **quem
+  A tela publicou isso como "Passivo — R$ [valor omitido]" em 09/09/2026, e **quem
   pegou foi quem opera, lendo a tela e perguntando "o banco não zera a cada 6
   meses?"**. A lição de método é a que dói: eu validei o número contra si
   mesmo — a série batia, o cálculo batia — e não contra a realidade que ele
@@ -625,7 +625,7 @@ barra empilhada, não donut.
   contradizer, e as duas vão estar CERTAS.** A casa tinha três projeções de
   caixa (`fluxcon`›Projeção só o lançado; `fluxcon`›Plano lançado+provisionado
   sem antecipar; `antec` antecipando mas só sobre o lançado). Em 09/09/2026 uma
-  dizia "−R$ 11,1 mi em ago/27" e a outra "nenhum dia descoberto", e a tela
+  dizia "−R$ [valor omitido] em ago/27" e a outra "nenhum dia descoberto", e a tela
   chegava a mandar o usuário para OUTRA tela para dimensionar a operação. O
   conserto não é escolher uma: é achar a pergunta que nenhuma responde —
   aqui, "quanto antecipar". `api/financeiro/plano.py` roda o motor de
@@ -643,11 +643,11 @@ barra empilhada, não donut.
     100% do recebível elegível (jan/27, 8 de 12 meses). Esperar o descoberto é
     avisar depois que já não há remédio.
   - **Custo de antecipação se lê sobre CAPITAL MÉDIO** (Σ valor×prazo ÷ 365),
-    nunca sobre o nominal somado: R$ 73,1 mi de saque em 12 meses são R$ 9,79
-    mi de capital, porque o dinheiro gira 7,5×/ano. É a única régua em que o
-    deságio (14,26% a.a.) e o rotativo (15,67% a.MÊS) se comparam.
-  - **Taxa de fornecedor NÃO se escreve no código.** O `_lastro` usava 2,0%
-    a.m. fixo enquanto o portal praticava 1,17% — 41% de custo a mais,
+    nunca sobre o nominal somado: o saque de 12 meses vira cerca de 1/7,5
+    disso em capital, porque o dinheiro gira 7,5×/ano. É a única régua em que
+    o deságio (taxa ao ANO) e o rotativo (taxa ao MÊS) se comparam.
+  - **Taxa de fornecedor NÃO se escreve no código.** O `_lastro` usava uma
+    taxa fixa enquanto o portal praticava outra, bem menor — 41% de custo a mais,
     publicado como se fosse medido. Custo por constante envelhece calado.
 - **A régua com dublê mede o ESQUELETO.** `scripts/medir_paineis.py` roda com a
   API devolvendo `{}`: tabela vazia, avisos mudos. A aba Decidir passava com
@@ -762,16 +762,15 @@ barra empilhada, não donut.
   guard proibindo `LIKE` ali.
   - **E quando a resposta vier, ela entra numa TABELA, não na normalização**
     (`api/freetime.EQUIVALENCIAS`, com data e efeito medido por linha). Em
-    11/09/2026 quem opera respondeu "Phevus também é conjuntos": 764 cargas/ano
-    da Maxion passaram à cláusula de CONJUNTOS, −R$ 7.324,75 de estadia
+    11/09/2026 quem opera respondeu "Phevus também é conjuntos": as cargas
+    desse item passaram à cláusula de CONJUNTOS, −R$ [valor omitido] de estadia
     estimada em 60 dias. A tela ganhou um QUARTO estado — `equivalencia`,
     separado de `mercadoria` —, porque "o contrato tem cláusula para esta
     carga" e "alguém decidiu que esta carga é outra" são o mesmo número e
     afirmações diferentes, e só a segunda pode ser revista.
   - **A pergunta AMPLA e a ESTREITA não são a mesma pergunta, e a diferença
-    custa.** "Phevus é conjuntos" podia levar junto LONGARINA PHEVUS (998
-    cargas/ano, o terceiro item da operação): −R$ 45.210,51 em vez de
-    −R$ 7.324,75 em 60 dias. Foi perguntado com os dois números na mesa e a
+    custa.** "Phevus é conjuntos" podia levar junto LONGARINA PHEVUS (o
+    terceiro item da operação): cerca de seis vezes o efeito em 60 dias. Foi perguntado com os dois números na mesa e a
     resposta foi a estreita. Decisão comercial se confirma no ALCANCE, não só
     no princípio — e o guard registra o que ficou de fora, porque a leitura
     ampla é a natural e alguém vai querer "completar" a tabela.
@@ -1194,7 +1193,12 @@ Regras duráveis — as crônicas (medições, formatos, tetos) estão em
 
 1. **O repo do código é PÚBLICO** (github.com/cassoli2016/cortex-sulista).
    Segredo, telefone/PII, print de painel e dado real de negócio NUNCA entram
-   em commit, migration, seed ou issue pública. Issues/anexos de report vão
+   em commit, migration, seed ou issue pública — e isso inclui VALOR EM REAIS
+   e TAXA FINANCEIRA, mesmo em crônica: o documento escreve `R$ [valor
+   omitido]`, a razão entre dois números ou a ordem de grandeza
+   (`tests/test_sem_valor_em_documento.py` varre todo `.md` versionado).
+   Endereço e usuário de banco vêm do `.env`, nunca do código.
+   Issues/anexos de report vão
    para `REPORT_REPO` (privado) — conferir a visibilidade do destino ANTES
    (`gh repo view --json visibility`). Saída de depuração não se redireciona
    para arquivo na raiz (um `> '%s'` já publicou as contas bancárias da

@@ -180,12 +180,12 @@ Medido em 60 dias:
 
 | | linhas | horas excedentes | valor estimado |
 |---|---|---|---|
-| antes | 1.774 | 8.918,3 | R$ 877.771,15 |
-| depois | 1.942 | 9.626,4 | **R$ 949.714,50** |
+| antes | 1.774 | 8.918,3 | R$ [valor omitido] |
+| depois | 1.942 | 9.626,4 | **R$ [valor omitido]** |
 
-**+R$ 71.943,35**, e o aumento é todo de dois clientes, por construção: IOCHPE
-MAXION +R$ 71.244,35 (usava 6,5h para tudo, e 75,7% das coletas são de
-mercadoria sem cláusula, que valem 3h) e LEAR +R$ 699,00. Quem tem uma cláusula
+**+R$ [valor omitido]**, e o aumento é todo de dois clientes, por construção: IOCHPE
+MAXION +R$ [valor omitido] (usava 6,5h para tudo, e 75,7% das coletas são de
+mercadoria sem cláusula, que valem 3h) e LEAR +R$ [valor omitido]. Quem tem uma cláusula
 só não mudou em nada — não havia o que sortear.
 
 Na Minha Operação o efeito é o espelho: a zona cinzenta da MAXION foi a ZERO
@@ -236,7 +236,7 @@ A normalização faz pouco de propósito: maiúscula, sem acento, espaço colaps
 S final fora. O que ela NÃO faz é aproximar **"CONJUNTO PHEVUS" de
 "CONJUNTOS"** — são 163 coletas da Maxion em 90 dias que hoje caem na cláusula
 genérica de 3h. Se forem comercialmente a mesma mercadoria, são 6,5h, e boa
-parte dos R$ 71,2 mil desaparece. Na mesma lista: "LONGARINA PHEVUS" (273) e
+parte dos R$ [valor omitido] desaparece. Na mesma lista: "LONGARINA PHEVUS" (273) e
 "LONGARINA" (125) na Maxion; "DIVERSOS" (203) e "ASSENTOS" (122) na LEAR, num
 contrato sem cláusula genérica.
 
@@ -247,14 +247,14 @@ escondida numa query.
 NÃO entrou na normalização — entrou em `api/freetime.EQUIVALENCIAS`, uma
 tabela onde cada linha tem data e efeito medido. São 764 cargas/ano da Maxion
 que passam da genérica (3h) para CONJUNTOS (6,5h): a estadia estimada em 60
-dias sai de R$ 959.814,37 para R$ 952.489,63, e a aderência da descarga da
+dias sai de R$ [valor omitido] para R$ [valor omitido], e a aderência da descarga da
 Maxion sobe de 50,4% para 56,5%.
 
 O ALCANCE precisou de uma segunda pergunta, e é a parte que quase se perde.
 "Phevus é conjuntos" podia levar junto LONGARINA PHEVUS — 998 cargas/ano, o
 terceiro item da operação, e a leitura mais natural da frase. Medidos os dois
-cenários (−R$ 7.324,75 contra −R$ 45.210,51 em 60 dias), a diferença era de
-R$ 37,9 mil e a resposta foi a estreita: só CONJUNTO PHEVUS. A LONGARINA
+cenários (−R$ [valor omitido] contra −R$ [valor omitido] em 60 dias), a diferença era de
+R$ [valor omitido] e a resposta foi a estreita: só CONJUNTO PHEVUS. A LONGARINA
 PHEVUS continua na genérica, ao lado da LONGARINA comum.
 
 E a tela ganhou um QUARTO estado por causa disso. `equivalencia` sai separado
@@ -302,9 +302,9 @@ com três métodos diferentes**, e nenhuma respondia a pergunta:
 Medidas no mesmo instante (09/09/2026), as duas últimas diziam coisas opostas
 e as duas estavam certas:
 
-- o Plano 12 meses: saldo indo a **−R$ 11,1 milhões** em ago/27, 10 dos 12
+- o Plano 12 meses: saldo indo a **−R$ [valor omitido]** em ago/27, 10 dos 12
   meses negativos;
-- a tela de Antecipação: antecipe R$ 5,39 milhões e **nenhum dia fica
+- a tela de Antecipação: antecipe R$ [valor omitido] e **nenhum dia fica
   descoberto** em 180 dias.
 
 A diferença inteira era a premissa: a segunda enxerga só o lançado, que o
@@ -332,12 +332,12 @@ antecipação resolve) do rombo estrutural (não resolve).
 12 meses. Quatro decisões, e cada uma custa dinheiro se invertida:
 
 1. **O piso é MÓVEL** — 5 dias da saída daquele mês, por decisão de quem opera.
-   Piso fixo envelhece: a mesma R$ 1 milhão que é folgada num mês de R$ 9 mi de
-   saída é aperto num de R$ 13 mi. A projeção continua com piso ZERO de
+   Piso fixo envelhece: a mesma R$ [valor omitido] que é folgada num mês de R$ [valor omitido] de
+   saída é aperto num de R$ [valor omitido]. A projeção continua com piso ZERO de
    propósito: lá a pergunta é "quanto falta para não furar", aqui é "quanto
    antecipar para operar".
-2. **O saque é BRUTO** — para o caixa receber R$ 100 mil a 1,17% a.m. em 60
-   dias é preciso sacar R$ 102.394. Somar o custo por fora subestima o consumo
+2. **O saque é BRUTO** — para o caixa receber R$ [valor omitido] a [taxa omitida] em 60
+   dias é preciso sacar R$ [valor omitido] Somar o custo por fora subestima o consumo
    da pilha justamente no mês em que ela é escassa.
 3. **Saca do mês mais PRÓXIMO primeiro**, que é o mais barato pelo mesmo
    dinheiro. E **nunca do próprio mês**: aquele recebível já está dentro da
@@ -348,7 +348,7 @@ antecipação resolve) do rombo estrutural (não resolve).
 
 ### A metade que quase ficou de fora
 
-O recebível LANÇADO de cliente com convênio acaba em dez/26 (R$ 5,69 mi). Só
+O recebível LANÇADO de cliente com convênio acaba em dez/26 (R$ [valor omitido]). Só
 com ele, o plano dizia **"descoberto total a partir de jan/27"** — falso: a
 empresa não para de faturar. A outra metade é a fatia elegível do que ainda vai
 ser faturado, e ela é grande:
@@ -378,13 +378,13 @@ remédio. A saturação virou coluna, KPI e a regra do semáforo (<80% ok, 80–
 atenção, 100% alerta).
 
 E o número que fecha a leitura: o resultado mensal do fluxo, sem antecipação
-nenhuma, é **−R$ 856 mil/mês** (mediana de 12 meses). A antecipação não está
+nenhuma, é **−R$ [valor omitido]/mês** (mediana de 12 meses). A antecipação não está
 corrigindo isso — está FINANCIANDO, a 14,26% ao ano.
 
 ### O custo estava 41% inflado, e ninguém podia saber
 
 `_lastro()` chamava `get_antecipacao(taxa_mes=2.0)` — **2,0% ao mês escrito no
-código** — enquanto o portal praticava **1,17% a.m.**, medido em 1.345 títulos
+código** — enquanto o portal praticava **[taxa omitida]**, medido em 1.345 títulos
 de 30 dias (`mky_recebiveis`). A tela publicava o custo sem dizer em lugar
 nenhum que aquilo era um chute. **Custo estimado por constante envelhece
 calado**: a taxa muda no portal e a tela não muda nunca. Agora a taxa sai da
@@ -393,10 +393,10 @@ acusa no cartão da Monkey quando a medição some.
 
 ### E o custo lido como linha de crédito, não como soma
 
-O plano saca **R$ 73,1 milhões brutos** em 12 meses. Chamar isso de dívida erra
+O plano saca **R$ [valor omitido] brutos** em 12 meses. Chamar isso de dívida erra
 por um fator de sete: o mesmo dinheiro **gira 7,5 vezes no ano**. O capital
-médio — Σ(valor × prazo) ÷ 365 — é **R$ 9,79 milhões**, com prazo médio de 49
-dias, e o custo efetivo sobre ele é **14,26% a.a.** É a única leitura em que o
+médio — Σ(valor × prazo) ÷ 365 — é **R$ [valor omitido]**, com prazo médio de 49
+dias, e o custo efetivo sobre ele é **[taxa omitida]** É a única leitura em que o
 deságio e o limite rotativo (15,67% ao MÊS) ficam na mesma régua. A definição é
 a mesma de `antecipacoes.estrategia`, reusada de propósito: dois módulos com
 duas definições do mesmo conceito divergem no primeiro dia em que alguém mexe
@@ -404,9 +404,9 @@ num só.
 
 ### Dois defeitos que a própria reforma criou, e como apareceram
 
-**A borda do horizonte inventava R$ 21,7 milhões de descoberto.** O último mês
+**A borda do horizonte inventava R$ [valor omitido] de descoberto.** O último mês
 da janela não tem nenhum mês seguinte de onde sacar, então aparecia descoberto
-por CONSTRUÇÃO — jul/27 e ago/27 somavam isso com R$ 5,7 milhões de pilha
+por CONSTRUÇÃO — jul/27 e ago/27 somavam isso com R$ [valor omitido] de pilha
 intocada em cada um. O corte da janela não é um fato sobre a empresa. Três
 meses de CAUDA (o prazo médio do recebível elegível é 86 dias) entram como
 fonte de saque e nunca como linha: não têm saldo, não aparecem na tela.
@@ -1379,11 +1379,11 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
 
 **Séries de escalas diferentes no mesmo eixo (lição do Fluxo de Caixa):**
 - Uma projeção otimista de longo prazo **esmaga a série contratada**: o saldo projetado
-  variava ~R$ 11 mi e o "realista" chegava a +R$ 118 mi, deixando a linha que decide caixa
+  variava ~R$ [valor omitido] e o "realista" chegava a +R$ [valor omitido], deixando a linha que decide caixa
   com **9% da altura**, colada no zero. Cenário especulativo entra por **toggle, desligado
   por padrão** — nunca compartilhando escala com o dado firme sem aviso.
 - **Projeção fica irreal quando um lado da conta some**: os pagáveis LANÇADOS caem de
-  R$ 5,7 mi para R$ 1,2 mi ao longo do horizonte, então a linha de cenário vira receita
+  R$ [valor omitido] para R$ [valor omitido] ao longo do horizonte, então a linha de cenário vira receita
   estimada contra custo inexistente. Marcar no gráfico o ponto em que isso começa
   (`fluxoExtrapola`: pagáveis < 40% da média dos 3 primeiros meses) e dizer no aviso.
 - **Número estruturalmente negativo leva chip explicando**, não vermelho e silêncio:
@@ -1396,7 +1396,7 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
 
 **Ranking e tabela analítica (lições da DRE por Cliente):**
 - **Ordenar por percentual sem piso de materialidade mente**: o ranking abria por MC% e
-  o 1º lugar era cliente com 1 viagem e R$ 2,8 mil de receita (85%), com TUPY (R$ 10,2 mi)
+  o 1º lugar era cliente com 1 viagem e R$ [valor omitido] de receita (85%), com TUPY (R$ [valor omitido])
   no meio da lista. Padrão = valor absoluto (materialidade); **cabeçalho clicável** para
   reordenar; registro de baixo volume fica **atenuado com badge**, nunca escondido.
 - **Tabela de DRE tem análise vertical**: cada linha também como **% da receita líquida**
@@ -1418,7 +1418,7 @@ a query ignora sai; dimensão que a query aceita e é a pergunta natural da tela
   `R$ 0` — e JAMAIS em verde. O ROB do pipeline lia R$ 0 em verde porque o ERP só
   preenche o campo nos projetos já entregues: parecia pipeline sem valor, era lacuna
   de cadastro. Mostrar junto o número que existe de verdade (ROB entregue).
-- **Total que esconde composição vira composição.** "Potencial R$ 36,7 mi" com 82% dos
+- **Total que esconde composição vira composição.** "Potencial R$ [valor omitido]" com 82% dos
   leads frios não é pipeline; o KPI mostra a quebra por temperatura e um chip "79% frio".
 - **Cobertura ruim de campo é informação, não sujeira para esconder**: "ROB previsto
   informado em 1 de 200 leads" no hint — é acionável para quem preenche.
@@ -1453,8 +1453,8 @@ PLAUSÍVEL (31/08/2026):**
 - `pracapedagio_valor` guarda uma linha POR VIGÊNCIA: 1.260 linhas para 934
   praças, 298 com duas e 14 com três. Um `LEFT JOIN` direto nela multiplicou
   cada travessia de pedágio pelo número de vigências da praça — **1,75x**,
-  medido. A tela publicou 23.284 travessias onde são 13.283 e R$ 49.720 de
-  diferença onde são R$ 30.581.
+  medido. A tela publicou 23.284 travessias onde são 13.283 e R$ [valor omitido] de
+  diferença onde são R$ [valor omitido]
 - **O que torna esta família pior que a do join que não casa nada:** lá a
   coluna vem ZERADA e alguém estranha. Aqui todos os números continuam
   plausíveis, as proporções entre eles se mantêm (calculado e cobrado inflam
@@ -1478,7 +1478,7 @@ PLAUSÍVEL (31/08/2026):**
 
 **Coluna zerada com KPI cheio = join quebrado (lição de Agregados e Terceiros):**
 - A coluna "Acertos" mostrava `0` e `R$ 0` nos 30 transportadores enquanto o KPI
-  somava **794 acertos / R$ 22,9 mi**. Causa: `acertoviagemagregado.cnpjcpfcodigo` é
+  somava **794 acertos / R$ [valor omitido]**. Causa: `acertoviagemagregado.cnpjcpfcodigo` é
   **NULL em 100% das linhas** neste ERP — o vínculo é **`cnpjcpfcodigoveiculo`**
   (casa em 74 de 75 códigos). Regra: quando o total existe e o detalhe é todo zero,
   o problema é o join, não o negócio — conferir no banco se a coluna do `ON` tem dado.
@@ -1487,12 +1487,12 @@ PLAUSÍVEL (31/08/2026):**
   recorte explica: "30 de 102 transportadores · 774 dos 793 acertos".
 
 **Competência aberta e coluna constante (lições de Make vs Buy):**
-- **Competência do mês corrente NÃO é queda de custo.** O CKM cheio caía de R$ 26 para
-  R$ 15 em jul/26 porque o rateio de fixos entra incompleto. O trecho até o mês aberto
+- **Competência do mês corrente NÃO é queda de custo.** O CKM cheio caía de R$ [valor omitido] para
+  R$ [valor omitido] em jul/26 porque o rateio de fixos entra incompleto. O trecho até o mês aberto
   vira **pontilhado (2 4)** com ponto vazado e faixa cinza "competência aberta" atrás —
   padrão para toda série mensal que dependa de lançamento contábil.
 - **Coluna que repete o mesmo valor em todas as linhas sai da tabela.** "CKM marginal"
-  trazia R$ 12,60 nas 25 rotas (é a média global — o razão é consolidado, não há CKM por
+  trazia R$ [valor omitido] nas 25 rotas (é a média global — o razão é consolidado, não há CKM por
   rota) e passava a impressão de cálculo por rota. Virou referência no hint; a coluna de
   spread, que era só uma subtração dessa constante, ficou.
 - **Veredito que a própria tela sabe que é frágil diz isso no título.** 45% do CKM cheio
@@ -1583,8 +1583,8 @@ PLAUSÍVEL (31/08/2026):**
   a LEITURA que está furada. Fora da faixa o valor vira `n/d` com o número bruto no
   tooltip, e o KPI conta quantas placas ficaram assim.
 - **O número que decide pode não existir na tela.** O prêmio do posto externo
-  (R$ 6,27/l comercial × R$ 4,93/l interno = **R$ 1,33/l sobre 732 mil litros =
-  R$ 978 mil no trimestre**) não estava em lugar nenhum. Ao criar um KPI desses, dizer
+  (R$ [valor omitido]/l comercial × R$ [valor omitido]/l interno = **R$ [valor omitido]/l sobre 732 mil litros =
+  R$ [valor omitido] no trimestre**) não estava em lugar nenhum. Ao criar um KPI desses, dizer
   no ⓘ que é **teto teórico, não meta** — caminhão em viagem precisa abastecer na
   estrada; o uso é acompanhar o mix e o prêmio.
 - Categoria em branco vira rótulo explícito ("(não informado no cartão)"), nunca célula
@@ -1593,7 +1593,7 @@ PLAUSÍVEL (31/08/2026):**
 **Campo nunca preenchido e código sem domínio (lições da Manutenção):**
 - **"Mão de obra R$ 0" com 747 OSs** lia-se como oficina de graça. O campo tem **0 de
   747** preenchidos: o KPI mostra **"não informado"** e diz a cobertura. Peças idem —
-  R$ 31.554 com "informado em 112 de 747 OSs (15%) · 1,9% do valor total". Mesma regra
+  R$ [valor omitido] com "informado em 112 de 747 OSs (15%) · 1,9% do valor total". Mesma regra
   do CRM, agora com a cobertura sempre explícita.
 - Na tabela, `R$ 0` repetido em 30 linhas vira travessão com tooltip: o custo existe e
   está no Total, o que falta é a separação.
@@ -1605,7 +1605,7 @@ PLAUSÍVEL (31/08/2026):**
   ter 9 linhas no screenshot e tinha 30 — `.tabroll` já rolava internamente.
 
 **Quando a tela inteira está sobre campo vazio (lição das Multas):**
-- **96 multas somando R$ 381** — valor lançado em **3 de 96** (3%), pontos em 2, condutor
+- **96 multas somando R$ [valor omitido]** — valor lançado em **3 de 96** (3%), pontos em 2, condutor
   em 10, pagas em 0. Nenhum total daquela tela era o que aparentava. Cada KPI passou a
   dizer a cobertura ("informado em 3 de 96 multas — NÃO é o custo do período").
 - **Não inventar estimativa para tapar buraco:** o catálogo `infracaotransito` também
@@ -1617,7 +1617,7 @@ PLAUSÍVEL (31/08/2026):**
   **15% no mês 0, 39% no mês 3, 84% no mês 6 e ~91% a partir do mês 7.** O gradiente
   é monotônico, ou seja é MATURAÇÃO, não ausência: o órgão emite a notificação e o
   valor vem depois, com o boleto. Em 2025 fechado são 650 de 733 com valor,
-  R$ 163.878.
+  R$ [valor omitido]
   - **A janela de 90 dias da tela é a PIOR possível para olhar multa** — pega
     exatamente a faixa em que quase nada foi valorado. Os "3 de 96" eram um artefato
     do recorte, não uma propriedade do dado.
@@ -1670,7 +1670,7 @@ PLAUSÍVEL (31/08/2026):**
   vazio onde a multa manda `"0"`. O prazo é justamente o campo que torna a notificação
   acionável. Mesma classe do "425 lidos, 0 gravados" da RasterJOR.
 - **MULTA e NOTIFICAÇÃO nunca se somam**: são o mesmo auto em estágios diferentes.
-  Somar daria R$ 126 mil onde o exigível é R$ 41,8 mil, e a ação de cada uma é outra —
+  Somar daria R$ [valor omitido] onde o exigível é R$ [valor omitido], e a ação de cada uma é outra —
   na notificação se indica condutor, na multa se paga ou se recorre.
 - **A API só devolve o que está EM ABERTO.** O que foi pago ou baixado simplesmente para
   de vir, sem marca nenhuma. Daí `visto_em`/`sumiu_em`: sem isso a tabela vira um
@@ -1784,7 +1784,7 @@ PLAUSÍVEL (31/08/2026):**
   com a meta cheia e o realizado zerado em vermelho — de longe parecia colapso do
   faturamento. Dia posterior a hoje agora sai só com a meta esmaecida, sem barra de
   realizado.
-- **Verde só quando havia meta a bater.** "Último dia faturado R$ 4 mil" saía VERDE num
+- **Verde só quando havia meta a bater.** "Último dia faturado R$ [valor omitido]" saía VERDE num
   domingo com meta zero. Sem meta no dia o cartão fica neutro e o rótulo diz
   "fim de semana, sem meta".
 - **Disponibilidade tem de ser de TRAÇÃO.** "Frota disponível 289" somava 227 carretas
@@ -1815,7 +1815,7 @@ PLAUSÍVEL (31/08/2026):**
   2 meses; espelhar isso é ruído com cara de número. Abaixo do corte → mediana **só nos
   meses cujo espelho teve movimento** + marca "base fraca". NUNCA espalhar a mediana nos
   12 meses: isso anualiza a conta esporádica em ~12x (as 91 contas abaixo do corte
-  somavam R$ 43,7 mi de baseline contra R$ 3,9 mi de histórico — pego só na revisão
+  somavam R$ [valor omitido] de baseline contra R$ [valor omitido] de histórico — pego só na revisão
   final, reconciliando contra a DRE real).
 - **Mês do ano orçado que está DENTRO da base é comparação circular.** Orçar 2026 em
   julho põe jan–jun/26 na base: o espelho desses meses é o próprio mês e o desvio mede
@@ -1992,8 +1992,8 @@ PLAUSÍVEL (31/08/2026):**
 
 **Mensagem que carrega número do painel (lições do resumo de faturamento):**
 - **O CÓRTEX tem TRÊS recortes de receita na mesma resposta** da Visão Geral, e eles
-  não são o mesmo número: `faturamento_mes` (faturas emitidas, R$ 11,28 mi),
-  `realizado_acumulado` (a régua da META, R$ 10,73 mi) e `receita_mes_cte`. Misturar
+  não são o mesmo número: `faturamento_mes` (faturas emitidas, R$ [valor omitido]),
+  `realizado_acumulado` (a régua da META, R$ [valor omitido]) e `receita_mes_cte`. Misturar
   o numerador de uma régua com o denominador de outra dá 96% de atingimento onde o
   real é 91,3% — e a mensagem sai para a diretoria dizendo que a meta está quase
   batida quando falta um milhão. O par que fecha é `realizado_acumulado /
@@ -2295,8 +2295,8 @@ em estrutura de topo: resolver dentro de **função**, na hora de desenhar.
   os preferidos contra o catálogo real (faz skip sem chave/rede).
 
 **CRM: a unidade é a LANE, e é isso que o distingue de um CRM genérico:**
-- Em FTL ninguém vende "R$ 400 mil por mês": vende Joinville→Betim, carreta de
-  6 eixos, 22 viagens, R$ 4.800 a viagem. **É na lane que existe km**, e
+- Em FTL ninguém vende "R$ [valor omitido] por mês": vende Joinville→Betim, carreta de
+  6 eixos, 22 viagens, R$ [valor omitido] a viagem. **É na lane que existe km**, e
   portanto R$/km, piso mínimo da ANTT e margem contra o CKM. Oportunidade com
   valor global não responde "esse frete paga o piso?" — que é a pergunta que
   pode tornar o negócio ILEGAL, não só ruim.
@@ -2321,7 +2321,7 @@ em estrutura de topo: resolver dentro de **função**, na hora de desenhar.
   aprovaria frete abaixo do mínimo legal com dinheiro que é do pedágio.
 - **O CKM é UM SÓ para todas as lanes, e vai no rodapé — não vira coluna.** O
   razão é consolidado; não existe CKM por rota nesta casa. Uma coluna repetindo
-  R$ 12,60 em vinte linhas passa a impressão de cálculo por rota, que foi
+  R$ [valor omitido] em vinte linhas passa a impressão de cálculo por rota, que foi
   exatamente o que a Make vs Buy teve de desfazer. O que varia por lane, e por
   isso merece coluna, é o RESULTADO.
 - **O PAR DE CKM ERRADO DESCONTA O RETORNO VAZIO DUAS VEZES** — e foi o
@@ -2334,11 +2334,11 @@ em estrutura de topo: resolver dentro de **função**, na hora de desenhar.
   saía deficitária. A fórmula certa é a do glossário —
   `resultado = valor_viagem − CKM_bruto × km_total` — e o vazio entra uma vez
   só, no multiplicador de km. **Medido depois do conserto** (ago/2026, CKM
-  bruto R$ 10,22/km): Joinville→SBC a R$ 12,01/km com volta carregada dá
-  **+R$ 915 por viagem (14,9%)**; a MESMA rota com volta vazia dá
-  **−R$ 4.296**. Com o par errado as duas apareciam negativas.
+  bruto R$ [valor omitido]/km): Joinville→SBC a R$ [valor omitido]/km com volta carregada dá
+  **+R$ [valor omitido] por viagem (14,9%)**; a MESMA rota com volta vazia dá
+  **−R$ [valor omitido]**. Com o par errado as duas apareciam negativas.
 - **Com um dublê de teste o defeito passava despercebido.** Com `ckm=3,50` a
-  conta errada dava um número positivo plausível; com o real (R$ 13,28
+  conta errada dava um número positivo plausível; com o real (R$ [valor omitido]
   produtivo) ela virava prejuízo em toda lane. Dublê de custo tem de ter a
   ORDEM DE GRANDEZA do real, e o teste tem de trazer os dois CKM — omitir o
   bruto faz o teste passar por vacuidade.
@@ -3002,10 +3002,10 @@ mapa.
   km e da RasterJOR 136 dias fora do ar.
 
 **Duas séries de escalas diferentes, agora em barras agrupadas (Premiação):**
-- "Prêmio total (R$)" e "Motoristas premiados" dividiam o eixo: R$ 14.864 e 43
+- "Prêmio total (R$)" e "Motoristas premiados" dividiam o eixo: R$ [valor omitido] e 43
   fazem a segunda barra ter **0,3% da altura** — um tracinho no zero em todos
   os meses. Premiados virou LINHA em eixo secundário, com rótulo direto.
-- E o total **não é comparável entre meses**: ele sobe de R$ 402 para R$ 14.864
+- E o total **não é comparável entre meses**: ele sobe de R$ [valor omitido] para R$ [valor omitido]
   principalmente porque a frota na Gobrax foi de **8 para 67 motoristas**. O
   card carrega o denominador e o prêmio POR MOTORISTA, e diz por escrito
   quanto da alta é cobertura. Mesma família da cobertura mensal da jornada.
@@ -3130,15 +3130,15 @@ só no ERP ...... 177 placas      união ....... 275
   293 mil linhas, vivo até hoje). Esta segunda é o "fechamento da operadora"
   que eu ia importar por parser — ele já chega pela integração.
 - **A prova de que a fonte gratuita serve foi ela bater com a paga**: Garuva
-  tem `valorpedagioeixo` = R$ 5,70 e `...carga5eixos` = R$ 28,50, exatamente o
+  tem `valorpedagioeixo` = R$ [valor omitido] e `...carga5eixos` = R$ [valor omitido], exatamente o
   que o QualP devolveu. Não faltava dado; faltava ler.
 - **O grep por SIGLA não acha a tabela nomeada por extenso.** Procurei `mdfe` e
   não achei nada útil; a tabela é `manifestoeletronico`, com 126 mil linhas. É
   a mesma armadilha da RasterJOR, que estava em `sulista.rasterjor_*` e não
   onde o nome do fornecedor aparecia.
 - **A TARIFA CORRENTE É A MODA DO QUE SE COBROU, nunca a média.** Campina
-  Grande do Sul com 5 eixos: R$ 20,50 em 42 travessias, R$ 21,50 em 85 e
-  R$ 80,28 UMA vez. A média dá R$ 21,63, que não é tarifa de nada, e a faixa
+  Grande do Sul com 5 eixos: R$ [valor omitido] em 42 travessias, R$ [valor omitido] em 85 e
+  R$ [valor omitido] UMA vez. A média dá R$ [valor omitido], que não é tarifa de nada, e a faixa
   20,50–80,28 faz a coluna parecer ruído — 59% das 303 combinações pareciam
   dispersas por causa dessa cauda. Com a moda, o segundo valor mais frequente
   vira a tarifa ANTERIOR e a data da troca sai de graça. Moda abaixo de 50%
@@ -3146,7 +3146,7 @@ só no ERP ...... 177 placas      união ....... 275
   praça cobra pelo eixo NO CHÃO e o vale declara o total do veículo.
 - **Cadastro parado é a explicação, e ela vai ao lado do número acusado.** 903
   das 934 praças com vigência acima de treze meses, e **100% da diferença**
-  entre calculado e cobrado (R$ 30.581 em 12 meses) está nelas. Sem a coluna
+  entre calculado e cobrado (R$ [valor omitido] em 12 meses) está nelas. Sem a coluna
   de vigência, o mesmo número se leria como cobrança indevida — que é outro
   problema, com outro dono.
 - **Campo vazio dos dois lados vira SENSOR, não silêncio.** Os três campos de
@@ -3169,18 +3169,18 @@ só no ERP ...... 177 placas      união ....... 275
   existe, parece número e não é. Consequência dita na tela: **dá para saber
   quanto se pagou, não quantas diárias foram**.
 - A única fonte que tinha a diária POR DIA — `sulista.integracao_diarias_
-  rasterjor`, com tipo (Meia R$ 52,64 / Inteira R$ 102,58) e cidade-base —
+  rasterjor`, com tipo (Meia R$ [valor omitido] / Inteira R$ [valor omitido]) e cidade-base —
   **parou em 12/02/2026**. Seis meses e meio, o mesmo formato da RasterJOR que
   ficou 136 dias fora. A tela diz a DATA, não "faz tempo".
 - **A competência da FOLHA não é a data do TRABALHO** — janeiro paga trabalho
   do fim de dezembro. Então a razão é **ordem de grandeza**, útil para comparar
   motoristas ENTRE SI na mesma janela, onde a defasagem é a mesma para todos.
-  Isso está no ⓘ. (O parágrafo que ficava aqui dizia que a mediana dava R$ 132
-  contra uma inteira de R$ 102,58 e que "deslocar um ou dois meses não
+  Isso está no ⓘ. (O parágrafo que ficava aqui dizia que a mediana dava R$ [valor omitido]
+  contra uma inteira de R$ [valor omitido] e que "deslocar um ou dois meses não
   conserta". Estava certo sobre o sintoma e errado sobre a causa — ver a
   crônica seguinte.)
 - **O achado que não depende de razão nenhuma é a reconciliação:** 26 pessoas
-  com diária e ZERO dia de jornada (R$ 189.530), **todas com cargo de
+  com diária e ZERO dia de jornada (R$ [valor omitido]), **todas com cargo de
   motorista** — carreteiro, truck, instrutor, não é escritório viajando. E 18
   com jornada e sem diária. São perguntas para quem opera, não veredito.
 - **O cruzamento é em PYTHON**: a folha está no AVA e a jornada no Postgres
@@ -3195,7 +3195,7 @@ só no ERP ...... 177 placas      união ....... 275
   granularidades: o pagamento **semanal** (`tipo_folha = 3`, uma linha por
   semana) e a folha **mensal** (`tipo_folha = 1`, uma linha no último dia do
   mês) cujo valor é a SOMA das semanais daquela pessoa no mês. A aba somava os
-  dois lados: **R$ 868.421 a mais em doze meses (31,3%)**, R$ 3,46 milhões na
+  dois lados: **R$ [valor omitido] a mais em doze meses (31,3%)**, R$ [valor omitido] na
   história inteira.
 - **O que a duplicidade envenenava era a LEITURA, não só o total.** A folha
   mensal parou de ser carregada em 02/2026, então set/25–jan/26 vinham
@@ -3204,33 +3204,33 @@ só no ERP ...... 177 placas      união ....... 275
   explicava essa queda com frota menor, que é verdade e não era a metade
   grande. A queda real é de 32%.
 - **A razão impossível estava publicada na tela e ninguém a leu como defeito.**
-  O R$/dia trabalhado marcava **R$ 214 a R$ 267** nos meses dobrados, contra
-  uma diária INTEIRA de R$ 107,44: o DOBRO do teto físico. Chamamos aquilo de
+  O R$/dia trabalhado marcava **R$ [valor omitido] a R$ [valor omitido]** nos meses dobrados, contra
+  uma diária INTEIRA de R$ [valor omitido]: o DOBRO do teto físico. Chamamos aquilo de
   "ordem de grandeza por defasagem de competência" e escrevemos isso em três
   lugares — docstring, teste e ⓘ. Defasagem de competência desloca dinheiro
   entre meses; **ela não cria dinheiro**, e por isso não podia produzir mais
   que uma inteira por dia em NENHUM mês. A lição: quando um indicador tem TETO
   FÍSICO conhecido, ultrapassá-lo é defeito, nunca imprecisão — e explicação
   plausível que convive com o impossível é explicação errada. Corrigido, dá
-  R$ 99,92, entre a meia (R$ 53,72) e a inteira (R$ 107,44).
+  R$ [valor omitido], entre a meia (R$ [valor omitido]) e a inteira (R$ [valor omitido]).
 - **A regra é o MAIOR dos dois lados, nunca a soma** (`_consolidar()`), e ela se
   sustenta pelo dado em vez de por lista de meses escrita à mão — o ERP já
   mudou de regime três vezes desde 2020 (só mensal até 07/2024; as duas de
   08/2024 a 01/2026; só semanal de 02/2026 em diante), e lista envelheceria em
   silêncio na quarta. O que ela sacrifica é o complemento: 07/2026 tem 29
-  linhas mensais de R$ 32 a R$ 65 ao lado de semanais de milhares, dinheiro de
+  linhas mensais de R$ [valor omitido] a R$ [valor omitido] ao lado de semanais de milhares, dinheiro de
   verdade e indistinguível de consolidação carregada pela metade. Fica-se
-  R$ 1.216 abaixo (0,8% do mês) em vez de arriscar contar em dobro.
+  R$ [valor omitido] abaixo (0,8% do mês) em vez de arriscar contar em dobro.
 - **Três provas independentes, porque uma não bastava.** (1) Em **549 de 566**
   pares pessoa×mês da janela em que as duas réguas convivem, mensal e soma das
   semanais são iguais ao centavo — um caso de 02/2026: semanais 600 + 500 +
   400 e a mensal 1.500,00. (2) O R$/dia impossível acima. (3) Uma TERCEIRA fonte
   arbitrando: a carga granular por dia mede 01/2026 em 1.717 diárias,
-  R$ 132.874; a soma crua da folha dava R$ 217.844 — R$ 85 mil a mais do que
-  existe de diária no mês — e a régua devolve R$ 109.249, abaixo e do lado
+  R$ [valor omitido]; a soma crua da folha dava R$ [valor omitido] — R$ [valor omitido] a mais do que
+  existe de diária no mês — e a régua devolve R$ [valor omitido], abaixo e do lado
   certo, que é o da defasagem.
 - **A régua se DECLARA na tela**, embaixo do gráfico e no balão de cada mês
-  ("R$ 868.421 não somados"). Escolha de régua que não se mostra vira verdade
+  ("R$ [valor omitido] não somados"). Escolha de régua que não se mostra vira verdade
   do sistema: quem confere contra a folha precisa achar a diferença, não
   desconfiar do total.
 
@@ -3239,11 +3239,11 @@ alimentações mortas (08/09/2026):**
 - Pedido de quem opera, no mesmo dia em que a duplicidade da folha foi
   corrigida: "achar divergências, macros erradas, apontamentos divergentes,
   enfim fazer uma auditoria nas diárias". O que a auditoria achou em 2026:
-  **109 achados, 68 deles fato aritmético, R$ 80.653 em erro** sobre R$ 1,14
+  **109 achados, 68 deles fato aritmético, R$ [valor omitido] em erro** sobre R$ [valor omitido]
   milhão de pagamento semanal conferido.
 - **O maior deles é uma semana paga duas vezes.** A competência **2026-07-31 é
   cópia exata da de 2026-07-07**: as MESMAS 78 pessoas com o MESMO valor ao
-  centavo, **R$ 32.063,63**. É a ÚNICA repetição exata do ano — o que também
+  centavo, **R$ [valor omitido]**. É a ÚNICA repetição exata do ano — o que também
   diz que a régua não é barulhenta. A assinatura comparada é o CONJUNTO
   (pessoa, valor) inteiro e não o total: dois totais coincidem por acaso, o
   conjunto de 78 pessoas não, porque numa semana normal cada motorista trabalha
@@ -3252,8 +3252,8 @@ alimentações mortas (08/09/2026):**
   Nem o ERP nem a casa têm tabela de diária. O que há é uma regularidade
   medida: a INTEIRA é exatamente o dobro da MEIA em todas as filiais, então
   todo pagamento é múltiplo inteiro da meia — e a tarifa sai do **MDC dos
-  pagamentos da filial no mês**: R$ 57,48 (CRZ), R$ 42,50 (JOI), R$ 61,02 →
-  66,45 (SBC), R$ 50,00 → 55,00 (MTZ). Derivar em vez de fixar tem motivo: a
+  pagamentos da filial no mês**: R$ [valor omitido] (CRZ), R$ [valor omitido] (JOI), R$ [valor omitido] →
+  66,45 (SBC), R$ [valor omitido] → 55,00 (MTZ). Derivar em vez de fixar tem motivo: a
   tarifa mudou DUAS vezes só em 2026, e tabela escrita à mão acusaria a filial
   inteira no mês do reajuste. Uma taxa só entra no catálogo com **dois meses**,
   e a filial-mês precisa de **cinco pagamentos** — o MDC de um valor é o
@@ -3264,7 +3264,7 @@ alimentações mortas (08/09/2026):**
   isso.** 31 pessoas da SBC fora da tarifa em 09/06 são UM evento de folha, não
   31 achados; 267 pagamentos sem filial são 12 PESSOAS. Sem agrupar, essas duas
   réguas somam 298 linhas e enterram as outras seis. E o agrupamento é o que
-  permite RECONHECER o evento: em 21/07 na MTZ o MDC dos desvios deu **R$ 5,00,
+  permite RECONHECER o evento: em 21/07 na MTZ o MDC dos desvios deu **R$ [valor omitido],
   que é exatamente 55,00 − 50,00** — é o retroativo do reajuste, e o achado sai
   em amarelo dizendo isso, porque a pergunta para a folha deixa de ser "o que é
   isto?" e passa a ser "confirma que é o retroativo?".
@@ -3298,7 +3298,7 @@ alimentações mortas (08/09/2026):**
 - **O relatório de auditoria não pode cometer o erro que ele acha.** Os achados
   individuais que caem dentro de uma semana repetida ou de um lote de filial
   continuam na lista (é o que nomeia a pessoa), mas NÃO entram no total — senão
-  os R$ 32 mil da semana de 31/07 seriam somados de novo, um a um, exatamente
+  os R$ [valor omitido] da semana de 31/07 seriam somados de novo, um a um, exatamente
   como a folha somava a diária semanal com a mensal.
 - **E o guard desse total era VERDE-PARA-SEMPRE.** Os dois testes chamavam
   `_dinheiro_sem_repetir` DIRETO; sabotar o lugar que a usa — trocar a chamada
@@ -3430,10 +3430,10 @@ TODO MUNDO com mensagens que não se parecem:
 
 **Pedágio: três números que não batem, e o join que quase mentiu (30/08/2026):**
 - **Os três existem e medem coisas diferentes**, e a tela põe os três em vez de
-  eleger um: `conhecimento.valortaxapedagio` **R$ 4,86 mi** (cobrado do
-  cliente), `coleta.valorpedagio` **R$ 5,57 mi** (a operação) e
-  `valepedagio.valorcartao` **R$ 1,76 mi** (adiantado ao transportador). O vale
-  cobre 36% do cobrado, e a quebra explica: **AGR 71%**, frota própria R$ 56
+  eleger um: `conhecimento.valortaxapedagio` **R$ [valor omitido]** (cobrado do
+  cliente), `coleta.valorpedagio` **R$ [valor omitido]** (a operação) e
+  `valepedagio.valorcartao` **R$ [valor omitido]** (adiantado ao transportador). O vale
+  cobre 36% do cobrado, e a quebra explica: **AGR 71%**, frota própria R$ [valor omitido]
   mil — o vale-pedágio é obrigação para com o transportador AUTÔNOMO e de
   terceiro (Lei 10.209/2001); a frota própria passa por tag.
 - **`coleta.numero` NÃO é único** — a chave é `grupo, empresa, filial, unidade,
@@ -3527,8 +3527,8 @@ TODO MUNDO com mensagens que não se parecem:
 **Regra que protege de um erro pode esconder o número que decide (Antecipação):**
 - A tela só antecipava título JÁ LANÇADO num portal, provado pela planilha
   importada. A regra está certa — sem o arquivo o banco recusa na mesa —, mas
-  ela respondia a pergunta errada: dos **R$ 16,6 mi** a receber em 90 dias,
-  entravam **R$ 594 mil (3,6%)**, enquanto **R$ 8,2 mi eram de cliente COM
+  ela respondia a pergunta errada: dos **R$ [valor omitido]** a receber em 90 dias,
+  entravam **R$ [valor omitido] (3,6%)**, enquanto **R$ [valor omitido] eram de cliente COM
   convênio assinado** (TUPY, MWM-Tupy, Iochpe Maxion, Adient). Quem pergunta
   "quanto dá para antecipar" quer saber dos 8,2; o caminho dos que faltam é
   **pedir o arquivo**, não negociar convênio.
@@ -3594,7 +3594,7 @@ TODO MUNDO com mensagens que não se parecem:
   Folha as duas bandas ficavam fora e custavam ~200px em TODA aba, inclusive
   nas que não leem nenhuma delas. E havia um segundo motivo, melhor: a banda da
   Estrutura ao lado dos números de Competência convidava a comparar dois
-  recortes que diferem, de propósito, em R$ 4 milhões.
+  recortes que diferem, de propósito, em R$ [valor omitido].
 - **Sistema de aba PRÓPRIO numa tela é uma discordância esperando.** O Orçamento
   tinha o dele (`orcTab` + `ORC_ABA`), anterior ao `.subtabs`: o giro
   automático, o contador e o `mapasRemedir` não valiam ali, e ninguém repararia
@@ -3608,25 +3608,25 @@ TODO MUNDO com mensagens que não se parecem:
 
 **Folha: "proventos" NÃO é custo — 14% do total só CIRCULA (30/08/2026):**
 - A tela somava `tipoeven='P'` e chamava de Custo de Folha. Medido em 12 meses:
-  `ADIANTAMENTO DE SALARI` (P) R$ 3.460.109 contra `ADIANTAMENTO QUINZENAL`
-  (D) R$ 3.463.158 — a MESMA quinzena, paga adiantada e descontada depois,
+  `ADIANTAMENTO DE SALARI` (P) R$ [valor omitido] contra `ADIANTAMENTO QUINZENAL`
+  (D) R$ [valor omitido] — a MESMA quinzena, paga adiantada e descontada depois,
   batendo **centavo a centavo em 9 de 13 meses**. Somá-la é contar o salário
-  duas vezes. Com `INSUFICIENCIA DE SALDO`, são R$ 4,0 mi, **14,2% do bruto**.
-  O custo efetivo é R$ 24,2 mi, não R$ 28,2 mi.
+  duas vezes. Com `INSUFICIENCIA DE SALDO`, são R$ [valor omitido], **14,2% do bruto**.
+  O custo efetivo é R$ [valor omitido], não R$ [valor omitido].
 - **O ENCARGO NÃO ESTÁ NA FICHA, só as bases.** FGTS é calculável (8% fixados
   em lei, iguais para todo regime) e entra com a alíquota DITA na tela. **INSS
   patronal não**: a alíquota depende do enquadramento e há eventos de SIMPLES
   na ficha (`BASE IRF S/ SAL SIMPL`), onde o patronal está no DAS. Estimar 20%
-  somaria ~R$ 2,8 milhões inventados. A base aparece como base.
+  somaria ~R$ [valor omitido] inventados. A base aparece como base.
 - **`.upper()` engoliu o 13º inteiro.** A classificação por natureza jogou
-  R$ 3,25 mi em "Outros" — 13,4% do custo, terceiro maior balde — porque
+  R$ [valor omitido] em "Outros" — 13,4% do custo, terceiro maior balde — porque
   `_sem_acento` faz `.upper()` e o "o" de "13o" chega como "O", enquanto o
   padrão estava em minúscula. Depois do conserto, "Outros" caiu para **1,1%**.
   Categoria genérica grande é sintoma de classificador furado, não de dado
   variado.
 - **"O custo caiu" não decide nada sem a quebra.** A decomposição separa
-  `Δpessoas × médio_anterior` de `pessoas × Δmédio`: dos R$ 654 mil de queda
-  (ago/25 → ago/26), **R$ 624 mil são gente a menos** (306 → 210) e só R$ 30
+  `Δpessoas × médio_anterior` de `pessoas × Δmédio`: dos R$ [valor omitido] de queda
+  (ago/25 → ago/26), **R$ [valor omitido] são gente a menos** (306 → 210) e só R$ [valor omitido]
   mil são custo médio. Dimensionamento e composição salarial têm donos
   diferentes.
 - A comparação prefere o MESMO MÊS do ano anterior: mês contra mês carregaria
@@ -3665,7 +3665,7 @@ publicava havia seis semanas:
   dia em material e 3 em serviço) ou prazo informado vencido. Sobraram 6 no
   histórico inteiro.
 - **O valor recebido somava `valortotal` do vínculo da nota.** Três linhas de
-  uma OC de R$ 163 mil traziam 13,9 bi, 11,7 bi e 654 mi; `greatest(…,0)`
+  uma OC de R$ [valor omitido] traziam 13,9 bi, 11,7 bi e 654 mi; `greatest(…,0)`
   escondia o estrago virando "recebida". A soma correta é `quantidaderecebida
   × valorprecoordemcompraitemprogramacaoentrega` (99,7% do valor das OCs) e,
   com quantidade zero, `least(valortotal, valor da OC)`. O status continua
@@ -3760,14 +3760,14 @@ não há chave primária que recuse.
 
 O estrago é o da família do join com tabela de vigência: o `LEFT JOIN`
 **duplica todo lançamento da conta**, o valor entra duas vezes na DRE, em duas
-linhas diferentes, e o total continua plausível. Medido: R$ 6.754,66 em 12
+linhas diferentes, e o total continua plausível. Medido: R$ [valor omitido] em 12
 meses contados a mais no `DRE_AG_SQL` — e três vezes no `DRE_AG_CONTA_SQL`,
 que junta o agrupador nos dois níveis (o razão e o plano de contas), de modo
 que a duplicata se multiplica por ela mesma.
 
 A fonte agora entra **agregada** por `(grupo, reduzido)`, com `min(descricao)`
 de desempate. `min()` não é palpite de qual classificação é a certa: é
-determinismo. Aqui ele escolhe justamente a órfã, e os R$ 85 mil (24 meses) da
+determinismo. Aqui ele escolhe justamente a órfã, e os R$ [valor omitido] (24 meses) da
 conta aparecem na linha **NÃO ALOCADO / CLASSIFICAR** da DRE — que é onde
 alguém conserta, em vez de sumirem dentro de uma linha que fecha.
 
@@ -3786,13 +3786,13 @@ da DRE como custo**. São 6 hoje, e 4 com movimento:
 
 | conta | classificada como | 12 meses |
 |---|---|---|
-| `2.1.3.01.0005` Ticket Car (passivo) | CV - COMBUSTÍVEL | +R$ 1.071.887,58 |
-| `1.3.2.13.0004` Transitória de Ativo Imobilizado | CV - MANUTENÇÃO | +R$ 473.560,01 |
-| `1.1.5.01.0001` Estoque de Manutenção | CV - MANUTENÇÃO | −R$ 84.486,62 |
-| `1.1.5.01.0002` Estoque Material de Consumo | CF - DESPESAS ADM | +R$ 10.171,67 |
+| `2.1.3.01.0005` Ticket Car (passivo) | CV - COMBUSTÍVEL | +R$ [valor omitido] |
+| `1.3.2.13.0004` Transitória de Ativo Imobilizado | CV - MANUTENÇÃO | +R$ [valor omitido] |
+| `1.1.5.01.0001` Estoque de Manutenção | CV - MANUTENÇÃO | −R$ [valor omitido] |
+| `1.1.5.01.0002` Estoque Material de Consumo | CF - DESPESAS ADM | +R$ [valor omitido] |
 
 Com sinal positivo elas **reduzem** o custo: a DRE Gerencial mostrava o
-resultado **R$ 1.471.132,64 melhor** que o razão de resultado, em 12 meses.
+resultado **R$ [valor omitido] melhor** que o razão de resultado, em 12 meses.
 Isso não é defeito de código — é decisão da Contabilidade sobre o mapa, e por
 isso o CÓRTEX **mede e nomeia** em vez de filtrar por conta própria.
 
@@ -3838,7 +3838,7 @@ duplicata — e é essa reconciliação que virou o conferidor.
 
 Ficou pendente na Contabilidade, e o conferidor cobra toda vez: apagar a linha
 duplicada de `1|425406`; decidir as 6 contas de balanço; classificar IRPJ,
-CSLL e PRÓ-LABORE (R$ 2,2 mi em 24 meses parados em CLASSIFICAR); e escolher
+CSLL e PRÓ-LABORE (R$ [valor omitido] em 24 meses parados em CLASSIFICAR); e escolher
 entre `CF - SEGURO DE VEICULOS` e `CF - SEGUROS DE VEICULOS`, que são dois
 agrupadores para a mesma coisa. Os 12 agrupadores que não caem em linha nenhuma
 da DRE são quase todos de conta SINTÉTICA, sem lançamento — inertes hoje, mas é
@@ -5354,10 +5354,10 @@ so nao executava. Protege contra APAGAR a checagem, nao contra ela QUEBRAR.
 ### A divergencia que nao era
 
 Consertado, ele acusou duas: WhatsApp 94,2% contra Visao Geral 94,6%, e
-R$ 2.127.689,67 contra R$ 2.136.281,32. Nao era defeito. A mensagem mede **dias
+R$ [valor omitido] contra R$ [valor omitido]. Nao era defeito. A mensagem mede **dias
 FECHADOS** de proposito (a regra do veneno do dia em curso) e a tela usa a
-regua MTD. Provado a virgula: R$ 2.127.689,67 e exatamente a soma dos dias
-fechados, e os R$ 8.591,65 de diferenca sao o dia 6 em curso.
+regua MTD. Provado a virgula: R$ [valor omitido] e exatamente a soma dos dias
+fechados, e os R$ [valor omitido] de diferenca sao o dia 6 em curso.
 
 O verificador e que comparava coisas diferentes -- e a NOTA dele dizia que "o
 provedor le o atingimento PRONTO", o que deixou de ser verdade quando o

@@ -561,7 +561,7 @@ def test_justificativa_tem_minimo():
 def test_so_cancela_o_que_foi_AUTORIZADO():
     """Recusado nao existe para a SEFAZ - nao ha o que cancelar."""
     with pytest.raises(ValueError, match="AUTORIZADO"):
-        lote.emissao.cancelar("35260846929365000104579000000000991737520892",
+        lote.emissao.cancelar("35260811222333000181579000000000991737520898",
                               "justificativa suficientemente longa", quem="x")
 
 

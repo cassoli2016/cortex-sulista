@@ -676,7 +676,7 @@ def meses_fechados(hoje: date, n: int = 12) -> list[str]:
     """Os n meses 'YYYY-MM' anteriores ao mês corrente, em ordem cronológica.
 
     O mês corrente NUNCA entra: em jul/26 o custo variável aparece pela metade
-    (R$ 3,4 mi contra R$ 6,5 mi normais) e contaminaria todo o baseline.
+    (R$ [valor omitido] contra R$ [valor omitido] normais) e contaminaria todo o baseline.
     """
     ano, mes = hoje.year, hoje.month
     saida: list[str] = []

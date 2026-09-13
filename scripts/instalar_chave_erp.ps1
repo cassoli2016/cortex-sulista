@@ -5,7 +5,15 @@
 # Uso:  powershell -ExecutionPolicy Bypass -File scripts\instalar_chave_erp.ps1
 
 $ErrorActionPreference = 'Stop'
-$destino = 'sulistalocal\inteligencia@100.120.225.5'
+$raiz = Split-Path -Parent $PSScriptRoot
+$cfg = @{}
+$arqEnv = Join-Path $raiz '.env'
+if (Test-Path $arqEnv) {
+  Get-Content $arqEnv | ForEach-Object { if ($_ -match '^\s*(ERP_[A-Z_]+)\s*=\s*(.*)$') { $cfg[$Matches[1]] = $Matches[2].Trim() } }
+}
+# Os enderecos vem do .env e NAO ficam aqui: o repositorio e publico.
+$destino = $cfg['ERP_SSH_DESTINO']
+if (-not $destino) { throw 'Falta ERP_SSH_DESTINO (usuario@host) no .env' }
 $pub = "$env:USERPROFILE\.ssh\cortex_erp.pub"
 if (-not (Test-Path $pub)) { throw "Chave pública não encontrada: $pub" }
 

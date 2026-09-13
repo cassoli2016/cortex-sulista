@@ -93,7 +93,7 @@ PAYLOAD = {
          "media_min": 36, "pct": 62.5, "classe": "tempo", "por_jornada": 0.56},
     ],
     "unconf_motoristas": [
-        {"documento": "04475303990",
+        {"documento": "12345678909",
          "nome": "MOTORISTA DE MUITAS VIAGENS", "n": 60, "tipos": 4, "dias": 30,
          "n_tempo": 40, "jornadas": 30, "filial": "SULISTA - MTZ",
          "h_extra": 20.0, "por_jornada": 1.33},
@@ -353,7 +353,7 @@ def test_recusa_da_coleta_e_MENSAGEM_e_nao_erro_de_api(pagina):
 # Ficha de um motorista, com a referência que é o ponto dela: 300 min de hora
 # extra contra 200 da filial e 150 da frota.
 FICHA = {
-    "documento": "04475303990", "documento_fmt": "***.***.039-**",
+    "documento": "12345678909", "documento_fmt": "***.***.789-**",
     "nome": "MOTORISTA DE MUITAS VIAGENS", "filial": "SULISTA - MTZ",
     "escala": "RODOVIARIO - MTZ - 08:00", "cargo": "Motorista carreteiro",
     "cidade_base": "PIRAQUARA, PR", "ativo": 1, "sem_cadastro": False,
@@ -433,10 +433,10 @@ def test_o_CPF_nao_entra_na_URL_e_sai_mascarado(pagina):
     pg, base = pagina
     _abrir_ficha(pg, base)
     assert pg.evaluate("location.hash") == "#jornf"
-    assert "04475303990" not in pg.url
+    assert "12345678909" not in pg.url
     t = pg.inner_text("#jornf-conteudo")
-    assert "***.***.039-**" in t
-    assert "04475303990" not in t
+    assert "***.***.789-**" in t
+    assert "12345678909" not in t
 
 
 def test_a_ficha_compara_com_a_filial_e_com_a_frota(pagina):

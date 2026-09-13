@@ -8,7 +8,7 @@
 1. **Não existe orçamento formal na Sulista.** A decisão do usuário foi *derivar do
    histórico* e deixar a controladoria ajustar. Isso muda o faseamento: "acompanhar"
    não existe sozinho, porque não há o que comparar. Gerar a proposta entra na Fase 1.
-2. **O banco do ERP AVA é somente-leitura** (usuário `consulta_sulista`, réplica). O
+2. **O banco do ERP AVA é somente-leitura** (usuário só de consulta, réplica). O
    orçamento é dado nosso e precisa de armazenamento local. Precedentes no projeto:
    `data/auth.db` (SQLite) e `data/ajustes_contabeis.json`.
 3. **Já existe meta, mas só de faturamento**: `sulista.metafaturamento_agrupamentoclientedia`
@@ -33,10 +33,10 @@ Amostra medida sobre 11 meses fechados (ago/25–jun/26). A base de produção u
 
 Sazonalidade e tendência (receita mensal, 24 meses):
 
-- **Dezembro despenca ~40%**: dez/24 = R$ 10,3 mi e dez/25 = R$ 7,9 mi, contra médias de
-  R$ 14,0 mi e R$ 13,5 mi. Sazonalidade real, não ruído.
-- **Queda estrutural de 18% a/a**: ago/24–jul/25 = R$ 13,6 mi/mês; ago/25–jul/26 = R$ 11,2 mi.
-- **Despesas têm picos de provisão**: R$ 0,05 mi (nov/25), R$ 3,28 mi (dez/25), R$ 0,20 mi
+- **Dezembro despenca ~40%**: dez/24 = R$ [valor omitido] e dez/25 = R$ [valor omitido], contra médias de
+  R$ [valor omitido] e R$ [valor omitido]. Sazonalidade real, não ruído.
+- **Queda estrutural de 18% a/a**: ago/24–jul/25 = R$ [valor omitido]/mês; ago/25–jul/26 = R$ [valor omitido].
+- **Despesas têm picos de provisão**: R$ [valor omitido] (nov/25), R$ [valor omitido] (dez/25), R$ [valor omitido]
   (nov/24). Média simples nessas contas produz um número que nunca aconteceu.
 
 Essas três observações são o motivo de o método ser **mês espelho + tendência**, e não média.
@@ -92,7 +92,7 @@ Entrada: `ano` e `fator_tendencia` global (ex.: `-0.05`). **Fator por linha da D
 fora da Fase 1** — quem quiser tratamento diferente por natureza ajusta as células.
 
 1. **Base = últimos 12 meses fechados.** O mês corrente **nunca** entra: em jul/26 o
-   custo variável aparece em R$ 3,4 mi contra R$ 6,5 mi normais, porque o mês está pela
+   custo variável aparece em R$ [valor omitido] contra R$ [valor omitido] normais, porque o mês está pela
    metade. Esse é o mesmo defeito corrigido em várias telas na revisão de 2026-07-26.
 2. Para cada conta × mês-calendário: valor do **mesmo mês** na base × `(1 + fator)`.
 3. **Regra de recorrência** (exigida pelos dados; o corte de 75% separa as 212 contas
@@ -103,7 +103,7 @@ fora da Fase 1** — quem quiser tratamento diferente por natureza ajusta as cé
      `0`/`sem_base`); `origem = mediana` e a linha nasce marcada **"base fraca —
      revisar"**. *(Revisado em 2026-07-27, decisão do usuário: a redação original
      gravava a mediana nos 12 meses e anualizava a conta esporádica em ~12× — as 91
-     contas abaixo do corte somavam R$ 43,7 mi de baseline contra R$ 3,9 mi de
+     contas abaixo do corte somavam R$ [valor omitido] de baseline contra R$ [valor omitido] de
      histórico. Preservar QUANDO o gasto acontece também é a informação relevante
      em provisão e evento pontual.)*
    - conta sem nenhum movimento no mês espelho → `valor = 0`, `origem = sem_base`.

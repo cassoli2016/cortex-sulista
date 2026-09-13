@@ -851,9 +851,9 @@ def test_km_fora_da_faixa_fisica_nao_entra_no_total(esq):
 def test_o_documento_sai_mascarado(esq):
     """O CPF é a CHAVE da consulta e precisa trafegar; o que não precisa é
     aparecer inteiro na tela. Quem identifica o motorista ali é o nome."""
-    # 044.753.039-90 -> o terceiro grupo do CPF é o que sobra visível
-    assert leitura.mascara_documento("04475303990") == "***.***.039-**"
-    assert leitura.mascara_documento("044.753.039-90") == "***.***.039-**"
+    # 123.456.789-09 -> o terceiro grupo do CPF é o que sobra visível
+    assert leitura.mascara_documento("12345678909") == "***.***.789-**"
+    assert leitura.mascara_documento("123.456.789-09") == "***.***.789-**"
     # o que não é CPF volta como veio, em vez de virar uma máscara mentirosa
     assert leitura.mascara_documento("ABC") == "ABC"
 

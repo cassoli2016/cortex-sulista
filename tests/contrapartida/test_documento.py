@@ -19,18 +19,20 @@ import pytest
 
 from api.contrapartida import documento as doc
 
-# Espelha o CT-e piloto. Os acentos sao os da tabela oficial (`cidade_ibge`),
+# A ESTRUTURA do CT-e piloto, com partes FICTICIAS: o repositorio e publico, e
+# nome, documento e endereco de gente real nao entram em teste. Os municipios
+# sao reais, e os acentos sao os da tabela oficial (`cidade_ibge`),
 # nao os do cadastro do ERP — a diferenca e justamente o assunto de `ibge()`.
 DADOS = {
-    "chave_original": "35260876104397000204570010003585231063585236",
-    "emit_cnpj": "46929365000104", "emit_nome": "RODRIGO ANTONIO PARIZOTTO",
-    "emit_fantasia": "RODRIGO ANTONIO PARIZOTTO - PJ",
-    "emit_ie": "121511158112", "emit_rntrc": "55520266",
-    "emit_logradouro": "RUA BETÂNIA", "emit_numero": 618,
-    "emit_complemento": "CASA", "emit_bairro": "PARQUE ORATORIO",
-    "emit_cidade": "SANTO ANDRE", "emit_uf": "SP", "emit_cep": 9280200,
-    "emit_cep8": "09280200", "emit_cmun": 3547809, "emit_xmun": "SANTO ANDRÉ",
-    "emit_ddd": "11", "emit_fone": "83891398", "emit_optante_simples": 1,
+    "chave_original": "35260876104397000204570010001234561001234568",
+    "emit_cnpj": "11222333000181", "emit_nome": "TRANSPORTADOR DE TESTE LTDA",
+    "emit_fantasia": "TRANSPORTADOR DE TESTE",
+    "emit_ie": "111111111111", "emit_rntrc": "12345678",
+    "emit_logradouro": "RUA DE TESTE", "emit_numero": 100,
+    "emit_complemento": "CASA", "emit_bairro": "CENTRO",
+    "emit_cidade": "SANTO ANDRE", "emit_uf": "SP", "emit_cep": 9010000,
+    "emit_cep8": "09010000", "emit_cmun": 3547809, "emit_xmun": "SANTO ANDRÉ",
+    "emit_ddd": "11", "emit_fone": "40000000", "emit_optante_simples": 1,
     "toma_cnpj": "76104397000204", "toma_apelido": "FIL  S.B. DO CAMPO",
     "toma_ie": "635518020110", "toma_logradouro": "ESTRADA DOS ALVARENGAS",
     "toma_numero": 6025, "toma_complemento": None, "toma_bairro": "ASSUNCAO",
@@ -47,25 +49,25 @@ DADOS = {
     "embarque": 176247, "documentos_no_embarque": 1, "exige_rateio": False,
     # Remetente e destinatario da CARGA, copiados do CT-e da Sulista. Sem eles
     # a SEFAZ recusa com cStat 469 — descoberto na transmissao, nao no schema.
-    "rem_cnpj": "13260523000380",
-    "rem_nome": "FAURECIA AUTOMOTIVE INTERIORS BRAZIL LTDA.",
-    "rem_ie": "635310175117", "rem_logradouro": "AVENIDA SENADOR VERGUEIRO",
-    "rem_numero": 1850, "rem_complemento": None, "rem_bairro": "RUDGE RAMOS",
+    "rem_cnpj": "22333444000181",
+    "rem_nome": "REMETENTE DE TESTE LTDA",
+    "rem_ie": "222222222222", "rem_logradouro": "AVENIDA DE TESTE",
+    "rem_numero": 200, "rem_complemento": None, "rem_bairro": "CENTRO",
     "rem_cidade": "SAO BERNARDO DO CAMPO", "rem_uf": "SP",
-    "rem_cep": 9750000, "rem_cep8": "09750000",
+    "rem_cep": 9700000, "rem_cep8": "09700000",
     "rem_cmun": 3548708, "rem_xmun": "SÃO BERNARDO DO CAMPO",
-    "dest_cnpj": "56413990000144",
-    "dest_nome": "FABINJECT INDUSTRIA PLASTICA LTDA",
-    "dest_ie": "688089115115", "dest_logradouro": "RUA JOSE BENEDITO",
-    "dest_numero": 120, "dest_complemento": None, "dest_bairro": "CENTRO",
+    "dest_cnpj": "33444555000181",
+    "dest_nome": "DESTINATARIO DE TESTE LTDA",
+    "dest_ie": "333333333333", "dest_logradouro": "RUA DE TESTE",
+    "dest_numero": 300, "dest_complemento": None, "dest_bairro": "CENTRO",
     "dest_cidade": "TAUBATE", "dest_uf": "SP",
-    "dest_cep": 12070000, "dest_cep8": "12070000",
+    "dest_cep": 12000000, "dest_cep8": "12000000",
     "dest_cmun": 3554102, "dest_xmun": "TAUBATÉ",
     # As duas NF-e transportadas. cStat 693 sem elas.
     "notas": [
-        {"chave": "35260813260523000380550010000386111348217198",
+        {"chave": "35260822333444000181550010000386111348217190",
          "modelo": "55", "numero": 38611},
-        {"chave": "35260813260523000380550010000386091149290547",
+        {"chave": "35260822333444000181550010000386091149290540",
          "modelo": "55", "numero": 38609},
     ],
     "notas_sem_chave": [],

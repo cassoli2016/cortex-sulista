@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Sobe o MVP do painel financeiro (backend neste Mac).
 # PRÉ-REQUISITO: túnel SSH aberto em outra janela:
-#   ssh -N -L 15432:204.216.142.149:5432 -p 22 'sulistalocal\inteligencia'@100.120.225.5
+#   ssh -N -L 15432:<host-do-erp>:5432 <usuario>@<host-de-salto>
 #
 # Uso: scripts/run_api.sh   → abre em http://127.0.0.1:8000
 set -euo pipefail
@@ -12,7 +12,7 @@ cd "$ROOT"
 if ! (exec 3<>/dev/tcp/127.0.0.1/15432) 2>/dev/null; then
   echo "⚠️  Túnel SSH não detectado em 127.0.0.1:15432."
   echo "   Abra em outra janela:"
-  echo "   ssh -N -L 15432:204.216.142.149:5432 -p 22 'sulistalocal\\inteligencia'@100.120.225.5"
+  echo "   ssh -N -L 15432:<host-do-erp>:5432 <usuario>@<host-de-salto>"
   exit 1
 fi
 exec 3<&- 3>&- 2>/dev/null || true

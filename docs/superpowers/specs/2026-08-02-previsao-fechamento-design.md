@@ -27,7 +27,7 @@ Latência de escrituração (`lancamento.dtinc`, date, nunca nulo — permite me
 
 - No fim do próprio mês só **51–72%** do valor está escriturado (jun/26: 71,9%; média jan–jun: 59,6%).
   Intra-mês, ~50% da competência já decorrida está visível. O mês "fecha" em **D+5 (~97%)** e
-  estabiliza em **D+10**; meses passados sofreram restatement até D+30+ (maio/26: +R$ 10,2 mi após 15/06).
+  estabiliza em **D+10**; meses passados sofreram restatement até D+30+ (maio/26: +R$ [valor omitido] após 15/06).
 - **Por linha** (jun/26, % escriturado até 30/06): receitas 3 fontes ~100 · impostos ~100 ·
   CV-manutenção 99,6 · CF-desp. ADM 97,4 · CF-locação 100 · CV-combustível 80 (98% em D+5) ·
   CV-frete terceiros 60 (fecha só D+10) · CV-frete agregados 47 (99,8% D+10) · CV-pedágio 38 (D+5) ·
@@ -36,11 +36,11 @@ Latência de escrituração (`lancamento.dtinc`, date, nunca nulo — permite me
 Drivers operacionais:
 
 - **CT-e é D+0** (filtros canônicos: grupo=1, empresa=1, unidade=1, numero<1000000, situacaocte=3,
-  tipo IN (1,4), sem cancelamento). NFS-e pequena e esparsa (~R$ 0,4 mi/mês, 20 dias de emissão).
+  tipo IN (1,4), sem cancelamento). NFS-e pequena e esparsa (~R$ [valor omitido]/mês, 20 dias de emissão).
   **`sulista.faturamentokmm` está MORTA desde 2023-05-31** — manter na soma (custa zero) mas
   documentar como descontinuada.
 - **Meta diária** (`sulista.metafaturamento_agrupamentoclientedia` tipo=1) já carregada para o mês
-  inteiro (ago/26: R$ 12.483.890,14 em 26 dias; domingos sem meta — a meta acumulada modela o calendário).
+  inteiro (ago/26: R$ [valor omitido] em 26 dias; domingos sem meta — a meta acumulada modela o calendário).
 - **`programacaoembarque`** atualiza intra-dia (última inclusão 02/08 09:33) com `valorfrete` e
   `valorfretecompra`; **não há carteira futura** (0 viagens com `dtsaida` futura) — a projeção do
   restante do mês é estatística, não por backlog.
@@ -48,7 +48,7 @@ Drivers operacionais:
   de viagens de junho → `valorfretecompra` da viagem é a proxy antecipada do custo.
 - **`sulista.ctaplus_abastecimentos`**: carga diária à meia-noite (dado até D-1).
 - **Contas a pagar**: 99,7% do valor que vence em agosto já estava emitido antes do dia 1
-  (R$ 6,29 mi) — carteira conhecida. OC aprovada não recebida é imaterial (~R$ 357 mil).
+  (R$ [valor omitido]) — carteira conhecida. OC aprovada não recebida é imaterial (~R$ [valor omitido]).
 - Impostos efetivos calibrados sobre a RB (jan–jun/26, `config/dre_cliente_params.yaml`):
   federais 7,78% · estaduais 9,83% · municipais 0,13% · previdenciária 0,85% — estáveis mês a mês.
 
@@ -222,7 +222,7 @@ breakeven, o que for maior em severidade); (b) divergência combustível razão 
   O snapshot diário torna isso visível; a tela nunca chama M-1 de "fechado" antes de D+10 estável.
 - Primeiros 2–3 dias do mês: previsão de receita depende do blend (calendário distorce run-rate);
   a banda larga desses dias é honesta, não defeito.
-- Estoque de contas a pagar vencidas (R$ 16 mi) pode virar desembolso do mês — afeta caixa, não
+- Estoque de contas a pagar vencidas (R$ [valor omitido]) pode virar desembolso do mês — afeta caixa, não
   competência; fica fora desta tela (é assunto do Fluxo).
 - Duas classificações do razão coexistem (`DRE_MODELO` × `_DRE_GRUPO` do breakeven) — este módulo
   usa exclusivamente a primeira; o breakeven entra só como KPI de referência, com ⓘ dizendo a fonte.

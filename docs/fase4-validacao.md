@@ -18,7 +18,7 @@ custeado bottom-up e atribuído por viagem/CT-e.
 
 ## Calibração dos parâmetros (`config/dre_cliente_params.yaml`)
 
-Impostos = taxa efetiva do razão sobre a receita bruta (jan–jun/2026, RB = R$ 64,7 mi):
+Impostos = taxa efetiva do razão sobre a receita bruta (jan–jun/2026, RB = R$ [valor omitido]):
 
 | Parâmetro | Valor | Origem |
 |---|---|---|

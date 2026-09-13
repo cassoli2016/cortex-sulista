@@ -14,7 +14,7 @@
 # POR QUE `-c safe.directory` EM TODO COMANDO GIT (não é decoração)
 #
 # As tarefas rodam como SISTEMA, e o repositório pertence a
-# `sulistalocal\inteligencia`. Desde o CVE-2022-24765 o git RECUSA operar em
+# `<dominio>\<usuario>`. Desde o CVE-2022-24765 o git RECUSA operar em
 # repositório de outro dono ("detected dubious ownership"): manda o aviso para
 # o stderr e devolve VAZIO no stdout. O script então fazia `$null.Trim()` e
 # morria com "Não é possível chamar um método em uma expressão de valor nulo"

@@ -34,7 +34,7 @@ def farol(progresso: float, tempo_decorrido: float) -> str:
 
 ## Exemplos para transportadora
 - O: "Tornar a frota própria mais competitiva que o agregado."
-  - KR1: reduzir CKM cheio de R$5,3 para R$4,9.
+  - KR1: reduzir CKM cheio de R$ [valor omitido] para R$ [valor omitido].
   - KR2: retorno vazio de 22% para 15%.
   - KR3: disponibilidade de frota de 88% para 93%.
 

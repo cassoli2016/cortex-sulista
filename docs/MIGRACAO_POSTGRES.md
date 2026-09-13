@@ -65,7 +65,7 @@ máquina. A 18 (5433) fica de reserva para a troca de major, que é assunto de
 outro dia.
 
 Atenção ao par de números parecidos: o AVA também atende na **5432**, mas em
-**outro host** (`204.216.142.149`). Mesmo número de porta, máquinas
+**outro host** (o de `POSTGRES_HOST`, no `.env`). Mesmo número de porta, máquinas
 diferentes — por isso as duas camadas têm variáveis de ambiente separadas
 (`POSTGRES_*` para o ERP, `CORTEX_PG_*` para o banco da casa).
 

@@ -118,9 +118,9 @@ Parâmetros configuráveis, no mesmo `data/premiacao_params.json` que já é edi
 pela tela: `valor_por_km`, `nota_minima`, `km_minimo`. Os parâmetros da regra
 antiga (`meta`, `preco_litro`, `pct_premiacao`) saem.
 
-Conferência com abril/2026, dado real da API, a R$ 0,10/km, nota mínima 70 e km
-mínimo 1.500: JEAN LAURO (5.200 km, nota 99) = R$ 514,80; AGNALDO (2.840 km,
-nota 81) = R$ 230,04; ANGELA (2.595 km, nota 73) = R$ 189,44.
+Conferência com abril/2026, dado real da API, a R$ [valor omitido]/km, nota mínima 70 e km
+mínimo 1.500: JEAN LAURO (5.200 km, nota 99) = R$ [valor omitido]; AGNALDO (2.840 km,
+nota 81) = R$ [valor omitido]; ANGELA (2.595 km, nota 73) = R$ [valor omitido].
 
 ### 4.2 O histórico não é recalculado
 

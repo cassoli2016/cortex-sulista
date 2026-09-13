@@ -24,12 +24,12 @@ Exige o túnel SSH do ERP ativo (porta local 15432) — o cruzamento lê
 ## O cenário
 
 O OFX usa a conta Itaú 341/0098/539349 e os valores reais de julho/2026, com um
-erro de R$ 3.533,69 injetado de propósito no dia 06/07:
+erro de R$ [valor omitido] injetado de propósito no dia 06/07:
 
 | Dia | Esperado |
 |---|---|
 | 01, 02, 03/07 | **OK** — o saldo derivado de uma única âncora (LEDGERBAL de 03/07) reproduz os saldos do ERP ao centavo |
-| 06/07 | **DIVERGE** com R$ 3.533,69 |
+| 06/07 | **DIVERGE** com R$ [valor omitido] |
 
 Se os três primeiros dias não baterem ao centavo, a aritmética do saldo derivado
 regrediu — é o cálculo mais delicado do módulo.

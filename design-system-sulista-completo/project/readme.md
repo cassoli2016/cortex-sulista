@@ -13,7 +13,7 @@ Superfícies cobertas: **site institucional**, **dashboard web** (rastreamento e
 - Idioma: português (pt-BR). Tom **institucional/corporativo**: sóbrio, direto, primeira pessoa do plural ("nós"/"a Austral"), tratando o cliente por "você" ou "sua empresa".
 - Frases curtas, verbos concretos: "Rastreie sua frota em tempo real." / "Reduza custos com telemetria embarcada."
 - Sentence case em body e títulos; UPPERCASE apenas em kickers/labels curtos ("NOSSOS SERVIÇOS").
-- Sem emoji. Sem exclamações em série. Números com formato brasileiro (1.250 km; R$ 4,7 mi).
+- Sem emoji. Sem exclamações em série. Números com formato brasileiro (1.250 km; R$ [valor omitido]).
 - Códigos operacionais (placas, CT-e, nº de rastreio) sempre em mono: `RTX-4B21`.
 
 ## VISUAL FOUNDATIONS

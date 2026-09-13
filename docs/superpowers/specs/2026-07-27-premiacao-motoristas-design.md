@@ -45,8 +45,8 @@ elegivel            = km_rodado >= km_minimo
   aparece **atenuado com badge**, nunca escondido (padrão da revisão de telas).
 - **Sem arredondamento intermediário**: a conta corre em float e só o prêmio final
   arredonda a 2 casas. Exemplo canônico: km 5.000 · meta 1,90 · média 2,10 ·
-  R$ 6/l · 20% → **R$ 300,75** (o doc do MVP mostra 300,60 porque arredonda o valor
-  economizado para R$ 1.503 antes do percentual — não reproduzir esse arredondamento).
+  R$ [valor omitido]/l · 20% → **R$ [valor omitido]** (o doc do MVP mostra 300,60 porque arredonda o valor
+  economizado para R$ [valor omitido] antes do percentual — não reproduzir esse arredondamento).
 - **Parâmetros** (arquivo `data/premiacao_params.json`, editáveis pela tela):
 
 | Parâmetro | Default inicial | Observação |
@@ -162,7 +162,7 @@ global escondida (`semFilterbar`) — a tela tem seletor de mês próprio.
 ## 4. Testes
 
 - **`tests/premiacao/test_calculo.py`** (puro): fórmula (exemplo do MVP: km 5.000,
-  meta 1,90, média 2,10, R$ 6/l, 20% → **R$ 300,75**); media ≤ meta → 0; km < mínimo
+  meta 1,90, média 2,10, R$ [valor omitido]/l, 20% → **R$ [valor omitido]**); media ≤ meta → 0; km < mínimo
   → não elegível; media None → fora; KPIs agregados; arredondamento a 2 casas.
 - **`tests/premiacao/test_params.py`**: round-trip do JSON; validação (pct > 1,
   meta ≤ 0 → erro); arquivo ausente → defaults.
@@ -179,7 +179,7 @@ global escondida (`semFilterbar`) — a tela tem seletor de mês próprio.
 1. Com credenciais no `.env`, abrir a tela coleta o mês corrente e mostra o ranking
    com prêmio calculado pela regra da §1.
 2. Editar um parâmetro (ex.: % de 20 → 25) recalcula o ranking sem recoletar.
-3. Exemplo canônico: km 5.000 · meta 1,90 · média 2,10 · R$ 6/l · 20% → R$ 300,75.
+3. Exemplo canônico: km 5.000 · meta 1,90 · média 2,10 · R$ [valor omitido]/l · 20% → R$ [valor omitido].
 4. Motorista abaixo do km mínimo aparece atenuado com badge, não some.
 5. Sem credenciais, a tela explica a configuração em vez de quebrar.
 6. Gobrax fora do ar: snapshot antigo aparece com o aviso de quando foi coletado.

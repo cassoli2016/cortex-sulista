@@ -1030,7 +1030,7 @@ scripts/db.sh psql -c "SELECT 1"   # tunel ok?
 scripts/db.sh psql -c "SELECT count(*) FROM (SELECT to_char(l.dtlancamento,'YYYY-MM') AS mes, coalesce(ag.descricao,'CLASSIFICAR') AS agrupador, greatest(0, least(45, (l.dtinc - date_trunc('month', l.dtlancamento)::date)))::int AS dia_rel, sum(abs(coalesce(l.valorcredito,0)-coalesce(l.valordebito,0)))::float8 AS valor_abs FROM lancamento l JOIN planoconta p ON p.reduzido=l.reduzido AND p.grupo=l.grupo AND p.ativoinativo=1 LEFT JOIN sulista.agrupadorgerencial ag ON ag.reduzido=l.reduzido AND ag.grupo=l.grupo WHERE l.dtlancamento >= '2026-02-01'::date AND l.dtlancamento < '2026-08-01'::date AND coalesce(l.historico,0) <> 18 AND (ag.descricao IS NOT NULL OR p.estrutural ~ '^[34]') GROUP BY 1,2,3) t"
 ```
 
-Repetir o padrão para `ATING_HIST_SQL` (de=2026-05-01, ate=2026-08-01 — deve devolver 3 linhas com atingimento ~85% em jul), `VFC_MTD_SQL` (de=2026-07-01, ate=2026-08-01 — esperado ~R$ 5,98 mi de frete_compra, ~4.700 viagens), `CTAPLUS_MTD_SQL` e `CAP_MES_SQL` (de=2026-08-01, ate=2026-09-01 — esperado ~R$ 6,29 mi / ~986 títulos). **Se uma coluna divergir** (ex.: o vínculo `veiculo.utilizacaoveiculo`/`veiculo.placa` no join do ctaplus), conferir o join canônico usado pelas queries vizinhas (`grep -n "utilizacaoveiculo" api/queries.py`) e corrigir AQUI e no teste antes de seguir — a validação ao vivo é o gate desta task.
+Repetir o padrão para `ATING_HIST_SQL` (de=2026-05-01, ate=2026-08-01 — deve devolver 3 linhas com atingimento ~85% em jul), `VFC_MTD_SQL` (de=2026-07-01, ate=2026-08-01 — esperado ~R$ [valor omitido] de frete_compra, ~4.700 viagens), `CTAPLUS_MTD_SQL` e `CAP_MES_SQL` (de=2026-08-01, ate=2026-09-01 — esperado ~R$ [valor omitido] / ~986 títulos). **Se uma coluna divergir** (ex.: o vínculo `veiculo.utilizacaoveiculo`/`veiculo.placa` no join do ctaplus), conferir o join canônico usado pelas queries vizinhas (`grep -n "utilizacaoveiculo" api/queries.py`) e corrigir AQUI e no teste antes de seguir — a validação ao vivo é o gate desta task.
 
 - [ ] **Step 3: Escrever os testes (puros, estilo `tests/orcamento/test_sql.py`)**
 
@@ -1756,7 +1756,7 @@ r7 = get_previsao_fechamento('2026-07')
 print(r7['modo'], r7['kpis']['consolidacao_pct'])
 "
 ```
-Expected: agosto `corrente` com resultado numérico plausível; julho `fechando` com consolidação 0,6–0,95. Comparar mentalmente com a DRE (jul deve estimar CV total na casa dos R$ 6-7 mi negativos, não R$ 3 mi).
+Expected: agosto `corrente` com resultado numérico plausível; julho `fechando` com consolidação 0,6–0,95. Comparar mentalmente com a DRE (jul deve estimar CV total na casa dos R$ [valor omitido]-7 mi negativos, não R$ [valor omitido]).
 
 - [ ] **Step 6: Commitar**
 

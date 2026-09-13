@@ -14,7 +14,7 @@
 - **Banco AVA é LATIN-1:** nunca usar `—`, `→`, `≥`, `×` dentro de string SQL. Usar `-`.
 - **`%` em LIKE dentro de SQL executado por `db.query` precisa ser `%%`.**
 - **Sem dependência nova no `pyproject.toml`.** Upload chega como **corpo bruto** (`await req.body()`) com o nome do arquivo em query string — `UploadFile` exigiria `python-multipart`, que não está instalado e cujo `uv sync` no AutoDeploy é não-fatal (a API subiria sem a dep e o endpoint quebraria em produção).
-- **Tolerância de comparação: R$ 0,01** (constante `TOLERANCIA = 0.01`).
+- **Tolerância de comparação: R$ [valor omitido]** (constante `TOLERANCIA = 0.01`).
 - **Sinal do valor:** crédito positivo, débito negativo, em toda a stack.
 - **Parse de valor pt-BR:** regex antes de converter; ponto em grupos de exatamente 3 dígitos é milhar (`1.234` = 1234,00); vírgula é decimal. Nunca `float()` direto.
 - **Datas em horário local** (`date.today()`, `_iso()` no front — `toISOString()` em UTC−3 volta um dia).
@@ -680,7 +680,7 @@ def test_valor_br_formatos():
     assert valor_br("1.234") == 1234.00      # ponto em grupo de 3 = milhar
     assert valor_br("99,90") == 99.90
     assert valor_br("1234.56") == 1234.56    # ponto decimal (export en-US)
-    assert valor_br("R$ 1.000,00") == 1000.00
+    assert valor_br("R$ [valor omitido]") == 1000.00
     assert valor_br("") is None
     assert valor_br("abc") is None
     assert valor_br("1.2.3.4") is None       # não é milhar nem decimal válido
@@ -1875,7 +1875,7 @@ Inserir após o fechamento de `<section class="view" id="view-cob">` (âncora li
       <!-- ===================== EXTRATO BANCÁRIO ===================== -->
       <section class="view" id="view-extb">
         <div class="card">
-          <div class="head"><h2>Extrato Bancário <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Extrato importado (OFX/CSV) comparado com contacorrente_saldo do ERP AVA, por conta e por dia. Tolerância de R$ 0,01.">i</span></h2>
+          <div class="head"><h2>Extrato Bancário <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Extrato importado (OFX/CSV) comparado com contacorrente_saldo do ERP AVA, por conta e por dia. Tolerância de R$ [valor omitido].">i</span></h2>
             <span class="hint">valida saldo e fluxo do ERP contra o extrato do banco</span>
           </div>
           <div class="cardfilters" id="extb-filtros">
@@ -1908,7 +1908,7 @@ Inserir junto aos demais loaders (após `renderCob`, âncora literal do fim daqu
 ```javascript
 /* ---------------- Extrato Bancário ---------------- */
 // O BRL global do painel tem maximumFractionDigits:0 — aqui a tolerância é de
-// R$ 0,01, então esconder centavos faria uma divergência real aparecer como zero.
+// R$ [valor omitido], então esconder centavos faria uma divergência real aparecer como zero.
 const BRL2 = new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',
                                             minimumFractionDigits:2,maximumFractionDigits:2});
 const brl2 = v => (v==null ? '—' : BRL2.format(v));
@@ -1962,7 +1962,7 @@ function renderExtb(d){
    + kpi('Dias divergentes', String(k.dias_divergentes||0),
          (k.dias_divergentes?'exigem conferência':'nenhuma divergência'),
          (k.dias_divergentes?'bad':'good'),
-         'Dia em que crédito, débito ou saldo diferem em mais de R$ 0,01.')
+         'Dia em que crédito, débito ou saldo diferem em mais de R$ [valor omitido].')
    + kpi('Maior diferença', (k.maior_diferenca!=null?brl2(k.maior_diferenca):'—'),
          (k.maior_diferenca_conta?esc(k.maior_diferenca_conta)+' · '+fmtD(k.maior_diferenca_dt):'sem divergência'),
          (k.maior_diferenca?'bad':''), 'Maior diferença absoluta encontrada no período.');
@@ -2274,7 +2274,7 @@ def _data_br(iso: str | None) -> str:
 
 
 def _fmt_brl_cent(v: float) -> str:
-    """Como _fmt_brl, mas COM centavos: a tolerancia do modulo e R$ 0,01, e um
+    """Como _fmt_brl, mas COM centavos: a tolerancia do modulo e R$ [valor omitido], e um
     alerta critico dizendo "R$ 0" de diferenca seria absurdo."""
     return "R$ " + f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
@@ -2417,7 +2417,7 @@ Expected: `deployed.txt` com o hash do commit novo; health 200.
 | SQLite `data/extrato.db`, 4 tabelas, dedup FITID/hash, desfazer por importação | 1 |
 | Parser OFX 1.x/2.x + encoding BR + LEDGERBAL | 2 |
 | Parser CSV + mapeamento de colunas + parse estrito pt-BR | 3 |
-| Comparação conta×dia, tolerância R$ 0,01, estados, saldo derivado, farol | 4 |
+| Comparação conta×dia, tolerância R$ [valor omitido], estados, saldo derivado, farol | 4 |
 | Orquestração import + painel + `contas-erp` | 5 |
 | 5 endpoints + RBAC (`extb`, ROTA_TELAS, seed v19) | 6 |
 | Tela: KPIs, farol, comparação expansível, uploads, modal de mapeamento, mobile | 7 |

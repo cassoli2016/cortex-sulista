@@ -138,8 +138,8 @@ crônica completa está em `docs/LICOES.md`; o que interessa para você é que
 
 **A natureza da conta vem do PLANO, não do mapa.** Quatro contas de ativo e
 passivo estavam classificadas em linhas de resultado no agrupador gerencial —
-Ticket Car (passivo, em CV-COMBUSTÍVEL, R$ 1.071.888/12m), transitória de
-imobilizado, dois estoques. R$ 1,47 milhão de custo que não era custo. A DRE
+Ticket Car (passivo, em CV-COMBUSTÍVEL, R$ [valor omitido]/12m), transitória de
+imobilizado, dois estoques. R$ [valor omitido] de custo que não era custo. A DRE
 hoje exige `p.estrutural ~ '^[34]'`; o cadastro segue errado.
 
 **Três recortes de receita convivem e não são o mesmo número:** faturas
@@ -152,7 +152,7 @@ comum desta casa.
 percentual da receita líquida do mês — é assim que "ficou mais caro por real
 faturado" se separa de "cresceu porque vendemos mais". Receita se compara em
 reais contra a própria média: medir receita como % da receita é circular, e
-dizia que a receita de agregados "melhorou R$ 432 mil" quando o que mudou foi
+dizia que a receita de agregados "melhorou R$ [valor omitido]" quando o que mudou foi
 o MIX. **Dedução de receita (ICMS, COFINS) usa a régua de CUSTO** — medida em
 reais ela aparecia entre as maiores pioras do mês por ter recolhido mais
 imposto sobre um faturamento maior.
@@ -161,21 +161,21 @@ imposto sobre um faturamento maior.
 entra e sai, competência que atrasa — sai das listas de "piorou" e "melhorou".
 Atacá-la é perseguir ruído. Régua: coeficiente de variação > 0,5.
 
-**A linha "outras" da DRE inverte o resultado.** R$ 11,2 milhões de venda de
+**A linha "outras" da DRE inverte o resultado.** R$ [valor omitido] de venda de
 ativo e recuperação de créditos mascaravam um prejuízo RECORRENTE de
-R$ 1,10 milhão/mês. Toda análise de resultado separa recorrente de
+R$ [valor omitido]/mês. Toda análise de resultado separa recorrente de
 não-recorrente, sempre.
 
 **Provisão atravessa o mês e o último mês é parte estimativa.** O pedágio do
 Sem Parar entra assim: provisão no último dia do mês, baixa no primeiro dia do
 seguinte, fatura por volta do dia 4. O mês de referência de qualquer análise
 carrega uma provisão ainda em aberto — em agosto/26 a de agregados caiu
-R$ 120.503 contra julho, e parte do movimento da conta era acerto de
+R$ [valor omitido] contra julho, e parte do movimento da conta era acerto de
 competência, não consumo. **Diga isso quando o mês de referência for o último.**
 
-**A mesma conta pode estar em três agrupadores.** O pedágio: R$ 2,79 mi em
-CV-FRETE AGREGADOS, R$ 1,16 mi em CV-PEDÁGIO, R$ 84 mil em CV-FRETE TERCEIROS,
-e o reembolso de R$ 3,09 mi na receita bruta. Quem olha a linha "CV - PEDÁGIO"
+**A mesma conta pode estar em três agrupadores.** O pedágio: R$ [valor omitido] em
+CV-FRETE AGREGADOS, R$ [valor omitido] em CV-PEDÁGIO, R$ [valor omitido] em CV-FRETE TERCEIROS,
+e o reembolso de R$ [valor omitido] na receita bruta. Quem olha a linha "CV - PEDÁGIO"
 vê menos de um terço do pedágio da casa. **Antes de concluir sobre um custo,
 procure a conta pelo NOME em toda a DRE, não pelo agrupador.**
 
@@ -191,7 +191,7 @@ contagem dos DOIS lados de cada join novo: se o total mudou de ordem de
 grandeza, é o join.
 
 **Ranking por percentual sem piso de materialidade mente.** Uma conta de
-R$ 900 que triplica é +200%, e não é decisão de ninguém. Piso, sempre.
+R$ [valor omitido] que triplica é +200%, e não é decisão de ninguém. Piso, sempre.
 
 **Régua de desvio é MEDIANA, não média** — média deixa o próprio outlier caber
 na faixa.

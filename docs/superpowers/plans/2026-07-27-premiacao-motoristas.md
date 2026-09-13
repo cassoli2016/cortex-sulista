@@ -18,7 +18,7 @@
 - **Credenciais** só em `GOBRAX_EMAIL`/`GOBRAX_SENHA` (os.environ; o `.env` é carregado por `api/db.py` no import). Valores NUNCA aparecem em print, log, teste, commit ou resposta HTTP.
 - **CPF nunca cru**: mascarar com `api.queries._mask_doc` ANTES de gravar snapshot. Nenhum CPF cru em disco, payload ou HTML.
 - **Front:** campo numérico decimal = `type="text" inputmode="decimal"` + `numBR()` (nunca `type="number"`, nunca `parseFloat` cru). Validar `.py` com `ast.parse` antes de gravar; validar o `<script>` do `index.html` com `node --check` depois de cada edição. Edições no `index.html` por substituição literal de trecho conhecido (NUNCA regex em massa).
-- **Cálculo sem arredondamento intermediário**: só o prêmio final arredonda a 2 casas. Exemplo canônico: km 5.000 · meta 1,90 · média 2,10 · R$ 6/l · 20% → **R$ 300,75**.
+- **Cálculo sem arredondamento intermediário**: só o prêmio final arredonda a 2 casas. Exemplo canônico: km 5.000 · meta 1,90 · média 2,10 · R$ [valor omitido]/l · 20% → **R$ [valor omitido]**.
 - **Suíte atual tem 132 testes** — todos continuam passando após cada task. Rodar: `uv run --with pytest python -m pytest tests/ -q`.
 - Commits pequenos ao fim de cada task, mensagem em pt-BR (padrão do repo).
 
@@ -86,7 +86,7 @@ def _mot(**kw):
 
 
 def test_exemplo_canonico_da_spec_sem_arredondamento_intermediario():
-    """km 5.000 · meta 1,90 · média 2,10 · R$6/l · 20% → R$ 300,75.
+    """km 5.000 · meta 1,90 · média 2,10 · R$ [valor omitido]/l · 20% → R$ [valor omitido].
 
     O doc do MVP mostra 300,60 porque arredonda o valor economizado para 1.503
     ANTES do percentual — a spec manda NÃO reproduzir esse arredondamento."""
