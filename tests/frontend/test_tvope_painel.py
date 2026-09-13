@@ -62,9 +62,14 @@ def _pos(i, util, tracao, lat, lng, vel=0, frota=None):
             "posicao_em": _fmt(AGORA - timedelta(minutes=3))}
 
 
-# 6 veículos NO MESMO PONTO: tem de dar um grupo de 5 e um avulso, nunca 6.
+# 6 PARADOS NO MESMO PONTO: um circulo so, de 6 -- o teto de 5 da primeira
+# versao os empilhava em "5" + "1" no mesmo lugar. E 2 EM VIAGEM no mesmo
+# ponto (as placas das duas primeiras viagens): viram o SEU circulo, sem se
+# misturar com os parados.
 MESMO_PONTO = [_pos(100 + i, "AGREGADOS", "6x2", -23.55, -46.63) for i in range(6)]
-POSICOES = MESMO_PONTO + [
+EM_VIAGEM_JUNTOS = [{**_pos(200 + i, "AGREGADOS", "6x2", -23.55, -46.63, vel=60),
+                     "placa": "AAA%dA%02d" % (i, i)} for i in range(2)]
+POSICOES = MESMO_PONTO + EM_VIAGEM_JUNTOS + [
     _pos(1, "FROTA", "4x2", -25.43, -49.27),
     _pos(2, "LOCACAO", "6x2", -26.30, -48.85),
     _pos(3, "TERCEIROS", "truck", -22.90, -47.06),
@@ -452,6 +457,54 @@ def test_nenhum_cartao_estoura_a_propria_celula(pagina):
     assert not estouros, estouros
 
 
+# ------------------------------------------------------------ o celular
+
+@pytest.mark.parametrize("modo", ["navegador", "aplicativo"])
+def test_no_celular_nada_se_espreme_nem_rola_para_o_lado(pagina, modo):
+    """No modo aplicativo o celular conta como tela cheia, e as regras de
+    parede cabiam o painel inteiro em 844 px (número cortado, 3 chegadas,
+    medidor de 40 px). Os dois modos: "navegador" declara uma tela maior que a
+    janela (a barra de endereço), "aplicativo" não."""
+    pg, base = pagina
+    if modo == "navegador":
+        pg.add_init_script("Object.defineProperty(screen,'height',{get:()=>1000});")
+    _abre(pg, base)
+    pg.set_viewport_size({"width": 390, "height": 844})
+    pg.reload()
+    pg.wait_for_function("() => document.querySelectorAll('#tvope-cheg tr').length > 1")
+    pg.wait_for_timeout(2000)
+    m = pg.evaluate("""() => {
+        const r = s => document.querySelector(s).getBoundingClientRect();
+        const cortados = [...document.querySelectorAll('#tvope-k1 .tv-card, #tvope-k2 .tv-card')]
+          .filter(c => c.scrollHeight > c.clientHeight + 1)
+          .map(c => c.querySelector('.tv-label').innerText);
+        return {larg: document.documentElement.scrollWidth,
+                cheia: document.body.classList.contains('tvfull'),
+                cortados, mapa: r('#tvMapa'), leg: r('#tvope-legenda'),
+                titulo: r('#view-tvope .tv-head h2').height,
+                arco: r('#tvope-km .tvw-arco').width,
+                linhas: document.querySelectorAll('#tvope-cheg tr').length,
+                // horario da chegada inteiro ("14/09 06:00"), sem reticencias
+                hora_cortada: [...document.querySelectorAll('#tvope-cheg tr td:nth-child(3)')]
+                  .some(td => td.scrollWidth > td.clientWidth + 1),
+                // cartao de meia largura sozinho na linha (buraco na grade)
+                orfaos: [...document.querySelectorAll('#tvope-k1, #tvope-k2')].map(g => {
+                  const cs = [...g.children].map(c => c.getBoundingClientRect());
+                  const meia = cs.filter(c => c.width < g.clientWidth * 0.75);
+                  return meia.filter(c => !meia.some(o => o !== c && Math.abs(o.top - c.top) < 2)).length;
+                })}; }""")
+    assert m["cheia"] == (modo == "aplicativo"), m
+    assert m["larg"] <= 390, "a página rola para o lado: %r" % m
+    assert not m["cortados"], m["cortados"]
+    assert m["mapa"]["height"] >= 300, m["mapa"]
+    assert m["leg"]["top"] >= m["mapa"]["bottom"] - 1, "a legenda cobre o mapa: %r" % m
+    assert m["titulo"] < 30, "o título quebrou em mais de uma linha: %r" % m["titulo"]
+    assert m["arco"] >= 100, "o medidor de meta ficou minúsculo: %r" % m["arco"]
+    assert m["linhas"] == len(TRANSITO), "a lista de chegadas foi cortada: %r" % m["linhas"]
+    assert not m["hora_cortada"], "o horário da chegada saiu com reticências"
+    assert m["orfaos"] == [0, 0], "cartão sozinho na linha: %r" % m["orfaos"]
+
+
 # ------------------------------------------------------------ o rodapé
 
 def test_o_rodape_so_tem_o_que_e_de_hoje_e_pede_acao(pagina):
@@ -513,23 +566,46 @@ def test_a_logo_aparece_em_todo_painel_de_tv_sem_tela_cheia(pagina, tela):
 
 # ------------------------------------------------------------ o mapa
 
-def test_o_mapa_agrupa_no_maximo_cinco_e_nunca_o_alerta(pagina):
+def _camadas(pg):
+    return pg.evaluate("""() => tvLayer.getLayers().map(l => {
+        const p = tvMap.latLngToLayerPoint(l.getLatLng());
+        const h = (l.options.icon && l.options.icon.options.html) || '';
+        return {n: l.options.veiculos || 1, x: p.x, y: p.y,
+                tipo: h.includes('tv-vgrp viagem') ? 'viagem'
+                    : (h.includes('tv-vgrp parado') ? 'parado' : 'avulso')}; })""")
+
+
+def test_o_mapa_agrupa_por_lugar_sem_empilhar_e_separa_viagem_de_parado(pagina):
     pg, base = pagina
     _abre(pg, base)
-    grupos = pg.evaluate("""() => tvLayer.getLayers().map(l => l.options.veiculos || 1)""")
-    assert sum(grupos) == len(POSICOES), "o mapa perdeu veículo: %r" % grupos
-    assert max(grupos) == 5, "seis no mesmo ponto têm de virar 5 + 1: %r" % grupos
+    # zoom de polo, fixo: a conta de pixels do teste não depende da visão geral
+    pg.evaluate("() => tvMap.setView([-23.55, -46.63], 9, {animate: false})")
+    pg.wait_for_timeout(600)
+    cam = _camadas(pg)
+    assert sum(c["n"] for c in cam) == len(POSICOES), "o mapa perdeu veículo: %r" % cam
+    grupos = [c for c in cam if c["tipo"] != "avulso"]
+    assert {(c["tipo"], c["n"]) for c in grupos} == {("parado", 6), ("viagem", 2)}, grupos
+    # nada da mesma camada sobreposto: a caixa do rótulo (60 x 22 px) de um
+    # não pode encostar na do outro -- o que encostaria vira grupo
+    w, h = pg.evaluate("() => [TV_GRUPO_W, TV_GRUPO_H]")
+    for i, a in enumerate(cam):
+        for b in cam[i + 1:]:
+            if a["tipo"] == b["tipo"] and a["tipo"] != "avulso":
+                assert max(abs(a["x"] - b["x"]) / w, abs(a["y"] - b["y"]) / h) > 1, (a, b)
     # o alerta (95 km/h) continua sozinho, com a borda de alerta
     assert pg.evaluate("() => !!document.querySelector('#tvMapa .tv-vmk.alerta')")
+    # e o parado sozinho sai apagado
+    assert pg.evaluate("() => !!document.querySelector('#tvMapa .tv-vmk.parado')")
 
 
 def test_a_legenda_explica_cor_e_tracao(pagina):
     pg, base = pagina
     _abre(pg, base)
     leg = pg.evaluate("() => document.getElementById('tvope-legenda').innerText")
-    for termo in ("Frota e locação", "Agregado", "Terceiro", "90 km/h", "até 5"):
+    for termo in ("Frota e locação", "Agregado", "Terceiro", "90 km/h",
+                  "Em viagem no mesmo ponto", "Parados no mesmo ponto"):
         assert termo in leg, (termo, leg)
-    assert "4x2 2" in leg and "6x2 7" in leg and "truck 1" in leg, leg
+    assert "4x2 2" in leg and "6x2 9" in leg and "truck 1" in leg, leg
     # locação pinta igual à frota
     cores = pg.evaluate("""() => [...document.querySelectorAll('#tvope-legenda i')]
                                   .map(i => i.style.background)""")
@@ -542,8 +618,8 @@ def test_o_tour_nasce_de_onde_a_frota_esta(pagina):
     _abre(pg, base)
     vistas = pg.evaluate("() => TV_VISTAS.map(v => v.nome)")
     assert vistas[0].startswith("Visão geral · %d veículos" % len(POSICOES)), vistas
-    # 6 veículos na Grande São Paulo: o polo entra, com a contagem
-    assert any(v.startswith("Grande São Paulo · 6") for v in vistas), vistas
+    # 8 veículos na Grande São Paulo (6 parados + 2 em viagem): o polo entra
+    assert any(v.startswith("Grande São Paulo · 8") for v in vistas), vistas
     # polo com menos de 3 não gasta 20 s de parede
     assert not any(v.startswith("Joinville") for v in vistas), vistas
 
@@ -557,7 +633,7 @@ def test_o_zoom_do_polo_enquadra_os_veiculos_dele(pagina):
     polo = pg.evaluate("""() => TV_VISTAS.find(v => v.nome.startsWith('Grande São Paulo'))""")
     assert polo and polo.get("caixa") and polo.get("maxZoom") == 12, polo
     assert "z" not in polo, "o polo voltou a ter zoom fixo: %r" % polo
-    # os 6 veículos do polo estão no mesmo ponto: a caixa é o próprio ponto
+    # os 8 veículos do polo estão no mesmo ponto: a caixa é o próprio ponto
     (la1, lo1), (la2, lo2) = polo["caixa"]
     assert abs(la1 - la2) < 0.01 and abs(lo1 - lo2) < 0.01, polo["caixa"]
     assert pg.evaluate("() => tvMap.options.zoomSnap") == 0.25

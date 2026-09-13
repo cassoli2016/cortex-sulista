@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.73.4] — 13/09/2026  ·  CX-13/09/2026-v1.73.4
+
+### Alterado
+- Painel de TV da Operação — o agrupamento do mapa foi refeito. Os veículos no mesmo ponto viram UM círculo, com quantos são (antes, um pátio com 27 virava seis círculos de "5" empilhados); círculo escuro é de quem está em viagem e círculo claro de quem está parado, e o anel mostra a mistura de frota, agregado e terceiro. O veículo parado sozinho aparece apagado, e o atrasado ou acima de 90 km/h nunca entra em grupo.
+- Painel de TV da Operação no celular: a tela deixa de ser espremida na altura do aparelho e rola na vertical — números inteiros, título numa linha, mapa maior com a legenda embaixo, medidores de meta legíveis e a lista de chegadas completa.
+
 ## [1.73.3] — 13/09/2026  ·  CX-13/09/2026-v1.73.3
 
 ### Corrigido

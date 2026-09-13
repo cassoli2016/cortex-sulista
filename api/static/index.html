@@ -1793,13 +1793,21 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
 /* a tracao (6x2, 4x2, 3/4...) vai colada no numero, menor e mais apagada:
    o numero de frota continua sendo a coisa lida */
 .tv-vmk small{margin-left:0.3em;font-size:.82em;font-weight:700;opacity:.8}
-/* grupo de ate 5 veiculos proximos: circulo escuro com a contagem, anel na
-   cor da modalidade que predomina nele */
-.tv-vgrp{transform:translate(-50%,-50%);width:1.9vw;height:1.9vw;min-width:22px;min-height:22px;
-  border-radius:50%;background:#0B1926;color:#fff;border:0.22vw solid;display:flex;align-items:center;
-  justify-content:center;font-family:var(--mono);font-weight:800;font-size:clamp(10px,0.78vw,15px);
-  box-shadow:0 0.15vw 0.5vw rgba(0,0,0,.55)}
-.tv-vgrp.mov{animation:tvResp 2.8s infinite}
+/* grupo = veiculos no MESMO ponto da tela. O fundo do circulo e o ANEL de
+   modalidades (conic-gradient, escrito no JS), e o miolo leva a contagem:
+   escuro para em viagem, claro para parado. */
+.tv-vgrp{transform:translate(-50%,-50%);border-radius:50%;display:flex;align-items:center;
+  justify-content:center;box-shadow:0 0.12vw 0.45vw rgba(0,0,0,.45)}
+.tv-vgrp b{display:flex;align-items:center;justify-content:center;width:calc(100% - 8px);
+  height:calc(100% - 8px);border-radius:50%;font-family:var(--mono);font-weight:800;
+  font-size:clamp(10px,0.72vw,14px)}
+.tv-vgrp.viagem b{background:#0B1926;color:#FFFFFF}
+.tv-vgrp.parado b{background:#FFFFFF;color:#14181D}
+.tv-vgrp.parado{opacity:.85}
+/* parado sozinho (fora de viagem): apagado, sem brilho -- contexto, nao
+   assunto. Apagado por COR (dessaturado e clareado), e nao por opacidade: com
+   opacity a rua do mapa aparecia atraves do rotulo e ele parecia riscado. */
+.tv-vmk.parado{filter:saturate(.35) brightness(1.2);box-shadow:none;border-color:rgba(255,255,255,.7)}
 .tv-legenda{position:absolute;left:0.7vw;bottom:0.7vw;right:0.7vw;z-index:500;display:flex;flex-wrap:wrap;
   gap:0.25vw 0.9vw;align-items:center;background:rgba(11,25,38,.85);color:#E5EDF4;padding:0.35vw 0.8vw;
   border-radius:0.5vw;font-size:clamp(9px,0.62vw,12px);font-weight:600;line-height:1.3}
@@ -1816,6 +1824,7 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
    item proprio e o espaco entre ele e a contagem sumia */
 .tv-legenda span.tr{display:inline;white-space:normal;color:#A9BCCD}
 .tv-legenda .tr b{color:#E5EDF4}
+.tv-legenda u.p{background:#FFFFFF;color:#14181D}
 /* cartao de dois numeros (tracao, motoristas): lado a lado, cada um com o seu
    rotulo embaixo, e o subtitulo comum no fim */
 .tv-barra{height:clamp(4px,0.36vw,8px);background:#1E3A54;border-radius:999px;overflow:hidden;
@@ -1846,6 +1855,7 @@ body.tvfull .tv-head a{display:none}
    todo o respiro virava um vao so, com os dois blocos de cima apertados. */
 .tvw-gauge{display:flex;align-items:center;justify-content:center;gap:2.2vw;border-top:1px solid #1E3A54;padding-top:0.55vw}
 #tvope-km{justify-content:space-between}
+#tvope-km .tvw-arco{width:10.5vw}
 .tvw-km .kmgrp{display:flex;flex-direction:column;gap:0.6vw;min-height:0}
 .tvw-km .kmgrp.kmmods{gap:0.95vw}
 .tvw-gauge .glab{font-size:clamp(9px,0.75vw,14px);color:#8FA6BC;text-transform:uppercase;letter-spacing:.06em}
@@ -1917,6 +1927,61 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
      original, porém depois no cascade) evita o padding de parede (1vw
      ~4px) espremendo a tela estreita. */
   body.tvfull.tvwall .content{padding:12px}
+  /* NO CELULAR A TV NAO E PAREDE, e nao se espreme na altura da tela
+     (quem opera, 13/09/2026: "melhore a responsividade para celular"). No
+     modo aplicativo o celular conta como tela cheia, e as regras de parede
+     cabiam o painel inteiro em 844 px: numero cortado, lista de chegadas com
+     3 linhas, medidor de meta com 40 px. Aqui a pagina rola na vertical. */
+  body.tvfull.tvwall .content{height:auto;overflow:visible;display:block}
+  body.tvfull.tvwall #view-tvope.on{display:block}
+  /* cabecalho: logo e relogio numa linha, o titulo embaixo; o contador de
+     recarga sai (no celular ninguem espera a proxima recarga olhando) */
+  #view-tvope .tv-head{grid-template-columns:1fr auto;row-gap:9px;margin-bottom:12px}
+  #view-tvope .tv-head .tv-title{grid-column:1/-1;grid-row:2;justify-content:flex-start}
+  #view-tvope .tv-head h2{font-size:17px;text-align:left}
+  #view-tvope .tv-head .tv-next{display:none}
+  #view-tvope .tv-head .tv-clock{font-size:18px}
+  #view-tvope .tv-head .tv-beat{font-size:13px}
+  /* cartoes: duas colunas com altura PROPRIA; o de dois numeros (tracao,
+     motoristas) ocupa a linha inteira, senao cada numero fica com 80 px */
+  /* `dense`: o cartao de linha inteira deixava o anterior sozinho na linha
+     ("Em transito" e "Sem sinal" orfaos); com dense o proximo cartao de meia
+     largura sobe e fecha o buraco */
+  #view-tvope .tvw-kpis{grid-auto-rows:auto;gap:9px;grid-auto-flow:dense}
+  #view-tvope .tvw .tv-card{padding:12px 14px}
+  #view-tvope .tvw-kpis .tv-card:has(.tv-duo){grid-column:1/-1}
+  #view-tvope .tvw .tv-label{font-size:11px}
+  #view-tvope .tvw .tv-num{font-size:28px}
+  #view-tvope .tvw .tv-sub{font-size:12px}
+  #view-tvope .tv-barra{height:6px;margin:6px 0 3px}
+  /* mapa com altura de tela de celular, e a legenda EMBAIXO dele: por cima,
+     ela cobria um terco do mapa */
+  #view-tvope .tvw-mapa{height:auto;display:flex;flex-direction:column;padding:0}
+  #view-tvope #tvMapa{position:relative;inset:auto;height:340px}
+  #view-tvope .tv-legenda{position:static;margin:9px;font-size:11px}
+  /* km e metas */
+  #view-tvope .tvw-km{gap:18px}
+  #view-tvope .tvw-km .knum{font-size:20px}
+  #view-tvope .tvw-km .klab{font-size:10px}
+  #view-tvope .tvw-km .mod{font-size:13px}
+  #view-tvope .tvw-km .mod b{width:76px}
+  #view-tvope .tvw-km .mod span{width:84px;font-size:12px}
+  #tvope-km .tvw-arco{width:130px}
+  #view-tvope .tvw-gauge .glab{font-size:11px}
+  /* chegadas: a lista inteira (a pagina rola), em letra de celular */
+  #view-tvope .tv-tab{font-size:13px}
+  #view-tvope .tv-tab th{font-size:10px;padding:5px}
+  #view-tvope .tv-tab td{padding:7px 5px}
+  /* a coluna do selo sai no celular: em 390 px ela cortava o destino e o
+     horario ("POUSO AL...", "14/09 06..."). A atrasada continua em vermelho
+     no numero e no horario, e a critica com o fundo laranja e o selo na
+     primeira coluna. */
+  #view-tvope .tv-tab th:nth-child(4),#view-tvope .tv-tab td:nth-child(4){display:none}
+  #view-tvope .tv-tab th:nth-child(1){width:27%}
+  #view-tvope .tv-tab th:nth-child(3){width:31%}
+  #view-tvope .tv-tab .tv-badge{font-size:9px;padding:2px 6px}
+  #view-tvope .tv-ticker{height:34px;margin-top:12px}
+  #view-tvope .tv-ticker-inner{font-size:13px}
 }
 
 /* ---- login / sessão ---- */
@@ -16631,46 +16696,78 @@ function tvCorMod(u){
   if(u==='FROTA' || u==='LOCACAO') return TV_FROTA_COR;
   return MOD_COR[u] || '#6E7883';
 }
-/* AGRUPAMENTO DE NO MAXIMO 5 (pedido de quem opera): veiculos a menos de
-   TV_GRUPO_PX na tela viram um circulo com a contagem, e se separam ao
-   aproximar. Teto baixo de proposito -- grupo de 40 esconde a frota inteira
-   num circulo, e a parede existe para mostrar veiculo. O ALERTA NUNCA ENTRA
-   EM GRUPO: atrasada ou acima de 90 km/h e exatamente o que a parede tem de
-   mostrar sozinho. Cada camada leva `veiculos` (quantos representa), que e
-   como se conta a frota do mapa sem abrir os grupos. */
-const TV_GRUPO_PX=44, TV_GRUPO_MAX=5;
+/* AGRUPAMENTO, SEGUNDA VERSAO (quem opera, 13/09/2026: "nao ficou bom").
+   O teto de 5 da primeira ERA o defeito. Medido com as posicoes reais do
+   dia: os 123 veiculos fora de viagem se concentram em poucos lugares
+   (27, 17, 12 e 12 num mesmo patio ou cliente), e um lugar de 27 virava
+   seis circulos de "5" empilhados no mesmo ponto. Agora:
+   1. SEM TETO, e so o que se SOBREPOE na tela (TV_GRUPO_PX): um lugar, um
+      circulo, com o numero de veiculos que estao nele. Grupos que ficariam
+      colados se FUNDEM pelo centro -- nao sobra circulo por cima de circulo;
+   2. EM VIAGEM e PARADO nunca se misturam: circulo escuro e de quem esta em
+      viagem (o assunto da parede), circulo claro de quem esta fora de viagem
+      (patio, cliente); o parado sozinho sai apagado;
+   3. o ANEL do circulo e a mistura de modalidades (frota, agregado,
+      terceiro) na proporcao -- a cor diz sem texto;
+   4. o ALERTA nunca entra em grupo (atrasada ou acima de 90 km/h).
+   Cada camada leva `veiculos` (quantos representa): e como se conta a frota
+   do mapa sem abrir os grupos.
+   "SOBREPOE" E A CAIXA DO ROTULO, nao um raio: o marcador e um retangulo de
+   uns 60 x 20 px ("A10044 6x2"), e com raio de 34 px dois rotulos lado a
+   lado se encavalavam sem agrupar (visto com as posicoes reais). */
+const TV_GRUPO_W=60, TV_GRUPO_H=22;
 let tvPontos=[];
+function tvSobrepoe(a, b){
+  return Math.max(Math.abs(a.x-b.x)/TV_GRUPO_W, Math.abs(a.y-b.y)/TV_GRUPO_H);
+}
+function tvAglomerar(pts){
+  // aglomerativo pelo centro: junta o par de grupos mais proximo enquanto
+  // houver algum sobreposto (tvSobrepoe <= 1). n <= 200 por camada: folga.
+  const gs=pts.map(p=>({ps:[p], x:p.px.x, y:p.px.y}));
+  for(;;){
+    let bi=-1, bj=-1, bd=1;
+    for(let i=0;i<gs.length;i++) for(let j=i+1;j<gs.length;j++){
+      const d=tvSobrepoe(gs[i], gs[j]);
+      if(d<=bd){ bd=d; bi=i; bj=j; }
+    }
+    if(bi<0) return gs;
+    const a=gs[bi], b=gs[bj], na=a.ps.length, nb=b.ps.length;
+    a.x=(a.x*na+b.x*nb)/(na+nb); a.y=(a.y*na+b.y*nb)/(na+nb);
+    a.ps=a.ps.concat(b.ps); gs.splice(bj,1);
+  }
+}
 function tvAgrupar(){
   if(!tvMap || !tvLayer) return;
   tvLayer.clearLayers();
   const pts=tvPontos.map(p=>Object.assign({px:tvMap.latLngToLayerPoint([p.lat,p.lng])}, p));
-  const usado=pts.map(p=>p.alerta);
-  pts.forEach(p=>{ if(p.alerta) tvMarcador(p); });
-  for(let i=0;i<pts.length;i++){
-    if(usado[i]) continue;
-    usado[i]=true;
-    const g=[pts[i]];
-    for(let j=i+1;j<pts.length && g.length<TV_GRUPO_MAX;j++){
-      if(!usado[j] && pts[i].px.distanceTo(pts[j].px)<=TV_GRUPO_PX){ usado[j]=true; g.push(pts[j]); }
-    }
-    if(g.length===1) tvMarcador(g[0]); else tvGrupo(g);
-  }
+  pts.filter(p=>p.alerta).forEach(tvMarcador);
+  [true, false].forEach(emViagem=>{
+    tvAglomerar(pts.filter(p=>!p.alerta && p.viagem===emViagem)).forEach(g=>{
+      if(g.ps.length===1) tvMarcador(g.ps[0]); else tvGrupo(g, emViagem);
+    });
+  });
 }
 function tvMarcador(p){
+  const cls=p.alerta?'alerta':(p.viagem?(p.mov?'mov':''):'parado');
   L.marker([p.lat,p.lng],{
     icon:L.divIcon({className:'', iconSize:null, iconAnchor:[18,9],
-      html:`<div class="tv-vmk ${p.alerta?'alerta':(p.mov?'mov':'')}" style="background:${p.cor}">${esc(p.rot)}${p.tracao?'<small>'+esc(p.tracao)+'</small>':''}</div>`}),
+      html:`<div class="tv-vmk ${cls}" style="background:${p.cor}">${esc(p.rot)}${p.tracao?'<small>'+esc(p.tracao)+'</small>':''}</div>`}),
     zIndexOffset: p.alerta?1000:(p.viagem?500:0), veiculos:1,
   }).addTo(tvLayer);
 }
-function tvGrupo(g){
-  const lat=g.reduce((s,p)=>s+p.lat,0)/g.length, lng=g.reduce((s,p)=>s+p.lng,0)/g.length;
-  const conta={}; g.forEach(p=>{ conta[p.cor]=(conta[p.cor]||0)+1; });
-  const cor=Object.keys(conta).sort((a,b)=>conta[b]-conta[a])[0];
-  L.marker([lat,lng],{
+function tvGrupo(g, emViagem){
+  const n=g.ps.length, conta={};
+  g.ps.forEach(p=>{ conta[p.cor]=(conta[p.cor]||0)+1; });
+  let ac=0;
+  const fatias=Object.keys(conta).sort((a,b)=>conta[b]-conta[a]).map(c=>{
+    const de=ac; ac+=100*conta[c]/n; return c+' '+de.toFixed(1)+'% '+ac.toFixed(1)+'%'; }).join(',');
+  // o tamanho cresce com a raiz da contagem, de 24 a 40 px: o patio de 27 e
+  // maior que a dupla na rodovia, sem virar uma mancha que cobre a cidade
+  const tam=Math.round(24+Math.min(16, 3.2*Math.sqrt(n)));
+  L.marker(tvMap.layerPointToLatLng(L.point(g.x, g.y)),{
     icon:L.divIcon({className:'', iconSize:null, iconAnchor:[0,0],
-      html:`<div class="tv-vgrp${g.some(p=>p.mov)?' mov':''}" style="border-color:${cor}">${g.length}</div>`}),
-    zIndexOffset:300, veiculos:g.length,
+      html:`<div class="tv-vgrp ${emViagem?'viagem':'parado'}" style="width:${tam}px;height:${tam}px;background:conic-gradient(${fatias})"><b>${n}</b></div>`}),
+    zIndexOffset: emViagem?400:100, veiculos:n,
   }).addTo(tvLayer);
 }
 /* A LEGENDA DO MAPA: numa TV nao ha tooltip, e cor sem significado escrito
@@ -16690,7 +16787,8 @@ function tvLegenda(){
     +`<span><i style="background:${tvCorMod('TERCEIROS')}"></i>Terceiro</span>`
     +(semCad?`<span><i style="background:${tvCorMod(null)}"></i>Sem cadastro</span>`:'')
     +`<span><i class="al"></i>Atrasada ou acima de 90 km/h</span>`
-    +`<span><u>5</u>Grupo de até 5 próximos</span>`
+    +`<span><u>5</u>Em viagem no mesmo ponto</span>`
+    +`<span><u class="p">5</u>Parados no mesmo ponto (apagado: parado)</span>`
     +(tvTrafego?'<span><i class="tt"></i>Trânsito: verde livre, vermelho parado</span>':'')
     +(tr?`<span class="tr">Tração no mapa: ${tr}</span>`:'');
 }
@@ -17329,7 +17427,7 @@ async function loadTvOpe(){
         const len=pct==null ? 0 : Math.min(100,pct)*1.319;
         return `<div class="tvw-meta" style="text-align:center">
             <div class="glab" style="margin-bottom:0.3vw">${rot} · ${data}</div>
-            <svg viewBox="0 0 100 55" style="width:10.5vw">
+            <svg viewBox="0 0 100 55" class="tvw-arco">
               <path d="M8 50 A42 42 0 0 1 92 50" fill="none" stroke="#1E3A54" stroke-width="9" stroke-linecap="round"/>
               ${len>0?`<path d="M8 50 A42 42 0 0 1 92 50" fill="none" stroke="${cor}" stroke-width="9" stroke-linecap="round" stroke-dasharray="${len.toFixed(1)} 300"/>`:''}
               <text x="50" y="48" text-anchor="middle" font-size="${pct==null?13:19}" font-weight="800" fill="${cor}">${pct==null?'sem meta':Math.min(150,pct).toFixed(0)+'%'}</text>
