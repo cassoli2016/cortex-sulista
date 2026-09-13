@@ -27,7 +27,7 @@ from fastapi.responses import JSONResponse
 from starlette.datastructures import Headers
 
 from . import db as _db  # noqa: F401  (importa para garantir o .env carregado)
-from . import fotos, migracoes, pglocal
+from . import acessos, fotos, migracoes, pglocal
 from .whatsapp import numeros as telefones
 
 log = logging.getLogger("cortex.auth")
@@ -1241,11 +1241,22 @@ def sessao_atual(token: str | None) -> dict | None:
         ).fetchone()
         if not u or not u["ativo"] or u["token_ver"] != claims.get("ver"):
             return None
-        telas = _telas_do_perfil(c, u["perfil_id"], bool(u["perfil_admin"]))
+        admin = bool(u["perfil_admin"])
+        # ACESSO EFETIVO = perfil + ajustes da pessoa (api/acessos.py): liberar
+        # e tirar telas, tirar abas bloqueáveis. Calculado AQUI, a cada
+        # requisição — é por isso que tirar uma tela vale no clique seguinte
+        # sem derrubar a sessão. Admin ignora os ajustes (decisão de 13/09/2026).
+        telas, abas_tiradas = acessos.efetivas(
+            _telas_do_perfil(c, u["perfil_id"], admin),
+            acessos.ajustes_de(c, u["id"]), admin, TELAS.keys())
     return {
         "id": u["id"], "nome": u["nome"], "email": u["email"],
         "perfil_id": u["perfil_id"], "perfil": u["perfil_nome"],
-        "admin": bool(u["perfil_admin"]), "telas": telas,
+        "admin": admin, "telas": telas, "abas_tiradas": abas_tiradas,
+        # `.get()`: a coluna nasce na 0091, e esta função roda a cada requisição
+        # — num banco ainda não migrado, o acesso direto derrubaria o login.
+        "pagina_inicial": acessos.pagina_efetiva(
+            dict(u).get("pagina_inicial"), telas, admin),
         "deve_trocar_senha": bool(u["deve_trocar_senha"]),
         "telefone": u["telefone"] or "", "cargo": u["cargo"] or "",
         "setor": u["setor"] or "", "ramal": u["ramal"] or "",
@@ -1274,6 +1285,10 @@ def _payload_me(s: dict) -> dict:
                                "telefone", "cargo", "setor", "ramal", "foto_em",
                                "cliente_cnpj_raiz")}
     dados["telefone_fmt"] = telefones.formatar(s["telefone"]) if s["telefone"] else ""
+    # Página inicial e abas escondidas (api/acessos.py). `.get()`: há sessão
+    # montada à mão em teste, e a tela trata ausente como "o padrão da casa".
+    dados["pagina_inicial"] = s.get("pagina_inicial")
+    dados["abas_ocultas"] = acessos.ocultas(s.get("abas_tiradas") or [])
     return dados
 
 
@@ -1344,6 +1359,17 @@ class AuthMiddleware:
                 "erro": "sem_permissao",
                 "mensagem": "Rota não mapeada em nenhuma tela — acesso negado."})
             return await resp(scope, receive, send)
+
+        # ABA TIRADA (api/acessos.py): a tela passou, mas esta rota é a de uma
+        # aba retirada desta pessoa. Só existe para aba com rota PRÓPRIA — é o
+        # que faz disto bloqueio, e não botão escondido. Admin não passa aqui.
+        if not sess["admin"] and sess.get("abas_tiradas"):
+            unidade = acessos.aba_da_rota(path)
+            if unidade and unidade in sess["abas_tiradas"]:
+                resp = JSONResponse(status_code=403, content={
+                    "erro": "sem_permissao",
+                    "mensagem": "Esta aba foi retirada do seu acesso."})
+                return await resp(scope, receive, send)
 
         scope.setdefault("state", {})["sessao"] = sess
 
@@ -1954,22 +1980,39 @@ def telas_registro() -> JSONResponse:
         {"chave": k, "rotulo": rot, "grupo": grp} for k, (rot, grp) in TELAS.items()]})
 
 
+@router_gestao.get("/acessos/catalogo")
+def acessos_catalogo() -> JSONResponse:
+    """O que a ficha de acessos oferece além das telas: as abas bloqueáveis
+    (só as de rota própria — api/acessos.ABAS) e as páginas iniciais que não
+    são telas do registro (as de todo logado e as de administrador)."""
+    return JSONResponse({
+        "abas": acessos.catalogo_abas(TELAS),
+        "paginas_de_todos": sorted(TELAS_TODO_LOGADO),
+        "paginas_de_admin": ["gestao", "srv"],
+        "sem_menu": sorted(TELAS_SEM_MENU)})
+
+
 @router_gestao.get("/usuarios")
 def usuarios_lista() -> JSONResponse:
     with _conn() as c:
+        tem = acessos.tem_estrutura(c)   # 0091: página inicial + ajustes
         rows = c.execute(
             """SELECT u.id, u.nome, u.email, u.perfil_id, p.nome AS perfil,
                       p.admin AS perfil_admin, u.ativo, u.deve_trocar_senha,
                       u.bloqueado_ate, u.criado_em, u.ultimo_login,
                       u.telefone, u.cargo, u.setor, u.ramal,
                       {vinculo}
+                      {pagina}
                       f.atualizado_em AS foto_em
                FROM usuarios u
                JOIN perfis p ON p.id=u.perfil_id
                LEFT JOIN usuario_fotos f ON f.usuario_id=u.id
                ORDER BY u.nome""".format(
                    vinculo=("u.cliente_cnpj_raiz," if tem_coluna_vinculo()
-                            else "NULL::text AS cliente_cnpj_raiz,"))).fetchall()
+                            else "NULL::text AS cliente_cnpj_raiz,"),
+                   pagina=("u.pagina_inicial," if tem
+                           else "NULL::text AS pagina_inicial,"))).fetchall()
+        ajustes = acessos.todos_os_ajustes(c)
     # `foto_em` (e nunca os bytes) é o que a lista precisa: diz se há foto e
     # serve de versão na URL da imagem, para trocar de foto aparecer na hora
     # sem que o navegador precise deixar de cachear as outras.
@@ -1977,6 +2020,7 @@ def usuarios_lista() -> JSONResponse:
     for r in rows:
         u = dict(r)
         u["telefone_fmt"] = telefones.formatar(u["telefone"]) if u["telefone"] else ""
+        u["acessos"] = [{"chave": k, "efeito": e} for k, e in ajustes.get(u["id"], [])]
         usuarios.append(u)
     return JSONResponse({"usuarios": usuarios})
 
@@ -1998,6 +2042,55 @@ def _admins_ativos_exceto(c: psycopg.Connection, usuario_id: int) -> int:
     return c.execute(
         """SELECT COUNT(*) AS n FROM usuarios u JOIN perfis p ON p.id=u.perfil_id
            WHERE p.admin=1 AND u.ativo=1 AND u.id<>%s""", (usuario_id,)).fetchone()["n"]
+
+
+def _acessos_do_payload(c, payload: dict, perfil_id: int, ajustes_atuais) -> tuple[dict, str | None]:
+    """Página inicial e ajustes de acesso que vieram no payload (13/09/2026).
+
+    A regra de edição parcial da casa: chave AUSENTE = não mexe; página
+    inicial VAZIA = volta ao padrão (o radar); `acessos` é a lista COMPLETA e
+    substitui a anterior. A página é validada contra o acesso que VALERÁ
+    depois desta gravação (o perfil novo, se ele muda junto, e os ajustes
+    novos) — página inicial que a pessoa não pode abrir é recusada dizendo o
+    porquê, em vez de gravada para cair no radar sem ninguém entender.
+
+    Devolve ({"pagina": valor ou _AUSENTE, "ajustes": lista ou None}, erro).
+    """
+    saida = {"pagina": _AUSENTE, "ajustes": None}
+    quer_pagina = payload.get("pagina_inicial", _AUSENTE) is not _AUSENTE
+    quer_ajustes = payload.get("acessos", _AUSENTE) is not _AUSENTE
+    if not (quer_pagina or quer_ajustes):
+        return saida, None
+    if not acessos.tem_estrutura(c):
+        # Migration 0091 pendente. O formulário manda `pagina_inicial` SEMPRE;
+        # recusar a gravação inteira por isso travaria a edição de qualquer
+        # usuário (o mesmo cuidado de `tem_coluna_vinculo`). Recusa-se só quem
+        # PEDE algo que não dá para gravar: uma página ou ajustes.
+        pede = (quer_ajustes or (quer_pagina and str(payload.get("pagina_inicial") or "").strip()))
+        if not pede:
+            return saida, None
+        return saida, ("Página inicial e ajustes de acesso dependem da migration "
+                       "0091, que ainda não rodou neste banco.")
+    ajustes = list(ajustes_atuais)
+    if quer_ajustes:
+        ajustes, erro = acessos.validar(payload.get("acessos"), TELAS.keys())
+        if erro:
+            return saida, erro
+        saida["ajustes"] = ajustes
+    if quer_pagina:
+        pagina = str(payload.get("pagina_inicial") or "").strip()
+        if pagina:
+            if not acessos.pagina_escolhivel(pagina):
+                return saida, f"'{pagina}' não é uma tela que possa ser página inicial."
+            p = c.execute("SELECT admin FROM perfis WHERE id=%s", (perfil_id,)).fetchone()
+            admin = bool(p and p["admin"])
+            telas, _ = acessos.efetivas(_telas_do_perfil(c, perfil_id, admin),
+                                        ajustes, admin, TELAS.keys())
+            if acessos.pagina_efetiva(pagina, telas, admin) is None:
+                return saida, ("A página inicial escolhida não está entre as telas "
+                               "que este usuário pode abrir.")
+        saida["pagina"] = pagina or None
+    return saida, None
 
 
 @router_gestao.post("/usuarios")
@@ -2026,7 +2119,13 @@ def usuario_criar(payload: dict, request: Request) -> JSONResponse:
                 "SELECT 1 FROM perfis WHERE id=%s", (perfil_id,)).fetchone():
             return JSONResponse(status_code=422, content={
                 "erro": "parametro_invalido", "mensagem": "Perfil inexistente."})
-        extras = dados["extras"]
+        acs, erro = _acessos_do_payload(c, payload, perfil_id, [])
+        if erro:
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido", "mensagem": erro})
+        extras = dict(dados["extras"])
+        if acs["pagina"] is not _AUSENTE:
+            extras["pagina_inicial"] = acs["pagina"]
         colunas = ", ".join(extras)
         marcas = ", ".join(["%s"] * len(extras))
         try:
@@ -2043,6 +2142,11 @@ def usuario_criar(payload: dict, request: Request) -> JSONResponse:
             return JSONResponse(status_code=422, content={
                 "erro": "email_em_uso", "mensagem": "Já existe usuário com esse e-mail."})
         extra_foto = []
+        if acs["pagina"]:
+            extra_foto.append(f"pagina_inicial={acs['pagina']}")
+        if acs["ajustes"]:
+            acessos.gravar(c, novo_id, acs["ajustes"], sess["email"], _agora())
+            extra_foto.append("acessos: " + acessos.diff([], acs["ajustes"]))
         if payload.get("foto", _AUSENTE) is not _AUSENTE:
             try:
                 extra_foto.append(_gravar_foto(c, novo_id, payload["foto"]))
@@ -2071,6 +2175,11 @@ def usuario_criar(payload: dict, request: Request) -> JSONResponse:
             tl = [r["tela"] for r in c.execute(
                 "SELECT tela FROM perfil_telas WHERE perfil_id=%s",
                 (perfil_id,)).fetchall()]
+            # o e-mail diz o que a pessoa ABRE: com ajuste individual, é o
+            # acesso efetivo, não o do perfil (admin segue como era)
+            if not p.get("admin"):
+                tl = acessos.efetivas(tl, acessos.ajustes_de(c, novo_id), False,
+                                      TELAS.keys())[0]
         r = boas_vindas.enviar_boas_vindas(
             dados["email"], dados["nome"], senha, _url_painel(),
             telas=tl, admin=bool(p.get("admin")), perfil=p.get("nome") or "",
@@ -2152,6 +2261,26 @@ def usuario_editar(usuario_id: int, payload: dict, request: Request) -> JSONResp
             mudancas.append("token_ver=token_ver+1")
             detalhes.append("ativado" if payload["ativo"] else "desativado")
 
+        # PÁGINA INICIAL E AJUSTES DE ACESSO (api/acessos.py). Validados contra
+        # o perfil que VALERÁ depois desta gravação; os ajustes só se gravam
+        # depois de todas as validações — uma recusa adiante não pode deixar
+        # meio ajuste gravado.
+        perfil_final = (payload["perfil_id"] if isinstance(payload.get("perfil_id"), int)
+                        else u["perfil_id"])
+        atuais = acessos.ajustes_de(c, usuario_id)
+        acs, erro = _acessos_do_payload(c, payload, perfil_final, atuais)
+        if erro:
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido", "mensagem": erro})
+        if acs["pagina"] is not _AUSENTE and acs["pagina"] != dict(u).get("pagina_inicial"):
+            mudancas.append("pagina_inicial=%s"); valores.append(acs["pagina"])
+            detalhes.append(f"pagina_inicial={acs['pagina']}" if acs["pagina"]
+                            else "pagina_inicial (limpa)")
+        ajustes_novos = None
+        if acs["ajustes"] is not None and set(acs["ajustes"]) != set(atuais):
+            ajustes_novos = acs["ajustes"]
+            detalhes.append("acessos: " + acessos.diff(atuais, ajustes_novos))
+
         senha_nova = payload.get("resetar_senha") or ""
         if senha_nova:
             if len(senha_nova) < cfg("senha_min"):
@@ -2175,8 +2304,11 @@ def usuario_editar(usuario_id: int, payload: dict, request: Request) -> JSONResp
                 return JSONResponse(status_code=422, content={
                     "erro": "foto_invalida", "mensagem": str(exc)})
 
+        if ajustes_novos is not None:
+            acessos.gravar(c, usuario_id, ajustes_novos, sess["email"], _agora())
+
         if not mudancas:
-            if detalhes:   # só a foto mudou — já gravada acima
+            if detalhes:   # só a foto ou os ajustes mudaram — já gravados acima
                 audit(sess["email"], "usuario_editar", alvo=u["email"],
                       detalhe="; ".join(detalhes), ip=_ip(request))
                 return JSONResponse({"ok": True})

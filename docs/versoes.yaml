@@ -1,3 +1,38 @@
+- versao: "1.68.0"
+  data: "2026-09-13"
+  adicionado:
+    - >-
+      Página inicial por usuário. No cadastro do usuário (Administração ›
+      Gestão › Usuários) há o campo "Página inicial": é a tela que abre
+      quando a pessoa entra. A lista só oferece as telas que ela pode abrir;
+      se ela perder o acesso à tela escolhida, abre o Radar.
+    - >-
+      Acessos por usuário, por cima do perfil. O botão "Acessos" em cada
+      usuário permite liberar uma tela que o perfil não tem, tirar uma tela
+      que o perfil tem e tirar abas. "Tirar" sempre vence, e vale no próximo
+      clique da pessoa, sem ela precisar sair e entrar. Quem tem perfil
+      administrador continua vendo tudo. A lista de usuários mostra quem tem
+      ajuste, e toda mudança fica na trilha de auditoria.
+    - >-
+      Tirar uma aba é bloqueio de verdade: o servidor recusa os dados dela,
+      não só esconde o botão. Por isso só aparecem as abas cujos dados vêm
+      de uma consulta própria; nas demais, os dados chegam junto com a tela
+      inteira e esconder o botão não protegeria nada.
+  corrigido:
+    - >-
+      Abrir o endereço de uma tela sem acesso mostrava outra tela e deixava o
+      endereço errado na barra. Agora a pessoa lê "Você não tem acesso a…" e
+      o endereço é corrigido.
+    - >-
+      Os grupos Telemetria, ANTT, Gestão, TMS e WMS apareciam no menu com o
+      título vazio para quem não tinha nenhuma tela deles. Agora somem.
+    - >-
+      O "Girar" das abas entrava em abas escondidas. Agora ele as pula.
+    - >-
+      Quem teve a fila de atendimento do Suporte liberada ou tirada por
+      ajuste individual passa a entrar (ou sair) da lista de atendentes, e o
+      e-mail de boas-vindas lista as telas que a pessoa realmente abre.
+
 - versao: "1.67.0"
   data: "2026-09-13"
   adicionado:

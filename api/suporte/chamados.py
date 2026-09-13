@@ -622,9 +622,26 @@ def anexo(anexo_id: int, esquema: str | None = None, *, usuario_id: int | None =
 
 
 def atendentes(esquema: str | None = None) -> list[dict]:
-    """Usuários ativos com a tela `supfila` ou administradores."""
+    """Usuários ativos com a tela `supfila` ou administradores.
+
+    Pelo acesso EFETIVO, não só pelo perfil (13/09/2026): quem teve a fila
+    liberada por ajuste individual atende, e quem a teve TIRADA não aparece na
+    lista de atribuição — senão o chamado iria para alguém que não consegue
+    abri-lo. A regra é a de `api/acessos.py` (admin vê tudo; tirar vence),
+    escrita aqui em SQL porque a lista é uma consulta só.
+    """
     esq = _esq(esquema)
+    if not pglocal.um("SELECT to_regclass('usuario_acessos') IS NOT NULL AS ok",
+                      esquema=esq)["ok"]:
+        # migration 0091 pendente: ninguém tem ajuste, vale só o perfil
+        return pglocal.query(
+            "SELECT DISTINCT u.id, u.nome FROM usuarios u JOIN perfis p ON p.id=u.perfil_id "
+            "LEFT JOIN perfil_telas pt ON pt.perfil_id=p.id AND pt.tela='supfila' "
+            "WHERE u.ativo=1 AND (p.admin=1 OR pt.tela IS NOT NULL) ORDER BY u.nome", esquema=esq)
     return pglocal.query(
         "SELECT DISTINCT u.id, u.nome FROM usuarios u JOIN perfis p ON p.id=u.perfil_id "
         "LEFT JOIN perfil_telas pt ON pt.perfil_id=p.id AND pt.tela='supfila' "
-        "WHERE u.ativo=1 AND (p.admin=1 OR pt.tela IS NOT NULL) ORDER BY u.nome", esquema=esq)
+        "LEFT JOIN usuario_acessos ua ON ua.usuario_id=u.id AND ua.chave='supfila' "
+        "WHERE u.ativo=1 AND (p.admin=1 "
+        "  OR (pt.tela IS NOT NULL AND ua.efeito IS DISTINCT FROM 'tirar') "
+        "  OR ua.efeito='liberar') ORDER BY u.nome", esquema=esq)

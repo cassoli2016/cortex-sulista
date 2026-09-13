@@ -860,6 +860,15 @@ glossario:
     e cargo e setor são estrutura da empresa, lida pelos colegas como informação conferida. Todos esses
     campos são opcionais; sem foto, o avatar continua mostrando as iniciais. A imagem é recortada em
     quadrado pelo centro e reduzida a 256px pelo próprio navegador antes de subir.
+- termo: Acessos por usuário e página inicial
+  definicao: O perfil define as telas de cada pessoa; em Gestão › Usuários, o botão Acessos ajusta isso
+    para UMA pessoa, por cima do perfil — liberar uma tela que o perfil não tem, tirar uma tela que ele
+    tem, tirar uma aba. Tirar sempre vence, e vale no próximo clique da pessoa. Quem tem perfil
+    administrador vê tudo, com ou sem ajuste. Tirar aba é bloqueio de verdade (o servidor recusa os dados
+    dela), e por isso só se oferece nas abas cujos dados vêm de uma consulta própria; nas demais, os dados
+    chegam junto com a tela e esconder o botão não protegeria nada. A página inicial é a tela que abre
+    quando a pessoa entra; se ela perder o acesso a essa tela, abre o Radar. Toda mudança fica na trilha
+    de auditoria.
 - termo: WhatsApp (Z-API) e o limite de destinatários
   definicao: O CÓRTEX envia WhatsApp pela Z-API, que NÃO é a API oficial do WhatsApp — ela conecta um
     número real da empresa, e esse número pode ser banido. A documentação da própria Z-API diz que o
@@ -1382,7 +1391,9 @@ grupos:
   - supfila
 - nome: Administração
   resumo: >-
-    Usuários, perfis e permissões por tela, saúde da máquina onde a API roda, a auditoria de uso
+    Usuários, perfis e permissões por tela — com a página inicial de cada pessoa e os ajustes de acesso
+    por usuário por cima do perfil (liberar ou tirar uma tela, tirar uma aba cujos dados o servidor
+    consegue recusar) —, saúde da máquina onde a API roda, a auditoria de uso
     (quem entra, por quanto tempo e em que telas, além da trilha de ações que já existia), o estado
     de cada integração com fornecedor, o acompanhamento dos monitoramentos de carga pedidos na
     página pública, e esta documentação.

@@ -2015,6 +2015,21 @@ button.avatar{border:0;cursor:pointer}
 .ges-telas h4{grid-column:1/-1;margin:8px 0 2px;font-size:11px;color:var(--n600,#6B7280);
   text-transform:uppercase;letter-spacing:.05em}
 .ges-telas label{display:flex;gap:7px;align-items:center;font-size:13px;font-weight:500;margin:0;color:inherit}
+/* ACESSOS POR USUÁRIO (Gestão › Usuários › Acessos). A lista mora FORA do
+   .ges-form de propósito: as regras de campo de lá (select de 100%, label em
+   bloco) venceriam as daqui por especificidade. */
+.ga-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:9px 18px;
+  border:1px solid var(--n200,#e5eaf0);border-radius:6px;padding:9px;max-height:52vh;overflow:auto}
+.ga-lista h4{grid-column:1/-1;margin:9px 0 0;font-size:11px;color:var(--n600,#6B7280);
+  text-transform:uppercase;letter-spacing:.05em}
+.ga-tela{display:flex;flex-direction:column;gap:4px;font-size:13px}
+.ga-linha{display:flex;align-items:center;justify-content:space-between;gap:9px}
+.ga-linha select{padding:4px 6px;font:inherit;font-size:12px;border:1px solid var(--n300,#d3dae2);border-radius:6px}
+.ga-aba{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--n600,#6B7280);padding-left:9px}
+.ga-resumo{font-size:12.5px;color:var(--n600,#6B7280);margin:9px 0}
+.aviso-acesso{position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:9000;
+  max-width:calc(100% - 36px);padding:9px 18px;border-radius:6px;background:#1E172F;color:#fff;
+  font-size:13px;box-shadow:0 4px 18px rgba(0,0,0,.2)}
 .m-foot{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:16px}
 /* A CAIXA DE "LEMBRAR": o mesmo defeito de especificidade, e no celular
    ele aparecia inteiro. `.lg-lembrar` (0,1,0) perdia para `.lg-body label`
@@ -10678,13 +10693,23 @@ function semFilterbar(v){
 }
 function currentView(){
   const h = (location.hash||'').replace('#','').split('?')[0];   // `#sup?chamado=12` é a tela sup
-  let v = VIEWS[h] ? h : 'radar';   // sem hash, a página inicial — que é de todo usuário logado
-  if(USER && !podeVer(v)) v = primeiraTela();   // bloqueia acesso por URL direta
+  let v = VIEWS[h] ? h : paginaInicial();   // sem hash, a página inicial DA PESSOA (radar se não houver)
+  if(USER && !podeVer(v)) v = paginaInicial();   // bloqueia acesso por URL direta
   return v;
 }
 function router(){
   if(!USER) return;                              // nada roda antes do login
   const v = currentView();
+  /* ENDEREÇO DE TELA SEM ACESSO (13/09/2026). Antes, `#dre` para quem não tem
+     a DRE mostrava OUTRA tela e deixava `#dre` na barra — o título, a estrela
+     de favorito e o link copiado mentiam sobre onde a pessoa estava, e ela
+     não sabia por que "a DRE abria o Radar". Agora o endereço é corrigido e a
+     pessoa lê o motivo. */
+  const pedida = (location.hash||'').replace('#','').split('?')[0];
+  if(pedida && VIEWS[pedida] && pedida !== v){
+    try{ history.replaceState(null, '', '#'+v); }catch(e){}
+    avisoSemAcesso(VIEWS[pedida]);
+  }
   velhaLimpar();       // a tarja fala da tela ATUAL; quem carrega repoe
   audTela(v);          // auditoria de uso: a tela aberta e o sinal de vida
   favBotao();          // a estrela reflete a tela ATUAL, entao muda com ela
@@ -13150,6 +13175,7 @@ function premToggle(i){
 let DATAPREMCFG = null;
 
 async function premCfgCarregar(){
+  if(abaOculta('prem','cfg')) return;   // aba tirada (api/acessos.ABAS)
   const comp = (document.getElementById('fPremCfgComp').value || '').trim();
   try{
     const r = await fetch('/api/premiacao/config' + (comp ? '?competencia=' + comp : ''),
@@ -13500,7 +13526,8 @@ function abaAutoRearmar(grupo){
 
 function abaProxima(grupo){
   const bts = Array.from(
-    document.querySelectorAll('.subtabs[data-abas="' + grupo + '"] button[data-aba]'));
+    document.querySelectorAll('.subtabs[data-abas="' + grupo + '"] button[data-aba]'))
+    .filter(b => !b.hidden);   // aba escondida (sem acesso, ou só de admin) não entra no giro
   if(bts.length < 2) return;
   const i = bts.findIndex(b => b.getAttribute('aria-selected') === 'true');
   abaTrocar(grupo, bts[(i + 1) % bts.length].dataset.aba);
@@ -13533,6 +13560,9 @@ function abaAutoMontar(){
 }
 
 function abaTrocar(grupo, qual){
+  /* aba tirada desta pessoa (abasPermissoes) não abre por atalho nenhum —
+     link de outra tela, giro ou código que troca de aba sozinho */
+  if(document.querySelector('.subtabs[data-abas="'+grupo+'"] button[data-aba="'+qual+'"][data-sem-acesso]')) return;
   document.querySelectorAll('.aba[data-abas="'+grupo+'"]').forEach(el => {
     el.hidden = (el.dataset.aba !== qual);
   });
@@ -18382,6 +18412,7 @@ function fcFiltrosDaTela(mostrar){
 
 
 async function loadProjecao(){
+  if(abaOculta('fluxcon','plano')) return;   // aba tirada (api/acessos.ABAS)
   if(DATAPROJ){ renderProjecao(DATAPROJ); return; }
   const seq = ++projSeq;
   skelKpis('kpis-proj', 4);
@@ -20487,6 +20518,7 @@ function cpValidCat(c){ CP_VALCAT=c; cpValidRender(); }
    tem de acionável depois que os certificados ganharam aba própria */
 
 async function cpValidarTudo(){
+  if(abaOculta('cp','implantacao')) return;   // aba tirada (api/acessos.ABAS)
   /* Recorte PROPRIO, e nao o da tela: com o filtro do dia via-se 18
      agregados, e as duas contradicoes mais caras (188 e 190 CT-e) ficavam
      fora. Mesma licao do cartao de vencimento de certificado, que ignora o
@@ -21364,6 +21396,7 @@ function renderPnMarcasTabela(d){
 let DATACPK = null, cpkSeq = 0;
 
 async function pnCpkCarregar(){
+  if(abaOculta('pneus','cpk')) return;   // aba tirada (api/acessos.ABAS)
   if(DATACPK){ pnCpkPintar(DATACPK); return; }
   const seq = ++cpkSeq;
   document.getElementById('pn-cpk-modelos').innerHTML =
@@ -21454,6 +21487,7 @@ function pnCpkPintar(d){
 let DATATROCA = null, trocaSeq = 0;
 
 async function pnTrocaCarregar(){
+  if(abaOculta('pneus','troca')) return;   // aba tirada (api/acessos.ABAS)
   if(DATATROCA){ pnTrocaPintar(DATATROCA); return; }
   const seq = ++trocaSeq;
   document.getElementById('pn-troca-lista').innerHTML =
@@ -21543,6 +21577,7 @@ function pnTrocaPintar(d){
 let PNREG = null, PNMOTIVOS = null;
 
 async function pnRegAbrir(){
+  if(abaOculta('pneus','registrar')) return;   // aba tirada (api/acessos.ABAS)
   pnRegTrocarAcao();
   pnRegRecentes();
   if(!PNMOTIVOS){
@@ -21686,6 +21721,7 @@ async function pnRegGravar(){
 }
 
 async function pnRegRecentes(){
+  if(abaOculta('pneus','registrar')) return;   // aba tirada (api/acessos.ABAS)
   try{
     const r = await fetch('/api/frota/pneus/recentes', {cache:'no-store'});
     const d = await respostaJSON(r);
@@ -21898,6 +21934,7 @@ async function loadDes(){
 }
 
 async function loadDesMatriz(){
+  if(abaOculta('des','mat')) return;   // aba tirada (api/acessos.ABAS)
   const el = document.getElementById('des-matriz');
   el.innerHTML = '<p class="hint">montando a matriz…</p>';
   let d;
@@ -21973,6 +22010,7 @@ async function loadDesMatriz(){
 }
 
 async function loadDesEquipe(){
+  if(abaOculta('des','ava')) return;   // aba tirada (api/acessos.ABAS)
   const el = document.getElementById('des-equipe');
   el.innerHTML = '<p class="hint">lendo a folha…</p>';
   let d;
@@ -22926,6 +22964,7 @@ let FERCUSTO=null, ferCustoSeq=0, ferCustoChave='';
 function ferCustoInvalidar(){ FERCUSTO=null; ferCustoChave=''; }
 
 async function loadFeriasCusto(force){
+  if(abaOculta('ferias','custo')) return;   // aba tirada (api/acessos.ABAS)
   const V=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
   const de=V('fFerDe'), ate=V('fFerAte'), fil=V('fFerFilial'), ch=ferChapaDoCampo();
   const chave=de+'|'+ate+'|'+fil+'|'+ch;
@@ -23293,6 +23332,7 @@ function renderRhmot(d){
 let RHMOTMURAL = [];
 
 async function loadRhmotMural(){
+  if(abaOculta('rhmot','mural')) return;   // aba tirada (api/acessos.ABAS)
   const alvo=document.getElementById('rhmot-mural');
   alvo.innerHTML='<p class="muted" style="padding:10px">Carregando…</p>';
   let d;
@@ -25526,6 +25566,7 @@ async function smtColetar(){
 }
 
 async function loadMulErp(){
+  if(abaOculta('smt','hist')) return;   // aba tirada (api/acessos.ABAS)
   skelKpis('kpis-mul',4);
   const seq = ++mulErpSeq;
   const btn=document.getElementById('btnRefresh');
@@ -28440,6 +28481,7 @@ function tupyCustoDesenhar(){
    parado — que é justamente o caso que a tela existe para revelar. */
 let elegSeq = 0;
 async function loadElegiveis(){
+  if(abaOculta('antport','eleg')) return;   // aba tirada (api/acessos.ABAS)
   const seq = ++elegSeq;
   const alvo = document.getElementById('eleg-tab');
   alvo.innerHTML = '<tr><td colspan="8" class="hint">consultando o contas a receber…</td></tr>';
@@ -28726,6 +28768,7 @@ function fatCompDesenhar(){
    de coleta_ocorrencia — o radar de 120s não espera por ela). */
 let PROGCIC = null, progCicSeq = 0;
 async function loadProgCiclos(){
+  if(abaOculta('prog','cic')) return;   // aba tirada (api/acessos.ABAS)
   if(PROGCIC){ renderProgCiclos(PROGCIC); return; }
   const seq = ++progCicSeq;
   document.getElementById('prog-cic-rotas').innerHTML =
@@ -31495,6 +31538,7 @@ function renderHc(d){
 let DATAFE = null, feSeq = 0;
 
 async function carregarFolhaEstrutura(fundo){
+  if(abaOculta('folha','nat')) return;   // aba tirada (api/acessos.ABAS)
   const seq = ++feSeq;
   try{
     const r = await fetch('/api/rh/folha-estrutura?meses=12',
@@ -31669,6 +31713,7 @@ let pedAudSeq = 0, DATAPEDAUD = null;
    MANIFESTO, que vem do AVA, e quem abre a Validação de Pedágio para ver os
    três números do ERP não deve pagar por essa consulta. */
 async function loadPedAud(){
+  if(abaOculta('ped','aud')) return;   // aba tirada (api/acessos.ABAS)
   const seq = ++pedAudSeq;
   try{
     const r = await fetch('/api/operacao/pedagio/auditoria?' + qsView('pedagio'), {cache:'no-store'});
@@ -31820,6 +31865,7 @@ let pedTagSeq = 0, DATAPEDTAG = null;
    praças, e quem abre a Validação de Pedágio para ver os três números do ERP
    não deve pagar por isso. */
 async function loadPedTag(){
+  if(abaOculta('ped','tag')) return;   // aba tirada (api/acessos.ABAS)
   const seq = ++pedTagSeq;
   try{
     const r = await fetch('/api/operacao/pedagio/tag?' + qsView('pedagio'), {cache:'no-store'});
@@ -32748,6 +32794,7 @@ function pintarKpisBat(){
 }
 
 async function loadFreqBatidas(){
+  if(abaOculta('freq','batidas')) return;   // aba tirada (api/acessos.ABAS)
   const seq=++freqBatSeq;
   skelKpis('kpis-freqbat',4);
   loadFreqCercas();                    // a outra metade da mesma aba
@@ -32787,6 +32834,7 @@ function freqDiaPedido(){
   return on?on.dataset.fdd:'hoje';
 }
 async function loadFreqDia(){
+  if(abaOculta('freq','dia')) return;   // aba tirada (api/acessos.ABAS)
   const seq=++freqDiaSeq;
   try{
     const r=await fetch('/api/rh/frequencia/dia?dia='+encodeURIComponent(freqDiaPedido()),{cache:'no-store'});
@@ -32916,6 +32964,7 @@ function semBatidaTexto(a){
 }
 
 async function loadFreqCercas(){
+  if(abaOculta('freq','batidas')) return;   // aba tirada (api/acessos.ABAS)
   const seq=++freqCercSeq;
   try{
     const r=await fetch('/api/rh/frequencia/cercas?dias=14',{cache:'no-store'});
@@ -33019,6 +33068,7 @@ function renderFreqCercas(d){
 let mancompSeq = 0;
 let DATAMANCOMP = null;
 async function loadComprasOs(){
+  if(abaOculta('man','comp')) return;   // aba tirada (api/acessos.ABAS)
   const seq=++mancompSeq;
   document.getElementById('content').classList.add('loading'); skelKpis('kpis-mancomp',4);
   try{
@@ -35015,6 +35065,7 @@ function renderTelcon(d){
 /* Evolução mensal do km/l — desenha só com a aba visível (data-ao-abrir). */
 let DATATELEVO=null, telEvoSeq=0;
 async function telconEvolucao(){
+  if(abaOculta('telcon','evo')) return;   // aba tirada (api/acessos.ABAS)
   if(DATATELEVO){ telconEvoDesenhar(DATATELEVO); return; }
   const seq=++telEvoSeq;
   document.getElementById('telcon-evo-hint').textContent='montando a série…';
@@ -35242,6 +35293,7 @@ function telcondAbrir(placa){
 let DATATELCOM=null, telcomSeq=0;
 
 async function loadTelconComunicacao(){
+  if(abaOculta('telcon','com')) return;   // aba tirada (api/acessos.ABAS)
   const lim=(document.getElementById('fTelconComLim')||{}).value||'24';
   const seq=++telcomSeq;
   try{
@@ -35436,6 +35488,7 @@ function telcondCruzDesenhar(){
 /* Por motorista: nota e km dos snapshots da premiação (cache; nunca ao vivo). */
 let DATATELMOT=null, telMotSeq=0;
 async function loadTelcondMotoristas(){
+  if(abaOculta('telcond','mot')) return;   // aba tirada (api/acessos.ABAS)
   if(DATATELMOT){ renderTelcondMotoristas(DATATELMOT); return; }
   const seq=++telMotSeq;
   try{
@@ -36558,6 +36611,7 @@ function _panoLinhas(itens, positivo){
 }
 
 async function loadDrePano(){
+  if(abaOculta('dre','pano')) return;   // aba tirada (api/acessos.ABAS)
   const el = document.getElementById('dre-atk-pano');
   if(!el) return;
   el.innerHTML = '<p class="hint">medindo conta a conta…</p>';
@@ -36597,6 +36651,7 @@ async function loadDrePano(){
 }
 
 async function loadDreAtk(){
+  if(abaOculta('dre','atk')) return;   // aba tirada (api/acessos.ABAS)
   const de = _dxV('fCompDe'), ate = _dxV('fCompAte');
   const topo = document.getElementById('dre-atk-topo');
   const lista = document.getElementById('dre-atk-lista');
@@ -36662,6 +36717,7 @@ function dreParSelo(tipo){
 }
 
 async function loadDrePar(){
+  if(abaOculta('dre','par')) return;   // aba tirada (api/acessos.ABAS)
   const alvo = document.getElementById('dre-par-texto');
   if(!alvo) return;
   alvo.innerHTML = '<p class="hint">medindo o razão…</p>';
@@ -36827,6 +36883,7 @@ async function dreParNarrar(q){
 }
 
 async function loadDreExc(){
+  if(abaOculta('dre','exc')) return;   // aba tirada (api/acessos.ABAS)
   const p = new URLSearchParams();
   const de = _dxV('fCompDe'), ate = _dxV('fCompAte');
   if(de) p.set('de', de + '-01');
@@ -37740,13 +37797,34 @@ document.addEventListener('keydown', e=>{
 document.addEventListener('click', e=>{
   if(!e.target.closest('.buscabox')) buscaFechar();
 });
-function primeiraTela(){ return USER ? (Object.keys(VIEWS).find(podeVer) || 'radar') : 'radar'; }
+/* A PÁGINA INICIAL DA PESSOA (13/09/2026): a que a Gestão escolheu no
+   cadastro, se ela ainda pode abri-la; senão, a da casa (radar, de todo
+   logado). Antes era a PRIMEIRA chave de VIEWS que a pessoa via — e a primeira
+   chave de VIEWS é a última tela que entrou no objeto, não uma escolha. */
+function paginaInicial(){
+  const p = USER && USER.pagina_inicial;
+  return (p && VIEWS[p] && podeVer(p)) ? p : 'radar';
+}
+function primeiraTela(){ return USER ? paginaInicial() : 'radar'; }
+function avisoSemAcesso(nome){
+  let el = document.getElementById('avisoAcesso');
+  if(!el){
+    el = document.createElement('div'); el.id = 'avisoAcesso'; el.className = 'aviso-acesso';
+    el.setAttribute('role', 'status'); document.body.appendChild(el);
+  }
+  el.textContent = 'Você não tem acesso a ' + nome + '. Abrimos a sua página inicial.';
+  el.hidden = false; clearTimeout(el._t);
+  el._t = setTimeout(() => { el.hidden = true; }, 7000);
+}
 function aplicarPermissoes(){
   // inclui o .side-foot: o link da Documentação saiu do menu Administração e
   // foi para o rodapé da sidebar, fora do <nav> — sem isto ele apareceria para
   // quem não tem a tela
   document.querySelectorAll('nav a[data-view], .side-foot a[data-view]').forEach(a=>{ a.style.display = podeVer(a.dataset.view) ? '' : 'none'; });
-  [['grpBi','subsBi'],['grpCom','subsCom'],['grpFin','subsFin'],['grpCtr','subsCtr'],['grpOpe','subsOpe'],['grpFro','subsFro'],['grpSup','subsSup'],['grpRh','subsRh'],['grpSpt','subsSpt'],['grpAdm','subsAdm']].forEach(([g,s])=>{
+  /* OS GRUPOS SAEM DA PÁGINA, não de lista escrita à mão: a lista tinha 10 dos
+     15 grupos, e Telemetria, ANTT, Gestão, TMS e WMS mostravam o título vazio
+     para quem não tinha nenhuma tela deles (achado de 13/09/2026). */
+  [...document.querySelectorAll('nav button.group[aria-controls]')].map(b=>[b.id, b.getAttribute('aria-controls')]).forEach(([g,s])=>{
     const subs=document.getElementById(s); if(!subs) return;
     const tem=[...subs.querySelectorAll('a[data-view]')].some(a=>a.style.display!=='none');
     const btn=document.getElementById(g); if(btn) btn.style.display = tem ? '' : 'none';
@@ -37760,6 +37838,33 @@ function aplicarPermissoes(){
   document.querySelectorAll('#drawer .dgrp').forEach(g=>{
     const tem=[...g.querySelectorAll('.dgrp-b a')].some(a=>a.style.display!=='none');
     g.style.display = tem ? '' : 'none';
+  });
+  abasPermissoes();
+}
+/* A aba desta unidade foi tirada? Os carregadores das abas bloqueáveis
+   (api/acessos.ABAS, campo `leitores`) perguntam isto ANTES de buscar: a rota
+   responderia 403, e o 403 viraria barra de erro numa aba que a pessoa nem vê. */
+function abaOculta(grupo, aba){
+  return ((USER && USER.abas_ocultas) || []).some(([g,k]) => g===grupo && k===aba);
+}
+/* ABAS TIRADAS desta pessoa (api/acessos.py). Só chegam aqui abas cuja ROTA o
+   servidor recusa — esconder é a consequência, não a proteção. O botão some,
+   o painel não abre por clique nem por atalho (abaTrocar), e o giro as pula. */
+function abasPermissoes(){
+  document.querySelectorAll('.subtabs button[data-sem-acesso]').forEach(bt=>{
+    bt.hidden=false; bt.removeAttribute('data-sem-acesso'); });
+  document.querySelectorAll('.aba[data-sem-acesso]').forEach(p=>p.removeAttribute('data-sem-acesso'));
+  ((USER && USER.abas_ocultas) || []).forEach(([g,k])=>{
+    const sel='[data-abas="'+g+'"]';
+    const bt=document.querySelector('.subtabs'+sel+' button[data-aba="'+k+'"]');
+    const pn=document.querySelector('.aba'+sel+'[data-aba="'+k+'"]');
+    if(pn) pn.setAttribute('data-sem-acesso','');
+    if(!bt) return;
+    bt.hidden=true; bt.setAttribute('data-sem-acesso','');
+    if(bt.getAttribute('aria-selected')==='true'){
+      const outro=[...document.querySelectorAll('.subtabs'+sel+' button[data-aba]')].find(b=>!b.hidden);
+      if(outro) abaTrocar(g, outro.dataset.aba); else if(pn) pn.hidden=true;
+    }
   });
 }
 function lgHTML(modo){
@@ -37991,7 +38096,7 @@ function entrar(){
      memoizado em filtrosPromise e liberado a qualquer usuario logado com
      qualquer tela, entao carrega uma vez no arranque, para o painel inteiro. */
   filtrosPromise = filtrosPromise || initFiltros();
-  if(!podeVer(currentView())) location.hash = '#'+primeiraTela();
+  /* a tela pedida sem acesso é tratada no router: avisa e corrige o endereço */
   router();
   if(USER.deve_trocar_senha) abrirTrocarSenha(true);
   // pré-carrega o financeiro em segundo plano para navegação instantânea
@@ -39588,6 +39693,7 @@ async function loadJorraster(fundo){
 let DATADI = null, diSeq = 0;
 
 async function carregarDiarias(fundo){
+  if(abaOculta('jorn','diaria')) return;   // aba tirada (api/acessos.ABAS)
   const seq = ++diSeq;
   try{
     const r = await fetch('/api/jornada/diarias',
@@ -39719,6 +39825,7 @@ function renderDiarias(d){
 let DATAAU = null, auSeq = 0, auCarregou = false;
 
 async function carregarAuditDiarias(forcar){
+  if(abaOculta('jorn','diaria')) return;   // aba tirada (api/acessos.ABAS)
   if(auCarregou && !forcar) return;
   auCarregou = true;
   const seq = ++auSeq;
@@ -41069,15 +41176,19 @@ async function loadGestao(){
   const btn=document.getElementById('btnRefresh'); btn.disabled=true;
   document.getElementById('content').classList.add('loading');
   try{
-    const [ru,rp,rt,rc]=await Promise.all([
+    const [ru,rp,rt,rc,rca]=await Promise.all([
       fetch('/api/gestao/usuarios',{cache:'no-store'}),
       fetch('/api/gestao/perfis',{cache:'no-store'}),
       fetch('/api/gestao/telas',{cache:'no-store'}),
-      fetch('/api/gestao/config',{cache:'no-store'})]);
+      fetch('/api/gestao/config',{cache:'no-store'}),
+      // o catálogo de acessos (0091): sem ele a Gestão abre igual, só sem abas bloqueáveis
+      fetch('/api/gestao/acessos/catalogo',{cache:'no-store'}).catch(()=>null)]);
     if(seq!==gesSeq) return;
     if(!ru.ok||!rp.ok||!rt.ok||!rc.ok){ showBanner('Erro ao carregar a área de gestão.'); return; }
+    let catalogo={abas:[], sem_menu:[]};
+    if(rca && rca.ok){ try{ catalogo=await rca.json(); }catch(e){} }
     DATAGES={usuarios:(await ru.json()).usuarios, perfis:(await rp.json()).perfis,
-             telas:(await rt.json()).telas, config:await rc.json()};
+             telas:(await rt.json()).telas, config:await rc.json(), catalogo};
     LOADEDQS.gestao=qsView('gestao');
     hideBanner(); renderGestao();
   }catch(e){ if(seq===gesSeq) showBanner('Não foi possível falar com a API.', e.message); }
@@ -42563,6 +42674,7 @@ function ctetxTooltip(){
 }
 
 function loadCtetx(){
+  if(abaOculta('cp','transmitidos')) return;   // aba tirada (api/acessos.ABAS)
   const el = document.getElementById('fCtetxDias');
   const dias = el ? (el.value || '90') : '90';
   skelKpis('kpis-ctetx-a', 4); skelKpis('kpis-ctetx-b', 4);
@@ -43277,10 +43389,11 @@ function renderGesUsuarios(){
       ${(u.cargo||u.setor)?`<span class="sub">${esc([u.cargo,u.setor].filter(Boolean).join(' · '))}</span>`:''}</div></div></td>
     <td>${esc(u.email)}${(u.telefone_fmt||u.ramal)
       ?`<span class="sub">${esc([u.telefone_fmt,u.ramal?('ramal '+u.ramal):''].filter(Boolean).join(' · '))}</span>`:''}</td>
-    <td>${esc(u.perfil)}${u.perfil_admin?' <span class="badge b-warn">admin</span>':''}</td>
+    <td>${esc(u.perfil)}${u.perfil_admin?' <span class="badge b-warn">admin</span>':''}${gesAcessoResumo(u)}</td>
     <td>${usrStatus(u)}</td>
     <td class="num">${u.ultimo_login?esc(fmtDT(String(u.ultimo_login).replace('T',' ').slice(0,16))):'<span style="color:var(--n500)">nunca acessou</span>'}</td>
     <td class="num"><button class="ghost gbtn" onclick="gesUsuarioModal(${u.id})">Editar</button>
+      <button class="ghost gbtn" onclick="gesAcessosModal(${u.id})">Acessos</button>
       <button class="ghost gbtn" onclick="gesUsuarioExcluir(${u.id})">Excluir</button></td>
   </tr>`).join('') || '<tr><td colspan="6">Nenhum usuário.</td></tr>';
 }
@@ -43307,7 +43420,9 @@ function gesUsuarioModal(id){
       ${fotoEdHtml()}
       <div><label for="gu-nome">Nome</label><input type="text" id="gu-nome" value="${u?esc(u.nome):''}"></div>
       <div><label for="gu-email">E-mail</label><input type="email" id="gu-email" value="${u?esc(u.email):''}"></div>
-      <div><label for="gu-perfil">Perfil</label><select id="gu-perfil">${perfs}</select></div>
+      <div><label for="gu-perfil">Perfil</label><select id="gu-perfil" onchange="gesPaginaRefazer()">${perfs}</select></div>
+      <div><label for="gu-pagina">Página inicial</label><select id="gu-pagina"></select>
+        <div class="hint" style="margin-top:4px">A tela que abre quando a pessoa entra. Só aparecem as telas que ela pode abrir; se ela perder o acesso a esta tela, abre o Radar.</div></div>
       <div><label for="gu-tel">Telefone <span style="font-weight:400;text-transform:none">(opcional)</span></label>
         <input type="text" id="gu-tel" inputmode="tel" placeholder="(47) 99999-8888"
                value="${u?esc(u.telefone_fmt||''):''}"></div>
@@ -43331,6 +43446,9 @@ function gesUsuarioModal(id){
     <div class="m-err" id="m-err"></div>
     <div class="m-foot"><button class="ghost" onclick="fecharModal()">Cancelar</button>
       <button class="btn" onclick="gesUsuarioSalvar(${id||'null'})">${u?'Salvar':'Criar usuário'}</button></div>`);
+  GU_ACESSOS = u ? (u.acessos||[]) : [];
+  GU_PAGINA = u ? (u.pagina_inicial||'') : '';
+  gesPaginaRefazer();
 }
 async function gesUsuarioSalvar(id){
   const V=x=>(document.getElementById(x).value||'').trim();
@@ -43340,6 +43458,10 @@ async function gesUsuarioSalvar(id){
     telefone:V('gu-tel'), cargo:V('gu-cargo'), setor:V('gu-setor'), ramal:V('gu-ramal'),
     cliente_cnpj_raiz:V('gu-cliente'),
   };
+  /* A página inicial só vai quando MUDOU: uma página que ficou sem acesso
+     (a pessoa perdeu a tela) não pode travar a edição do telefone dela. */
+  const pag=V('gu-pagina');
+  if(pag!==GU_PAGINA) payload.pagina_inicial=pag;
   if(FOTOED.valor!==undefined) payload.foto=FOTOED.valor;
   const senha=document.getElementById('gu-senha').value||'';
   if(id){
@@ -43387,6 +43509,120 @@ async function gesUsuarioExcluir(id){
     if(!r.ok){ alert(d.mensagem||'Não foi possível excluir.'); return; }
     loadGestao();
   }catch(e){ alert('Não foi possível falar com a API.'); }
+}
+/* ACESSOS POR USUÁRIO, por cima do perfil (api/acessos.py, 13/09/2026). O
+   perfil segue sendo a regra; a exceção fica aqui, com nome. Tirar vence;
+   admin vê tudo; aba só aparece se o servidor consegue recusar a rota dela.
+   `gesAcessoEfetivo` é o ESPELHO de `acessos.efetivas` só para a tela mostrar
+   a soma — quem decide o acesso é sempre o servidor. */
+let GU_ACESSOS = [], GU_PAGINA = '', GA_USR = null;
+function gesAcessoEfetivo(perfilId, ajustes){
+  const p=(DATAGES.perfis||[]).find(x=>x.id===perfilId)||{};
+  const todas=DATAGES.telas.map(t=>t.chave);
+  if(p.admin) return {admin:true, telas:new Set(todas)};
+  const perfil=new Set(p.telas||[]);
+  const lib=new Set(ajustes.filter(a=>a.efeito==='liberar').map(a=>a.chave));
+  const tir=new Set(ajustes.filter(a=>a.efeito==='tirar').map(a=>a.chave));
+  return {admin:false, telas:new Set(todas.filter(t=>(perfil.has(t)||lib.has(t)) && !tir.has(t)))};
+}
+function gesAcessoResumo(u){
+  const aj=u.acessos||[];
+  const abasCat=new Set(((DATAGES.catalogo||{}).abas||[]).map(a=>a.chave));
+  const lib=aj.filter(a=>a.efeito==='liberar').length;
+  const tir=aj.filter(a=>a.efeito==='tirar' && !abasCat.has(a.chave)).length;
+  const abas=aj.filter(a=>abasCat.has(a.chave)).length;
+  const partes=[];
+  if(lib) partes.push('+'+lib+' tela'+(lib>1?'s':''));
+  if(tir) partes.push('−'+tir+' tela'+(tir>1?'s':''));
+  if(abas) partes.push('−'+abas+' aba'+(abas>1?'s':''));
+  if(u.pagina_inicial) partes.push('início: '+(VIEWS[u.pagina_inicial]||u.pagina_inicial));
+  if(!partes.length) return '';
+  const inerte = (u.perfil_admin && aj.length) ? ' (ajustes não se aplicam: admin)' : '';
+  return `<span class="sub">${esc(partes.join(' · ')+inerte)}</span>`;
+}
+function gesPaginaRefazer(){
+  const sel=document.getElementById('gu-pagina'); if(!sel) return;
+  const atual = sel.options.length ? sel.value : GU_PAGINA;
+  const ef = gesAcessoEfetivo(+document.getElementById('gu-perfil').value, GU_ACESSOS);
+  const semMenu = new Set((DATAGES.catalogo||{}).sem_menu||[]);
+  const grupos = {};
+  DATAGES.telas.forEach(t=>{
+    if(ef.telas.has(t.chave) && !semMenu.has(t.chave) && VIEWS[t.chave])
+      (grupos[t.grupo]=grupos[t.grupo]||[]).push(t);
+  });
+  const deTodos=[['apps','Aplicativos'],['sup','Suporte']]
+    .concat(ef.admin ? [['gestao','Gestão'],['srv','Saúde do Servidor']] : []);
+  let h='<option value="">Radar (padrão da casa)</option>'
+    + '<optgroup label="De todos">'+deTodos.map(([k,r])=>`<option value="${k}">${esc(r)}</option>`).join('')+'</optgroup>';
+  Object.entries(grupos).forEach(([g,ts])=>{
+    h+=`<optgroup label="${esc(g)}">`+ts.map(t=>`<option value="${esc(t.chave)}">${esc(t.rotulo)}</option>`).join('')+'</optgroup>';
+  });
+  sel.innerHTML=h;
+  if(atual && ![...sel.options].some(o=>o.value===atual))
+    sel.insertAdjacentHTML('beforeend',
+      `<option value="${esc(atual)}">${esc((VIEWS[atual]||atual)+' — sem acesso, abre o Radar')}</option>`);
+  sel.value=atual||'';
+}
+function gesAcessosModal(id){
+  const u=DATAGES.usuarios.find(x=>x.id===id); if(!u) return;
+  GA_USR=u;
+  const aj=new Map((u.acessos||[]).map(a=>[a.chave,a.efeito]));
+  const p=(DATAGES.perfis||[]).find(x=>x.id===u.perfil_id)||{};
+  const doPerfil=new Set(p.telas||[]);
+  const abas=(DATAGES.catalogo||{}).abas||[];
+  const grupos={};
+  DATAGES.telas.forEach(t=>{ (grupos[t.grupo]=grupos[t.grupo]||[]).push(t); });
+  const corpo=Object.entries(grupos).map(([g,ts])=>`<h4>${esc(g)}</h4>`+ts.map(t=>{
+    const noPerfil=!!p.admin || doPerfil.has(t.chave);
+    const ef=aj.get(t.chave)||'';
+    const opc=noPerfil
+      ? `<option value="">no perfil</option><option value="tirar" ${ef==='tirar'?'selected':''}>tirar</option>`
+      : `<option value="">fora do perfil</option><option value="liberar" ${ef==='liberar'?'selected':''}>liberar</option>`;
+    const suas=abas.filter(a=>a.tela===t.chave).map(a=>
+      `<label class="ga-aba"><input type="checkbox" class="ga-aba-cx" value="${esc(a.chave)}" ${aj.get(a.chave)==='tirar'?'checked':''} onchange="gesAcessosResumo()"> tirar a aba ${esc(a.rotulo)}</label>`).join('');
+    return `<div class="ga-tela"><div class="ga-linha"><span>${esc(t.rotulo)}</span>
+      <select class="ga-tela-sel" data-chave="${esc(t.chave)}" aria-label="${esc(t.rotulo)}" onchange="gesAcessosResumo()">${opc}</select></div>${suas}</div>`;
+  }).join('')).join('');
+  abrirModal(`
+    <h3>Acessos de ${esc(u.nome)}</h3>
+    <p class="ga-resumo">Perfil <b>${esc(u.perfil)}</b>. Os ajustes valem por cima do perfil: <b>tirar</b> vence sempre, e vale no próximo clique da pessoa, sem ela precisar sair.
+      ${p.admin?'<br><b>Perfil administrador: os ajustes ficam guardados, mas não se aplicam enquanto o perfil for administrador.</b>':''}</p>
+    <div class="ga-lista">${corpo}</div>
+    <p class="ga-resumo" id="ga-resumo"></p>
+    <p class="ga-resumo">Só aparecem as abas que o servidor consegue bloquear, porque os dados delas vêm de uma rota própria. Nas demais abas os dados chegam junto com a tela, e esconder o botão não protegeria o dado.</p>
+    <div class="m-err" id="m-err"></div>
+    <div class="m-foot"><button class="ghost" onclick="fecharModal()">Cancelar</button>
+      <button class="btn" onclick="gesAcessosSalvar(${u.id})">Salvar acessos</button></div>`);
+  gesAcessosResumo();
+}
+function gesAcessosColetar(){
+  const out=[];
+  document.querySelectorAll('.ga-tela-sel').forEach(s=>{ if(s.value) out.push({chave:s.dataset.chave, efeito:s.value}); });
+  document.querySelectorAll('.ga-aba-cx:checked').forEach(c=>out.push({chave:c.value, efeito:'tirar'}));
+  return out;
+}
+function gesAcessosResumo(){
+  const el=document.getElementById('ga-resumo'); if(!el||!GA_USR) return;
+  const aj=gesAcessosColetar();
+  const abasCat=new Set(((DATAGES.catalogo||{}).abas||[]).map(a=>a.chave));
+  const ef=gesAcessoEfetivo(GA_USR.perfil_id, aj);
+  const lib=aj.filter(a=>a.efeito==='liberar').length;
+  const tir=aj.filter(a=>a.efeito==='tirar' && !abasCat.has(a.chave)).length;
+  const abas=aj.filter(a=>abasCat.has(a.chave)).length;
+  el.textContent = ef.admin
+    ? 'Acesso efetivo: tudo (perfil administrador).'
+    : `Acesso efetivo: ${ef.telas.size} tela${ef.telas.size===1?'':'s'} · ${lib} liberada${lib===1?'':'s'} · ${tir} tirada${tir===1?'':'s'} · ${abas} aba${abas===1?'':'s'} tirada${abas===1?'':'s'}.`;
+}
+async function gesAcessosSalvar(id){
+  let r;
+  try{
+    r=await fetch('/api/gestao/usuarios/'+id,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({acessos:gesAcessosColetar()})});
+  }catch(e){ mErro('Não foi possível falar com a API.'); return; }
+  const rr=await respostaJSON(r);
+  if(!rr.ok){ mErro((rr.dados||{}).mensagem||'Não foi possível salvar.'); return; }
+  fecharModal(); loadGestao();
+  if(id===USER.id){ try{ USER=await (await fetch('/api/auth/me',{cache:'no-store'})).json(); aplicarPermissoes(); }catch(e){} }
 }
 function gesPerfilModal(id){
   const p = id ? DATAGES.perfis.find(x=>x.id===id) : null;
@@ -44392,6 +44628,7 @@ async function loadWmsEst(){
 const WMS_DOC_ROT = {recebimento: 'recebimento', armazenagem: 'armazenagem', movimentacao: 'movimentação',
                      separacao: 'separação', expedicao: 'expedição', inventario: 'inventário', ajuste: 'ajuste'};
 async function wmsEstKardex(){
+  if(abaOculta('wmsest','kdx')) return;   // aba tirada (api/acessos.ABAS)
   const arm = wmsArmId(); if(!arm) return;
   const q = new URLSearchParams({armazem: arm, dias: wmsVal('wmsest-kdias') || '30'});
   if(wmsVal('wmsest-kdoc')) q.set('doc', wmsVal('wmsest-kdoc'));
@@ -47311,6 +47548,7 @@ async function supSincronizar(){
   setTimeout(() => { b.textContent = t; b.disabled = false; }, 4000);
 }
 async function supConfigCarregar(){
+  if(abaOculta('supfila','config')) return;   // aba tirada (api/acessos.ABAS)
   const f = document.getElementById('sup-config-form'); if(!f) return;
   try{
     const r = await fetch('/api/suporte/atendimento/config',{cache:'no-store'}); const d = await respostaJSON(r);

@@ -67,13 +67,40 @@ ROTAS_DE_TESTE = ("/api/_t_",)
 
 
 def _rotas() -> list[str]:
+    """Todas as rotas /api do app — INCLUSIVE as dos routers incluídos.
+
+    ATÉ 13/09/2026 ESTE GUARD ENXERGAVA 294 DAS 417. No FastAPI 0.139,
+    `include_router` não copia as rotas para `app.routes`: guarda um
+    `_IncludedRouter` com o router original dentro, e a leitura antiga (só
+    `app.routes`) pulava auth, gestão, CRM, Suporte, Equipamentos e WMS
+    inteiros — 123 rotas nunca conferidas. Nenhuma estava sem dono, mas o guard
+    não tinha como saber: achou-se ao montar o registro de abas bloqueáveis,
+    quando "a rota do Suporte não existe no app" era mentira da leitura.
+    """
     from api.main import app
-    return sorted({r.path for r in app.routes
-                   if getattr(r, "path", "").startswith("/api/")
-                   and not r.path.startswith(ROTAS_DE_TESTE)})
+    achadas: set[str] = set()
+
+    def andar(rotas, prefixo: str = "") -> None:
+        for r in rotas:
+            if type(r).__name__ == "_IncludedRouter":
+                andar(r.original_router.routes,
+                      prefixo + (getattr(r.include_context, "prefix", "") or ""))
+            elif getattr(r, "path", ""):
+                p = prefixo + r.path
+                if p.startswith("/api/") and not p.startswith(ROTAS_DE_TESTE):
+                    achadas.add(p)
+
+    andar(app.routes)
+    return sorted(achadas)
 
 
 def _tem_dono(caminho: str) -> bool:
+    # O que o middleware deixa passar ANTES do mapa de telas — rota pública
+    # (login, esqueci a senha…) e autoatendimento de conta (me, logout…). O
+    # guard chama as MESMAS funções do middleware: uma segunda lista escrita
+    # à mão aqui envelheceria calada, que é o defeito que este arquivo caça.
+    if auth._rota_publica(caminho) or auth.rota_sem_tela(caminho):
+        return True
     if any(caminho == p or caminho.startswith(p + "/")
            for p in FORA_DO_RBAC_DE_TELA):
         return True
@@ -87,7 +114,12 @@ def test_a_varredura_acha_rota_de_verdade():
     """Varredura que não acha nada passa por vacuidade: se o import do app
     mudar de forma, tudo aqui vira verde-para-sempre."""
     rotas = _rotas()
-    assert len(rotas) > 100, f"só {len(rotas)} rotas — a varredura não está vendo o app"
+    assert len(rotas) > 300, f"só {len(rotas)} rotas — a varredura não está vendo o app"
+    # os routers INCLUÍDOS: a leitura antiga não os via, e o total ainda
+    # passava de 100 — o piso sozinho não pegou a cegueira
+    for prefixo in ("/api/auth/", "/api/suporte/", "/api/wms/", "/api/comercial/crm/"):
+        assert any(c.startswith(prefixo) for c in rotas), (
+            f"a varredura não vê {prefixo} — os routers incluídos ficaram de fora")
 
 
 def test_toda_rota_da_api_tem_dono_no_RBAC():
