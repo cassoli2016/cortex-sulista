@@ -324,36 +324,30 @@ moram em arquivos que não falam do assunto.
   Cerca `Tipo` 2 é POLÍGONO com `Raio` "0" e uma linha por vértice — tratá-la
   como círculo de raio zero reprova a unidade inteira. Guards:
   `tests/pontocertificado/`.
-- **O SALDO DE `FRQ_BANCOHORAS` NÃO É PASSIVO — É UM ACUMULADOR QUE NINGUÉM
-  ZERA.** A casa FECHA o semestre e paga como `H.E 50%` (picos em ago/2025,
-  fev/2026 e ago/2026, contra ~400 h dos meses comuns), e **esse pagamento não
-  baixa o saldo no ERP**: em 24 meses o evento `DEBITO BANCO DE HORAS`
-  movimentou 0,6% das horas pagas no mesmo período. Nos três
-  fechamentos o saldo subiu 42 h, caiu 144 h e subiu 245 h. **O erro está na
-  BAIXA, não no crédito**: seis pessoas que partiram do zero receberam 944,8 h
-  em dinheiro e o banco lançou 950,7 h de crédito contra 85,8 h de débito —
-  razão pagamento/saldo de **1,00** em quatro delas. `meses_compensar = 0`, e
-  o fechamento não gera o débito.
-  A tela publicou isso como "Passivo — R$ [valor omitido]" em 09/09/2026, e **quem
-  pegou foi quem opera, lendo a tela e perguntando "o banco não zera a cada 6
-  meses?"**. A lição de método é a que dói: eu validei o número contra si
-  mesmo — a série batia, o cálculo batia — e não contra a realidade que ele
-  afirma descrever. **Número coerente não é número verdadeiro.** Agora o saldo
-  não viaja sozinho: `confronto()` põe as duas contabilidades na mesma linha do
-  tempo, e o custo em reais carrega `ressalva_custo`. Guards:
+- **O BANCO DE HORAS SE LÊ COMO O EXTRATO OFICIAL DO GLOBUS — E A HORA DELE É
+  HH.MM** (`api/frequencia.py`, 14/09/2026). Quem opera mandou o "Extrato do
+  Banco de Horas" (08/2026, 97 pessoas) e ele foi reproduzido **97/97**: saldo
+  anterior = `saldoanterior`, saldo atual = `credito − debito`, total =
+  `saldoanterior` do mês SEGUINTE. Duas coisas estavam erradas na tela, as duas
+  caladas. **O campo:** ela lia `saldonacompet`, um ACUMULADOR que não conversa
+  com o extrato (6.161 h credoras contra 1.158 h). **A unidade:** `-17.36` é
+  −17h36, e ela somava como decimal (15.22 − 12.37 dava 2,85; o certo é 2:45) —
+  toda conta passa por `minutos()`, e a tela mostra H:MM, como o extrato. A
+  FOLHA é diferente: `flp_fichaeventos.referencia` é hora DECIMAL.
+  **O BANCO ZERA QUANDO A CASA PAGA** (`valorpago`; em 2026, um para um entre
+  pagar e zerar, com os fechamentos grandes em fev e ago) — o contrário do que
+  estava escrito aqui desde 09/09, "o pagamento não baixa o saldo", que era
+  verdade sobre o acumulador. Com isso saíram `FECHAMENTO_CONHECIDO`,
+  `PERIODO_COMPENSACAO_MESES`, a janela e o "saldo desde o fechamento": o ERP
+  já registra o acerto, e o "levado" se LÊ no `saldoanterior` do mês seguinte,
+  nunca se calcula. Só ATIVOS nos totais, como o extrato; desligado e afastado
+  com saldo aparecem à parte.
+  **A lição continua a de 09/09, um degrau abaixo:** naquela vez o número foi
+  validado contra si mesmo; desta, contra uma série do próprio ERP — que era a
+  série errada. **Validar é reproduzir o relatório que o dono do dado usa,
+  linha a linha.** Guards: `tests/rh/test_banco_de_horas_extrato.py` (o dublê
+  recusa qualquer consulta a `saldonacompet`) e
   `tests/rh/test_frequencia_confronto.py`.
-  **O PERÍODO DE COMPENSAÇÃO É DE SEIS MESES** (quem opera, 11/09/2026 — a CLT
-  admite até doze com acordo coletivo, e a casa pratica seis), então a janela
-  aberta em ago/2026 fecha em **fev/2027**. Isso também não está no ERP, e as
-  duas pontas são constantes escritas à mão: `FECHAMENTO_CONHECIDO` e
-  `PERIODO_COMPENSACAO_MESES`. **Constante escrita à mão envelhece CALADA** — e
-  aqui o envelhecimento reconstrói o defeito original: passado fev/2027 sem que
-  alguém atualize a data, `saldo_desde_fechamento()` segue somando desde
-  ago/2026, o semestre já pago volta para dentro do número, e a tela mostra o
-  mesmo cartão de sempre. Por isso `janela_do_fechamento()` viaja no payload e
-  a tela ABRE COM FAIXA DE AVISO quando a janela vence. Guards:
-  `tests/rh/test_frequencia_desde_fechamento.py` (cada constante sabotada em
-  separado).
 - **A COLETA DO PONTO É POR CURSOR, DE 10 EM 10 MINUTOS, E O WEBHOOK FICOU DE
   FORA POR DECISÃO** (quem opera, 11/09/2026). A API do fornecedor expõe
   `WebhookSubscription`, e quem reencontrar isso vai propor a troca achando que

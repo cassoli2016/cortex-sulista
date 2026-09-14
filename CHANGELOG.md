@@ -4,6 +4,13 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.80.1] — 14/09/2026  ·  CX-14/09/2026-v1.80.1
+
+### Corrigido
+- Frequência e Banco de Horas — o saldo agora é o mesmo do Extrato do Banco de Horas do Globus, conferido pessoa a pessoa: saldo anterior, movimento do mês (no extrato, "Saldo atual") e o levado para o mês seguinte (no extrato, "Total"), em horas e minutos, como no extrato. A tela mostrava um campo acumulado do sistema, que não é o saldo, e somava horas e minutos como se fossem números decimais.
+- Frequência e Banco de Horas — quem recebe o saldo credor no fechamento aparece zerado no mês seguinte, como no ERP. Saíram a data de fechamento escrita à mão, o "saldo desde o fechamento" e o aviso de janela vencida.
+- Frequência e Banco de Horas — só quem está ativo entra nos totais, como no extrato; desligados e afastados que ainda têm saldo aparecem num cartão à parte.
+
 ## [1.80.0] — 14/09/2026  ·  CX-14/09/2026-v1.80.0
 
 ### Adicionado

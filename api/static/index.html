@@ -7870,19 +7870,17 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
         <div class="subtabs" role="tablist" data-abas="freq" aria-label="Seções desta tela">
-          <button role="tab" id="tabfreq-passivo" data-aba="passivo" aria-controls="aba-freq-passivo" aria-selected="true" onclick="abaTrocar('freq','passivo')">Passivo</button>
+          <button role="tab" id="tabfreq-passivo" data-aba="passivo" aria-controls="aba-freq-passivo" aria-selected="true" onclick="abaTrocar('freq','passivo')">Saldo</button>
           <button role="tab" id="tabfreq-dia" data-aba="dia" aria-controls="aba-freq-dia" aria-selected="false" onclick="abaTrocar('freq','dia')">O dia <span class="aban" id="freqNDia"></span></button>
           <button role="tab" id="tabfreq-pessoas" data-aba="pessoas" aria-controls="aba-freq-pessoas" aria-selected="false" onclick="abaTrocar('freq','pessoas')">Por pessoa <span class="aban" id="freqNPess"></span></button>
           <button role="tab" id="tabfreq-batidas" data-aba="batidas" aria-controls="aba-freq-batidas" aria-selected="false" onclick="abaTrocar('freq','batidas')">Batidas <span class="aban" id="freqNBat"></span></button>
         </div>
         <div class="aba" data-abas="freq" data-aba="passivo" id="aba-freq-passivo" role="tabpanel" aria-labelledby="tabfreq-passivo">
-          <div id="freq-janela-aviso"></div>
           <div class="kband"><div class="kpis k4" id="kpis-freq"></div></div>
           <div class="card"><div class="head"><h2>O saldo ao longo do tempo</h2><span class="hint">credor × devedor · 14 meses · mês em curso hachurado</span></div>
             <div class="chartwrap"><div id="chartFreqSerie" style="width:100%;height:230px" role="img"></div></div></div>
-          <div class="card"><div class="head"><h2>O saldo registrado x o que foi pago <span class="ihelp" tabindex="0" role="img" aria-label="por que os dois nao batem" title="A casa paga hora extra todo mes, com picos a cada seis meses. Nada disso baixa o saldo do banco de horas no ERP: o evento que daria a baixa quase nao e usado. Sao duas contabilidades que rodam em paralelo e nao se encontram — por isso o saldo do cartao acima nao pode ser lido como divida.">i</span></h2>
-            <span class="hint">as duas contabilidades, na mesma linha do tempo</span></div>
-            <div id="freq-conf-aviso"></div>
+          <div class="card"><div class="head"><h2>O saldo x a hora extra paga <span class="ihelp" tabindex="0" role="img" aria-label="como se le" title="O saldo é o do Extrato do Banco de Horas do Globus: saldo anterior + crédito − débito, só de quem está ativo, no fim de cada mês. A hora extra paga vem da folha. Quando a casa paga o saldo credor (o fechamento, com picos em fevereiro e agosto), quem foi pago entra no mês seguinte zerado — por isso o saldo cai no mês que se paga. A folha grava hora decimal e o banco grava horas.minutos: a comparação é feita depois da conversão.">i</span></h2>
+            <span class="hint">o saldo do extrato e o que a folha pagou, mês a mês</span></div>
             <div class="tablewrap tabroll" id="freq-confronto"></div></div>
           </div>
         <!-- O DIA: a pergunta que o ERP nao responde.
@@ -7935,9 +7933,9 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="tablewrap" id="freq-faixas"></div>
             <div id="freq-fonte" style="color:var(--n500);font-size:11.5px;margin-top:9px"></div>
           </div>
-          <div class="card"><div class="head"><h2>Saldo por pessoa</h2><span class="hint" id="freq-pess-hint">credor primeiro · variação contra 6 meses atrás</span></div>
+          <div class="card"><div class="head"><h2>Saldo por pessoa <span class="ihelp" tabindex="0" role="img" aria-label="de onde vem" title="As colunas do Extrato do Banco de Horas do Globus, na ordem dele (por nome): Saldo anterior; Movimento = crédito menos débito do mês (no extrato, Saldo atual); Saldo no fim do mês = os dois somados; Levado = o saldo anterior do mês seguinte, depois do acerto (no extrato, Total). O Globus grava hora como horas.minutos, e a tela mostra H:MM, como o extrato.">i</span></h2><span class="hint" id="freq-pess-hint">as colunas do Extrato do Banco de Horas do Globus</span></div>
             <div class="tablewrap tabroll" id="freq-pessoas"></div></div>
-          <div class="card"><div class="head"><h2>Conferir no cadastro <span class="ihelp" tabindex="0" role="img" aria-label="por que estes saem dos KPIs" title="Saldo alto que praticamente não se move não é jornada: é registro que ninguém fechou. O corte é a razão entre o movimento de 6 meses e o próprio saldo (menos de 0,10, com saldo de 100 h ou mais) — medido sobre a distribuição real, que tem degrau claro nesse ponto. Estes saem dos KPIs de propósito: um único saldo congelado de −823,5 h deslocaria o saldo líquido da casa em 23%, para o lado errado e em silêncio.">i</span></h2><span class="hint" id="freq-cad-hint">fora dos KPIs, com a evidência</span></div>
+          <div class="card"><div class="head"><h2>Fora do extrato: quem não está ativo <span class="ihelp" tabindex="0" role="img" aria-label="por que estes ficam fora dos totais" title="O Extrato do Banco de Horas do Globus lista só quem está ativo. Desligados e afastados que ainda têm saldo aparecem aqui, fora dos totais acima — saldo de desligado é acerto por fazer, e não pode sumir.">i</span></h2><span class="hint" id="freq-cad-hint">fora dos totais</span></div>
             <div class="tablewrap" id="freq-cadastro"></div></div>
         </div>
         <!-- BATIDAS: uma aba so, com as DUAS fontes.
@@ -33644,71 +33642,62 @@ async function loadFreq(){
   finally{ if(seq===freqSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
 function renderFreq(d){
-  const k=d.kpis||{}, pb=d.publico||{}, fr=d.frescor||{}, df=d.desde_fechamento||{};
+  const k=d.kpis||{}, pb=d.publico||{}, fr=d.frescor||{};
   reconciliarCompetencias(document.getElementById('fFreqComp'), d.competencias, d.competencia);
   const nf=(v,c)=>Number(v||0).toLocaleString('pt-BR',{maximumFractionDigits:c==null?0:c});
+  /* H:MM, COMO O EXTRATO DO BANCO DE HORAS DO GLOBUS. É com ele que o RH
+     confere esta tela, e "17,6 h" não se acha num extrato que diz 17:36. O
+     servidor já manda a hora formatada (`*_hhmm`, `anterior`, `fim`...): a
+     conversão do HH.MM do Globus tem um lugar só (`frequencia.minutos`). */
+  const hm=v=>v==null?'—':v;
+  const mesTxt=c=>c?(c.slice(5,7)+'/'+c.slice(0,4)):'—';
+  const seg=d.competencia_seguinte;
   const ts=new Date();
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+ts.toLocaleDateString('pt-BR');
 
   const hint=document.getElementById('freq-hint');
-  /* O ATRASO DA APURACAO FICA COLADO NA COMPETENCIA QUE ELE QUALIFICA. Saiu
-     da faixa do topo, mas nao pode sumir: a importacao do AFD e MANUAL, e
-     sem esta linha os numeros abaixo parecem mais frescos do que sao. */
-  if(hint) hint.textContent=pb.com_frequencia+' de '+pb.ativos+' ativos têm ponto · competência '+
+  /* O ATRASO DA APURACAO FICA COLADO NA COMPETENCIA QUE ELE QUALIFICA: a
+     importacao do AFD e MANUAL, e sem esta linha os numeros abaixo parecem
+     mais frescos do que sao. */
+  if(hint) hint.textContent=(pb.com_frequencia||0)+' de '+(pb.ativos||0)+' ativos têm ponto · competência '+
     (d.competencia||'—')+' · última marcação em '+(fr.ultimo_dia?fmtD(fr.ultimo_dia):'—')+
     ((fr.dias_atraso||0)>2?(' · '+fr.dias_atraso+' dias sem apurar'):'');
 
-  /* A JANELA DE COMPENSACAO, E O AVISO DE QUE ELA VENCEU. A data do ultimo
-     fechamento e escrita a mao (o ERP nao a registra); passada a janela sem
-     que alguem a atualize, o saldo volta a somar periodo JA PAGO — o defeito
-     que originou esta tela, de volta em silencio. Vencida, ela diz. */
-  const jn=df.janela||{};
-  const jan=jn.ate?('janela '+jn.desde+' → '+jn.ate):('desde '+(df.desde||'—'));
-  const ja=document.getElementById('freq-janela-aviso');
-  if(ja) ja.innerHTML = jn.vencida
-    ? '<div class="avisofaixa">'+esc(jn.aviso||'')+'</div>'
-    : '';
-
-  // KPIs. O passivo é o número-rei: é ele que não existia em lugar nenhum.
+  /* KPIs — o saldo do EXTRATO no fim da competência e o que foi levado
+     adiante. Até a v1.80.0 esta banda lia `saldonacompet`, um acumulador que
+     o extrato oficial desmentiu (6.161 h contra 1.158 h), e somava HH.MM como
+     decimal. O "levado" não é conta nossa: é o saldo anterior do mês seguinte,
+     depois do acerto — quem é pago entra zerado. */
   const serie=d.serie||[], fechadas=serie.filter(s=>!s.parcial);
   const ant=fechadas.length>1?fechadas[fechadas.length-2]:null;
   const atu=fechadas.length?fechadas[fechadas.length-1]:null;
   document.getElementById('kpis-freq').innerHTML=[
-    kpi('Saldo desde o fechamento', nf(df.credor_h,1)+' h', BRL.format(df.credor_rs||0)+' · '+(df.credores||0)+' pessoas · '+jan,
-        (df.credor_h||0)>200?'neg':'',
-        'O saldo que existe DE VERDADE: só o movimento posterior ao último fechamento semestral. É este o número de hoje — o do ERP acumula desde 2023 e nunca baixa o que foi pago.'),
-    kpi('Líquido desde o fechamento', nf(df.liquido_h,1)+' h',
-        'credor '+nf(df.credor_h,0)+' h · devedor '+nf(Math.abs(df.devedor_h||0),0)+' h em '+(df.devedores||0)+' pessoas',
-        (df.liquido_h||0)>0?'':'good'),
-    kpi('Maior saldo individual', nf(df.maior,1)+' h', 'desde o fechamento de '+(df.desde||'—')+
-        (jn.meses_restantes>0?(' · compensar em '+jn.meses_restantes+' mes'+(jn.meses_restantes>1?'es':'')):''),
-        (df.maior||0)>=100?'neg':''),
-    kpi('Acumulado no ERP', nf(k.passivo_horas,1)+' h', BRL.format(k.passivo_custo||0)+' · não é dívida',
-        'warn',
-        'O que o banco de horas do ERP registra desde 2023. Os pagamentos de hora extra não baixam este saldo, então ele NÃO é o passivo — está aqui para comparação, e some quando o ERP passar a dar a baixa.',
+    kpi('Credor no fim de '+mesTxt(d.competencia), hm(k.credor_hhmm)+' h',
+        (k.credores||0)+' pessoas · '+BRL.format(k.custo_credor||0)+' estimado', '',
+        'Saldo positivo no fim da competência: saldo anterior + crédito − débito, só de quem está ativo — no Extrato do Banco de Horas do Globus, as colunas Saldo anterior e Saldo atual somadas. O valor em reais é estimativa: '+(d.premissa_custo||''),
         ant&&atu?trendChip(atu.credor, ant.credor, {invert:true}):''),
+    kpi('Líquido', hm(k.liquido_hhmm)+' h',
+        'credor '+hm(k.credor_hhmm)+' · devedor '+hm(k.devedor_hhmm)+' em '+(k.devedores||0)+' pessoas',
+        (k.liquido_h||0)>0?'':'good'),
+    kpi(seg?('Levado para '+mesTxt(seg)):'Levado adiante', seg?(hm(k.levado_hhmm)+' h'):'—',
+        seg?((k.credores_zerados||0)+' de '+(k.credores||0)+' credores pagos e zerados')
+           :'o mês seguinte ainda não foi gerado no ERP', '',
+        'A coluna Total do extrato: o saldo anterior do mês seguinte, depois do acerto. Quando a casa paga o saldo credor, a pessoa entra no mês seguinte zerada. Vem do próprio ERP, não de conta nossa.'),
+    kpi('Maior saldo individual', hm(k.maior_hhmm)+' h',
+        (k.pessoas||0)+' pessoas ativas no extrato', (k.maior_h||0)>=100?'neg':''),
   ].join('');
 
-  // A série: credor × devedor. O mês em curso vai junto, MARCADO — escondê-lo
-  // faria a série parecer terminada num mês que ainda não fechou.
+  // A série: credor × devedor no fim de cada mês. O mês em curso vai junto,
+  // MARCADO — escondê-lo faria a série parecer terminada num mês que não fechou.
   chartCols('chartFreqSerie', serie.map(s=>s.comp.slice(2)+(s.parcial?'*':'')),
     [{nome:'Credor (a empresa deve)', cor:CC.amarelo, valores:serie.map(s=>s.credor)},
      {nome:'Devedor', cor:CC.azul, valores:serie.map(s=>s.devedor)}],
     {fmt:v=>nf(v,0)+' h', axisFmt:v=>nf(v,0)+' h', tipo:'num'});
 
-  /* O CONFRONTO: o que se paga x o que o saldo faz. E o cartao que impede a
-     tela de publicar um acumulador como divida — foi o defeito que subiu em
-     09/09/2026 e que quem opera pegou lendo a tela. */
+  /* O SALDO x A HORA EXTRA PAGA, mes a mes. O saldo aqui e o MESMO do cartao
+     (ha teste cobrando os dois caminhos); em horas decimais, porque e assim que
+     a folha grava a hora paga. */
   const cf=d.confronto||{}, cs=cf.serie||[];
-  const av=document.getElementById('freq-conf-aviso');
-  if(av && cf.pago_h){
-    const cresceu=(cf.saldo_no_fim||0)-(cf.saldo_no_inicio||0);
-    av.innerHTML='<div class="avisofaixa">Em '+cf.meses+' meses a casa pagou '
-      +nf(cf.pago_h,0)+' h de hora extra ('+BRL.format(cf.pago_rs||0)+') e o ERP baixou do banco apenas '
-      +nf(cf.baixa_pela_folha_h,1)+' h. <span style="font-weight:400">No mesmo periodo o saldo registrado '
-      +(cresceu>=0?'SUBIU ':'caiu ')+nf(Math.abs(cresceu),0)+' h. Os dois numeros nao se encontram: '
-      +'o saldo acima e um registro, nao uma divida apurada.</span></div>';
-  }
   const linhasConf=cs.slice().reverse().map(x=>{
     const v=x.variacao;
     return '<tr><td>'+esc(x.comp)+'</td><td class="num">'+nf(x.pago_h,1)+' h</td>'
@@ -33719,11 +33708,11 @@ function renderFreq(d){
   }).join('')||'<tr><td colspan="6" style="color:var(--n500)">sem historico</td></tr>';
   document.getElementById('freq-confronto').innerHTML=
     '<table><thead><tr><th>Competência</th><th class="num">HE paga</th><th class="num">Valor</th>'
-    +'<th class="num">Saldo do banco</th><th class="num">Variação</th><th class="num">Baixa no banco</th>'
+    +'<th class="num">Saldo credor</th><th class="num">Variação</th><th class="num">Baixa pela folha</th>'
     +'</tr></thead><tbody>'+linhasConf+'</tbody></table>';
 
   // Faixas do saldo credor
-  const fx=(d.faixas||[]).map(f=>`<tr><td>${esc(f.faixa)}</td><td class="num">${f.pessoas}</td><td class="num" style="font-weight:600">${nf(f.horas,1)} h</td><td class="num">${BRL.format(f.custo)}</td></tr>`).join('')
+  const fx=(d.faixas||[]).map(f=>`<tr><td>${esc(f.faixa)}</td><td class="num">${f.pessoas}</td><td class="num" style="font-weight:600">${esc(f.hhmm||nf(f.horas,1))} h</td><td class="num">${BRL.format(f.custo)}</td></tr>`).join('')
     ||'<tr><td colspan="4" style="color:var(--n500)">ninguém com saldo credor nesta competência</td></tr>';
   document.getElementById('freq-faixas').innerHTML=
     `<table><thead><tr><th>Faixa</th><th class="num">Pessoas</th><th class="num">Horas</th><th class="num">Custo estimado</th></tr></thead><tbody>${fx}</tbody></table>`;
@@ -33731,39 +33720,40 @@ function renderFreq(d){
   if(fh) fh.textContent='custo estimado = '+(d.premissa_custo||'');
   const ff=document.getElementById('freq-fonte'); if(ff) ff.textContent=d.fonte||'';
 
-  // Por pessoa
+  /* POR PESSOA, AS COLUNAS DO EXTRATO, NA ORDEM DELE (por nome): saldo
+     anterior, movimento (no extrato, "Saldo atual") e o levado (no extrato,
+     "Total"). E para conferir lado a lado com o papel que o RH ja tem. */
   const ps=d.pessoas||[];
-  abaContador('freqNPess', (df.pessoas||[]).length);
+  abaContador('freqNPess', ps.length);
   const ph=document.getElementById('freq-pess-hint');
-  if(ph) ph.textContent=(df.pessoas||[]).length+' pessoa(s) com movimento desde o fechamento de '+
-    (df.desde||'—')+' · a última coluna é o acumulado do ERP, que não baixa o que foi pago';
-  /* A TABELA MOSTRA O SALDO DESDE O FECHAMENTO — o que existe de verdade —
-     e o acumulado do ERP ao lado, para quem for conciliar. Publicar so o do
-     ERP era o defeito: ele nunca baixa o que foi pago. */
-  const acum={}; ps.forEach(p=>{ acum[p.chapa]=p; });
-  const linhas=(df.pessoas||[]).map(p=>{
-    const a=acum[p.chapa]||{};
-    const sit = p.situacao==='A' ? '' : `<span class="badge b-dang" title="não está ativo — saldo devia ter sido acertado">${p.situacao==='F'?'afastado':'desligado'}</span>`;
-    return `<tr><td>${esc(p.chapa)}</td><td>${esc(p.nome)} ${sit}</td><td>${esc(p.filial)}</td><td>${esc(p.funcao)}</td>`+
-      `<td class="num" style="font-weight:600;color:${p.horas>0?'var(--yellow)':'var(--n600)'}">${nf(p.horas,1)} h</td>`+
-      `<td class="num">${p.credito?nf(p.credito,1)+' h':'—'}</td>`+
-      `<td class="num">${p.debito?nf(p.debito,1)+' h':'—'}</td>`+
-      `<td class="num">${p.custo?BRL.format(p.custo):'—'}</td>`+
-      `<td class="num" style="color:var(--n500)">${a.horas!=null?nf(a.horas,1)+' h':'—'}</td></tr>`;
-  }).join('')||'<tr><td colspan="9" style="color:var(--n500)">ninguém com saldo desde o fechamento</td></tr>';
+  if(ph) ph.textContent=ps.length+' pessoa(s) ativas · as colunas do Extrato do Banco de Horas do Globus, em '+mesTxt(d.competencia);
+  const cor=v=>v>0?'var(--yellow)':(v<0?'var(--n600)':'var(--n500)');
+  const linhas=ps.map(p=>`<tr><td>${esc(p.chapa)}</td><td>${esc(p.nome)}</td><td>${esc(p.filial)}</td>`+
+      `<td class="num">${esc(hm(p.anterior))}</td><td class="num">${esc(hm(p.movimento))}</td>`+
+      `<td class="num" style="font-weight:600;color:${cor(p.fim_min)}">${esc(hm(p.fim))}</td>`+
+      `<td class="num">${seg?esc(hm(p.levado)):'—'}</td>`+
+      `<td class="num">${p.custo?BRL.format(p.custo):'—'}</td></tr>`).join('')
+    ||'<tr><td colspan="8" style="color:var(--n500)">ninguém com banco de horas nesta competência</td></tr>';
   document.getElementById('freq-pessoas').innerHTML=
-    `<table><thead><tr><th>Chapa</th><th>Nome</th><th>Filial</th><th>Função</th><th class="num">Saldo</th><th class="num">Crédito</th><th class="num">Débito</th><th class="num">Custo estimado</th><th class="num">Acum. ERP</th></tr></thead><tbody>${linhas}</tbody></table>`;
+    `<table><thead><tr><th>Chapa</th><th>Nome</th><th>Filial</th>`+
+    `<th class="num" title="no extrato: Saldo anterior">Saldo anterior</th>`+
+    `<th class="num" title="no extrato: Saldo atual — crédito menos débito do mês">Movimento</th>`+
+    `<th class="num">Saldo no fim do mês</th>`+
+    `<th class="num" title="no extrato: Total — o saldo anterior do mês seguinte, depois do acerto">Levado${seg?(' para '+mesTxt(seg)):''}</th>`+
+    `<th class="num">Custo estimado</th></tr></thead><tbody>${linhas}</tbody></table>`;
 
-  // Conferir no cadastro — fora dos KPIs, com a evidência
-  const cad=d.cadastro||[];
+  /* FORA DO EXTRATO: quem nao esta ativo e ainda tem saldo. Fora dos totais,
+     como no extrato — mas nunca some: saldo de desligado e acerto por fazer. */
+  const na=d.nao_ativos||[];
   const ch=document.getElementById('freq-cad-hint');
-  if(ch) ch.textContent=cad.length?(cad.length+' saldo(s) fora dos KPIs'):'nenhum saldo parado nesta competência';
-  document.getElementById('freq-cadastro').innerHTML=cad.length
-    ? `<table><thead><tr><th>Chapa</th><th>Nome</th><th>Filial</th><th class="num">Saldo</th><th class="num">Movimento 6m</th><th>Por que está aqui</th></tr></thead><tbody>`+
-      cad.map(c=>`<tr><td>${esc(c.chapa)}</td><td>${esc(c.nome)}</td><td>${esc(c.filial)}</td>`+
-        `<td class="num" style="font-weight:600">${nf(c.horas,1)} h</td><td class="num">${nf(c.movimento_6m,1)} h</td>`+
-        `<td style="color:var(--n600)">${esc(c.motivo||'')}</td></tr>`).join('')+'</tbody></table>'
-    : '<div style="color:var(--n500);padding:9px 0">Nenhum saldo parado nesta competência — todos se movimentaram nos últimos 6 meses.</div>';
+  if(ch) ch.textContent=na.length?(na.length+' fora dos totais'):'ninguém nesta competência';
+  document.getElementById('freq-cadastro').innerHTML=na.length
+    ? `<table><thead><tr><th>Chapa</th><th>Nome</th><th>Situação</th><th class="num">Saldo anterior</th><th class="num">Movimento</th><th class="num">Saldo no fim do mês</th></tr></thead><tbody>`+
+      na.map(p=>`<tr><td>${esc(p.chapa)}</td><td>${esc(p.nome)}</td>`+
+        `<td><span class="badge b-dang">${p.situacao==='F'?'afastado':(p.situacao==='D'?'desligado':esc(p.situacao||'—'))}</span></td>`+
+        `<td class="num">${esc(hm(p.anterior))}</td><td class="num">${esc(hm(p.movimento))}</td>`+
+        `<td class="num" style="font-weight:600">${esc(hm(p.fim))}</td></tr>`).join('')+'</tbody></table>'
+    : '<div style="color:var(--n500);padding:9px 0">Ninguém fora do extrato com saldo nesta competência.</div>';
 }
 
 /* A aba Batidas: UMA aba, DUAS fontes, duas chamadas.

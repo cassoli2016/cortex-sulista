@@ -3,8 +3,7 @@
 
 MEDIDO EM 09/09/2026 (GLOBUS, empresa 1):
     público com ponto ..........      92 de 195 ativos (motorista não bate)
-    passivo credor .............   5.838,1 h  ≈ R$ 123.428  em 60 pessoas
-    saldo parado (fora dos KPIs)    2 casos, sendo um de −823,5 h congelado
+    banco de horas ............. ver tests/rh/test_banco_de_horas_extrato.py
     HE paga em dinheiro ........  11.042,4 h  R$ 222.341,95  (57,5% do total)
     HE creditada no banco ......   8.147,9 h
     ajuste manual de marcação ..  26,6% dos dias-pessoa, 99,5% "ESQUECIMENTO"
@@ -14,13 +13,8 @@ POR QUE O DUBLÊ TEM O FORMATO QUE TEM
 Ele copia o que o Oracle REALMENTE devolve, com as três armadilhas que já
 custaram número errado aqui:
 
-  - uma pessoa AFASTADA com saldo enorme e congelado (a razão movimento/saldo
-    é 0,01): é ela que prova que o corte de cadastro existe e funciona. Sem
-    ela, todo teste de KPI passaria por vacuidade;
-  - o MÊS EM CURSO na série e nas batidas, que precisa sair marcado `parcial`
-    e NÃO pode alimentar alarme;
-  - um saldo pequeno e parado, que NÃO é cadastro furado — o corte tem duas
-    condições e um dublê com só a primeira aprovaria um corte pela metade.
+  - o MÊS EM CURSO nas batidas, que precisa sair marcado `parcial` e NÃO
+    pode alimentar alarme.
 
 Os literais são copiados da medição real, nunca derivados das constantes do
 módulo: dublê montado a partir do que se testa não testa nada.
@@ -42,44 +36,7 @@ _COLETA = [{"ultima_coleta": "2026-09-05 15:10", "horas_desde": 98}]
 _COMPS = [{"c": "2026-09"}, {"c": "2026-08"}, {"c": "2026-07"}]
 _FECHADA = [{"c": "2026-08"}]
 
-# saldo, credito, debito, salbase, saldo_6m, movimento
-_PESSOAS = [
-    # trabalha e acumula: movimento alto contra o saldo → fica nos KPIs
-    {"chapa": "002605", "nome": "EDSON R M", "filial": "FILIAL SBC",
-     "funcao": "ANALISTA OPERACI", "situacao": "A", "saldo": 430.1,
-     "credito": 12.0, "debito": 3.0, "salbase": 3596.0, "saldo_6m": 392.3,
-     "movimento": 78.7},
-    {"chapa": "003671", "nome": "JOYCE A C", "filial": "FILIAL CURITIBA",
-     "funcao": "ANALISTA OP SR", "situacao": "A", "saldo": 395.5,
-     "credito": 20.0, "debito": 8.0, "salbase": 4000.0, "saldo_6m": 282.5,
-     "movimento": 239.6},
-    # AFASTADA, saldo gigante e CONGELADO: razão 8,3/823,5 = 0,01 → cadastro
-    {"chapa": "003437", "nome": "ALZIRA A S", "filial": "FILIAL CURITIBA",
-     "funcao": "SEQUENCIADOR", "situacao": "F", "saldo": -823.5,
-     "credito": 0.0, "debito": 0.0, "salbase": 2100.0, "saldo_6m": -832.3,
-     "movimento": 8.3},
-    # saldo PEQUENO e parado: razão baixa, mas abaixo do piso de horas →
-    # continua nos KPIs. É este que impede o corte de virar "razão sozinha".
-    {"chapa": "003851", "nome": "GUILHERME B P", "filial": "MATRIZ - T.I",
-     "funcao": "APRENDIZ", "situacao": "A", "saldo": 6.4,
-     "credito": 0.0, "debito": 0.0, "salbase": 1200.0, "saldo_6m": 3.5,
-     "movimento": 0.0},
-    # devedor comum
-    {"chapa": "003599", "nome": "FILIPE V", "filial": "FILIAL CURITIBA",
-     "funcao": "ANALISTA OP JR", "situacao": "A", "saldo": -247.2,
-     "credito": 4.4, "debito": 0.4, "salbase": 2800.0, "saldo_6m": -205.0,
-     "movimento": 43.4},
-]
-
-_SERIE = [
-    {"comp": "2026-07", "credor": 5915.2, "devedor": -2529.6, "liquido": 3385.6, "pessoas": 104},
-    {"comp": "2026-08", "credor": 6160.9, "devedor": -2527.3, "liquido": 3633.5, "pessoas": 106},
-    # o mês EM CURSO: a série o mostra, marcado
-    {"comp": "2026-09", "credor": 6137.5, "devedor": -2680.2, "liquido": 3457.3, "pessoas": 108},
-]
-
 _HE_PAGA = [{"h": 11042.4, "rs": 222341.95}]
-_BH_12M = [{"cred": 8147.9, "deb": 5450.5}]
 
 _ORIGEM = [
     {"mes": "2026-06", "total": 3167, "relogio": 3047, "digitada": 120, "outros": 0},
@@ -103,36 +60,12 @@ _ABSENT = [
 _DEFAS = [{"mediana": 6.0, "media": 7.5, "maximo": 35}]
 _CORRENTE = [{"m": "2026-09"}]
 
-# ── o CONFRONTO: as duas contabilidades que não se encontram ────────────────
-#
-# Estes três dublês carregam o fato inteiro: no mês em que a casa mais pagou
-# hora extra (ago/2026, 1.506,7 h), o saldo do banco SUBIU 245,7 h e a baixa
-# pela folha foi de 86,4 h. É por isso que o saldo não pode ser lido como
-# dívida — e é o defeito que subiu em produção em 09/09/2026.
-# ── o saldo DESDE O FECHAMENTO: o unico que vale ────────────────────────────
-#
-# O ERP acumula desde 2023 e nunca baixa o que e pago. Contar do fechamento
-# para ca da outra ordem de grandeza — 221 h contra 6.137 h. Estes tres cobrem
-# credor, devedor e o caso que zera (que NAO deve aparecer na lista).
-_DESDE_FECH = [
-    {"chapa": "003648", "nome": "MAYCON D C", "filial": "FILIAL CURITIBA",
-     "funcao": "ASSISTENTE OPERA", "situacao": "A", "salbase": 2500.0,
-     "credito": 26.0, "debito": 0.0, "saldo": 26.0},
-    {"chapa": "003812", "nome": "ISABELLE A F", "filial": "FILIAL SBC",
-     "funcao": "ASSISTENTE OPERA", "situacao": "A", "salbase": 2200.0,
-     "credito": 22.6, "debito": 7.6, "saldo": 15.0},
-    {"chapa": "003668", "nome": "VINICIUS M C", "filial": "FILIAL CURITIBA",
-     "funcao": "ANALISTA OP JR", "situacao": "A", "salbase": 2800.0,
-     "credito": 0.0, "debito": 56.0, "saldo": -56.0},
-]
-
+# ── o que a folha PAGOU de hora extra, e a baixa pela folha ─────────────────
+# (o saldo do banco que vai ao lado deles tem roteador próprio, no formato do
+# extrato: `tests/rh/test_banco_de_horas_extrato.py`)
 _PAGOS_CONF = [
     {"comp": "2026-07", "pessoas": 34, "horas": 650.2, "reais": 13278.34},
     {"comp": "2026-08", "pessoas": 60, "horas": 1506.7, "reais": 27945.42},
-]
-_SALDOS_CONF = [
-    {"comp": "2026-07", "saldo": 5915.2, "debito": 277.5},
-    {"comp": "2026-08", "saldo": 6160.9, "debito": 358.9},
 ]
 _BAIXAS_CONF = [{"comp": "2026-08", "horas": 86.4}]
 
@@ -154,16 +87,9 @@ def _roteador(sql, p=None):
         return _COMPS
     if "MAX(COMPETENCIA)" in s and "< TRUNC(SYSDATE,'MM')" in s:
         return _FECHADA
-    if "VW_FUNCIONARIOS VF" in s and "FRQ_BANCOHORAS B" in s:
-        return _PESSOAS
-    if "SUM(CASE WHEN SALDONACOMPET > 0" in s:
-        # A serie da tela pede CREDOR e DEVEDOR; o confronto pede SALDO e
-        # DEBITO. Discriminar pelo texto do SELECT, e nao pela ordem em que as
-        # consultas saem — roteador por ordem quebra calado quando alguem
-        # acrescenta uma query no meio.
-        return _SERIE if "DEVEDOR" in s else _SALDOS_CONF
-    if "SUM(NVL(CREDITO,0)) CREDITO" in s and "VW_FUNCIONARIOS VF" in s:
-        return _DESDE_FECH
+    # O banco de horas (saldo, série, confronto, destino) tem roteador próprio,
+    # no formato do extrato: `tests/rh/test_banco_de_horas_extrato.py`. Aqui
+    # não há rota para `saldonacompet` — o campo não é saldo.
     if "CODEVENTO = 1016" in s:
         return _BAIXAS_CONF
     if "FLP_FICHAEVENTOS" in s and "COUNT(DISTINCT FF.CODINTFUNC) PESSOAS" in s:
@@ -171,8 +97,6 @@ def _roteador(sql, p=None):
     if "FLP_FICHAEVENTOS" in s:
         return _HE_PAGA
 
-    if "SUM(CREDITO)" in s:
-        return _BH_12M
     if "GERADORDIGIT='RL'" in s:
         return _ORIGEM
     if "FRQ_MOVTOMOTDIGIT" in s and "DESCMOTIVO" in s:
@@ -214,82 +138,12 @@ def test_a_cobertura_de_horario_contratual_e_dita_e_nao_escondida():
     assert F.publico()["com_horario"] == 37
 
 
-# ── o corte de cadastro ─────────────────────────────────────────────────────
-def test_saldo_congelado_sai_dos_kpis_e_vai_para_cadastro():
-    d = F.get_banco_horas()
-    nomes = [c["nome"] for c in d["cadastro"]]
-    assert "ALZIRA A S" in nomes, "saldo parado de -823,5 h tinha de sair dos KPIs"
-    assert "ALZIRA A S" not in [p["nome"] for p in d["pessoas"]]
-    assert d["kpis"]["em_cadastro"] == 1
-
-
-def test_o_saldo_congelado_nao_contamina_o_saldo_liquido():
-    """Com ele dentro, o líquido seria 3.633,5 h — 23% menor. O número que a
-    tela publica é o dos saldos VIVOS."""
-    d = F.get_banco_horas()
-    vivos = round(sum(p["horas"] for p in d["pessoas"]), 1)
-    assert d["kpis"]["saldo_liquido"] == vivos
-    assert d["kpis"]["saldo_liquido"] == pytest.approx(584.8, abs=0.2)
-
-
-def test_saldo_pequeno_e_parado_NAO_e_cadastro_furado():
-    """O corte tem DUAS condições. O aprendiz com 6,4 h e movimento zero tem
-    razão 0,0 — se o piso de horas sumisse, ele viraria 'cadastro' e a lista
-    de conferência encheria de gente que não tem nada a conferir."""
-    d = F.get_banco_horas()
-    assert "GUILHERME B P" in [p["nome"] for p in d["pessoas"]]
-    assert "GUILHERME B P" not in [c["nome"] for c in d["cadastro"]]
-
-
-def test_o_motivo_do_corte_traz_a_evidencia_numerica():
-    """Achado sem número é opinião: a linha precisa dizer saldo e movimento."""
-    d = F.get_banco_horas()
-    motivo = d["cadastro"][0]["motivo"]
-    assert "823" in motivo and "8.3" in motivo
-
-
-# ── o passivo ───────────────────────────────────────────────────────────────
-def test_o_passivo_conta_so_o_credor():
-    """Devedor não é passivo: a empresa não deve folga a quem deve horas."""
-    d = F.get_banco_horas()
-    assert d["kpis"]["passivo_horas"] == pytest.approx(430.1 + 395.5 + 6.4, abs=0.1)
-    assert d["kpis"]["pessoas_credoras"] == 3
-    assert d["kpis"]["horas_devedoras"] < 0
-
-
-def test_o_custo_e_estimativa_e_a_premissa_vai_junto():
-    """Número sem premissa vira verdade. 430,1 h × (3596/220) × 1,5."""
-    d = F.get_banco_horas()
-    edson = [p for p in d["pessoas"] if p["nome"] == "EDSON R M"][0]
-    assert edson["custo"] == pytest.approx(430.1 * (3596.0 / 220) * 1.5, abs=0.5)
-    assert "220" in d["premissa_custo"]
-
-
-def test_devedor_nao_recebe_custo():
-    d = F.get_banco_horas()
-    dev = [p for p in d["pessoas"] if p["horas"] < 0]
-    assert dev and all(p["custo"] == 0.0 for p in dev)
-
-
-# ── o mês em curso ──────────────────────────────────────────────────────────
-def test_a_competencia_padrao_e_a_ultima_FECHADA():
-    """A importação do AFD é manual: o mês em curso não é parcial, é
-    indeterminado."""
-    assert F.get_banco_horas()["competencia"] == "2026-08"
-
-
-def test_a_serie_mostra_o_mes_em_curso_MARCADO():
-    """Escondê-lo faria a série parecer terminada num mês que não fechou."""
-    s = F.get_banco_horas()["serie"]
-    assert s[-1]["comp"] == "2026-09" and s[-1]["parcial"] is True
-    assert all(x["parcial"] is False for x in s[:-1])
-
-
-# ── o destino da hora extra ─────────────────────────────────────────────────
-def test_a_fracao_que_vira_dinheiro_e_a_pergunta_do_regime():
-    d = F.get_banco_horas()["destino_he"]
-    assert d["pct_em_dinheiro"] == pytest.approx(57.5, abs=0.2)
-    assert d["pago_reais"] == pytest.approx(222341.95, abs=0.01)
+# ── o banco de horas ────────────────────────────────────────────────────────
+# O saldo, os totais, a série e o destino da hora extra têm arquivo próprio,
+# com o dublê no formato do EXTRATO do Globus (HH.MM, saldo anterior + movimento):
+# `tests/rh/test_banco_de_horas_extrato.py`. Os testes que moravam aqui
+# guardavam o corte de "saldo parado" e o passivo pelo `saldonacompet` — um
+# acumulador que o extrato oficial desmentiu em 14/09/2026.
 
 
 # ── os avisos ───────────────────────────────────────────────────────────────
@@ -341,24 +195,7 @@ def test_absenteismo_sai_em_dia_pessoa_e_nao_em_linha():
     assert ago["pct_falta"] == pytest.approx(100 * 133 / (1734 + 133), abs=0.1)
 
 
-# ── PII ─────────────────────────────────────────────────────────────────────
-def test_o_snapshot_do_copiloto_nao_leva_PESSOA_nenhuma():
-    """O snapshot vai para modelo externo. Nome, chapa e filial não sobem —
-    e é isso, não um filtro esperto, que permite o fallback."""
-    import json
-    r = F.resumo_escalares()
-    assert r, "o snapshot não pode vir vazio com o dublê respondendo"
-    bruto = json.dumps(r, ensure_ascii=False)
-    for proibido in ("EDSON", "ALZIRA", "002605", "FILIAL SBC", "CURITIBA"):
-        assert proibido not in bruto.upper(), f"{proibido} vazou para o snapshot"
-    assert all(not isinstance(v, (list, dict)) for v in r.values()), \
-        "só escalar sobe: lista ou dicionário aqui é porta aberta para PII"
-
-
-def test_o_snapshot_leva_o_passivo_e_a_fracao_em_dinheiro():
-    """Escalar não quer dizer inútil: são estes dois números que o Copiloto
-    precisa para responder sobre banco de horas."""
-    r = F.resumo_escalares()
-    assert r["banco_horas_passivo_h"] > 0
-    assert r["he_pct_paga_em_dinheiro"] == pytest.approx(57.5, abs=0.2)
-    assert r["pessoas_com_ponto"] == 92
+# ── o snapshot do Copiloto ──────────────────────────────────────────────────
+# Ele chama o banco de horas, e por isso mora no arquivo do extrato, com o
+# roteador que conhece as consultas dele: `test_banco_de_horas_extrato.py`
+# (saldo credor, levado, fração paga em dinheiro, e nenhum nome).

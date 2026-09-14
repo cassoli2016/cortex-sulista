@@ -11,45 +11,32 @@ Por isso **todo denominador daqui é o público com frequência, nunca o quadro*
 Um percentual sobre 195 mente por um fator de dois. `publico()` é a fonte única
 dessa contagem, e a tela é obrigada a dizê-la.
 
-O REGIME É BANCO DE HORAS — E A MEDIÇÃO DIZ QUE ELE VAZA
-=========================================================
-12 meses fechados (set/2025 a ago/2026), só o público com frequência:
+O REGIME É BANCO DE HORAS, E ELE SE ACERTA NO MÊS
+=================================================
+12 meses fechados (set/2025 a ago/2026), só o público com frequência: 11.042,4 h
+de hora extra PAGA em dinheiro contra 8.147,9 h creditadas no banco — 58% da hora
+extra do administrativo sai em dinheiro num regime que deveria compensar em
+folga. (A folha grava hora DECIMAL; o banco grava HH.MM e só se soma depois de
+convertido — ver `minutos()`.)
 
-    hora extra PAGA em dinheiro ....... 11.042,4 h   R$ 222.341,95
-    hora extra creditada no banco .....  8.147,9 h
-    compensada (débito do banco) ......  5.450,5 h
+`FRQ_BANCOHORAS_PARAMETRO` tem `meses_compensar = 0` e `pgsaldomes = 'S'`: o
+saldo credor se PAGA no mês, e não há prazo de compensação configurado.
 
-58% da hora extra do administrativo sai em dinheiro num regime que deveria
-compensar em folga; e do que entra no banco, só dois terços voltam como folga.
-A diferença é o que empilha o saldo — **6.065 h credoras em 57 pessoas**, que
-cresceram 2,6× em 14 meses. É esse o número que esta tela existe para mostrar,
-e ele não aparecia em lugar nenhum do CÓRTEX.
+O SALDO SE LÊ COMO O EXTRATO DO GLOBUS — VALIDADO LINHA A LINHA
+===============================================================
+Em 14/09/2026 quem opera mandou o "Extrato do Banco de Horas" oficial (08/2026,
+97 pessoas), e ele foi reproduzido 97/97 nas três colunas: saldo anterior =
+`saldoanterior`, saldo atual = `credito − debito`, total = `saldoanterior` do
+mês seguinte. Até então esta tela lia `saldonacompet` — um acumulador que não
+conversa com o extrato — e publicava 6.161 h credoras onde o ERP reporta 1.158
+h; e somava HH.MM como se fosse decimal. A conclusão "o pagamento não baixa o
+saldo", que estava escrita aqui, era verdade sobre o ACUMULADOR: o saldo que o
+ERP reporta ZERA o credor quando a casa paga (em 2026, um para um entre pagar e
+zerar, com os fechamentos grandes em fevereiro e agosto).
 
-`FRQ_BANCOHORAS_PARAMETRO` tem `meses_compensar = 0` e `pgsaldomes = 'S'`: não
-há prazo de compensação configurado. A regra vive fora do sistema.
-
-O SALDO REGISTRADO NÃO É O PASSIVO — E ISSO CUSTOU UM NÚMERO ERRADO EM TELA
-===========================================================================
-A casa FECHA o semestre e paga: há pico de `H.E 50%` em ago/2025 (2.233 h),
-fev/2026 (1.003 h) e ago/2026 (1.352 h) — de seis em seis meses, contra ~400 h
-dos meses comuns. **R$ 105.533 em 5.256,7 h nos três fechamentos.**
-
-Só que o pagamento **não baixa o saldo** do `FRQ_BANCOHORAS`. Medido nos três:
-
-    jul/2025 5.177,6 h -> ago/2025 5.219,6 h   pagou 2.233 h e o saldo SUBIU
-    jan/2026 5.417,8 h -> fev/2026 5.273,3 h   pagou 1.003 h e caiu 144 h
-    jul/2026 5.915,2 h -> ago/2026 6.160,9 h   pagou 1.352 h e o saldo SUBIU
-
-O evento que daria a baixa (`DEBITO BANCO DE HORAS`, 1016) movimentou 86,4 h
-para 7 pessoas em agosto. O resto saiu como hora extra comum. E 6 das 44
-pessoas que receberam no fechamento levaram MAIS horas do que o próprio saldo
-registrado — não há relação entre os dois números.
-
-**Então `saldonacompet` é um ACUMULADOR que ninguém zera, não um saldo devedor.**
-Publicá-lo como "passivo" foi erro meu em 09/09/2026: a tela subiu dizendo
-R$ 123 mil de dívida sobre horas que em boa parte já tinham sido pagas. O
-módulo agora chama o número pelo que ele é e mostra o outro lado ao lado,
-porque duas contabilidades que não conversam só se leem juntas.
+A lição é a de 09/09, um degrau abaixo. Naquela vez o número foi validado contra
+si mesmo; desta, contra uma série do próprio ERP — que era a série errada.
+Validar é reproduzir o RELATÓRIO que o dono do dado usa.
 
 TRÊS ARMADILHAS QUE JÁ CUSTARAM NÚMERO ERRADO AQUI
 ===================================================
@@ -66,14 +53,6 @@ TRÊS ARMADILHAS QUE JÁ CUSTARAM NÚMERO ERRADO AQUI
    INDETERMINADO. Por isso o padrão de `get_banco_horas` é a última competência
    FECHADA, e `frescor()` publica a defasagem para a tela carimbar.
 
-SALDO PARADO NÃO É OPERAÇÃO, É CADASTRO
-=======================================
-Em ago/2026 uma pessoa afastada aparece com **−823,5 h** — 103 dias devedores —
-e o saldo está CONGELADO desde ago/2025: crédito 0, débito 0, mês após mês.
-Isso não é jornada, é registro que ninguém fechou. Pela regra da casa
-(`|desvio| > 1 ciclo` do próprio indicador = cadastro furado), ele sai dos KPIs
-e vai para a lista `cadastro`, com a evidência — nunca some, e nunca contamina
-o passivo.
 """
 from __future__ import annotations
 
@@ -97,48 +76,57 @@ OCOR_TRABALHO = (1, 13)          # TRABALHANDO e HORAS TRAB
 EV_HE = (15, 19, 268, 454)
 EV_DEB_BH, EV_CRED_BH = 1016, 1017
 
-# SALDO PARADO: o que separa registro esquecido de jornada de verdade não é o
-# tamanho do saldo — é o quanto ele SE MOVE. Medido em ago/2026 sobre as 106
-# pessoas com saldo, a razão `movimento de 6 meses ÷ |saldo|` tem degrau claro:
-# mediana 0,67, p25 0,029, e 27 pessoas abaixo de 0,10. Quem trabalha move o
-# saldo; quem está parado carrega um número que ninguém toca há meses.
+# ============================================================================
+# A hora do Globus: HH.MM
+# ============================================================================
+# O `frq_*` GRAVA HORA COMO HH.MM — os MINUTOS depois do ponto: `-17.36` é
+# −17h36, e não −17,36 h. Validado em 14/09/2026 contra o "Extrato do Banco de
+# Horas" oficial (97/97) e sobre os 3.051 valores de hora de 2026: nenhum tem
+# "minutos" de 60 para cima. Somar ou subtrair o número cru erra calado — 15.22
+# − 12.37 dá 2,85, e o certo é 2:45 —, então TODA conta passa por `minutos()`
+# antes, e a tela mostra H:MM, como o extrato que o RH confere.
 #
-# Os dois cortes juntos (razão < 0,10 E |saldo| >= 100 h) isolam 2 casos em
-# ago/2026: um afastamento com −823,5 h congeladas desde ago/2025 e um crédito
-# de 322,4 h com 9,2 h de movimento em seis meses. Sem isso, o primeiro sozinho
-# desloca o saldo líquido da casa em 23% — para o lado errado, e calado.
-#: A competência do ÚLTIMO FECHAMENTO SEMESTRAL, informada por quem opera.
-#:
-#: ISTO NÃO SAI DO SISTEMA, e é a razão de estar escrito aqui em vez de
-#: calculado: a casa fecha o semestre e paga como `H.E 50%`, mas o ERP não
-#: registra o fechamento — nem baixa o saldo, nem grava a data. O sistema não
-#: sabe que zerou; quem sabe é o RH.
-#:
-#: Enquanto for assim, o saldo ÚTIL é o movimento a partir daqui: em set/2026
-#: são 221 h credoras em 36 pessoas, contra as 6.137 h que o ERP acumula desde
-#: 2023. A tela publica o primeiro e mostra o segundo ao lado, porque os dois
-#: são verdadeiros sobre coisas diferentes.
-#:
-#: QUANDO O ERP PASSAR A BAIXAR (o ajuste que o RH vai pedir), esta constante
-#: SAI: o saldo do próprio banco volta a ser o número, e manter um zeramento
-#: escrito à mão em cima de um sistema que já zera é a receita para descontar
-#: duas vezes.
-FECHAMENTO_CONHECIDO = "2026-08"
+# A FOLHA NÃO É ASSIM: `flp_fichaeventos.referencia` (hora extra paga) é hora
+# DECIMAL — 1.487 de 4.638 valores têm fração de 0,60 para cima. As duas se
+# comparam em horas decimais, depois da conversão do banco.
 
-#: O PERÍODO DE COMPENSAÇÃO, EM MESES — informado por quem opera (11/09/2026).
-#:
-#: A CLT (art. 59, §2º) admite até UM ANO quando há acordo coletivo, e a casa
-#: pratica SEIS. A escolha também não está no ERP: `FRQ_BANCOHORAS_PARAMETRO`
-#: tem `meses_compensar = 0` — é esse zero que faz o fechamento não gerar o
-#: débito, e é ele que o RH vai ajustar.
-#:
-#: Com os dois números, o fim da janela deixa de ser adivinhação: ago/2026 + 6
-#: fecha em fev/2027.
-PERIODO_COMPENSACAO_MESES = 6
 
-CADASTRO_MESES_PARADO = 6
-CADASTRO_HORAS_MIN = 100.0
-CADASTRO_RAZAO_MAX = 0.10
+def minutos(v) -> int:
+    """Hora do `frq_*` (HH.MM) em minutos inteiros. `None` vale zero.
+
+    RECUSA o que não é HH.MM em vez de adivinhar: "minutos" de 60 para cima
+    querem dizer que o formato mudou, e converter assim mesmo publicaria um
+    saldo errado com cara de certo."""
+    if v is None:
+        return 0
+    x = float(v)
+    a = abs(x)
+    h = int(a)
+    m = int(round((a - h) * 100))
+    if m == 100:            # 0,9999... do ponto flutuante
+        h, m = h + 1, 0
+    if m >= 60:
+        raise ValueError("hora fora do formato HH.MM do Globus: %r" % (v,))
+    t = h * 60 + m
+    return -t if x < 0 else t
+
+
+def horas(mi: int | None) -> float | None:
+    """Minutos em horas decimais — só para somar, ordenar e estimar custo."""
+    return None if mi is None else round(mi / 60.0, 2)
+
+
+def hhmm(mi: int | None) -> str | None:
+    """Minutos em "H:MM", com sinal — o formato do extrato do Globus."""
+    if mi is None:
+        return None
+    a = abs(int(mi))
+    return "%s%d:%02d" % ("-" if mi < 0 else "", a // 60, a % 60)
+
+
+def _mes_seguinte(comp: str) -> str:
+    a, m = int(comp[:4]), int(comp[5:7])
+    return "%04d-%02d" % (a + m // 12, m % 12 + 1)
 
 
 def _q(sql: str, p: dict | None = None) -> list[dict]:
@@ -213,8 +201,81 @@ def _ultima_competencia_fechada() -> str | None:
 
 
 # ============================================================================
-# Banco de horas — o passivo
+# Banco de horas — o saldo, como o Extrato do Banco de Horas do Globus
 # ============================================================================
+# AS TRÊS COLUNAS DO EXTRATO, e de onde cada uma sai (97/97, 14/09/2026):
+#
+#     Saldo anterior .... `saldoanterior` da competência
+#     Saldo atual ....... `credito − debito` da competência (o MOVIMENTO)
+#     Total ............. `saldoanterior` da competência SEGUINTE — o que foi
+#                         levado depois do acerto do mês
+#
+# O saldo no fim do mês é anterior + movimento. O que é levado adiante NÃO se
+# calcula: quando a casa paga (`valorpago`), o credor entra no mês seguinte
+# zerado, e alguns devedores também são acertados. Por isso "levado" vem do
+# próprio ERP, do `saldoanterior` do mês seguinte, e fica `None` enquanto esse
+# mês não foi gerado — nunca uma conta nossa.
+#
+# `saldonacompet` NÃO ENTRA. Até a v1.80.0 a tela lia esse campo como saldo, e
+# ele é um acumulador que não conversa com o extrato (bate com anterior +
+# movimento em 27 de 97).
+#
+# SÓ QUEM ESTÁ ATIVO, como o extrato (as 97 são todas `situacaofunc = 'A'`).
+# Desligado e afastado com saldo vão para `nao_ativos`, fora dos totais — nunca
+# somem.
+
+_BANCO_MES_SQL = """
+    SELECT b.codintfunc cod, TO_CHAR(b.competencia,'YYYY-MM') comp,
+           vf.chapafunc chapa, vf.nomefunc nome, vf.descsecao filial,
+           vf.descfuncao funcao, vf.situacaofunc situacao, vf.salbase salbase,
+           b.saldoanterior anterior, b.credito credito, b.debito debito,
+           b.valorpago valorpago
+      FROM globus729.frq_bancohoras b
+      JOIN vw_funcionarios vf ON vf.codintfunc = b.codintfunc
+                             AND vf.codigoempresa = :emp
+     WHERE b.competencia IN (TO_DATE(:comp,'YYYY-MM'),
+                             ADD_MONTHS(TO_DATE(:comp,'YYYY-MM'),1))"""
+
+
+@cached(ttl=600, velha_ate=7200)
+def _linhas_do_banco(meses: int) -> list[dict]:
+    """Anterior, crédito, débito e saldo no fim do mês de quem está ATIVO, mês a
+    mês — a matéria da série e do confronto, convertida UMA vez, em Python. A
+    regra do HH.MM tem um lugar só: SQL e Python com a mesma conta discordariam
+    calados."""
+    linhas = _q("""
+        SELECT TO_CHAR(b.competencia,'YYYY-MM') comp,
+               b.saldoanterior anterior, b.credito credito, b.debito debito
+          FROM globus729.frq_bancohoras b
+          JOIN vw_funcionarios vf ON vf.codintfunc = b.codintfunc
+                                 AND vf.codigoempresa = :emp
+                                 AND vf.situacaofunc = 'A'
+         WHERE b.competencia >= ADD_MONTHS(TRUNC(SYSDATE,'MM'), -:m)""",
+                {"emp": EMPRESA, "m": meses})
+    saida = []
+    for r in linhas:
+        ant = minutos(r["anterior"])
+        cred, deb = minutos(r["credito"]), minutos(r["debito"])
+        saida.append({"comp": r["comp"], "anterior": ant, "credito": cred,
+                      "debito": deb, "fim": ant + cred - deb})
+    return saida
+
+
+def _por_competencia(linhas: list[dict]) -> dict[str, dict]:
+    """Credor e devedor no fim de cada mês, em MINUTOS."""
+    por: dict[str, dict] = {}
+    for x in linhas:
+        c = por.setdefault(x["comp"], {"credor": 0, "devedor": 0, "pessoas": 0,
+                                       "debito": 0})
+        c["pessoas"] += 1
+        c["debito"] += x["debito"]
+        if x["fim"] > 0:
+            c["credor"] += x["fim"]
+        elif x["fim"] < 0:
+            c["devedor"] += x["fim"]
+    return por
+
+
 @cached(ttl=600, velha_ate=7200)
 def get_banco_horas(comp: str | None = None) -> dict:
     comps = [r["c"] for r in _q(
@@ -227,67 +288,54 @@ def get_banco_horas(comp: str | None = None) -> dict:
         comp = fechada
     if not comp:
         return {"competencia": None, "competencias": [], "kpis": {}, "pessoas": [],
-                "faixas": [], "serie": [], "cadastro": [],
+                "nao_ativos": [], "faixas": [], "serie": [],
                 "fonte": "GLOBUS · FRQ_BANCOHORAS (sem dado)"}
-    p = {"emp": EMPRESA, "comp": comp}
+    seguinte = _mes_seguinte(comp)
+    brutas = _q(_BANCO_MES_SQL, {"emp": EMPRESA, "comp": comp})
+    prox = {r["cod"]: r for r in brutas if r["comp"] == seguinte}
+    tem_seguinte = bool(prox)
 
-    # ── as pessoas com saldo ────────────────────────────────────────────
-    # `b6` é o saldo de 6 meses antes, pela MESMA chave: é ele que separa
-    # "acumulou este mês" de "vem crescendo desde sempre".
-    linhas = _q("""
-        SELECT vf.chapafunc chapa, vf.nomefunc nome,
-               vf.descsecao filial, vf.descfuncao funcao, vf.situacaofunc situacao,
-               b.saldonacompet saldo, b.credito credito, b.debito debito,
-               vf.salbase salbase, b6.saldonacompet saldo_6m,
-               (SELECT NVL(SUM(NVL(h.credito,0)) + SUM(ABS(NVL(h.debito,0))),0)
-                  FROM globus729.frq_bancohoras h
-                 WHERE h.codintfunc = b.codintfunc
-                   AND h.competencia > ADD_MONTHS(TO_DATE(:comp,'YYYY-MM'), -:meses)
-                   AND h.competencia <= TO_DATE(:comp,'YYYY-MM')) movimento
-          FROM globus729.frq_bancohoras b
-          JOIN vw_funcionarios vf ON vf.codintfunc = b.codintfunc
-                                 AND vf.codigoempresa = :emp
-          LEFT JOIN globus729.frq_bancohoras b6
-                 ON b6.codintfunc = b.codintfunc
-                AND b6.competencia = ADD_MONTHS(TO_DATE(:comp,'YYYY-MM'),-6)
-         WHERE b.competencia = TO_DATE(:comp,'YYYY-MM')
-           AND NVL(b.saldonacompet,0) <> 0
-         ORDER BY b.saldonacompet DESC""",
-        dict(p, meses=CADASTRO_MESES_PARADO))
-
-    pessoas, cadastro = [], []
-    for r in linhas:
-        saldo = float(r["saldo"] or 0)
-        s6 = r["saldo_6m"]
-        mov = float(r["movimento"] or 0)
-        razao = (mov / abs(saldo)) if saldo else 0.0
+    pessoas, nao_ativos = [], []
+    for r in brutas:
+        if r["comp"] != comp:
+            continue
+        ant = minutos(r["anterior"])
+        cred, deb = minutos(r["credito"]), minutos(r["debito"])
+        mov = cred - deb
+        fim = ant + mov
+        p = prox.get(r["cod"])
+        lev = minutos(p["anterior"]) if p else None
+        salbase = float(r["salbase"] or 0)
         item = {
-            "chapa": str(r["chapa"] or "").strip(),
-            "nome": r["nome"], "filial": r["filial"] or "—",
-            "funcao": r["funcao"] or "—", "situacao": r["situacao"],
-            "horas": round(saldo, 1),
-            # Custo só faz sentido para o saldo CREDOR: é o que a empresa deve.
-            # A 50% e sobre salbase/220 — a alíquota real depende do acordo, e
-            # a tela diz a premissa em vez de esconder num número redondo.
-            "custo": _f(saldo * (float(r["salbase"] or 0) / 220) * 1.5) if saldo > 0 else 0.0,
-            "horas_6m": round(float(s6), 1) if s6 is not None else None,
-            "variacao_6m": round(saldo - float(s6), 1) if s6 is not None else None,
-            "movimento_6m": round(mov, 1),
+            "chapa": str(r["chapa"] or "").strip(), "nome": r["nome"],
+            "filial": r["filial"] or "—", "funcao": r["funcao"] or "—",
+            "situacao": r["situacao"],
+            # as colunas do extrato: em minutos para a conta, em H:MM para ler
+            "anterior_min": ant, "credito_min": cred, "debito_min": deb,
+            "movimento_min": mov, "fim_min": fim, "levado_min": lev,
+            "anterior": hhmm(ant), "credito": hhmm(cred), "debito": hhmm(deb),
+            "movimento": hhmm(mov), "fim": hhmm(fim), "levado": hhmm(lev),
+            "horas": horas(fim),
+            "pago_no_mes": float(r["valorpago"] or 0) > 0,
+            # Custo só para o saldo CREDOR, e é ESTIMATIVA: 50% sobre
+            # salbase/220 — a alíquota real depende do acordo, e a premissa
+            # viaja no payload.
+            "custo": _f(horas(fim) * (salbase / 220) * 1.5) if fim > 0 else 0.0,
         }
-        # Saldo grande que quase não se move: registro parado, não jornada. Sai
-        # dos KPIs — se ficasse, um único caso de −823 h deslocaria o saldo
-        # líquido da casa em 23%, para o lado errado e calado.
-        if abs(saldo) >= CADASTRO_HORAS_MIN and razao < CADASTRO_RAZAO_MAX:
-            item["motivo"] = (
-                "saldo de %.1f h com apenas %.1f h de movimento em %d meses — "
-                "conferir o cadastro" % (saldo, mov, CADASTRO_MESES_PARADO))
-            cadastro.append(item)
-        else:
+        if r["situacao"] == "A":
             pessoas.append(item)
+        elif ant or mov or fim:
+            nao_ativos.append(item)
+    # na ordem do extrato — por nome —, para conferir lado a lado
+    pessoas.sort(key=lambda x: x["nome"] or "")
+    nao_ativos.sort(key=lambda x: x["nome"] or "")
 
-    cred = [x for x in pessoas if x["horas"] > 0]
-    dev = [x for x in pessoas if x["horas"] < 0]
-    subindo = [x for x in cred if (x["variacao_6m"] or 0) > 0]
+    cred = [x for x in pessoas if x["fim_min"] > 0]
+    dev = [x for x in pessoas if x["fim_min"] < 0]
+    s_cred = sum(x["fim_min"] for x in cred)
+    s_dev = sum(x["fim_min"] for x in dev)
+    s_lev = sum(x["levado_min"] or 0 for x in pessoas) if tem_seguinte else None
+    maior = max((x["fim_min"] for x in cred), default=0)
 
     faixas_def = [("1 · acima de 300 h", 300, 1e9), ("2 · 200 a 300 h", 200, 300),
                   ("3 · 100 a 200 h", 100, 200), ("4 · 40 a 100 h", 40, 100),
@@ -298,172 +346,68 @@ def get_banco_horas(comp: str | None = None) -> dict:
         if g:
             faixas.append({"faixa": rot, "pessoas": len(g),
                            "horas": round(sum(x["horas"] for x in g), 1),
+                           "hhmm": hhmm(sum(x["fim_min"] for x in g)),
                            "custo": _f(sum(x["custo"] for x in g))})
 
-    # ── a série: o passivo ao longo do tempo ────────────────────────────
+    # ── a série: o saldo no fim de cada mês ─────────────────────────────
     # O mês corrente ENTRA, marcado `parcial`: escondê-lo faria a série parecer
     # terminada num mês que ainda não fechou.
-    serie = [{
-        "comp": r["comp"],
-        "credor": round(float(r["credor"] or 0), 1),
-        "devedor": round(float(r["devedor"] or 0), 1),
-        "liquido": round(float(r["liquido"] or 0), 1),
-        "pessoas": int(r["pessoas"] or 0),
-        "parcial": bool(r["comp"] and fechada and r["comp"] > fechada),
-    } for r in _q("""
-        SELECT TO_CHAR(competencia,'YYYY-MM') comp,
-               SUM(CASE WHEN saldonacompet > 0 THEN saldonacompet ELSE 0 END) credor,
-               SUM(CASE WHEN saldonacompet < 0 THEN saldonacompet ELSE 0 END) devedor,
-               SUM(NVL(saldonacompet,0)) liquido,
-               COUNT(DISTINCT codintfunc) pessoas
-          FROM globus729.frq_bancohoras
-         WHERE competencia >= ADD_MONTHS(TRUNC(SYSDATE,'MM'),-14)
-         GROUP BY TO_CHAR(competencia,'YYYY-MM')
-         ORDER BY 1""")]
-
-    # ── para onde vai a hora extra do administrativo ────────────────────
-    destino = _destino_da_he()
+    serie = [{"comp": c, "credor": horas(v["credor"]), "devedor": horas(v["devedor"]),
+              "liquido": horas(v["credor"] + v["devedor"]), "pessoas": v["pessoas"],
+              "parcial": bool(fechada and c > fechada)}
+             for c, v in sorted(_por_competencia(_linhas_do_banco(14)).items())]
 
     return {
         "competencia": comp,
         "competencias": comps,
         "competencia_fechada": fechada,
+        "competencia_seguinte": seguinte if tem_seguinte else None,
         "kpis": {
-            "passivo_horas": round(sum(x["horas"] for x in cred), 1),
-            "passivo_custo": _f(sum(x["custo"] for x in cred)),
-            "pessoas_credoras": len(cred),
-            "pessoas_devedoras": len(dev),
-            "horas_devedoras": round(sum(x["horas"] for x in dev), 1),
-            "saldo_liquido": round(sum(x["horas"] for x in pessoas), 1),
-            "credoras_subindo": len(subindo),
-            "maior_saldo": round(max([x["horas"] for x in cred], default=0.0), 1),
-            "em_cadastro": len(cadastro),
+            "credor_h": horas(s_cred), "credor_hhmm": hhmm(s_cred),
+            "credores": len(cred),
+            "devedor_h": horas(s_dev), "devedor_hhmm": hhmm(s_dev),
+            "devedores": len(dev),
+            "liquido_h": horas(s_cred + s_dev), "liquido_hhmm": hhmm(s_cred + s_dev),
+            "maior_h": horas(maior), "maior_hhmm": hhmm(maior),
+            "custo_credor": _f(sum(x["custo"] for x in cred)),
+            "pagos_no_mes": sum(1 for x in pessoas if x["pago_no_mes"]),
+            "levado_h": horas(s_lev), "levado_hhmm": hhmm(s_lev),
+            "credores_zerados": (sum(1 for x in cred if x["levado_min"] == 0)
+                                 if tem_seguinte else None),
+            "pessoas": len(pessoas),
+            "nao_ativos": len(nao_ativos),
         },
         "pessoas": pessoas,
-        "cadastro": cadastro,
+        "nao_ativos": nao_ativos,
         "faixas": faixas,
         "serie": serie,
-        "destino_he": destino,
-        # AS DUAS CONTABILIDADES, sempre juntas. O saldo sozinho parece dívida;
-        # ao lado do que foi pago, vira o que é.
+        "destino_he": _destino_da_he(),
         "confronto": confronto(),
-        # O SALDO QUE VALE: só o movimento após o último fechamento. O do ERP
-        # acumula desde 2023 e nunca baixa o que foi pago.
-        "desde_fechamento": saldo_desde_fechamento(),
         "publico": publico(),
         "frescor": frescor(),
-        "premissa_custo": "saldo credor × (salário base ÷ 220) × 1,5",
-        # A RESSALVA VIAJA COM O NÚMERO. Sem ela o valor se lê como dívida — e
-        # ele não é: o pagamento de hora extra não baixa este saldo.
-        "ressalva_custo": ("Valor do saldo REGISTRADO, não do que se deve: os "
-                           "pagamentos de hora extra não baixam este saldo no ERP."),
-        "fonte": ("GLOBUS · FRQ_BANCOHORAS × VW_FUNCIONARIOS · "
-                  "competência fechada · leitura"),
-    }
-
-
-def janela_do_fechamento(desde: str | None = None, hoje: date | None = None) -> dict:
-    """De quando até quando vale o saldo que a tela publica — e se ainda vale.
-
-    A CONSTANTE ENVELHECE, E ESSE É O PONTO. `FECHAMENTO_CONHECIDO` é escrito
-    à mão porque o ERP não registra o fechamento (não baixa o saldo, não grava
-    a data). Passada a janela sem que alguém a atualize, `saldo_desde_fechamento`
-    continua somando desde ago/2026 e o número volta a incluir período JÁ PAGO
-    — que é exatamente o defeito que originou esta frente, renascido em
-    silêncio e com outra cara.
-
-    Por isso a janela viaja junto do saldo, e vencida ela DIZ que venceu. Não
-    há como o sistema descobrir sozinho que fechou: o alarme é a única defesa.
-    """
-    desde = desde or FECHAMENTO_CONHECIDO
-    ano, mes = (int(x) for x in desde.split("-"))
-    fim = mes + PERIODO_COMPENSACAO_MESES
-    ate = f"{ano + (fim - 1) // 12:04d}-{(fim - 1) % 12 + 1:02d}"
-    h = hoje or date.today()
-    atual = f"{h.year:04d}-{h.month:02d}"
-    faltam = ((int(ate[:4]) - h.year) * 12) + (int(ate[5:]) - h.month)
-    return {
-        "desde": desde,
-        "ate": ate,
-        "periodo_meses": PERIODO_COMPENSACAO_MESES,
-        "competencia_atual": atual,
-        "meses_restantes": faltam,
-        "vencida": atual > ate,
-        "aviso": (
-            f"A janela de compensação fechou em {ate} e ninguém atualizou a "
-            f"data do último fechamento. O saldo abaixo está somando desde "
-            f"{desde} — inclusive o período que já foi pago no fechamento de "
-            f"{ate}. Confirme a data com o RH antes de usar este número."
-        ) if atual > ate else "",
-    }
-
-
-@cached(ttl=600, velha_ate=7200)
-def saldo_desde_fechamento(desde: str | None = None) -> dict:
-    """O saldo que existe DE VERDADE: só o movimento após o último fechamento.
-
-    O ERP acumula desde 2023 e nunca baixa o que é pago (ver a nota no topo do
-    módulo). Contar do fechamento para cá é o que responde "quanto a empresa
-    deve HOJE" — e o número é outra ordem de grandeza: 221 h contra 6.137 h.
-    """
-    desde = desde or FECHAMENTO_CONHECIDO
-    linhas = _q("""
-        SELECT vf.chapafunc chapa, vf.nomefunc nome, vf.descsecao filial,
-               vf.descfuncao funcao, vf.situacaofunc situacao, vf.salbase salbase,
-               ROUND(NVL(m.credito,0),1) credito, ROUND(NVL(m.debito,0),1) debito,
-               ROUND(NVL(m.credito,0) - NVL(m.debito,0),1) saldo
-          FROM (SELECT codintfunc, SUM(NVL(credito,0)) credito,
-                       SUM(NVL(debito,0)) debito
-                  FROM globus729.frq_bancohoras
-                 WHERE competencia > TO_DATE(:d,'YYYY-MM')
-                 GROUP BY codintfunc) m
-          JOIN vw_funcionarios vf ON vf.codintfunc = m.codintfunc
-                                 AND vf.codigoempresa = :emp
-         WHERE NVL(m.credito,0) - NVL(m.debito,0) <> 0
-         ORDER BY 9 DESC""", {"d": desde, "emp": EMPRESA})
-
-    pessoas = [{
-        "chapa": str(r["chapa"] or "").strip(), "nome": r["nome"],
-        "filial": r["filial"] or "—", "funcao": r["funcao"] or "—",
-        "situacao": r["situacao"],
-        "horas": round(float(r["saldo"]), 1),
-        "credito": round(float(r["credito"]), 1),
-        "debito": round(float(r["debito"]), 1),
-        "custo": _f(float(r["saldo"]) * (float(r["salbase"] or 0) / 220) * 1.5)
-                 if float(r["saldo"]) > 0 else 0.0,
-    } for r in linhas]
-
-    cred = [p for p in pessoas if p["horas"] > 0]
-    dev = [p for p in pessoas if p["horas"] < 0]
-    return {
-        "desde": desde,
-        "janela": janela_do_fechamento(desde),
-        "credor_h": round(sum(p["horas"] for p in cred), 1),
-        "credor_rs": _f(sum(p["custo"] for p in cred)),
-        "credores": len(cred),
-        "devedor_h": round(sum(p["horas"] for p in dev), 1),
-        "devedores": len(dev),
-        "liquido_h": round(sum(p["horas"] for p in pessoas), 1),
-        "pessoas": pessoas,
-        "maior": round(max([p["horas"] for p in cred], default=0.0), 1),
+        "premissa_custo": "saldo credor no fim do mês × (salário base ÷ 220) × 1,5",
+        "fonte": ("GLOBUS · FRQ_BANCOHORAS — saldo anterior + crédito − débito, "
+                  "HH.MM convertido em minutos: as colunas do Extrato do Banco de "
+                  "Horas · só ativos"),
     }
 
 
 @cached(ttl=900, velha_ate=7200)
 def confronto(meses: int = 24) -> dict:
-    """As DUAS contabilidades na mesma linha do tempo: o que se paga × o saldo.
+    """A hora extra PAGA × o saldo do banco, na mesma linha do tempo.
 
-    NÃO CLASSIFICA MÊS COMO "FECHAMENTO", e a tentativa fica registrada porque
-    quase virou rótulo: um corte por múltiplo da mediana separava ago/2025,
-    fev/2026 e ago/2026 — mas levava out/2025 junto, que não é fechamento. A
-    régua não separava os dois grupos, e heurística que não separa não vira
-    etiqueta: vira número errado com cara de certo.
+    O saldo é o do EXTRATO — anterior + movimento, só ativos, pelo mesmo
+    `_linhas_do_banco` da série —, e há teste que cobra que os dois caminhos dão
+    o mesmo número. Até a v1.80.0 este cartão lia `saldonacompet` e concluía
+    que "pagar não baixa o saldo"; pelo saldo certo, o mês em que a casa paga é
+    o mês em que o credor zera.
 
-    O que a tela mostra é o FATO, que dispensa classificação: nos meses em que
-    a casa paga várias vezes o normal de hora extra, o saldo do banco NÃO cai.
-    Quem olha a série vê isso sem que ninguém precise rotular nada.
+    As horas pagas vêm da FOLHA, que grava hora DECIMAL: a comparação é em
+    horas decimais, depois da conversão do banco. E o mês corrente fica fora
+    dos dois lados — ele não fechou.
     """
     meses = max(12, min(int(meses or 24), 48))
+    corrente = date.today().strftime("%Y-%m")
     pagos = {r["comp"]: r for r in _q("""
         SELECT TO_CHAR(ff.competficha,'YYYY-MM') comp,
                COUNT(DISTINCT ff.codintfunc) pessoas,
@@ -478,18 +422,11 @@ def confronto(meses: int = 24) -> dict:
            AND ff.competficha <  TRUNC(SYSDATE,'MM')
          GROUP BY TO_CHAR(ff.competficha,'YYYY-MM')""",
         {"emp": EMPRESA, "m": meses})}
+    saldos = {c: v for c, v in _por_competencia(_linhas_do_banco(meses)).items()
+              if c < corrente}
 
-    saldos = {r["comp"]: r for r in _q("""
-        SELECT TO_CHAR(competencia,'YYYY-MM') comp,
-               ROUND(SUM(CASE WHEN saldonacompet > 0 THEN saldonacompet ELSE 0 END),1) saldo,
-               ROUND(SUM(NVL(debito,0)),1) debito
-          FROM globus729.frq_bancohoras
-         WHERE competencia >= ADD_MONTHS(TRUNC(SYSDATE,'MM'), -:m)
-           AND competencia <  TRUNC(SYSDATE,'MM')
-         GROUP BY TO_CHAR(competencia,'YYYY-MM')""", {"m": meses})}
-
-    #: O evento que DARIA a baixa no banco. Ele existe e quase não é usado —
-    #: 86,4 h para 7 pessoas no maior mês de pagamento do ano.
+    #: O evento que DARIA a baixa pela folha. Pouco usado — o acerto que zera o
+    #: credor é o do próprio banco (`valorpago`), não este evento.
     baixas = {r["comp"]: float(r["horas"] or 0) for r in _q("""
         SELECT TO_CHAR(competficha,'YYYY-MM') comp, ROUND(SUM(referencia),1) horas
           FROM flp_fichaeventos
@@ -499,8 +436,8 @@ def confronto(meses: int = 24) -> dict:
 
     serie, anterior = [], None
     for comp in sorted(set(pagos) | set(saldos)):
-        pg, sd = pagos.get(comp, {}), saldos.get(comp, {})
-        saldo = float(sd.get("saldo") or 0) if sd else None
+        pg, sd = pagos.get(comp, {}), saldos.get(comp)
+        saldo = horas(sd["credor"]) if sd else None
         serie.append({
             "comp": comp,
             "pago_h": float(pg.get("horas") or 0),
@@ -509,22 +446,18 @@ def confronto(meses: int = 24) -> dict:
             "saldo": saldo,
             "variacao": round(saldo - anterior, 1)
                         if (saldo is not None and anterior is not None) else None,
-            "debito_banco": float(sd.get("debito") or 0) if sd else None,
+            "debito_banco": horas(sd["debito"]) if sd else None,
             "baixa_pela_folha": baixas.get(comp, 0.0),
         })
         if saldo is not None:
             anterior = saldo
 
-    pago_total = round(sum(x["pago_h"] for x in serie), 1)
-    baixa_total = round(sum(x["baixa_pela_folha"] for x in serie), 1)
     com_saldo = [x for x in serie if x["saldo"] is not None]
     return {
         "serie": serie,
-        "pago_h": pago_total,
+        "pago_h": round(sum(x["pago_h"] for x in serie), 1),
         "pago_rs": _f(sum(x["pago_rs"] for x in serie)),
-        "baixa_pela_folha_h": baixa_total,
-        # A frase inteira em um número: pagou-se isso tudo e o saldo andou
-        # para o outro lado.
+        "baixa_pela_folha_h": round(sum(x["baixa_pela_folha"] for x in serie), 1),
         "saldo_no_inicio": com_saldo[0]["saldo"] if com_saldo else None,
         "saldo_no_fim": com_saldo[-1]["saldo"] if com_saldo else None,
         "meses": meses,
@@ -548,18 +481,19 @@ def _destino_da_he() -> dict:
                     AND ff.competficha >= ADD_MONTHS(TRUNC(SYSDATE,'MM'),-12)
                     AND ff.competficha <  TRUNC(SYSDATE,'MM')""",
                 {"emp": EMPRESA})[0]
-    bh = _q("""SELECT NVL(SUM(credito),0) cred, NVL(SUM(debito),0) deb
-                 FROM globus729.frq_bancohoras
+    # O banco em HH.MM, convertido linha a linha; a folha já é hora decimal.
+    bh = _q("""SELECT credito, debito FROM globus729.frq_bancohoras
                 WHERE competencia >= ADD_MONTHS(TRUNC(SYSDATE,'MM'),-12)
-                  AND competencia <  TRUNC(SYSDATE,'MM')""")[0]
+                  AND competencia <  TRUNC(SYSDATE,'MM')""")
     pago_h = round(float(pago["h"] or 0), 1)
-    cred_h = round(float(bh["cred"] or 0), 1)
+    cred_h = round(sum(minutos(r["credito"]) for r in bh) / 60.0, 1)
+    deb_h = round(sum(minutos(r["debito"]) for r in bh) / 60.0, 1)
     total = pago_h + cred_h
     return {
         "pago_horas": pago_h,
         "pago_reais": _f(pago["rs"]),
         "creditado_horas": cred_h,
-        "compensado_horas": round(float(bh["deb"] or 0), 1),
+        "compensado_horas": deb_h,
         "pct_em_dinheiro": round(100 * pago_h / total, 1) if total else 0.0,
         "janela": "12 meses fechados",
     }
@@ -947,10 +881,12 @@ def resumo_escalares() -> dict:
         return {
             "competencia": bh.get("competencia"),
             "pessoas_com_ponto": bh.get("publico", {}).get("com_frequencia"),
-            "banco_horas_passivo_h": k.get("passivo_horas"),
-            "banco_horas_passivo_rs": k.get("passivo_custo"),
-            "banco_horas_pessoas_credoras": k.get("pessoas_credoras"),
-            "banco_horas_saldo_liquido_h": k.get("saldo_liquido"),
+            # o saldo do EXTRATO no fim da competência (anterior + movimento)
+            "banco_horas_credor_h": k.get("credor_h"),
+            "banco_horas_credor_rs_estimado": k.get("custo_credor"),
+            "banco_horas_pessoas_credoras": k.get("credores"),
+            "banco_horas_saldo_liquido_h": k.get("liquido_h"),
+            "banco_horas_levado_mes_seguinte_h": k.get("levado_h"),
             "he_pct_paga_em_dinheiro": d.get("pct_em_dinheiro"),
             "batidas_dias_de_atraso": b.get("frescor", {}).get("dias_atraso"),
             "batidas_pct_digitada_ultimo_mes": (b.get("origem") or [{}])[-1].get("pct_digitada"),
