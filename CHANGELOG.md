@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.79.1] — 14/09/2026  ·  CX-14/09/2026-v1.79.1
+
+### Corrigido
+- Férias — Vencimento › Fila de agendamento — o alerta passa a contar os 90 dias até o ÚLTIMO DIA PARA SAIR de férias (30 dias que terminam no limite), e não até o próprio limite: a tag agora mostra "sair até DD/MM", ou "saída vencida" quando os 30 dias já não cabem antes do limite. Vermelha nos últimos 30 dias antes da saída.
+- Férias — Vencimento › Fila de agendamento — férias marcadas que começam antes do limite mas terminam depois dele deixam de contar como "já agendado": os dias que passam do limite são pagos em dobro, e a pessoa continua com a tag.
+
 ## [1.79.0] — 14/09/2026  ·  CX-14/09/2026-v1.79.0
 
 ### Adicionado

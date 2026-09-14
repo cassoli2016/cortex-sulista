@@ -6365,7 +6365,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div id="chartFerAgenda" style="width:100%;height:160px"></div>
           </div>
           <div class="card">
-            <div class="head"><h2>Fila de agendamento <span class="badge b-info" title="Quem tem direito adquirido tem HOJE. Recortar isso por um intervalo devolveria um número que não significa nada — por isso a fila obedece à unidade e ao colaborador, mas não às datas. O que segue o período é o gráfico acima.">estado de hoje</span> <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quem JÁ completou um período aquisitivo e ainda não gozou, ordenado pelo limite legal — fim do aquisitivo mais 12 meses. Como o segundo período aquisitivo começa no dia seguinte ao fim do primeiro e dura 12 meses, esse limite é também a data em que o SEGUNDO fecha: quem não gozar o primeiro até lá fica com dois períodos, e paga o primeiro em DOBRO (art. 137 da CLT). Quem ainda está no aquisitivo não entra: não há o que agendar, e misturá-los faria a fila começar por quem não é problema de ninguém. A tag ALERTA 90 DIAS marca quem fecha o 2º período em até 90 dias sem férias marcadas antes do limite (vermelha a partir de 30 dias). Férias marcadas para DEPOIS do limite não resolvem — a dobra acontece do mesmo jeito — e mantêm a tag.">i</span></h2>
+            <div class="head"><h2>Fila de agendamento <span class="badge b-info" title="Quem tem direito adquirido tem HOJE. Recortar isso por um intervalo devolveria um número que não significa nada — por isso a fila obedece à unidade e ao colaborador, mas não às datas. O que segue o período é o gráfico acima.">estado de hoje</span> <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quem JÁ completou um período aquisitivo e ainda não gozou, ordenado pelo limite legal — fim do aquisitivo mais 12 meses. Como o segundo período aquisitivo começa no dia seguinte ao fim do primeiro e dura 12 meses, esse limite é também a data em que o SEGUNDO fecha: quem não gozar o primeiro até lá fica com dois períodos, e paga o primeiro em DOBRO (art. 137 da CLT). Quem ainda está no aquisitivo não entra: não há o que agendar, e misturá-los faria a fila começar por quem não é problema de ninguém. A TAG DE ALERTA mostra o ÚLTIMO DIA PARA SAIR de férias: as férias têm de TERMINAR até o limite (dia gozado depois dele é pago em dobro, Súmula 81 do TST), então 30 dias começam no máximo 29 dias antes dele. Ela aparece quando faltam 90 dias ou menos para essa data (vermelha nos últimos 30) e vira SAÍDA VENCIDA quando os 30 dias já não cabem antes do limite. O aviso de férias vai por escrito 30 dias antes da saída (art. 135 da CLT). Férias marcadas que terminam DEPOIS do limite não resolvem e mantêm a tag.">i</span></h2>
               <input type="search" id="fFerBusca" placeholder="achar na fila…" autocomplete="off"
                      aria-label="Buscar na fila" oninput="ferFilaFiltrar()"
                      style="margin-left:auto;max-width:190px;padding:5px 9px;border:1px solid var(--n300);border-radius:8px;font-size:12.5px">
@@ -23567,9 +23567,11 @@ function renderFerias(d){
   const F=d.fila||[];
   const semAg=F.filter(x=>!x.agendado).length;
   /* ALERTA DOS 90 DIAS (14/09/2026): a regra é do SERVIDOR
-     (`queries_folha.FER_ALERTA_DIAS`, campo `alerta`) — a tela só pinta. É
-     fixo, não o horizonte do seletor: trocar o horizonte para ler o gráfico
-     não pode apagar a tag de ninguém. */
+     (`queries_folha.FER_ALERTA_DIAS`, campo `alerta`) — a tela só pinta. Os
+     90 dias contam até o ÚLTIMO DIA PARA SAIR de férias (`saida_ate`, 30
+     dias que terminam no limite), não até o limite. É fixo, não o horizonte
+     do seletor: trocar o horizonte para ler o gráfico não pode apagar a tag
+     de ninguém. */
   const AL=d.alerta_dias||90, nAl=F.filter(x=>x.alerta).length;
   const hF=document.getElementById('hintFerFila');
   /* GUARDA O TEXTO ORIGINAL. A busca sobrescreve o hint com a contagem do
@@ -23577,7 +23579,7 @@ function renderFerias(d){
      sempre o resultado de uma busca que não existe mais. */
   hF.dataset.original = F.length
     ? (F.length+' já no 2º período · '+semAg+' sem data marcada'
-       +(nAl ? ' · '+nAl+' no alerta de '+AL+' dias' : '')+' · ordenados pelo prazo')
+       +(nAl ? ' · '+nAl+' no alerta (saída em até '+AL+' dias)' : '')+' · ordenados pelo prazo')
     : 'ninguém com período aquisitivo completo neste recorte';
   hF.textContent = hF.dataset.original;
   document.getElementById('fer-fila').innerHTML = F.map(x=>{
@@ -23599,10 +23601,20 @@ function renderFerias(d){
        diferentes para a mesma pergunta. Quem marcou férias a tempo não recebe
        destaque: o problema dele resolveu. */
     const est = x.alerta ? 'fim2' : '';
-    const tagTit = 'Fecha o 2º período em '+x.dias+(x.dias===1?' dia':' dias')
-      +' ('+fmtD(x.limite)+'): sem gozar o 1º até lá, ele é pago em DOBRO (art. 137 da CLT).'
-      +(x.agendado_depois ? ' As férias marcadas começam em '+fmtD(x.gozo_ini)
-          +' — DEPOIS do limite, e não evitam a dobra.' : '');
+    /* A TAG DIZ A DATA DE SAÍDA, e não só "alerta": é a data que monta a
+       escala. Passada a saída com o limite ainda por vir, 30 dias já não cabem
+       antes dele — "saída vencida". A cor conta da SAÍDA, não do limite. */
+    const ds = x.dias_saida;
+    const tagTxt = ds<0 ? 'saída vencida' : 'sair até '+fmtD(x.saida_ate).slice(0,5);
+    const tagTit = (ds<0
+        ? 'Passou há '+Math.abs(ds)+(Math.abs(ds)===1?' dia':' dias')+' o último dia para sair de férias ('
+          +fmtD(x.saida_ate)+'): 30 dias já não cabem antes do limite, e cada dia gozado depois de '
+          +fmtD(x.limite)+' é pago em DOBRO (Súmula 81 do TST).'
+        : 'Último dia para sair de férias: '+fmtD(x.saida_ate)+' (faltam '+ds+(ds===1?' dia':' dias')
+          +'). São 30 dias que terminam no limite, '+fmtD(x.limite)
+          +'; dia gozado depois dele é pago em DOBRO (Súmula 81 do TST). O aviso de férias vai por escrito 30 dias antes da saída (art. 135 da CLT).')
+      +(x.agendado_depois ? ' As férias marcadas terminam em '+fmtD(x.gozo_fim)
+          +' — DEPOIS do limite, e os dias que passam dele saem em dobro.' : '');
     return `<tr class="${est}">
       ${/* SÓ A EXCEÇÃO LEVA SELO. O "2º avançado" era verdadeiro e inútil: a
             barra colorida da coluna ao lado já diz 8/12 em âmbar, e o selo
@@ -23611,7 +23623,7 @@ function renderFerias(d){
             que é exceção de verdade: o alerta dos 90 dias (vermelho na reta
             final de 30) e quem já resolveu. */''}
       <td>${esc(x.nome)}${x.alerta
-        ? `<span class="badge ${x.dias<=30?'b-dang':'b-warn'} fer-alerta" style="margin-left:6px" title="${esc(tagTit)}">alerta ${AL} dias</span>`
+        ? `<span class="badge ${ds<=30?'b-dang':'b-warn'} fer-alerta" style="margin-left:6px" title="${esc(tagTit)}">${esc(tagTxt)}</span>`
         : x.agendado ? '<span class="fer-agora">já agendado</span>' : ''}</td>
       <td style="font-family:var(--mono);font-size:12px">${esc(x.chapa)}</td>
       <td>${esc(x.filial||'—')}</td>

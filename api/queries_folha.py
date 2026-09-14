@@ -657,11 +657,15 @@ _FER_MESES_2O = ("FLOOR(MONTHS_BETWEEN(TRUNC(SYSDATE), fe.proxaquifinfer))")
 _FER_SEM_AGENDA = "(fe.gozofinfer IS NULL OR fe.gozofinfer < TRUNC(SYSDATE))"
 
 # O ALERTA DOS 90 DIAS (quem opera, 14/09/2026): a tag da fila de agendamento
-# para quem FECHA O 2º PERÍODO — e, na mesma data, paga o 1º em dobra — em até
-# 90 dias. É FIXO, e não o horizonte do seletor da tela (`dias`): é o prazo em
-# que o RH decidiu começar a cobrar o agendamento, e trocar o horizonte para
-# ler o gráfico não pode apagar a tag de ninguém.
+# para quem está a até 90 dias do ÚLTIMO DIA PARA SAIR de férias — e não do
+# limite em que o 1º período vira dobra. As férias têm de TERMINAR até o
+# limite (dia gozado depois dele é pago em dobro, Súmula 81 do TST), então 30
+# dias começam no máximo 29 dias antes dele. É FIXO, e não o horizonte do
+# seletor da tela (`dias`): é o prazo em que o RH decidiu começar a cobrar o
+# agendamento, e trocar o horizonte para ler o gráfico não pode apagar a tag
+# de ninguém.
 FER_ALERTA_DIAS = 90
+FER_DIAS_GOZO = 30          # art. 130, I — o período inteiro, sem venda de dias
 
 
 def _janela_futura(dt_de: str, dt_ate: str) -> tuple[str, str]:
@@ -789,19 +793,32 @@ def get_ferias(dias: int = 90, filial: str = "", chapa: str = "",
             GROUP BY vf.descsecao ORDER BY COUNT(*) DESC""", p)]
 
     def _linha(r) -> dict:
+        from datetime import date, timedelta
         d = int(r["dias_ate"])
-        # AGENDADO SÓ RESOLVE SE O GOZO COMEÇA ATÉ O LIMITE. Férias marcadas
-        # para depois dele caem em dobra do mesmo jeito — e o "já agendado"
-        # daria por resolvido justamente quem vai custar o dobro. As datas
-        # vêm em ISO do `TO_CHAR`, então a comparação de texto é de data.
-        resolvido = bool(r["agendado"]) and bool(r["gozo_ini"]) \
-            and r["gozo_ini"] <= (r["limite"] or "")
+        # AGENDADO SÓ RESOLVE SE AS FÉRIAS TERMINAM ATÉ O LIMITE. Dia gozado
+        # depois do limite é pago em dobro (Súmula 81 do TST): férias que
+        # começam dentro do prazo e terminam fora dele NÃO resolvem. A 1.79.0
+        # conferia o INÍCIO e dava por resolvido quem ia pagar a ponta em
+        # dobro. As datas vêm em ISO do `TO_CHAR`: comparar texto é comparar
+        # data.
+        resolvido = bool(r["agendado"]) and bool(r["gozo_fim"]) \
+            and r["gozo_fim"] <= (r["limite"] or "")
+        # O ÚLTIMO DIA PARA SAIR (quem opera, 14/09/2026): 30 dias que terminem
+        # no limite começam 29 dias antes dele — o dia da saída conta. É DELE
+        # que o alerta conta os 90 dias, não do limite: contado do limite, a
+        # reta final da tag deixava menos de 60 dias para sair.
+        ds = d - (FER_DIAS_GOZO - 1)
+        saida = ((date.fromisoformat(r["limite"])
+                  - timedelta(days=FER_DIAS_GOZO - 1)).isoformat()
+                 if r["limite"] else None)
         return {
-            # a tag da fila (FER_ALERTA_DIAS): fecha o 2º em até 90 dias e
-            # nada marcado a tempo. Quem já passou do limite é `dobra`, outro
+            # a tag da fila: faltam até 90 dias para o último dia de saída —
+            # ou ele já passou, e o limite ainda não — sem férias marcadas
+            # que terminem a tempo. Quem passou do LIMITE é `dobra`, outro
             # estado, e não entra aqui.
-            "alerta": 0 <= d <= FER_ALERTA_DIAS and not resolvido,
+            "alerta": d >= 0 and ds <= FER_ALERTA_DIAS and not resolvido,
             "agendado_depois": bool(r["agendado"]) and not resolvido,
+            "saida_ate": saida, "dias_saida": ds,
             "nome": r["nome"], "chapa": (r["chapa"] or "").strip(),
             "funcao": r["funcao"], "filial": r["filial"],
             "admitido": r["adm"], "aquisitivo_fim": r["aq_fim"],

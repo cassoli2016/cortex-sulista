@@ -180,14 +180,15 @@ def _linhas_falsas(sql, params=None):
              "filial": "MATRIZ", "adm": "2010-01-01", "aq_fim": "2024-01-01",
              "limite": "2025-01-01", "dias_ate": -50, "meses_2o": 19,
              "agendado": 0, "gozo_ini": None, "gozo_fim": None},
-            # ── as bordas do alerta de 90 dias ──
+            # ── as bordas do alerta: 90 dias até o ÚLTIMO DIA PARA SAIR, que é
+            #    o limite menos 29 (30 dias terminando no limite) ──
             {"nome": "ANA NO LIMITE DO ALERTA", "chapa": "11", "funcao": "X",
-             "filial": "MATRIZ", "adm": "2023-12-13", "aq_fim": "2025-12-13",
-             "limite": "2026-12-13", "dias_ate": 90, "meses_2o": 9,
+             "filial": "MATRIZ", "adm": "2024-01-11", "aq_fim": "2026-01-11",
+             "limite": "2027-01-11", "dias_ate": 119, "meses_2o": 8,
              "agendado": 0, "gozo_ini": None, "gozo_fim": None},
             {"nome": "BRUNO UM DIA FORA", "chapa": "12", "funcao": "X",
-             "filial": "MATRIZ", "adm": "2023-12-14", "aq_fim": "2025-12-14",
-             "limite": "2026-12-14", "dias_ate": 91, "meses_2o": 9,
+             "filial": "MATRIZ", "adm": "2024-01-12", "aq_fim": "2026-01-12",
+             "limite": "2027-01-12", "dias_ate": 120, "meses_2o": 8,
              "agendado": 0, "gozo_ini": None, "gozo_fim": None},
             {"nome": "EDU VENCE HOJE", "chapa": "13", "funcao": "X",
              "filial": "MATRIZ", "adm": "2023-09-14", "aq_fim": "2025-09-14",
@@ -196,11 +197,17 @@ def _linhas_falsas(sql, params=None):
             {"nome": "CARLA AGENDOU A TEMPO", "chapa": "14", "funcao": "X",
              "filial": "MATRIZ", "adm": "2023-10-24", "aq_fim": "2025-10-24",
              "limite": "2026-10-24", "dias_ate": 40, "meses_2o": 10,
-             "agendado": 1, "gozo_ini": "2026-10-01", "gozo_fim": "2026-10-30"},
+             "agendado": 1, "gozo_ini": "2026-09-20", "gozo_fim": "2026-10-19"},
             {"nome": "DANI AGENDOU TARDE", "chapa": "15", "funcao": "X",
              "filial": "MATRIZ", "adm": "2023-10-24", "aq_fim": "2025-10-24",
              "limite": "2026-10-24", "dias_ate": 40, "meses_2o": 10,
              "agendado": 1, "gozo_ini": "2026-11-10", "gozo_fim": "2026-12-09"},
+            # começa DENTRO do prazo e termina FORA: a 1.79.0 dava por
+            # resolvido, e os dias depois do limite saem em dobro
+            {"nome": "FABIO TERMINA DEPOIS", "chapa": "16", "funcao": "X",
+             "filial": "MATRIZ", "adm": "2023-10-24", "aq_fim": "2025-10-24",
+             "limite": "2026-10-24", "dias_ate": 40, "meses_2o": 10,
+             "agendado": 1, "gozo_ini": "2026-10-10", "gozo_fim": "2026-11-08"},
         ]
     if "gozofinfer >= TRUNC(SYSDATE)" in sql and "agora" in sql:
         return []
@@ -344,29 +351,46 @@ def test_o_alerta_e_de_90_dias_FIXOS():
     """Nao e o horizonte do seletor: trocar o horizonte para ler o grafico nao
     pode apagar a tag de ninguem."""
     assert _qf.FER_ALERTA_DIAS == 90
+    assert _qf.FER_DIAS_GOZO == 30
+
+
+def test_o_ULTIMO_DIA_PARA_SAIR_e_o_limite_menos_29(ferias):
+    """As ferias tem de TERMINAR ate o limite (Sumula 81 do TST: dia gozado
+    depois dele e pago em dobro). 30 dias que terminem no limite comecam 29
+    dias antes -- o dia da saida conta. E dessa data que o alerta conta os 90
+    dias (quem opera, 14/09/2026)."""
+    j = {x["nome"]: x for x in ferias["fila"]}["JULIANA KARINE VERONEZ"]
+    assert j["limite"] == "2026-11-03"
+    assert j["saida_ate"] == "2026-10-05"
+    assert j["dias_saida"] == 64 - 29
 
 
 def test_o_alerta_pega_as_BORDAS_e_nao_quem_ja_passou(ferias):
     f = {x["nome"]: x for x in ferias["fila"]}
-    assert f["ANA NO LIMITE DO ALERTA"]["alerta"] is True, "90 dias entra"
-    assert f["BRUNO UM DIA FORA"]["alerta"] is False, "91 nao"
-    assert f["EDU VENCE HOJE"]["alerta"] is True, "o dia do limite ainda entra"
+    assert f["ANA NO LIMITE DO ALERTA"]["alerta"] is True, "90 dias ate a SAIDA entra (119 ate o limite)"
+    assert f["BRUNO UM DIA FORA"]["alerta"] is False, "91 ate a saida nao"
+    assert f["EDU VENCE HOJE"]["alerta"] is True, "saida vencida com o limite hoje ainda entra"
+    assert f["EDU VENCE HOJE"]["dias_saida"] < 0
     assert f["JULIANA KARINE VERONEZ"]["alerta"] is True
     assert f["FICHA ESQUISITA"]["alerta"] is False, "ja em dobra e outro estado"
 
 
-def test_quem_agendou_A_TEMPO_sai_do_alerta_e_quem_agendou_TARDE_fica(ferias):
-    """"Ja agendado" dava por resolvido quem marcou ferias para DEPOIS do
-    limite -- justamente quem vai custar o dobro."""
+def test_so_resolve_quem_TERMINA_as_ferias_ate_o_limite(ferias):
+    """"Ja agendado" dava por resolvido quem marcou ferias que COMECAM antes
+    do limite -- mas os dias que passam dele saem em dobro. Resolve so quem
+    termina ate la."""
     f = {x["nome"]: x for x in ferias["fila"]}
     assert f["CARLA AGENDOU A TEMPO"]["alerta"] is False
     assert f["CARLA AGENDOU A TEMPO"]["agendado_depois"] is False
+    assert f["MONICA DE FREITAS"]["alerta"] is False, "agendou e termina antes do limite"
     assert f["DANI AGENDOU TARDE"]["alerta"] is True
     assert f["DANI AGENDOU TARDE"]["agendado_depois"] is True
+    assert f["FABIO TERMINA DEPOIS"]["alerta"] is True, "comecar dentro do prazo nao basta"
+    assert f["FABIO TERMINA DEPOIS"]["agendado_depois"] is True
 
 
 def test_o_payload_CONTA_os_alertas_da_fila(ferias):
-    assert ferias["kpis"]["alerta"] == sum(x["alerta"] for x in ferias["fila"]) == 4
+    assert ferias["kpis"]["alerta"] == sum(x["alerta"] for x in ferias["fila"]) == 5
     assert ferias["alerta_dias"] == 90
 
 
@@ -380,7 +404,8 @@ def test_so_a_EXCECAO_leva_selo_no_nome(html):
     assert "2º avançado</span>" not in html
     assert "2º período avançado</span>" not in html
     assert "fecha o 2º</span>" not in html, "o selo por MESES saiu: a tag e por DIAS"
-    assert "alerta ${AL} dias</span>" in html
+    assert 'fer-alerta" style="margin-left:6px" title="${esc(tagTit)}">${esc(tagTxt)}</span>' in html
+    assert "'saída vencida'" in html and "'sair até '" in html
     assert "já agendado</span>" in html
 
 
