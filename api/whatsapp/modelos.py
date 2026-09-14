@@ -118,7 +118,7 @@ CONTEXTOS: dict[str, dict] = {
             _v("total", "Carretas com rastreador 3S", "223"),
             _v("comunicou", "Comunicaram no dia", "53"),
             _v("nunca", "Nunca comunicaram", "142"),
-            _v("mudo15", "Mudas há mais de 15 dias", "25"),
+            _v("mudo15", "Sem comunicação há mais de 15 dias", "25"),
             _v("parou", "Pararam nos últimos 15 dias", "3"),
             _v("evolucao", "Variação contra o dia anterior",
                "📈 Contra 01/09: +3 comunicando · -3 nunca"),

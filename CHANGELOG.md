@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.79.2] — 14/09/2026  ·  CX-14/09/2026-v1.79.2
+
+### Alterado
+- WhatsApp da 3S — a mensagem diária das carretas deixa de chamar de "mudas" as que pararam de comunicar: agora é "sem comunicação há mais de 15 dias", na mensagem, no nome do campo em Gestão › WhatsApp e no título da lista em PDF que vai anexa.
+
 ## [1.79.1] — 14/09/2026  ·  CX-14/09/2026-v1.79.1
 
 ### Corrigido

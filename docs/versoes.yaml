@@ -1,3 +1,12 @@
+- versao: "1.79.2"
+  data: "2026-09-14"
+  alterado:
+    - >-
+      WhatsApp da 3S — a mensagem diária das carretas deixa de chamar de
+      "mudas" as que pararam de comunicar: agora é "sem comunicação há mais
+      de 15 dias", na mensagem, no nome do campo em Gestão › WhatsApp e no
+      título da lista em PDF que vai anexa.
+
 - versao: "1.79.1"
   data: "2026-09-14"
   corrigido:

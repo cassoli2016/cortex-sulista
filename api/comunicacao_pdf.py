@@ -33,11 +33,13 @@ LINHA = colors.HexColor("#D8DDE2")
 
 #: Como cada situação se chama para quem vai cobrar. O texto é o da tela, não
 #: o da coluna do banco: "mudo15" não quer dizer nada para quem lê no celular.
+#: E o nome é "sem comunicação", não "muda" (quem opera, 14/09/2026): o anexo
+#: e a mensagem do WhatsApp da 3S dizem a mesma coisa com as mesmas palavras.
 TITULOS = {
     "nunca": ("NUNCA COMUNICARAM",
               "Sem nenhuma posição registrada. Verificar instalação, "
               "ativação e contrato."),
-    "mudo15": ("SEM COMUNICAR HÁ MAIS DE 15 DIAS",
+    "mudo15": ("SEM COMUNICAÇÃO HÁ MAIS DE 15 DIAS",
                "Já comunicaram e pararam. Verificar equipamento."),
     "parou": ("PARARAM NOS ÚLTIMOS 15 DIAS",
               "Silêncio recente — pode ser carreta parada em pátio."),

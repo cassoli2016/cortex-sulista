@@ -284,11 +284,11 @@ def test_o_pdf_repete_o_cabecalho_da_secao_na_pagina_seguinte():
     assert len(r.pages) > 1
     titulos = [l.strip() for p in r.pages
                for l in (p.extract_text() or "").split("\n")
-               if "NUNCA COMUNICARAM" in l or "SEM COMUNICAR" in l]
+               if "NUNCA COMUNICARAM" in l or "SEM COMUNICAÇÃO HÁ" in l]
     assert titulos[0].endswith("(120)"), titulos[0]
     assert "continuação" in titulos[1]
     # a seção nova nunca nasce marcada como continuação
-    novas = [t for t in titulos if "SEM COMUNICAR" in t]
+    novas = [t for t in titulos if "SEM COMUNICAÇÃO HÁ" in t]
     assert novas and "continuação" not in novas[0], novas
 
 
@@ -303,7 +303,7 @@ def test_o_anexo_separa_as_tres_cobrancas():
         {"placa": "A3", "situacao": "parou",
          "ultima": HOJE - dt.timedelta(days=5)}])))
     txt = "\n".join(p.extract_text() or "" for p in r.pages)
-    for chave in ("NUNCA COMUNICARAM", "SEM COMUNICAR HÁ MAIS DE 15 DIAS",
+    for chave in ("NUNCA COMUNICARAM", "SEM COMUNICAÇÃO HÁ MAIS DE 15 DIAS",
                   "PARARAM NOS ÚLTIMOS 15 DIAS"):
         assert chave in txt
     # e diz DESDE QUANDO, que é o que torna a lista cobrável
@@ -338,3 +338,18 @@ def test_o_anexo_passa_pelas_mesmas_travas_do_texto(monkeypatch):
     r = envio.enviar("120363411494074894-group", "oi", registrar=False,
                      anexo=(b"%PDF-1.4", "x.pdf", "pdf"))
     assert not r["ok"] and r["erro"]
+
+
+def test_a_3s_nao_chama_carreta_de_muda():
+    """Quem opera, 14/09/2026: "no WhatsApp da 3S vamos alterar a
+    nomenclatura de mudas para sem comunicação". O rótulo da variável (que a
+    tela de modelos mostra a quem escreve a mensagem) e o título do anexo
+    dizem "sem comunicação"; nenhum dos dois pode voltar a dizer "muda"."""
+    from api import comunicacao_pdf
+    from api.whatsapp import modelos
+    rotulos = {v["chave"]: v["rotulo"] for v in modelos.CONTEXTOS["comunicacao_3s"]["variaveis"]}
+    assert rotulos["mudo15"] == "Sem comunicação há mais de 15 dias", rotulos["mudo15"]
+    titulo = comunicacao_pdf.TITULOS["mudo15"][0]
+    assert titulo == "SEM COMUNICAÇÃO HÁ MAIS DE 15 DIAS", titulo
+    textos = " ".join([*rotulos.values(), *(a + " " + b for a, b in comunicacao_pdf.TITULOS.values())])
+    assert "muda" not in textos.lower() and "mudo" not in textos.lower(), textos
