@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.75.0] — 13/09/2026  ·  CX-13/09/2026-v1.75.0
+
+### Alterado
+- Copiloto: a pergunta sobre a produtividade dos veículos fica com quem vê o painel de TV da Produtividade.
+
+### Removido
+- Tela Produtividade de Veículos (Business Intelligence), a pedido de quem opera. A leitura da produtividade da frota passa a ser o painel de TV da Produtividade: quem tinha a tela antiga pelo perfil ou por liberação individual passa a ter o painel, e quem a usava como página inicial passa a abrir nele.
+
 ## [1.74.3] — 13/09/2026  ·  CX-13/09/2026-v1.74.3
 
 ### Alterado

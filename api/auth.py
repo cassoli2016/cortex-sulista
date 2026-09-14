@@ -158,7 +158,6 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "telcon":  ("Consumo e Estatísticas", "Telemetria"),
     "telcond": ("Condução Econômica", "Telemetria"),
     "telhod":  ("Hodômetro e Rastro", "Telemetria"),
-    "prodveic": ("Produtividade de Veículos", "Business Intelligence"),
     "fat":     ("Faturamento Detalhado", "Controladoria"),
     "tvcli":   ("Painel TV — Operação do Cliente", "Business Intelligence"),
     "tvfat":   ("Painel TV — Faturamento", "Business Intelligence"),
@@ -400,7 +399,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/operacao/torre",           frozenset({"torre", "tvope"})),
     ("/api/operacao/programacao",     frozenset({"prog", "tvope"})),
     ("/api/operacao/seguranca",       frozenset({"tvope"})),
-    ("/api/bi/produtividade-veiculos", frozenset({"prodveic", "tvprod"})),
+    ("/api/bi/produtividade-veiculos", frozenset({"tvprod"})),
     ("/api/operacao/analise-km",      frozenset({"km", "tvope"})),
     ("/api/operacao/make-vs-buy",     frozenset({"mvb"})),
     ("/api/operacao/custos-extras",   frozenset({"cex"})),
@@ -655,7 +654,7 @@ _PERFIS_MODELO = [
      ["rh", "hc", "folha", "folhaind", "he", "freq", "cnh", "ferias", "people",
       "des", "desrh", "rhmot"]),
     ("Diretoria",   "Visão executiva ampla: consolidado, copiloto e principais indicadores.",
-     ["home", "cop", "fluxo", "dre", "drecli", "com", "km", "prodveic", "tvprod", "torre", "jorn", "mvb", "veic", "prem", "rh", "hc", "folha", "folhaind", "he", "freq", "fech", "anpiso", "anrntrc",
+     ["home", "cop", "fluxo", "dre", "drecli", "com", "km", "tvprod", "torre", "jorn", "mvb", "veic", "prem", "rh", "hc", "folha", "folhaind", "he", "freq", "fech", "anpiso", "anrntrc",
       "telcon", "telcond", "telhod"]),
 ]
 
@@ -1174,6 +1173,29 @@ def _seed_perfis_modelo(c: psycopg.Connection) -> None:
                           " VALUES(%s,%s) ON CONFLICT DO NOTHING",
                           (row["id"], "tvprod"))
         c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v45', '1') ON CONFLICT(chave) DO NOTHING")
+
+    # v46 (2026-09-13): a tela `prodveic` (Produtividade de Veículos) foi
+    # APOSENTADA a pedido de quem opera, e a leitura da produtividade ficou
+    # sendo o painel de TV `tvprod`. Quem tinha a tela antiga pelo perfil
+    # ganha a TV -- sem isto a produtividade sumiria do menu de quem já a via
+    # -- e as linhas órfãs saem. O ajuste por usuário e a página inicial vão
+    # pelo mesmo caminho; 'tirar' continua 'tirar' e vence um 'liberar' que já
+    # exista na TV, como em todo o resto do cálculo. A tabela dos ajustes
+    # nasce na 0091: onde ela ainda não existe, também não há o que converter.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v46'").fetchone():
+        c.execute("INSERT INTO perfil_telas(perfil_id, tela)"
+                  " SELECT perfil_id, 'tvprod' FROM perfil_telas WHERE tela='prodveic'"
+                  " ON CONFLICT DO NOTHING")
+        c.execute("DELETE FROM perfil_telas WHERE tela='prodveic'")
+        if c.execute("SELECT to_regclass('usuario_acessos') IS NOT NULL AS ok").fetchone()["ok"]:
+            c.execute("INSERT INTO usuario_acessos(usuario_id, chave, efeito, criado_em, criado_por)"
+                      " SELECT usuario_id, 'tvprod', efeito, criado_em, criado_por"
+                      " FROM usuario_acessos WHERE chave='prodveic'"
+                      " ON CONFLICT (usuario_id, chave) DO UPDATE SET efeito='tirar'"
+                      " WHERE EXCLUDED.efeito='tirar'")
+            c.execute("DELETE FROM usuario_acessos WHERE chave='prodveic'")
+            c.execute("UPDATE usuarios SET pagina_inicial='tvprod' WHERE pagina_inicial='prodveic'")
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v46', '1') ON CONFLICT(chave) DO NOTHING")
 
 
 def _agora() -> str:

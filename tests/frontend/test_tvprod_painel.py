@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """O painel de TV da Produtividade da Frota (`tvprod`, 13/09/2026).
 
-A tela `prodveic` na parede, no formato da TV de operação, com um carrossel
-de duas lâminas (visão geral e veículos). O dublê tem a ordem de grandeza
+A produtividade da frota na parede (a tela `prodveic`, de onde ela saiu, foi
+aposentada na 1.75.0), no formato da TV de operação, com um carrossel de
+duas lâminas (visão geral e veículos). O dublê tem a ordem de grandeza
 real: 120 veículos rodando, 40 na lista (de 180), 25 parados, 12 meses de
 série com um mês SEM dado para provar que o intervalo é gerado.
 """

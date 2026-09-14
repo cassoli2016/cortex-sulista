@@ -165,7 +165,7 @@ def _t(*telas, abas=()):
 
 
 FONTE_TELAS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
-    "produtividade_veiculos": _t("prodveic", "tvprod"),
+    "produtividade_veiculos": _t("tvprod"),
     "faturamento_detalhado": _t("fat", "tvfat"),
     "portal_tupy": _t("antport"),
     "visao_geral": _t("home", "tvdir"),

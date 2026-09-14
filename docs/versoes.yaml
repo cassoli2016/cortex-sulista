@@ -1,3 +1,17 @@
+- versao: "1.75.0"
+  data: "2026-09-13"
+  removido:
+    - >-
+      Tela Produtividade de Veículos (Business Intelligence), a pedido de quem
+      opera. A leitura da produtividade da frota passa a ser o painel de TV da
+      Produtividade: quem tinha a tela antiga pelo perfil ou por liberação
+      individual passa a ter o painel, e quem a usava como página inicial
+      passa a abrir nele.
+  alterado:
+    - >-
+      Copiloto: a pergunta sobre a produtividade dos veículos fica com quem
+      vê o painel de TV da Produtividade.
+
 - versao: "1.74.3"
   data: "2026-09-13"
   alterado:

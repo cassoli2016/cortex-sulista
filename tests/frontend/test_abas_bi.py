@@ -17,87 +17,35 @@ O QUE ESTES TESTES GUARDAM
    no `init`, e medida feita sob `hidden` vale zero para sempre — o gráfico
    aparece com os eixos certos e quase todos os rótulos do eixo X suprimidos
    pelo `hideOverlap`. Não dá erro, não fica vazio: fica errado em silêncio.
-2. **Nenhum card se perde na divisão.** Cortar tela por marcador já apagou 20
-   rotas, o `loadHc` e o `loadMvb` nesta casa; aqui a conferência é a contagem
-   de títulos.
+2. **Todo botão de aba tem painel, e vice-versa** — a aba que não abre não
+   dá erro, dá ausência. (A contagem de títulos que conferia a divisão da
+   Produtividade de Veículos saiu com ela, aposentada na 1.75.0.)
 3. **O contador na aba diz o que tem lá dentro** sem obrigar o clique — uma
    aba "Ociosidade" vazia e uma com 24 veículos parados pedem coisas
    diferentes de quem olha.
 """
 from __future__ import annotations
 
-import json
 import re
 from pathlib import Path
 
-from tests.frontend.conftest import USUARIO
+from tests.frontend.test_oc_e2e import OC, PEND
+from tests.frontend.test_oc_e2e import _abrir as _abrir_oc
 
-ADMIN = {**USUARIO, "admin": True, "perfil": "Administrador"}
 HTML = (Path(__file__).resolve().parents[2] / "api" / "static"
         / "index.html").read_text(encoding="utf-8")
 
-PROD = {
-    "kpis": {"veiculos": 3, "viagens": 40, "km_carregado": 120000.0,
-             "km_vazio": 30000.0, "receita": 360000.0, "km_total": 150000.0,
-             "retorno_vazio": 0.20, "rkm": 3.0, "km_por_veiculo": 40000.0,
-             "receita_por_veiculo": 120000.0, "frota_ociosa_base": 10,
-             "ociosos": 2, "nunca_rodaram": 1, "ociosidade": 0.2},
-    "mensal": [{"mes": "2026-06", "veiculos": 3, "km_carregado": 60000.0,
-                "km_vazio": 15000.0, "receita": 180000.0},
-               {"mes": "2026-07", "veiculos": 3, "km_carregado": 60000.0,
-                "km_vazio": 15000.0, "receita": 180000.0}],
-    "modalidades": [{"modalidade": "FROTA", "veiculos": 3, "viagens": 40,
-                     "km_carregado": 120000.0, "km_vazio": 30000.0,
-                     "retorno_vazio": 0.2, "receita": 360000.0, "rkm": 3.0}],
-    "veiculos": [{"placa": "ABC1D23", "modalidade": "FROTA", "viagens": 20,
-                  "dias_ativos": 40, "km_carregado": 60000.0,
-                  "km_por_dia_ativo": 1500.0, "retorno_vazio": 0.2,
-                  "receita": 180000.0, "rkm": 3.0}],
-    "veiculos_total": 37,
-    "ociosos": [{"placa": "XYZ4E56", "modalidade": "FROTA", "dias_parado": 200,
-                 "ultima_viagem": "2026-01-10", "viagens_historicas": 310}],
-    "nunca_rodaram": [{"placa": "QRS7F89", "modalidade": "LOCACAO",
-                       "tipo": "CAVALO"}],
-    "filtros": {"filial": None, "dt_de": "2026-06-01", "dt_ate": "2026-07-31",
-                "modalidade": None},
-    "fonte": "AVA", "ts": "2026-08-30T11:00:00",
-}
+# A COBAIA É A TELA DE ORDENS DE COMPRA desde a 1.75.0. Os testes de
+# comportamento nasceram na Produtividade de Veículos, aposentada a pedido de
+# quem opera; a de OC tem o que eles pedem — cinco abas, contador em quatro
+# delas e o gráfico na primeira — e um dublê na ordem de grandeza do real, o
+# do próprio teste dela. Reusado, não copiado: se ele envelhecer lá, quebra
+# aqui junto, à vista.
 
 
 def _abrir(pg, base_url):
-    def rota(route):
-        u = route.request.url
-        corpo = (ADMIN if "/api/auth/me" in u
-                 else PROD if "produtividade-veiculos" in u else {})
-        route.fulfill(status=200, content_type="application/json",
-                      body=json.dumps(corpo))
-    pg.route("**/api/**", rota)
-    erros = []
-    pg.on("pageerror", lambda e: erros.append(str(e)))
-    pg.goto(base_url + "/static/index.html#prodveic")
-    pg.wait_for_selector("#kpis-prodveic .kpi", timeout=20000)
+    erros, _urls = _abrir_oc(pg, base_url)
     return erros
-
-
-# -- a divisão não perde nada -----------------------------------------------
-
-
-def _cards(bloco):
-    return re.findall(r"<h2>([^<]+)", bloco)
-
-
-def test_os_seis_cards_continuam_na_tela():
-    """A divisão em abas é RECORTE, não reescrita. Se um card sumir aqui, o
-    dado sumiu do painel sem ninguém perceber — o modo como esta casa já
-    perdeu 20 rotas e duas funções de carga num corte por marcador."""
-    i = HTML.index('<section class="view" id="view-prodveic">')
-    j = HTML.index('<section class="view" id="view-km">', i)
-    titulos = [t.split("<")[0].strip() for t in _cards(HTML[i:j])]
-    esperados = {"Km carregado e veículos ativos por mês",
-                 "Produtividade por modalidade", "Produtividade por veículo",
-                 "Parados no período", "Nunca rodaram — cadastro a conferir",
-                 "Alertas"}
-    assert esperados <= set(titulos), esperados - set(titulos)
 
 
 def _grupos() -> list[str]:
@@ -169,14 +117,14 @@ def test_a_aba_com_GRAFICO_e_a_que_nasce_aberta():
 # -- o comportamento --------------------------------------------------------
 
 
-def test_abre_na_visao_geral_com_o_grafico_visivel(pagina):
+def test_abre_na_primeira_aba_com_o_grafico_visivel(pagina):
     pg, base_url = pagina
     erros = _abrir(pg, base_url)
     assert not erros, erros
-    assert pg.is_visible("#aba-prod-vis")
-    assert not pg.is_visible("#aba-prod-veic")
-    assert not pg.is_visible("#aba-prod-ocio")
-    pg.wait_for_selector("#chartProd svg", timeout=20000)
+    assert pg.is_visible("#aba-oc-geral")
+    assert not pg.is_visible("#aba-oc-aprov")
+    assert not pg.is_visible("#aba-oc-forn")
+    pg.wait_for_selector("#chartOc svg", timeout=20000)
 
 
 def test_o_grafico_e_medido_com_LARGURA_DE_VERDADE(pagina):
@@ -185,32 +133,31 @@ def test_o_grafico_e_medido_com_LARGURA_DE_VERDADE(pagina):
     direto de provar que não aconteceu."""
     pg, base_url = pagina
     _abrir(pg, base_url)
-    pg.wait_for_selector("#chartProd svg", timeout=20000)
+    pg.wait_for_selector("#chartOc svg", timeout=20000)
     largura = pg.evaluate(
-        "() => document.querySelector('#chartProd svg').getBoundingClientRect().width")
+        "() => document.querySelector('#chartOc svg').getBoundingClientRect().width")
     assert largura > 300, largura
 
 
 def test_trocar_de_aba_mostra_uma_e_esconde_as_outras(pagina):
     pg, base_url = pagina
     _abrir(pg, base_url)
-    pg.click("#tabprod-veic")
-    assert pg.is_visible("#aba-prod-veic") and not pg.is_visible("#aba-prod-vis")
-    assert pg.get_attribute("#tabprod-veic", "aria-selected") == "true"
-    assert pg.get_attribute("#tabprod-vis", "aria-selected") == "false"
-    pg.click("#tabprod-ocio")
-    assert pg.is_visible("#aba-prod-ocio") and not pg.is_visible("#aba-prod-veic")
+    pg.click("#taboc-forn")
+    assert pg.is_visible("#aba-oc-forn") and not pg.is_visible("#aba-oc-geral")
+    assert pg.get_attribute("#taboc-forn", "aria-selected") == "true"
+    assert pg.get_attribute("#taboc-geral", "aria-selected") == "false"
+    pg.click("#taboc-semnota")
+    assert pg.is_visible("#aba-oc-semnota") and not pg.is_visible("#aba-oc-forn")
 
 
 def test_o_contador_da_aba_diz_o_tamanho_do_assunto(pagina):
-    """Veículos: o TOTAL, não o tamanho do recorte da tabela — quem olha a aba
-    quer o tamanho do assunto. Ociosidade: parados + nunca rodaram, que é a
-    fila de trabalho de quem abre."""
+    """Fornecedores: o TOTAL, não o tamanho do recorte da lista — quem olha a
+    aba quer o tamanho do assunto. Sem nota: a fila de trabalho de quem
+    abre."""
     pg, base_url = pagina
     _abrir(pg, base_url)
-    assert pg.inner_text("#abanProdVeic").strip() == str(PROD["veiculos_total"])
-    esperado = len(PROD["ociosos"]) + len(PROD["nunca_rodaram"])
-    assert pg.inner_text("#abanProdOcio").strip() == str(esperado)
+    assert pg.inner_text("#ocNForn").strip() == str(OC["fornecedores_total"])
+    assert pg.inner_text("#ocNSemnota").strip() == str(PEND["sem_nota"]["kpis"]["ocs"])
 
 
 def test_contador_ZERO_fica_em_branco(pagina):
@@ -218,8 +165,8 @@ def test_contador_ZERO_fica_em_branco(pagina):
     ruído com cara de número."""
     pg, base_url = pagina
     _abrir(pg, base_url)
-    pg.evaluate("() => window.abaContador('abanProdOcio', 0)")
-    assert not pg.is_visible("#abanProdOcio")
+    pg.evaluate("() => window.abaContador('ocNSemnota', 0)")
+    assert not pg.is_visible("#ocNSemnota")
 
 
 def test_a_premiacao_usa_a_MESMA_funcao(pagina):
@@ -240,9 +187,9 @@ def test_o_controle_de_giro_aparece_em_TODA_barra_de_abas(pagina):
     montado a partir de `[data-abas]`, então painel novo já nasce com ele."""
     pg, base_url = pagina
     _abrir(pg, base_url)
-    assert pg.is_visible("#abaAuto-prod")
+    assert pg.is_visible("#abaAuto-oc")
     opcoes = pg.eval_on_selector(
-        "#abaAuto-prod", "s => Array.from(s.options).map(o => o.value)")
+        "#abaAuto-oc", "s => Array.from(s.options).map(o => o.value)")
     assert opcoes[0] == "0", "a primeira opção tem de ser 'não girar'"
     assert len(opcoes) >= 4
 
@@ -252,7 +199,7 @@ def test_NAO_GIRAR_esta_DENTRO_do_mesmo_controle(pagina):
     intervalo nenhum", que ninguém consegue prever lendo a tela."""
     pg, base_url = pagina
     _abrir(pg, base_url)
-    texto = pg.inner_text("#abaAuto-prod").lower()
+    texto = pg.inner_text("#abaAuto-oc").lower()
     assert "não girar" in texto or "nao girar" in texto, texto
 
 
@@ -269,18 +216,18 @@ def test_o_giro_avanca_a_aba_sozinho(pagina):
     _abrir(pg, base_url)
     ordem = pg.evaluate(
         "() => Array.from(document.querySelectorAll("
-        " '.subtabs[data-abas=\"prod\"] button[data-aba]')).map(b => b.dataset.aba)")
-    assert len(ordem) >= 3, "a Produtividade precisa de abas para este teste"
-    assert pg.get_attribute("#tabprod-" + ordem[0], "aria-selected") == "true"
+        " '.subtabs[data-abas=\"oc\"] button[data-aba]')).map(b => b.dataset.aba)")
+    assert len(ordem) >= 3, "as Ordens de Compra precisam de abas para este teste"
+    assert pg.get_attribute("#taboc-" + ordem[0], "aria-selected") == "true"
     # o menor intervalo real é longo demais para um teste: dispara a rotação
     # pela mesma função que o relógio chama.
     for i in range(1, len(ordem)):
-        pg.evaluate("() => window.abaProxima('prod')")
-        assert pg.get_attribute("#tabprod-" + ordem[i], "aria-selected") == "true", (
+        pg.evaluate("() => window.abaProxima('oc')")
+        assert pg.get_attribute("#taboc-" + ordem[i], "aria-selected") == "true", (
             "a rotação pulou ou repetiu: esperava %s na posição %d"
             % (ordem[i], i))
-    pg.evaluate("() => window.abaProxima('prod')")
-    assert pg.get_attribute("#tabprod-" + ordem[0], "aria-selected") == "true", (
+    pg.evaluate("() => window.abaProxima('oc')")
+    assert pg.get_attribute("#taboc-" + ordem[0], "aria-selected") == "true", (
         "a rotação tem de dar a volta, não parar na última")
 
 
@@ -288,19 +235,19 @@ def test_a_escolha_do_intervalo_FICA_GUARDADA(pagina):
     """Quem pôs o painel no mural quer que ele continue girando amanhã."""
     pg, base_url = pagina
     _abrir(pg, base_url)
-    pg.select_option("#abaAuto-prod", "30")
-    assert pg.evaluate("() => window.abaAutoSegundos('prod')") == 30
+    pg.select_option("#abaAuto-oc", "30")
+    assert pg.evaluate("() => window.abaAutoSegundos('oc')") == 30
     pg.reload()
     pg.wait_for_timeout(600)
-    assert pg.input_value("#abaAuto-prod") == "30"
+    assert pg.input_value("#abaAuto-oc") == "30"
 
 
 def test_o_giro_e_POR_PAINEL(pagina):
     """Ligar o giro na Jornada não pode fazer a Premiação girar junto."""
     pg, base_url = pagina
     _abrir(pg, base_url)
-    pg.select_option("#abaAuto-prod", "60")
-    assert pg.evaluate("() => window.abaAutoSegundos('prod')") == 60
+    pg.select_option("#abaAuto-oc", "60")
+    assert pg.evaluate("() => window.abaAutoSegundos('oc')") == 60
     assert pg.evaluate("() => window.abaAutoSegundos('prem')") == 0
 
 
@@ -314,7 +261,7 @@ def test_o_clique_manual_REARMA_o_relogio(pagina):
         const orig = window.abaAutoRearmar;
         window.abaAutoRearmar = g => { window.__rearmou++; return orig(g); };
     }""")
-    pg.click("#tabprod-veic")
+    pg.click("#taboc-forn")
     assert pg.evaluate("() => window.__rearmou") >= 1
 
 

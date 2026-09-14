@@ -27,42 +27,19 @@ import json
 import pytest
 
 from tests.frontend.conftest import USUARIO
+from tests.frontend.test_oc_e2e import _rota as _rota_oc
 
 ADMIN = {**USUARIO, "admin": True, "perfil": "Administrador"}
 
-PAYLOAD = {
-    "kpis": {"veiculos": 3, "viagens": 10, "km_carregado": 30000.0,
-             "km_vazio": 6000.0, "receita": 90000.0, "km_total": 36000.0,
-             "retorno_vazio": 0.1667, "rkm": 3.0, "km_por_veiculo": 10000.0,
-             "receita_por_veiculo": 30000.0, "frota_ociosa_base": 10,
-             "ociosos": 1, "nunca_rodaram": 0, "ociosidade": 0.1},
-    # mai é cortado pelo filtro (dt_de = 15/05) e ago é o corrente: os DOIS
-    # têm de sair hachurados
-    "mensal": [
-        {"mes": "2026-05", "veiculos": 2, "km_carregado": 4000.0,
-         "km_vazio": 500.0, "receita": 9000.0},
-        {"mes": "2026-06", "veiculos": 3, "km_carregado": 13000.0,
-         "km_vazio": 2500.0, "receita": 40000.0},
-        {"mes": "2026-08", "veiculos": 3, "km_carregado": 13000.0,
-         "km_vazio": 3000.0, "receita": 41000.0},
-    ],
-    "modalidades": [], "veiculos": [], "veiculos_total": 0,
-    "ociosos": [], "nunca_rodaram": [],
-    "filtros": {"filial": None, "dt_de": "2026-05-15", "dt_ate": "2026-08-27",
-                "modalidade": None},
-    "fonte": "AVA", "ts": "2026-08-27T21:00:00",
-}
+# A TELA DE ORDENS DE COMPRA é a cobaia do gráfico de tela comum desde a
+# 1.75.0 (era a Produtividade de Veículos, aposentada a pedido de quem opera).
+# O dublê é o do teste dela, reusado: payload na ordem de grandeza do real.
 
 
 def _abrir(pg, base_url, hash_tela, *, quebrar_vendor=False):
     baixados = []
 
-    def rota_api(route):
-        u = route.request.url
-        corpo = (ADMIN if "/api/auth/me" in u
-                 else PAYLOAD if "produtividade-veiculos" in u else {})
-        route.fulfill(status=200, content_type="application/json",
-                      body=json.dumps(corpo))
+    rota_api = _rota_oc([])
 
     def rota_vendor(route):
         baixados.append(route.request.url)
@@ -219,51 +196,47 @@ def test_a_visao_geral_mantem_as_REGRAS_da_casa(pagina):
     assert "R$ MI" in rec.upper()
 
 
-def test_a_produtividade_baixa_a_biblioteca_e_desenha(pagina):
+def test_a_tela_de_ordens_de_compra_baixa_a_biblioteca_e_desenha(pagina):
     pg, base = pagina
-    baixados, erros = _abrir(pg, base, "prodveic")
-    pg.wait_for_selector("#chartProd svg", timeout=20000)
+    baixados, erros = _abrir(pg, base, "oc")
+    pg.wait_for_selector("#chartOc svg", timeout=20000)
     assert len(baixados) == 1, f"esperava UMA carga, veio {len(baixados)}"
     assert erros == []
     # o gráfico desenhou de verdade: uma barra por mês
-    assert pg.locator("#chartProd svg path").count() > 3
+    assert pg.locator("#chartOc svg path").count() > 3
 
 
 def test_mes_parcial_sai_HACHURADO(pagina):
-    """Regra mais antiga dos painéis desta casa: mês cortado pelo filtro ou
-    corrente com barra cheia mente sobre a queda. O `decal` do ECharts faz o
-    papel do `<pattern>` que o SVG à mão desenhava."""
+    """Regra mais antiga dos painéis desta casa: mês corrente com barra cheia
+    mente sobre a queda. O `decal` do ECharts faz o papel do `<pattern>` que o
+    SVG à mão desenhava.
+
+    A série é ANCORADA EM HOJE e passa pela função da própria tela, e não pelo
+    dublê literal da OC: o parcial é o mês corrente do navegador, e meses
+    escritos à mão deixam de conter o corrente na primeira virada."""
     pg, base = pagina
-    _abrir(pg, base, "prodveic")
-    pg.wait_for_selector("#chartProd svg", timeout=20000)
+    _abrir(pg, base, "oc")
+    pg.wait_for_selector("#chartOc svg", timeout=20000)
+    serie = [{"mes": _mes(n), "ocs": 900, "valor": 4_000_000.0 + n} for n in range(5, -1, -1)]
+    pg.evaluate("(m) => chartOcRender(m)", serie)
     pg.wait_for_timeout(400)
-    svg = pg.inner_html("#chartProd")
-    assert "pattern" in svg.lower(), "nenhuma hachura no gráfico"
-    # o eixo marca os dois meses parciais
-    assert svg.count("parcial") >= 2
+    assert "pattern" in pg.inner_html("#chartOc").lower(), "nenhuma hachura no gráfico"
 
 
-def test_a_linha_tem_ROTULO_DIRETO(pagina):
-    """Ela vive num segundo eixo com escala própria; sem o número em cima do
-    ponto o leitor não tem como ler valor nenhum."""
-    pg, base = pagina
-    _abrir(pg, base, "prodveic")
-    pg.wait_for_selector("#chartProd svg", timeout=20000)
-    pg.wait_for_timeout(400)
-    txt = pg.inner_text("#chartProd")
-    for veiculos in ("2", "3"):
-        assert veiculos in txt
+# A linha em eixo secundário com rótulo direto era do gráfico da Produtividade
+# de Veículos, aposentada na 1.75.0; a regra segue coberta pela média com
+# rótulo direto da Visão Geral (`test_a_visao_geral_mantem_as_REGRAS_da_casa`).
 
 
 def test_falha_ao_carregar_a_biblioteca_e_DITA(pagina):
-    """Cartão vazio faria parecer 'sem viagem no período'. O arquivo vem do
+    """Cartão vazio faria parecer 'nenhuma ordem no período'. O arquivo vem do
     nosso disco: se sumiu, é deploy quebrado, e isso se diz."""
     pg, base = pagina
-    _abrir(pg, base, "prodveic", quebrar_vendor=True)
+    _abrir(pg, base, "oc", quebrar_vendor=True)
     pg.wait_for_timeout(2500)
-    txt = pg.inner_text("#chartProd")
+    txt = pg.inner_text("#chartOc")
     assert "não foi possível carregar" in txt.lower()
-    assert "tabelas abaixo continuam corretos" in txt.lower()
+    assert "continuam corretos" in txt.lower()
 
 
 def test_o_arquivo_da_biblioteca_esta_no_repositorio():
