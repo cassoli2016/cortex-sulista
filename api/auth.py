@@ -2204,35 +2204,47 @@ def usuario_criar(payload: dict, request: Request) -> JSONResponse:
     # grande. A resposta diz as duas coisas separadas.
     resp = {"ok": True, "id": novo_id}
     if manda_email:
-        from api.correio import boas_vindas
-        with _conn() as c:
-            p = c.execute("SELECT nome, admin FROM perfis WHERE id=%s",
-                          (perfil_id,)).fetchone() or {}
-            tl = [r["tela"] for r in c.execute(
-                "SELECT tela FROM perfil_telas WHERE perfil_id=%s",
-                (perfil_id,)).fetchall()]
-            # o e-mail diz o que a pessoa ABRE: com ajuste individual, é o
-            # acesso efetivo, não o do perfil (admin segue como era)
-            if not p.get("admin"):
-                tl = acessos.efetivas(tl, acessos.ajustes_de(c, novo_id), False,
-                                      TELAS.keys())[0]
-        r = boas_vindas.enviar_boas_vindas(
-            dados["email"], dados["nome"], senha, _url_painel(),
-            telas=tl, admin=bool(p.get("admin")), perfil=p.get("nome") or "",
-            autor=sess["email"])
-        resp["email"] = {"ok": bool(r.get("ok")), "erro": r.get("erro") or ""}
-        # A SENHA NÃO ENTRA NA TRILHA. Registra-se que o e-mail saiu, para quem
-        # e quando — trilha com segredo dentro é pior que o e-mail.
-        audit(sess["email"], "usuario_boas_vindas", alvo=dados["email"],
-              detalhe="enviado" if r.get("ok") else f"falhou: {r.get('erro','')}",
-              ip=_ip(request))
-        # Quando o e-mail NÃO saiu, a senha volta para quem cadastrou — é a
-        # única forma de a pessoa entrar. Quando saiu, ela não volta: já está
-        # na caixa de quem vai usar, e ecoá-la aqui a poria também no log do
-        # navegador de quem cadastrou.
-        if not r.get("ok"):
-            resp["senha_temporaria"] = senha
+        resp.update(_mandar_acesso(novo_id, dados["email"], dados["nome"], perfil_id,
+                                   senha, sess, request))
     return JSONResponse(resp)
+
+
+def _mandar_acesso(usuario_id: int, email: str, nome: str, perfil_id: int,
+                   senha: str, sess: dict, request: Request) -> dict:
+    """Manda o e-mail de acesso (boas-vindas) e devolve o que a RESPOSTA leva.
+
+    Serve ao cadastro e à edição ("gerar senha nova e mandar por e-mail"), e
+    roda DEPOIS do commit nos dois: a senha já vale quando o e-mail sai.
+    """
+    from api.correio import boas_vindas
+    with _conn() as c:
+        p = c.execute("SELECT nome, admin FROM perfis WHERE id=%s",
+                      (perfil_id,)).fetchone() or {}
+        tl = [r["tela"] for r in c.execute(
+            "SELECT tela FROM perfil_telas WHERE perfil_id=%s",
+            (perfil_id,)).fetchall()]
+        # o e-mail diz o que a pessoa ABRE: com ajuste individual, é o
+        # acesso efetivo, não o do perfil (admin segue como era)
+        if not p.get("admin"):
+            tl = acessos.efetivas(tl, acessos.ajustes_de(c, usuario_id), False,
+                                  TELAS.keys())[0]
+    r = boas_vindas.enviar_boas_vindas(
+        email, nome, senha, _url_painel(),
+        telas=tl, admin=bool(p.get("admin")), perfil=p.get("nome") or "",
+        autor=sess["email"])
+    saida = {"email": {"ok": bool(r.get("ok")), "erro": r.get("erro") or ""}}
+    # A SENHA NÃO ENTRA NA TRILHA. Registra-se que o e-mail saiu, para quem
+    # e quando — trilha com segredo dentro é pior que o e-mail.
+    audit(sess["email"], "usuario_boas_vindas", alvo=email,
+          detalhe="enviado" if r.get("ok") else f"falhou: {r.get('erro','')}",
+          ip=_ip(request))
+    # Quando o e-mail NÃO saiu, a senha volta para quem cadastrou — é a
+    # única forma de a pessoa entrar. Quando saiu, ela não volta: já está
+    # na caixa de quem vai usar, e ecoá-la aqui a poria também no log do
+    # navegador de quem cadastrou.
+    if not r.get("ok"):
+        saida["senha_temporaria"] = senha
+    return saida
 
 
 def _url_painel() -> str:
@@ -2318,6 +2330,21 @@ def usuario_editar(usuario_id: int, payload: dict, request: Request) -> JSONResp
             detalhes.append("acessos: " + acessos.diff(atuais, ajustes_novos))
 
         senha_nova = payload.get("resetar_senha") or ""
+        # MANDAR O ACESSO POR E-MAIL a quem já existe: foi cadastrado sem o
+        # e-mail (até a v1.78.0 a tela nem tinha como pedi-lo) ou perdeu o que
+        # recebeu. A senha antiga não se recupera — está em hash —, então o
+        # envio é sempre de uma senha NOVA, gerada aqui como no cadastro.
+        manda_email = bool(payload.get("enviar_boas_vindas"))
+        if manda_email:
+            ativo_final = (payload["ativo"] if isinstance(payload.get("ativo"), bool)
+                           else bool(u["ativo"]))
+            if not ativo_final:
+                return JSONResponse(status_code=422, content={
+                    "erro": "usuario_inativo",
+                    "mensagem": "Usuário inativo: ative-o antes de mandar o acesso."})
+            if not senha_nova:
+                from api.correio.boas_vindas import gerar_senha
+                senha_nova = gerar_senha()
         if senha_nova:
             if len(senha_nova) < cfg("senha_min"):
                 return JSONResponse(status_code=422, content={
@@ -2357,7 +2384,12 @@ def usuario_editar(usuario_id: int, payload: dict, request: Request) -> JSONResp
                 "erro": "email_em_uso", "mensagem": "Já existe usuário com esse e-mail."})
     audit(sess["email"], "usuario_editar", alvo=u["email"],
           detalhe="; ".join(detalhes), ip=_ip(request))
-    return JSONResponse({"ok": True})
+    resp = {"ok": True}
+    if manda_email:
+        resp.update(_mandar_acesso(usuario_id, dados["email"] or u["email"],
+                                   dados["nome"] or u["nome"], perfil_final,
+                                   senha_nova, sess, request))
+    return JSONResponse(resp)
 
 
 @router_gestao.post("/usuarios/{usuario_id}/excluir")

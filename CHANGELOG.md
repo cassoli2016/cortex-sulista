@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.78.0] — 14/09/2026  ·  CX-14/09/2026-v1.78.0
+
+### Adicionado
+- Gestão › Usuários — ao editar um usuário, a opção "Gerar senha nova e mandar o acesso por e-mail" manda de novo o e-mail de acesso, com uma senha provisória nova, para quem não recebeu ou perdeu o que recebeu. A senha anterior deixa de valer e a troca no primeiro acesso continua obrigatória. Usuário inativo não recebe: é preciso ativá-lo antes.
+
+### Corrigido
+- Gestão › Usuários — o cadastro de usuário não mandava o e-mail de boas-vindas: o formulário não tinha a opção de pedi-lo. Agora "Mandar o acesso por e-mail" vem marcada; com a senha em branco, o sistema gera uma provisória forte e a manda junto com o endereço do painel. Ao salvar, a tela confirma para quem o e-mail foi, ou mostra a senha provisória para ser entregue por outro caminho se o envio falhar.
+
 ## [1.77.0] — 14/09/2026  ·  CX-14/09/2026-v1.77.0
 
 ### Alterado

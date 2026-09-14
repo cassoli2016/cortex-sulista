@@ -44139,6 +44139,8 @@ function gesUsuarioModal(id){
         <div class="hint" style="margin-top:4px">Preenchido, este login passa a enxergar na tela <b>Minha Operação</b> apenas as cargas dessa empresa — e nada mais do CÓRTEX que o perfil não permita. Vazio é o normal.</div></div>
       <div><label for="gu-senha">${u?'Resetar senha (opcional — usuário troca no próximo login)':'Senha temporária (usuário troca no primeiro login)'}</label>
         <input type="password" id="gu-senha" autocomplete="new-password"></div>
+      <div><label><input type="checkbox" id="gu-bv" data-edicao="${u?1:''}" ${u?'':'checked'} onchange="gesBvAviso()"> ${u?'Gerar senha nova e mandar o acesso por e-mail':'Mandar o acesso por e-mail'}</label>
+        <div class="hint" id="gu-bv-hint" style="margin-top:4px"></div></div>
       ${u?`<div><label><input type="checkbox" id="gu-ativo" ${u.ativo?'checked':''}> Usuário ativo</label></div>`:''}
       ${u&&u.bloqueado_ate&&u.bloqueado_ate>agoraLocal()?`<div><label><input type="checkbox" id="gu-desb"> Desbloquear agora</label></div>`:''}
     </div>
@@ -44148,6 +44150,7 @@ function gesUsuarioModal(id){
   GU_ACESSOS = u ? (u.acessos||[]) : [];
   GU_PAGINA = u ? (u.pagina_inicial||'') : '';
   gesPaginaRefazer();
+  gesBvAviso();
 }
 async function gesUsuarioSalvar(id){
   const V=x=>(document.getElementById(x).value||'').trim();
@@ -44168,6 +44171,11 @@ async function gesUsuarioSalvar(id){
     const at=document.getElementById('gu-ativo'); if(at) payload.ativo=at.checked;
     const db=document.getElementById('gu-desb'); if(db&&db.checked) payload.desbloquear=true;
   } else payload.senha_temporaria=senha;
+  /* A caixa do e-mail existe desde a v1.78.0 (14/09/2026). Antes, o servidor
+     sabia mandar e a tela nunca pedia — três cadastros esperaram um e-mail
+     que não saiu. tests/frontend/test_usuario_acesso_email_e2e.py cobra. */
+  const bv=document.getElementById('gu-bv');
+  if(bv&&bv.checked) payload.enviar_boas_vindas=true;
   try{
     const r=await fetch('/api/gestao/usuarios'+(id?'/'+id:''),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const d=await r.json();
@@ -44177,11 +44185,16 @@ async function gesUsuarioSalvar(id){
        servidor devolve a senha JUSTAMENTE nesse caso, para quem cadastrou
        entregar por outro caminho. Isso não pode passar despercebido. */
     if(d.email && !d.email.ok){
-      const L = ['Usuário criado, mas o e-mail de boas-vindas NÃO saiu:', '',
+      const L = [id ? 'Dados salvos, mas o e-mail de acesso NÃO saiu:'
+                    : 'Usuário criado, mas o e-mail de boas-vindas NÃO saiu:', '',
                  (d.email.erro || 'erro desconhecido')];
       if(d.senha_temporaria)
         L.push('', 'Entregue a senha provisória por outro caminho:', d.senha_temporaria);
       alert(L.join(String.fromCharCode(10)));
+    } else if(d.email && d.email.ok){
+      /* E o sucesso também se diz: "mandei" e "não mandei" eram o mesmo modal
+         fechando, e foi assim que a falta do e-mail passou 16 dias. */
+      alert('Acesso enviado por e-mail para '+payload.email+'.');
     }
     fecharModal(); loadGestao();
     /* o admin pode ter editado a SI MESMO: sem isto o avatar da barra e o menu
@@ -44194,6 +44207,15 @@ async function gesUsuarioSalvar(id){
 function gesBvAviso(){
   const bv=document.getElementById('gu-bv'), h=document.getElementById('gu-bv-hint');
   if(!bv||!h) return;
+  /* Na EDIÇÃO o mesmo interruptor reenvia o acesso — e reenviar troca a
+     senha (a antiga está em hash, não se recupera). Por isso lá ele nasce
+     desmarcado e o aviso diz o preço. */
+  if(bv.dataset.edicao){
+    h.textContent = bv.checked
+      ? 'Ao salvar, a senha atual deixa de valer: o sistema gera uma provisória nova (ou usa a digitada acima) e a manda por e-mail com o endereço do painel. A troca no primeiro acesso continua obrigatória.'
+      : 'Para quem não recebeu o acesso ou o perdeu.';
+    return;
+  }
   h.textContent = bv.checked
     ? 'O e-mail traz o endereço do painel, o usuário, a senha provisória e um resumo do que este perfil abre. Deixando a senha em branco, o sistema gera uma forte — a troca no primeiro acesso continua obrigatória.'
     : 'Sem o e-mail, digite a senha temporária acima e entregue-a por outro caminho — ela não é mostrada depois.';
