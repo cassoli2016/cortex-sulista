@@ -104,6 +104,23 @@ def test_os_cartoes_da_visao_geral(pagina):
     assert por["PARADOS"]["num"] == "25" and "destaque-warn" in por["PARADOS"]["cls"]
     # número sem meta leva a borda branca, como na TV de operação
     assert "destaque-neutro" in por["KM POR VEÍCULO"]["cls"]
+    # no lugar de receita e R$/km: 1.700 viagens ÷ 120 veículos e 363.000 km ÷ 1.700
+    assert por["VIAGENS POR VEÍCULO"]["num"] == "14,2", por.get("VIAGENS POR VEÍCULO")
+    assert por["KM POR VIAGEM"]["num"] == "214", por.get("KM POR VIAGEM")
+
+
+def test_a_parede_nao_mostra_dinheiro(pagina):
+    """Quem opera, 13/09/2026: "não vamos mostrar faturamento nem reais por
+    km". O dublê manda receita e rkm de propósito — a tela é que não pode
+    publicá-los, em nenhuma das duas lâminas nem no rodapé."""
+    pg, base = pagina
+    _abre(pg, base)
+    txt = pg.evaluate("() => document.getElementById('view-tvprod').textContent")
+    assert "R$" not in txt, txt[txt.find("R$") - 60: txt.find("R$") + 40]
+    assert "receita" not in txt.lower() and "faturamento" not in txt.lower()
+    frota = pg.evaluate("""() => [...document.querySelectorAll('#tvprod-modal tr')]
+        .map(tr => [...tr.cells].map(td => td.innerText.trim())).find(l => l[0] === 'Frota')""")
+    assert frota[4] == "16,1", "450 viagens (frota + locação) ÷ 28 veículos: %r" % frota
 
 
 def test_a_serie_tem_12_meses_gerados_e_o_corrente_parcial(pagina):

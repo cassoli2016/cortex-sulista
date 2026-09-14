@@ -4786,7 +4786,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="tvw-kpis" id="tvprod-k1"></div>
             <div class="tv-card tvp-mensal"><div class="tv-label">Km carregado por mês · mil km · <span class="tvp-12">12 meses</span><span class="tvp-6">6 meses</span></div><div class="tvd-serie tvp-serie" id="tvprod-mensal"></div></div>
             <div class="tv-card"><div class="tv-label">Por modalidade · últimos 30 dias</div>
-              <table class="tv-tab"><thead><tr><th>Modalidade</th><th class="num">Veículos</th><th class="num">Km por veículo</th><th class="num">Vazio</th><th class="num">R$/km</th></tr></thead>
+              <table class="tv-tab"><thead><tr><th>Modalidade</th><th class="num">Veículos</th><th class="num">Km por veículo</th><th class="num">Vazio</th><th class="num">Viagens/veíc.</th></tr></thead>
               <tbody id="tvprod-modal"></tbody></table></div>
           </div>
           <div class="tvw tvp-veic">
@@ -17690,10 +17690,14 @@ async function loadTvProd(){
       tvCard('Km carregado', tvMilKm(k.km_carregado), '',
         (k.viagens||0).toLocaleString('pt-BR')+' viagens · '+(k.veiculos||0)+' veíc.'),
       tvCard('Km por veículo', tvMilKm(k.km_por_veiculo), '', 'por veículo que rodou'),
-      tvCard('Receita por veículo', k.receita_por_veiculo!=null?tvBRLc(k.receita_por_veiculo):'—', '',
-        'frete ÷ veículos'),
-      tvCard('R$ por km', k.rkm!=null?'R$ '+k.rkm.toFixed(2).replace('.',','):'—', '',
-        'receita ÷ km carregado'),
+      /* SEM DINHEIRO NA PAREDE (quem opera, 13/09/2026: "nao vamos mostrar
+         faturamento nem reais por km"). No lugar, dois indices de operacao
+         do mesmo payload: quantas viagens cada veiculo fez e o tamanho medio
+         da viagem carregada. */
+      tvCard('Viagens por veículo', k.veiculos?(k.viagens/k.veiculos).toFixed(1).replace('.',','):'—', '',
+        'em 30 dias'),
+      tvCard('Km por viagem', k.viagens?Math.round(k.km_carregado/k.viagens).toLocaleString('pt-BR'):'—', '',
+        'carregado ÷ viagens'),
       tvCard('Retorno vazio', vz==null?'n/d':vz.toFixed(0)+'%', vzCls, 'do km total · limite 20%', '',
         {pct:vz==null?null:100*vz/40, cls:vzCls}),
       tvCard('Parados', k.ociosos||0, ocCls, 'de '+(k.frota_ociosa_base||0)+' próprios e locados', '',
@@ -17727,9 +17731,9 @@ async function loadTvProd(){
     const agr={};
     (d.modalidades||[]).forEach(m=>{
       const key=(m.modalidade==='LOCACAO')?'FROTA':m.modalidade;
-      const g=agr[key]||(agr[key]={modalidade:key, veiculos:0, km_carregado:0, km_vazio:0, receita:0, semVazio:true});
-      g.veiculos+=m.veiculos||0; g.km_carregado+=m.km_carregado||0;
-      g.km_vazio+=m.km_vazio||0; g.receita+=m.receita||0;
+      const g=agr[key]||(agr[key]={modalidade:key, veiculos:0, viagens:0, km_carregado:0, km_vazio:0, semVazio:true});
+      g.veiculos+=m.veiculos||0; g.viagens+=m.viagens||0; g.km_carregado+=m.km_carregado||0;
+      g.km_vazio+=m.km_vazio||0;
       if(m.retorno_vazio!=null) g.semVazio=false;
     });
     document.getElementById('tvprod-modal').innerHTML=Object.values(agr)
@@ -17738,7 +17742,7 @@ async function loadTvProd(){
         return `<tr><td>${esc(utLbl(g.modalidade)[0])}</td><td class="num">${g.veiculos}</td>`
           +`<td class="num">${g.veiculos?tvMilKm(g.km_carregado/g.veiculos):'—'}</td>`
           +`<td class="num" style="${vzg!=null&&vzg>20?'color:#F87171':''}">${vzg==null?'n/d':vzg.toFixed(0)+'%'}</td>`
-          +`<td class="num">${g.km_carregado?'R$ '+(g.receita/g.km_carregado).toFixed(2).replace('.',','):'—'}</td></tr>`;
+          +`<td class="num">${g.veiculos?(g.viagens/g.veiculos).toFixed(1).replace('.',','):'—'}</td></tr>`;
       }).join('') || '<tr><td colspan="5" style="color:#8FA6BC">sem viagens no período</td></tr>';
 
     const idP=v=>v.frota||v.placa||'—';

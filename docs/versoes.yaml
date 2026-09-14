@@ -1,3 +1,12 @@
+- versao: "1.74.3"
+  data: "2026-09-13"
+  alterado:
+    - >-
+      Painel de TV da Produtividade da Frota sem dinheiro na tela: saem a
+      receita por veículo e o R$ por km. No lugar entram as viagens por
+      veículo e o km por viagem nos últimos 30 dias, e a tabela por
+      modalidade passa a mostrar as viagens por veículo em vez do R$ por km.
+
 - versao: "1.74.2"
   data: "2026-09-13"
   corrigido:

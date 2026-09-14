@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.74.3] — 13/09/2026  ·  CX-13/09/2026-v1.74.3
+
+### Alterado
+- Painel de TV da Produtividade da Frota sem dinheiro na tela: saem a receita por veículo e o R$ por km. No lugar entram as viagens por veículo e o km por viagem nos últimos 30 dias, e a tabela por modalidade passa a mostrar as viagens por veículo em vez do R$ por km.
+
 ## [1.74.2] — 13/09/2026  ·  CX-13/09/2026-v1.74.2
 
 ### Corrigido
