@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.76.3] — 14/09/2026  ·  CX-14/09/2026-v1.76.3
+
+### Corrigido
+- Painel de TV da Operação — a legenda do mapa voltou a caber com o trânsito ligado e muitos veículos na tela: a coluna da tração era espremida, o título saía cortado e cada tipo ficava numa linha. Agora cada grupo tem a largura do que mostra, a tração vem em duas colunas e o trânsito é explicado em poucas palavras ("livre → parado").
+
 ## [1.76.2] — 14/09/2026  ·  CX-14/09/2026-v1.76.2
 
 ### Alterado

@@ -115,7 +115,7 @@ def _visao(com_hoje: bool) -> dict:
             "atualizado_em": AGORA.isoformat(), "kpis": {}}
 
 
-def _abre(pg, base, *, com_hoje=False, prog=None):
+def _abre(pg, base, *, com_hoje=False, prog=None, posicoes=None, estradas=None):
     pedidos = []
 
     def rota(r):
@@ -125,10 +125,12 @@ def _abre(pg, base, *, com_hoje=False, prog=None):
             corpo = ADMIN
         elif "/api/operacao/torre/estradas" in url:
             corpo = {}
+        elif "/api/tv/estradas" in url:
+            corpo = estradas or {}
         elif "/api/operacao/torre" in url:
             corpo = {"kpis": {"em_transito": len(TRANSITO), "atrasadas": 2, "criticas": 2,
                               "saidas_hoje": 3, "chegadas_previstas_hoje": 1},
-                     "posicoes": POSICOES, "transito": TRANSITO,
+                     "posicoes": posicoes or POSICOES, "transito": TRANSITO,
                      "telemetria": TELEMETRIA}
         elif "/api/operacao/programacao" in url:
             corpo = {"kpis": prog or PROG_KPIS}
@@ -147,6 +149,7 @@ def _abre(pg, base, *, com_hoje=False, prog=None):
     pg.route("**/tile.openstreetmap.org/**", lambda r: r.abort())
     pg.route("**/geocoding-api.open-meteo.com/**", lambda r: r.abort())
     pg.route("**/api.open-meteo.com/**", lambda r: r.abort())
+    pg.route("**/api.tomtom.com/**", lambda r: r.abort())   # o trânsito, quando ligado
     # o geocoder externo está bloqueado no teste: o destino da atrasada vem
     # do cache que o próprio tvGeo lê
     pg.add_init_script("try{localStorage.setItem('geo.DESTINO 20/SP',"
@@ -643,6 +646,52 @@ def test_a_legenda_explica_cor_e_tracao(pagina):
                                   .map(i => i.style.background)""")
     assert "Locação" not in leg
     assert len(set(cores[:3])) == 3
+
+
+# O MAPA CHEIO DE 14/09/2026, copiado da tela de quem opera: 190 veículos com
+# cinco trações (65 · 96 · 1 · 1 · 27), um sem cadastro e o trânsito ligado.
+# Com o dublê magro a legenda de quatro colunas passou; com este, a coluna da
+# tração era espremida, o título saía cortado e cada tipo caía numa linha.
+MAPA_CHEIO = []
+for _tr, _q in (("4x2", 65), ("6x2", 96), ("3/4", 1), ("toco", 1), ("truck", 27)):
+    for _ in range(_q):
+        _n = len(MAPA_CHEIO)
+        MAPA_CHEIO.append(_pos(1000 + _n, (None, "FROTA", "AGREGADOS", "TERCEIROS", "LOCACAO")[_n % 5],
+                               _tr, -20 - (_n % 40) * 0.2, -44 - (_n // 40) * 0.8))
+TRANSITO_LIGADO = {"configurado": True, "key": "chave-de-teste"}
+
+
+def _legenda(pg):
+    return pg.evaluate("""() => {
+        const leg = document.getElementById('tvope-legenda');
+        const gs = [...leg.querySelectorAll(':scope > .lg')];
+        const L = leg.getBoundingClientRect(), M = document.getElementById('tvMapa').getBoundingClientRect();
+        return {tit: gs.map(g => g.querySelector('em').innerText.trim().toUpperCase()),
+                topos: gs.map(g => Math.round(g.getBoundingClientRect().top)),
+                vaza: [...leg.querySelectorAll('.lg-i, .lg-tr span, .lg > em')]
+                  .filter(e => e.getBoundingClientRect().right > L.right + 1).length,
+                espremido: gs.filter(g => g.scrollWidth > g.clientWidth + 1)
+                  .map(g => g.querySelector('em').innerText),
+                larguras: gs.map(g => Math.round(g.getBoundingClientRect().width)),
+                caixa: Math.round(L.width), texto: leg.innerText,
+                alt: L.height, mapa: M.height,
+                dentro: L.left >= M.left - 1 && L.right <= M.right + 1 && L.bottom <= M.bottom + 1};
+    }""")
+
+
+def test_a_legenda_cabe_com_o_mapa_cheio_e_o_transito_ligado(pagina):
+    """O caso REAL (tela de quem opera, 14/09/2026): trânsito ligado e cinco
+    trações com contagem de dois dígitos. Nenhum grupo espremido, nada
+    cortado, os quatro lado a lado."""
+    pg, base = pagina
+    _abre(pg, base, posicoes=MAPA_CHEIO, estradas=TRANSITO_LIGADO)
+    r = _legenda(pg)
+    assert "Trânsito" in r["texto"] and "Sem cadastro" in r["texto"], r["texto"]
+    assert "truck 27" in r["texto"] and "6x2 96" in r["texto"], r["texto"]
+    assert r["tit"] == ["VEÍCULO", "SITUAÇÃO", "NO MESMO PONTO", "TRAÇÃO NO MAPA"], r
+    assert not r["espremido"] and r["vaza"] == 0 and r["dentro"], r
+    assert len(set(r["topos"])) == 1, "os grupos têm de ficar lado a lado: %r" % r
+    assert r["alt"] <= 0.25 * r["mapa"], r
 
 
 def test_a_legenda_se_organiza_em_grupos_com_titulo(pagina):

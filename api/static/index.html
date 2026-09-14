@@ -1817,13 +1817,17 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
    tracao, e o olho nao sabia onde uma pergunta acabava e a outra comecava.
    Agora cada pergunta e uma coluna com o proprio titulo: que veiculo e, em
    que situacao esta, o que o numero no circulo conta e quantos de cada
-   tracao estao no mapa. */
-.tv-legenda{position:absolute;left:0.7vw;bottom:0.7vw;right:0.7vw;z-index:500;display:grid;
-  grid-template-columns:auto auto auto minmax(0,1fr);gap:0.3vw 1.2vw;align-items:start;
+   tracao estao no mapa.
+   CADA GRUPO TEM A LARGURA DO PROPRIO CONTEUDO (flex, e nao grade de quatro
+   colunas): na grade a ultima coluna era a que sobrava, e com o transito
+   ligado e cinco tracoes na tela real ela foi espremida -- titulo cortado
+   e um tipo por linha. Se um dia nao couber, o grupo DESCE inteiro. */
+.tv-legenda{position:absolute;left:0.7vw;bottom:0.7vw;right:0.7vw;z-index:500;display:flex;
+  flex-wrap:wrap;justify-content:space-between;gap:0.4vw 0.9vw;align-items:flex-start;
   background:rgba(11,25,38,.88);color:#E5EDF4;padding:0.5vw 0.8vw;
   border-radius:0.5vw;font-size:clamp(9px,0.62vw,12px);font-weight:600;line-height:1.3}
 .tv-legenda:empty{display:none}
-.tv-legenda .lg{display:flex;flex-direction:column;gap:0.25vw;min-width:0}
+.tv-legenda .lg{display:flex;flex-direction:column;gap:0.25vw;flex:none}
 .tv-legenda .lg>em{font-style:normal;font-size:.82em;font-weight:700;letter-spacing:.06em;white-space:nowrap;
   text-transform:uppercase;color:#8FA6BC;padding-bottom:0.15vw;border-bottom:1px solid rgba(143,166,188,.25)}
 .tv-legenda .lg-i{display:flex;align-items:center;gap:0.35vw;white-space:nowrap}
@@ -1832,13 +1836,15 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
 .tv-legenda i.al{background:transparent;border:2px solid #F87171}
 /* o parado e apagado por COR, igual ao marcador .tv-vmk.parado */
 .tv-legenda i.pa{filter:saturate(.35) brightness(1.2);border-color:rgba(255,255,255,.7)}
-.tv-legenda i.tt{width:1.6vw;min-width:20px;border:0;background:linear-gradient(90deg,#4ADE80,#FBBF24,#F87171)}
+.tv-legenda i.tt{width:1.2vw;min-width:18px;border:0;background:linear-gradient(90deg,#4ADE80,#FBBF24,#F87171)}
 .tv-legenda u{flex:none;text-decoration:none;width:1.1vw;height:1.1vw;min-width:14px;min-height:14px;
   border-radius:50%;background:#0B1926;border:2px solid #E5EDF4;display:inline-flex;align-items:center;
   justify-content:center;font-family:var(--mono);font-size:.85em;font-weight:800}
 .tv-legenda u.p{background:#FFFFFF;color:#14181D}
-/* a tracao: um par por tipo, "6x2 9" -- o tipo em branco, a contagem apagada */
-.tv-legenda .lg-tr{display:flex;flex-wrap:wrap;gap:0.2vw 0.8vw}
+/* a tracao: um par por tipo, "6x2 96" -- o tipo em branco, a contagem
+   apagada --, em DUAS colunas: cinco tipos cabem em tres linhas, a altura
+   dos outros grupos */
+.tv-legenda .lg-tr{display:grid;grid-template-columns:repeat(2,max-content);gap:0.25vw 0.9vw}
 .tv-legenda .lg-tr span{white-space:nowrap;color:#A9BCCD;font-family:var(--mono)}
 .tv-legenda .lg-tr b{color:#E5EDF4}
 /* cartao de dois numeros (tracao, motoristas): lado a lado, cada um com o seu
@@ -1977,7 +1983,8 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
      ela cobria um terco do mapa */
   #view-tvope .tvw-mapa{height:auto;display:flex;flex-direction:column;padding:0}
   #view-tvope #tvMapa{position:relative;inset:auto;height:340px}
-  #view-tvope .tv-legenda{position:static;margin:9px;font-size:11px;grid-template-columns:1fr 1fr;gap:9px 18px}
+  #view-tvope .tv-legenda{position:static;margin:9px;font-size:11px;gap:9px 18px;justify-content:flex-start}
+  #view-tvope .tv-legenda .lg{flex:0 0 calc(50% - 9px);min-width:0}
   /* no celular o espacamento em vw vira 3 px: os pares da tracao colavam */
   #view-tvope .tv-legenda{padding:9px 12px}
   #view-tvope .tv-legenda .lg{gap:4px}
@@ -16883,7 +16890,7 @@ function tvLegenda(){
     +grupo('Situação',
       item('<i class="al"></i>','Atrasada ou +90 km/h')
       +item(`<i class="pa" style="background:${tvCorMod('AGREGADOS')}"></i>`,'Parado (cor apagada)')
-      +(tvTrafego?item('<i class="tt"></i>','Trânsito: verde livre, vermelho parado'):''))
+      +(tvTrafego?item('<i class="tt"></i>','Trânsito: livre → parado'):''))
     +grupo('No mesmo ponto',
       item('<u>5</u>','Em viagem')+item('<u class="p">5</u>','Parados'))
     +(tr.length?grupo('Tração no mapa',
