@@ -6365,7 +6365,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div id="chartFerAgenda" style="width:100%;height:160px"></div>
           </div>
           <div class="card">
-            <div class="head"><h2>Fila de agendamento <span class="badge b-info" title="Quem tem direito adquirido tem HOJE. Recortar isso por um intervalo devolveria um número que não significa nada — por isso a fila obedece à unidade e ao colaborador, mas não às datas. O que segue o período é o gráfico acima.">estado de hoje</span> <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quem JÁ completou um período aquisitivo e ainda não gozou, ordenado pelo limite legal — fim do aquisitivo mais 12 meses. Como o segundo período aquisitivo começa no dia seguinte ao fim do primeiro e dura 12 meses, esse limite é também a data em que o SEGUNDO fecha: quem não gozar o primeiro até lá fica com dois períodos, e paga o primeiro em DOBRO (art. 137 da CLT). Quem ainda está no aquisitivo não entra: não há o que agendar, e misturá-los faria a fila começar por quem não é problema de ninguém.">i</span></h2>
+            <div class="head"><h2>Fila de agendamento <span class="badge b-info" title="Quem tem direito adquirido tem HOJE. Recortar isso por um intervalo devolveria um número que não significa nada — por isso a fila obedece à unidade e ao colaborador, mas não às datas. O que segue o período é o gráfico acima.">estado de hoje</span> <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quem JÁ completou um período aquisitivo e ainda não gozou, ordenado pelo limite legal — fim do aquisitivo mais 12 meses. Como o segundo período aquisitivo começa no dia seguinte ao fim do primeiro e dura 12 meses, esse limite é também a data em que o SEGUNDO fecha: quem não gozar o primeiro até lá fica com dois períodos, e paga o primeiro em DOBRO (art. 137 da CLT). Quem ainda está no aquisitivo não entra: não há o que agendar, e misturá-los faria a fila começar por quem não é problema de ninguém. A tag ALERTA 90 DIAS marca quem fecha o 2º período em até 90 dias sem férias marcadas antes do limite (vermelha a partir de 30 dias). Férias marcadas para DEPOIS do limite não resolvem — a dobra acontece do mesmo jeito — e mantêm a tag.">i</span></h2>
               <input type="search" id="fFerBusca" placeholder="achar na fila…" autocomplete="off"
                      aria-label="Buscar na fila" oninput="ferFilaFiltrar()"
                      style="margin-left:auto;max-width:190px;padding:5px 9px;border:1px solid var(--n300);border-radius:8px;font-size:12.5px">
@@ -23566,12 +23566,18 @@ function renderFerias(d){
   // -------- fila de agendamento
   const F=d.fila||[];
   const semAg=F.filter(x=>!x.agendado).length;
+  /* ALERTA DOS 90 DIAS (14/09/2026): a regra é do SERVIDOR
+     (`queries_folha.FER_ALERTA_DIAS`, campo `alerta`) — a tela só pinta. É
+     fixo, não o horizonte do seletor: trocar o horizonte para ler o gráfico
+     não pode apagar a tag de ninguém. */
+  const AL=d.alerta_dias||90, nAl=F.filter(x=>x.alerta).length;
   const hF=document.getElementById('hintFerFila');
   /* GUARDA O TEXTO ORIGINAL. A busca sobrescreve o hint com a contagem do
      recorte; sem esta cópia, apagar a busca deixaria o hint mostrando para
      sempre o resultado de uma busca que não existe mais. */
   hF.dataset.original = F.length
-    ? (F.length+' já no 2º período · '+semAg+' sem data marcada · ordenados pelo prazo')
+    ? (F.length+' já no 2º período · '+semAg+' sem data marcada'
+       +(nAl ? ' · '+nAl+' no alerta de '+AL+' dias' : '')+' · ordenados pelo prazo')
     : 'ninguém com período aquisitivo completo neste recorte';
   hF.textContent = hF.dataset.original;
   document.getElementById('fer-fila').innerHTML = F.map(x=>{
@@ -23588,17 +23594,25 @@ function renderFerias(d){
        pintar todos não separaria ninguém de ninguém. O que separa é o ESTÁGIO:
        passou da metade (âmbar) e entrou na reta final (vermelho), que é quando
        encaixar 30 dias de ausência deixa de caber com folga na escala.
-       Quem já tem data marcada não recebe destaque: o problema dele resolveu. */
-    const est = (!x.agendado && m>=9) ? 'fim2' : '';
+       Desde 14/09/2026 a reta final é a MESMA linha que leva a tag do alerta
+       dos 90 dias — dois critérios (meses aqui, dias na tag) pintariam linhas
+       diferentes para a mesma pergunta. Quem marcou férias a tempo não recebe
+       destaque: o problema dele resolveu. */
+    const est = x.alerta ? 'fim2' : '';
+    const tagTit = 'Fecha o 2º período em '+x.dias+(x.dias===1?' dia':' dias')
+      +' ('+fmtD(x.limite)+'): sem gozar o 1º até lá, ele é pago em DOBRO (art. 137 da CLT).'
+      +(x.agendado_depois ? ' As férias marcadas começam em '+fmtD(x.gozo_ini)
+          +' — DEPOIS do limite, e não evitam a dobra.' : '');
     return `<tr class="${est}">
       ${/* SÓ A EXCEÇÃO LEVA SELO. O "2º avançado" era verdadeiro e inútil: a
             barra colorida da coluna ao lado já diz 8/12 em âmbar, e o selo
             repetia isso quebrando para uma segunda linha em cinco das sete
             primeiras — engordando a tabela para não acrescentar nada. Fica o
-            que é exceção de verdade: a reta final e quem já resolveu. */''}
-      <td>${esc(x.nome)}${x.agendado
-        ?'<span class="fer-agora">já agendado</span>'
-        : m>=9 ? '<span class="badge b-dang" style="margin-left:6px">fecha o 2º</span>' : ''}</td>
+            que é exceção de verdade: o alerta dos 90 dias (vermelho na reta
+            final de 30) e quem já resolveu. */''}
+      <td>${esc(x.nome)}${x.alerta
+        ? `<span class="badge ${x.dias<=30?'b-dang':'b-warn'} fer-alerta" style="margin-left:6px" title="${esc(tagTit)}">alerta ${AL} dias</span>`
+        : x.agendado ? '<span class="fer-agora">já agendado</span>' : ''}</td>
       <td style="font-family:var(--mono);font-size:12px">${esc(x.chapa)}</td>
       <td>${esc(x.filial||'—')}</td>
       <td style="color:var(--n500);font-size:12.5px">${esc(x.funcao||'—')}</td>

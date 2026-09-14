@@ -180,6 +180,27 @@ def _linhas_falsas(sql, params=None):
              "filial": "MATRIZ", "adm": "2010-01-01", "aq_fim": "2024-01-01",
              "limite": "2025-01-01", "dias_ate": -50, "meses_2o": 19,
              "agendado": 0, "gozo_ini": None, "gozo_fim": None},
+            # ── as bordas do alerta de 90 dias ──
+            {"nome": "ANA NO LIMITE DO ALERTA", "chapa": "11", "funcao": "X",
+             "filial": "MATRIZ", "adm": "2023-12-13", "aq_fim": "2025-12-13",
+             "limite": "2026-12-13", "dias_ate": 90, "meses_2o": 9,
+             "agendado": 0, "gozo_ini": None, "gozo_fim": None},
+            {"nome": "BRUNO UM DIA FORA", "chapa": "12", "funcao": "X",
+             "filial": "MATRIZ", "adm": "2023-12-14", "aq_fim": "2025-12-14",
+             "limite": "2026-12-14", "dias_ate": 91, "meses_2o": 9,
+             "agendado": 0, "gozo_ini": None, "gozo_fim": None},
+            {"nome": "EDU VENCE HOJE", "chapa": "13", "funcao": "X",
+             "filial": "MATRIZ", "adm": "2023-09-14", "aq_fim": "2025-09-14",
+             "limite": "2026-09-14", "dias_ate": 0, "meses_2o": 12,
+             "agendado": 0, "gozo_ini": None, "gozo_fim": None},
+            {"nome": "CARLA AGENDOU A TEMPO", "chapa": "14", "funcao": "X",
+             "filial": "MATRIZ", "adm": "2023-10-24", "aq_fim": "2025-10-24",
+             "limite": "2026-10-24", "dias_ate": 40, "meses_2o": 10,
+             "agendado": 1, "gozo_ini": "2026-10-01", "gozo_fim": "2026-10-30"},
+            {"nome": "DANI AGENDOU TARDE", "chapa": "15", "funcao": "X",
+             "filial": "MATRIZ", "adm": "2023-10-24", "aq_fim": "2025-10-24",
+             "limite": "2026-10-24", "dias_ate": 40, "meses_2o": 10,
+             "agendado": 1, "gozo_ini": "2026-11-10", "gozo_fim": "2026-12-09"},
         ]
     if "gozofinfer >= TRUNC(SYSDATE)" in sql and "agora" in sql:
         return []
@@ -312,25 +333,54 @@ def test_o_destaque_de_LINHA_e_so_a_reta_final(html):
     Fica o vermelho, que hoje e UMA pessoa. A gradacao dos demais vive na
     barra colorida da coluna do 2o periodo, que ja diz 8/12 em ambar."""
     assert "tr.fim2 td{background:var(--red-100)}" in html
-    i = html.index("const est = (!x.agendado && m>=9)")
-    assert html[i:i + 60].startswith("const est = (!x.agendado && m>=9) ? 'fim2' : ''")
+    # Desde 14/09/2026 a reta final e o ALERTA DE 90 DIAS do servidor, e a
+    # linha destacada e a mesma que leva a tag: dois criterios (meses na barra,
+    # dias na tag) pintariam linhas diferentes para a mesma pergunta.
+    assert "const est = x.alerta ? 'fim2' : '';" in html
 
 
-def test_quem_JA_AGENDOU_nao_recebe_destaque(html):
-    """O problema dele resolveu. Destacar mesmo assim faria a cor deixar de
-    significar "precisa de acao"."""
-    i = html.index("const est = (!x.agendado && m>=9)")
-    assert "!x.agendado" in html[i:i + 60]
+# ── o alerta dos 90 dias (quem opera, 14/09/2026) ───────────────────────────
+def test_o_alerta_e_de_90_dias_FIXOS():
+    """Nao e o horizonte do seletor: trocar o horizonte para ler o grafico nao
+    pode apagar a tag de ninguem."""
+    assert _qf.FER_ALERTA_DIAS == 90
+
+
+def test_o_alerta_pega_as_BORDAS_e_nao_quem_ja_passou(ferias):
+    f = {x["nome"]: x for x in ferias["fila"]}
+    assert f["ANA NO LIMITE DO ALERTA"]["alerta"] is True, "90 dias entra"
+    assert f["BRUNO UM DIA FORA"]["alerta"] is False, "91 nao"
+    assert f["EDU VENCE HOJE"]["alerta"] is True, "o dia do limite ainda entra"
+    assert f["JULIANA KARINE VERONEZ"]["alerta"] is True
+    assert f["FICHA ESQUISITA"]["alerta"] is False, "ja em dobra e outro estado"
+
+
+def test_quem_agendou_A_TEMPO_sai_do_alerta_e_quem_agendou_TARDE_fica(ferias):
+    """"Ja agendado" dava por resolvido quem marcou ferias para DEPOIS do
+    limite -- justamente quem vai custar o dobro."""
+    f = {x["nome"]: x for x in ferias["fila"]}
+    assert f["CARLA AGENDOU A TEMPO"]["alerta"] is False
+    assert f["CARLA AGENDOU A TEMPO"]["agendado_depois"] is False
+    assert f["DANI AGENDOU TARDE"]["alerta"] is True
+    assert f["DANI AGENDOU TARDE"]["agendado_depois"] is True
+
+
+def test_o_payload_CONTA_os_alertas_da_fila(ferias):
+    assert ferias["kpis"]["alerta"] == sum(x["alerta"] for x in ferias["fila"]) == 4
+    assert ferias["alerta_dias"] == 90
 
 
 def test_so_a_EXCECAO_leva_selo_no_nome(html):
     """O selo "2o periodo avancado" era verdadeiro e inutil: a barra da coluna
     ao lado ja diz 8/12 em ambar, e o selo repetia isso QUEBRANDO PARA UMA
     SEGUNDA LINHA em cinco das sete primeiras -- engordando a tabela sem
-    acrescentar nada. Ficam os dois que sao excecao de verdade."""
+    acrescentar nada. Ficam os dois que sao excecao de verdade: o alerta dos
+    90 dias (que substituiu o "fecha o 2o", medido em MESES) e quem ja
+    resolveu."""
     assert "2º avançado</span>" not in html
     assert "2º período avançado</span>" not in html
-    assert "fecha o 2º</span>" in html
+    assert "fecha o 2º</span>" not in html, "o selo por MESES saiu: a tag e por DIAS"
+    assert "alerta ${AL} dias</span>" in html
     assert "já agendado</span>" in html
 
 

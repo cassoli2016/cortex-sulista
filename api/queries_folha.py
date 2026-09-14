@@ -656,6 +656,13 @@ _FER_MESES_2O = ("FLOOR(MONTHS_BETWEEN(TRUNC(SYSDATE), fe.proxaquifinfer))")
 # justamente quem nunca teve férias registradas — que é o caso mais grave.
 _FER_SEM_AGENDA = "(fe.gozofinfer IS NULL OR fe.gozofinfer < TRUNC(SYSDATE))"
 
+# O ALERTA DOS 90 DIAS (quem opera, 14/09/2026): a tag da fila de agendamento
+# para quem FECHA O 2º PERÍODO — e, na mesma data, paga o 1º em dobra — em até
+# 90 dias. É FIXO, e não o horizonte do seletor da tela (`dias`): é o prazo em
+# que o RH decidiu começar a cobrar o agendamento, e trocar o horizonte para
+# ler o gráfico não pode apagar a tag de ninguém.
+FER_ALERTA_DIAS = 90
+
 
 def _janela_futura(dt_de: str, dt_ate: str) -> tuple[str, str]:
     """O MESMO filtro de período, projetado para a frente.
@@ -783,7 +790,18 @@ def get_ferias(dias: int = 90, filial: str = "", chapa: str = "",
 
     def _linha(r) -> dict:
         d = int(r["dias_ate"])
+        # AGENDADO SÓ RESOLVE SE O GOZO COMEÇA ATÉ O LIMITE. Férias marcadas
+        # para depois dele caem em dobra do mesmo jeito — e o "já agendado"
+        # daria por resolvido justamente quem vai custar o dobro. As datas
+        # vêm em ISO do `TO_CHAR`, então a comparação de texto é de data.
+        resolvido = bool(r["agendado"]) and bool(r["gozo_ini"]) \
+            and r["gozo_ini"] <= (r["limite"] or "")
         return {
+            # a tag da fila (FER_ALERTA_DIAS): fecha o 2º em até 90 dias e
+            # nada marcado a tempo. Quem já passou do limite é `dobra`, outro
+            # estado, e não entra aqui.
+            "alerta": 0 <= d <= FER_ALERTA_DIAS and not resolvido,
+            "agendado_depois": bool(r["agendado"]) and not resolvido,
             "nome": r["nome"], "chapa": (r["chapa"] or "").strip(),
             "funcao": r["funcao"], "filial": r["filial"],
             "admitido": r["adm"], "aquisitivo_fim": r["aq_fim"],
@@ -921,8 +939,12 @@ def get_ferias(dias: int = 90, filial: str = "", chapa: str = "",
         "agenda_mensal": agenda_mensal,
         "janela_futura": {"de": fut_de, "ate": fut_ate},
         "duplicadas": duplicadas,
+        "alerta_dias": FER_ALERTA_DIAS,
         "kpis": {
             "ativos": n,
+            # sai da MESMA lista que a tela pinta, para a contagem do hint e as
+            # tags não poderem divergir
+            "alerta": sum(1 for x in fila if x["alerta"]),
             "com_direito": tot["com_direito"] or 0,
             "sem_agenda": tot["sem_agenda"] or 0,
             "segundo_6": tot["segundo_6"] or 0,

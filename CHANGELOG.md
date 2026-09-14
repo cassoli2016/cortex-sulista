@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.79.0] — 14/09/2026  ·  CX-14/09/2026-v1.79.0
+
+### Adicionado
+- Férias — Vencimento › Fila de agendamento — a tag "alerta 90 dias" marca quem fecha o segundo período em até 90 dias sem férias marcadas antes do limite, que é o dia em que o primeiro passa a ser pago em dobro. Âmbar até faltarem 31 dias, vermelha nos últimos 30; o cabeçalho da fila diz quantos estão no alerta, e a linha fica destacada.
+- Férias — Vencimento › Fila de agendamento — quem marcou férias para DEPOIS do limite deixa de aparecer como "já agendado": continua com a tag, e passar o mouse sobre ela mostra que a data marcada não evita a dobra.
+
+### Alterado
+- Férias — Vencimento › Fila de agendamento — o selo "fecha o 2º", que contava meses do segundo período, deu lugar à tag dos 90 dias, contada em dias até o limite.
+
 ## [1.78.0] — 14/09/2026  ·  CX-14/09/2026-v1.78.0
 
 ### Adicionado
