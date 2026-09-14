@@ -2049,9 +2049,9 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
 /* barras dos 12 meses: a forma da TV da diretoria (.tvd-col), em vw */
 .tvp-mensal .tvp-serie{height:auto;flex:1;min-height:0;gap:0.5vw;padding-top:0.4vw}
 .tvp-serie .tvd-col{gap:0.25vw}
-.tvp-serie .tvd-col .v{font-size:clamp(9px,0.72vw,14px)}
-.tvp-serie .tvd-col b{font-size:clamp(9px,0.66vw,13px)}
-.tvp-serie .tvd-col em{font-style:normal;font-size:clamp(8px,0.58vw,11px);color:#8FA6BC;white-space:nowrap}
+.tvp-serie .tvd-col .v{font-size:clamp(10px,0.95vw,18px)}
+.tvp-serie .tvd-col b{font-size:clamp(10px,0.8vw,15px)}
+.tvp-serie .tvd-col em{font-style:normal;font-size:clamp(9px,0.68vw,13px);color:#8FA6BC;white-space:nowrap}
 .tvp-serie .tvd-col.sem i{background:#2A4A68}
 .tvp-serie .tvd-col.sem .v{color:#4F6B85}
 /* o mes atual no ritmo: o laranja do relogio, o destaque da parede */
@@ -2059,14 +2059,35 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
 .tvp-serie .tvd-col.atual b{color:#F08A4B}
 /* na TV o periodo vai na pilula do titulo; o cabecalho do bloco e do celular */
 .tvp-cab{display:none}
-#view-tvprod .tv-tab{font-size:clamp(10px,0.78vw,15px);table-layout:fixed}
-#view-tvprod .tv-tab th{font-size:clamp(8px,0.6vw,12px);padding:0.22vw 0.45vw}
-#view-tvprod .tv-tab td{padding:0.26vw 0.45vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* NUMEROS DE PAREDE (quem opera, 14/09/2026: "melhore ... o tamanho dos
+   numeros"). Os cartoes da produtividade sao altos -- seis por bloco num
+   terco da tela --, e o numero de 1,72vw deixava meio cartao vazio. Aqui
+   ele vai a 2,6vw; rotulo e subtitulo sobem junto. O cartao corta o que
+   passar (nowrap), e o teste confere que nenhum numero foi cortado. */
+#view-tvprod .tvw .tv-num{font-size:clamp(22px,2.6vw,56px)}
+#view-tvprod .tvw .tv-label{font-size:clamp(10px,0.8vw,16px)}
+#view-tvprod .tvw .tv-sub{font-size:clamp(10px,0.78vw,15px);margin-top:0.25vw}
+/* A IDADE DA LEITURA, ao lado do relogio: verde, e amarela passados 15 min
+   ou quando a ultima tentativa falhou */
+#view-tvprod .tv-head .tv-beat{font-size:clamp(12px,1.05vw,21px);gap:0.4em;margin-right:0.9vw}
+#view-tvprod .tv-head .tv-beat i{width:0.45em;height:0.45em}
+#view-tvprod .tv-beat.velho{color:#FBBF24}
+#view-tvprod .tv-beat.velho i{background:#FBBF24;animation:none}
+/* A CADA TROCA DE LAMINA (quem opera, 14/09/2026): os numeros recontam
+   (tvAnimarNums) e as barras crescem do zero. tvProdAnimar tira e repoe a
+   classe -- keyframes so rodam de novo quando a regra volta a valer. */
+.tvp-anima .tvd-col i{animation:tvpCresce 1.1s cubic-bezier(.2,.6,.2,1) both;transform-origin:bottom}
+.tvp-anima .tv-barra i{animation:tvpEnche 1.3s cubic-bezier(.2,.6,.2,1) both;transform-origin:left}
+@keyframes tvpCresce{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes tvpEnche{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+#view-tvprod .tv-tab{font-size:clamp(11px,0.92vw,18px);table-layout:fixed}
+#view-tvprod .tv-tab th{font-size:clamp(9px,0.68vw,13px);padding:0.25vw 0.45vw}
+#view-tvprod .tv-tab td{padding:0.32vw 0.45vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 body.tvfull.tvwall #view-tvprod.on{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
 body.tvfull.tvwall #view-tvprod .tv-head{flex-shrink:0}
 body.tvfull.tvwall #view-tvprod .tvp-janela{flex:1 1 auto;min-height:0;height:auto}
 body.tvfull.tvwall #view-tvprod .tv-ticker{flex-shrink:0;margin-top:0.55vw}
-@media(prefers-reduced-motion:reduce){.tvp-trilho{transition:none}}
+@media(prefers-reduced-motion:reduce){.tvp-trilho{transition:none}.tvp-anima .tvd-col i,.tvp-anima .tv-barra i{animation:none}}
 /* NO CELULAR NAO HA CARROSSEL: as tres laminas EMPILHAM e a pagina rola. O
    `!important` do transform vence o estilo que o giro escreve no trilho --
    no celular nao ha o que girar, e o giro pode estar armado desde a TV. */
@@ -2086,10 +2107,11 @@ body.tvfull.tvwall #view-tvprod .tv-ticker{flex-shrink:0;margin-top:0.55vw}
   #view-tvprod .tv-head h2{font-size:17px;text-align:left}
   #view-tvprod .tv-head .tv-next{display:none}
   #view-tvprod .tv-head .tv-clock{font-size:18px}
+  #view-tvprod .tv-head .tv-beat{font-size:12px;margin-right:9px}
   #view-tvprod .tvw-kpis{grid-auto-rows:auto;gap:9px}
   #view-tvprod .tvw .tv-card{padding:12px 14px}
   #view-tvprod .tvw .tv-label{font-size:11px}
-  #view-tvprod .tvw .tv-num{font-size:28px}
+  #view-tvprod .tvw .tv-num{font-size:32px}
   #view-tvprod .tvw .tv-sub{font-size:12px}
   #view-tvprod .tv-barra{height:6px;margin:6px 0 3px}
   .tvp-mensal .tvp-serie{height:220px;flex:none}
@@ -4816,31 +4838,31 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="tv-ticker"><div class="tv-ticker-inner" id="tvope-ticker"></div></div>
       </section>
       <section class="view" id="view-tvprod">
-        <div class="tv-head"><div class="tv-left"><img class="tv-logo" src="/static/sulista-logo-branco.svg" alt="Sulista"><span class="tv-upd tv-next"></span></div><div class="tv-title"><h2>PRODUTIVIDADE DA FROTA</h2><span class="tvp-lamina" id="tvprod-lamina"></span></div><div class="tv-right"><span class="tv-clock"></span><a href="javascript:tvFull()" title="tela cheia" aria-label="Tela cheia">⛶</a><a href="#home" title="sair do modo TV" aria-label="Sair do modo TV">✕</a></div></div>
+        <div class="tv-head"><div class="tv-left"><img class="tv-logo" src="/static/sulista-logo-branco.svg" alt="Sulista"><span class="tv-upd tv-next"></span></div><div class="tv-title"><h2>PRODUTIVIDADE DA FROTA</h2><span class="tvp-lamina" id="tvprod-lamina"></span></div><div class="tv-right"><span class="tv-beat" id="tvprod-beat" title="hora da leitura do ERP"></span><span class="tv-clock"></span><a href="javascript:tvFull()" title="tela cheia" aria-label="Tela cheia">⛶</a><a href="#home" title="sair do modo TV" aria-label="Sair do modo TV">✕</a></div></div>
         <div class="tvp-janela"><div class="tvp-trilho" id="tvprod-trilho">
           <div class="tvw tvp-vis">
             <div class="tvp-cab" id="tvprod-cab1"></div>
             <div class="tvw-kpis" id="tvprod-k1"></div>
-            <div class="tv-card tvp-mensal"><div class="tv-label">Km carregado por mês · mil km · <span class="tvp-12">12 meses</span><span class="tvp-6">6 meses</span></div><div class="tvd-serie tvp-serie" id="tvprod-mensal"></div></div>
+            <div class="tv-card tvp-mensal"><div class="tv-label">Km carregado por mês · em mil km · <span class="tvp-12">12 meses</span><span class="tvp-6">6 meses</span></div><div class="tvd-serie tvp-serie" id="tvprod-mensal"></div></div>
             <div class="tv-card"><div class="tv-label">Por modalidade · últimos 30 dias</div>
-              <table class="tv-tab"><thead><tr><th>Modalidade</th><th class="num">Veículos</th><th class="num">Km por veículo</th><th class="num">Vazio</th><th class="num">Viagens/veíc.</th></tr></thead>
+              <table class="tv-tab"><thead><tr><th>Modalidade</th><th class="num">Veículos</th><th class="num">Km por veículo</th><th class="num">Retorno vazio</th><th class="num">Viagens por veículo</th></tr></thead>
               <tbody id="tvprod-modal"></tbody></table></div>
           </div>
           <div class="tvw tvp-vis tvp-mes">
             <div class="tvp-cab" id="tvprod-cab2"></div>
             <div class="tvw-kpis" id="tvprod-k3"></div>
-            <div class="tv-card tvp-mensal"><div class="tv-label">Ritmo · mil km carregados por dia</div><div class="tvd-serie tvp-serie" id="tvprod-ritmo"></div></div>
+            <div class="tv-card tvp-mensal"><div class="tv-label">Ritmo do mês · mil km carregados por dia</div><div class="tvd-serie tvp-serie" id="tvprod-ritmo"></div></div>
             <div class="tv-card"><div class="tv-label">Por modalidade · <span id="tvprod-mes-rot">mês atual</span></div>
-              <table class="tv-tab"><thead><tr><th>Modalidade</th><th class="num">Veículos</th><th class="num">Km por veículo</th><th class="num">Vazio</th><th class="num">Viagens/veíc.</th></tr></thead>
+              <table class="tv-tab"><thead><tr><th>Modalidade</th><th class="num">Veículos</th><th class="num">Km por veículo</th><th class="num">Retorno vazio</th><th class="num">Viagens por veículo</th></tr></thead>
               <tbody id="tvprod-modal-mes"></tbody></table></div>
           </div>
           <div class="tvw tvp-veic">
             <div class="tvp-cab" id="tvprod-cab3"></div>
-            <div class="tv-card"><div class="tv-label">Mais produtivos · 30 dias <span class="tv-cont" id="tvprod-top-n"></span></div>
-              <table class="tv-tab"><thead><tr><th>Frota</th><th>Modalidade</th><th class="num">Viagens</th><th class="num">Km carreg.</th><th class="num">Km/dia</th><th class="num">Vazio</th></tr></thead>
+            <div class="tv-card"><div class="tv-label">Veículos que mais rodaram <span class="tv-cont" id="tvprod-top-n"></span></div>
+              <table class="tv-tab"><thead><tr><th>Frota</th><th>Modalidade</th><th class="num">Viagens</th><th class="num">Km carregado</th><th class="num">Km por dia</th><th class="num">Retorno vazio</th></tr></thead>
               <tbody id="tvprod-top"></tbody></table></div>
-            <div class="tv-card"><div class="tv-label">Parados · sem viagem em 30 dias <span class="tv-cont" id="tvprod-par-n"></span></div>
-              <table class="tv-tab"><thead><tr><th>Frota</th><th>Modalidade</th><th class="num">Parado há</th><th class="num">Última</th></tr></thead>
+            <div class="tv-card"><div class="tv-label">Frota parada · sem viagem em 30 dias <span class="tv-cont" id="tvprod-par-n"></span></div>
+              <table class="tv-tab"><thead><tr><th>Frota</th><th>Modalidade</th><th class="num">Parado há</th><th class="num">Última viagem</th></tr></thead>
               <tbody id="tvprod-par"></tbody></table></div>
             <div class="tvw-kpis tvp-k2" id="tvprod-k2"></div>
           </div>
@@ -10976,6 +10998,7 @@ function router(){
         beat.innerHTML='<i></i>'+(min<1?'agora':('há '+min+' min'));
         beat.title='última posição recebida da frota';
       }
+      tvProdBeat();   // a idade da leitura na TV da produtividade
     }, 1000);
   }
   document.querySelectorAll('nav a[data-view]').forEach(a=>{
@@ -15331,7 +15354,19 @@ function tvAnimarNums(rootId){
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   document.querySelectorAll('#'+rootId+' .tv-num, #'+rootId+' .knum, '
                             +'#'+rootId+' .tvc-hero .n').forEach((el,idx)=>{
-    const alvoTxt=el.textContent;
+    /* NO MEIO DE UMA CONTAGEM o texto na tela e um valor INTERMEDIARIO: lido
+       como alvo, a nova contagem terminaria nele e o painel ficaria com um
+       numero falso ate a proxima recarga. A TV da produtividade reconta a
+       cada troca de lamina (14/09/2026), e a troca pode cair no meio da
+       contagem da recarga: o alvo verdadeiro fica guardado no elemento. */
+    /* ...mas SO se o texto na tela ainda for o que a propria contagem
+       escreveu: quando quem desenha troca o numero por um valor NOVO no meio
+       da contagem (a TV do cliente faz isso), vale o novo -- o guard dela
+       pegou a primeira versao desta regra terminando no alvo antigo. */
+    const intermediario=el.classList.contains('contando') && el._tvAlvoTxt!=null
+      && el.textContent===el._tvEscrito;
+    const alvoTxt=intermediario ? el._tvAlvoTxt : el.textContent;
+    el._tvAlvoTxt=alvoTxt;
     const m=alvoTxt.match(/-?[\d.,]+/);
     if(!m) return;
     const rotulo=(el.closest('.tv-card')&&el.closest('.tv-card').querySelector('.tv-label'))
@@ -15384,6 +15419,7 @@ function tvAnimarNums(rootId){
       const e=1-Math.pow(1-k,3);
       const v=de+(alvo-de)*e;
       el.textContent=pre+v.toLocaleString('pt-BR',{minimumFractionDigits:dec,maximumFractionDigits:dec})+pos;
+      el._tvEscrito=el.textContent;   // o que a contagem escreveu, para saber se alguem trocou
       if(k<1){ requestAnimationFrame(passo); }
       else{ el.classList.remove('contando'); }
     }
@@ -17632,6 +17668,13 @@ async function loadTvOpe(){
    "pode excluir"); a rota ficou, e quem a le e esta TV e o Copiloto. */
 var TVP_LAMINAS=['Últimos 30 dias','Mês atual','Veículos · últimos 30 dias'];   // o loadTvProd poe as datas
 var TVP_IDX=0;   // var, e nao let: o giro pode ser armado antes desta linha rodar
+/* A ULTIMA LEITURA BOA DE CADA JANELA (14/09/2026). Antes, a serie de 12
+   meses ou o mes atual que falhavam numa recarga trocavam o numero bom por
+   "indisponivel", e numa parede sem operador isso fica ali ate a proxima
+   passada dar certo. Agora cada janela guarda a ultima resposta boa e a TV
+   segue com ela; quem avisa que envelheceu e o selo do cabecalho. */
+var TVP_ULT={}, TVP_LEITURA=null, TVP_FALHOU=false;
+var TVP_RAIZES=['tvprod-k1','tvprod-k3','tvprod-k2'];   // os cartoes de cada lamina
 let tvProdSeq=0, tvProdOk=false;
 function tvProdMostrar(){
   const tr=document.getElementById('tvprod-trilho');
@@ -17644,6 +17687,28 @@ function tvProdPasso(){
   if(currentView()!=='tvprod') return;
   TVP_IDX=(TVP_IDX+1)%TVP_LAMINAS.length;
   tvProdMostrar();
+  tvProdAnimar(TVP_IDX);
+}
+/* A CADA TROCA, A LAMINA QUE ENTRA ANIMA (quem opera, 14/09/2026: "em cada
+   transicao fazer a animacao dos numeros"): os numeros recontam a partir de
+   88% do valor e as barras crescem do zero. So a que entra -- as outras
+   estao fora da tela. `soBarras` e a recarga, que ja reconta os numeros. */
+function tvProdAnimar(i, soBarras){
+  const lam=document.querySelectorAll('#tvprod-trilho > .tvw')[i];
+  if(lam){ lam.classList.remove('tvp-anima'); void lam.offsetWidth; lam.classList.add('tvp-anima'); }
+  if(!soBarras && TVP_RAIZES[i]) tvAnimarNums(TVP_RAIZES[i]);
+}
+/* A IDADE DA LEITURA NO CABECALHO. O numero da parede vem do ERP com cache
+   de 5 minutos -- e, num dia ruim, da ultima leitura boa de ate 2 horas
+   (`cached(velha_ate)`). Painel de TV nao tem tarja que alguem leia de
+   longe: a idade vai ao lado do relogio, amarela passados 15 minutos, e diz
+   "sem atualizar" quando a ultima tentativa falhou. Roda a cada segundo. */
+function tvProdBeat(){
+  const el=document.getElementById('tvprod-beat');
+  if(!el || !TVP_LEITURA) return;
+  const min=Math.max(0, Math.round((Date.now()-TVP_LEITURA.getTime())/60000));
+  el.classList.toggle('velho', TVP_FALHOU || min>=15);
+  el.innerHTML='<i></i>'+(TVP_FALHOU?'sem atualizar · ':'')+'leitura '+(min<1?'agora':'há '+min+' min');
 }
 function tvMilKm(v){
   if(v==null || !isFinite(v)) return '—';
@@ -17704,37 +17769,56 @@ async function loadTvProd(){
     const rot30='Últimos 30 dias · '+dm(de30)+' a '+dm(hoje);
     const mesNome=nomeM(mesDe), rotMes=mesNome.charAt(0).toUpperCase()+mesNome.slice(1)
       +' · '+(dia1 ? 'dia 1, em curso' : '1 a '+dm(mesAte));
-    TVP_LAMINAS=[rot30, rotMes, 'Veículos · últimos 30 dias'];
     const q=(de,ate)=>'dt_de='+_iso(de)+'&dt_ate='+_iso(ate);
-    const pega=(de,ate)=>fetch('/api/bi/produtividade-veiculos?'+q(de,ate),{cache:'no-store'});
-    // o mes e o anterior sao lamina propria: falha deles nao derruba a TV
-    const opc=p=>p.catch(()=>null);
-    const lerOk=async r=>{ try{ return (r&&r.ok) ? await r.json() : null; }catch(_){ return null; } };
-    const [r30, r12, rM, rA]=await Promise.all([pega(de30,hoje), pega(de12,hoje),
-      opc(pega(mesDe,mesAte)), dia1 ? null : opc(pega(antDe,antAte))]);
-    const d=await r30.json(), a=r12.ok ? await r12.json() : null;
-    const mm=await lerOk(rM), an=await lerOk(rA);
+    /* CADA JANELA E UMA LEITURA INDEPENDENTE, com tempo-limite: consulta
+       pendurada no ERP nao segura a parede, e a falha de uma nao derruba as
+       outras. Resposta que nao e JSON (um proxy no lugar da API) conta como
+       falha, e nao como excecao que apaga tudo. */
+    const pega=(de,ate)=>{
+      const ac=(typeof AbortController!=='undefined') ? new AbortController() : null;
+      const tm=ac ? setTimeout(()=>ac.abort(), 45000) : null;
+      return fetch('/api/bi/produtividade-veiculos?'+q(de,ate), {cache:'no-store', signal:ac?ac.signal:undefined})
+        .then(async r=>{ if(!r.ok) return null; try{ return await r.json(); }catch(_){ return null; } })
+        .catch(()=>null)
+        .finally(()=>{ if(tm) clearTimeout(tm); });
+    };
+    const [n30, n12, nM, nA]=await Promise.all([pega(de30,hoje), pega(de12,hoje),
+      pega(mesDe,mesAte), dia1 ? null : pega(antDe,antAte)]);
     if(seq!==tvProdSeq) return;
-    if(!r30.ok){ tvErro('tvprod-k1', tvProdOk); return; }
+    /* a CHAVE e a janela: quando o dia vira, a leitura de ontem nao responde
+       pela janela de hoje -- sem leitura nova, a tela fica como esta e o selo
+       diz "sem atualizar" */
+    const usa=(nome, novo, chave)=>{
+      if(novo && novo.kpis){ TVP_ULT[nome]={chave, dado:novo}; return novo; }
+      const u=TVP_ULT[nome]; return (u && u.chave===chave) ? u.dado : null;
+    };
+    const d=usa('d30', n30, _iso(de30)+_iso(hoje)), a=usa('a12', n12, _iso(de12)+_iso(hoje)),
+      mm=usa('mes', nM, _iso(mesDe)+_iso(mesAte)), an=dia1 ? null : usa('ant', nA, _iso(antDe)+_iso(antAte));
+    TVP_FALHOU=!n30 || !n12 || !nM || (!dia1 && !nA);
+    if(n30){ const ts=n30.ts ? new Date(n30.ts) : null; TVP_LEITURA=(ts && !isNaN(ts)) ? ts : new Date(); }
+    tvProdBeat();
+    if(!d){ tvErro('tvprod-k1', tvProdOk); return; }
+    TVP_LAMINAS=[rot30, rotMes, 'Veículos · últimos 30 dias'];
     const k=d.kpis||{};
     const pct=v=>v==null?null:100*v;
+    const nInt=v=>v==null||!isFinite(v)?'—':Math.round(v).toLocaleString('pt-BR');
     const vz=pct(k.retorno_vazio), vzCls=vz==null?'':(vz>20?'ruim':'ok');
     const oc=pct(k.ociosidade), ocCls=(k.ociosos||0)>0?'warn':'ok';
     document.getElementById('tvprod-k1').innerHTML=[
       tvCard('Km carregado', tvMilKm(k.km_carregado), '',
-        (k.viagens||0).toLocaleString('pt-BR')+' viagens · '+(k.veiculos||0)+' veíc.'),
-      tvCard('Km por veículo', tvMilKm(k.km_por_veiculo), '', 'por veículo que rodou'),
+        nInt(k.viagens)+' viagens · '+nInt(k.veiculos)+' veículos'),
+      tvCard('Km por veículo', tvMilKm(k.km_por_veiculo), '', 'média de quem rodou'),
       /* SEM DINHEIRO NA PAREDE (quem opera, 13/09/2026: "nao vamos mostrar
          faturamento nem reais por km"). No lugar, dois indices de operacao
          do mesmo payload: quantas viagens cada veiculo fez e o tamanho medio
          da viagem carregada. */
       tvCard('Viagens por veículo', k.veiculos?(k.viagens/k.veiculos).toFixed(1).replace('.',','):'—', '',
-        'em 30 dias'),
+        'média de quem rodou'),
       tvCard('Km por viagem', k.viagens?Math.round(k.km_carregado/k.viagens).toLocaleString('pt-BR'):'—', '',
-        'carregado ÷ viagens'),
+        'média carregada por viagem'),
       tvCard('Retorno vazio', vz==null?'n/d':vz.toFixed(0)+'%', vzCls, 'do km total · limite 20%', '',
         {pct:vz==null?null:100*vz/40, cls:vzCls}),
-      tvCard('Parados', k.ociosos||0, ocCls, 'de '+(k.frota_ociosa_base||0)+' próprios e locados', '',
+      tvCard('Frota parada', k.ociosos||0, ocCls, 'sem viagem · de '+(k.frota_ociosa_base||0)+' da frota', '',
         {pct:oc, cls:ocCls}),
     ].join('');
 
@@ -17783,7 +17867,6 @@ async function loadTvProd(){
       const v=tvVar(x,y,pp);
       return abrevA+': '+fmt(y)+(v?' · '+v:'');
     };
-    const nInt=v=>v==null||!isFinite(v)?'—':Math.round(v).toLocaleString('pt-BR');
     const pctF=v=>v==null?'n/d':(100*v).toFixed(0)+'%';
     const kmViag=o=>o&&o.viagens?o.km_carregado/o.viagens:null;
     const k3=document.getElementById('tvprod-k3');
@@ -17845,10 +17928,10 @@ async function loadTvProd(){
     const top5=(d.veiculos||[]).slice(0,5).reduce((s,v)=>s+(v.km_carregado||0),0);
     const conc=k.km_carregado ? 100*top5/k.km_carregado : null;
     document.getElementById('tvprod-k2').innerHTML=[
-      tvCard('Ociosidade', oc==null?'—':oc.toFixed(0)+'%', ocCls, 'parados ÷ próprios e locados', '',
+      tvCard('Frota ociosa', oc==null?'—':oc.toFixed(0)+'%', ocCls, 'parados ÷ frota própria e locada', '',
         {pct:oc, cls:ocCls}),
-      tvCard('Nunca rodaram', k.nunca_rodaram||0, '', 'cadastro a conferir'),
-      tvCard('5 maiores', conc==null?'—':conc.toFixed(0)+'%', '', 'do km carregado', '', {pct:conc}),
+      tvCard('Sem nenhuma viagem', k.nunca_rodaram||0, '', 'na história · cadastro a conferir'),
+      tvCard('Concentração', conc==null?'—':conc.toFixed(0)+'%', '', 'do km nos 5 que mais rodaram', '', {pct:conc}),
     ].join('');
     tvCortaLinhas('tvprod-top', 'tvprod-top-n', d.veiculos_total||0);
     tvCortaLinhas('tvprod-par', 'tvprod-par-n', (d.ociosos||[]).length);
@@ -17856,11 +17939,11 @@ async function loadTvProd(){
     const tick=[];
     if((k.ociosos||0)>0){
       const o=(d.ociosos||[])[0];
-      tick.push('🅿️ '+k.ociosos+' parado(s) na frota própria e locada'
+      tick.push('🅿️ '+k.ociosos+(k.ociosos===1?' veículo parado':' veículos parados')+' na frota própria e locada'
         +(o&&o.dias_parado!=null?' · '+idP(o)+' há '+o.dias_parado+' dias':''));
     }
     if(vz!=null && vz>20) tick.push('↩️ Retorno vazio de '+vz.toFixed(0)+'% em 30 dias — acima do limite de 20%');
-    if((k.nunca_rodaram||0)>0) tick.push('🧾 '+k.nunca_rodaram+' veículo(s) sem nenhuma viagem na história — cadastro a conferir');
+    if((k.nunca_rodaram||0)>0) tick.push('🧾 '+k.nunca_rodaram+(k.nunca_rodaram===1?' veículo':' veículos')+' sem nenhuma viagem na história — cadastro a conferir');
     if(conc!=null && conc>25) tick.push('📊 Os 5 veículos que mais rodaram fazem '+conc.toFixed(0)+'% do km');
     if(km && km.km_carregado && !dia1){
       const v=ka ? tvVar(km.km_carregado, ka.km_carregado) : '';
@@ -17871,6 +17954,7 @@ async function loadTvProd(){
     tvDestacar('tvprod-k1'); tvDestacar('tvprod-k2'); tvDestacar('tvprod-k3');
     tvAnimarNums('tvprod-k1'); tvAnimarNums('tvprod-k2'); tvAnimarNums('tvprod-k3');
     tvProdMostrar();
+    tvProdAnimar(TVP_IDX, true);   // as barras da lamina da vez crescem
     const cab=document.querySelector('#view-tvprod .tv-head');
     if(cab){ cab.classList.add('sync'); setTimeout(()=>cab.classList.remove('sync'), 1200); }
     tvProdOk=true;

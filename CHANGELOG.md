@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.77.0] — 14/09/2026  ·  CX-14/09/2026-v1.77.0
+
+### Alterado
+- Painel de TV da Produtividade da Frota — números maiores nos cartões, no gráfico e nas tabelas, e nomes mais claros: "Frota parada" em vez de "Parados", "Frota ociosa", "Sem nenhuma viagem", "Concentração", "Veículos que mais rodaram" e as colunas escritas por extenso ("Retorno vazio", "Viagens por veículo", "Km por dia", "Última viagem").
+- Painel de TV da Produtividade da Frota — a cada troca de lâmina os números da lâmina que entra recontam e as barras crescem.
+- Painel de TV da Produtividade da Frota — o cabeçalho mostra a idade da leitura do ERP ("leitura há 3 min"), que fica amarela passados 15 minutos.
+
+### Corrigido
+- Painel de TV da Produtividade da Frota — se uma atualização falha (o ERP fora do ar, por exemplo), o painel segue com a última leitura boa e avisa "sem atualizar" no cabeçalho, em vez de trocar blocos por "indisponível"; a consulta que trava desiste em 45 segundos.
+- Painéis de TV — uma contagem de número que recomeça no meio de outra termina no valor certo, e não num valor intermediário.
+
 ## [1.76.4] — 14/09/2026  ·  CX-14/09/2026-v1.76.4
 
 ### Alterado

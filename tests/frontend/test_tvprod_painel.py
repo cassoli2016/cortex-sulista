@@ -16,7 +16,7 @@ não há dia fechado, e a comparação não existe.
 from __future__ import annotations
 
 import json
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -77,6 +77,7 @@ PAYLOAD = {
     "veiculos": VEICULOS, "veiculos_total": 180,
     "ociosos": PARADOS, "nunca_rodaram": [{}] * 4,
     "mensal": MENSAL,
+    "ts": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
 }
 
 # o mês atual (dias fechados) e os mesmos dias do anterior. A receita vai de
@@ -99,23 +100,43 @@ ANT = {**MES, "kpis": {**MES["kpis"], "veiculos": 98, "km_carregado": 180000.0,
                        "km_vazio": 45000.0, "retorno_vazio": 0.20, "km_por_veiculo": 1836.7}}
 
 
-def _corpo(u):
-    """A resposta pela JANELA pedida: é assim que o teste prova a janela."""
+D30 = HOJE - timedelta(days=29)
+_A12 = INI_MES
+for _ in range(11):
+    _A12 = (_A12 - timedelta(days=1)).replace(day=1)
+
+
+def _janela(u):
+    """Qual das quatro leituras a URL pede -- pela JANELA (dt_de/dt_ate)."""
     q = parse_qs(urlparse(u).query)
     de, ate = q["dt_de"][0], q["dt_ate"][0]
-    if de == INI_MES.isoformat() and (ate != HOJE.isoformat() or DIA1):
-        return MES
-    return PAYLOAD if ate == HOJE.isoformat() else ANT
+    if ate == HOJE.isoformat() and de == D30.isoformat():
+        return "d30"
+    if ate == HOJE.isoformat() and de == _A12.isoformat():
+        return "a12"
+    if de == INI_MES.isoformat():
+        return "mes"
+    return "ant"
 
 
-def _abre(pg, base, largura=1920, altura=1080):
+def _abre(pg, base, largura=1920, altura=1080, trinta=None, falha=None):
+    """`falha` é um conjunto MUTÁVEL de janelas que respondem 503: o teste o
+    enche depois da primeira carga para simular a recarga que falha."""
     pedidos = []
+    falha = falha if falha is not None else set()
 
     def rota(r):
         u = r.request.url
         if "produtividade-veiculos" in u:
             pedidos.append(u)
-            corpo = _corpo(u)
+            jan = _janela(u)
+            if jan in falha:
+                r.fulfill(status=503, content_type="application/json",
+                          body='{"erro": "banco_inacessivel"}')
+                return
+            # a hora da leitura acompanha o RELÓGIO da resposta, não o da importação
+            agora = {**PAYLOAD, "ts": datetime.now().strftime("%Y-%m-%dT%H:%M:%S")}
+            corpo = {"d30": trinta or agora, "a12": PAYLOAD, "mes": MES, "ant": ANT}[jan]
         else:
             corpo = ADMIN if "/api/auth/me" in u else {}
         r.fulfill(status=200, content_type="application/json", body=json.dumps(corpo))
@@ -159,7 +180,7 @@ def test_os_cartoes_dos_ultimos_30_dias(pagina):
     por = _cartoes(pg, "#tvprod-k1")
     assert por["KM CARREGADO"]["num"] == "363 mil"
     assert por["RETORNO VAZIO"]["num"] == "17%" and "destaque-ok" in por["RETORNO VAZIO"]["cls"]
-    assert por["PARADOS"]["num"] == "25" and "destaque-warn" in por["PARADOS"]["cls"]
+    assert por["FROTA PARADA"]["num"] == "25" and "destaque-warn" in por["FROTA PARADA"]["cls"]
     # número sem meta leva a borda branca, como na TV de operação
     assert "destaque-neutro" in por["KM POR VEÍCULO"]["cls"]
     # no lugar de receita e R$/km: 1.700 viagens ÷ 120 veículos e 363.000 km ÷ 1.700
@@ -331,8 +352,8 @@ def test_o_rodape_traz_os_alertas_da_produtividade(pagina):
     pg, base = pagina
     _abre(pg, base)
     rod = pg.evaluate("() => document.getElementById('tvprod-ticker').textContent")
-    assert "25 parado(s)" in rod and "P000 há 200 dias" in rod, rod[:200]
-    assert "4 veículo(s) sem nenhuma viagem" in rod
+    assert "25 veículos parados" in rod and "P000 há 200 dias" in rod, rod[:200]
+    assert "4 veículos sem nenhuma viagem" in rod
     if not DIA1:
         assert "▲ 11% sobre os mesmos dias de " + MES_NOME[INI_ANT.month - 1] in rod, rod
 
@@ -372,3 +393,100 @@ def test_no_celular_as_laminas_empilham(pagina):
     # sem a pílula do título, cada bloco diz o próprio período
     assert len(r["cabs"]) == 3 and all(c.startswith("block|") for c in r["cabs"]), r["cabs"]
     assert "Últimos 30 dias" in r["cabs"][0] and MES_NOME[HOJE.month - 1] in r["cabs"][1].lower(), r["cabs"]
+
+
+# ---------------------------------------------------------------- 14/09/2026
+# "Melhore o painel de produtividade, deixe ele mais robusto, melhore as
+# nomenclaturas e tamanho dos números, em cada transição fazer a animação
+# dos números" (quem opera).
+
+
+def test_os_numeros_sao_de_parede_e_cabem(pagina):
+    """O número dos cartões vai a 2,6vw (50 px numa TV de 1920) -- e continua
+    cabendo: o cartão corta o que passa (nowrap + overflow), então cortado
+    seria calado."""
+    pg, base = pagina
+    _abre(pg, base)
+    r = pg.evaluate("""() => {
+        const ns = [...document.querySelectorAll('#tvprod-k1 .tv-num, #tvprod-k2 .tv-num, #tvprod-k3 .tv-num')];
+        return {tam: Math.min(...ns.map(n => parseFloat(getComputedStyle(n).fontSize))), n: ns.length,
+                cortados: ns.filter(n => n.scrollWidth > n.clientWidth + 1).map(n => n.innerText)}; }""")
+    assert r["n"] == 15 and r["tam"] >= 44, r
+    assert not r["cortados"], r
+
+
+def test_a_troca_de_lamina_anima_os_numeros_e_as_barras(pagina):
+    """A lâmina que ENTRA reconta os números e as barras crescem; as outras
+    ficam quietas. E a contagem termina no número verdadeiro."""
+    pg, base = pagina
+    _abre(pg, base)
+    pg.emulate_media(reduced_motion="no-preference")
+    pg.evaluate("() => tvProdPasso()")
+    r = pg.evaluate("""() => ({
+        contando: document.querySelectorAll('#tvprod-k3 .tv-num.contando').length,
+        quietos: document.querySelectorAll('#tvprod-k1 .tv-num.contando, #tvprod-k2 .tv-num.contando').length,
+        anima: document.querySelectorAll('#tvprod-trilho > .tvw')[1].classList.contains('tvp-anima'),
+        barra: getComputedStyle(document.querySelector('.tvp-mes .tvd-col i')).animationName})""")
+    assert r["contando"] >= 5 and r["quietos"] == 0 and r["anima"], r
+    assert r["barra"] == "tvpCresce", r
+    pg.wait_for_function("() => !document.querySelector('#tvprod-k3 .tv-num.contando')", timeout=8000)
+    assert _cartoes(pg, "#tvprod-k3")["KM CARREGADO"]["num"] == "200 mil"
+
+
+def test_recontar_no_meio_da_contagem_termina_no_numero_certo(pagina):
+    """A troca de lâmina pode cair no meio da contagem da recarga. Sem o alvo
+    guardado, a segunda contagem lia o valor INTERMEDIÁRIO como alvo e o
+    painel ficava com um número falso até a recarga seguinte."""
+    pg, base = pagina
+    _abre(pg, base)
+    pg.emulate_media(reduced_motion="no-preference")
+    pg.evaluate("() => tvAnimarNums('tvprod-k1')")
+    pg.wait_for_timeout(500)
+    pg.evaluate("() => tvAnimarNums('tvprod-k1')")
+    pg.wait_for_function("() => !document.querySelector('#tvprod-k1 .tv-num.contando')", timeout=8000)
+    por = _cartoes(pg, "#tvprod-k1")
+    assert por["KM CARREGADO"]["num"] == "363 mil" and por["KM POR VIAGEM"]["num"] == "214", por
+
+
+def test_a_recarga_que_falha_mantem_a_ultima_leitura_boa(pagina):
+    """Antes, a série ou o mês que falhavam numa recarga trocavam o número bom
+    por "indisponível", e numa parede sem operador isso fica ali. Agora cada
+    janela guarda a última leitura boa, e o selo do cabeçalho avisa."""
+    pg, base = pagina
+    falha = set()
+    _abre(pg, base, falha=falha)
+    falha.update({"d30", "a12", "mes", "ant"})
+    pg.evaluate("() => loadTvProd()")
+    pg.wait_for_timeout(300)
+    r = pg.evaluate("""() => ({
+        k1: document.querySelectorAll('#tvprod-k1 .tv-card').length,
+        serie: document.querySelectorAll('#tvprod-mensal .tvd-col').length,
+        txt: document.getElementById('view-tvprod').innerText,
+        selo: document.getElementById('tvprod-beat').innerText,
+        velho: document.getElementById('tvprod-beat').classList.contains('velho')})""")
+    assert r["k1"] == 6 and r["serie"] == 12, r
+    assert "indisponível" not in r["txt"], "a recarga que falhou apagou dado bom"
+    assert _cartoes(pg, "#tvprod-k3")["KM CARREGADO"]["num"] == "200 mil"
+    assert _cartoes(pg, "#tvprod-k1")["KM CARREGADO"]["num"] == "363 mil"
+    assert r["velho"] and "sem atualizar" in r["selo"], r
+
+
+def test_o_cabecalho_diz_a_idade_da_leitura(pagina):
+    """Numa parede não há tarja que alguém leia: a idade da leitura do ERP vai
+    ao lado do relógio."""
+    pg, base = pagina
+    _abre(pg, base)
+    b = pg.evaluate("""() => { const e = document.getElementById('tvprod-beat');
+        return {t: e.innerText, v: e.classList.contains('velho')}; }""")
+    assert "leitura agora" in b["t"] and not b["v"], b
+
+
+def test_leitura_velha_acende_o_selo(pagina):
+    """O cache é de 5 minutos, e num dia ruim o servidor serve a última
+    leitura boa de até 2 horas: passados 15 minutos, o selo fica amarelo."""
+    pg, base = pagina
+    velha = {**PAYLOAD, "ts": (datetime.now() - timedelta(minutes=40)).strftime("%Y-%m-%dT%H:%M:%S")}
+    _abre(pg, base, trinta=velha)
+    b = pg.evaluate("""() => { const e = document.getElementById('tvprod-beat');
+        return {t: e.innerText, v: e.classList.contains('velho')}; }""")
+    assert b["v"] and "há 40 min" in b["t"], b
