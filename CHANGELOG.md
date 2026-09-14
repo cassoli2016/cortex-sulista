@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.76.4] — 14/09/2026  ·  CX-14/09/2026-v1.76.4
+
+### Alterado
+- Painel de TV da Operação — o cartão de motoristas passa a ser só da frota (própria e locação) e se chama "Motoristas da frota": o número em viagem deixa de somar os agregados, e o percentual de ociosos vem com a conta (por exemplo, 64 de 68).
+
 ## [1.76.3] — 14/09/2026  ·  CX-14/09/2026-v1.76.3
 
 ### Corrigido

@@ -1,3 +1,12 @@
+- versao: "1.76.4"
+  data: "2026-09-14"
+  alterado:
+    - >-
+      Painel de TV da Operação — o cartão de motoristas passa a ser só da
+      frota (própria e locação) e se chama "Motoristas da frota": o número em
+      viagem deixa de somar os agregados, e o percentual de ociosos vem com a
+      conta (por exemplo, 64 de 68).
+
 - versao: "1.76.3"
   data: "2026-09-14"
   corrigido:

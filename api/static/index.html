@@ -17328,9 +17328,16 @@ async function loadTvOpe(){
       tvCard('Saíram hoje', tk.saidas_hoje, '',
         (tk.chegadas_previstas_hoje||0)+' chegam hoje'),
       tvCard('Chegando 72h', pk.chegando_72h, pk.sem_retorno>0?'warn':'ok', pk.sem_retorno+' sem retorno'),
-      tvCardDuo('Motoristas', [
-          {num:pk.mot_viagem, sub:'em viagem'},
-          {num:pctLivre==null?'—':Math.round(pctLivre)+'%', cls:clsOcio, sub:'próprios ociosos',
+      /* SO A FROTA (quem opera, 14/09/2026: "o card de motoristas precisa
+         ser somente motorista frota"). O "em viagem" somava o agregado -- 38
+         na tela, dos quais so uns 4 a 8 eram da casa -- ao lado de um % que
+         ja era so do proprio: dois universos no mesmo cartao. Agora os dois
+         numeros sao da frota (TRA + LOC: locacao conta como frota, como na
+         tracao) e o % de ociosos traz a conta no subtitulo. */
+      tvCardDuo('Motoristas da frota', [
+          {num:pk.mot_viagem_proprio!=null?pk.mot_viagem_proprio:'—', sub:'em viagem'},
+          {num:pctLivre==null?'—':Math.round(pctLivre)+'%', cls:clsOcio,
+           sub:'ociosos · '+(pk.mot_proprios_disp||0)+' de '+(pk.mot_proprios||0),
            barra:{pct:pctLivre, cls:clsOcio}}], clsOcio),
       tvCard('Sem sinal há +6h', mudos, mudos>0?'warn':'ok', 'de '+nTr+' em viagem', '',
         {pct:nTr?100*mudos/nTr:null, cls:mudos>0?'warn':'ok'}),

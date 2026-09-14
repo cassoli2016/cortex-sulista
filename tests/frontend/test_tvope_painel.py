@@ -316,9 +316,10 @@ def test_frota_parada_acende_o_cartao(pagina, disp, esperado):
 def test_motoristas_traz_o_percentual_de_proprios_livres(pagina):
     pg, base = pagina
     _abre(pg, base)
-    c = _cartao(pg, "tvope-k1", "Motoristas")
-    assert c and c["nums"] == ["67", "94%"], c
-    assert _barras(pg, "tvope-k1", "Motoristas") == [94]
+    # só a frota (14/09/2026): 4 em viagem, e não os 67 que somavam o agregado
+    c = _cartao(pg, "tvope-k1", "Motoristas da frota")
+    assert c and c["nums"] == ["4", "94%"], c
+    assert _barras(pg, "tvope-k1", "Motoristas da frota") == [94]
 
 
 @pytest.mark.parametrize("pct, destaque", [
@@ -333,13 +334,30 @@ def test_muitos_ociosos_acendem_o_cartao(pagina, pct, destaque):
     _abre(pg, base, prog={**PROG_KPIS, "pct_proprios_disp": pct})
     classe = pg.evaluate("""() => [...document.querySelectorAll('#tvope-k1 .tv-card')]
         .find(c => c.querySelector('.tv-label').innerText.trim().toUpperCase()
-                   === 'MOTORISTAS').className""")
+                   === 'MOTORISTAS DA FROTA').className""")
     if destaque:
         assert destaque in classe, classe
     else:
         # no normal, nenhuma borda de ALERTA -- só a branca de número sem cor
         assert "destaque-warn" not in classe and "destaque-ruim" not in classe, classe
         assert "destaque-neutro" in classe, classe
+
+
+def test_o_cartao_de_motoristas_e_so_da_frota(pagina):
+    """Quem opera, 14/09/2026: "o card de motoristas precisa ser somente
+    motorista frota". O dublê tem 67 em viagem no total -- 4 da frota e 63
+    agregados --: o cartão mostra 4, e o % de ociosos vem com a conta."""
+    pg, base = pagina
+    _abre(pg, base)
+    r = pg.evaluate("""() => { const c = [...document.querySelectorAll('#tvope-k1 .tv-card')]
+        .find(c => c.querySelector('.tv-label').innerText.trim().toUpperCase().startsWith('MOTORISTAS'));
+        return {rot: c.querySelector('.tv-label').innerText.trim().toUpperCase(),
+                nums: [...c.querySelectorAll('.tv-num')].map(n => n.innerText.trim()),
+                txt: c.innerText}; }""")
+    assert r["rot"] == "MOTORISTAS DA FROTA", r
+    assert r["nums"][:2] == ["4", "94%"], r
+    assert "67" not in r["txt"] and "63" not in r["txt"], "agregado no cartão da frota: %r" % r
+    assert "64 de 68" in r["txt"], r
 
 
 def test_as_reguas_de_conducao_pintam_numero_e_barra(pagina):
@@ -413,7 +431,7 @@ def test_todo_cartao_tem_borda_na_cor_do_numero(pagina):
         '#tvope-k1 .tv-card, #tvope-k2 .tv-card')].map(c => [
           c.querySelector('.tv-label').innerText.trim().toUpperCase(),
           {cls: c.className, sombra: getComputedStyle(c).boxShadow}]))""")
-    for rot in ("MOTOR LIGADO PARADO", "PEDAL CRÍTICO", "MOTORISTAS", "TRAÇÃO DISPONÍVEL"):
+    for rot in ("MOTOR LIGADO PARADO", "PEDAL CRÍTICO", "MOTORISTAS DA FROTA", "TRAÇÃO DISPONÍVEL"):
         assert "destaque-ruim" in info[rot]["cls"], (rot, info[rot])
     for rot in ("FAIXA EXTRA ECONÔMICA", "CHEGANDO 72H"):
         assert "destaque-warn" in info[rot]["cls"], (rot, info[rot])
