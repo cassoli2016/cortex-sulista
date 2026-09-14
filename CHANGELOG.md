@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.74.1] — 13/09/2026  ·  CX-13/09/2026-v1.74.1
+
+### Corrigido
+- Painel de TV da Produtividade da Frota — o ponto que marca a lâmina do carrossel no título passa a ter a cor de destaque do painel, a mesma do relógio. Nada mais muda na tela; a correção faz a verificação automática de cores do CÓRTEX voltar a passar.
+
 ## [1.74.0] — 13/09/2026  ·  CX-13/09/2026-v1.74.0
 
 ### Adicionado

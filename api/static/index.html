@@ -2007,7 +2007,10 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
 .tvp-lamina:empty{display:none}
 .tvp-lamina i{width:0.55vw;height:0.55vw;min-width:7px;min-height:7px;border-radius:50%;
   background:#4F6B85;display:inline-block}
-.tvp-lamina i.on{background:#E5EDF4}
+/* o ponto aceso e o LARANJA do relogio, nao o branco: cor clara literal fora
+   do prefixo `tv-` acende a auditoria de superficies (scripts/
+   auditar_superficies.py), e na parede o destaque da casa ja e este */
+.tvp-lamina i.on{background:#F08A4B}
 .tvp-janela{overflow:hidden;height:calc(100vh - 6.6vw);min-height:0}
 .tvp-trilho{display:flex;width:200%;height:100%;transition:transform 1s cubic-bezier(.4,0,.2,1)}
 .tvp-trilho>.tvw{flex:0 0 50%;width:50%;height:100%;box-sizing:border-box}

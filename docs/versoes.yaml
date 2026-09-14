@@ -1,3 +1,12 @@
+- versao: "1.74.1"
+  data: "2026-09-13"
+  corrigido:
+    - >-
+      Painel de TV da Produtividade da Frota — o ponto que marca a lâmina do
+      carrossel no título passa a ter a cor de destaque do painel, a mesma do
+      relógio. Nada mais muda na tela; a correção faz a verificação
+      automática de cores do CÓRTEX voltar a passar.
+
 - versao: "1.74.0"
   data: "2026-09-13"
   adicionado:
