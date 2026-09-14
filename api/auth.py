@@ -394,6 +394,9 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     # MAIS ESPECIFICA ANTES DA GENERICA:  casaria o
     # prefixo de  e o barraria por outra tela.
     ("/api/jornada/diarias",          frozenset({"jorn"})),
+    # os apontamentos do app do motorista são da TORRE, não da TV: têm nome de
+    # motorista e são para conferir, não para exibir na parede
+    ("/api/operacao/torre/apontamentos", frozenset({"torre"})),
     ("/api/operacao/torre/chegadas",  frozenset({"torre", "tvope"})),
     ("/api/operacao/torre/estradas",  frozenset({"torre", "tvope"})),
     ("/api/operacao/torre",           frozenset({"torre", "tvope"})),

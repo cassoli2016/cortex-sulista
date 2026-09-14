@@ -900,6 +900,20 @@ def _app_motorista() -> dict:
     except Exception as exc:  # noqa: BLE001
         log.info("saude: avisos do motorista indisponiveis (%s)", type(exc).__name__)
 
+    # A FASE 2 (14/09/2026): apontamentos da semana e posições de celular no
+    # mapa. NÃO É ALARME — app novo com zero apontamentos é adoção, não defeito.
+    # Está aqui para que "ninguém usa" apareça sem alguém ter de procurar.
+    try:
+        from api.motorista import apontamento as _ap
+        c = _ap.contagem()
+        partes.append("apontamentos: %d na semana (%d na cerca, %d fora) · %d com "
+                      "localização autorizada · %d celular(es) no mapa agora"
+                      % (c["ap_7d"], c["dentro_7d"], c["fora_7d"],
+                         c["autorizados"], c["posicoes_frescas"]))
+    except Exception as exc:  # noqa: BLE001
+        log.info("saude: apontamentos do motorista indisponiveis (%s)",
+                 type(exc).__name__)
+
     return {"nome": nome, "status": "ok", "detalhe": " · ".join(partes)}
 
 

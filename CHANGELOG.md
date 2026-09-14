@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.80.0] — 14/09/2026  ·  CX-14/09/2026-v1.80.0
+
+### Adicionado
+- App do motorista — na viagem, "Chegada e saída": o motorista registra "Cheguei para carregar", "Saí carregado", "Cheguei para descarregar" e "Terminei a descarga". Cada registro usa a localização do celular e mostra se ele estava na cerca do cliente (o perímetro da planta cadastrado no ERP ou, sem ele, o endereço), com a distância quando está fora.
+- App do motorista — a localização é pedida com uma explicação antes: o que é enviado e quando. Sem autorizar, a chegada e a saída não se registram; o resto do app funciona igual. A autorização se retira em Minha conta.
+- App do motorista — com o app aberto durante uma viagem, a posição do celular vai para a torre a cada 5 minutos. Fica guardada só a última, e ela é apagada quando a viagem termina, ao sair do app ou ao retirar a autorização. Com o app fechado, nada é enviado.
+- Torre de Controle — no mapa, o caminhão aparece com contorno tracejado quando a posição vem do celular do motorista (a última enviada, de até 2 horas), só onde o rastreador não tem posição mais nova: é o que mostra o agregado sem rastreador integrado.
+- Torre de Controle › Apontamentos — o que os motoristas registraram nos últimos 7 dias, com a conferência da cerca do cliente, ao lado do mesmo apontamento lançado no ERP e da diferença em minutos. Serve para conferir; ainda não entra nas horas paradas.
+
 ## [1.79.2] — 14/09/2026  ·  CX-14/09/2026-v1.79.2
 
 ### Alterado

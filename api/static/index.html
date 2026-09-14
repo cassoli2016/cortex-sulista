@@ -8582,11 +8582,12 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <button role="tab" id="tabtorre-mapa" data-aba="mapa" aria-controls="aba-torre-mapa" aria-selected="true" onclick="abaTrocar('torre','mapa')">Mapa</button>
           <button role="tab" id="tabtorre-viag" data-aba="viag" aria-controls="aba-torre-viag" aria-selected="false" onclick="abaTrocar('torre','viag')">Viagens</button>
           <button role="tab" id="tabtorre-estr" data-aba="estr" aria-controls="aba-torre-estr" aria-selected="false" onclick="abaTrocar('torre','estr')">Estrada e chegada</button>
+          <button role="tab" id="tabtorre-apont" data-aba="apont" aria-controls="aba-torre-apont" aria-selected="false" onclick="abaTrocar('torre','apont')">Apontamentos</button>
         </div>
         <div class="aba" data-abas="torre" data-aba="mapa" id="aba-torre-mapa" role="tabpanel" aria-labelledby="tabtorre-mapa">
   <div class="card">
             <div class="head">
-              <h2>Mapa da frota <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Última posição transmitida por veículo (veiculo_posicao, ultimaposicao=1). A cor é a modalidade do ativo e o contorno vermelho marca viagem atrasada. Posição antiga permanece desenhada no mapa — a coluna Posição da tabela abaixo diz de quando ela é.">i</span></h2>
+              <h2>Mapa da frota <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Última posição transmitida por veículo (veiculo_posicao, ultimaposicao=1). A cor é a modalidade do ativo e o contorno vermelho marca viagem atrasada. Posição antiga permanece desenhada no mapa — a coluna Posição da tabela abaixo diz de quando ela é. O contorno TRACEJADO é a posição do CELULAR do motorista, enviada pelo app aberto durante a viagem (a última, de até 2 h atrás), desenhada só quando o rastreador da placa não tem posição mais nova — é o que mostra o agregado sem rastreador integrado.">i</span></h2>
               <span class="hint" id="hintTorre"></span>
               <label style="font-size:12px;color:var(--n600);display:inline-flex;align-items:center;gap:6px;cursor:pointer">
                 <input type="checkbox" id="torreSoViagem" onchange="torreMapa()"> só em viagem
@@ -8598,6 +8599,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <span class="k"><i class="sw" style="background:var(--navy-500);border-radius:50%"></i>Locação</span>
               <span class="k"><i class="sw" style="background:var(--orange-500);border-radius:50%"></i>Agregado</span>
               <span class="k"><i class="sw" style="background:var(--yellow);border-radius:50%"></i>Terceiro</span>
+              <span class="k"><i class="sw" style="background:transparent;border:2px dashed var(--n700);border-radius:50%"></i>Celular do motorista</span>
               <span class="k" style="color:var(--n500)">contorno vermelho = viagem atrasada</span>
             </div>
           </div>
@@ -8608,6 +8610,14 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="tablewrap tabroll" style="max-height:560px"><table><thead><tr>
               <th>Placa</th><th>Modalidade</th><th>Motorista</th><th>Cliente</th><th>Trajeto</th><th class="num">Km</th><th class="num">Saída → previsão</th><th class="num">Posição</th><th>Status</th>
             </tr></thead><tbody id="torre-transito"></tbody></table></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="torre" data-aba="apont" id="aba-torre-apont" role="tabpanel" aria-labelledby="tabtorre-apont" data-ao-abrir="carregarTorreApont" hidden>
+  <div class="card">
+            <div class="head"><h2>Apontamentos do app do motorista <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O que o motorista registrou no app (cheguei para carregar, saí carregado, cheguei para descarregar, terminei a descarga), com a posição do celular conferida contra a cerca do CLIENTE: o perímetro da planta cadastrado no ERP (cadastro_poligono) ou, sem ele, o endereço com raio de 500 m — o balão diz qual respondeu. A coordenada não é guardada: fica o resultado e a distância. Ao lado, a mesma ocorrência lançada no ERP (SAC 394 a 397, a primeira de cada código) e a diferença em minutos. É evidência para conferir, e ainda não entra nas horas paradas. Últimos 7 dias.">i</span></h2><span class="hint" id="hintTorreApont"></span></div>
+            <div class="tablewrap tabroll" style="max-height:560px"><table><thead><tr>
+              <th class="num">Quando</th><th>Motorista</th><th>Placa</th><th>Apontamento</th><th>Cerca do cliente</th><th class="num">No ERP (SAC)</th><th class="num">App − ERP</th>
+            </tr></thead><tbody id="torre-apont"></tbody></table></div>
           </div>
         </div>
         <div class="aba" data-abas="torre" data-aba="estr" id="aba-torre-estr" role="tabpanel" aria-labelledby="tabtorre-estr" hidden>
@@ -34729,7 +34739,105 @@ async function torreMapa(){
     marker.addTo(torreLayer);
     pts.push([p.lat,p.lng]);
   });
+  /* O CELULAR DO MOTORISTA (14/09/2026): a última posição que o app ABERTO
+     enviou, só de placa em viagem. Desenhado só quando o rastreador da placa
+     não tem posição MAIS NOVA — senão o mesmo caminhão apareceria duas vezes, e
+     a mais velha das duas enganaria quem olha. É o que põe no mapa o agregado
+     sem rastreador integrado. Contorno TRACEJADO: a fonte se lê sem abrir o
+     balão. As datas vêm as duas como 'AAAA-MM-DD HH:MM', e comparar texto é
+     comparar hora. */
+  const npl = s => String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  const rastr = {}, viagemDe = {};
+  (d.posicoes||[]).forEach(p=>{ if(p.lat&&p.lng) rastr[npl(p.placa)] = p.posicao_em||''; });
+  (d.transito||[]).forEach(t=>{ if(t.placa) viagemDe[npl(t.placa)] = t; });
+  (d.posicoes_celular||[]).forEach(c=>{
+    if(!c.lat||!c.lng) return;
+    const k = npl(c.placa);
+    if(rastr[k] && rastr[k] >= (c.posicao_em||'')) return;
+    const v = viagemDe[k];
+    const marker = L.circleMarker([c.lat,c.lng],{
+      radius:7, color:(v&&v.atrasada)?'#C03221':'#1E172F', weight:2.5, dashArray:'4 3',
+      fillColor:MOD_COR[(v||{}).utilizacao]||'#6E7883', fillOpacity:.55,
+    });
+    const linhas = [
+      '<b style="font-family:monospace">'+esc(c.placa)+'</b> · celular do motorista',
+      'posição: '+esc(c.posicao_em||'—')+' (há '+(c.idade_min||0)+' min'
+        +(c.precisao_m?' · ±'+c.precisao_m+' m':'')+')',
+    ];
+    if(v){
+      linhas.push('motorista: '+esc(v.motorista||'—'));
+      linhas.push('viagem: '+esc(v.origem)+' → '+esc(v.destino));
+      linhas.push('cliente: '+esc(v.cliente));
+    }
+    marker.bindPopup(linhas.join('<br>'));
+    marker.addTo(torreLayer);
+    pts.push([c.lat,c.lng]);
+  });
   if(pts.length) torreMap.fitBounds(pts,{padding:[30,30],maxZoom:9});
+}
+
+/* APONTAMENTOS DO APP DO MOTORISTA (14/09/2026) — aba da Torre.
+   O que o motorista registrou, com a cerca do cliente, AO LADO da ocorrência
+   SAC do ERP. É evidência para conferir: ainda não entra nas horas paradas.
+   Carrega ao abrir a aba (`data-ao-abrir`) e de novo a cada abertura — a lista
+   muda no toque de quem está na estrada. Com o ERP fora, a coluna dele diz
+   "não sei", nunca "sem lançamento": seria afirmar que alguém conferiu. */
+let torreApontSeq = 0;
+async function carregarTorreApont(){
+  const seq = ++torreApontSeq;
+  const tb = document.getElementById('torre-apont');
+  try{
+    const r = await fetch('/api/operacao/torre/apontamentos', {cache:'no-store'});
+    const x = await respostaJSON(r);
+    if(seq !== torreApontSeq) return;
+    if(!x.ok){
+      tb.innerHTML = '<tr><td colspan="7" style="color:var(--n500)">'
+        + esc((x.dados||{}).mensagem || 'Não foi possível carregar.') + '</td></tr>';
+      return;
+    }
+    renderTorreApont(x.dados || {});
+  }catch(e){
+    if(seq === torreApontSeq)
+      tb.innerHTML = '<tr><td colspan="7" style="color:var(--n500)">'
+        + esc(e.message || 'Não foi possível falar com a API.') + '</td></tr>';
+  }
+}
+function _apMinTxt(m){
+  if(m===null || m===undefined) return '—';
+  const s = m>0 ? '+' : (m<0 ? '−' : ''), a = Math.abs(m);
+  return s + (a<60 ? a+' min' : Math.floor(a/60)+' h '+String(a%60).padStart(2,'0'));
+}
+function _apDistTxt(m){
+  return m<1000 ? m+' m' : (m/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+' km';
+}
+function renderTorreApont(d){
+  const I = d.itens || [], R = d.resumo || {}, dias = d.janela_dias || 7;
+  document.getElementById('hintTorreApont').textContent = I.length
+    ? I.length + (I.length===1?' apontamento':' apontamentos') + ' em ' + dias + ' dias · '
+      + (R.dentro||0) + ' no cliente · ' + (R.fora||0) + ' fora da cerca'
+      + (d.erp_ok===false ? ' · ERP não respondeu: a coluna do ERP está em branco'
+                          : ' · ' + (R.com_erp||0) + ' com o mesmo lançamento no ERP')
+    : 'nenhum apontamento em ' + dias + ' dias';
+  const cerca = x => {
+    const ref = x.referencia==='coordenada' ? ' <span class="sub">pelo endereço</span>' : '';
+    if(x.cerca==='dentro') return '<span class="badge b-ok">no cliente</span>' + ref;
+    if(x.cerca==='fora') return '<span class="badge b-warn">fora · ' + esc(_apDistTxt(x.distancia_m||0)) + '</span>' + ref;
+    if(x.cerca==='sem_cerca') return '<span style="color:var(--n500)">cliente sem cerca</span>';
+    return '<span style="color:var(--n500)" title="O ERP não respondeu na hora do registro.">não conferida</span>';
+  };
+  const erp = x => x.erp_em ? esc(fmtDT(x.erp_em))
+    : (d.erp_ok===false
+        ? '<span style="color:var(--n500)" title="O ERP não respondeu agora — não é ausência de lançamento.">não sei</span>'
+        : '<span style="color:var(--n500)">sem lançamento</span>');
+  document.getElementById('torre-apont').innerHTML = I.map(x=>`<tr>
+      <td class="num" style="font-family:var(--mono);font-size:12px">${esc(fmtDT(x.em))}</td>
+      <td>${esc(x.motorista||'—')}</td>
+      <td style="font-family:var(--mono);font-size:12px">${esc(x.placa||'—')}</td>
+      <td>${esc(x.rotulo)}${x.precisao_m?`<span class="sub">±${x.precisao_m} m de precisão</span>`:''}</td>
+      <td>${cerca(x)}</td>
+      <td class="num" style="font-family:var(--mono);font-size:12px">${erp(x)}</td>
+      <td class="num">${esc(_apMinTxt(x.erp_dif_min))}</td>
+    </tr>`).join('') || '<tr><td colspan="7" style="color:var(--n500)">nenhum apontamento no período</td></tr>';
 }
 
 /* ---------------- Análise de KM ---------------- */

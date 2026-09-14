@@ -315,6 +315,33 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
 .conselho b{display:block;margin-bottom:3px}
 .nota{color:var(--ink2);font-size:12px;margin-top:var(--e1);line-height:1.45}
 .vaziomsg{color:var(--ink2);font-size:14px}
+/* ------------------------------------------- chegada e saída (fase 2) ---
+   O botão cheio leva TINTA ESCURA FIXA, e não branca nem `--ink`: branco sobre
+   o laranja dá 3,3:1 (reprova texto normal), e `--ink` vira claro no tema
+   escuro sobre um fundo que não muda. O vazado tem a tinta do tema e o
+   laranja só na borda — laranja como cor de texto sobre branco também reprova. */
+.ap{border-top:1px solid var(--linha);margin-top:var(--e2);padding-top:var(--e2)}
+.ap h2{margin-bottom:var(--e1)}
+.ap-linha{display:flex;align-items:center;justify-content:space-between;
+  gap:var(--e1);padding:var(--e1) 0;border-bottom:1px solid var(--linha)}
+.ap-linha b{font-weight:600}
+.ap-sub{font-size:12.5px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.ap-btn{flex:0 0 auto;min-height:44px;padding:0 var(--e2);border-radius:10px;
+  border:2px solid var(--accent);background:transparent;color:var(--ink);
+  font:inherit;font-weight:700;cursor:pointer}
+.ap-btn.ap-prox{background:var(--accent);color:#14181D}
+.ap-btn:disabled{opacity:.55;cursor:default}
+.ap-sec{min-height:44px;padding:0 var(--e2);border-radius:10px;
+  border:1px solid var(--linha);background:transparent;color:var(--ink);
+  font:inherit;cursor:pointer}
+.ap-msg{font-size:14px;margin-top:var(--e1)}
+.ap-msg:empty{display:none}
+.ap-msg.erro{color:var(--erro)}
+.ap-nota{font-size:12.5px;color:var(--ink2);margin-top:var(--e1)}
+.aceite{border:1px solid var(--linha);border-radius:10px;padding:var(--e2);
+  background:var(--fundo)}
+.aceite p{font-size:14px;margin:var(--e1) 0 0}
+.aceite-bts{display:flex;flex-wrap:wrap;gap:var(--e1);margin-top:var(--e2)}
 .carregando{color:var(--ink2);font-size:14px;padding:var(--e2) 0}
 .busca{width:100%;font:inherit;font-size:16px;padding:12px;min-height:48px;
   border:1px solid var(--n300);border-radius:6px;background:var(--n0);
@@ -861,6 +888,10 @@ function desenharViagem(dados) {
   if (v.previsao_chegada) linhas.push(["Previsão de chegada", horario(v.previsao_chegada)]);
   if (v.numero) linhas.push(["Programação", v.numero]);
 
+  // A autorização viaja no MESMO payload da viagem, fora do cache dela no
+  // servidor: é ela que decide se o toque abre a explicação ou já pede a
+  // posição ao navegador.
+  if (dados.localizacao) euAtual.localizacao = dados.localizacao;
   card.innerHTML =
     "<h2>Minha viagem</h2>" +
     "<h1 style='margin-bottom:0'>" + esc(v.cliente || "Sem cliente informado") + "</h1>" +
@@ -873,8 +904,189 @@ function desenharViagem(dados) {
     "<div class='linhas'>" +
       linhas.map(([r, val]) =>
         "<div class='linha'><span>" + esc(r) + "</span><b>" + esc(val) + "</b></div>").join("") +
-    "</div>";
+    "</div>" + desenharApontamentos(v, dados);
 }
+
+// ================================================ chegada e saída (fase 2) ====
+//
+// O MOTORISTA APONTA, A CASA CONFERE. Quatro botões na ordem da viagem; cada
+// toque manda a posição do celular, e quem decide se ela caiu na cerca do
+// cliente é o SERVIDOR (`api/motorista/apontamento.py`). A página não calcula
+// veredito nenhum — só mostra o que ficou gravado.
+//
+// A LOCALIZAÇÃO É OBRIGATÓRIA PARA APONTAR (quem opera, 14/09/2026): sem a
+// autorização registrada, o toque abre a EXPLICAÇÃO antes de o navegador pedir
+// a permissão. O resto do app funciona igual sem ela.
+//
+// O ACESSO MESTRE NÃO APONTA: registrar dali gravaria a posição de quem
+// administra como se fosse a do motorista. O servidor recusa; a página nem
+// desenha o botão.
+const CERCA_TXT = {
+  dentro: ["ok", "no cliente"],
+  fora: ["aviso", "fora da cerca"],
+  sem_cerca: ["frio", "cliente sem cerca cadastrada"],
+  nao_conferida: ["frio", "não conferido"]
+};
+
+function distTxt(m) {
+  if (m === null || m === undefined) return "";
+  return m < 1000 ? m + " m"
+    : (m / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " km";
+}
+
+function desenharApontamentos(v, dados) {
+  const lista = dados.apontamentos;
+  if (v.vazio || !Array.isArray(lista) || !lista.length) return "";
+  const proximo = lista.find((a) => !a.feito);
+  const itens = lista.map((a) => {
+    let dir;
+    if (a.feito) {
+      const c = CERCA_TXT[a.cerca] || ["frio", ""];
+      const txt = c[1] + (a.cerca === "fora" && a.distancia_m != null
+        ? " · " + distTxt(a.distancia_m) : "");
+      dir = "<span class='selo " + c[0] + "'>" + esc(txt) + "</span>";
+    } else if (euAtual.mestre) {
+      dir = "<span class='selo frio'>não registrado</span>";
+    } else {
+      dir = "<button type='button' class='ap-btn" + (a === proximo ? " ap-prox" : "") +
+        "' data-tipo='" + esc(a.tipo) + "'>Registrar</button>";
+    }
+    return "<div class='ap-linha'><div><b>" + esc(a.rotulo) + "</b>" +
+      (a.feito ? "<div class='ap-sub'>" + esc(horario(a.em)) + "</div>" : "") +
+      "</div>" + dir + "</div>";
+  }).join("");
+  return "<div class='ap'><h2>Chegada e saída</h2>" + itens +
+    "<div class='ap-msg' id='ap-msg' role='status' aria-live='polite'></div>" +
+    "<p class='ap-nota'>" + (euAtual.mestre
+      ? "Acesso de conferência: daqui não se registra nada."
+      : "Ao registrar, o app usa a localização do celular para confirmar que " +
+        "você está no cliente.") + "</p></div>";
+}
+
+function apMsg(html, classe) {
+  const m = $("ap-msg");
+  if (!m) return;
+  m.className = "ap-msg" + (classe ? " " + classe : "");
+  m.innerHTML = html;
+}
+
+function locAceita() { return !!((euAtual.localizacao || {}).aceita); }
+
+function posicaoAtual() {
+  return new Promise((ok, falhou) => {
+    if (!navigator.geolocation) return falhou({ code: 0 });
+    navigator.geolocation.getCurrentPosition(ok, falhou,
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 60000 });
+  });
+}
+
+// O TEXTO DO ERRO DIZ O QUE FAZER, e cada código pede uma coisa diferente:
+// bloqueada é configuração (ele tem de ir lá liberar), sem sinal é lugar.
+function erroGeo(e) {
+  if (e && e.code === 1)
+    return "A localização está bloqueada para o app. Libere nas configurações do " +
+      "navegador (Localização, ou o cadeado ao lado do endereço) e toque de novo.";
+  if (e && e.code === 0) return "Este celular não informa a localização ao navegador.";
+  return "Não consegui pegar a localização. Vá para um lugar aberto e tente de novo.";
+}
+
+// DUAS HORAS, sempre: a do servidor decide, a do aparelho explica a diferença
+// quando ela aparecer (`docs/APP_MOTORISTA.md` §6).
+function corpoPosicao(p, extra) {
+  return JSON.stringify(Object.assign({
+    lat: p.coords.latitude, lon: p.coords.longitude,
+    precisao: Math.round(p.coords.accuracy || 0) || null,
+    em_aparelho: new Date().toISOString()
+  }, extra || {}));
+}
+
+async function registrarApontamento(tipo, btn) {
+  if (euAtual.mestre) return;
+  if (!locAceita()) { pedirAceite(tipo); return; }
+  btn.disabled = true;
+  apMsg("Pegando a localização…");
+  let p;
+  try { p = await posicaoAtual(); }
+  catch (e) { btn.disabled = false; apMsg(esc(erroGeo(e)), "erro"); return; }
+  const r = await pedir("/api/motorista/apontamento",
+    { method: "POST", body: corpoPosicao(p, { tipo: tipo }) });
+  if (!r.ok) {
+    if (r.status === 401) return mostrar("tela-entrar");
+    btn.disabled = false; apMsg(esc(r.mensagem), "erro"); return;
+  }
+  posUltima = Date.now();
+  delete cache.viagem;
+  await abrirAba("viagem");
+  agendarPosicao(POS_INTERVALO_MS);
+}
+
+function pedirAceite(tipo) {
+  apMsg("<div class='aceite'><b>Autorizar a localização</b>" +
+    "<p>Para registrar a chegada e a saída, o app usa a localização do celular " +
+    "e confere se você está no cliente.</p>" +
+    "<p>Enquanto o app estiver aberto durante uma viagem, ele também manda a sua " +
+    "posição a cada 5 minutos, para a torre saber onde você está. Guardamos só a " +
+    "última posição, e ela é apagada quando a viagem termina. Com o app fechado, " +
+    "nada é enviado.</p>" +
+    "<p>Você pode retirar a autorização em Minha conta.</p>" +
+    "<div class='aceite-bts'>" +
+    "<button type='button' class='ap-btn ap-prox' data-aceite='sim' data-tipo='" +
+    esc(tipo) + "'>Autorizar</button>" +
+    "<button type='button' class='ap-sec' data-aceite='nao'>Agora não</button>" +
+    "</div></div>");
+}
+
+async function responderAceite(sim, tipo) {
+  if (!sim) {
+    apMsg("Sem a localização, a chegada e a saída não podem ser registradas pelo app.");
+    return;
+  }
+  const r = await pedir("/api/motorista/localizacao",
+    { method: "POST", body: JSON.stringify({ aceito: true }) });
+  if (!r.ok) { apMsg(esc(r.mensagem), "erro"); return; }
+  euAtual.localizacao = r.dados;
+  const b = document.querySelector("#card-viagem .ap-linha .ap-btn[data-tipo='" + tipo + "']");
+  if (b) registrarApontamento(tipo, b);
+}
+
+$("card-viagem").addEventListener("click", (ev) => {
+  const s = ev.target.closest("[data-aceite]");
+  if (s) { responderAceite(s.dataset.aceite === "sim", s.dataset.tipo); return; }
+  const b = ev.target.closest(".ap-linha .ap-btn");
+  if (b && !b.disabled) registrarApontamento(b.dataset.tipo, b);
+});
+
+// A POSIÇÃO DO APP ABERTO (14/09/2026): a cada 5 min, só com a página VISÍVEL,
+// só com a autorização registrada, e o SERVIDOR manda parar quando não há
+// viagem. Recarga ENCADEADA (regra da casa), nunca `setInterval`: o próximo
+// envio só é agendado depois que o anterior voltou.
+const POS_INTERVALO_MS = 300000;
+let posTimer = null, posSeq = 0, posUltima = 0;
+
+function agendarPosicao(ms) {
+  clearTimeout(posTimer);
+  posTimer = setTimeout(enviarPosicao, ms);
+}
+
+async function enviarPosicao() {
+  const meu = ++posSeq;
+  if ($("app").hidden || euAtual.mestre || !locAceita() || document.hidden) return;
+  let p;
+  try { p = await posicaoAtual(); }
+  catch (e) { if (meu === posSeq) agendarPosicao(POS_INTERVALO_MS); return; }
+  const r = await pedir("/api/motorista/posicao", { method: "POST", body: corpoPosicao(p) });
+  if (meu !== posSeq) return;
+  if (r.ok) posUltima = Date.now();
+  if (r.ok && r.dados && r.dados.viagem === false) return;   // sem viagem: para
+  agendarPosicao(POS_INTERVALO_MS);
+}
+
+// A VOLTA À TELA retoma o relógio de onde ele estava — sem isto, cada troca de
+// app mandaria uma posição, e o intervalo deixaria de ser de 5 minutos.
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden || $("app").hidden || euAtual.mestre || !locAceita()) return;
+  agendarPosicao(Math.max(1000, POS_INTERVALO_MS - (Date.now() - posUltima)));
+});
 
 // ==================================================== o motor das abas ====
 //
@@ -1636,10 +1848,33 @@ function desenharConta() {
   const l = [["Nome", euAtual.nome || "—"]];
   if (euAtual.telefone) l.push(["Celular", euAtual.telefone]);
   if (euAtual.mestre) l.push(["Acesso", "administração (conferência)"]);
+  const loc = euAtual.localizacao || {};
+  if (!euAtual.mestre) {
+    const em = loc.em ? " em " + loc.em.slice(8, 10) + "/" + loc.em.slice(5, 7) +
+      "/" + loc.em.slice(0, 4) : "";
+    l.push(["Localização", loc.aceita ? "autorizada" + em : "não autorizada"]);
+  }
+  // RETIRAR É TÃO FÁCIL QUANTO AUTORIZAR, e fica onde a explicação disse que
+  // ficaria. Autorização que só se retira pedindo a alguém não é autorização.
   $("linhas-conta").innerHTML = l.map(([r, v]) =>
     "<div class='linha'><span>" + esc(r) + "</span><b>" + esc(v) +
-    "</b></div>").join("");
+    "</b></div>").join("") +
+    (!euAtual.mestre && loc.aceita
+      ? "<div class='linha'><button type='button' class='ap-sec' id='b-loc'>" +
+        "Retirar a autorização da localização</button></div>" : "");
+  const bl = $("b-loc");
+  if (bl) bl.addEventListener("click", retirarLocalizacao);
   pintarInstalar();
+}
+
+async function retirarLocalizacao() {
+  const r = await pedir("/api/motorista/localizacao",
+    { method: "POST", body: JSON.stringify({ aceito: false }) });
+  if (!r.ok) return;
+  euAtual.localizacao = r.dados;
+  clearTimeout(posTimer); posSeq++;
+  delete cache.viagem;
+  desenharConta();
 }
 
 // ------------------------------------------------------------------- avisos
@@ -2000,6 +2235,8 @@ async function abrirApp() {
   await abrirAba(pedida || (visiveis.length ? visiveis[0].id : "conta"));
   if (pedida) lerAba(pedida);
   agendarSino();
+  // A POSIÇÃO SÓ COMEÇA COM A AUTORIZAÇÃO REGISTRADA, e nunca no acesso mestre.
+  if (locAceita() && !euAtual.mestre) agendarPosicao(2000);
   return true;
 }
 
@@ -2016,6 +2253,7 @@ window.addEventListener("hashchange", () => {
 
 $("b-sair").addEventListener("click", async () => {
   clearTimeout(sinoTimer); sinoSeq++;
+  clearTimeout(posTimer); posSeq++;       // o servidor apaga a última posição
   if (!euAtual.mestre) { try { await desligarAvisos(); } catch (e) { /* segue */ } }
   pintarSino(0);
   await pedir("/api/motorista/sair", { method: "POST" });

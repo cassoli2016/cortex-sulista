@@ -377,6 +377,20 @@ moram em arquivos que não falam do assunto.
   que originou a frente: com a distância ainda se recalibra raio. O guard é
   ESTRUTURAL e lê o `information_schema`, não o texto do SQL — guard que lê
   texto-fonte protege contra apagar, não contra acrescentar a coluna.
+- **O CELULAR DO MOTORISTA: O APONTAMENTO GUARDA O VEREDITO, A POSIÇÃO GUARDA
+  SÓ A ÚLTIMA** (`api/motorista/apontamento.py`, `0093`, 14/09/2026). A mesma
+  regra da batida vale para "cheguei/saí do cliente": a coordenada decide
+  dentro/fora da cerca do cliente (`cadastro_poligono` tipo 1 do ERP, vértice
+  em LATITUDE, LONGITUDE; sem cerca, o endereço com raio declarado) e é
+  descartada — `mot_apontamentos` não tem coluna de coordenada. A posição do
+  app ABERTO em viagem (para a torre ver o agregado sem rastreador) vive em
+  `mot_posicoes`, cuja chave É o motorista: não existe trajeto possível, e a
+  linha some no fim da viagem, na saída, na retirada da autorização e em 24 h.
+  Autorização explícita e obrigatória para apontar; o acesso MESTRE não aponta
+  nem envia posição (gravaria a de quem administra como a do motorista). O
+  apontamento é EVIDÊNCIA ao lado da ocorrência SAC do ERP, e não entra nas
+  horas paradas até se medir quanto um bate com o outro. Revisou o "sem
+  rastreamento contínuo" do `docs/APP_MOTORISTA.md` §10, por escrito lá.
 - **O WMS MORA NO CÓRTEX PORQUE O DO AVACORP ESTÁ VAZIO** (12/09/2026):
   `public.wms_*` tem ~90 tabelas e só os catálogos têm linha. O ERP entra por
   UMA porta (`api/wms/erp.py`) e só para buscar — e o armazém opera com ele

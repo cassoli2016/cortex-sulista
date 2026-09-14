@@ -515,7 +515,22 @@ def _app_motorista() -> dict:
     except Exception as exc:  # noqa: BLE001
         if not pglocal.sem_tabela(exc):
             raise
-    return {"instalado": True, **avisos,
+    # OS APONTAMENTOS E A POSIÇÃO DO CELULAR (14/09/2026), em `try` próprio pela
+    # mesma razão dos avisos: tabela de migration posterior. Só contagem — o
+    # veredito da cerca vira número, nunca lista de quem estava onde.
+    apont: dict = {}
+    try:
+        from api.motorista import apontamento as mapont
+        c = mapont.contagem()
+        apont = {"apontamentos_7d": c["ap_7d"],
+                 "apontamentos_na_cerca_do_cliente_7d": c["dentro_7d"],
+                 "apontamentos_fora_da_cerca_7d": c["fora_7d"],
+                 "motoristas_com_localizacao_autorizada": c["autorizados"],
+                 "celulares_no_mapa_da_torre": c["posicoes_frescas"]}
+    except Exception as exc:  # noqa: BLE001
+        if not pglocal.sem_tabela(exc):
+            raise
+    return {"instalado": True, **avisos, **apont,
             **dict(r or {"vinculados": 0, "ativos_30d": 0,
                                             "mestre_30d": 0, "com_multa": 0,
                                             "conversas_abertas": 0,

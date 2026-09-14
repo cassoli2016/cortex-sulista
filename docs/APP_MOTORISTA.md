@@ -553,10 +553,21 @@ diferença quando ela aparecer.
 
 **GPS é evidência, não permissão.** A posição vai junto do apontamento para
 dizer *onde ele foi feito*, e é conferida contra a cerca do cliente
-(`api/poligonos/`, que já existe) e contra a posição do veículo
-(`api/posicoes.py`). **O app não rastreia o motorista em segundo plano** — nem
-tecnicamente, nem por decisão. Coleta de posição só no ato de um apontamento, e
-a tela diz isso na cara.
+(`cadastro_poligono` do ERP, o mesmo de `api/poligonos/`). Do apontamento fica
+o VEREDITO e a distância — a coordenada não é guardada.
+
+**Revisto em 14/09/2026 (v1.80.0), por decisão de quem opera**, com as duas
+finalidades na mesa (ver o agregado sem rastreador integrado e comprovar
+chegada e saída): além do apontamento, o app ABERTO durante uma viagem manda a
+posição a cada 5 minutos para o mapa da torre. **Continua não havendo
+rastreamento em segundo plano** — nem tecnicamente (página web suspensa não
+tem localização), nem por decisão —, e o que se guarda é só a ÚLTIMA posição:
+uma linha por motorista, apagada no fim da viagem, na saída do app, na
+retirada da autorização e passadas 24 h. A autorização é explícita, pedida com
+a explicação ANTES da permissão do navegador, registrada no servidor
+(`mot_vinculos.loc_aceite_em`), obrigatória para apontar e retirável em Minha
+conta. O acesso mestre não aponta nem envia posição. O contrato do código está
+em `api/motorista/apontamento.py`.
 
 **Nada de valor de frete, custo, CKM ou nome de outro motorista.** O leitor vê a
 operação DELE. Ranking de premiação é a única coisa comparativa, e só porque a
@@ -639,7 +650,10 @@ público é majoritariamente agregado, o que já reescreveu a fase 1.
 
 ## 10. O que fica FORA, de propósito
 
-- **Rastreamento contínuo do motorista.** Não é para isso.
+- ~~**Rastreamento contínuo do motorista.**~~ **Revisto em 14/09/2026
+  (v1.80.0):** entrou a ÚLTIMA posição com o app aberto durante a viagem, para
+  o mapa da torre — sem trajeto e sem segundo plano (ver §6). O TRAJETO
+  continua fora: não há tabela onde ele caiba.
 - ~~**Chat.**~~ **Revisto em 07/09/2026 (v1.2.0), e o argumento continua de
   pé.** O que entrou não foi chat: foi FILA COM ASSUNTO, DONO E ESTADO, com a
   fila parada medida na tela e na Saúde do Servidor. Ver §0-quater — inclusive

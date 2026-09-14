@@ -836,7 +836,22 @@ def motorista_eu(req: Request) -> JSONResponse:
                          # faz o motorista ABRIR a aba do RH — sem isso, a
                          # resposta fica esperando ate ele passar por ali por
                          # acaso, e o canal vira o que o escopo temia.
-                         "avisos": _mot_avisos(sess)})
+                         "avisos": _mot_avisos(sess),
+                         # A AUTORIZACAO DE LOCALIZACAO no boot: e ela que liga o
+                         # envio da posicao assim que o app abre, e que a aba
+                         # Conta mostra com o botao de retirar.
+                         "localizacao": _mot_localizacao(sess)})
+
+
+def _mot_localizacao(sess: dict) -> dict:
+    """A autorizacao de localizacao. Falha aqui NAO derruba o login: sem ela o
+    app so nao envia posicao, que e a degradacao certa."""
+    from api.motorista import apontamento as mapont
+    try:
+        return mapont.aceite(sess)
+    except Exception as exc:  # noqa: BLE001
+        log.info("autorizacao de localizacao indisponivel (%s)", type(exc).__name__)
+        return {"aceita": False, "em": None}
 
 
 def _mot_secoes(sess: dict) -> dict:
@@ -899,6 +914,16 @@ def motorista_sair(req: Request) -> JSONResponse:
         sess = None
     if sess:
         msessao.encerrar(sess["sessao_id"])
+        # A ULTIMA POSICAO SAI JUNTO: quem saiu do app nao esta mais sendo
+        # visto, e o ponto dele no mapa da torre diria o contrario. A
+        # conferencia (mestre) nao mexe na posicao de quem foi conferido.
+        if not sess.get("mestre"):
+            try:
+                from api.motorista import apontamento as mapont
+                mapont.apagar_posicao(sess["motorista_codigo"])
+            except Exception as exc:  # noqa: BLE001
+                log.info("posicao do motorista nao apagada na saida (%s)",
+                         type(exc).__name__)
         auth.audit("motorista:%d" % sess["motorista_id"], "motorista_saiu",
                    alvo=str(sess["motorista_id"]), ip=_ip_do_cliente(req))
     resp = JSONResponse({"ok": True})
@@ -908,6 +933,7 @@ def motorista_sair(req: Request) -> JSONResponse:
 
 @app.get("/api/motorista/viagem")
 def motorista_viagem(req: Request) -> JSONResponse:
+    from api.motorista import apontamento as mapont
     from api.motorista import sessao as msessao
     from api.motorista import viagem as mviagem
     try:
@@ -915,7 +941,7 @@ def motorista_viagem(req: Request) -> JSONResponse:
     except msessao.SemSessao:
         return _mot_recusa("Faca login para continuar.", status=401)
     try:
-        return JSONResponse(mviagem.minha(sess))
+        dados = dict(mviagem.minha(sess))
     except Exception as exc:  # noqa: BLE001
         # O ERP e replica de producao de TERCEIRO e ja teve manha ruim. O
         # cache com ultima leitura boa cobre a maior parte; passado o prazo
@@ -924,6 +950,89 @@ def motorista_viagem(req: Request) -> JSONResponse:
         log.warning("viagem do motorista falhou: %s", type(exc).__name__)
         return _mot_recusa("Nao consegui falar com o sistema agora. "
                            "Tente de novo em alguns minutos.")
+    # OS APONTAMENTOS E A AUTORIZACAO VEM JUNTO, e FORA do cache da viagem: a
+    # viagem muda quando comeca ou termina; o apontamento muda no toque — com
+    # cache, o botao que ele acabou de apertar voltaria como "Registrar". Falha
+    # aqui (banco local) nao derruba o cartao: sem a lista, a pagina so nao
+    # desenha os botoes.
+    try:
+        v = dados.get("viagem")
+        dados["apontamentos"] = (mapont.da_viagem(sess, v["numero"])
+                                 if v and not v.get("vazio") else [])
+        dados["localizacao"] = mapont.aceite(sess)
+    except Exception as exc:  # noqa: BLE001
+        log.info("apontamentos do motorista indisponiveis (%s)", type(exc).__name__)
+    return JSONResponse(dados)
+
+
+def _mot_apontar(req: Request, acao, assunto: str, corpo: dict) -> JSONResponse:
+    """Escrita da fase 2 (apontamento, posicao, autorizacao): sessao, recusa
+    legivel e trilha, como `_mot_escrever` — com duas diferencas.
+
+    - A rota a chama pela `sem_travar`: o apontamento consulta a cerca do
+      cliente no ERP, e psycopg dentro de rota `async def` trava o servidor
+      inteiro pelo tempo da consulta.
+    - A trilha leva o RESULTADO (tipo e veredito da cerca), NUNCA a coordenada:
+      ela entra, decide e e descartada (`api/motorista/apontamento.py`). E a
+      posicao periodica NAO vai para a trilha: uma linha a cada 5 minutos por
+      motorista seria o trajeto que `mot_posicoes` se recusa a guardar, escrito
+      em outro lugar.
+    """
+    from api.motorista import apontamento as mapont
+    from api.motorista import sessao as msessao
+    try:
+        sess = _eu(req)
+    except msessao.SemSessao:
+        return _mot_recusa("Faca login para continuar.", status=401)
+    try:
+        r = acao(sess, corpo)
+    except mapont.Recusa as exc:
+        return _mot_recusa(str(exc))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("%s do motorista falhou: %s", assunto, type(exc).__name__)
+        return _mot_recusa("Nao consegui registrar agora. Tente de novo.")
+    if assunto != "posicao":
+        detalhe = ""
+        if assunto == "apontamento":
+            detalhe = "%s; cerca=%s" % (r.get("tipo"), r.get("cerca"))
+            if r.get("distancia_m") is not None:
+                detalhe += "; %s m" % r["distancia_m"]
+        elif assunto == "localizacao":
+            detalhe = "autorizada" if r.get("aceita") else "retirada"
+        auth.audit("motorista:%d" % sess["motorista_id"], "motorista_" + assunto,
+                   alvo=str(r.get("viagem") or sess["motorista_id"]),
+                   detalhe=detalhe, ip=_ip_do_cliente(req))
+    return JSONResponse(r)
+
+
+@app.post("/api/motorista/apontamento")
+async def motorista_apontamento(req: Request) -> JSONResponse:
+    """Cheguei/sai do cliente, com a posicao do celular. A regra inteira mora
+    em `api/motorista/apontamento.py`."""
+    from api.motorista import apontamento as mapont
+    corpo = await _corpo_json(req)
+    return await sem_travar(_mot_apontar, req, mapont.registrar,
+                            "apontamento", corpo)
+
+
+@app.post("/api/motorista/posicao")
+async def motorista_posicao(req: Request) -> JSONResponse:
+    """A posicao do app ABERTO, a cada 5 min. O servidor guarda so a ultima."""
+    from api.motorista import apontamento as mapont
+    corpo = await _corpo_json(req)
+    return await sem_travar(_mot_apontar, req, mapont.posicao, "posicao", corpo)
+
+
+@app.post("/api/motorista/localizacao")
+async def motorista_localizacao(req: Request) -> JSONResponse:
+    """Autoriza (`aceito: true`) ou retira a localizacao. Retirar apaga a
+    ultima posicao na mesma transacao."""
+    from api.motorista import apontamento as mapont
+    corpo = await _corpo_json(req)
+    return await sem_travar(
+        _mot_apontar, req,
+        lambda s, c: mapont.autorizar(s, c.get("aceito") is True),
+        "localizacao", corpo)
 
 
 def _mot_ler(req: Request, carregar, assunto: str) -> JSONResponse:
@@ -5267,7 +5376,7 @@ def torre_estradas(forcar: int = 0, tolerancia: int = 0,
 @app.get("/api/operacao/torre")
 def torre(filial: int | None = None) -> JSONResponse:
     try:
-        return JSONResponse(queries.get_torre(filial))
+        d = queries.get_torre(filial)
     except psycopg.OperationalError as exc:
         log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
@@ -5277,6 +5386,33 @@ def torre(filial: int | None = None) -> JSONResponse:
         log.warning("torre falhou: %s", exc)
         return JSONResponse(status_code=500, content={
             "erro": "erro_consulta", "mensagem": "Erro ao montar a torre de controle."})
+    # O CELULAR DO MOTORISTA (14/09/2026): a última posição que o app ABERTO
+    # enviou, só das placas EM VIAGEM. Vem do banco da casa, fora do `try` do
+    # ERP: falha aqui não pode tirar a Torre do ar — sem ela o mapa só não
+    # desenha o tracejado.
+    d = dict(d)
+    try:
+        from api.motorista import apontamento as mapont
+        d["posicoes_celular"] = mapont.posicoes_celular(
+            {t.get("placa") for t in d.get("transito") or []})
+    except Exception as exc:  # noqa: BLE001
+        log.info("torre: posicoes de celular indisponiveis (%s)", type(exc).__name__)
+        d["posicoes_celular"] = []
+    return JSONResponse(d)
+
+
+@app.get("/api/operacao/torre/apontamentos")
+def torre_apontamentos(dias: int = 7) -> JSONResponse:
+    """A aba Apontamentos da Torre: o que o app do motorista registrou, ao lado
+    da ocorrência SAC do ERP. Regra e conta em `api/motorista/apontamento.py`."""
+    from api.motorista import apontamento as mapont
+    try:
+        return JSONResponse(mapont.para_torre(dias))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("torre: apontamentos falharam: %s", type(exc).__name__)
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "indisponivel",
+            "mensagem": "Não consegui carregar os apontamentos agora."})
 
 
 @app.get("/api/frota/veiculos")
