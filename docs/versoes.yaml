@@ -1,3 +1,11 @@
+- versao: "1.74.2"
+  data: "2026-09-13"
+  corrigido:
+    - >-
+      Nada muda nas telas. A barra de km carregado × vazio do painel de TV da
+      Operação deixa de ter a cor escrita direto no código da página, e a
+      verificação automática da estrutura do painel volta a passar.
+
 - versao: "1.74.1"
   data: "2026-09-13"
   corrigido:

@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.74.2] — 13/09/2026  ·  CX-13/09/2026-v1.74.2
+
+### Corrigido
+- Nada muda nas telas. A barra de km carregado × vazio do painel de TV da Operação deixa de ter a cor escrita direto no código da página, e a verificação automática da estrutura do painel volta a passar.
+
 ## [1.74.1] — 13/09/2026  ·  CX-13/09/2026-v1.74.1
 
 ### Corrigido

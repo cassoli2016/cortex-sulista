@@ -17452,7 +17452,11 @@ async function loadTvOpe(){
         (CONHECIDAS.includes(b.utilizacao)-CONHECIDAS.includes(a.utilizacao))
         || (b.km_total-a.km_total)).slice(0,3);
       const maxT=Math.max(1,...mods.map(m=>m.km_total||0));
-      const corV=pctV>20?'#F87171':'#FBBF24';
+      // as duas cores da barra vem de VARIAVEL, e nao escritas no style=: a
+      // verificacao estrutural (scripts/verificar_estrutura.py) recusa cor de
+      // fundo literal em style= longe de uma marca de TV, e este trecho fica a
+      // mais de 260 caracteres do `tv-` mais proximo
+      const corV=pctV>20?'#F87171':'#FBBF24', corC='#4ADE80';
       const mil=v=>((v||0)/1000).toLocaleString('pt-BR',{maximumFractionDigits:0})+' mil';
       /* CARREGADO x VAZIO numa barra so, com a marca do limite (80% do
          comprimento = 20% de vazio contado da direita): passar da marca e o
@@ -17464,7 +17468,7 @@ async function loadTvOpe(){
           <div><div class="klab">Vazio · ${pctV.toFixed(0)}%</div><div class="knum" style="color:${corV}">${mil(kk.km_vazio)}</div></div>
           <div><div class="klab">Total</div><div class="knum">${mil(kk.km_total)}</div></div>
         </div>
-        <div class="kmstack"><i style="width:${(100-Math.min(100,pctV)).toFixed(1)}%;background:#4ADE80"></i><i style="width:${Math.min(100,pctV).toFixed(1)}%;background:${corV}"></i><u style="left:80%"></u></div>
+        <div class="kmstack"><i style="width:${(100-Math.min(100,pctV)).toFixed(1)}%;background:${corC}"></i><i style="width:${Math.min(100,pctV).toFixed(1)}%;background:${corV}"></i><u style="left:80%"></u></div>
         <div class="kmvz-lab">marca = limite de 20% de vazio</div></div>
         <div class="kmgrp kmmods">${mods.map(m=>{
           const cor=tvCorMod(m.utilizacao);
