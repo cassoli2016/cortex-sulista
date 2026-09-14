@@ -3865,7 +3865,11 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="rangegrp" id="grpMul" style="display:none">
           <div class="field">
             <label for="fMulPlaca">Placa</label>
-            <input type="search" id="fMulPlaca" placeholder="buscar placa…" onchange="loadMulErp()">
+            <!-- loadSmt, e não loadMulErp: a placa vale para a tela INTEIRA. Com
+                 loadMulErp só as duas abas do ERP a obedeciam, e as seis da
+                 Smartec seguiam mostrando a frota toda sob o campo preenchido.
+                 O loadSmt recarrega a aba do ERP que estiver aberta. -->
+            <input type="search" id="fMulPlaca" placeholder="buscar placa…" onchange="loadSmt()">
           </div>
           <div class="field">
             <label for="fMulOrgao">Órgão autuador</label>
@@ -8371,6 +8375,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <span class="hint" id="smtColetadoEm" style="text-align:left"></span>
             <span class="hint" id="smtDesde" style="text-align:left"
                   title="A infração EM ABERTO mais antiga. A API da Smartec só devolve o que está em aberto: o que foi pago ou baixado antes disso deixou de vir — isto é o alcance do que ainda dá para tratar, não o início do histórico."></span>
+            <span class="hint" id="smtPlacaAtiva" style="text-align:left"></span>
+            <span class="badge b-warn" title="As abas da Smartec mostram o que está EM ABERTO agora e seguem só o filtro de PLACA. Período e órgão autuador valem para Histórico (ERP) e Responsáveis (ERP): em aberto não tem período, e o órgão da Smartec e o do ERP são cadastros diferentes. O acesso ao SNE e as coletas são da empresa inteira.">período e órgão: só nas abas do ERP</span>
           </div>
         </div>
         <div id="smt-aviso"></div>
@@ -25910,7 +25916,12 @@ async function loadSmt(){
   const seq = ++smtSeq;
   document.getElementById('content').classList.add('loading');
   try{
-    const r = await fetch('/api/smartec/painel',{cache:'no-store'});
+    /* A PLACA DA BARRA vai junto: sem ela as abas da Smartec mostravam a
+       frota inteira enquanto as do ERP obedeciam o filtro. Período e órgão
+       NÃO vão — ver o selo do cabeçalho. */
+    const pl=((document.getElementById('fMulPlaca')||{}).value||'').trim();
+    const r = await fetch('/api/smartec/painel'+(pl?('?placa='+encodeURIComponent(pl)):''),
+                          {cache:'no-store'});
     /* `respostaJSON` devolve o ENVELOPE {ok, dados}, nao o corpo. Tratar o
        envelope como corpo faz a tela renderizar com tudo vazio: os KPIs saem
        zerados, sem erro nenhum, e parece que nao ha dado. */
@@ -25988,7 +25999,7 @@ function renderSmt(d){
           'Quantos veículos têm alguma licença acompanhada. CIV, CIPP/CTPP e EMTU não têm dado nesta conta — a Smartec responde "nenhum dado encontrado" nos endpoints dedicados.')
     + kpi('Acesso ao SNE', smtAcessoTxt(k.acessos),
           smtAcessoSub(k.acessos), smtAcessoCls(k.acessos),
-          'Vencimento do e-CNPJ que dá acesso ao SENATRAN. Expirado, a Smartec para de trazer notificação, não se pede boleto pelo SNE e não se indica condutor — e o sintoma é "parou de chegar multa", que se lê como boa notícia.');
+          'Vencimento do e-CNPJ que dá acesso ao SENATRAN. Expirado, a Smartec para de trazer notificação, não se pede boleto pelo SNE e não se indica condutor — e o sintoma é "parou de chegar multa", que se lê como boa notícia. É da empresa inteira: não segue o filtro de placa.');
 
   /* ── KPIs: ANTT ────────────────────────────────────────────────────────*/
   document.getElementById('kpis-smtantt').innerHTML =
@@ -26248,6 +26259,9 @@ function renderSmt(d){
   // que a API só devolve o aberto — isto não é o início do histórico)
   document.getElementById('smtDesde').textContent =
     k.desde? (' · em aberto desde '+fmtD(k.desde)) : '';
+  // a placa que o SERVIDOR aplicou (já normalizada), não a que foi digitada
+  document.getElementById('smtPlacaAtiva').textContent =
+    d.placa? (' · só a placa '+d.placa) : '';
 }
 
 /* Recarrega os loaders das abas SOB DEMANDA que estejam abertas agora.

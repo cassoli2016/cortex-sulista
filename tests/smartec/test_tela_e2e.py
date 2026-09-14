@@ -156,6 +156,22 @@ def test_a_aba_da_ANTT_separa_da_multa_de_transito(tela):
     assert "FELVP00382452026" in txt
 
 
+def test_a_placa_da_barra_chega_as_abas_da_smartec(tela):
+    """O campo Placa chamava só `loadMulErp`: as duas abas do ERP obedeciam e
+    as seis da Smartec seguiam com a frota inteira sob o campo preenchido.
+    Os dois caminhos de quem filtra — trocar o campo e "Aplicar filtros"
+    (`reloadCurrent`) — têm de levar a placa ao painel da Smartec."""
+    def pede(placa):
+        return lambda r: ("/api/smartec/painel" in r.url
+                          and f"placa={placa}" in r.url)
+    with tela.expect_request(pede("BBX3375"), timeout=10000):
+        tela.evaluate("()=>{const e=document.getElementById('fMulPlaca');"
+                      "e.value='BBX3375'; e.dispatchEvent(new Event('change'));}")
+    with tela.expect_request(pede("ASC3306"), timeout=10000):
+        tela.evaluate("()=>{document.getElementById('fMulPlaca').value='ASC3306';"
+                      "reloadCurrent();}")
+
+
 def test_nenhum_erro_de_javascript_na_tela(pagina, base_url, payload):
     """Um ReferenceError dentro do try do loader vira banner, não erro visível.
 

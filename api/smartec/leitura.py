@@ -29,6 +29,8 @@ histórico, que é outra pergunta (e é legítima — `historico()` a responde).
 """
 from __future__ import annotations
 
+import re
+
 from .. import pglocal
 
 ESQUEMA: str | None = None
@@ -41,9 +43,35 @@ def _esq(esquema: str | None = None) -> str | None:
 ABERTO = "sumiu_em IS NULL"
 
 
-def kpis(esquema: str | None = None) -> dict:
-    """Os números do topo. Cada um com o denominador que o torna legível."""
+# O FILTRO DE PLACA DA BARRA VALE PARA A TELA INTEIRA.
+#
+# Até 14/09/2026 ele só chegava às abas do ERP (`/api/frota/multas`): o painel
+# da Smartec não recebia parâmetro nenhum, e seis abas mostravam a frota toda
+# sob o campo preenchido — quem filtrou acreditou no resultado. As duas metades
+# da tela respondem ao MESMO campo, então casam do mesmo jeito: por TRECHO
+# (o ERP faz `ILIKE '%placa%'`). A Smartec grava a placa em maiúsculas e sem
+# hífen em todas as tabelas `smt_*` (medido: 0 de 1.314 com hífen ou
+# minúscula), e a entrada é levada a esse formato antes de comparar.
+def placa_filtro(placa: str | None) -> str | None:
+    """A placa do filtro no formato da Smartec; vazia vira `None` (sem filtro)."""
+    p = re.sub(r"[^A-Z0-9]", "", (placa or "").upper())
+    return p or None
+
+
+def _fp(coluna: str) -> str:
+    """O trecho de WHERE do filtro de placa — exige `%(placa)s` nos parâmetros."""
+    return f"(%(placa)s::text IS NULL OR {coluna} LIKE '%%' || %(placa)s || '%%')"
+
+
+def kpis(esquema: str | None = None, placa: str | None = None) -> dict:
+    """Os números do topo. Cada um com o denominador que o torna legível.
+
+    Com `placa`, todo número de VEÍCULO se recorta — o denominador
+    (`frota.cadastrados`) inclusive. Os acessos ao SNE/ANTT são da empresa, e
+    não.
+    """
     esq = _esq(esquema)
+    par = {"placa": placa_filtro(placa)}
 
     inf = pglocal.query(f"""
         SELECT especie,
@@ -56,8 +84,9 @@ def kpis(esquema: str | None = None) -> dict:
                                                                 AS com_valor,
                sum(CASE WHEN vencimento < current_date THEN 1 ELSE 0 END)::int
                                                                 AS vencidas
-          FROM smt_infracoes WHERE {ABERTO} GROUP BY especie
-    """, esquema=esq)
+          FROM smt_infracoes WHERE {ABERTO} AND {_fp('placa')}
+         GROUP BY especie
+    """, par, esquema=esq)
     por_especie = {r["especie"]: dict(r) for r in inf}
 
     # O desconto só existe onde a Smartec informou os DOIS valores. Somar
@@ -69,10 +98,10 @@ def kpis(esquema: str | None = None) -> dict:
                    AS economia,
                count(*)::int AS n
           FROM smt_infracoes
-         WHERE {ABERTO} AND especie = 'multa'
+         WHERE {ABERTO} AND especie = 'multa' AND {_fp('placa')}
            AND valor_a_pagar IS NOT NULL AND valor_com_desconto IS NOT NULL
            AND valor_com_desconto < valor_a_pagar
-    """, esquema=esq) or {}
+    """, par, esquema=esq) or {}
 
     # O NÚMERO QUE EXPIRA. `prazo_indicacao >= hoje` é o que ainda dá para
     # tratar; o resto já passou e não volta.
@@ -89,17 +118,17 @@ def kpis(esquema: str | None = None) -> dict:
                                                                  AS sem_prazo,
                count(*)::int                                     AS total
           FROM smt_infracoes
-         WHERE {ABERTO} AND especie = 'notificacao'
-    """, esquema=esq) or {}
+         WHERE {ABERTO} AND especie = 'notificacao' AND {_fp('placa')}
+    """, par, esquema=esq) or {}
 
     # DENOMINADOR: quantos veículos a Smartec cobre. Sem isto, "96 veículos
     # com multa" não se lê.
-    frota = pglocal.um("""
+    frota = pglocal.um(f"""
         SELECT count(*)::int AS cadastrados,
                sum(CASE WHEN tipo ILIKE '%%TRATOR%%' OR tipo ILIKE '%%CAMINH%%'
                         THEN 1 ELSE 0 END)::int AS com_motor
-          FROM smt_veiculos
-    """, esquema=esq) or {}
+          FROM smt_veiculos WHERE {_fp('placa')}
+    """, par, esquema=esq) or {}
 
     acessos = pglocal.query("""
         SELECT servico, cnpj, empresa, situacao, data_expiracao,
@@ -107,15 +136,15 @@ def kpis(esquema: str | None = None) -> dict:
           FROM smt_acessos ORDER BY data_expiracao NULLS LAST
     """, esquema=esq)
 
-    lic = pglocal.um("""
+    lic = pglocal.um(f"""
         SELECT count(*)::int AS total,
                sum(CASE WHEN cronotacografo < current_date
                         THEN 1 ELSE 0 END)::int AS crono_vencido,
                sum(CASE WHEN cronotacografo >= current_date
                          AND cronotacografo <= current_date + 90
                         THEN 1 ELSE 0 END)::int AS crono_90d
-          FROM smt_licencas
-    """, esquema=esq) or {}
+          FROM smt_licencas WHERE {_fp('placa')}
+    """, par, esquema=esq) or {}
 
     # "ÚLTIMA" É A EMISSÃO, NÃO A INFRAÇÃO — e trocar as duas foi o que fez a
     # casa concluir que a coleta tinha parado.
@@ -130,7 +159,7 @@ def kpis(esquema: str | None = None) -> dict:
     # o que mede o FEED, `ultima_infracao` é o que mede a OPERAÇÃO. E o
     # `atrasada_dias` é a distância entre elas — a maturação desta fonte, que
     # é a razão de a segunda nunca alcançar a primeira.
-    antt = pglocal.um("""
+    antt = pglocal.um(f"""
         SELECT count(*)::int AS n,
                coalesce(sum(impeditiva), 0)::int AS impeditivas,
                count(DISTINCT placa)::int AS veiculos,
@@ -140,15 +169,16 @@ def kpis(esquema: str | None = None) -> dict:
                coalesce(sum(valor), 0)::float8 AS valor,
                coalesce(sum(coalesce(valor_atualizado, valor)), 0)::float8
                    AS valor_atualizado
-          FROM smt_antt
-    """, esquema=esq) or {}
+          FROM smt_antt WHERE {_fp('placa')}
+    """, par, esquema=esq) or {}
 
     # O alcance retroativo é a infração mais antiga AINDA EM ABERTO — a API
     # só devolve o que está em aberto, então isto NÃO é "desde quando há
     # dado": o que foi pago/baixado antes disso simplesmente não vem.
     alcance = pglocal.um(f"""
-        SELECT min(data_infracao)::text AS desde FROM smt_infracoes WHERE {ABERTO}
-    """, esquema=esq) or {}
+        SELECT min(data_infracao)::text AS desde FROM smt_infracoes
+         WHERE {ABERTO} AND {_fp('placa')}
+    """, par, esquema=esq) or {}
 
     return {
         "multas": por_especie.get("multa", {}),
@@ -164,7 +194,8 @@ def kpis(esquema: str | None = None) -> dict:
 
 
 def infracoes(especie: str = "multa", limite: int = 300,
-              esquema: str | None = None) -> list[dict]:
+              esquema: str | None = None,
+              placa: str | None = None) -> list[dict]:
     """As linhas, ordenadas por URGÊNCIA e não por data.
 
     A ordenação é a decisão de produto desta tabela: notificação com prazo de
@@ -192,7 +223,7 @@ def infracoes(especie: str = "multa", limite: int = 300,
           FROM smt_infracoes i
           LEFT JOIN smt_veiculos v ON v.renavam = i.renavam
           LEFT JOIN smt_infracao_viagem vg ON vg.identificador = i.identificador
-         WHERE i.{ABERTO} AND i.especie = %(especie)s
+         WHERE i.{ABERTO} AND i.especie = %(especie)s AND {_fp('i.placa')}
          ORDER BY
            -- 1º as que ainda dá para tratar, da mais urgente para a menos
            CASE WHEN i.especie = 'notificacao'
@@ -202,11 +233,13 @@ def infracoes(especie: str = "multa", limite: int = 300,
              NULLS LAST,
            i.data_infracao DESC
          LIMIT %(limite)s
-    """, {"especie": especie, "limite": limite}, esquema=esq)]
+    """, {"especie": especie, "limite": limite,
+          "placa": placa_filtro(placa)}, esquema=esq)]
 
 
 def por_veiculo(especie: str = "multa", limite: int = 50,
-                esquema: str | None = None) -> list[dict]:
+                esquema: str | None = None,
+                placa: str | None = None) -> list[dict]:
     esq = _esq(esquema)
     return [dict(r) for r in pglocal.query(f"""
         SELECT i.placa, i.renavam, v.frota, v.prefixo, v.tipo AS tipo_veiculo,
@@ -217,13 +250,15 @@ def por_veiculo(especie: str = "multa", limite: int = 50,
                max(i.data_infracao) AS mais_recente
           FROM smt_infracoes i
           LEFT JOIN smt_veiculos v ON v.renavam = i.renavam
-         WHERE i.{ABERTO} AND i.especie = %(especie)s
+         WHERE i.{ABERTO} AND i.especie = %(especie)s AND {_fp('i.placa')}
          GROUP BY 1,2,3,4,5 ORDER BY valor DESC, n DESC LIMIT %(limite)s
-    """, {"especie": especie, "limite": limite}, esquema=esq)]
+    """, {"especie": especie, "limite": limite,
+          "placa": placa_filtro(placa)}, esquema=esq)]
 
 
 def por_infracao(especie: str = "multa", limite: int = 20,
-                 esquema: str | None = None) -> list[dict]:
+                 esquema: str | None = None,
+                 placa: str | None = None) -> list[dict]:
     """Ranking por tipo de infração — é onde se vê o que é comportamento.
 
     Junta com o catálogo do CTB para trazer a gravidade, que a linha da
@@ -241,13 +276,15 @@ def por_infracao(especie: str = "multa", limite: int = 20,
           -- guarda os dois pedaços. Ver a nota em armazenamento._linha_infracao.
           LEFT JOIN smt_infracoes_ctb c
                  ON c.desdobramento = i.codigo_infracao || i.desdobramento
-         WHERE i.{ABERTO} AND i.especie = %(especie)s
+         WHERE i.{ABERTO} AND i.especie = %(especie)s AND {_fp('i.placa')}
          GROUP BY 1,2 ORDER BY n DESC, valor DESC LIMIT %(limite)s
-    """, {"especie": especie, "limite": limite}, esquema=esq)]
+    """, {"especie": especie, "limite": limite,
+          "placa": placa_filtro(placa)}, esquema=esq)]
 
 
 def por_orgao(especie: str = "multa", limite: int = 15,
-              esquema: str | None = None) -> list[dict]:
+              esquema: str | None = None,
+              placa: str | None = None) -> list[dict]:
     esq = _esq(esquema)
     return [dict(r) for r in pglocal.query(f"""
         SELECT i.orgao, i.uf, count(*)::int AS n,
@@ -255,11 +292,14 @@ def por_orgao(especie: str = "multa", limite: int = 15,
                max(i.orgao_adesao_sne)::int AS adeso_sne
           FROM smt_infracoes i
          WHERE i.{ABERTO} AND i.especie = %(especie)s AND i.orgao <> ''
+           AND {_fp('i.placa')}
          GROUP BY 1,2 ORDER BY valor DESC LIMIT %(limite)s
-    """, {"especie": especie, "limite": limite}, esquema=esq)]
+    """, {"especie": especie, "limite": limite,
+          "placa": placa_filtro(placa)}, esquema=esq)]
 
 
-def mensal(esquema: str | None = None) -> list[dict]:
+def mensal(esquema: str | None = None,
+           placa: str | None = None) -> list[dict]:
     """Série mensal das infrações em aberto, POR MÊS DA INFRAÇÃO.
 
     O intervalo é GERADO com `generate_series`, não colhido do `GROUP BY`: mês
@@ -274,7 +314,7 @@ def mensal(esquema: str | None = None) -> list[dict]:
             SELECT date_trunc('month', coalesce(min(data_infracao),
                                                 current_date))::date AS de,
                    date_trunc('month', current_date)::date AS ate
-              FROM smt_infracoes WHERE {ABERTO}
+              FROM smt_infracoes WHERE {ABERTO} AND {_fp('placa')}
         ), meses AS (
             SELECT generate_series(greatest(de, (ate - interval '23 months')::date),
                                    ate, interval '1 month')::date AS mes
@@ -291,9 +331,9 @@ def mensal(esquema: str | None = None) -> list[dict]:
           FROM meses m
           LEFT JOIN smt_infracoes i
                  ON date_trunc('month', i.data_infracao)::date = m.mes
-                AND i.{ABERTO}
+                AND i.{ABERTO} AND {_fp('i.placa')}
          GROUP BY m.mes ORDER BY m.mes
-    """, esquema=esq)]
+    """, {"placa": placa_filtro(placa)}, esquema=esq)]
 
 
 def estado_cnh(esquema: str | None = None) -> dict:
@@ -366,7 +406,8 @@ def estado_cnh(esquema: str | None = None) -> dict:
     return fora
 
 
-def licencas(esquema: str | None = None) -> list[dict]:
+def licencas(esquema: str | None = None,
+             placa: str | None = None) -> list[dict]:
     """Vencimentos de documentação, do mais urgente para o menos.
 
     `menor_venc` é o mínimo entre as cinco datas — é ele que ordena, porque o
@@ -374,7 +415,7 @@ def licencas(esquema: str | None = None) -> list[dict]:
     especificamente.
     """
     esq = _esq(esquema)
-    return [dict(r) for r in pglocal.query("""
+    return [dict(r) for r in pglocal.query(f"""
         SELECT l.renavam, l.placa, l.frota, l.cronotacografo, l.emtu, l.csv,
                l.pp_civ, l.pp_cipp_ctpp, v.tipo AS tipo_veiculo,
                least(coalesce(l.cronotacografo, '9999-12-31'::date),
@@ -391,34 +432,38 @@ def licencas(esquema: str | None = None) -> list[dict]:
                 - current_date)::int AS dias
           FROM smt_licencas l
           LEFT JOIN smt_veiculos v ON v.renavam = l.renavam
+         WHERE {_fp('l.placa')}
          ORDER BY menor_venc
-    """, esquema=esq)]
+    """, {"placa": placa_filtro(placa)}, esquema=esq)]
 
 
-def antt(limite: int = 200, esquema: str | None = None) -> list[dict]:
+def antt(limite: int = 200, esquema: str | None = None,
+         placa: str | None = None) -> list[dict]:
     """Mais RECENTE primeiro, sem exceção — pedido de quem opera (31/08/2026):
     a pergunta da tabela é "parou de chegar autuação?", e ela só se responde
     com a data no topo. Impeditiva deixou de furar a fila e virou destaque
     visual na linha; a ordenação antiga escondia a resposta."""
     esq = _esq(esquema)
-    return [dict(r) for r in pglocal.query("""
+    return [dict(r) for r in pglocal.query(f"""
         SELECT a.ait, a.processo, a.data_infracao, a.tipo, a.descricao,
                a.placa, a.situacao, a.impeditiva, a.data_notificacao,
                a.local_infracao, a.valor, a.vencimento, v.frota
           FROM smt_antt a
           LEFT JOIN smt_veiculos v ON v.placa = a.placa
+         WHERE {_fp('a.placa')}
          ORDER BY a.data_infracao DESC NULLS LAST
          LIMIT %(limite)s
-    """, {"limite": limite}, esquema=esq)]
+    """, {"limite": limite, "placa": placa_filtro(placa)}, esquema=esq)]
 
 
-def antt_mensal(meses: int = 36, esquema: str | None = None) -> list[dict]:
+def antt_mensal(meses: int = 36, esquema: str | None = None,
+                placa: str | None = None) -> list[dict]:
     """Autuações da ANTT por mês, com o eixo GERADO — a regra do GROUP BY que
     não devolve o mês vazio vale dobrado aqui: a pergunta é exatamente "em
     que mês PAROU de chegar", e emendar maio em setembro esconderia a parada
     que se quer ver."""
     esq = _esq(esquema)
-    return [dict(r) for r in pglocal.query("""
+    return [dict(r) for r in pglocal.query(f"""
         WITH m AS (
             SELECT to_char(d, 'YYYY-MM') AS mes
               FROM generate_series(
@@ -429,8 +474,9 @@ def antt_mensal(meses: int = 36, esquema: str | None = None) -> list[dict]:
                coalesce(sum(a.impeditiva), 0)::int AS impeditivas
           FROM m
           LEFT JOIN smt_antt a ON to_char(a.data_infracao, 'YYYY-MM') = m.mes
+                              AND {_fp('a.placa')}
          GROUP BY m.mes ORDER BY m.mes
-    """, {"meses": meses}, esquema=esq)]
+    """, {"meses": meses, "placa": placa_filtro(placa)}, esquema=esq)]
 
 
 # Valores de motorista_nome que são ESTADO do processo de indicação, não
@@ -443,7 +489,8 @@ _NAO_E_PESSOA = ("MOTORISTA", "AGREGADO", "NIC", "RECURSO", "TERCEIRO",
                  "DESLIGADO", "EMPRESA", "VEÍCULO INTERNO", "VEICULO INTERNO")
 
 
-def por_motorista(limite: int = 30, esquema: str | None = None) -> list[dict]:
+def por_motorista(limite: int = 30, esquema: str | None = None,
+                  placa: str | None = None) -> list[dict]:
     """Multas e notificações em aberto por CONDUTOR (o que a Smartec traz).
 
     O nome vem do fornecedor em 95% das multas e 93% das notificações — é o
@@ -462,7 +509,7 @@ def por_motorista(limite: int = 30, esquema: str | None = None) -> list[dict]:
                coalesce(sum(i.valor_a_pagar), 0)::float8               AS valor,
                count(DISTINCT i.placa)::int                            AS placas
           FROM smt_infracoes i
-         WHERE i.{ABERTO}
+         WHERE i.{ABERTO} AND {_fp('i.placa')}
          GROUP BY 1
          ORDER BY (CASE WHEN CASE WHEN nullif(trim(i.motorista_nome), '') IS NULL
                                     OR upper(trim(i.motorista_nome)) = ANY(%(tokens)s)
@@ -471,20 +518,22 @@ def por_motorista(limite: int = 30, esquema: str | None = None) -> list[dict]:
                           = '(sem condutor identificado)' THEN 1 ELSE 0 END),
                   pontos DESC, multas DESC
          LIMIT %(limite)s
-    """, {"limite": limite, "tokens": list(_NAO_E_PESSOA)}, esquema=esq)]
+    """, {"limite": limite, "tokens": list(_NAO_E_PESSOA),
+          "placa": placa_filtro(placa)}, esquema=esq)]
 
 
-def antt_por_situacao(esquema: str | None = None) -> list[dict]:
+def antt_por_situacao(esquema: str | None = None,
+                      placa: str | None = None) -> list[dict]:
     esq = _esq(esquema)
-    return [dict(r) for r in pglocal.query("""
+    return [dict(r) for r in pglocal.query(f"""
         SELECT coalesce(nullif(situacao, ''), '(sem situação)') AS situacao,
                count(*)::int AS n,
                coalesce(sum(impeditiva), 0)::int AS impeditivas
-          FROM smt_antt GROUP BY 1 ORDER BY n DESC
-    """, esquema=esq)]
+          FROM smt_antt WHERE {_fp('placa')} GROUP BY 1 ORDER BY n DESC
+    """, {"placa": placa_filtro(placa)}, esquema=esq)]
 
 
-def cobertura(esquema: str | None = None) -> dict:
+def cobertura(esquema: str | None = None, placa: str | None = None) -> dict:
     """Quais veículos da Smartec o AVA conhece, e quais ficaram de fora.
 
     O cruzamento é em PYTHON porque as duas pontas estão em bancos diferentes
@@ -532,6 +581,12 @@ def cobertura(esquema: str | None = None) -> dict:
     # infração deles não é nossa.
     NOSSOS = ("FROTA", "LOCACAO")
     proprios = [v for v in ativos if v["utilizacao"] in NOSSOS]
+    # Com placa, a pergunta vira "ESTE veículo está coberto?" — o recorte é o
+    # mesmo trecho que as outras leituras usam, no formato da Smartec.
+    p = placa_filtro(placa)
+    if p:
+        proprios = [v for v in proprios
+                    if p in (placa_filtro(v["placa"]) or "")]
     fora = [v for v in proprios
             if (v["renavam"] or "").lstrip("0") not in rnv_smt]
     sem_renavam = [v for v in proprios if not v["renavam"]]
@@ -556,7 +611,8 @@ def cobertura(esquema: str | None = None) -> dict:
     }
 
 
-def historico(limite: int = 200, esquema: str | None = None) -> list[dict]:
+def historico(limite: int = 200, esquema: str | None = None,
+              placa: str | None = None) -> list[dict]:
     """O que SAIU da lista — pago, defesa provida ou baixado pelo órgão.
 
     A Smartec não diz o motivo (a linha simplesmente para de vir), e a tela
@@ -564,13 +620,13 @@ def historico(limite: int = 200, esquema: str | None = None) -> list[dict]:
     Afirmar pagamento seria inventar o que a fonte não disse.
     """
     esq = _esq(esquema)
-    return [dict(r) for r in pglocal.query("""
+    return [dict(r) for r in pglocal.query(f"""
         SELECT identificador, especie, placa, ait, data_infracao, descricao,
                valor_a_pagar, orgao, situacao_boleto, primeiro_visto_em,
                sumiu_em, (sumiu_em::date - primeiro_visto_em::date)::int AS dias
-          FROM smt_infracoes WHERE sumiu_em IS NOT NULL
+          FROM smt_infracoes WHERE sumiu_em IS NOT NULL AND {_fp('placa')}
          ORDER BY sumiu_em DESC LIMIT %(limite)s
-    """, {"limite": limite}, esquema=esq)]
+    """, {"limite": limite, "placa": placa_filtro(placa)}, esquema=esq)]
 
 
 def cargas(limite: int = 30, esquema: str | None = None) -> list[dict]:

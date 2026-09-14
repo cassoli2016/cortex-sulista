@@ -1,3 +1,15 @@
+- versao: "1.76.1"
+  data: "2026-09-14"
+  corrigido:
+    - >-
+      Multas — Smartec: o filtro de placa passa a valer em todas as abas.
+      Antes só Histórico (ERP) e Responsáveis (ERP) obedeciam; Multas em
+      aberto, Notificações, Licenças, ANTT, Motoristas e Cobertura e coleta
+      continuavam mostrando a frota inteira com o campo preenchido. A placa
+      pode ser digitada com ou sem hífen, e um trecho dela também serve. Um
+      selo no alto da tela avisa que período e órgão autuador valem só para
+      as abas do ERP.
+
 - versao: "1.76.0"
   data: "2026-09-13"
   adicionado:

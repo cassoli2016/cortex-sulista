@@ -7062,30 +7062,37 @@ def jornada_raster(de: str | None = None, ate: str | None = None) -> JSONRespons
 
 
 @app.get("/api/smartec/painel")
-def smartec_painel() -> JSONResponse:
+def smartec_painel(placa: str | None = None) -> JSONResponse:
     """Tudo que a tela da Smartec precisa, numa chamada.
 
     Lê o BANCO LOCAL, nunca a API do fornecedor: a tela abre em milissegundos
     e não depende de a Smartec estar de pé. Quem fala com o fornecedor é a
     coleta, e ela tem trilha própria em `smt_carga`.
+
+    `placa` é o filtro da barra, e vale para TODA leitura por veículo — até
+    14/09/2026 a rota não o recebia, e só as duas abas do ERP da mesma tela
+    obedeciam o campo. Ficam fora só as coletas (`cargas`) e o acesso ao SNE
+    (em `kpis`), que são da empresa e não de um veículo.
     """
     from api.smartec import leitura
+    p = leitura.placa_filtro(placa)
     try:
         return JSONResponse({
-            "kpis": leitura.kpis(),
-            "multas": leitura.infracoes("multa", 400),
-            "notificacoes": leitura.infracoes("notificacao", 600),
-            "por_veiculo": leitura.por_veiculo("multa", 40),
-            "por_infracao": leitura.por_infracao("multa", 15),
-            "por_orgao": leitura.por_orgao("multa", 12),
-            "mensal": leitura.mensal(),
-            "licencas": leitura.licencas(),
-            "antt": leitura.antt(200),
-            "antt_situacao": leitura.antt_por_situacao(),
-            "antt_mensal": leitura.antt_mensal(36),
-            "por_motorista": leitura.por_motorista(30),
-            "cobertura": leitura.cobertura(),
-            "historico": leitura.historico(100),
+            "placa": p,
+            "kpis": leitura.kpis(placa=p),
+            "multas": leitura.infracoes("multa", 400, placa=p),
+            "notificacoes": leitura.infracoes("notificacao", 600, placa=p),
+            "por_veiculo": leitura.por_veiculo("multa", 40, placa=p),
+            "por_infracao": leitura.por_infracao("multa", 15, placa=p),
+            "por_orgao": leitura.por_orgao("multa", 12, placa=p),
+            "mensal": leitura.mensal(placa=p),
+            "licencas": leitura.licencas(placa=p),
+            "antt": leitura.antt(200, placa=p),
+            "antt_situacao": leitura.antt_por_situacao(placa=p),
+            "antt_mensal": leitura.antt_mensal(36, placa=p),
+            "por_motorista": leitura.por_motorista(30, placa=p),
+            "cobertura": leitura.cobertura(placa=p),
+            "historico": leitura.historico(100, placa=p),
             "cargas": leitura.cargas(20),
         })
     except Exception as exc:  # noqa: BLE001

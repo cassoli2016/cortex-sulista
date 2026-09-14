@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.76.1] — 14/09/2026  ·  CX-14/09/2026-v1.76.1
+
+### Corrigido
+- Multas — Smartec: o filtro de placa passa a valer em todas as abas. Antes só Histórico (ERP) e Responsáveis (ERP) obedeciam; Multas em aberto, Notificações, Licenças, ANTT, Motoristas e Cobertura e coleta continuavam mostrando a frota inteira com o campo preenchido. A placa pode ser digitada com ou sem hífen, e um trecho dela também serve. Um selo no alto da tela avisa que período e órgão autuador valem só para as abas do ERP.
+
 ## [1.76.0] — 13/09/2026  ·  CX-13/09/2026-v1.76.0
 
 ### Adicionado
