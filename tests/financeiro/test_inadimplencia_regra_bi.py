@@ -109,6 +109,7 @@ def _popular(cur):
     doc(DOBRADO, 5, 40.0)
     # o que NÃO é vencido oficial
     doc(NORTE, -3, 500.0)                    # a vencer
+    doc(SUL, -2, 200.0)                      # a vencer, a outra empresa do grupo
     doc(SUL, 12, 999.0, pago=True)           # pago
     doc(AVULSO, 40, 777.0, composicao=2)     # pendente de faturamento
 
@@ -146,7 +147,7 @@ def test_o_valor_e_o_MENOR_entre_o_pendente_e_o_saldo_da_fatura(ava):
     composição — era a única divergência contra o BI, conferida em 14/09/2026."""
     kpi = _sql(ava, queries.KPI_SQL, P_REC)[0]
     assert kpi["receber_vencido"] == pytest.approx(1000.0)
-    assert kpi["receber_aberto"] == pytest.approx(1500.0)
+    assert kpi["receber_aberto"] == pytest.approx(1700.0)
     assert kpi["receber_pendente_fatur"] == pytest.approx(777.0), \
         "o pendente de faturamento segue à parte, pelo pendente"
     grupo = [c for c in queries.get_cobranca(None)["clientes"]
@@ -163,7 +164,7 @@ def test_as_faixas_sao_as_do_BI_e_cada_documento_conta(ava):
     somam o vencido."""
     aging = {r["faixa"]: r for r in _sql(ava, queries.AGING_AR_SQL, P_REC)}
     assert {k: (r["qtd"], round(r["valor"], 2)) for k, r in aging.items()} == {
-        "1_a_vencer": (1, 500.0),
+        "1_a_vencer": (2, 700.0),
         "2_vencido_ate_15": (4, 290.0),      # 100 + 100 + 50 (15 dias) + 40
         "3_vencido_16_30": (3, 430.0),       # 300 + 60 (16 dias) + 70 (30 dias)
         "4_vencido_31_90": (2, 170.0),       # 80 (31 dias) + 90 (90 dias)
@@ -218,6 +219,19 @@ def test_o_filtro_de_cliente_casa_o_nome_do_GRUPO_e_o_da_empresa(ava):
         [("GRUPO FICTICIO", 200.0, 1)]
     assert {t["empresa"] for t in norte[0]["titulos_lista"]} == {"FILIAL NORTE FICTICIA"}, \
         "os títulos seguem o MESMO filtro que a linha"
+
+
+def test_as_listas_do_email_saem_por_GRUPO(ava):
+    """As duas empresas do grupo numa linha só, nas duas listas. A janela
+    aberta ao máximo põe todo o vencido em "entraram em atraso" — o teste não
+    depende de em que dia da semana roda."""
+    novos = _sql(ava, fi.NOVOS_SQL, {"filial": None, "desde": "2000-01-01"})
+    assert [(r["cliente"], r["titulos"], round(r["valor"], 2)) for r in novos] == [
+        ("GRUPO FICTICIO", 3, 500.0), ("INDUSTRIA DE MENTIRA SA", 6, 460.0),
+        ("OUTRO GRUPO", 1, 40.0)]
+    avencer = _sql(ava, fi.AVENCER_SQL, {"filial": None, "clientes": None, "ate": "2100-01-01"})
+    assert [(r["cliente"], r["titulos"], round(r["valor"], 2)) for r in avencer] == [
+        ("GRUPO FICTICIO", 2, 700.0)]
 
 
 def test_o_email_soma_as_faixas_e_conta_clientes_por_grupo(ava):
