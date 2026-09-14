@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.80.2] — 14/09/2026  ·  CX-14/09/2026-v1.80.2
+
+### Alterado
+- Painel de TV da Operação — "Motor ligado parado" e "Pedal crítico" passam a mostrar duas casas decimais (por exemplo 14,29% e 14,34%). Com uma casa os dois arredondavam para o mesmo 14,3% e pareciam o mesmo número repetido.
+
 ## [1.80.1] — 14/09/2026  ·  CX-14/09/2026-v1.80.1
 
 ### Corrigido

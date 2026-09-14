@@ -88,7 +88,7 @@ def conducao(frota: set[str] | None = None) -> dict:
         d = l.get(chave)
         return _num(d.get("h")) if isinstance(d, dict) else None
 
-    def razao(numerador: str, base: tuple) -> tuple:
+    def razao(numerador: str, base: tuple, casas: int = 1) -> tuple:
         n = d = 0.0
         veic = 0
         for l in linhas:
@@ -99,11 +99,14 @@ def conducao(frota: set[str] | None = None) -> dict:
             n += num
             d += sum(partes)
             veic += 1
-        return (round(100 * n / d, 1) if d > 0 else None), veic
+        return (round(100 * n / d, casas) if d > 0 else None), veic
 
-    parado, v1 = razao("idle", ("idle", "movement"))
+    # DUAS CASAS no motor parado e no pedal critico (quem opera, 14/09/2026):
+    # com uma, os dois deram 14,3% no mesmo dia (14,29 x 14,34) e pareciam o
+    # mesmo numero repetido. A faixa extra-economica segue com uma.
+    parado, v1 = razao("idle", ("idle", "movement"), casas=2)
     extra, v2 = razao("extraEconomicRange", ("movement",))
-    pedal, v3 = razao("pedalPressureOnHig", PEDAL)
+    pedal, v3 = razao("pedalPressureOnHig", PEDAL, casas=2)
     quando = (log or {}).get("quando")
     return {
         "motor_parado_pct": parado,

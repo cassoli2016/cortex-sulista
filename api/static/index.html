@@ -17435,7 +17435,7 @@ async function loadTvOpe(){
          descarte da faixa fisica continua no numero de veiculos do consumo
          ("41 veic." com 47 rodando). */
       const velha = d => (d!=null && d>0) ? ' · coleta de '+d+'d atrás' : '';
-      const pctTel = v => v==null ? 'n/d' : v.toFixed(1).replace('.',',')+'%';
+      const pctTel = (v, casas=1) => v==null ? 'n/d' : v.toFixed(casas).replace('.',',')+'%';
       const rMot=tvRegua(tel.motor_parado_pct, TV_REGUAS.motor_parado),
             rEco=tvRegua(tel.faixa_extra_eco_pct, TV_REGUAS.faixa_extra_eco),
             rPed=tvRegua(tel.pedal_critico_pct, TV_REGUAS.pedal_critico);
@@ -17445,11 +17445,13 @@ async function loadTvOpe(){
                kml==null ? 'leitura fora da faixa física'+velha(tel.dias_atras)
                  : ('km/l · alvo '+alvo.toFixed(1).replace('.',',')+' · '
                     +(tel.com_consumo_valido||0)+' veíc.'+velha(tel.dias_atras))),
-        tvCard('Motor ligado parado', pctTel(tel.motor_parado_pct), rMot.cls,
+        /* motor parado e pedal critico com DUAS casas (quem opera, 14/09/2026):
+           com uma, 14,29 e 14,34 viravam o mesmo 14,3% e pareciam repetidos */
+        tvCard('Motor ligado parado', pctTel(tel.motor_parado_pct, 2), rMot.cls,
                'do tempo de motor · meta ≤5%'+velha(tel.conducao_dias_atras), '', rMot.barra),
         tvCard('Faixa extra econômica', pctTel(tel.faixa_extra_eco_pct), rEco.cls,
                'do tempo andando · meta >95%', '', rEco.barra),
-        tvCard('Pedal crítico', pctTel(tel.pedal_critico_pct), rPed.cls,
+        tvCard('Pedal crítico', pctTel(tel.pedal_critico_pct, 2), rPed.cls,
                'do tempo de pedal · meta ≤5%', '', rPed.barra),
         /* A razão sai da INTERSEÇÃO (freadas e km do mesmo conjunto) --
            api/gobrax/torre.py. */

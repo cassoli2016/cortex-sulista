@@ -85,8 +85,10 @@ def test_conducao_e_razao_de_tempo_somada_e_nao_media_de_percentual(monkeypatch)
     assert c["motor_parado_pct"] == 12.0
     # extra-econômica é do tempo ANDANDO: 154 de 176
     assert c["faixa_extra_eco_pct"] == round(100 * 154 / 176, 1)
-    # pedal crítico é pressão alta sobre as três: 10 de 110
-    assert c["pedal_critico_pct"] == round(100 * 10 / 110, 1)
+    # pedal crítico é pressão alta sobre as três: 10 de 110 -- com DUAS
+    # casas (14/09/2026: com uma, 14,29 e 14,34 viravam o mesmo 14,3)
+    assert c["pedal_critico_pct"] == 9.09
+    assert c["faixa_extra_eco_pct"] == 87.5      # esta segue com uma casa
     assert c["conducao_veiculos"] == 2
 
 

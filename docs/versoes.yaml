@@ -1,3 +1,12 @@
+- versao: "1.80.2"
+  data: "2026-09-14"
+  alterado:
+    - >-
+      Painel de TV da Operação — "Motor ligado parado" e "Pedal crítico"
+      passam a mostrar duas casas decimais (por exemplo 14,29% e 14,34%). Com
+      uma casa os dois arredondavam para o mesmo 14,3% e pareciam o mesmo
+      número repetido.
+
 - versao: "1.80.1"
   data: "2026-09-14"
   corrigido:

@@ -478,7 +478,11 @@ def test_telemetria_troca_os_cartoes_confusos_pelos_de_conducao(pagina):
         assert novo in rotulos, rotulos
     for velho in ("ABAIXO DO ALVO", "LEITURA DESCARTADA", "CARGA SEM VEÍCULO"):
         assert velho not in rotulos, rotulos
-    assert _cartao(pg, "tvope-k2", "Motor ligado parado")["nums"] == ["14,3%"]
+    # duas casas no motor parado e no pedal crítico (14/09/2026); a faixa
+    # extra-econômica segue com uma
+    assert _cartao(pg, "tvope-k2", "Motor ligado parado")["nums"] == ["14,30%"]
+    assert _cartao(pg, "tvope-k2", "Pedal crítico")["nums"] == ["14,50%"]
+    assert _cartao(pg, "tvope-k2", "Faixa extra econômica")["nums"] == ["93,9%"]
     # a barra vai na escala de 0 a 20% (a régua é 5/10): 14,3% = 72% do trilho
     assert _barras(pg, "tvope-k2", "Motor ligado parado") == [72]
     consumo = _cartao(pg, "tvope-k2", "Consumo da frota")["texto"]
