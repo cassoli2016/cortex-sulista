@@ -3828,6 +3828,20 @@ ORDER BY atrasada DESC, co.dtprevisaochegadaviagem NULLS LAST
 """
 
 
+def _frota_ident(d: dict) -> None:
+    """IDENTIDADE PELO MODULO DA CASA, para as TVs (torre e produtividade).
+
+    `frota` so existe quando e numero de frota DE VERDADE: vazio ou igual a
+    placa nao e numero, e publicar a placa nesse campo e o que fazia metade da
+    frota PARECER numerada. `rotulo` traz a identidade completa para quem
+    precisa das duas. O `numerofrota` cru sai do dicionario.
+    """
+    num = (d.pop("numerofrota", None) or "").strip()
+    placa = (d.get("placa") or "").strip()
+    d["frota"] = num if num and num.upper() != placa.upper() else None
+    d["rotulo"] = frota_identidade.rotulo(num, placa)
+
+
 @cached(ttl=25)
 def get_torre(filial: int | None = None) -> dict:
     with db.get_conn() as conn, conn.cursor() as cur:
@@ -3841,15 +3855,7 @@ def get_torre(filial: int | None = None) -> dict:
         cur.execute("SELECT current_timestamp AS ts")
         meta = cur.fetchone()
 
-    def _identidade(d: dict) -> None:
-        # IDENTIDADE PELO MODULO DA CASA. `frota` so existe quando e numero de
-        # frota DE VERDADE: vazio ou igual a placa nao e numero, e publicar a
-        # placa nesse campo e o que fazia metade da frota PARECER numerada.
-        # `rotulo` traz a identidade completa para quem precisa das duas.
-        num = (d.pop("numerofrota", None) or "").strip()
-        placa = (d.get("placa") or "").strip()
-        d["frota"] = num if num and num.upper() != placa.upper() else None
-        d["rotulo"] = frota_identidade.rotulo(num, placa)
+    _identidade = _frota_ident
 
     pos_por_placa = {p["placa"]: p for p in posicoes}
     em_viagem = set()
@@ -8080,7 +8086,9 @@ SELECT p.veiculo AS placa,
        sum(CASE WHEN p.tipo <> 3 THEN coalesce(p.kmfretecompra,0) ELSE 0 END)::float8 AS km_carregado,
        sum(CASE WHEN p.tipo =  3 THEN coalesce(p.kmfretecompra,0) ELSE 0 END)::float8 AS km_vazio,
        sum(CASE WHEN p.tipo <> 3 THEN coalesce(p.valorfrete,0) ELSE 0 END)::float8 AS receita,
-       max(p.dtemissao)::date AS ultima_viagem
+       max(p.dtemissao)::date AS ultima_viagem,
+       -- numero de frota CRU; a identidade sai de frota_identidade (_frota_ident)
+       min(nullif(trim(v.numerofrota),'')) AS numerofrota
 {_PROD_BASE}
 GROUP BY 1,2,3
 ORDER BY 6 DESC
@@ -8092,7 +8100,8 @@ ORDER BY 6 DESC
 PROD_PARADOS_SQL = """
 WITH frota AS (
   SELECT v.placa, coalesce(u.descricao,'(sem modalidade)') AS modalidade,
-         coalesce(tv.descricao,'(sem tipo)') AS tipo
+         coalesce(tv.descricao,'(sem tipo)') AS tipo,
+         nullif(trim(v.numerofrota),'') AS numerofrota
   FROM veiculo v
   LEFT JOIN utilizacaoveiculo u ON u.codigo = v.utilizacaoveiculo
   LEFT JOIN tipoveiculo tv ON tv.codigo = v.tipoveiculo
@@ -8117,7 +8126,7 @@ janela AS (
     AND p.dtemissao >= %(dt_de)s::date AND p.dtemissao < %(dt_ate)s::date + 1
     AND (p.filial = %(filial)s OR %(filial)s::int IS NULL)
 )
-SELECT f.placa, f.modalidade, f.tipo,
+SELECT f.placa, f.modalidade, f.tipo, f.numerofrota,
        h.ultima AS ultima_viagem,
        coalesce(h.viagens_historicas, 0) AS viagens_historicas,
        CASE WHEN h.ultima IS NULL THEN NULL
@@ -8180,6 +8189,11 @@ def _prod_enrich(d: dict) -> dict:
     return d
 
 
+# CACHE COM REDE (13/09/2026, quando o painel de TV `tvprod` passou a ler esta
+# rota): eram 7 consultas ao ERP A CADA chamada, e a TV recarrega de minuto em
+# minuto. A menor faixa desta tela e o DIA de emissao, entao a leitura de ate
+# 2 h atras nao muda nada do que ela afirma -- a rede entra, com a tarja.
+@cached(ttl=300, velha_ate=VELHA_ATE)
 def get_produtividade_veiculos(filial: int | None, dt_de: str, dt_ate: str,
                                modalidade: str | None = None,
                                limite: int = 40) -> dict:
@@ -8205,6 +8219,7 @@ def get_produtividade_veiculos(filial: int | None, dt_de: str, dt_ate: str,
         _prod_enrich(linha)
     for linha in (*veiculos, *parados):
         _prod_iso(linha, "ultima_viagem")
+        _frota_ident(linha)      # a TV chama o veiculo pelo numero de frota
 
     # OS PARADOS SE SEPARAM EM DOIS, e misturá-los seria crying wolf: dos 20
     # que a consulta traz hoje, 14 NUNCA rodaram — placas sequenciais, zero

@@ -1,3 +1,21 @@
+- versao: "1.74.0"
+  data: "2026-09-13"
+  adicionado:
+    - >-
+      Painel de TV da Produtividade da Frota (Business Intelligence › Painéis
+      TV › Produtividade), no formato do painel de Operação. Duas lâminas que
+      giram sozinhas a cada 20 segundos: a visão geral (km carregado, km e
+      receita por veículo, R$ por km, retorno vazio e parados nos últimos 30
+      dias, os últimos 12 meses de km e a tabela por modalidade) e a de
+      veículos (os mais produtivos, os parados e a ociosidade). O veículo
+      aparece pelo número de frota, e no celular as lâminas ficam uma embaixo
+      da outra. Já vem liberado para os perfis Painéis TV e Diretoria.
+  alterado:
+    - >-
+      Produtividade de Veículos: a consulta passou a ficar guardada por 5
+      minutos, porque o painel de TV a lê de minuto em minuto; se o ERP
+      falhar, a tela mostra a última leitura com o aviso de dado antigo.
+
 - versao: "1.73.7"
   data: "2026-09-13"
   alterado:
@@ -92,7 +110,7 @@
 
 - versao: "1.73.0"
   data: "2026-09-13"
-  novo:
+  adicionado:
     - >-
       Painel de TV da Operação — motor ligado parado, faixa extra econômica e
       pedal crítico ganharam meta e cor: motor parado e pedal crítico ficam
@@ -124,7 +142,7 @@
 
 - versao: "1.72.0"
   data: "2026-09-13"
-  novo:
+  adicionado:
     - >-
       Painel de TV da Operação — carga crítica: a viagem cujo pedido de
       coleta tem a ocorrência 261 (CARGA CRÍTICA) aparece no topo de

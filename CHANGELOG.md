@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.74.0] — 13/09/2026  ·  CX-13/09/2026-v1.74.0
+
+### Adicionado
+- Painel de TV da Produtividade da Frota (Business Intelligence › Painéis TV › Produtividade), no formato do painel de Operação. Duas lâminas que giram sozinhas a cada 20 segundos: a visão geral (km carregado, km e receita por veículo, R$ por km, retorno vazio e parados nos últimos 30 dias, os últimos 12 meses de km e a tabela por modalidade) e a de veículos (os mais produtivos, os parados e a ociosidade). O veículo aparece pelo número de frota, e no celular as lâminas ficam uma embaixo da outra. Já vem liberado para os perfis Painéis TV e Diretoria.
+
+### Alterado
+- Produtividade de Veículos: a consulta passou a ficar guardada por 5 minutos, porque o painel de TV a lê de minuto em minuto; se o ERP falhar, a tela mostra a última leitura com o aviso de dado antigo.
+
 ## [1.73.7] — 13/09/2026  ·  CX-13/09/2026-v1.73.7
 
 ### Alterado
@@ -48,12 +56,25 @@ versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [1.73.0] — 13/09/2026  ·  CX-13/09/2026-v1.73.0
 
+### Adicionado
+- Painel de TV da Operação — motor ligado parado, faixa extra econômica e pedal crítico ganharam meta e cor: motor parado e pedal crítico ficam verdes até 5%, amarelos acima de 5% e vermelhos acima de 10%; a faixa extra econômica fica vermelha abaixo de 90%, amarela de 90% a 95% e verde acima de 95%. A barra de cada um mostra as três faixas, para se ver de longe onde o número está.
+- Painel de TV da Operação — o cartão de motoristas acende (borda amarela a partir de 90% de motoristas próprios ociosos, vermelha a partir de 93%). Os cortes saíram do histórico de 28 dias: num dia útil normal, 88% dos próprios estão sem viagem aberta a cada instante.
+
 ### Alterado
 - Painel de TV da Operação — o cartão de km e metas foi reorganizado: carregado, vazio e total em cima, a composição numa barra só com a marca do limite de 20% de vazio, e os medidores de meta maiores, apoiados no fim do cartão.
 - Painel de TV da Operação — "Chegadas e atrasos" usa letra menor e uma linha por carga (o destino longo é cortado com reticências), então cabem mais cargas; o título diz quantas aparecem de quantas estão em trânsito.
 - Painel de TV da Operação — o mapa de fundo ficou esmaecido, para as bordas tracejadas de parques e divisas não brigarem com os caminhões; e o tracejado vermelho da viagem atrasada termina num ponto no destino e aparece na legenda.
 
 ## [1.72.0] — 13/09/2026  ·  CX-13/09/2026-v1.72.0
+
+### Adicionado
+- Painel de TV da Operação — carga crítica: a viagem cujo pedido de coleta tem a ocorrência 261 (CARGA CRÍTICA) aparece no topo de "Chegadas e atrasos", antes até das atrasadas, com a linha em laranja e o selo CRÍTICA — inclusive quando ainda não tem previsão de chegada.
+- Painel de TV da Operação — a tabela de chegadas e o rodapé passam a chamar o veículo pelo número de frota, e não mais pela placa.
+- Painel de TV da Operação — o medidor de meta mostra o dia E o mês, cada um com a data de referência. No dia sem meta (domingo, feriado) ele diz "sem meta", em vez de repetir o percentual do dia anterior como se fosse o de hoje.
+- Painel de TV da Operação — "Tração disponível" separa frota (própria e locada) de agregado, cada um com o seu total; e "Motoristas" separa quem está em viagem por modalidade e mostra o percentual de motoristas próprios livres. O "disponíveis" antigo somava agregado e terceiro que só estavam sem viagem conosco.
+- Painel de TV da Operação — a telemetria passa a medir só a frota que está rodando, e traz motor ligado parado, faixa extra econômica e pedal crítico no lugar de "Abaixo do alvo", "Leitura descartada" e "Carga sem veículo".
+- Painel de TV da Operação — o mapa ganhou legenda (cores, alerta, grupos e a contagem por tipo de tração), o número de cada veículo vem com a tração (4x2, 6x2, 3/4, truck, toco), veículos próximos se juntam em grupos de até 5 que se separam ao aproximar, e o passeio entre regiões vai para onde a frota está agora, com a contagem de veículos de cada uma.
+- Todos os painéis de TV mostram a logo da Sulista no cabeçalho, sempre. Antes ela só aparecia em tela cheia, e a TV aberta em modo quiosque ou numa janela maximizada ficava sem a marca.
 
 ### Alterado
 - Painel de TV da Operação — sai o selo "CRÍTICO" que piscava no título; o cabeçalho fica só com a bolinha e a idade da última posição, no mesmo tamanho do relógio. Sai também o valor do combustível; a locação conta como frota no cartão de km; e o terceiro, que ficava de fora da lista de modalidades, volta a aparecer. "Sem posição há +6h" virou "Sem sinal há +6h", com o total em viagem ao lado. Os cartões têm menos texto: o subtítulo diz só a unidade e a base, e as proporções (disponibilidade, motor parado, faixa econômica, pedal) viraram barras.

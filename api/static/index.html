@@ -1991,6 +1991,93 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
   #view-tvope .tv-ticker-inner{font-size:13px}
 }
 
+/* ---- Painel TV — Produtividade da Frota (tvprod) ----
+   O formato da TV de operacao, com um CARROSSEL de duas laminas: as quatro
+   sub-abas da tela `prodveic` nao cabem numa TV, e TV nao tem quem clique.
+   As laminas ficam lado a lado num trilho de 200% e so DESLIZAM (transform):
+   as duas estao sempre renderizadas no tamanho real -- nada nasce medido com
+   largura zero, que e o defeito mudo de conteudo escondido com display:none. */
+#view-tvprod .tv-head{margin-bottom:0.7vw}
+#view-tvprod .tv-head h2{font-size:clamp(16px,1.5vw,30px)}
+#view-tvprod .tv-head .tv-clock{font-size:clamp(16px,1.5vw,30px)}
+#view-tvprod .tv-head .tv-next{font-size:clamp(14px,1.5vw,30px) !important}
+.tvp-lamina{display:inline-flex;align-items:center;gap:0.4vw;background:rgba(229,237,244,.08);
+  border-radius:999px;padding:0.2vw 0.8vw;font-size:clamp(10px,0.8vw,15px);font-weight:700;
+  color:#E5EDF4;white-space:nowrap}
+.tvp-lamina:empty{display:none}
+.tvp-lamina i{width:0.55vw;height:0.55vw;min-width:7px;min-height:7px;border-radius:50%;
+  background:#4F6B85;display:inline-block}
+.tvp-lamina i.on{background:#E5EDF4}
+.tvp-janela{overflow:hidden;height:calc(100vh - 6.6vw);min-height:0}
+.tvp-trilho{display:flex;width:200%;height:100%;transition:transform 1s cubic-bezier(.4,0,.2,1)}
+.tvp-trilho>.tvw{flex:0 0 50%;width:50%;height:100%;box-sizing:border-box}
+.tvp-trilho>.tvw+.tvw{padding-left:0.45vw}
+/* o grafico fica com a maior altura: a tabela de modalidade tem 3 ou 4
+   linhas, e com a divisao meio a meio sobrava meia tela vazia embaixo dela */
+.tvp-vis{grid-template-columns:1fr 2fr;grid-template-rows:1.7fr 1fr}
+.tvp-6{display:none}
+.tvp-vis .tvw-kpis{grid-row:1/3}
+.tvp-veic{grid-template-columns:1.35fr 1fr 0.7fr;grid-template-rows:1fr}
+.tvp-k2{grid-template-columns:1fr}
+/* barras dos 12 meses: a forma da TV da diretoria (.tvd-col), em vw */
+.tvp-mensal .tvp-serie{height:auto;flex:1;min-height:0;gap:0.5vw;padding-top:0.4vw}
+.tvp-serie .tvd-col{gap:0.25vw}
+.tvp-serie .tvd-col .v{font-size:clamp(9px,0.72vw,14px)}
+.tvp-serie .tvd-col b{font-size:clamp(9px,0.66vw,13px)}
+.tvp-serie .tvd-col em{font-style:normal;font-size:clamp(8px,0.58vw,11px);color:#8FA6BC;white-space:nowrap}
+.tvp-serie .tvd-col.sem i{background:#2A4A68}
+.tvp-serie .tvd-col.sem .v{color:#4F6B85}
+#view-tvprod .tv-tab{font-size:clamp(10px,0.78vw,15px);table-layout:fixed}
+#view-tvprod .tv-tab th{font-size:clamp(8px,0.6vw,12px);padding:0.22vw 0.45vw}
+#view-tvprod .tv-tab td{padding:0.26vw 0.45vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.tvfull.tvwall #view-tvprod.on{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+body.tvfull.tvwall #view-tvprod .tv-head{flex-shrink:0}
+body.tvfull.tvwall #view-tvprod .tvp-janela{flex:1 1 auto;min-height:0;height:auto}
+body.tvfull.tvwall #view-tvprod .tv-ticker{flex-shrink:0;margin-top:0.55vw}
+@media(prefers-reduced-motion:reduce){.tvp-trilho{transition:none}}
+/* NO CELULAR NAO HA CARROSSEL: as duas laminas EMPILHAM e a pagina rola. O
+   `!important` do transform vence o estilo que o giro escreve no trilho --
+   no celular nao ha o que girar, e o giro pode estar armado desde a TV. */
+@media(max-width:880px){
+  body.tvfull.tvwall #view-tvprod.on{display:block}
+  .tvp-janela{height:auto;overflow:visible}
+  .tvp-trilho{display:block;width:auto;height:auto;transform:none !important}
+  .tvp-trilho>.tvw{width:auto;height:auto;padding-left:0}
+  .tvp-trilho>.tvw+.tvw{margin-top:12px}
+  .tvp-vis,.tvp-veic{grid-template-columns:1fr;grid-template-rows:none}
+  .tvp-vis .tvw-kpis{grid-row:auto}
+  .tvp-lamina{display:none}
+  #view-tvprod .tv-head{grid-template-columns:1fr auto;row-gap:9px;margin-bottom:12px}
+  #view-tvprod .tv-head .tv-title{grid-column:1/-1;grid-row:2;justify-content:flex-start}
+  #view-tvprod .tv-head h2{font-size:17px;text-align:left}
+  #view-tvprod .tv-head .tv-next{display:none}
+  #view-tvprod .tv-head .tv-clock{font-size:18px}
+  #view-tvprod .tvw-kpis{grid-auto-rows:auto;gap:9px}
+  #view-tvprod .tvw .tv-card{padding:12px 14px}
+  #view-tvprod .tvw .tv-label{font-size:11px}
+  #view-tvprod .tvw .tv-num{font-size:28px}
+  #view-tvprod .tvw .tv-sub{font-size:12px}
+  #view-tvprod .tv-barra{height:6px;margin:6px 0 3px}
+  .tvp-mensal .tvp-serie{height:220px;flex:none}
+  /* 12 colunas nao cabem em 358 px (o fim saia cortado): no celular vao os
+     6 ULTIMOS meses, e o rotulo do cartao diz isso */
+  .tvp-serie .tvd-col:nth-child(-n+6){display:none}
+  .tvp-12{display:none}
+  .tvp-6{display:inline}
+  #view-tvprod .tvp-vis .tv-tab{table-layout:auto}
+  .tvp-serie .tvd-col .v,.tvp-serie .tvd-col b{font-size:10px}
+  .tvp-serie .tvd-col em{font-size:9px}
+  #view-tvprod .tv-tab{font-size:13px}
+  #view-tvprod .tv-tab th{font-size:10px;padding:5px}
+  #view-tvprod .tv-tab td{padding:7px 5px}
+  /* a modalidade sai das listas de veiculo no celular: seis colunas em 358 px
+     cortavam o numero de frota */
+  #view-tvprod .tvp-veic .tv-tab th:nth-child(2),
+  #view-tvprod .tvp-veic .tv-tab td:nth-child(2){display:none}
+  #view-tvprod .tv-ticker{height:34px;margin-top:12px}
+  #view-tvprod .tv-ticker-inner{font-size:13px}
+}
+
 /* ---- login / sessão ---- */
 #loginOverlay{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;
   background:linear-gradient(160deg,var(--navy-900,#0B1926) 0%,var(--navy-700,#17344F) 100%)}
@@ -3370,6 +3457,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <a href="#tvfat" class="sub sub2" data-view="tvfat" title="Painel de Faturamento para TV"><span class="ic" data-ic="tvfatic"></span><span>Faturamento</span></a>
           <a href="#tvjor" class="sub sub2" data-view="tvjor" title="Painel de Jornada em tempo real para TV"><span class="ic" data-ic="tvjoric"></span><span>Jornada</span></a>
           <a href="#tvope" class="sub sub2" data-view="tvope" title="Painel de Operação para TV"><span class="ic" data-ic="tv"></span><span>Operação</span></a>
+          <a href="#tvprod" class="sub sub2" data-view="tvprod" title="Painel de Produtividade da Frota para TV"><span class="ic" data-ic="tvprodic"></span><span>Produtividade</span></a>
         </div>
         <a href="#prodveic" class="sub" data-view="prodveic" title="Produtividade de Veículos — quanto cada veículo produz e quem produz pouco"><span class="ic" data-ic="kmv"></span><span>Produtividade de Veículos</span></a>
       </div>
@@ -4687,6 +4775,28 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
         <div class="tv-ticker"><div class="tv-ticker-inner" id="tvope-ticker"></div></div>
+      </section>
+      <section class="view" id="view-tvprod">
+        <div class="tv-head"><div class="tv-left"><img class="tv-logo" src="/static/sulista-logo-branco.svg" alt="Sulista"><span class="tv-upd tv-next"></span></div><div class="tv-title"><h2>PRODUTIVIDADE DA FROTA</h2><span class="tvp-lamina" id="tvprod-lamina"></span></div><div class="tv-right"><span class="tv-clock"></span><a href="javascript:tvFull()" title="tela cheia" aria-label="Tela cheia">⛶</a><a href="#home" title="sair do modo TV" aria-label="Sair do modo TV">✕</a></div></div>
+        <div class="tvp-janela"><div class="tvp-trilho" id="tvprod-trilho">
+          <div class="tvw tvp-vis">
+            <div class="tvw-kpis" id="tvprod-k1"></div>
+            <div class="tv-card tvp-mensal"><div class="tv-label">Km carregado por mês · mil km · <span class="tvp-12">12 meses</span><span class="tvp-6">6 meses</span></div><div class="tvd-serie tvp-serie" id="tvprod-mensal"></div></div>
+            <div class="tv-card"><div class="tv-label">Por modalidade · últimos 30 dias</div>
+              <table class="tv-tab"><thead><tr><th>Modalidade</th><th class="num">Veículos</th><th class="num">Km por veículo</th><th class="num">Vazio</th><th class="num">R$/km</th></tr></thead>
+              <tbody id="tvprod-modal"></tbody></table></div>
+          </div>
+          <div class="tvw tvp-veic">
+            <div class="tv-card"><div class="tv-label">Mais produtivos · 30 dias <span class="tv-cont" id="tvprod-top-n"></span></div>
+              <table class="tv-tab"><thead><tr><th>Frota</th><th>Modalidade</th><th class="num">Viagens</th><th class="num">Km carreg.</th><th class="num">Km/dia</th><th class="num">Vazio</th></tr></thead>
+              <tbody id="tvprod-top"></tbody></table></div>
+            <div class="tv-card"><div class="tv-label">Parados · sem viagem em 30 dias <span class="tv-cont" id="tvprod-par-n"></span></div>
+              <table class="tv-tab"><thead><tr><th>Frota</th><th>Modalidade</th><th class="num">Parado há</th><th class="num">Última</th></tr></thead>
+              <tbody id="tvprod-par"></tbody></table></div>
+            <div class="tvw-kpis tvp-k2" id="tvprod-k2"></div>
+          </div>
+        </div></div>
+        <div class="tv-ticker"><div class="tv-ticker-inner" id="tvprod-ticker"></div></div>
       </section>
       <!-- PAINEL DA DIRETORIA. Mural: sem tooltip, sem clique, sem aba — cada
            número se explica no rótulo. Lê a MESMA /api/visao-geral da home e
@@ -10252,6 +10362,7 @@ const ICONS = {
   gric: IC('<path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="M12 8v4M12 15.5v.5"/>'),
   fatic: IC('<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h6M8 17h4"/>'),
   tvjoric: IC('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+  tvprodic: IC('<path d="M4 20h16"/><path d="M7 16v-4"/><path d="M11 16V8"/><path d="M15 16v-6"/><path d="M19 16V5"/>'),
   tvcomic: IC('<path d="M12 13a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M12 13v8"/><path d="M7.8 15.2a6 6 0 0 1 0-8.4M16.2 6.8a6 6 0 0 1 0 8.4"/><path d="M4.9 18.1a10 10 0 0 1 0-14.2M19.1 3.9a10 10 0 0 1 0 14.2"/>'),
   tvcliic: IC('<rect x="2.5" y="4" width="19" height="12.5" rx="2"/><path d="M8 20.5h8"/><path d="M12 16.5v4"/><path d="M6.5 12.5l3-3 2.5 2.5 4.5-4.5"/>'),
   tvdiric: IC('<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M9 21h6M12 17v4"/><path d="M7 14v-3M11 14V8M15 14v-4M19 14v-6"/>'),
@@ -10283,7 +10394,7 @@ const FAIXAS = {
 
    `esTv()` passa a ser a única pergunta, e `LOADMAPTV` diz quem recarrega —
    ele sai do `LOADMAP` que já existe, em vez de ser uma sétima cópia. */
-const TELAS_TV = new Set(['tvfat', 'tvope', 'tvdir', 'tvcom', 'tvcli', 'tvjor']);
+const TELAS_TV = new Set(['tvfat', 'tvope', 'tvdir', 'tvcom', 'tvcli', 'tvjor', 'tvprod']);
 const esTv = v => TELAS_TV.has(v);
 
 /* Quem recarrega cada painel. O mapa é montado DENTRO da função, na hora da
@@ -10292,11 +10403,12 @@ const esTv = v => TELAS_TV.has(v);
    da tela — a forma que não depende de ordem de avaliação é a que fica. */
 function tvRecarregar(v){
   const mapa = {tvfat: loadTvFat, tvope: loadTvOpe, tvdir: loadTvDir,
-                tvcom: loadTvCom, tvcli: loadTvCli, tvjor: loadTvJor};
+                tvcom: loadTvCom, tvcli: loadTvCli, tvjor: loadTvJor,
+                tvprod: loadTvProd};
   if(esTv(v) && mapa[v]) mapa[v]();
 }
 
-const VIEWS = { hp:'Horas Paradas', radar:'Radar do Transporte', tvcom:'Painel TV — Comunicação', tvjor:'Painel TV — Jornada', home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Central de Documentos', eqp:'Equipamentos', wmspan:'Painel do Armazém', wmsrec:'Recebimento', wmsest:'Estoque e Inventário', wmsexp:'Separação e Expedição', wmscad:'Cadastros do Armazém', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', freq:'Frequência e Banco de Horas', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', gesind:'Ritual — Indicadores e Metas', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { hp:'Horas Paradas', radar:'Radar do Transporte', tvcom:'Painel TV — Comunicação', tvjor:'Painel TV — Jornada', tvprod:'Painel TV — Produtividade',home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Central de Documentos', eqp:'Equipamentos', wmspan:'Painel do Armazém', wmsrec:'Recebimento', wmsest:'Estoque e Inventário', wmsexp:'Separação e Expedição', wmscad:'Cadastros do Armazém', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', prodveic:'Produtividade de Veículos', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', freq:'Frequência e Banco de Horas', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', gesind:'Ritual — Indicadores e Metas', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -10575,7 +10687,7 @@ const VIEW_GROUP = {radar:'',home:'',cop:'',apps:'',
   torre:'Ope',milkrun:'Ope',poli:'Ope',hp:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',cliop:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',pedagio:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',pecas:'Sup',
-  prodveic:'Bi',fat:'Ctr',gr:'Ope',tvcli:'Bi',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',tvcom:'Bi',tvjor:'Bi',
+  prodveic:'Bi',fat:'Ctr',gr:'Ope',tvcli:'Bi',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',tvcom:'Bi',tvjor:'Bi',tvprod:'Bi',
   rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',freq:'Rh',cnh:'Rh',ferias:'Rh',rhmot:'Rh',people:'Rh',des:'Rh',gestao:'Adm',srv:'Adm',sup:'Spt',supfila:'Spt',doc:'Adm',aud:'Adm',integ:'Adm',mon:'Adm',gesacao:'Ges',gesata:'Ges',gesrit:'Ges',gesind:'Ges',
   // Telemetria e ANTT tinham grupo na barra lateral mas ficaram de fora deste
   // mapa: o acordeao nao abria sozinho ao navegar para elas (agora a busca
@@ -10831,7 +10943,8 @@ function semFilterbar(v){
   // recebe parâmetro NENHUM — o painel mostra o agora, e não há recorte a
   // aplicar. (Os painéis de TV mais antigos não estão nesta lista; ficam
   // como estão porque mexer neles não foi pedido, mas têm o mesmo defeito.)
-  return v==='radar'||v==='tvjor'||v==='cop'||v==='mon'||v==='aud'||v==='integ'||v==='apps'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='gesind'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
+  // `tvprod` (13/09/2026): recorte FIXO -- 30 dias e 12 meses --, nada a filtrar.
+  return v==='radar'||v==='tvjor'||v==='tvprod'||v==='cop'||v==='mon'||v==='aud'||v==='integ'||v==='apps'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='gesind'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
          v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='freq'||v==='custos'||v==='pecas'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='antport'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='rhmot'||v==='pneus'||v==='people'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='eqp'||
          v==='wmspan'||v==='wmsrec'||v==='wmsest'||v==='wmsexp'||v==='wmscad'||v==='hp';
@@ -10863,13 +10976,14 @@ function router(){
   const cont=document.getElementById('content'); if(cont) cont.scrollTop=0;
   const ehTv = esTv(v);
   document.body.classList.toggle('tvmode', ehTv);
-  document.body.classList.toggle('tvwall', v==='tvope');
+  document.body.classList.toggle('tvwall', v==='tvope'||v==='tvprod');
   setTimeout(tvChecaFull, 50);
   if(tvTimer){ clearInterval(tvTimer); tvTimer=null; }
   if(tvClock){ clearInterval(tvClock); tvClock=null; }
   if(tvTour){ clearInterval(tvTour); tvTour=null; }
   if(ehTv){
     if(v==='tvope') tvTour=setInterval(tvTourPasso, 20000);
+    if(v==='tvprod') tvTour=setInterval(tvProdPasso, 20000);   // o carrossel
     TV_NEXT=Date.now()+60000;
     tvTimer=setInterval(()=>{ TV_NEXT=Date.now()+60000;
       /* RECARGA PELO MAPA, não por cadeia de `else if`: a cadeia era a
@@ -10966,7 +11080,7 @@ function router(){
   document.getElementById('grpFluxcon').style.display = fluxcon ? 'flex' : 'none';
   const ges = (v==='gestao');
   const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = semFilterbar(v) ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (v==='tvjor'||cop||ges||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='gesind'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='prem'||v==='doc'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='apps'||v==='wmscad'||v==='hp') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (v==='tvjor'||v==='tvprod'||cop||ges||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='gesind'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='prem'||v==='doc'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='apps'||v==='wmscad'||v==='hp') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', semFilterbar(v)); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -10990,7 +11104,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,freq:DATAFREQ,custos:DATACUSTOS,pecas:DATAPECAS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={hp:loadHp,radar:loadRadar,apps:loadApps,integ:loadInteg,dfe:loadDfe,eqp:loadEqp,wmspan:loadWmsPan,wmsrec:loadWmsRec,wmsest:loadWmsEst,wmsexp:loadWmsExp,wmscad:loadWmsCad,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,freq:loadFreq,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+  const LOADMAP={hp:loadHp,radar:loadRadar,apps:loadApps,integ:loadInteg,dfe:loadDfe,eqp:loadEqp,wmspan:loadWmsPan,wmsrec:loadWmsRec,wmsest:loadWmsEst,wmsexp:loadWmsExp,wmscad:loadWmsCad,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,prodveic:loadProdveic,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,freq:loadFreq,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvprod:loadTvProd,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -13119,7 +13233,7 @@ function reloadCurrent(){
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,prodveic:loadProdveic,
     torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,freq:loadFreq,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
-    cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+    cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvprod:loadTvProd,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   (M[currentView()]||load)();
 }
 
@@ -17506,6 +17620,164 @@ async function loadTvOpe(){
     tvMapa(t);
     tvOpeOk=true;
   }catch(e){ tvErro('tvope-k1', tvOpeOk); }
+}
+
+/* ================ PAINEL DE TV — PRODUTIVIDADE DA FROTA (tvprod) ================
+   A tela `prodveic` na parede (pedido de quem opera, 13/09/2026), no formato
+   da TV de operacao: a MESMA rota (/api/bi/produtividade-veiculos), os mesmos
+   indices, nenhuma metrica nova. DUAS LAMINAS em carrossel, de 20 em 20 s:
+     1. Visao geral -- seis cartoes, 12 meses de km e a tabela por modalidade;
+     2. Veiculos -- os mais produtivos, os parados e os indices de ociosidade.
+   Recorte FIXO, sem barra de filtros: cartoes e listas nos ULTIMOS 30 DIAS
+   (janela movel: o mes corrente zeraria tudo no dia 1) e a serie em 12 meses.
+   As regras de cor sao as da tela: retorno vazio acima de 20% vermelho;
+   parados em amarelo quando ha algum; "parado ha" amarelo a partir de 90 dias
+   e vermelho a partir de 180. Locacao soma em frota, como na TV de operacao. */
+const TVP_LAMINAS=['Visão geral','Veículos'];
+var TVP_IDX=0;   // var, e nao let: o giro pode ser armado antes desta linha rodar
+let tvProdSeq=0, tvProdOk=false;
+function tvProdMostrar(){
+  const tr=document.getElementById('tvprod-trilho');
+  if(tr) tr.style.transform='translateX('+(-50*TVP_IDX)+'%)';
+  const el=document.getElementById('tvprod-lamina');
+  if(el) el.innerHTML=TVP_LAMINAS.map((n,i)=>'<i class="'+(i===TVP_IDX?'on':'')+'"></i>').join('')
+    +'<span>'+esc(TVP_LAMINAS[TVP_IDX])+'</span>';
+}
+function tvProdPasso(){
+  if(currentView()!=='tvprod') return;
+  TVP_IDX=(TVP_IDX+1)%TVP_LAMINAS.length;
+  tvProdMostrar();
+}
+function tvMilKm(v){
+  if(v==null || !isFinite(v)) return '—';
+  const m=v/1000;
+  return m.toLocaleString('pt-BR',{maximumFractionDigits: m<10?1:0})+' mil';
+}
+function tvCortaLinhas(tbodyId, contId, total){
+  // o cartao tem altura de parede: tira pelo FIM o que nao couber, e o
+  // contador diz quantas ficaram ("12 de 40") -- top-N sem contador mente
+  const tb=document.getElementById(tbodyId); if(!tb) return;
+  const card=tb.closest('.tv-card');
+  let guarda=40;
+  while(guarda-- && tb.rows.length>1 && card.scrollHeight>card.clientHeight+2) tb.deleteRow(-1);
+  const c=document.getElementById(contId);
+  if(c) c.textContent = total ? Math.min(tb.rows.length, total)+' de '+total : '';
+}
+async function loadTvProd(){
+  const seq=++tvProdSeq;
+  try{
+    const hoje=new Date(), de30=new Date(); de30.setDate(de30.getDate()-29);
+    const de12=new Date(hoje.getFullYear(), hoje.getMonth()-11, 1);
+    const q=(de,ate)=>'dt_de='+_iso(de)+'&dt_ate='+_iso(ate);
+    const [r30, r12]=await Promise.all([
+      fetch('/api/bi/produtividade-veiculos?'+q(de30,hoje),{cache:'no-store'}),
+      fetch('/api/bi/produtividade-veiculos?'+q(de12,hoje),{cache:'no-store'})]);
+    const d=await r30.json(), a=r12.ok ? await r12.json() : null;
+    if(seq!==tvProdSeq) return;
+    if(!r30.ok){ tvErro('tvprod-k1', tvProdOk); return; }
+    const k=d.kpis||{};
+    const pct=v=>v==null?null:100*v;
+    const vz=pct(k.retorno_vazio), vzCls=vz==null?'':(vz>20?'ruim':'ok');
+    const oc=pct(k.ociosidade), ocCls=(k.ociosos||0)>0?'warn':'ok';
+    document.getElementById('tvprod-k1').innerHTML=[
+      tvCard('Km carregado', tvMilKm(k.km_carregado), '',
+        (k.viagens||0).toLocaleString('pt-BR')+' viagens · '+(k.veiculos||0)+' veíc.'),
+      tvCard('Km por veículo', tvMilKm(k.km_por_veiculo), '', 'por veículo que rodou'),
+      tvCard('Receita por veículo', k.receita_por_veiculo!=null?tvBRLc(k.receita_por_veiculo):'—', '',
+        'frete ÷ veículos'),
+      tvCard('R$ por km', k.rkm!=null?'R$ '+k.rkm.toFixed(2).replace('.',','):'—', '',
+        'receita ÷ km carregado'),
+      tvCard('Retorno vazio', vz==null?'n/d':vz.toFixed(0)+'%', vzCls, 'do km total · limite 20%', '',
+        {pct:vz==null?null:100*vz/40, cls:vzCls}),
+      tvCard('Parados', k.ociosos||0, ocCls, 'de '+(k.frota_ociosa_base||0)+' próprios e locados', '',
+        {pct:oc, cls:ocCls}),
+    ].join('');
+
+    // 12 MESES GERADOS, nao colhidos: o GROUP BY nao devolve o mes sem
+    // viagem, e ele emendaria o vizinho. Mes sem dado sai cinza e dito.
+    const meses=[];
+    for(let i=11;i>=0;i--){
+      const dt=new Date(hoje.getFullYear(), hoje.getMonth()-i, 1);
+      meses.push(dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0'));
+    }
+    const porMes={}; ((a&&a.mensal)||[]).forEach(m=>{ porMes[m.mes]=m; });
+    const maxKm=Math.max(1,...meses.map(m=>(porMes[m]||{}).km_carregado||0));
+    const nomeMes=m=>new Date(+m.slice(0,4), +m.slice(5,7)-1, 1)
+      .toLocaleDateString('pt-BR',{month:'short'}).replace('.','');
+    const serie=document.getElementById('tvprod-mensal');
+    serie.innerHTML = !a ? '<div class="tv-sub">série de 12 meses indisponível</div>'
+      : meses.map((m,i)=>{
+          const x=porMes[m];
+          if(!x) return `<div class="tvd-col sem"><span class="v">—</span><i style="height:2%"></i><b>${nomeMes(m)}</b><em>sem dado</em></div>`;
+          const parcial=(i===meses.length-1);     // o mes corrente, cortado em hoje
+          return `<div class="tvd-col${parcial?' parcial':''}"><span class="v">${Math.round((x.km_carregado||0)/1000).toLocaleString('pt-BR')}</span>`
+            +`<i style="height:${Math.max(2,78*(x.km_carregado||0)/maxKm).toFixed(1)}%"></i>`
+            +`<b>${nomeMes(m)}${parcial?' · parcial':''}</b><em>${(x.veiculos||0)} veíc.</em></div>`;
+        }).join('');
+
+    // POR MODALIDADE, locacao somada em frota (a mesma decisao da TV de
+    // operacao); o vazio do terceiro continua n/d -- ele nao e lancado
+    const agr={};
+    (d.modalidades||[]).forEach(m=>{
+      const key=(m.modalidade==='LOCACAO')?'FROTA':m.modalidade;
+      const g=agr[key]||(agr[key]={modalidade:key, veiculos:0, km_carregado:0, km_vazio:0, receita:0, semVazio:true});
+      g.veiculos+=m.veiculos||0; g.km_carregado+=m.km_carregado||0;
+      g.km_vazio+=m.km_vazio||0; g.receita+=m.receita||0;
+      if(m.retorno_vazio!=null) g.semVazio=false;
+    });
+    document.getElementById('tvprod-modal').innerHTML=Object.values(agr)
+      .sort((x,y)=>y.km_carregado-x.km_carregado).map(g=>{
+        const tot=g.km_carregado+g.km_vazio, vzg=(g.semVazio||!tot)?null:100*g.km_vazio/tot;
+        return `<tr><td>${esc(utLbl(g.modalidade)[0])}</td><td class="num">${g.veiculos}</td>`
+          +`<td class="num">${g.veiculos?tvMilKm(g.km_carregado/g.veiculos):'—'}</td>`
+          +`<td class="num" style="${vzg!=null&&vzg>20?'color:#F87171':''}">${vzg==null?'n/d':vzg.toFixed(0)+'%'}</td>`
+          +`<td class="num">${g.km_carregado?'R$ '+(g.receita/g.km_carregado).toFixed(2).replace('.',','):'—'}</td></tr>`;
+      }).join('') || '<tr><td colspan="5" style="color:#8FA6BC">sem viagens no período</td></tr>';
+
+    const idP=v=>v.frota||v.placa||'—';
+    const vzV=v=>v.retorno_vazio==null?'n/d':(100*v.retorno_vazio).toFixed(0)+'%';
+    document.getElementById('tvprod-top').innerHTML=(d.veiculos||[]).slice(0,20).map(v=>
+      `<tr><td style="font-family:var(--mono);font-weight:700">${esc(idP(v))}</td><td>${esc(utLbl(v.modalidade)[0])}</td>`
+      +`<td class="num">${v.viagens}</td><td class="num">${tvMilKm(v.km_carregado)}</td>`
+      +`<td class="num">${v.km_por_dia_ativo!=null?Math.round(v.km_por_dia_ativo).toLocaleString('pt-BR'):'—'}</td>`
+      +`<td class="num">${vzV(v)}</td></tr>`).join('')
+      || '<tr><td colspan="6" style="color:#8FA6BC">sem viagens no período</td></tr>';
+    const dataBR=s=>s?s.slice(8,10)+'/'+s.slice(5,7)+'/'+s.slice(2,4):'—';
+    document.getElementById('tvprod-par').innerHTML=(d.ociosos||[]).slice(0,20).map(v=>{
+      const dp=v.dias_parado, cor=dp==null?'':(dp>=180?'#F87171':(dp>=90?'#FBBF24':''));
+      return `<tr><td style="font-family:var(--mono);font-weight:700">${esc(idP(v))}</td><td>${esc(utLbl(v.modalidade)[0])}</td>`
+        +`<td class="num" style="${cor?'color:'+cor+';font-weight:700':''}">${dp==null?'—':dp+' dias'}</td>`
+        +`<td class="num">${dataBR(v.ultima_viagem)}</td></tr>`;
+    }).join('') || '<tr><td colspan="4" style="color:#8FA6BC">nenhum veículo parado</td></tr>';
+
+    const top5=(d.veiculos||[]).slice(0,5).reduce((s,v)=>s+(v.km_carregado||0),0);
+    const conc=k.km_carregado ? 100*top5/k.km_carregado : null;
+    document.getElementById('tvprod-k2').innerHTML=[
+      tvCard('Ociosidade', oc==null?'—':oc.toFixed(0)+'%', ocCls, 'parados ÷ próprios e locados', '',
+        {pct:oc, cls:ocCls}),
+      tvCard('Nunca rodaram', k.nunca_rodaram||0, '', 'cadastro a conferir'),
+      tvCard('5 maiores', conc==null?'—':conc.toFixed(0)+'%', '', 'do km carregado', '', {pct:conc}),
+    ].join('');
+    tvCortaLinhas('tvprod-top', 'tvprod-top-n', d.veiculos_total||0);
+    tvCortaLinhas('tvprod-par', 'tvprod-par-n', (d.ociosos||[]).length);
+
+    const tick=[];
+    if((k.ociosos||0)>0){
+      const o=(d.ociosos||[])[0];
+      tick.push('🅿️ '+k.ociosos+' parado(s) na frota própria e locada'
+        +(o&&o.dias_parado!=null?' · '+idP(o)+' há '+o.dias_parado+' dias':''));
+    }
+    if(vz!=null && vz>20) tick.push('↩️ Retorno vazio de '+vz.toFixed(0)+'% em 30 dias — acima do limite de 20%');
+    if((k.nunca_rodaram||0)>0) tick.push('🧾 '+k.nunca_rodaram+' veículo(s) sem nenhuma viagem na história — cadastro a conferir');
+    if(conc!=null && conc>25) tick.push('📊 Os 5 veículos que mais rodaram fazem '+conc.toFixed(0)+'% do km');
+    tvTicker('tvprod-ticker', tick);
+    tvDestacar('tvprod-k1'); tvDestacar('tvprod-k2');
+    tvAnimarNums('tvprod-k1'); tvAnimarNums('tvprod-k2');
+    tvProdMostrar();
+    const cab=document.querySelector('#view-tvprod .tv-head');
+    if(cab){ cab.classList.add('sync'); setTimeout(()=>cab.classList.remove('sync'), 1200); }
+    tvProdOk=true;
+  }catch(e){ tvErro('tvprod-k1', tvProdOk); }
 }
 
 /* ---------------- Rentabilidade por Cliente ---------------- */
@@ -38096,6 +38368,7 @@ function podeVer(v){ if(v==='jornf') v='jorn'; if(v==='sup'||v==='apps'||v==='ra
 const BUSCA_SINONIMOS = {
   hp:['hora parada','horas paradas','estadia','diaria','freetime','permanencia','cobranca de estadia','tempo excedido','planilha do cliente','hp'],
   cliop:['portal do cliente','portal','minha operacao','cliente','iochpe','maxion','permanencia','freetime','estadia','patio','carga em curso','onde esta minha carga','nivel de servico','sla'],
+  tvprod:['produtividade da frota','produtividade','painel produtividade','tv produtividade','km por veiculo','receita por veiculo','veiculos parados','ociosidade','frota parada'],
   tvjor:['jornada tempo real','tempo real','motorista agora','direcao continua','5h30','lei 13103','onde esta o motorista','painel jornada','em direcao','repouso','monitoramento'],
   tvcom:['rastreador','rastreadora','comunicacao','sem sinal','mudo','localizador','carreta sem sinal','3s','raster','onixsat','sem posicao'],
   cob:['inadimplencia','inadimplente','devedor','cobranca','vencido','atraso cliente','regua'],
@@ -48126,6 +48399,7 @@ boot();
         <a href="#tvfat" onclick="fecharDrawer()"><span class="ic" data-ic="tvfatic"></span>Painéis TV — Faturamento</a>
         <a href="#tvjor" onclick="fecharDrawer()"><span class="ic" data-ic="tvjoric"></span>Painéis TV — Jornada</a>
         <a href="#tvope" onclick="fecharDrawer()"><span class="ic" data-ic="tv"></span>Painéis TV — Operação</a>
+        <a href="#tvprod" onclick="fecharDrawer()"><span class="ic" data-ic="tvprodic"></span>Painéis TV — Produtividade</a>
         <a href="#prodveic" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Produtividade de Veículos</a>
       </div>
     </div>
