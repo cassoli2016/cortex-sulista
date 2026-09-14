@@ -4,6 +4,17 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.76.0] — 13/09/2026  ·  CX-13/09/2026-v1.76.0
+
+### Adicionado
+- Painel de TV da Produtividade da Frota — uma lâmina nova com o mês atual: km carregado, viagens, veículos que rodaram, km por veículo, km por viagem e retorno vazio do dia 1 até ontem, cada um comparado aos mesmos dias do mês anterior; o ritmo do mês (km carregado por dia) ao lado dos cinco meses anteriores; e a tabela por modalidade do mês. O dia de hoje fica fora da conta porque ainda está em andamento.
+
+### Alterado
+- Painel de TV da Produtividade da Frota — o título de cada lâmina diz o período: os últimos 30 dias com as datas, o mês atual com os dias contados e os veículos dos últimos 30 dias. No celular o período aparece no alto de cada bloco.
+
+### Corrigido
+- Painel de TV da Produtividade da Frota no celular — a tabela por modalidade deixa de cortar a última coluna: o cabeçalho quebra em duas linhas e todos os números cabem.
+
 ## [1.75.0] — 13/09/2026  ·  CX-13/09/2026-v1.75.0
 
 ### Alterado

@@ -1992,9 +1992,9 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
 }
 
 /* ---- Painel TV — Produtividade da Frota (tvprod) ----
-   O formato da TV de operacao, com um CARROSSEL de duas laminas: as quatro
+   O formato da TV de operacao, com um CARROSSEL de tres laminas: as quatro
    secoes da antiga tela `prodveic` nao cabiam numa TV, e TV nao tem quem clique.
-   As laminas ficam lado a lado num trilho de 200% e so DESLIZAM (transform):
+   As laminas ficam lado a lado num trilho de 300% e so DESLIZAM (transform):
    as duas estao sempre renderizadas no tamanho real -- nada nasce medido com
    largura zero, que e o defeito mudo de conteudo escondido com display:none. */
 #view-tvprod .tv-head{margin-bottom:0.7vw}
@@ -2002,7 +2002,7 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
 #view-tvprod .tv-head .tv-clock{font-size:clamp(16px,1.5vw,30px)}
 #view-tvprod .tv-head .tv-next{font-size:clamp(14px,1.5vw,30px) !important}
 .tvp-lamina{display:inline-flex;align-items:center;gap:0.4vw;background:rgba(229,237,244,.08);
-  border-radius:999px;padding:0.2vw 0.8vw;font-size:clamp(10px,0.8vw,15px);font-weight:700;
+  border-radius:999px;padding:0.2vw 0.8vw;font-size:clamp(11px,1vw,19px);font-weight:700;
   color:#E5EDF4;white-space:nowrap}
 .tvp-lamina:empty{display:none}
 .tvp-lamina i{width:0.55vw;height:0.55vw;min-width:7px;min-height:7px;border-radius:50%;
@@ -2012,8 +2012,8 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
    auditar_superficies.py), e na parede o destaque da casa ja e este */
 .tvp-lamina i.on{background:#F08A4B}
 .tvp-janela{overflow:hidden;height:calc(100vh - 6.6vw);min-height:0}
-.tvp-trilho{display:flex;width:200%;height:100%;transition:transform 1s cubic-bezier(.4,0,.2,1)}
-.tvp-trilho>.tvw{flex:0 0 50%;width:50%;height:100%;box-sizing:border-box}
+.tvp-trilho{display:flex;width:300%;height:100%;transition:transform 1s cubic-bezier(.4,0,.2,1)}
+.tvp-trilho>.tvw{flex:0 0 calc(100%/3);width:calc(100%/3);height:100%;box-sizing:border-box}
 .tvp-trilho>.tvw+.tvw{padding-left:0.45vw}
 /* o grafico fica com a maior altura: a tabela de modalidade tem 3 ou 4
    linhas, e com a divisao meio a meio sobrava meia tela vazia embaixo dela */
@@ -2030,6 +2030,11 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
 .tvp-serie .tvd-col em{font-style:normal;font-size:clamp(8px,0.58vw,11px);color:#8FA6BC;white-space:nowrap}
 .tvp-serie .tvd-col.sem i{background:#2A4A68}
 .tvp-serie .tvd-col.sem .v{color:#4F6B85}
+/* o mes atual no ritmo: o laranja do relogio, o destaque da parede */
+.tvp-serie .tvd-col.atual i{background:#F08A4B}
+.tvp-serie .tvd-col.atual b{color:#F08A4B}
+/* na TV o periodo vai na pilula do titulo; o cabecalho do bloco e do celular */
+.tvp-cab{display:none}
 #view-tvprod .tv-tab{font-size:clamp(10px,0.78vw,15px);table-layout:fixed}
 #view-tvprod .tv-tab th{font-size:clamp(8px,0.6vw,12px);padding:0.22vw 0.45vw}
 #view-tvprod .tv-tab td{padding:0.26vw 0.45vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -2038,7 +2043,7 @@ body.tvfull.tvwall #view-tvprod .tv-head{flex-shrink:0}
 body.tvfull.tvwall #view-tvprod .tvp-janela{flex:1 1 auto;min-height:0;height:auto}
 body.tvfull.tvwall #view-tvprod .tv-ticker{flex-shrink:0;margin-top:0.55vw}
 @media(prefers-reduced-motion:reduce){.tvp-trilho{transition:none}}
-/* NO CELULAR NAO HA CARROSSEL: as duas laminas EMPILHAM e a pagina rola. O
+/* NO CELULAR NAO HA CARROSSEL: as tres laminas EMPILHAM e a pagina rola. O
    `!important` do transform vence o estilo que o giro escreve no trilho --
    no celular nao ha o que girar, e o giro pode estar armado desde a TV. */
 @media(max-width:880px){
@@ -2050,6 +2055,8 @@ body.tvfull.tvwall #view-tvprod .tv-ticker{flex-shrink:0;margin-top:0.55vw}
   .tvp-vis,.tvp-veic{grid-template-columns:1fr;grid-template-rows:none}
   .tvp-vis .tvw-kpis{grid-row:auto}
   .tvp-lamina{display:none}
+  /* sem a pilula, o periodo vai no alto de cada bloco */
+  .tvp-cab{display:block;font-size:13px;font-weight:700;color:#E5EDF4;letter-spacing:.02em}
   #view-tvprod .tv-head{grid-template-columns:1fr auto;row-gap:9px;margin-bottom:12px}
   #view-tvprod .tv-head .tv-title{grid-column:1/-1;grid-row:2;justify-content:flex-start}
   #view-tvprod .tv-head h2{font-size:17px;text-align:left}
@@ -2064,10 +2071,12 @@ body.tvfull.tvwall #view-tvprod .tv-ticker{flex-shrink:0;margin-top:0.55vw}
   .tvp-mensal .tvp-serie{height:220px;flex:none}
   /* 12 colunas nao cabem em 358 px (o fim saia cortado): no celular vao os
      6 ULTIMOS meses, e o rotulo do cartao diz isso */
-  .tvp-serie .tvd-col:nth-child(-n+6){display:none}
+  #tvprod-mensal .tvd-col:nth-child(-n+6){display:none}
   .tvp-12{display:none}
   .tvp-6{display:inline}
   #view-tvprod .tvp-vis .tv-tab{table-layout:auto}
+  /* cinco colunas em 358 px: o cabecalho quebra em duas linhas, o numero nao */
+  #view-tvprod .tvp-vis .tv-tab th{white-space:normal;vertical-align:bottom;line-height:1.2}
   .tvp-serie .tvd-col .v,.tvp-serie .tvd-col b{font-size:10px}
   .tvp-serie .tvd-col em{font-size:9px}
   #view-tvprod .tv-tab{font-size:13px}
@@ -4782,13 +4791,23 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="tv-head"><div class="tv-left"><img class="tv-logo" src="/static/sulista-logo-branco.svg" alt="Sulista"><span class="tv-upd tv-next"></span></div><div class="tv-title"><h2>PRODUTIVIDADE DA FROTA</h2><span class="tvp-lamina" id="tvprod-lamina"></span></div><div class="tv-right"><span class="tv-clock"></span><a href="javascript:tvFull()" title="tela cheia" aria-label="Tela cheia">⛶</a><a href="#home" title="sair do modo TV" aria-label="Sair do modo TV">✕</a></div></div>
         <div class="tvp-janela"><div class="tvp-trilho" id="tvprod-trilho">
           <div class="tvw tvp-vis">
+            <div class="tvp-cab" id="tvprod-cab1"></div>
             <div class="tvw-kpis" id="tvprod-k1"></div>
             <div class="tv-card tvp-mensal"><div class="tv-label">Km carregado por mês · mil km · <span class="tvp-12">12 meses</span><span class="tvp-6">6 meses</span></div><div class="tvd-serie tvp-serie" id="tvprod-mensal"></div></div>
             <div class="tv-card"><div class="tv-label">Por modalidade · últimos 30 dias</div>
               <table class="tv-tab"><thead><tr><th>Modalidade</th><th class="num">Veículos</th><th class="num">Km por veículo</th><th class="num">Vazio</th><th class="num">Viagens/veíc.</th></tr></thead>
               <tbody id="tvprod-modal"></tbody></table></div>
           </div>
+          <div class="tvw tvp-vis tvp-mes">
+            <div class="tvp-cab" id="tvprod-cab2"></div>
+            <div class="tvw-kpis" id="tvprod-k3"></div>
+            <div class="tv-card tvp-mensal"><div class="tv-label">Ritmo · mil km carregados por dia</div><div class="tvd-serie tvp-serie" id="tvprod-ritmo"></div></div>
+            <div class="tv-card"><div class="tv-label">Por modalidade · <span id="tvprod-mes-rot">mês atual</span></div>
+              <table class="tv-tab"><thead><tr><th>Modalidade</th><th class="num">Veículos</th><th class="num">Km por veículo</th><th class="num">Vazio</th><th class="num">Viagens/veíc.</th></tr></thead>
+              <tbody id="tvprod-modal-mes"></tbody></table></div>
+          </div>
           <div class="tvw tvp-veic">
+            <div class="tvp-cab" id="tvprod-cab3"></div>
             <div class="tv-card"><div class="tv-label">Mais produtivos · 30 dias <span class="tv-cont" id="tvprod-top-n"></span></div>
               <table class="tv-tab"><thead><tr><th>Frota</th><th>Modalidade</th><th class="num">Viagens</th><th class="num">Km carreg.</th><th class="num">Km/dia</th><th class="num">Vazio</th></tr></thead>
               <tbody id="tvprod-top"></tbody></table></div>
@@ -17554,22 +17573,27 @@ async function loadTvOpe(){
 /* ================ PAINEL DE TV — PRODUTIVIDADE DA FROTA (tvprod) ================
    A produtividade da frota na parede (pedido de quem opera, 13/09/2026), no formato
    da TV de operacao: a MESMA rota (/api/bi/produtividade-veiculos), os mesmos
-   indices, nenhuma metrica nova. DUAS LAMINAS em carrossel, de 20 em 20 s:
-     1. Visao geral -- seis cartoes, 12 meses de km e a tabela por modalidade;
-     2. Veiculos -- os mais produtivos, os parados e os indices de ociosidade.
+   indices, nenhuma metrica nova. TRES LAMINAS em carrossel, de 20 em 20 s:
+     1. Ultimos 30 dias -- seis cartoes, 12 meses de km e a tabela por modalidade;
+     2. Mes atual -- os mesmos indices do dia 1 ate ONTEM contra os mesmos dias
+        do mes anterior, o ritmo (km por dia) e a modalidade do mes;
+     3. Veiculos -- os mais produtivos, os parados e os indices de ociosidade.
    Recorte FIXO, sem barra de filtros: cartoes e listas nos ULTIMOS 30 DIAS
-   (janela movel: o mes corrente zeraria tudo no dia 1) e a serie em 12 meses.
+   (janela movel: o mes corrente zeraria tudo no dia 1), a serie em 12 meses
+   e, desde a 1.76.0, o mes corrente numa lamina propria (quem opera: "precisa
+   por que sao dos ultimos 30 dias, e poderiamos ter o mes atual tambem"). O
+   periodo de cada lamina vai escrito na pilula do titulo.
    As regras de cor sao as da tela: retorno vazio acima de 20% vermelho;
    parados em amarelo quando ha algum; "parado ha" amarelo a partir de 90 dias
    e vermelho a partir de 180. Locacao soma em frota, como na TV de operacao.
    A tela `prodveic`, de onde a TV saiu, foi aposentada na 1.75.0 (quem opera:
    "pode excluir"); a rota ficou, e quem a le e esta TV e o Copiloto. */
-const TVP_LAMINAS=['Visão geral','Veículos'];
+var TVP_LAMINAS=['Últimos 30 dias','Mês atual','Veículos · últimos 30 dias'];   // o loadTvProd poe as datas
 var TVP_IDX=0;   // var, e nao let: o giro pode ser armado antes desta linha rodar
 let tvProdSeq=0, tvProdOk=false;
 function tvProdMostrar(){
   const tr=document.getElementById('tvprod-trilho');
-  if(tr) tr.style.transform='translateX('+(-50*TVP_IDX)+'%)';
+  if(tr) tr.style.transform='translateX('+(-100*TVP_IDX/TVP_LAMINAS.length).toFixed(4)+'%)';
   const el=document.getElementById('tvprod-lamina');
   if(el) el.innerHTML=TVP_LAMINAS.map((n,i)=>'<i class="'+(i===TVP_IDX?'on':'')+'"></i>').join('')
     +'<span>'+esc(TVP_LAMINAS[TVP_IDX])+'</span>';
@@ -17594,16 +17618,60 @@ function tvCortaLinhas(tbodyId, contId, total){
   const c=document.getElementById(contId);
   if(c) c.textContent = total ? Math.min(tb.rows.length, total)+' de '+total : '';
 }
+/* POR MODALIDADE, locacao somada em frota (a mesma decisao da TV de
+   operacao); o vazio do terceiro continua n/d -- ele nao e lancado. Uma
+   funcao para as duas laminas que tem a tabela: 30 dias e mes atual. */
+function tvProdModal(id, modalidades){
+  const tb=document.getElementById(id); if(!tb) return;
+  if(modalidades==null){ tb.innerHTML='<tr><td colspan="5" style="color:#8FA6BC">leitura indisponível</td></tr>'; return; }
+  const agr={};
+  modalidades.forEach(m=>{
+    const key=(m.modalidade==='LOCACAO')?'FROTA':m.modalidade;
+    const g=agr[key]||(agr[key]={modalidade:key, veiculos:0, viagens:0, km_carregado:0, km_vazio:0, semVazio:true});
+    g.veiculos+=m.veiculos||0; g.viagens+=m.viagens||0; g.km_carregado+=m.km_carregado||0;
+    g.km_vazio+=m.km_vazio||0;
+    if(m.retorno_vazio!=null) g.semVazio=false;
+  });
+  tb.innerHTML=Object.values(agr)
+    .sort((x,y)=>y.km_carregado-x.km_carregado).map(g=>{
+      const tot=g.km_carregado+g.km_vazio, vzg=(g.semVazio||!tot)?null:100*g.km_vazio/tot;
+      return `<tr><td>${esc(utLbl(g.modalidade)[0])}</td><td class="num">${g.veiculos}</td>`
+        +`<td class="num">${g.veiculos?tvMilKm(g.km_carregado/g.veiculos):'—'}</td>`
+        +`<td class="num" style="${vzg!=null&&vzg>20?'color:#F87171':''}">${vzg==null?'n/d':vzg.toFixed(0)+'%'}</td>`
+        +`<td class="num">${g.veiculos?(g.viagens/g.veiculos).toFixed(1).replace('.',','):'—'}</td></tr>`;
+    }).join('') || '<tr><td colspan="5" style="color:#8FA6BC">sem viagens no período</td></tr>';
+}
 async function loadTvProd(){
   const seq=++tvProdSeq;
   try{
     const hoje=new Date(), de30=new Date(); de30.setDate(de30.getDate()-29);
     const de12=new Date(hoje.getFullYear(), hoje.getMonth()-11, 1);
+    /* O MES ATUAL VAI ATE ONTEM: o dia em curso e piso, nunca base de
+       comparacao -- na manha do dia 2 ele faria qualquer mes parecer metade do
+       anterior. Compara-se com os MESMOS dias do mes anterior (o anterior mais
+       curto corta no ultimo dia dele). No dia 1 nao ha dia fechado: vale o dia
+       em curso, e a comparacao so aparece no dia seguinte. */
+    const dia1=(hoje.getDate()===1);
+    const mesDe=new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const mesAte=dia1 ? hoje : new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()-1);
+    const antDe=new Date(hoje.getFullYear(), hoje.getMonth()-1, 1);
+    const antAte=new Date(hoje.getFullYear(), hoje.getMonth()-1,
+      Math.min(mesAte.getDate(), new Date(hoje.getFullYear(), hoje.getMonth(), 0).getDate()));
+    const dm=x=>String(x.getDate()).padStart(2,'0')+'/'+String(x.getMonth()+1).padStart(2,'0');
+    const nomeM=x=>x.toLocaleDateString('pt-BR',{month:'long'});
+    const rot30='Últimos 30 dias · '+dm(de30)+' a '+dm(hoje);
+    const mesNome=nomeM(mesDe), rotMes=mesNome.charAt(0).toUpperCase()+mesNome.slice(1)
+      +' · '+(dia1 ? 'dia 1, em curso' : '1 a '+dm(mesAte));
+    TVP_LAMINAS=[rot30, rotMes, 'Veículos · últimos 30 dias'];
     const q=(de,ate)=>'dt_de='+_iso(de)+'&dt_ate='+_iso(ate);
-    const [r30, r12]=await Promise.all([
-      fetch('/api/bi/produtividade-veiculos?'+q(de30,hoje),{cache:'no-store'}),
-      fetch('/api/bi/produtividade-veiculos?'+q(de12,hoje),{cache:'no-store'})]);
+    const pega=(de,ate)=>fetch('/api/bi/produtividade-veiculos?'+q(de,ate),{cache:'no-store'});
+    // o mes e o anterior sao lamina propria: falha deles nao derruba a TV
+    const opc=p=>p.catch(()=>null);
+    const lerOk=async r=>{ try{ return (r&&r.ok) ? await r.json() : null; }catch(_){ return null; } };
+    const [r30, r12, rM, rA]=await Promise.all([pega(de30,hoje), pega(de12,hoje),
+      opc(pega(mesDe,mesAte)), dia1 ? null : opc(pega(antDe,antAte))]);
     const d=await r30.json(), a=r12.ok ? await r12.json() : null;
+    const mm=await lerOk(rM), an=await lerOk(rA);
     if(seq!==tvProdSeq) return;
     if(!r30.ok){ tvErro('tvprod-k1', tvProdOk); return; }
     const k=d.kpis||{};
@@ -17650,24 +17718,71 @@ async function loadTvProd(){
             +`<b>${nomeMes(m)}${parcial?' · parcial':''}</b><em>${(x.veiculos||0)} veíc.</em></div>`;
         }).join('');
 
-    // POR MODALIDADE, locacao somada em frota (a mesma decisao da TV de
-    // operacao); o vazio do terceiro continua n/d -- ele nao e lancado
-    const agr={};
-    (d.modalidades||[]).forEach(m=>{
-      const key=(m.modalidade==='LOCACAO')?'FROTA':m.modalidade;
-      const g=agr[key]||(agr[key]={modalidade:key, veiculos:0, viagens:0, km_carregado:0, km_vazio:0, semVazio:true});
-      g.veiculos+=m.veiculos||0; g.viagens+=m.viagens||0; g.km_carregado+=m.km_carregado||0;
-      g.km_vazio+=m.km_vazio||0;
-      if(m.retorno_vazio!=null) g.semVazio=false;
-    });
-    document.getElementById('tvprod-modal').innerHTML=Object.values(agr)
-      .sort((x,y)=>y.km_carregado-x.km_carregado).map(g=>{
-        const tot=g.km_carregado+g.km_vazio, vzg=(g.semVazio||!tot)?null:100*g.km_vazio/tot;
-        return `<tr><td>${esc(utLbl(g.modalidade)[0])}</td><td class="num">${g.veiculos}</td>`
-          +`<td class="num">${g.veiculos?tvMilKm(g.km_carregado/g.veiculos):'—'}</td>`
-          +`<td class="num" style="${vzg!=null&&vzg>20?'color:#F87171':''}">${vzg==null?'n/d':vzg.toFixed(0)+'%'}</td>`
-          +`<td class="num">${g.veiculos?(g.viagens/g.veiculos).toFixed(1).replace('.',','):'—'}</td></tr>`;
-      }).join('') || '<tr><td colspan="5" style="color:#8FA6BC">sem viagens no período</td></tr>';
+    tvProdModal('tvprod-modal', d.modalidades||[]);
+
+    /* O MES ATUAL. Os indices da lamina de 30 dias, do dia 1 ate ONTEM,
+       contra os MESMOS dias do mes anterior. A comparacao e NEUTRA -- sem meta
+       nao ha verde nem vermelho (regra das TVs), so a seta e o tamanho; abaixo
+       de 1,5% e "estavel" -- e o retorno vazio, que ja e percentual, compara
+       em PONTOS: 16% contra 20% e "4 p.p.", nao "20%". Parados e ociosidade
+       ficam de fora: numa janela de poucos dias quase todo veiculo "parou". */
+    const km=mm&&mm.kpis, ka=an&&an.kpis;
+    const abrevA=antDe.toLocaleDateString('pt-BR',{month:'short'}).replace('.','');
+    const tvVar=(x,y,pp)=>{
+      if(x==null||y==null||!isFinite(x)||!isFinite(y)) return '';
+      if(pp){ const v=100*(x-y); return Math.abs(v)<0.5?'estável':(v>0?'▲ ':'▼ ')+Math.abs(v).toFixed(0)+' p.p.'; }
+      if(!y) return '';
+      const v=100*(x-y)/Math.abs(y);
+      return Math.abs(v)<1.5?'estável':(v>0?'▲ ':'▼ ')+Math.abs(v).toFixed(0)+'%';
+    };
+    const cmp=(x,y,fmt,pp)=>{
+      if(dia1) return 'compara a partir de amanhã';
+      if(!ka) return '';
+      const v=tvVar(x,y,pp);
+      return abrevA+': '+fmt(y)+(v?' · '+v:'');
+    };
+    const nInt=v=>v==null||!isFinite(v)?'—':Math.round(v).toLocaleString('pt-BR');
+    const pctF=v=>v==null?'n/d':(100*v).toFixed(0)+'%';
+    const kmViag=o=>o&&o.viagens?o.km_carregado/o.viagens:null;
+    const k3=document.getElementById('tvprod-k3');
+    if(km){
+      const vzm=pct(km.retorno_vazio), vzmCls=vzm==null?'':(vzm>20?'ruim':'ok');
+      k3.innerHTML=[
+        tvCard('Km carregado', tvMilKm(km.km_carregado), '', cmp(km.km_carregado, ka&&ka.km_carregado, tvMilKm)),
+        tvCard('Viagens', nInt(km.viagens), '', cmp(km.viagens, ka&&ka.viagens, nInt)),
+        tvCard('Veículos que rodaram', nInt(km.veiculos), '', cmp(km.veiculos, ka&&ka.veiculos, nInt)),
+        tvCard('Km por veículo', tvMilKm(km.km_por_veiculo), '', cmp(km.km_por_veiculo, ka&&ka.km_por_veiculo, tvMilKm)),
+        tvCard('Km por viagem', nInt(kmViag(km)), '', cmp(kmViag(km), kmViag(ka), nInt)),
+        tvCard('Retorno vazio', vzm==null?'n/d':vzm.toFixed(0)+'%', vzmCls,
+          cmp(km.retorno_vazio, ka&&ka.retorno_vazio, pctF, true), '', {pct:vzm==null?null:100*vzm/40, cls:vzmCls}),
+      ].join('');
+    } else k3.innerHTML=tvCard('Mês atual', '—', '', 'leitura indisponível');
+
+    /* RITMO: km carregado POR DIA, para o mes em curso caber na regua dos
+       fechados -- total de mes parcial contra mes inteiro so mostra queda. Os
+       5 fechados vem da serie de 12 meses (dividida pelos dias do mes); o
+       atual, dos dias fechados acima. Mes sem dado sai cinza e dito. */
+    const colR=[];
+    for(let i=5;i>=1;i--){
+      const dt=new Date(hoje.getFullYear(), hoje.getMonth()-i, 1);
+      const m=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0');
+      const x=porMes[m], dias=new Date(dt.getFullYear(), dt.getMonth()+1, 0).getDate();
+      colR.push({m, v:x?(x.km_carregado||0)/dias:null, em:x?'mês inteiro':(a?'sem dado':'indisponível')});
+    }
+    colR.push({m:meses[meses.length-1], atual:true, v:(km&&!dia1)?(km.km_carregado||0)/mesAte.getDate():null,
+      em:dia1?'a partir de amanhã':(km?'1 a '+dm(mesAte):'indisponível')});
+    const maxR=Math.max(1,...colR.map(c=>c.v||0));
+    const milDia=v=>(v/1000).toLocaleString('pt-BR',{minimumFractionDigits:1, maximumFractionDigits:1});
+    document.getElementById('tvprod-ritmo').innerHTML=colR.map(c=>c.v==null
+      ? `<div class="tvd-col sem${c.atual?' atual':''}"><span class="v">—</span><i style="height:2%"></i><b>${nomeMes(c.m)}</b><em>${c.em}</em></div>`
+      : `<div class="tvd-col${c.atual?' atual':''}"><span class="v">${milDia(c.v)}</span>`
+        +`<i style="height:${Math.max(2,78*c.v/maxR).toFixed(1)}%"></i><b>${nomeMes(c.m)}</b><em>${c.em}</em></div>`).join('');
+    tvProdModal('tvprod-modal-mes', mm ? (mm.modalidades||[]) : null);
+    document.getElementById('tvprod-mes-rot').textContent=rotMes;
+    document.getElementById('tvprod-cab1').textContent=rot30;
+    document.getElementById('tvprod-cab2').textContent=rotMes
+      +(ka ? ' · comparado aos mesmos dias de '+nomeM(antDe) : '');
+    document.getElementById('tvprod-cab3').textContent=TVP_LAMINAS[2];
 
     const idP=v=>v.frota||v.placa||'—';
     const vzV=v=>v.retorno_vazio==null?'n/d':(100*v.retorno_vazio).toFixed(0)+'%';
@@ -17705,9 +17820,14 @@ async function loadTvProd(){
     if(vz!=null && vz>20) tick.push('↩️ Retorno vazio de '+vz.toFixed(0)+'% em 30 dias — acima do limite de 20%');
     if((k.nunca_rodaram||0)>0) tick.push('🧾 '+k.nunca_rodaram+' veículo(s) sem nenhuma viagem na história — cadastro a conferir');
     if(conc!=null && conc>25) tick.push('📊 Os 5 veículos que mais rodaram fazem '+conc.toFixed(0)+'% do km');
+    if(km && km.km_carregado && !dia1){
+      const v=ka ? tvVar(km.km_carregado, ka.km_carregado) : '';
+      tick.push('📅 '+rotMes+': '+tvMilKm(km.km_carregado)+' km carregados'
+        +(v ? ' · '+v+' sobre os mesmos dias de '+nomeM(antDe) : ''));
+    }
     tvTicker('tvprod-ticker', tick);
-    tvDestacar('tvprod-k1'); tvDestacar('tvprod-k2');
-    tvAnimarNums('tvprod-k1'); tvAnimarNums('tvprod-k2');
+    tvDestacar('tvprod-k1'); tvDestacar('tvprod-k2'); tvDestacar('tvprod-k3');
+    tvAnimarNums('tvprod-k1'); tvAnimarNums('tvprod-k2'); tvAnimarNums('tvprod-k3');
     tvProdMostrar();
     const cab=document.querySelector('#view-tvprod .tv-head');
     if(cab){ cab.classList.add('sync'); setTimeout(()=>cab.classList.remove('sync'), 1200); }
