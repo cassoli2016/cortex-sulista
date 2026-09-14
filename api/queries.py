@@ -223,7 +223,7 @@ FORN_A = _lista_de("a.cnpjcpfcodigo", "fornecedores")  # contaapagar alias `a`
 FORN = _lista_de("cnpjcpfcodigo", "fornecedores")      # contaapagar sem alias
 
 # Recebíveis pelo MÉTODO OFICIAL do ERP (fatura × fatura_composicao,
-# composicao=1 "faturado", valorpendentecnpjcliente, docs 6/8/10/11 + CT-e
+# composicao=1 "faturado", valor `_VAL_OF`, docs 6/8/10/11 + CT-e
 # situacaocte=3) — MESMA regra da Régua de Cobrança/Ficha de Cliente (ver
 # _COB_FROM/_COB_WHERE mais abaixo), mas parametrizada por {DREF} porque esta
 # tela aceita data_ref retroativa (a Cobrança não). Antes "aberto"/aging/
@@ -248,19 +248,35 @@ WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
 _REC_OF_RNG = ("AND (f.dtvencimento >= %(venc_de)s::date OR %(venc_de)s::date IS NULL) "
                "AND (f.dtvencimento <= %(venc_ate)s::date OR %(venc_ate)s::date IS NULL)")
 _REC_OF_VENC = "coalesce(f.dtprevisaopagamento, f.dtvencimento)"
+# O VALOR de cada documento é o do BI de Inadimplência do Avacorp
+# (Bi/Financeiro/Inadimplencia): o MENOR entre o pendente da composição e o
+# saldo da fatura. O pendente sozinho não enxerga o pagamento PARCIAL lançado
+# na fatura — conferido em 14/09/2026, o único grupo de cliente que divergia do
+# BI tinha faturas pagas em 70% com o pendente da composição cheio; com o menor
+# dos dois, os oito grupos batem ao centavo. `least` ignora NULL, então fatura
+# sem saldo gravado vale o pendente (nenhuma no aberto, medido no mesmo dia).
+# O FILTRO continua sendo o pendente `> 0`, como no BI: ele decide QUAIS
+# documentos contam; `_VAL_OF` decide QUANTO cada um vale.
+_VAL_OF = "least(fc.valorpendentecnpjcliente, f.valorsaldoreceber)"
+# As FAIXAS de atraso são as do mesmo BI: até 15, 16 a 30, 31 a 90 e acima de
+# 90 dias. O gráfico de faixas do BI soma bem MENOS que o total da própria
+# tela: a consulta dele faz `SELECT DISTINCT` sem a chave do documento, e dois
+# títulos do mesmo grupo com o mesmo valor e os mesmos dias de atraso viram um
+# (mais da metade dos documentos, medido no mesmo dia). Aqui cada documento
+# conta, e as faixas somam o vencido.
 _FAIXA_OF = f"""CASE
     WHEN {_REC_OF_VENC} >= {DREF}       THEN '1_a_vencer'
-    WHEN {_REC_OF_VENC} >= {DREF} - 30  THEN '2_vencido_ate_30'
-    WHEN {_REC_OF_VENC} >= {DREF} - 90  THEN '3_vencido_31_90'
-    WHEN {_REC_OF_VENC} >= {DREF} - 365 THEN '4_vencido_91_365'
-    ELSE '5_vencido_mais_365' END"""
+    WHEN {_REC_OF_VENC} >= {DREF} - 15  THEN '2_vencido_ate_15'
+    WHEN {_REC_OF_VENC} >= {DREF} - 30  THEN '3_vencido_16_30'
+    WHEN {_REC_OF_VENC} >= {DREF} - 90  THEN '4_vencido_31_90'
+    ELSE '5_vencido_mais_90' END"""
 
 KPI_SQL = f"""
 SELECT
-  (SELECT coalesce(sum(fc.valorpendentecnpjcliente),0)::float8
+  (SELECT coalesce(sum({_VAL_OF}),0)::float8
      {_REC_OF_FROM} {_REC_OF_WHERE} {_REC_OF_RNG})                                 AS receber_aberto,
   (SELECT count(*)::int {_REC_OF_FROM} {_REC_OF_WHERE} {_REC_OF_RNG})              AS receber_qtd,
-  (SELECT coalesce(sum(fc.valorpendentecnpjcliente),0)::float8
+  (SELECT coalesce(sum({_VAL_OF}),0)::float8
      {_REC_OF_FROM} {_REC_OF_WHERE}
      AND {_REC_OF_VENC} < {DREF})                                                  AS receber_vencido,
   (SELECT coalesce(sum(fc.valorpendentecnpjcliente),0)::float8
@@ -288,7 +304,7 @@ SELECT
      WHERE dtcancelamento IS NULL
        AND date_trunc('month', dtemissao) = date_trunc('month', {DREF})
        {FIL} {CLI_FAT})                                                            AS faturamento_mes,
-  (SELECT coalesce(sum(fc.valorpendentecnpjcliente),0)::float8
+  (SELECT coalesce(sum({_VAL_OF}),0)::float8
      {_REC_OF_FROM} {_REC_OF_WHERE}
      AND {_REC_OF_VENC} >= {DREF} AND {_REC_OF_VENC} <= {DREF} + 30)               AS receber_prox30,
   (SELECT coalesce(sum(valorpendente),0)::float8 FROM contaapagar
@@ -299,7 +315,7 @@ SELECT
 
 AGING_AR_SQL = f"""
 SELECT faixa, count(*)::int AS qtd, sum(valor)::float8 AS valor FROM (
-  SELECT {_FAIXA_OF} AS faixa, fc.valorpendentecnpjcliente AS valor
+  SELECT {_FAIXA_OF} AS faixa, {_VAL_OF} AS valor
   {_REC_OF_FROM} {_REC_OF_WHERE} {_REC_OF_RNG}
 ) t GROUP BY faixa ORDER BY faixa
 """
@@ -519,7 +535,7 @@ FROM (
       WHEN date_trunc('month',{_REC_OF_VENC}) <  date_trunc('month',{DREF}) - interval '6 months'  THEN '0:ant'
       WHEN date_trunc('month',{_REC_OF_VENC}) >= date_trunc('month',{DREF}) + interval '12 months' THEN '2:pos'
       ELSE '1:'||to_char({_REC_OF_VENC},'YYYY-MM') END AS bucket,
-    {_REC_OF_VENC} AS venc_of, fc.valorpendentecnpjcliente AS valor_of
+    {_REC_OF_VENC} AS venc_of, {_VAL_OF} AS valor_of
   {_REC_OF_FROM} {_REC_OF_WHERE} {_REC_OF_RNG}
 ) t GROUP BY bucket ORDER BY bucket
 """
@@ -531,8 +547,8 @@ DRILL_AR_SQL = f"""
 SELECT f.cliente AS codigo,
        coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''), '(sem cadastro)') AS nome,
        count(*)::int AS titulos,
-       sum(fc.valorpendentecnpjcliente)::float8 AS valor,
-       sum(CASE WHEN {_REC_OF_VENC} < {DREF} THEN fc.valorpendentecnpjcliente ELSE 0 END)::float8 AS vencido
+       sum({_VAL_OF})::float8 AS valor,
+       sum(CASE WHEN {_REC_OF_VENC} < {DREF} THEN {_VAL_OF} ELSE 0 END)::float8 AS vencido
 {_REC_OF_FROM}
 LEFT JOIN cadastro c ON c.codigo = f.cliente
 {_REC_OF_WHERE} {_REC_OF_RNG}
@@ -581,10 +597,10 @@ GROUP BY 1 ORDER BY 3 DESC
 RECEBER_TIPO_SQL = f"""
 SELECT coalesce(nullif(trim(td.descricao),''), 'documento '||fc.tipodocumentoorigem::text) AS tipo,
        count(*)::int AS titulos,
-       sum(fc.valorpendentecnpjcliente)::float8 AS total,
-       sum(CASE WHEN {_REC_OF_VENC} < {DREF} THEN fc.valorpendentecnpjcliente ELSE 0 END)::float8 AS vencido,
+       sum({_VAL_OF})::float8 AS total,
+       sum(CASE WHEN {_REC_OF_VENC} < {DREF} THEN {_VAL_OF} ELSE 0 END)::float8 AS vencido,
        sum(CASE WHEN {_REC_OF_VENC} >= {DREF} AND {_REC_OF_VENC} <= {DREF} + 30
-                THEN fc.valorpendentecnpjcliente ELSE 0 END)::float8 AS prox30
+                THEN {_VAL_OF} ELSE 0 END)::float8 AS prox30
 {_REC_OF_FROM}
 LEFT JOIN tipodocumento td ON td.codigo = fc.tipodocumentoorigem
 {_REC_OF_WHERE}
@@ -609,7 +625,7 @@ SELECT f.cliente AS codigo,
        coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''),
                 '(sem cadastro)') AS nome,
        count(*)::int AS titulos,
-       sum(fc.valorpendentecnpjcliente)::float8 AS valor
+       sum({_VAL_OF})::float8 AS valor
 {_REC_OF_FROM}
 LEFT JOIN cadastro c ON c.codigo = f.cliente
 WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
@@ -5252,8 +5268,8 @@ def get_contabil(comp_de: str, comp_ate: str, busca: str | None = None) -> dict:
 # com faixas de idade e detalhe dos títulos.
 # ============================================================================
 # Inadimplência pelo MÉTODO OFICIAL do ERP (Querys Sulista/INADIMPLENCIA):
-# fatura + fatura_composicao, só "Faturado" (composicao=1), valor =
-# valorpendentecnpjcliente, vencido por COALESCE(dtprevisaopagamento,
+# fatura + fatura_composicao, só "Faturado" (composicao=1), valor = `_VAL_OF`
+# (o do BI do Avacorp), vencido por COALESCE(dtprevisaopagamento,
 # dtvencimento) com dtpagamento IS NULL, docs 6/8/10/11 e CT-e válido
 # (situacaocte=3). Antes usávamos fatura.valorsaldoreceber, que inflava ~12x
 # por incluir pendentes de faturamento (composicao=2) — agora à parte.
@@ -5271,56 +5287,99 @@ WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
 """
 _COB_DV = "(current_date - coalesce(f.dtprevisaopagamento, f.dtvencimento))"
 
+# O AGRUPAMENTO DE CLIENTES. O "Por cliente" do BI de Inadimplência do Avacorp
+# não é o CNPJ: é o grupo do cadastro `agrupamentocliente` (vínculo 1), e a
+# cobrança se faz do mesmo jeito — liga-se para o grupo, não para cada filial
+# dele. Cliente sem grupo fica sozinho, pelo próprio nome.
+#
+# O VÍNCULO ENTRA POR `DISTINCT ON`, e não por join direto: o cadastro NÃO
+# garante um grupo por CNPJ (14/09/2026: 4 CNPJs em dois grupos cada, nenhum
+# com título em aberto naquele dia). Join direto dobraria o título no dia em
+# que um deles dever, e o total dobrado é plausível. Vale o vínculo incluído
+# por último (`dtalt` está vazia em todos), com o código desempatando.
+_AGRUP_JOIN = """
+LEFT JOIN (SELECT DISTINCT ON (cnpjcpfcodigo) cnpjcpfcodigo, codigo
+             FROM agrupamentocliente_cnpjcpfcodigo WHERE vinculo = 1
+            ORDER BY cnpjcpfcodigo, dtalt DESC NULLS LAST, dtinc DESC NULLS LAST, codigo
+          ) acc ON acc.cnpjcpfcodigo = f.cliente
+LEFT JOIN agrupamentocliente ag ON ag.codigo = acc.codigo
+"""
+# A chave do grupo. Leva o CNPJ quando o cliente não tem grupo, e por isso NÃO
+# sai do servidor: `get_cobranca` a tira antes de responder.
+_AGRUP_CHAVE = "coalesce('g'||ag.codigo::text, 'c'||f.cliente)"
+_NOME_CLI = ("coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''), "
+             "'(sem cadastro)')")
+# O nome que a tela mostra. Nas consultas agrupadas ele vai dentro de `min()`:
+# as empresas de um grupo têm nomes diferentes, e `GROUP BY` pelo nome
+# partiria o grupo de volta em CNPJs.
+_AGRUP_NOME = f"coalesce(nullif(trim(ag.descricao),''), {_NOME_CLI})"
+# O filtro "cliente" da tela casa o nome da empresa OU o do grupo.
+_COB_CLI_FILTRO = """
+  AND (%(cliente)s::text IS NULL OR c.nomefantasia ILIKE '%%'||%(cliente)s||'%%'
+       OR c.razaosocial ILIKE '%%'||%(cliente)s||'%%'
+       OR ag.descricao ILIKE '%%'||%(cliente)s||'%%')"""
+
+# `codigo` (o menor CNPJ do grupo) só serve para mascarar o documento quando a
+# linha é um cliente sem grupo. As faixas são as de `_FAIXA_OF`, em dias.
 COB_CLI_SQL = f"""
-SELECT f.cliente AS codigo,
-       coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''), '(sem cadastro)') AS cliente,
+SELECT {_AGRUP_CHAVE} AS chave,
+       min({_AGRUP_NOME}) AS cliente,
+       bool_or(ag.codigo IS NOT NULL) AS grupo,
+       count(DISTINCT f.cliente)::int AS empresas,
+       min(f.cliente) AS codigo,
        count(*)::int AS titulos,
-       sum(fc.valorpendentecnpjcliente)::float8 AS vencido,
-       sum(CASE WHEN {_COB_DV} <= 30 THEN fc.valorpendentecnpjcliente ELSE 0 END)::float8 AS ate_30,
-       sum(CASE WHEN {_COB_DV} BETWEEN 31 AND 90 THEN fc.valorpendentecnpjcliente ELSE 0 END)::float8 AS de_31_90,
-       sum(CASE WHEN {_COB_DV} BETWEEN 91 AND 365 THEN fc.valorpendentecnpjcliente ELSE 0 END)::float8 AS de_91_365,
-       sum(CASE WHEN {_COB_DV} > 365 THEN fc.valorpendentecnpjcliente ELSE 0 END)::float8 AS mais_365,
-       min(coalesce(f.dtprevisaopagamento, f.dtvencimento))::text AS vencimento_mais_antigo
+       sum({_VAL_OF})::float8 AS vencido,
+       sum(CASE WHEN {_COB_DV} <= 15 THEN {_VAL_OF} ELSE 0 END)::float8 AS ate_15,
+       sum(CASE WHEN {_COB_DV} BETWEEN 16 AND 30 THEN {_VAL_OF} ELSE 0 END)::float8 AS de_16_30,
+       sum(CASE WHEN {_COB_DV} BETWEEN 31 AND 90 THEN {_VAL_OF} ELSE 0 END)::float8 AS de_31_90,
+       sum(CASE WHEN {_COB_DV} > 90 THEN {_VAL_OF} ELSE 0 END)::float8 AS mais_90,
+       min({_REC_OF_VENC})::text AS vencimento_mais_antigo
 {_COB_FROM}
 LEFT JOIN cadastro c ON c.codigo = f.cliente
-{_COB_WHERE}
-  AND (%(cliente)s::text IS NULL OR c.nomefantasia ILIKE '%%'||%(cliente)s||'%%'
-       OR c.razaosocial ILIKE '%%'||%(cliente)s||'%%')
-GROUP BY f.cliente, c.nomefantasia, c.razaosocial
-ORDER BY 4 DESC LIMIT 30
+{_AGRUP_JOIN}
+{_COB_WHERE} {_COB_CLI_FILTRO}
+GROUP BY 1
+ORDER BY 7 DESC, 1 LIMIT 30
 """
 
-COB_DSO_SQL = """
-SELECT cliente AS codigo,
-       (sum((dtpagamento::date - dtemissao::date) * valortitulo)
-        / nullif(sum(valortitulo),0))::float8 AS dso
-FROM fatura
-WHERE dtcancelamento IS NULL AND dtpagamento IS NOT NULL AND valortitulo > 0
-  AND dtpagamento >= current_date - 180
-  AND cliente = ANY(%(codigos)s)
-GROUP BY cliente
+# O prazo médio REAL do grupo: as faturas pagas nos últimos 180 dias de TODAS
+# as empresas dele, inclusive a que não deve nada hoje — ela também diz como o
+# grupo paga. (0,1 s para 16 grupos, medido em 14/09/2026.)
+COB_DSO_SQL = f"""
+SELECT {_AGRUP_CHAVE} AS chave,
+       (sum((f.dtpagamento::date - f.dtemissao::date) * f.valortitulo)
+        / nullif(sum(f.valortitulo),0))::float8 AS dso
+FROM fatura f
+{_AGRUP_JOIN}
+WHERE f.dtcancelamento IS NULL AND f.dtpagamento IS NOT NULL AND f.valortitulo > 0
+  AND f.dtpagamento >= current_date - 180
+  AND {_AGRUP_CHAVE} = ANY(%(chaves)s::text[])
+GROUP BY 1
 """
 
-# Detalhe dos títulos do cliente, do MAIS ANTIGO para o mais novo (vencimento
+# Detalhe dos títulos do grupo, do MAIS ANTIGO para o mais novo (vencimento
 # crescente) — é a ordem em que se cobra: o título parado há mais tempo é o de
 # maior risco de perda e o primeiro a virar protesto. Antes saía por valor
 # decrescente, o que empurrava dívida antiga e pequena para o fim da lista.
-# ATENÇÃO: `get_cobranca` corta em MAX_TIT por cliente, então quem cai fora do
-# corte agora são os títulos MAIS RECENTES (antes eram os de menor valor) — o
-# rótulo "+N não exibidos" no front diz isso explicitamente.
-# O desempate por valor decrescente mantém a lista estável quando vários
-# títulos vencem no mesmo dia (comum em faturamento quinzenal).
+# ATENÇÃO: `get_cobranca` corta em MAX_TIT por grupo, então quem cai fora do
+# corte são os títulos MAIS RECENTES — o rótulo "+N não exibidos" no front diz
+# isso explicitamente. O desempate por valor decrescente e depois pelo número
+# mantém a lista estável quando vários títulos vencem no mesmo dia (comum em
+# faturamento quinzenal). `empresa` diz de qual CNPJ do grupo é cada título —
+# pelo nome, nunca pelo documento.
 COB_TIT_SQL = f"""
-SELECT f.cliente AS codigo_c, fc.numerosequenciadocumentoorigem AS numero, f.filial,
+SELECT {_AGRUP_CHAVE} AS chave_t, {_NOME_CLI} AS empresa,
+       fc.numerosequenciadocumentoorigem AS numero, f.filial,
        to_char(f.dtemissao,'YYYY-MM-DD') AS emissao,
-       to_char(coalesce(f.dtprevisaopagamento, f.dtvencimento),'YYYY-MM-DD') AS vencimento,
+       to_char({_REC_OF_VENC},'YYYY-MM-DD') AS vencimento,
        {_COB_DV}::int AS dias_vencido,
-       fc.valorpendentecnpjcliente::float8 AS saldo
+       {_VAL_OF}::float8 AS saldo
 {_COB_FROM}
-{_COB_WHERE}
-  AND f.cliente = ANY(%(codigos)s)
-ORDER BY f.cliente, coalesce(f.dtprevisaopagamento, f.dtvencimento) ASC,
-         fc.valorpendentecnpjcliente DESC
+LEFT JOIN cadastro c ON c.codigo = f.cliente
+{_AGRUP_JOIN}
+{_COB_WHERE} {_COB_CLI_FILTRO}
+  AND {_AGRUP_CHAVE} = ANY(%(chaves)s::text[])
+ORDER BY 1, {_REC_OF_VENC} ASC, {_VAL_OF} DESC, fc.numerosequenciadocumentoorigem
 """
 
 # Pendente de faturamento vencido (composicao=2) — mostrado à parte; NÃO entra
@@ -5336,16 +5395,16 @@ WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
 """
 
 # Recebíveis por cliente (Ficha de Cliente) pelo MESMO método oficial da Régua
-# de Cobrança (fatura_composicao, composicao=1, valorpendentecnpjcliente,
+# de Cobrança (fatura_composicao, composicao=1, valor `_VAL_OF`,
 # docs 6/8/10/11 + CT-e situacaocte=3), reaproveitando _COB_FROM/_COB_DV.
 # Antes usava fatura.valorsaldoreceber (inflava ~12x, ver comentário acima) —
 # divergia da Régua de Cobrança para o mesmo cliente.
 CLIF_RECEB_SQL = f"""
 SELECT count(*)::int AS titulos,
-       coalesce(sum(fc.valorpendentecnpjcliente),0)::float8 AS aberto,
-       coalesce(sum(CASE WHEN {_COB_DV} > 0 THEN fc.valorpendentecnpjcliente ELSE 0 END),0)::float8 AS vencido,
-       coalesce(sum(CASE WHEN {_COB_DV} <= 0 THEN fc.valorpendentecnpjcliente ELSE 0 END),0)::float8 AS a_vencer,
-       coalesce(sum(CASE WHEN {_COB_DV} > 90 THEN fc.valorpendentecnpjcliente ELSE 0 END),0)::float8 AS vencido_mais_90,
+       coalesce(sum({_VAL_OF}),0)::float8 AS aberto,
+       coalesce(sum(CASE WHEN {_COB_DV} > 0 THEN {_VAL_OF} ELSE 0 END),0)::float8 AS vencido,
+       coalesce(sum(CASE WHEN {_COB_DV} <= 0 THEN {_VAL_OF} ELSE 0 END),0)::float8 AS a_vencer,
+       coalesce(sum(CASE WHEN {_COB_DV} > 90 THEN {_VAL_OF} ELSE 0 END),0)::float8 AS vencido_mais_90,
        min(CASE WHEN {_COB_DV} > 0 THEN coalesce(f.dtprevisaopagamento, f.dtvencimento) END)::text AS venc_mais_antigo
 {_COB_FROM}
 WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
@@ -5358,20 +5417,24 @@ WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
 
 @cached(ttl=90, velha_ate=VELHA_ATE)
 def get_cobranca(filial: int | None, cliente: str | None = None) -> dict:
+    """A Régua de Cobrança: o vencido oficial POR GRUPO DE CLIENTE, com os
+    títulos de cada grupo. A chave do grupo e o CNPJ ficam aqui — a tela
+    recebe o nome, o documento MASCARADO (cliente sem grupo) ou, no grupo,
+    quantas empresas ele junta."""
     params = {"filial": filial, "cliente": cliente}
     MAX_TIT = 30
     with db.get_conn() as conn, conn.cursor() as cur:
         cur.execute(COB_CLI_SQL, params)
         clientes = cur.fetchall()
         titulos: dict[str, list] = {}
-        dso_cli: dict[str, float] = {}
-        codigos = [r["codigo"] for r in clientes if r["codigo"]]
-        if codigos:
-            cur.execute(COB_TIT_SQL, {**params, "codigos": codigos})
+        dso: dict[str, float] = {}
+        chaves = [r["chave"] for r in clientes]
+        if chaves:
+            cur.execute(COB_TIT_SQL, {**params, "chaves": chaves})
             for r in cur.fetchall():
-                titulos.setdefault(r.pop("codigo_c"), []).append(r)
-            cur.execute(COB_DSO_SQL, {"codigos": codigos})
-            dso_cli = {r["codigo"]: r["dso"] for r in cur.fetchall()}
+                titulos.setdefault(r.pop("chave_t"), []).append(r)
+            cur.execute(COB_DSO_SQL, {"chaves": chaves})
+            dso = {r["chave"]: r["dso"] for r in cur.fetchall()}
         cur.execute(COB_PENDENTE_SQL, params)
         pend = cur.fetchone()
         cur.execute("SELECT current_timestamp AS ts")
@@ -5379,10 +5442,11 @@ def get_cobranca(filial: int | None, cliente: str | None = None) -> dict:
 
     total = sum(c["vencido"] for c in clientes)
     for c in clientes:
-        codigo = c.pop("codigo")
-        c["doc"] = _mask_doc(codigo)
-        c["dso"] = dso_cli.get(codigo)
-        ts = titulos.get(codigo, [])
+        chave, codigo = c.pop("chave"), c.pop("codigo")
+        c["grupo"] = bool(c["grupo"])
+        c["doc"] = None if c["grupo"] else _mask_doc(codigo)
+        c["dso"] = dso.get(chave)
+        ts = titulos.get(chave, [])
         c["ocultos"] = max(0, len(ts) - MAX_TIT)
         c["titulos_lista"] = ts[:MAX_TIT]
 
@@ -5392,8 +5456,9 @@ def get_cobranca(filial: int | None, cliente: str | None = None) -> dict:
         "pendente_faturamento": (pend or {}).get("valor", 0.0),
         "pendente_faturamento_docs": (pend or {}).get("docs", 0),
         "atualizado_em": meta["ts"].isoformat(),
-        "fonte": ("ERP AVA · inadimplência oficial (fatura_composicao, só Faturado) · "
-                  "pendente de faturamento à parte · leitura"),
+        "fonte": ("ERP AVA · inadimplência oficial, a do BI do Avacorp (fatura_composicao, "
+                  "só Faturado, menor entre o pendente e o saldo da fatura) · por grupo de "
+                  "cliente (agrupamentocliente) · pendente de faturamento à parte · leitura"),
     }
 
 
@@ -7012,7 +7077,7 @@ FLUXCON_DET_REC_SQL = f"""
 SELECT coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''),
                 '(sem cadastro)') AS nome,
        count(*)::int AS titulos,
-       sum(fc.valorpendentecnpjcliente)::float8 AS valor,
+       sum({_VAL_OF})::float8 AS valor,
        to_char(min(coalesce(f.dtprevisaopagamento, f.dtvencimento)),'YYYY-MM-DD') AS dia
 {_REC_OF_FROM}
 LEFT JOIN cadastro c ON c.codigo = f.cliente
@@ -7032,7 +7097,7 @@ GROUP BY 1 ORDER BY 3 DESC LIMIT 40
 # a soma dos dias nao bateria com o total da linha logo acima.
 FLUXCON_DIA_REC_SQL = f"""
 SELECT to_char(coalesce(f.dtprevisaopagamento, f.dtvencimento),'YYYY-MM-DD') AS dia,
-       sum(fc.valorpendentecnpjcliente)::float8 AS valor,
+       sum({_VAL_OF})::float8 AS valor,
        count(*)::int AS titulos
 {_REC_OF_FROM}
 WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
@@ -7133,7 +7198,7 @@ WHERE bc.ativoinativo = 1 AND bc.considerarfluxocaixa = 1
 
 ANTEC_REC_DIA_SQL = f"""
 SELECT coalesce(f.dtprevisaopagamento, f.dtvencimento)::date AS dia,
-       sum(fc.valorpendentecnpjcliente)::float8 AS valor,
+       sum({_VAL_OF})::float8 AS valor,
        count(*)::int AS titulos
 {_REC_OF_FROM}
 WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
@@ -7168,7 +7233,7 @@ SELECT coalesce(f.dtprevisaopagamento, f.dtvencimento)::date AS dia,
        coalesce(nullif(trim(td.descricao),''),
                 'documento '||fc.tipodocumentoorigem::text) AS tipo,
        fc.numerosequenciadocumentoorigem::text AS documento,
-       fc.valorpendentecnpjcliente::float8 AS valor,
+       {_VAL_OF}::float8 AS valor,
        f.cliente::text AS cnpj_cliente
 {_REC_OF_FROM}
 LEFT JOIN cadastro c ON c.codigo = f.cliente
@@ -7192,7 +7257,7 @@ SELECT
     WHERE valorpendente > 0 AND dtvencimento < current_date)      AS pagar_vencido_qtd,
   (SELECT coalesce(sum(valorpendente),0)::float8 FROM contaapagar
     WHERE valorpendente > 0 AND dtvencimento > current_date + %(dias)s) AS pagar_alem,
-  (SELECT coalesce(sum(fc.valorpendentecnpjcliente),0)::float8
+  (SELECT coalesce(sum({_VAL_OF}),0)::float8
      {_REC_OF_FROM}
      WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
        AND f.composicao = 1 AND f.dtpagamento IS NULL
@@ -7230,7 +7295,7 @@ FLUXCON_REC_SQL = f"""
 SELECT coalesce(f.dtprevisaopagamento, f.dtvencimento)::date AS dia,
        coalesce(nullif(trim(td.descricao),''),
                 'documento '||fc.tipodocumentoorigem::text) AS tipo,
-       sum(fc.valorpendentecnpjcliente)::float8 AS valor,
+       sum({_VAL_OF})::float8 AS valor,
        count(*)::int AS titulos
 {_REC_OF_FROM}
 LEFT JOIN tipodocumento td ON td.codigo = fc.tipodocumentoorigem

@@ -777,8 +777,8 @@ def inadimplencia() -> dict:
 
         blocos.append(p.secao("Por faixa de atraso",
                               f"{_mil(venc)} em {p.inteiro(r['titulos'])} títulos"))
-        cores = {"2_vencido_ate_30": p.AMBAR, "3_vencido_31_90": p.LARANJA,
-                 "4_vencido_91_365": p.VERMELHO, "5_vencido_mais_365": p.MARCA}
+        cores = {"2_vencido_ate_15": p.AMBAR, "3_vencido_16_30": p.LARANJA,
+                 "4_vencido_31_90": p.VERMELHO, "5_vencido_mais_90": p.MARCA}
         blocos.append(p.barras([
             {"rotulo": f["rotulo"], "valor": f["valor"], "cor": cores[f["faixa"]],
              "texto": _pct(f["pct"] * 100) if f["pct"] is not None else "—"}
@@ -857,7 +857,12 @@ def inadimplencia() -> dict:
         blocos.append(p.secao("Como se mede"))
         blocos.append(p.paragrafo(
             "Vencido é a regra oficial das telas Contas a Receber e Régua de "
-            "Cobrança: só o faturado, pelo saldo pendente de cada documento. O "
+            "Cobrança, a mesma do BI de Inadimplência do Avacorp: só o faturado, e "
+            "cada documento pelo menor entre o saldo pendente dele e o saldo da "
+            "fatura — o que já foi pago em parte não conta de novo. Cliente é o "
+            "grupo do cadastro de agrupamento do ERP: as empresas de um mesmo "
+            "grupo aparecem juntas. As faixas de atraso são as do BI, e cada "
+            "título conta nelas. O "
             "fechamento de cada dia é reconstruído do ERP — o que estava vencido "
             "e em aberto ao fim daquele dia —, e o título pago depois entra pelo "
             "valor dele. Entrou e recuperado contam só dias úteis FECHADOS: às 13h "

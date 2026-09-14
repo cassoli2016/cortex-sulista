@@ -431,6 +431,22 @@ moram em arquivos que não falam do assunto.
   mexe na regra do cliente: o cadastro de cliente (`/perfis/novo`, fora de
   `/perfis`, que a aba das cargas lê) e o "lembrar" do e-mail, recusado no
   servidor. Guards: `tests/horas_paradas/`.
+- **A INADIMPLÊNCIA É A DO BI DO AVACORP** (`Bi/Financeiro/Inadimplencia`,
+  14/09/2026, a pedido de quem opera). As três peças moram em `api/queries.py`
+  e valem para Contas a Receber, Régua, Ficha do Cliente, Fluxo Consolidado,
+  Antecipação, o e-mail diário e o Copiloto: o VALOR é `_VAL_OF`, o menor
+  entre o pendente da composição e o saldo da fatura — o pendente sozinho não
+  enxerga pagamento parcial (o único grupo que divergia tinha faturas 70%
+  pagas com a composição cheia); as FAIXAS são as do BI (15/30/90 dias), mas
+  contando TODO documento, porque **o gráfico de faixas do próprio BI não soma
+  o total da tela** — a consulta dele faz `SELECT DISTINCT` sem a chave do
+  documento e funde títulos do mesmo grupo com mesmo valor e mesmos dias (mais
+  da metade deles); e o CLIENTE das listas de cobrança é o GRUPO de
+  `agrupamentocliente` (vínculo 1), por `DISTINCT ON`, porque o cadastro põe
+  CNPJ em dois grupos e o join direto dobraria o título. **Reproduzir um
+  relatório oficial não é copiar o defeito dele**: total e grupos batem ao
+  centavo; as faixas, de propósito, não. Guard que RODA o SQL num banco de
+  dublê com os tipos do ERP: `tests/financeiro/test_inadimplencia_regra_bi.py`.
 - Integração é **módulo por fornecedor** em `api/<fornecedor>/` (gobrax,
   smartec, tomtom, whatsapp, monkey, jornada/RasterJOR, pedagio/QualP) — não
   existe hub genérico de conectores.

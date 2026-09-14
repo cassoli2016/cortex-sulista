@@ -1,3 +1,32 @@
+- versao: "1.81.0"
+  data: "2026-09-14"
+  adicionado:
+    - >-
+      Régua de Cobrança — os clientes aparecem por grupo, como no BI de
+      Inadimplência do Avacorp: as empresas de um mesmo grupo (o agrupamento
+      de clientes do ERP) ficam numa linha só, com quantas empresas o grupo
+      junta e o prazo médio real do grupo. Ao abrir a linha, cada título diz
+      de qual empresa é. A busca por cliente acha tanto o nome do grupo quanto
+      o de cada empresa.
+    - >-
+      E-mail diário da inadimplência — maiores devedores, os que entraram em
+      atraso e os que vencem nos próximos dias também saem por grupo de
+      cliente.
+  alterado:
+    - >-
+      Inadimplência — o valor de cada título passa a ser o mesmo do BI de
+      Inadimplência do Avacorp: quando a fatura já foi paga em parte, conta só
+      o que falta pagar. Vale para Contas a Receber, Régua de Cobrança, Ficha
+      do Cliente, Fluxo de Caixa Consolidado, Antecipação, o e-mail diário e o
+      Copiloto.
+    - >-
+      Inadimplência — as faixas de atraso passam a ser as do BI: até 15 dias,
+      16 a 30, 31 a 90 e acima de 90 (antes: até 30, 31 a 90, 91 a 365 e mais
+      de um ano). Aqui cada título conta e as faixas somam o total vencido — o
+      gráfico de faixas do BI deixa de fora títulos do mesmo grupo com o mesmo
+      valor e os mesmos dias de atraso. Vale para Contas a Receber (o a pagar
+      segue com as faixas de antes), Régua de Cobrança e o e-mail diário.
+
 - versao: "1.80.2"
   data: "2026-09-14"
   alterado:

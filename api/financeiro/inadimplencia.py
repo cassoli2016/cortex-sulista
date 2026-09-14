@@ -11,6 +11,14 @@ só o faturado, documentos 6/8/10/11 e CT-e válido —, o MESMO das telas Conta
 a Receber e Régua de Cobrança. Duas telas lendo a mesma fonte com política
 própria discordam por construção, e o e-mail seria a terceira.
 
+O VALOR, AS FAIXAS E O CLIENTE SÃO OS DO BI DE INADIMPLÊNCIA DO AVACORP
+(14/09/2026, a pedido de quem opera). Cada documento vale o menor entre o
+pendente da composição e o saldo da fatura (`queries._VAL_OF`); as faixas são
+até 15, 16 a 30, 31 a 90 e acima de 90 dias, contando TODO documento — o
+gráfico de faixas do próprio BI engole títulos repetidos e não soma o total —;
+e o cliente das listas é o GRUPO do cadastro `agrupamentocliente`
+(`queries._AGRUP_*`), como na Régua de Cobrança.
+
 A SÉRIE É RECONSTRUÍDA DO ERP, e o método foi MEDIDO antes de ser escrito
 (12/09/2026). O ponto de cada dia é o que estava vencido e em aberto ao FECHAR
 o dia: venceu até ele, e não foi pago nem cancelado até ele. Em 29 de 29 dias,
@@ -74,60 +82,67 @@ DIAS_UTEIS_SERIE = 12    # pontos do gráfico do vencido
 DIAS_UTEIS_JANELA = 5    # entrou, recuperado, "entraram e seguem" e "vencem em"
 TOP = 10
 
-FAIXAS = (("2_vencido_ate_30", "até 30 dias"),
-          ("3_vencido_31_90", "31 a 90 dias"),
-          ("4_vencido_91_365", "91 a 365 dias"),
-          ("5_vencido_mais_365", "mais de 1 ano"))
+#: As faixas do vencido — as chaves de `queries._FAIXA_OF`, que são as do BI.
+FAIXAS = (("2_vencido_ate_15", "até 15 dias"),
+          ("3_vencido_16_30", "16 a 30 dias"),
+          ("4_vencido_31_90", "31 a 90 dias"),
+          ("5_vencido_mais_90", "acima de 90 dias"))
 
 FONTE = ("fatura × fatura_composicao × conhecimento (AVA) · regra oficial das "
-         "telas Contas a Receber e Régua de Cobrança")
+         "telas Contas a Receber e Régua de Cobrança, a do BI de Inadimplência do "
+         "Avacorp · por grupo de cliente")
 
 # ------------------------------------------------------------------ as consultas
 
+# `clientes` conta GRUPOS (`queries._AGRUP_CHAVE`): é o mesmo "cliente" das
+# listas abaixo e da Régua — "3 de 8 clientes" não pode misturar duas contas.
 TOTAIS_SQL = f"""
-SELECT coalesce(sum(fc.valorpendentecnpjcliente),0)::float8 AS vencido,
+SELECT coalesce(sum({queries._VAL_OF}),0)::float8 AS vencido,
        count(*)::int AS titulos,
-       count(DISTINCT f.cliente)::int AS clientes,
+       count(DISTINCT {queries._AGRUP_CHAVE})::int AS clientes,
        coalesce(sum(CASE WHEN {queries._COB_DV} > 90
-                         THEN fc.valorpendentecnpjcliente END),0)::float8 AS mais_90,
+                         THEN {queries._VAL_OF} END),0)::float8 AS mais_90,
        coalesce(sum(CASE WHEN {queries._COB_DV} > 90 THEN 1 ELSE 0 END),0)::int AS titulos_mais_90
-{queries._COB_FROM} {queries._COB_WHERE}
+{queries._COB_FROM} {queries._AGRUP_JOIN} {queries._COB_WHERE}
 """
 
 ABERTO_SQL = f"""
-SELECT coalesce(sum(fc.valorpendentecnpjcliente),0)::float8 AS aberto,
+SELECT coalesce(sum({queries._VAL_OF}),0)::float8 AS aberto,
        count(*)::int AS titulos
 {queries._REC_OF_FROM} {queries._REC_OF_WHERE}
 """
 
-_NOME = ("coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''), "
-         "'(sem cadastro)')")
+# AS LISTAS SÃO POR GRUPO DE CLIENTE, como a Régua e o "Por cliente" do BI:
+# quem cobra liga para o grupo, e três filiais do mesmo cliente em três linhas
+# espalhariam a mesma conversa pela tabela.
 
 # Venceram desde `desde` e CONTINUAM em aberto: é a cobrança fresca — o cliente
 # ainda lembra da fatura, e é o atraso mais barato de resolver.
 NOVOS_SQL = f"""
-SELECT {_NOME} AS cliente, count(*)::int AS titulos,
-       sum(fc.valorpendentecnpjcliente)::float8 AS valor,
+SELECT min({queries._AGRUP_NOME}) AS cliente, count(*)::int AS titulos,
+       sum({queries._VAL_OF})::float8 AS valor,
        min({VENC})::text AS venc_de, max({VENC})::text AS venc_ate
 {queries._COB_FROM}
 LEFT JOIN cadastro c ON c.codigo = f.cliente
+{queries._AGRUP_JOIN}
 {queries._COB_WHERE}
   AND {VENC} >= %(desde)s::date
-GROUP BY f.cliente, c.nomefantasia, c.razaosocial
-ORDER BY 3 DESC
+GROUP BY {queries._AGRUP_CHAVE}
+ORDER BY 3 DESC, 1
 """
 
 # Em aberto e AINDA NÃO vencido, vencendo até `ate`: o que dá para lembrar antes.
 AVENCER_SQL = f"""
-SELECT {_NOME} AS cliente, count(*)::int AS titulos,
-       sum(fc.valorpendentecnpjcliente)::float8 AS valor,
+SELECT min({queries._AGRUP_NOME}) AS cliente, count(*)::int AS titulos,
+       sum({queries._VAL_OF})::float8 AS valor,
        min({VENC})::text AS venc_de, max({VENC})::text AS venc_ate
 {queries._REC_OF_FROM}
 LEFT JOIN cadastro c ON c.codigo = f.cliente
+{queries._AGRUP_JOIN}
 {queries._REC_OF_WHERE}
   AND {VENC} >= current_date AND {VENC} <= %(ate)s::date
-GROUP BY f.cliente, c.nomefantasia, c.razaosocial
-ORDER BY 3 DESC
+GROUP BY {queries._AGRUP_CHAVE}
+ORDER BY 3 DESC, 1
 """
 
 # A SÉRIE, no FECHAMENTO de cada dia (ver o docstring do módulo). O LEFT JOIN
@@ -137,7 +152,7 @@ SERIE_SQL = f"""
 WITH base AS (
   SELECT {VENC} AS venc, f.dtpagamento AS pago, f.dtcancelamento AS canc,
          CASE WHEN f.dtpagamento IS NULL AND f.dtcancelamento IS NULL
-              THEN fc.valorpendentecnpjcliente ELSE fc.valortitulo END AS valor
+              THEN {queries._VAL_OF} ELSE fc.valortitulo END AS valor
   {queries._REC_OF_FROM}
   WHERE f.grupo=1 AND f.composicao=1 AND {DOCS}
     AND (f.dtpagamento IS NULL OR f.dtpagamento >= current_date - %(dias)s)

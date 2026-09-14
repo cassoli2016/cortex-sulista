@@ -4242,7 +4242,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </div>
           </div>
   <div class="card">
-            <div class="head"><h2>Aging — a receber <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Saldo em aberto por faixa de atraso, contado a partir da DATA DE REFERÊNCIA do filtro (não de hoje). Método oficial de inadimplência: fatura_composicao com valor pendente, composição 1, vencimento por dtprevisaopagamento ou dtvencimento. Documentos ainda não convertidos em fatura oficial não entram aqui.">i</span></h2><span class="hint" id="ar-total"></span></div>
+            <div class="head"><h2>Aging — a receber <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Saldo em aberto por faixa de atraso, contado a partir da DATA DE REFERÊNCIA do filtro (não de hoje). Método oficial de inadimplência, o mesmo do BI de Inadimplência do Avacorp: fatura_composicao com valor pendente, composição 1, vencimento por dtprevisaopagamento ou dtvencimento, e cada documento pelo MENOR entre o pendente e o saldo da fatura (o que já foi pago em parte não conta de novo). Faixas do BI: até 15, 16 a 30, 31 a 90 e acima de 90 dias — aqui cada documento conta, e as faixas somam o total. Documentos ainda não convertidos em fatura oficial não entram aqui.">i</span></h2><span class="hint" id="ar-total"></span></div>
             <div class="modl" id="aging-ar-barras"></div>
           </div>
         </div>
@@ -5442,14 +5442,14 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="kpis" id="kpis-cob"></div>
         <div class="banner-inline" id="cobPendente" style="display:none;margin:0"></div>
         <div class="card">
-          <div class="head"><h2>Estágio da cobrança <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Distribuição do vencido pelas faixas de atraso, com quantos CLIENTES estão em cada estágio. É o esqueleto da régua: a política de ação por faixa (lembrete, ligação, notificação, protesto) é definição de vocês — o painel mostra onde o dinheiro está parado.">i</span></h2><span class="hint">valor e clientes por faixa de atraso</span></div>
+          <div class="head"><h2>Estágio da cobrança <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Distribuição do vencido pelas faixas de atraso do BI de Inadimplência do Avacorp (até 15, 16 a 30, 31 a 90 e acima de 90 dias), com quantos CLIENTES — grupos, como na tabela abaixo — estão em cada estágio. É o esqueleto da régua: a política de ação por faixa (lembrete, ligação, notificação, protesto) é definição de vocês — o painel mostra onde o dinheiro está parado.">i</span></h2><span class="hint">valor e clientes por faixa de atraso</span></div>
           <div class="modl" id="cob-estagio"></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Clientes com títulos vencidos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Método OFICIAL de inadimplência: fatura_composicao com valor pendente, composição 1 (já faturado), vencimento por dtprevisaopagamento ou dtvencimento e sem data de pagamento. Documento vencido que ainda NÃO virou fatura não entra aqui — aparece no aviso de pendente de faturamento. 'Prazo médio real' é o DSO do cliente nas faturas liquidadas dos últimos 180 dias: quanto ele realmente leva para pagar, não o prazo contratado. Clique no cabeçalho para reordenar.">i</span></h2><span class="hint" id="cob-hint">top 30 por saldo vencido · clique na linha para ver os títulos</span></div>
+          <div class="head"><h2>Clientes com títulos vencidos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Método OFICIAL de inadimplência, o mesmo do BI de Inadimplência do Avacorp: fatura_composicao com valor pendente, composição 1 (já faturado), vencimento por dtprevisaopagamento ou dtvencimento e sem data de pagamento; cada documento vale o MENOR entre o pendente e o saldo da fatura. CLIENTE é o GRUPO do cadastro de agrupamento do ERP: as empresas de um mesmo grupo ficam numa linha só, e quem não tem grupo aparece sozinho, com o documento mascarado. Documento vencido que ainda NÃO virou fatura não entra aqui — aparece no aviso de pendente de faturamento. 'Prazo médio real' é o DSO do grupo nas faturas liquidadas dos últimos 180 dias: quanto ele realmente leva para pagar, não o prazo contratado. Clique no cabeçalho para reordenar.">i</span></h2><span class="hint" id="cob-hint">por grupo de cliente · top 30 por saldo vencido · clique na linha para ver os títulos</span></div>
           <div class="tablewrap tabroll"><table><thead><tr>
             <th style="width:34px"></th><th>Cliente</th><th class="num">Títulos</th>
-            <th class="num">Até 30d</th><th class="num">31–90d</th><th class="num">91–365d</th><th class="num">+365d</th>
+            <th class="num">Até 15d</th><th class="num">16–30d</th><th class="num">31–90d</th><th class="num">+90d</th>
             <th class="num">Total vencido</th><th class="num">Prazo médio real</th><th class="num">Mais antigo</th>
           </tr></thead><tbody id="cob-cli"></tbody></table></div>
         </div>
@@ -10395,6 +10395,16 @@ const FAIXAS = {
   '4_vencido_91_365':['Vencido 91–365d','b-dang'],
   '5_vencido_mais_365':['Vencido > 365d','b-dang'],
 };
+/* As faixas do A RECEBER são as do BI de Inadimplência do Avacorp (até 15,
+   16–30, 31–90 e acima de 90 dias — `queries._FAIXA_OF`); o a pagar segue com
+   as de sempre, em FAIXAS. */
+const FAIXAS_AR = {
+  '1_a_vencer':['A vencer','b-info'],
+  '2_vencido_ate_15':['Vencido ≤ 15d','b-warn'],
+  '3_vencido_16_30':['Vencido 16–30d','b-warn'],
+  '4_vencido_31_90':['Vencido 31–90d','b-dang'],
+  '5_vencido_mais_90':['Vencido > 90d','b-dang'],
+};
 /* AS TELAS DE TV, NUM LUGAR SÓ.
 
    Esta lista vivia escrita à mão em CINCO expressões espalhadas (três `ehTv`,
@@ -12155,7 +12165,7 @@ function render(d){
     const h=document.getElementById('top-ar-hint');
     if(h) h.innerHTML='top 15 por saldo'+esc(cliTxt)+(k.receber_aberto>0?` · <b>top 5 = ${pct(somaTop,k.receber_aberto)} do saldo</b>`:'');
   }
-  agingRows('aging-ar', d.aging_receber, 'ar-total');
+  agingRows('aging-ar', d.aging_receber, 'ar-total', FAIXAS_AR);
   {
     const tops=d.top_pagar||[], somaTop=tops.slice(0,5).reduce((a,r)=>a+(r.valor||0),0);
     const h=document.getElementById('top-ap-hint');
@@ -12191,12 +12201,16 @@ function render(d){
 /* Cor de cada faixa do aging — verde a vencer, e o vermelho fica mais forte
    conforme o atraso envelhece (o dinheiro velho é o que não volta). */
 const FAIXA_COR={'1_a_vencer':()=>CC.verde,'2_vencido_ate_30':()=>CC.amarelo,
-  '3_vencido_31_90':()=>CC.laranja,'4_vencido_91_365':()=>CC.vermelho,'5_vencido_mais_365':()=>CC.navy700};
-function agingRows(id, rows, totId){
+  '3_vencido_31_90':()=>CC.laranja,'4_vencido_91_365':()=>CC.vermelho,'5_vencido_mais_365':()=>CC.navy700,
+  '2_vencido_ate_15':()=>CC.amarelo,'3_vencido_16_30':()=>CC.laranja,
+  '4_vencido_31_90':()=>CC.vermelho,'5_vencido_mais_90':()=>CC.navy700};
+/* `mapa` é o dicionário de faixas: o a receber usa as do BI (FAIXAS_AR), o a
+   pagar as de sempre (FAIXAS). */
+function agingRows(id, rows, totId, mapa=FAIXAS){
   const map={}; (rows||[]).forEach(r=>map[r.faixa]=r);
   let tq=0,tv=0, html='';
-  Object.keys(FAIXAS).forEach(f=>{ const r=map[f]||{qtd:0,valor:0}; tq+=r.qtd; tv+=r.valor;
-    const [lbl,cls]=FAIXAS[f];
+  Object.keys(mapa).forEach(f=>{ const r=map[f]||{qtd:0,valor:0}; tq+=r.qtd; tv+=r.valor;
+    const [lbl,cls]=mapa[f];
     html+=`<tr><td><span class="badge ${cls}">${lbl}</span></td><td class="num">${r.qtd.toLocaleString('pt-BR')}</td><td class="num">${BRL.format(r.valor)}</td></tr>`; });
   const tb=document.getElementById(id);   // a versão tabela some onde já há barras
   if(tb) tb.innerHTML=html+`<tr><td style="font-weight:700">Total em aberto</td><td class="num" style="font-weight:700">${tq.toLocaleString('pt-BR')}</td><td class="num" style="font-weight:700">${BRL.format(tv)}</td></tr>`;
@@ -12205,11 +12219,11 @@ function agingRows(id, rows, totId){
   // atraso) e numa tabela de 6 linhas isso não salta
   const alvo=document.getElementById(id+'-barras');
   if(alvo){
-    const faixas=Object.keys(FAIXAS).map(f=>({f, r:map[f]||{qtd:0,valor:0}})).filter(x=>x.r.valor>0);
+    const faixas=Object.keys(mapa).map(f=>({f, r:map[f]||{qtd:0,valor:0}})).filter(x=>x.r.valor>0);
     const maxV=Math.max(1,...faixas.map(x=>x.r.valor));
     const vencido=faixas.filter(x=>x.f!=='1_a_vencer').reduce((a,x)=>a+x.r.valor,0);
     alvo.innerHTML=faixas.map(({f,r})=>{
-      const [lbl]=FAIXAS[f], cor=(FAIXA_COR[f]||(()=>CC.n500))();
+      const [lbl]=mapa[f], cor=(FAIXA_COR[f]||(()=>CC.n500))();
       return `<div class="modrow">
         <span class="mname"><i style="background:${cor}"></i>${esc(lbl)}</span>
         <span class="mval">${BRL.format(r.valor)} · ${tv?(100*r.valor/tv).toFixed(1).replace('.',',')+'%':'—'}</span>
@@ -18037,16 +18051,17 @@ async function loadCob(){
 function renderCob(d){
   const cs=d.clientes||[];
   const soma=k=>cs.reduce((a,c)=>a+(c[k]||0),0);
-  const acima90=soma('de_91_365')+soma('mais_365');
+  const acima90=soma('mais_90');
+  const empresas=soma('empresas');
   const pend=d.pendente_faturamento||0;
   document.getElementById('kpis-cob').innerHTML=[
-    kpi('Vencido oficial (top 30)', BRL.format(d.total_vencido_top), cs.length+' clientes · só faturado (composição 1)', 'neg'),
+    kpi('Vencido oficial (top 30)', BRL.format(d.total_vencido_top), cs.length+' clientes ('+empresas+' empresas) · só faturado (composição 1)', 'neg'),
     kpi('Acima de 90 dias', BRL.format(acima90), d.total_vencido_top>0?((100*acima90/d.total_vencido_top).toFixed(0)+'% do vencido — risco de perda'):'', acima90>0?'neg':'', null,
       statChip(acima90>0?(acima90>0.2*d.total_vencido_top?'bad':'warn'):'good',
         acima90>0?(acima90>0.2*d.total_vencido_top?'perda provável':'acompanhar'):'nada acima de 90d',
         'Vencido com mais de 90 dias. A taxa de recuperação cai fortemente a partir daqui — é a faixa de protesto/negativação.',
         acima90>0?(acima90>0.2*d.total_vencido_top?'sevCrit':'sevWarn'):'sevOk')),
-    kpi('Últimos 30 dias', BRL.format(soma('ate_30')), 'vencido recente — cobrar agora tem mais retorno', '', null,
+    kpi('Últimos 30 dias', BRL.format(soma('ate_15')+soma('de_16_30')), 'vencido recente — cobrar agora tem mais retorno', '', null,
       statChip('good','maior recuperação','Faixa em que a cobrança ativa tem a melhor taxa de retorno.','sevOk')),
     // NÃO é inadimplência de cliente: é documento vencido que nem virou fatura
     kpi('Pendente de faturamento', BRL.format(pend), (d.pendente_faturamento_docs||0)+' docs vencidos ainda não faturados',
@@ -18056,8 +18071,8 @@ function renderCob(d){
   ].join('');
   // Estágio da régua: onde o dinheiro está parado, por faixa de atraso
   {
-    const FX=[['ate_30','Até 30 dias',CC.amarelo],['de_31_90','31 a 90 dias',CC.laranja],
-              ['de_91_365','91 a 365 dias',CC.vermelho],['mais_365','Mais de 365 dias',CC.navy700]];
+    const FX=[['ate_15','Até 15 dias',CC.amarelo],['de_16_30','16 a 30 dias',CC.laranja],
+              ['de_31_90','31 a 90 dias',CC.vermelho],['mais_90','Acima de 90 dias',CC.navy700]];
     const linhas=FX.map(([k,lbl,cor])=>({lbl,cor,valor:soma(k),clientes:cs.filter(c=>(c[k]||0)>0).length}))
                    .filter(x=>x.valor>0);
     const tot=linhas.reduce((a,x)=>a+x.valor,0), maxV=Math.max(1,...linhas.map(x=>x.valor));
@@ -18086,8 +18101,9 @@ function renderCob(d){
     const det=`
       <div class="tablewrap"><table>
         <caption style="caption-side:top;text-align:left;font-size:11px;color:var(--n500);padding:0 0 6px">Títulos do mais antigo para o mais novo — a ordem da cobrança.</caption>
-        <thead><tr><th class="num">Fatura</th><th class="num">Fil.</th><th class="num">Emissão</th><th class="num">Vencimento</th><th class="num">Dias vencido</th><th class="num">Saldo</th></tr></thead>
+        <thead><tr>${c.grupo?'<th>Empresa</th>':''}<th class="num">Fatura</th><th class="num">Fil.</th><th class="num">Emissão</th><th class="num">Vencimento</th><th class="num">Dias vencido</th><th class="num">Saldo</th></tr></thead>
         <tbody>${(c.titulos_lista||[]).map(t=>`<tr>
+          ${c.grupo?`<td>${esc(t.empresa||'')}</td>`:''}
           <td class="num">${t.numero}</td>
           <td class="num">${t.filial}</td>
           <td class="num">${fmtD(t.emissao)}</td>
@@ -18100,12 +18116,12 @@ function renderCob(d){
     <tr class="forn-row" aria-expanded="false" aria-controls="cob-det-${i}" tabindex="0" role="button"
         onclick="cobToggle(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();cobToggle(${i});}">
       <td><span class="expander">${ICONS['chevr2']}</span></td>
-      <td><div style="font-weight:600">${esc(c.cliente)}</div><div style="font-size:11px;color:var(--n500);font-family:var(--mono)">${esc(c.doc)}</div></td>
+      <td><div style="font-weight:600">${esc(c.cliente)}</div><div style="font-size:11px;color:var(--n500);font-family:var(--mono)">${c.grupo?esc('grupo · '+c.empresas+(c.empresas===1?' empresa':' empresas')):esc(c.doc||'')}</div></td>
       <td class="num">${c.titulos.toLocaleString('pt-BR')}</td>
-      <td class="num">${c.ate_30>0?BRL.format(c.ate_30):'—'}</td>
-      <td class="num" style="color:${c.de_31_90>0?'var(--yellow-700)':'inherit'}">${c.de_31_90>0?BRL.format(c.de_31_90):'—'}</td>
-      <td class="num" style="color:${c.de_91_365>0?'var(--red)':'inherit'}">${c.de_91_365>0?BRL.format(c.de_91_365):'—'}</td>
-      <td class="num" style="color:${c.mais_365>0?'var(--red)':'inherit'};font-weight:${c.mais_365>0?'700':'400'}">${c.mais_365>0?BRL.format(c.mais_365):'—'}</td>
+      <td class="num">${c.ate_15>0?BRL.format(c.ate_15):'—'}</td>
+      <td class="num" style="color:${c.de_16_30>0?'var(--yellow-700)':'inherit'}">${c.de_16_30>0?BRL.format(c.de_16_30):'—'}</td>
+      <td class="num" style="color:${c.de_31_90>0?'var(--red)':'inherit'}">${c.de_31_90>0?BRL.format(c.de_31_90):'—'}</td>
+      <td class="num" style="color:${c.mais_90>0?'var(--red)':'inherit'};font-weight:${c.mais_90>0?'700':'400'}">${c.mais_90>0?BRL.format(c.mais_90):'—'}</td>
       <td class="num" style="font-weight:700">${BRL.format(c.vencido)}</td>
       <td class="num" style="color:${(c.dso||0)>60?'var(--red)':'inherit'}" title="média ponderada dos últimos 6 meses de faturas pagas">${c.dso!=null?c.dso.toFixed(0)+'d':'—'}</td>
       <td class="num">${c.vencimento_mais_antigo?fmtD(c.vencimento_mais_antigo):'—'}</td>
@@ -38275,8 +38291,8 @@ function alerts(d,k,gap){
   })();
   const pior=(d.fluxo_caixa||[]).reduce((a,b)=>(!a||b.liquido<a.liquido)?b:a, null);
   if(pior && pior.liquido<0) F.push(['t-warn','Mês de maior aperto',`${periodoLabel(pior.periodo)}: líquido ${BRL.format(pior.liquido)} (receber ${BRL.format(pior.receber)} × pagar ${BRL.format(pior.pagar)}).`]);
-  const velho=sumFaixa(d.aging_receber,'5_vencido_mais_365');
-  if(velho>0) R.push(['t-dang','Inadimplência crônica',`${BRL.format(velho)} vencidos há mais de 1 ano — foco de cobrança.`]);
+  const velho=sumFaixa(d.aging_receber,'5_vencido_mais_90');
+  if(velho>0) R.push(['t-warn','Vencido há mais de 90 dias',`${BRL.format(velho)} vencidos há mais de 90 dias — a faixa em que a recuperação cai; foco de cobrança.`]);
   if(k.receber_vencido>0) R.push(['t-warn','Recebíveis vencidos',`${BRL.format(k.receber_vencido)} vencidos (${pct(k.receber_vencido,k.receber_aberto)} do aberto no período).`]);
   if(k.pagar_vencido>0) P.push(['t-warn','Contas a pagar vencidas',`${BRL.format(k.pagar_vencido)} já vencidos — regularizar/negociar.`]);
   const velhoAP=sumFaixa(d.aging_pagar,'5_vencido_mais_365');

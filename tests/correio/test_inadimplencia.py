@@ -45,9 +45,9 @@ def _dia(hoje=SEG, *, vencido=500_000.0, aberto=10_000_000.0, top=None,
            "mais_90": mais_90, "titulos_mais_90": 9}
     aging = aging if aging is not None else [
         {"faixa": "1_a_vencer", "qtd": 5000, "valor": aberto - vencido},
-        {"faixa": "2_vencido_ate_30", "qtd": 80, "valor": 300_000.0},
-        {"faixa": "3_vencido_31_90", "qtd": 31, "valor": 160_000.0},
-        {"faixa": "4_vencido_91_365", "qtd": 9, "valor": 40_000.0}]
+        {"faixa": "2_vencido_ate_15", "qtd": 80, "valor": 300_000.0},
+        {"faixa": "3_vencido_16_30", "qtd": 31, "valor": 160_000.0},
+        {"faixa": "4_vencido_31_90", "qtd": 9, "valor": 40_000.0}]
     top = top if top is not None else [
         {"codigo": CNPJ, "cliente": "TRANSPORTADORA FICTICIA LTDA", "titulos": 12,
          "vencido": 200_000.0,
@@ -124,8 +124,8 @@ def test_o_CODIGO_do_cliente_nao_sai_do_modulo():
 
 
 def test_as_faixas_saem_TODAS_mesmo_a_que_nao_tem_titulo():
-    """A faixa de mais de um ano sem título é informação ("não há crônico"),
-    não linha que some."""
+    """A faixa acima de 90 dias sem título é informação ("não há atraso
+    velho"), não linha que some."""
     r = _dia()
     assert [f["faixa"] for f in r["faixas"]] == [c for c, _ in fi.FAIXAS]
     assert r["faixas"][-1]["valor"] == 0 and r["faixas"][-1]["titulos"] == 0
