@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.76.2] — 14/09/2026  ·  CX-14/09/2026-v1.76.2
+
+### Alterado
+- Painel de TV da Operação — a legenda do mapa foi organizada em quatro colunas com título: Veículo (a cor de frota e locação, agregado e terceiro), Situação (atrasada ou acima de 90 km/h e parado, que aparece com a cor apagada), No mesmo ponto (o que o número no círculo conta) e Tração no mapa (quantos de cada tipo). No celular ela fica em duas colunas, embaixo do mapa.
+
 ## [1.76.1] — 14/09/2026  ·  CX-14/09/2026-v1.76.1
 
 ### Corrigido

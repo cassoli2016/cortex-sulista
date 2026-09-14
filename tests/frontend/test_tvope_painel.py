@@ -635,7 +635,7 @@ def test_a_legenda_explica_cor_e_tracao(pagina):
     _abre(pg, base)
     leg = pg.evaluate("() => document.getElementById('tvope-legenda').innerText")
     for termo in ("Frota e locação", "Agregado", "Terceiro", "90 km/h",
-                  "Em viagem no mesmo ponto", "Parados no mesmo ponto"):
+                  "Parado (cor apagada)", "Em viagem", "Parados"):
         assert termo in leg, (termo, leg)
     assert "4x2 2" in leg and "6x2 9" in leg and "truck 1" in leg, leg
     # locação pinta igual à frota
@@ -643,6 +643,40 @@ def test_a_legenda_explica_cor_e_tracao(pagina):
                                   .map(i => i.style.background)""")
     assert "Locação" not in leg
     assert len(set(cores[:3])) == 3
+
+
+def test_a_legenda_se_organiza_em_grupos_com_titulo(pagina):
+    """Quem opera, 14/09/2026: "organize melhor a legenda". Era uma linha
+    corrida misturando cor, alerta, número do círculo e tração; agora cada
+    pergunta é uma coluna com título, lado a lado, inteira dentro do mapa e
+    cobrindo no máximo um quarto dele."""
+    pg, base = pagina
+    _abre(pg, base)
+    r = pg.evaluate("""() => {
+        const leg = document.getElementById('tvope-legenda');
+        const gs = [...leg.querySelectorAll(':scope > .lg')];
+        const L = leg.getBoundingClientRect(), M = document.getElementById('tvMapa').getBoundingClientRect();
+        return {tit: gs.map(g => g.querySelector('em').innerText.trim().toUpperCase()),
+                topos: gs.map(g => Math.round(g.getBoundingClientRect().top)),
+                vaza: [...leg.querySelectorAll('.lg-i, .lg-tr span, .lg > em')]
+                  .filter(e => e.getBoundingClientRect().right > L.right + 1).length,
+                alt: L.height, mapa: M.height,
+                dentro: L.left >= M.left - 1 && L.right <= M.right + 1 && L.bottom <= M.bottom + 1};
+    }""")
+    assert r["tit"] == ["VEÍCULO", "SITUAÇÃO", "NO MESMO PONTO", "TRAÇÃO NO MAPA"], r
+    assert len(set(r["topos"])) == 1, "os grupos têm de ficar lado a lado: %r" % r
+    assert r["vaza"] == 0 and r["dentro"], r
+    assert r["alt"] <= 0.25 * r["mapa"], r
+    # no celular a legenda desce para baixo do mapa em duas colunas, e os
+    # pares da tração não colam (o espaçamento em vw virava 3 px)
+    pg.set_viewport_size({"width": 390, "height": 844})
+    pg.wait_for_timeout(500)
+    folgas = pg.evaluate("""() => {
+        const cs = [...document.querySelectorAll('#tvope-legenda .lg-tr span')].map(e => e.getBoundingClientRect());
+        const f = [];
+        for (let i = 1; i < cs.length; i++) if (Math.abs(cs[i].top - cs[i-1].top) < 2) f.push(cs[i].left - cs[i-1].right);
+        return f; }""")
+    assert folgas and min(folgas) >= 8, folgas
 
 
 def test_o_tour_nasce_de_onde_a_frota_esta(pagina):

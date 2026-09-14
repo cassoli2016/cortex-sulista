@@ -1812,23 +1812,35 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
    assunto. Apagado por COR (dessaturado e clareado), e nao por opacidade: com
    opacity a rua do mapa aparecia atraves do rotulo e ele parecia riscado. */
 .tv-vmk.parado{filter:saturate(.35) brightness(1.2);box-shadow:none;border-color:rgba(255,255,255,.7)}
-.tv-legenda{position:absolute;left:0.7vw;bottom:0.7vw;right:0.7vw;z-index:500;display:flex;flex-wrap:wrap;
-  gap:0.25vw 0.9vw;align-items:center;background:rgba(11,25,38,.85);color:#E5EDF4;padding:0.35vw 0.8vw;
+/* A LEGENDA EM GRUPOS (quem opera, 14/09/2026: "organize melhor a legenda").
+   Era uma linha corrida que misturava cor, alerta, numero do circulo e
+   tracao, e o olho nao sabia onde uma pergunta acabava e a outra comecava.
+   Agora cada pergunta e uma coluna com o proprio titulo: que veiculo e, em
+   que situacao esta, o que o numero no circulo conta e quantos de cada
+   tracao estao no mapa. */
+.tv-legenda{position:absolute;left:0.7vw;bottom:0.7vw;right:0.7vw;z-index:500;display:grid;
+  grid-template-columns:auto auto auto minmax(0,1fr);gap:0.3vw 1.2vw;align-items:start;
+  background:rgba(11,25,38,.88);color:#E5EDF4;padding:0.5vw 0.8vw;
   border-radius:0.5vw;font-size:clamp(9px,0.62vw,12px);font-weight:600;line-height:1.3}
 .tv-legenda:empty{display:none}
-.tv-legenda span{display:inline-flex;align-items:center;gap:0.3vw;white-space:nowrap}
-.tv-legenda i{width:0.7vw;height:0.7vw;min-width:9px;min-height:9px;border-radius:0.2vw;display:inline-block;
-  border:1px solid rgba(255,255,255,.9)}
+.tv-legenda .lg{display:flex;flex-direction:column;gap:0.25vw;min-width:0}
+.tv-legenda .lg>em{font-style:normal;font-size:.82em;font-weight:700;letter-spacing:.06em;white-space:nowrap;
+  text-transform:uppercase;color:#8FA6BC;padding-bottom:0.15vw;border-bottom:1px solid rgba(143,166,188,.25)}
+.tv-legenda .lg-i{display:flex;align-items:center;gap:0.35vw;white-space:nowrap}
+.tv-legenda i{flex:none;width:0.7vw;height:0.7vw;min-width:9px;min-height:9px;border-radius:0.2vw;
+  display:inline-block;border:1px solid rgba(255,255,255,.9)}
 .tv-legenda i.al{background:transparent;border:2px solid #F87171}
+/* o parado e apagado por COR, igual ao marcador .tv-vmk.parado */
+.tv-legenda i.pa{filter:saturate(.35) brightness(1.2);border-color:rgba(255,255,255,.7)}
 .tv-legenda i.tt{width:1.6vw;min-width:20px;border:0;background:linear-gradient(90deg,#4ADE80,#FBBF24,#F87171)}
-.tv-legenda u{text-decoration:none;width:1.1vw;height:1.1vw;min-width:14px;min-height:14px;border-radius:50%;
-  background:#0B1926;border:2px solid #E5EDF4;display:inline-flex;align-items:center;justify-content:center;
-  font-family:var(--mono);font-size:.85em;font-weight:800}
-/* a tracao e TEXTO CORRIDO ("4x2 65 · 6x2 96"): como flex, cada <b> virava
-   item proprio e o espaco entre ele e a contagem sumia */
-.tv-legenda span.tr{display:inline;white-space:normal;color:#A9BCCD}
-.tv-legenda .tr b{color:#E5EDF4}
+.tv-legenda u{flex:none;text-decoration:none;width:1.1vw;height:1.1vw;min-width:14px;min-height:14px;
+  border-radius:50%;background:#0B1926;border:2px solid #E5EDF4;display:inline-flex;align-items:center;
+  justify-content:center;font-family:var(--mono);font-size:.85em;font-weight:800}
 .tv-legenda u.p{background:#FFFFFF;color:#14181D}
+/* a tracao: um par por tipo, "6x2 9" -- o tipo em branco, a contagem apagada */
+.tv-legenda .lg-tr{display:flex;flex-wrap:wrap;gap:0.2vw 0.8vw}
+.tv-legenda .lg-tr span{white-space:nowrap;color:#A9BCCD;font-family:var(--mono)}
+.tv-legenda .lg-tr b{color:#E5EDF4}
 /* cartao de dois numeros (tracao, motoristas): lado a lado, cada um com o seu
    rotulo embaixo, e o subtitulo comum no fim */
 .tv-barra{height:clamp(4px,0.36vw,8px);background:#1E3A54;border-radius:999px;overflow:hidden;
@@ -1965,7 +1977,12 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
      ela cobria um terco do mapa */
   #view-tvope .tvw-mapa{height:auto;display:flex;flex-direction:column;padding:0}
   #view-tvope #tvMapa{position:relative;inset:auto;height:340px}
-  #view-tvope .tv-legenda{position:static;margin:9px;font-size:11px}
+  #view-tvope .tv-legenda{position:static;margin:9px;font-size:11px;grid-template-columns:1fr 1fr;gap:9px 18px}
+  /* no celular o espacamento em vw vira 3 px: os pares da tracao colavam */
+  #view-tvope .tv-legenda{padding:9px 12px}
+  #view-tvope .tv-legenda .lg{gap:4px}
+  #view-tvope .tv-legenda .lg-i{gap:6px}
+  #view-tvope .tv-legenda .lg-tr{gap:4px 12px}
   /* km e metas */
   #view-tvope .tvw-km{gap:18px}
   #view-tvope .tvw-km .knum{font-size:20px}
@@ -16854,18 +16871,23 @@ function tvLegenda(){
   if(!el) return;
   const cont={};
   tvPontos.forEach(p=>{ if(p.tracao) cont[p.tracao]=(cont[p.tracao]||0)+1; });
-  const tr=TV_TRACOES.filter(k=>cont[k]).map(k=>'<b>'+k+'</b> '+cont[k]).join(' · ');
+  const tr=TV_TRACOES.filter(k=>cont[k]);
   const semCad=tvPontos.some(p=>p.cor===tvCorMod(null));
+  const item=(amostra,txt)=>`<span class="lg-i">${amostra}${txt}</span>`;
+  const grupo=(titulo,corpo)=>`<div class="lg"><em>${titulo}</em>${corpo}</div>`;
+  const cor=m=>`<i style="background:${tvCorMod(m)}"></i>`;
   el.innerHTML=
-    `<span><i style="background:${tvCorMod('FROTA')}"></i>Frota e locação</span>`
-    +`<span><i style="background:${tvCorMod('AGREGADOS')}"></i>Agregado</span>`
-    +`<span><i style="background:${tvCorMod('TERCEIROS')}"></i>Terceiro</span>`
-    +(semCad?`<span><i style="background:${tvCorMod(null)}"></i>Sem cadastro</span>`:'')
-    +`<span><i class="al"></i>Atrasada ou acima de 90 km/h</span>`
-    +`<span><u>5</u>Em viagem no mesmo ponto</span>`
-    +`<span><u class="p">5</u>Parados no mesmo ponto (apagado: parado)</span>`
-    +(tvTrafego?'<span><i class="tt"></i>Trânsito: verde livre, vermelho parado</span>':'')
-    +(tr?`<span class="tr">Tração no mapa: ${tr}</span>`:'');
+    grupo('Veículo',
+      item(cor('FROTA'),'Frota e locação')+item(cor('AGREGADOS'),'Agregado')
+      +item(cor('TERCEIROS'),'Terceiro')+(semCad?item(cor(null),'Sem cadastro'):''))
+    +grupo('Situação',
+      item('<i class="al"></i>','Atrasada ou +90 km/h')
+      +item(`<i class="pa" style="background:${tvCorMod('AGREGADOS')}"></i>`,'Parado (cor apagada)')
+      +(tvTrafego?item('<i class="tt"></i>','Trânsito: verde livre, vermelho parado'):''))
+    +grupo('No mesmo ponto',
+      item('<u>5</u>','Em viagem')+item('<u class="p">5</u>','Parados'))
+    +(tr.length?grupo('Tração no mapa',
+      '<div class="lg-tr">'+tr.map(k=>`<span><b>${k}</b> ${cont[k]}</span>`).join('')+'</div>'):'');
 }
 let tvComSeq=0, tvComOk=false;
 /* PAINEL DE COMUNICAÇÃO. O número que este painel existe para mostrar não é
