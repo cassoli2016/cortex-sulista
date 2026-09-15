@@ -845,30 +845,11 @@ def inadimplencia() -> dict:
                 f"Nenhum título vence nos próximos {n} dias úteis."))
         _residuo(av)
 
-        pf = r["pendente_faturamento"]
-        if pf["valor"]:
-            blocos.append(p.secao("Fora desta conta"))
-            blocos.append(p.paragrafo(
-                f"{p.brl(pf['valor'])} em {p.inteiro(pf['docs'])} documentos "
-                "vencidos estão marcados no ERP como PENDENTES DE FATURAMENTO. "
-                "Eles ficam fora do vencido e da taxa — a mesma regra das telas "
-                "Contas a Receber e Régua de Cobrança, que os mostram à parte."))
-
-        blocos.append(p.secao("Como se mede"))
-        blocos.append(p.paragrafo(
-            "Vencido é a regra oficial das telas Contas a Receber e Régua de "
-            "Cobrança, a mesma do BI de Inadimplência do Avacorp: só o faturado, e "
-            "cada documento pelo menor entre o saldo pendente dele e o saldo da "
-            "fatura — o que já foi pago em parte não conta de novo. Cliente é o "
-            "grupo do cadastro de agrupamento do ERP: as empresas de um mesmo "
-            "grupo aparecem juntas. As faixas de atraso são as do BI, e cada "
-            "título conta nelas. O "
-            "fechamento de cada dia é reconstruído do ERP — o que estava vencido "
-            "e em aberto ao fim daquele dia —, e o título pago depois entra pelo "
-            "valor dele. Entrou e recuperado contam só dias úteis FECHADOS: às 13h "
-            "boa parte dos pagamentos de hoje ainda não foi lançada. Dia útil é "
-            "de segunda a sexta, fora os feriados do calendário da casa "
-            "(Gestão › Feriados)."))
+        # SEM "Fora desta conta", SEM "Como se mede" E SEM A LINHA DA FONTE
+        # (pedido de quem opera, 15/09/2026). O e-mail é para agir; o método
+        # mora no ⓘ das telas Contas a Receber e Régua de Cobrança, e o
+        # pendente de faturamento, à parte, nas duas. O guard é
+        # `tests/correio/test_inadimplencia.py`.
 
         linhas = [f"Inadimplência — {hoje.strftime('%d/%m/%Y')}", "",
                   f"Vencido agora ......... {p.brl(venc)} ({_pct(taxa_pct)} do aberto)",
@@ -893,7 +874,7 @@ def inadimplencia() -> dict:
             "html": p.documento(titulo, blocos,
                                 subtitulo=f"{_dia_sem(hoje.isoformat())} · leitura "
                                           f"das {datetime.fromisoformat(str(r['lido_em'])).strftime('%H:%M')}",
-                                origem=r.get("fonte") or "ERP AVA"),
+                                origem=None),
             "texto": "\n".join(linhas),
             "vazio": False,
         }

@@ -97,6 +97,7 @@ _FONTES_ROTULO = {
     "auditoria_uso": "Auditoria — acessos e uso do painel",
     "financeiro_caixa": "Fluxo de Caixa e Bancos",
     "inadimplencia": "Inadimplência — o dia (vencido, fluxo e concentração)",
+    "cobranca_tratativa": "Régua de Cobrança — tratativas (promessas vencidas, sem tratativa)",
     "calendario": "Calendário de feriados (dias úteis)",
     "analise_km_ano": "Análise de KM",
     "agregados_terceiros_ano": "Agregados e Terceiros",
@@ -183,6 +184,7 @@ FONTE_TELAS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "auditoria_uso": _t("aud"),
     "financeiro_caixa": _t("fluxo"),
     "inadimplencia": _t("receber", "cob"),
+    "cobranca_tratativa": _t("cob"),
     "calendario": _t("radar"),
     "analise_km_ano": _t("km"),
     "agregados_terceiros_ano": _t("agr"),
@@ -1099,6 +1101,11 @@ def _fontes_do_snapshot() -> dict:
         # os nomes dos devedores ficam no e-mail, atras do destinatario.
         "inadimplencia": lambda: __import__(
             "api.financeiro.inadimplencia", fromlist=["resumo_copiloto"]).resumo_copiloto(),
+        # A TRATATIVA DA COBRANCA: quantos clientes da Regua estao sem
+        # tratativa, com promessa vencida ou com retorno atrasado. So
+        # contagens e valores -- nenhum nome de cliente.
+        "cobranca_tratativa": lambda: __import__(
+            "api.financeiro.cobranca_tratativa", fromlist=["resumo_copiloto"]).resumo_copiloto(),
         # O CALENDARIO: "quantos dias uteis faltam no mes?" e "quando e o
         # proximo feriado?" sao perguntas de quem projeta faturamento. Le o
         # banco local e a lei -- nunca a web.

@@ -928,6 +928,20 @@ glossario:
     ACUMULADO é o pior saldo da série encadeada, a soma dos déficits ainda não cobertos. Antecipação
     não resolve esse, porque antecipar traz para hoje o que entraria depois e deixa o depois vazio.
     Buraco acumulado pede resultado, prazo com fornecedor ou capital.
+- termo: Tratativa de cobrança
+  definicao: >-
+    O registro do que está sendo feito com o valor em aberto de um cliente da
+    Régua de Cobrança — contato, promessa de pagamento com data e valor,
+    negociação, contestação, protesto, jurídico —, com quem registrou e quando.
+    É HISTÓRICO: um registro não se edita nem se apaga, e o próprio banco
+    recusa as duas coisas; o que mudou entra como registro novo, porque apagar
+    seria perder a prova do que foi dito a quem. A situação da coluna é
+    calculada contra a data de hoje: promessa vencida quando a data prometida
+    passou, retorno atrasado quando o próximo contato combinado ficou para
+    trás, sem movimento quando nada foi registrado há mais de 7 dias (protesto
+    e jurídico ficam fora dessa conta, porque andam em meses). Cada registro
+    guarda o vencido do cliente naquele momento, para que o histórico lido
+    depois diga de que valor se falava.
 - termo: DDA (boletos registrados no banco)
   definicao: A lista dos boletos que fornecedores registraram contra o CNPJ da empresa, exportada à mão
     do portal do banco e importada no Fluxo Consolidado. É o único número MEDIDO da projeção, porque

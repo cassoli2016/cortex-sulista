@@ -456,6 +456,22 @@ moram em arquivos que não falam do assunto.
   seu "Atrasado" dizia ~17× o vencido da tela vizinha. Guard que RODA o SQL
   num banco de dublê com os tipos do ERP e VARRE os módulos:
   `tests/financeiro/test_inadimplencia_regra_bi.py`.
+- **A TRATATIVA DA COBRANÇA É HISTÓRICO, NÃO CADASTRO**
+  (`api/financeiro/cobranca_tratativa.py`, `sql/cortex/0094_*`, 15/09/2026, a
+  pedido de quem opera). Cada linha da Régua (o grupo de cliente) recebe
+  registros do que está sendo feito — contato, promessa com data e valor,
+  contestação, protesto — e o histórico é SÓ ACRÉSCIMO por gatilho no banco:
+  registro errado se corrige com outro registro, porque editar apagaria a prova
+  do que foi dito a quem e quando. A SITUAÇÃO (promessa vencida, retorno
+  atrasado, sem movimento há 7 dias) é calculada na leitura, nunca gravada. A
+  chave do grupo leva CNPJ quando não há grupo e não sai do servidor: a tela e a
+  tabela usam `queries.cobranca_ref()`, um resumo dela — **mudar essa conta
+  deixa órfão o histórico inteiro**. O registro se confere contra a Régua VIVA
+  do ERP e guarda a foto do vencido na hora; a tratativa entra DEPOIS do cache
+  de 90 s da Régua, numa cópia. Sem o banco da casa a Régua segue e a coluna diz
+  "indisponível" — nunca "sem tratativa", que afirmaria que alguém conferiu.
+  Guards: `tests/financeiro/test_cobranca_tratativa.py` e
+  `tests/frontend/test_cob_tratativa_e2e.py`.
 - Integração é **módulo por fornecedor** em `api/<fornecedor>/` (gobrax,
   smartec, tomtom, whatsapp, monkey, jornada/RasterJOR, pedagio/QualP) — não
   existe hub genérico de conectores.

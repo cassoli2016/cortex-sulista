@@ -5432,6 +5432,17 @@ WHERE f.grupo=1 AND fc.valorpendentecnpjcliente > 0 AND f.dtcancelamento IS NULL
 """
 
 
+def cobranca_ref(chave: str) -> str:
+    """O id OPACO de uma linha da Régua de Cobrança (grupo, ou cliente sem
+    grupo), que viaja até a tela e volta no registro da tratativa. A chave leva
+    o CNPJ quando não há grupo, e por isso não sai daqui.
+
+    Derivado SÓ da chave: estável entre workers, reinícios e deploys. É ele que
+    `cob_tratativa.ref` guarda — mudar esta conta deixa órfão o histórico
+    inteiro da tratativa."""
+    return hashlib.sha256(("cobranca:" + str(chave)).encode("utf-8")).hexdigest()[:16]
+
+
 @cached(ttl=90, velha_ate=VELHA_ATE)
 def get_cobranca(filial: int | None, cliente: str | None = None) -> dict:
     """A Régua de Cobrança: o vencido oficial POR GRUPO DE CLIENTE, com os
@@ -5460,6 +5471,7 @@ def get_cobranca(filial: int | None, cliente: str | None = None) -> dict:
     total = sum(c["vencido"] for c in clientes)
     for c in clientes:
         chave, codigo = c.pop("chave"), c.pop("codigo")
+        c["ref"] = cobranca_ref(chave)
         c["grupo"] = bool(c["grupo"])
         c["doc"] = None if c["grupo"] else _mask_doc(codigo)
         c["dso"] = dso.get(chave)

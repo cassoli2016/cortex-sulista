@@ -1,3 +1,22 @@
+- versao: "1.83.0"
+  data: "2026-09-15"
+  adicionado:
+    - >-
+      Régua de Cobrança — tratativa dos valores em aberto: em cada cliente, quem
+      cobra registra o que está sendo feito (contato, promessa de pagamento com
+      data e valor, negociação, contestação, protesto, jurídico), com quem
+      registrou e quando, e o histórico inteiro fica — registro não se edita nem
+      se apaga, corrige-se com um novo. A tabela ganha a coluna Tratativa com a
+      situação de hoje (promessa vencida, retorno atrasado, sem movimento há mais
+      de 7 dias, sem tratativa) e um resumo acima dela; o histórico aparece ao
+      abrir a linha, junto com os títulos.
+  alterado:
+    - >-
+      E-mail diário da inadimplência — saem os blocos "Fora desta conta" (o
+      pendente de faturamento) e "Como se mede", e a linha da fonte no rodapé.
+      O pendente de faturamento continua nas telas Contas a Receber e Régua de
+      Cobrança.
+
 - versao: "1.82.1"
   data: "2026-09-15"
   alterado:

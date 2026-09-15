@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.83.0] — 15/09/2026  ·  CX-15/09/2026-v1.83.0
+
+### Adicionado
+- Régua de Cobrança — tratativa dos valores em aberto: em cada cliente, quem cobra registra o que está sendo feito (contato, promessa de pagamento com data e valor, negociação, contestação, protesto, jurídico), com quem registrou e quando, e o histórico inteiro fica — registro não se edita nem se apaga, corrige-se com um novo. A tabela ganha a coluna Tratativa com a situação de hoje (promessa vencida, retorno atrasado, sem movimento há mais de 7 dias, sem tratativa) e um resumo acima dela; o histórico aparece ao abrir a linha, junto com os títulos.
+
+### Alterado
+- E-mail diário da inadimplência — saem os blocos "Fora desta conta" (o pendente de faturamento) e "Como se mede", e a linha da fonte no rodapé. O pendente de faturamento continua nas telas Contas a Receber e Régua de Cobrança.
+
 ## [1.82.1] — 15/09/2026  ·  CX-15/09/2026-v1.82.1
 
 ### Alterado

@@ -2331,6 +2331,26 @@ button.avatar{border:0;cursor:pointer}
   max-width:calc(100% - 36px);padding:9px 18px;border-radius:6px;background:#1E172F;color:#fff;
   font-size:13px;box-shadow:0 4px 18px rgba(0,0,0,.2)}
 .m-foot{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:16px}
+/* TRATATIVA DA COBRANÇA (Régua › linha aberta). O histórico rola DENTRO do
+   bloco: meses de registros não podem empurrar a Régua para fora da tela. */
+.cob-trat-resumo{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:9px}
+.cob-trat-resumo:empty{display:none}
+.cob-trat{margin-top:18px;padding-top:9px;border-top:1px solid var(--n200,#e5eaf0)}
+.cob-trat-head{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin-bottom:9px}
+.cob-trat-head .hint{font-size:11px;color:var(--n500)}
+.cob-trat-head button{margin-left:auto}
+.cob-trat-hist{list-style:none;margin:0;padding:0;max-height:300px;overflow:auto}
+.cob-trat-hist li{padding:9px 0;border-bottom:1px solid var(--n200,#e5eaf0)}
+.cob-trat-hist li:last-child{border-bottom:0}
+.cob-trat-hist li.vazio{color:var(--n500);font-size:12px}
+.cth-l1{display:flex;align-items:baseline;flex-wrap:wrap;gap:9px;font-size:13px}
+.cth-l1 i{font-style:normal;font-size:11px;color:var(--n500)}
+.cth-l1 span{margin-left:auto;font-size:11px;color:var(--n500);font-family:var(--mono)}
+.cth-txt{font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:3px}
+.cth-meta{font-size:11px;color:var(--n500);margin-top:3px}
+.ct-form textarea,.ct-form input[type=date]{width:100%;padding:9px 10px;border:1px solid var(--n300,#d3dae2);
+  border-radius:6px;font:inherit;font-size:14px}
+.ct-duas{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px}
 /* A CAIXA DE "LEMBRAR": o mesmo defeito de especificidade, e no celular
    ele aparecia inteiro. `.lg-lembrar` (0,1,0) perdia para `.lg-body label`
    (0,1,1), entao a linha herdava o estilo de ROTULO DE CAMPO — 12px, peso
@@ -5465,9 +5485,10 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="modl" id="cob-estagio"></div>
         </div>
         <div class="card">
-          <div class="head"><h2>Clientes com títulos vencidos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Método OFICIAL de inadimplência, o mesmo do BI de Inadimplência do Avacorp: fatura_composicao com valor pendente, composição 1 (já faturado), vencimento por dtprevisaopagamento ou dtvencimento e sem data de pagamento; cada documento vale o MENOR entre o pendente e o saldo da fatura. CLIENTE é o GRUPO do cadastro de agrupamento do ERP: as empresas de um mesmo grupo ficam numa linha só, e quem não tem grupo aparece sozinho, com o documento mascarado. Documento vencido que ainda NÃO virou fatura não entra aqui — aparece no aviso de pendente de faturamento. 'Prazo médio real' é o DSO do grupo nas faturas liquidadas dos últimos 180 dias: quanto ele realmente leva para pagar, não o prazo contratado. Clique no cabeçalho para reordenar.">i</span></h2><span class="hint" id="cob-hint">por grupo de cliente · top 30 por saldo vencido · clique na linha para ver os títulos</span></div>
+          <div class="head"><h2>Clientes com títulos vencidos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Método OFICIAL de inadimplência, o mesmo do BI de Inadimplência do Avacorp: fatura_composicao com valor pendente, composição 1 (já faturado), vencimento por dtprevisaopagamento ou dtvencimento e sem data de pagamento; cada documento vale o MENOR entre o pendente e o saldo da fatura. CLIENTE é o GRUPO do cadastro de agrupamento do ERP: as empresas de um mesmo grupo ficam numa linha só, e quem não tem grupo aparece sozinho, com o documento mascarado. Documento vencido que ainda NÃO virou fatura não entra aqui — aparece no aviso de pendente de faturamento. 'Prazo médio real' é o DSO do grupo nas faturas liquidadas dos últimos 180 dias: quanto ele realmente leva para pagar, não o prazo contratado. Clique no cabeçalho para reordenar. TRATATIVA é o que está sendo feito com o valor: o último registro e a situação calculada HOJE — promessa vencida (a data que o cliente deu passou), retorno atrasado (o próximo contato combinado ficou para trás), sem movimento (nada registrado há mais de 7 dias) ou sem tratativa. Ao abrir a linha aparece o histórico inteiro, com quem registrou e quando; registro não se edita nem se apaga — corrige-se com um registro novo.">i</span></h2><span class="hint" id="cob-hint">por grupo de cliente · top 30 por saldo vencido · clique na linha para ver os títulos e a tratativa</span></div>
+          <div class="cob-trat-resumo" id="cob-trat-resumo"></div>
           <div class="tablewrap tabroll"><table><thead><tr>
-            <th style="width:34px"></th><th>Cliente</th><th class="num">Títulos</th>
+            <th style="width:34px"></th><th>Cliente</th><th>Tratativa</th><th class="num">Títulos</th>
             <th class="num">Até 15d</th><th class="num">16–30d</th><th class="num">31–90d</th><th class="num">+90d</th>
             <th class="num">Total vencido</th><th class="num">Prazo médio real</th><th class="num">Mais antigo</th>
           </tr></thead><tbody id="cob-cli"></tbody></table></div>
@@ -18139,12 +18160,14 @@ function renderCob(d){
           <td class="num" style="font-weight:700;color:${t.dias_vencido>90?'var(--red)':(t.dias_vencido>30?'var(--yellow-700)':'inherit')}">${t.dias_vencido}</td>
           <td class="num" style="font-weight:600">${BRL.format(t.saldo)}</td></tr>`).join('')}</tbody>
       </table></div>
-      ${c.ocultos>0?`<div class="mais-ocs">+ ${c.ocultos} título${c.ocultos===1?'':'s'} mais recente${c.ocultos===1?'':'s'} não exibido${c.ocultos===1?'':'s'}</div>`:''}`;
+      ${c.ocultos>0?`<div class="mais-ocs">+ ${c.ocultos} título${c.ocultos===1?'':'s'} mais recente${c.ocultos===1?'':'s'} não exibido${c.ocultos===1?'':'s'}</div>`:''}
+      ${cobTratBloco(c,i)}`;
     return `
     <tr class="forn-row" aria-expanded="false" aria-controls="cob-det-${i}" tabindex="0" role="button"
         onclick="cobToggle(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();cobToggle(${i});}">
       <td><span class="expander">${ICONS['chevr2']}</span></td>
       <td><div style="font-weight:600">${esc(c.cliente)}</div><div style="font-size:11px;color:var(--n500);font-family:var(--mono)">${c.grupo?esc('grupo · '+c.empresas+(c.empresas===1?' empresa':' empresas')):esc(c.doc||'')}</div></td>
+      <td id="cob-trat-cel-${i}">${cobTratCelula(c.tratativa)}</td>
       <td class="num">${c.titulos.toLocaleString('pt-BR')}</td>
       <td class="num">${c.ate_15>0?BRL.format(c.ate_15):'—'}</td>
       <td class="num" style="color:${c.de_16_30>0?'var(--yellow-700)':'inherit'}">${c.de_16_30>0?BRL.format(c.de_16_30):'—'}</td>
@@ -18154,8 +18177,9 @@ function renderCob(d){
       <td class="num" style="color:${(c.dso||0)>60?'var(--red)':'inherit'}" title="média ponderada dos últimos 6 meses de faturas pagas">${c.dso!=null?c.dso.toFixed(0)+'d':'—'}</td>
       <td class="num">${c.vencimento_mais_antigo?fmtD(c.vencimento_mais_antigo):'—'}</td>
     </tr>
-    <tr class="forn-det" id="cob-det-${i}"><td colspan="10">${det}</td></tr>`;
-  }).join('') || '<tr><td colspan="10" style="color:var(--n500)">nenhum título vencido — parabéns</td></tr>';
+    <tr class="forn-det" id="cob-det-${i}"><td colspan="11">${det}</td></tr>`;
+  }).join('') || '<tr><td colspan="11" style="color:var(--n500)">nenhum título vencido — parabéns</td></tr>';
+  cobTratResumo();
   const ts=new Date(d.atualizado_em);
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+ts.toLocaleDateString('pt-BR');
 }
@@ -18164,6 +18188,146 @@ function cobToggle(i){
   if(!det) return;
   const open=det.classList.toggle('open');
   det.previousElementSibling.setAttribute('aria-expanded', String(open));
+  /* O histórico da tratativa só vem ao ABRIR a linha: com 30 grupos e meses
+     de registros, trazê-lo junto com a Régua pesaria a tela inteira para
+     mostrar o que ninguém abriu. */
+  if(open) cobTratCarregar(i);
+}
+
+/* ---------------- Tratativa da cobrança ----------------
+   O que está sendo feito com o valor em aberto de cada cliente da Régua, com o
+   histórico inteiro (api/financeiro/cobranca_tratativa.py). A SITUAÇÃO
+   (promessa vencida, retorno atrasado, sem movimento) vem calculada do
+   servidor: a tela não decide estado, só o pinta. O cliente viaja como `ref`,
+   um id opaco — a chave do grupo leva CNPJ e não sai do servidor. */
+let COBTRAT_ALVO=null;
+const COBTRAT_NIVEL={good:['good','sevOk'], warn:['warn','sevWarn'], bad:['bad','sevCrit']};
+function cobTratCelula(t){
+  if(!t) return '<span style="color:var(--n500);font-size:12px" title="O banco da casa não respondeu nesta leitura: a tratativa ficou de fora. Os valores, que vêm do ERP, estão certos.">indisponível</span>';
+  const [cls,ic]=COBTRAT_NIVEL[t.nivel]||COBTRAT_NIVEL.warn;
+  const u=t.ultima;
+  const tit=u ? (u.tipo_rotulo+' · '+u.autor_nome+' · '+fmtDT(u.em)+(t.total>1?' · '+t.total+' registros':''))
+              : 'Nenhuma tratativa registrada para este cliente.';
+  return statChip(cls, t.rotulo, tit, ic)
+    +(t.vencido_novo>0?`<div style="font-size:11px;color:var(--n500)">+${BRL.format(t.vencido_novo)} vencido desde o último registro</div>`:'');
+}
+function cobTratBloco(c,i){
+  return `<div class="cob-trat">
+      <div class="cob-trat-head"><b>Tratativa</b>
+        <span class="hint">o que está sendo feito com este valor — o histórico inteiro, com quem registrou e quando</span>
+        <button class="btn" data-i="${i}" onclick="cobTratNova(+this.dataset.i)">Registrar tratativa</button></div>
+      <ol class="cob-trat-hist" id="cob-trat-hist-${i}"><li class="vazio">carregando…</li></ol>
+    </div>`;
+}
+async function cobTratCarregar(i){
+  const c=((DATACOB||{}).clientes||[])[i], el=document.getElementById('cob-trat-hist-'+i);
+  if(!c||!el) return;
+  if(!c.ref){ el.innerHTML='<li class="vazio">Sem identificação do cliente nesta leitura — recarregue a tela.</li>'; return; }
+  el.innerHTML='<li class="vazio">carregando…</li>';
+  try{
+    const r=await fetch('/api/financeiro/cobranca/tratativas?ref='+encodeURIComponent(c.ref),{cache:'no-store'});
+    const {ok,dados}=await respostaJSON(r);
+    el.innerHTML = ok ? cobTratHistHtml(dados.historico||[])
+      : `<li class="vazio">${esc(dados.mensagem||'Não foi possível ler o histórico.')}</li>`;
+  }catch(e){ el.innerHTML=`<li class="vazio">${esc(e.message||'Não foi possível falar com a API.')}</li>`; }
+}
+function cobTratHistHtml(h){
+  if(!h.length) return '<li class="vazio">Nenhuma tratativa registrada ainda. O que for feito com este valor fica aqui, com quem registrou e quando — e não se apaga.</li>';
+  return h.map(e=>{
+    const meta=[];
+    if(e.promessa_data) meta.push('prometido'+(e.promessa_valor?' '+BRL.format(e.promessa_valor):'')+' para '+fmtD(e.promessa_data));
+    if(e.retorno_em) meta.push('retorno em '+fmtD(e.retorno_em));
+    if(e.titulos&&e.titulos.length) meta.push('títulos '+e.titulos.join(', '));
+    if(e.vencido_ref!=null) meta.push('vencido no registro: '+BRL.format(e.vencido_ref)
+      +(e.titulos_ref!=null?' em '+e.titulos_ref+' título'+(e.titulos_ref===1?'':'s'):''));
+    return `<li><div class="cth-l1"><b>${esc(e.tipo_rotulo)}</b>${e.canal_rotulo?`<i>${esc(e.canal_rotulo)}</i>`:''}<span>${esc(fmtDT(e.em))} · ${esc(e.autor_nome)}</span></div>
+      <div class="cth-txt">${esc(e.descricao)}</div>${meta.length?`<div class="cth-meta">${esc(meta.join(' · '))}</div>`:''}</li>`;
+  }).join('');
+}
+function cobTratNova(i){
+  const c=((DATACOB||{}).clientes||[])[i]; if(!c) return;
+  const t=DATACOB.tratativas||{}, tipos=t.tipos||{}, canais=t.canais||{};
+  const opc=o=>Object.entries(o).map(([k,v])=>`<option value="${esc(k)}">${esc(v)}</option>`).join('');
+  const tits=c.titulos_lista||[];
+  COBTRAT_ALVO=i;
+  abrirModal(`
+    <h3>Registrar tratativa</h3>
+    <p class="lg-sub">${esc(c.cliente)} · vencido agora ${BRL.format(c.vencido)} em ${c.titulos} título${c.titulos===1?'':'s'}</p>
+    <div class="ges-form ct-form">
+      <div><label for="ct-tipo">O que está sendo feito</label>
+        <select id="ct-tipo" onchange="cobTratTipo()">${opc(tipos)}</select></div>
+      <div><label for="ct-canal">Canal (opcional)</label>
+        <select id="ct-canal"><option value="">—</option>${opc(canais)}</select></div>
+      <div><label for="ct-desc">O que foi feito ou combinado</label>
+        <textarea id="ct-desc" rows="4" maxlength="2000" placeholder="com quem se falou, o que o cliente disse, o que ficou combinado"></textarea></div>
+      <div class="ct-duas" id="ct-prom" style="display:none">
+        <div><label for="ct-pdata">Data prometida</label><input type="date" id="ct-pdata"></div>
+        <div><label for="ct-pvalor">Valor prometido (opcional)</label>
+          <input type="text" id="ct-pvalor" inputmode="decimal" placeholder="0,00"></div></div>
+      <div><label for="ct-ret">Próximo retorno (opcional)</label><input type="date" id="ct-ret"></div>
+      ${tits.length?`<div><label>Títulos a que se refere (opcional)</label>
+        <div class="ges-telas ct-tits">${tits.map(x=>{const v=x.numero+'/'+x.filial;
+          return `<label><input type="checkbox" value="${esc(v)}">${esc(String(x.numero))} · fil. ${esc(String(x.filial))} · ${BRL.format(x.saldo)}</label>`;}).join('')}</div></div>`:''}
+    </div>
+    <div class="m-err" id="m-err"></div>
+    <div class="m-foot"><button class="ghost" onclick="fecharModal()">Cancelar</button>
+      <button class="btn" id="ct-salvar" onclick="cobTratSalvar()">Registrar</button></div>`);
+  cobTratTipo();
+}
+function cobTratTipo(){
+  const p=document.getElementById('ct-prom'), t=document.getElementById('ct-tipo');
+  if(p&&t) p.style.display = t.value==='promessa' ? 'grid' : 'none';
+}
+async function cobTratSalvar(){
+  const i=COBTRAT_ALVO, c=((DATACOB||{}).clientes||[])[i]; if(!c) return;
+  const v=id=>((document.getElementById(id)||{}).value||'').trim();
+  const corpo={ref:c.ref, tipo:v('ct-tipo'), canal:v('ct-canal')||null, descricao:v('ct-desc'),
+               retorno_em:v('ct-ret')||null,
+               titulos:[...document.querySelectorAll('.ct-tits input:checked')].map(x=>x.value)};
+  if(corpo.tipo==='promessa'){
+    corpo.promessa_data=v('ct-pdata')||null;
+    const pv=v('ct-pvalor');
+    if(pv){ const n=numBR(pv); if(!(n>0)){ mErro('Valor prometido inválido — escreva como 1.234,56.'); return; }
+            corpo.promessa_valor=n; }
+  }
+  const btn=document.getElementById('ct-salvar'); btn.disabled=true; mErro('');
+  let feito=null;
+  try{
+    const r=await fetch('/api/financeiro/cobranca/tratativas',{method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify(corpo)});
+    const {ok,dados}=await respostaJSON(r);
+    if(!ok){ mErro(dados.mensagem||'Não foi possível registrar.'); return; }
+    feito=dados;
+  }catch(e){ mErro(e.message||'Não foi possível falar com a API.'); return; }
+  finally{ btn.disabled=false; }
+  /* Daqui para baixo o registro JÁ ESTÁ gravado: repintar fora do try faz uma
+     falha de desenho não virar "não foi possível registrar". */
+  fecharModal();
+  c.tratativa=feito.tratativa;
+  const cel=document.getElementById('cob-trat-cel-'+i);
+  if(cel) cel.innerHTML=cobTratCelula(c.tratativa);
+  cobTratResumo();
+  cobTratCarregar(i);
+}
+function cobTratResumo(){
+  const el=document.getElementById('cob-trat-resumo'); if(!el) return;
+  const d=DATACOB||{}, t=d.tratativas;
+  if(!t){ el.innerHTML=''; return; }
+  if(!t.disponivel){ el.innerHTML=statChip('warn','tratativas indisponíveis nesta leitura',
+    'O banco da casa não respondeu. Os valores vêm do ERP e estão certos; só a tratativa ficou de fora.','sevWarn'); return; }
+  const cs=d.clientes||[];
+  const item=(estado,cls,ic,texto,tit)=>{
+    const g=cs.filter(c=>c.tratativa&&c.tratativa.estado===estado); if(!g.length) return '';
+    return statChip(cls, g.length+' '+texto+' · '+BRL.format(g.reduce((s,c)=>s+(c.vencido||0),0)), tit, ic);
+  };
+  const partes=[
+    item('promessa_vencida','bad','sevCrit','com promessa vencida','A data que o cliente prometeu passou e o valor segue em aberto.'),
+    item('retorno_atrasado','warn','sevWarn','com retorno atrasado','O próximo contato combinado ficou para trás.'),
+    item('sem_tratativa','warn','sevWarn','sem tratativa','Cliente com valor vencido e nenhum registro do que está sendo feito.'),
+    item('parada','warn','sevWarn','sem movimento há mais de '+(t.parada_dias||7)+' dias','A última tratativa é antiga e nada foi registrado desde então.'),
+  ].filter(Boolean);
+  el.innerHTML = partes.length ? partes.join('')
+    : statChip('good','todos os clientes da Régua com tratativa em dia','Nenhuma promessa vencida, retorno atrasado ou cliente sem tratativa.','sevOk');
 }
 
 /* ---------------- Extrato Bancário ---------------- */

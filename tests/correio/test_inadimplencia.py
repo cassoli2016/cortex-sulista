@@ -236,11 +236,26 @@ def test_o_email_responde_as_TRES_perguntas(email):
                    "Vencido no fechamento de cada dia útil", "Entrou em atraso por dia útil",
                    "Recuperado por dia útil", "Por faixa de atraso", "Maiores devedores",
                    "Entraram em atraso e continuam em aberto",
-                   "Vencem nos próximos 5 dias úteis", "Como se mede"):
+                   "Vencem nos próximos 5 dias úteis"):
         assert trecho in h, trecho
     assert "TRANSPORTADORA FICTICIA LTDA" in h and "LOGISTICA INVENTADA LTDA" in h
     assert r["assunto"].startswith("[CÓRTEX] Inadimplência 14/09 — R$ 500 mil vencidos (5,0%)")
     assert r["vazio"] is False
+
+
+def test_o_email_NAO_leva_a_metodologia_nem_o_pendente_de_faturamento(email):
+    """Pedido de quem opera (15/09/2026): saem do e-mail o bloco "Fora desta
+    conta" (o pendente de faturamento), o "Como se mede" e a linha da fonte. O
+    e-mail é para agir; o método mora no ⓘ das telas. O dublê TEM pendente de
+    faturamento — sem ele, a ausência do bloco não provaria nada."""
+    r = email()
+    assert fi.resumo()["pendente_faturamento"]["valor"] > 0, "o dublê perdeu o pendente"
+    for fora in ("Fora desta conta", "PENDENTES DE FATURAMENTO", "Como se mede",
+                 "regra oficial das telas", fi.FONTE, "fatura_composicao"):
+        assert fora not in r["html"], fora
+        assert fora not in r["texto"], fora
+    assert "fonte:" not in r["html"], "o rodapé desta mensagem não leva a fonte"
+    assert "Gerado pelo CÓRTEX" in r["html"], "o resto do rodapé continua"
 
 
 def test_o_grafico_e_CELULA_e_a_unica_imagem_e_a_logo(email):

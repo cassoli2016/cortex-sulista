@@ -4787,9 +4787,14 @@ def visao_geral() -> JSONResponse:
 
 @app.get("/api/financeiro/cobranca")
 def cobranca(filial: int | None = None, cliente: str | None = None) -> JSONResponse:
+    from api.financeiro import cobranca_tratativa
     cliente = (cliente or "").strip() or None
     try:
-        return JSONResponse(queries.get_cobranca(filial, cliente=cliente))
+        # A tratativa entra DEPOIS do cache: `get_cobranca` guarda o ERP por
+        # 90 s, e o registro de quem acabou de falar com o cliente não pode
+        # esperar o cache vencer para aparecer. `anexar` devolve CÓPIA.
+        return JSONResponse(cobranca_tratativa.anexar(
+            queries.get_cobranca(filial, cliente=cliente)))
     except psycopg.OperationalError as exc:
         log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={
@@ -4799,6 +4804,71 @@ def cobranca(filial: int | None = None, cliente: str | None = None) -> JSONRespo
         log.warning("cobranca falhou: %s", exc)
         return JSONResponse(status_code=500, content={
             "erro": "erro_consulta", "mensagem": "Erro ao consultar a cobrança."})
+
+
+@app.get("/api/financeiro/cobranca/tratativas")
+def cobranca_tratativas(ref: str = "") -> JSONResponse:
+    """O histórico INTEIRO da tratativa de um cliente da Régua, do mais novo
+    para o mais antigo. Só o banco da casa: abre mesmo com o ERP fora."""
+    from api.financeiro import cobranca_tratativa as ct
+    if not ct.ref_valido(ref):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Cliente inválido."})
+    try:
+        return JSONResponse({"ref": ref, "historico": ct.historico(ref)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("tratativas: leitura falhou (%s)", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Não foi possível ler o histórico da tratativa."})
+
+
+@app.post("/api/financeiro/cobranca/tratativas")
+def cobranca_tratativa_registrar(payload: dict, request: Request) -> JSONResponse:
+    """Registra o que está sendo feito com o valor em aberto de um cliente da
+    Régua. O cliente se confere contra a Régua VIVA do ERP (não se registra
+    tratativa para quem não deve mais), o registro guarda a foto do vencido e
+    entra no `audit_log`. Recusa é 409, com a mensagem para a tela."""
+    from api.financeiro import cobranca_tratativa as ct
+    autor = str((getattr(request.state, "sessao", None) or {}).get("email") or "")
+    ref = payload.get("ref")
+    if not ct.ref_valido(ref):
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Cliente inválido."})
+    try:
+        linha = ct.linha_da_regua(ref)
+    except psycopg.OperationalError as exc:
+        log.warning("tratativa: ERP inacessivel (%s)", type(exc).__name__)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": ("O ERP não respondeu, e sem ele não dá para conferir o cliente. "
+                         "Tente de novo em instantes.")})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("tratativa: conferencia falhou (%s)", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Não foi possível conferir o cliente no ERP."})
+    if linha is None:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "fora_da_regua",
+            "mensagem": ("Este cliente não tem mais valor vencido na Régua — pode ter pagado "
+                         "desde a última leitura. Recarregue a tela.")})
+    try:
+        entrada = ct.registrar(ref, payload, autor=autor, linha=linha)
+    except ct.Recusa as exc:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "recusado", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("tratativa: gravacao falhou (%s)", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao", "mensagem": "Não foi possível registrar a tratativa."})
+    # registro já gravado — a auditoria é best-effort e não pode reverter a resposta
+    try:
+        auth.audit(autor, "cobranca_tratativa", alvo=ref,
+                   detalhe=f"{entrada['tipo']} · {linha['cliente']}"[:500])
+    except Exception as exc:  # noqa: BLE001
+        log.warning("audit da tratativa falhou (registro gravado): %s", type(exc).__name__)
+    return JSONResponse({"ok": True, "entrada": entrada,
+                         "tratativa": ct.tratativa_de(ref, linha["vencido"])})
 
 
 @app.get("/api/financeiro/fluxo-consolidado")

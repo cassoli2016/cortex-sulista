@@ -563,8 +563,10 @@ def campos(itens: list[tuple[str, str]], *, titulo: str = "",
 </td></tr>"""
 
 
-def rodape(origem: str) -> str:
-    """Rodapé comum: quando foi gerado, de onde veio, e nada mais.
+def rodape(origem: str | None) -> str:
+    """Rodapé comum: quando foi gerado, de onde veio, e nada mais. `origem`
+    None tira o "de onde veio" — pedido de quem opera para o e-mail da
+    inadimplência (15/09/2026), cuja fonte era uma frase de método.
 
     O RODAPÉ NÃO MANDA NINGUÉM PARA DENTRO DO PAINEL (decisão de quem opera,
     11/09/2026). A frase que ficava aqui — "para mudar horário, destinatários
@@ -581,17 +583,18 @@ def rodape(origem: str) -> str:
     Parâmetro sem efeito é o tipo de coisa que a próxima pessoa tenta usar.
     """
     quando = datetime.now().strftime("%d/%m/%Y às %H:%M")
+    fonte = f" · fonte: {_esc(origem)}" if origem else ""
     return f"""
 <tr><td style="padding:26px 26px 24px">
   <div style="border-top:1px solid {BORDA};padding-top:14px;
               font:400 11.5px/1.6 {FONTE};color:{CINZA}">
-    Gerado pelo CÓRTEX em {quando} · fonte: {_esc(origem)}<br>
+    Gerado pelo CÓRTEX em {quando}{fonte}<br>
     Mensagem automática.
   </div></td></tr>"""
 
 
 def documento(titulo: str, blocos: list[str], *, subtitulo: str = "",
-              origem: str = "") -> str:
+              origem: str | None = "") -> str:
     """Envelope. `role="presentation"` em toda tabela de layout: sem isso o
     leitor de tela anuncia "tabela de 3 colunas" a cada moldura."""
     corpo = "".join(blocos)
@@ -633,7 +636,7 @@ def documento(titulo: str, blocos: list[str], *, subtitulo: str = "",
                 border:1px solid {BORDA};border-radius:10px;overflow:hidden">
    {cabecalho(titulo, subtitulo)}
    {corpo}
-   {rodape(origem or 'painel CÓRTEX')}
+   {rodape(None if origem is None else (origem or 'painel CÓRTEX'))}
   </table>
  </td></tr>
 </table></body></html>"""
