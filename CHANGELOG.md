@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.88.0] — 15/09/2026  ·  CX-15/09/2026-v1.88.0
+
+### Adicionado
+- CRM — importação do CRM do Avacorp para o CRM do CÓRTEX: os leads viram contas, contatos e oportunidades no funil (com o estágio, a previsão de fechamento, o motivo de perda e o potencial mensal de lá); os projetos viram projetos do CRM, com cada versão no histórico; e as repactuações ficam no histórico de cada cliente. O que não tinha equivalente exato no CÓRTEX vai junto, nas observações. Pode ser rodada de novo sem duplicar e sem reescrever o que já foi editado no CÓRTEX.
+
+### Alterado
+- CRM › Base do Avacorp — passa a ser histórico: desde a importação, o CRM da casa é o do CÓRTEX.
+
 ## [1.87.0] — 15/09/2026  ·  CX-15/09/2026-v1.87.0
 
 ### Adicionado

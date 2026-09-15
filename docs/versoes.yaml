@@ -1,3 +1,19 @@
+- versao: "1.88.0"
+  data: "2026-09-15"
+  adicionado:
+    - >-
+      CRM — importação do CRM do Avacorp para o CRM do CÓRTEX: os leads viram
+      contas, contatos e oportunidades no funil (com o estágio, a previsão de
+      fechamento, o motivo de perda e o potencial mensal de lá); os projetos
+      viram projetos do CRM, com cada versão no histórico; e as repactuações
+      ficam no histórico de cada cliente. O que não tinha equivalente exato no
+      CÓRTEX vai junto, nas observações. Pode ser rodada de novo sem duplicar
+      e sem reescrever o que já foi editado no CÓRTEX.
+  alterado:
+    - >-
+      CRM › Base do Avacorp — passa a ser histórico: desde a importação, o CRM
+      da casa é o do CÓRTEX.
+
 - versao: "1.87.0"
   data: "2026-09-15"
   adicionado:
