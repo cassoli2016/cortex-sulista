@@ -1,3 +1,19 @@
+- versao: "1.87.0"
+  data: "2026-09-15"
+  adicionado:
+    - >-
+      Gestão › Usuários — acesso simulado: o botão Simular (também no
+      relatório de Permissões) mostra o sistema exatamente como aquela pessoa
+      vê — as mesmas telas, abas, página inicial e, para login de cliente, o
+      mesmo recorte —, para conferir o acesso dela sem pedir a senha a
+      ninguém. É só leitura, termina sozinho em uma hora ou no botão "Sair da
+      simulação", e o início e o fim ficam na auditoria.
+  alterado:
+    - >-
+      Gestão › Usuários — ao criar um usuário, o perfil começa em branco e é
+      obrigatório escolher (antes vinha o Administrador marcado). Escolher
+      Administrador mostra um aviso do que esse perfil dá.
+
 - versao: "1.86.1"
   data: "2026-09-15"
   corrigido:

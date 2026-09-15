@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.87.0] — 15/09/2026  ·  CX-15/09/2026-v1.87.0
+
+### Adicionado
+- Gestão › Usuários — acesso simulado: o botão Simular (também no relatório de Permissões) mostra o sistema exatamente como aquela pessoa vê — as mesmas telas, abas, página inicial e, para login de cliente, o mesmo recorte —, para conferir o acesso dela sem pedir a senha a ninguém. É só leitura, termina sozinho em uma hora ou no botão "Sair da simulação", e o início e o fim ficam na auditoria.
+
+### Alterado
+- Gestão › Usuários — ao criar um usuário, o perfil começa em branco e é obrigatório escolher (antes vinha o Administrador marcado). Escolher Administrador mostra um aviso do que esse perfil dá.
+
 ## [1.86.1] — 15/09/2026  ·  CX-15/09/2026-v1.86.1
 
 ### Corrigido
