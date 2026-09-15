@@ -9180,6 +9180,22 @@ def seguranca() -> JSONResponse:
             "erro": "erro_consulta", "mensagem": "Erro ao montar a torre de segurança."})
 
 
+@app.get("/api/operacao/manutencao")
+def manutencao_tv() -> JSONResponse:
+    """O quadrante de manutenção da TV de operação (queries.get_manutencao_tv)."""
+    try:
+        return JSONResponse(queries.get_manutencao_tv())
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco. O túnel SSH está aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("manutencao_tv falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao montar a manutenção da frota."})
+
+
 @app.get("/api/frota/multas")
 def multas(
     dt_de: str | None = None,

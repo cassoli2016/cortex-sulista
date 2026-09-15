@@ -15724,32 +15724,6 @@ function tvBarra(b){
     + b.zonas.map(z=>z.cor+'4D '+z.de.toFixed(1)+'% '+z.ate.toFixed(1)+'%').join(',') + ')"' : '';
   return `<div class="tv-barra"${fundo}><i style="width:${w.toFixed(1)}%;background:${TV_BARRA_COR[b.cls]||'#A9BCCD'}"></i></div>`;
 }
-/* AS REGUAS DE CONDUCAO (decisao de quem opera, 13/09/2026):
-     motor ligado parado e pedal critico: ate 5% verde, acima de 5 amarelo,
-       acima de 10 vermelho (menos e melhor);
-     faixa extra-economica: abaixo de 90% vermelho, de 90 a 95 amarelo,
-       acima de 95 verde (mais e melhor).
-   A barra usa uma ESCALA que da espaco as faixas -- 0 a 20% nas duas
-   primeiras, 70 a 100% na terceira. Em 0 a 100% a faixa de 90 a 95 teria
-   meia letra de largura e o verde da de motor parado nem apareceria. Valor
-   fora da escala encosta na ponta. Na medicao do dia: 14,3% / 14,5%
-   (vermelho) e 93,9% (amarelo). */
-const TV_REGUAS={
-  motor_parado:{menor:true, amarelo:5, vermelho:10, escala:[0,20]},
-  pedal_critico:{menor:true, amarelo:5, vermelho:10, escala:[0,20]},
-  faixa_extra_eco:{menor:false, vermelho:90, amarelo:95, escala:[70,100]},
-};
-function tvRegua(v, r){
-  if(v==null || !isFinite(v)) return {cls:'', barra:null};
-  const [lo,hi]=r.escala, pos=x=>Math.max(0,Math.min(100,100*(x-lo)/(hi-lo)));
-  const V='#4ADE80', A='#FBBF24', R='#F87171';
-  const cls = r.menor ? (v>r.vermelho?'ruim':(v>r.amarelo?'warn':'ok'))
-                      : (v<r.vermelho?'ruim':(v<=r.amarelo?'warn':'ok'));
-  const zonas = r.menor
-    ? [{cor:V,de:0,ate:pos(r.amarelo)},{cor:A,de:pos(r.amarelo),ate:pos(r.vermelho)},{cor:R,de:pos(r.vermelho),ate:100}]
-    : [{cor:R,de:0,ate:pos(r.vermelho)},{cor:A,de:pos(r.vermelho),ate:pos(r.amarelo)},{cor:V,de:pos(r.amarelo),ate:100}];
-  return {cls, barra:{pct:pos(v), cls, zonas}};
-}
 /* CARTAO DE DOIS NUMEROS: um rotulo que cobre dois universos que nao se somam
    (frota x agregado). Cada numero e o seu proprio `.tv-num` porque
    tvAnimarNums reescreve o textContent do elemento: dois numeros no mesmo
@@ -17943,13 +17917,16 @@ async function loadTvOpe(){
     /* SEM VALOR DE COMBUSTIVEL NA PAREDE (decisao de quem opera, 13/09/2026):
        o custo em reais saiu do cartao de km e do bloco reserva, e com ele a
        consulta -- a TV nao pede o que nao mostra. */
-    const [rt, rp, rs, rk, rv]=await Promise.all([
+    const [rt, rp, rs, rk, rv, rmn]=await Promise.all([
       fetch('/api/operacao/torre',{cache:'no-store'}),
       fetch('/api/operacao/programacao',{cache:'no-store'}),
       fetch('/api/operacao/seguranca',{cache:'no-store'}),
       fetch('/api/operacao/analise-km?'+qMes,{cache:'no-store'}),
-      fetch('/api/visao-geral',{cache:'no-store'})]);
+      fetch('/api/visao-geral',{cache:'no-store'}),
+      fetch('/api/operacao/manutencao',{cache:'no-store'})]);
     const t=await rt.json(), p=await rp.json(), s=await rs.json(), km=await rk.json(), vg=await rv.json();
+    // a manutencao falhar nao derruba a parede: o quadrante dela diz, e so ele
+    const mt=rmn.ok ? await rmn.json().catch(()=>({})) : {};
     if(seq!==tvOpeSeq) return;
     if(!rt.ok||!rp.ok||!rs.ok){ tvErro('tvope-k1', tvOpeOk); return; }
     /* A TV DE OPERACAO SO MOSTRA QUEM TEM MOTOR. Implemento entra nas
@@ -18038,80 +18015,52 @@ async function loadTvOpe(){
       tvCard('Sem sinal há +6h', mudos, mudos>0?'warn':'ok', 'de '+nTr+' em viagem', '',
         {pct:nTr?100*mudos/nTr:null, cls:mudos>0?'warn':'ok'}),
     ].join('');
-    /* BLOCO SUPERIOR DIREITO = TELEMETRIA (Gobrax). Vem no proprio payload da
-       torre (t.telemetria), lido do cache local — a coleta leva ~70 s e a TV
-       recarrega a cada 60 s, entao buscar na Gobrax aqui penduraria o painel.
-       Em TV NAO existe tooltip: a idade da coleta precisa caber no subtitulo,
-       senao dado de dias atras e lido como ao vivo numa tela onde o resto e.
-       Os quatro cartoes que sairam daqui seguem no ticker do rodape (excesso
-       de velocidade, cercas, CNH vencida). */
-    const tel=(t.telemetria)||{};
-    if(!tel.disponivel){
-      document.getElementById('tvope-k2').innerHTML=[
-        tvCard('Telemetria', 'sem coleta', 'warn', 'Gobrax · nenhuma coleta gravada'),
-        tvCard('Cargas críticas', tk.criticas||0, (tk.criticas||0)>0?'warn':'ok',
-               'em trânsito · ocorrência 261'),
-        tvCard('Km do mês', (rk.ok&&km.kpis)?((km.kpis.km_total/1000).toFixed(0)+' mil'):'—', '', 'carregado + vazio'),
-        tvCard('Retorno vazio', (rk.ok&&km.kpis&&km.kpis.km_total>0)
-               ? (100*km.kpis.km_vazio/km.kpis.km_total).toFixed(0)+'%' : '—',
-               (rk.ok&&km.kpis&&km.kpis.km_total>0&&(100*km.kpis.km_vazio/km.kpis.km_total)>20)?'ruim':'ok',
-               'no mês · limite 20%'),
-        tvCard('Atrasadas', tk.atrasadas||0, (tk.atrasadas||0)>0?'ruim':'ok',
-               'de '+(tk.em_transito||0)+' em trânsito'),
-        tvCard('CNH vencida rodando', pk.cnh_vencida_rodando, pk.cnh_vencida_rodando>0?'ruim':'ok', pk.cnh_vencida+' no total'),
+    /* BLOCO SUPERIOR DIREITO = MANUTENCAO DA FROTA (quem opera, 15/09/2026:
+       "no quadrante onde tem a telemetria vamos mudar para indicadores de
+       manutencao"). Servidor: queries.get_manutencao_tv. Frota da casa
+       (frota + locacao) -- agregado se mantem por conta propria. Cavalo e
+       semirreboque lado a lado em cada cartao, cada um com o seu
+       denominador: sao duas regras de revisao (cavalo por km, semirreboque
+       por data) e duas oficinas de ritmo diferente.
+       COR SO ONDE HA REGUA: vencida e vermelha; "na oficina ha +7 dias" e
+       amarela (o corte e medido, queries.OFICINA_LONGA_DIAS). A vencer,
+       parados, preventiva e socorro vao sem cor -- sao agenda e retrato, sem
+       meta nossa para bater, e verde so existe quando havia meta.
+       A telemetria saiu daqui e continua na Torre de Controle. */
+    const mRev=mt.revisoes||{}, mOf=mt.oficina||{}, mMes=mt.mes||{};
+    const rCav=mRev.cavalos||{}, rSem=mRev.semirreboques||{};
+    const oCav=mOf.cavalos||{}, oSem=mOf.semirreboques||{};
+    const nd=v=>v==null?'—':v;
+    const fracao=(a,b)=>(a!=null&&b)?100*a/b:null;
+    const vermelhoSe=v=>v==null?'':(v>0?'ruim':'ok');
+    const amareloSe=v=>v==null?'':(v>0?'warn':'ok');
+    const nOS=(mMes.preventivas||0)+(mMes.corretivas||0);
+    const pPrev=nOS?100*mMes.preventivas/nOS:null;
+    const MES3=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+    const mesAnt=mMes.mes_ant?MES3[+mMes.mes_ant.slice(5,7)-1]:'';
+    document.getElementById('tvope-k2').innerHTML = !rmn.ok
+      ? tvCard('Manutenção da frota', '—', 'warn', 'sem leitura do ERP')
+      : [
+        tvCardDuo('Revisões vencidas', [
+          {num:nd(rCav.vencidas), cls:vermelhoSe(rCav.vencidas), sub:'cavalos · de '+nd(rCav.avaliados)},
+          {num:nd(rSem.vencidas), cls:vermelhoSe(rSem.vencidas), sub:'semirreb. · de '+nd(rSem.avaliados)}]),
+        tvCardDuo('Revisões a vencer', [
+          {num:nd(rCav.a_vencer), sub:'cavalos · últimos 10% km'},
+          {num:nd(rSem.a_vencer), sub:'semirreb. · em '+(mRev.horizonte_dias||30)+' dias'}]),
+        tvCardDuo('Parados em manutenção', [
+          {num:nd(oCav.parados), sub:'cavalos · de '+nd(oCav.frota),
+           barra:{pct:fracao(oCav.parados, oCav.frota)}},
+          {num:nd(oSem.parados), sub:'semirreb. · de '+nd(oSem.frota),
+           barra:{pct:fracao(oSem.parados, oSem.frota)}}]),
+        tvCardDuo('Na oficina há +'+(mOf.longa_dias||7)+' dias', [
+          {num:nd(oCav.longa), cls:amareloSe(oCav.longa), sub:'cavalos'},
+          {num:nd(oSem.longa), cls:amareloSe(oSem.longa), sub:'semirreb.'}]),
+        tvCard('Preventivas no mês', pPrev==null?'—':Math.round(pPrev)+'%', '',
+               (mMes.preventivas||0)+' de '+nOS+' OS', '', {pct:pPrev}),
+        /* janela equivalente: o mes anterior ATE O MESMO DIA (servidor) */
+        tvCard('Quebra em rota no mês', nd(mMes.socorro), '',
+               mesAnt+' até dia '+nd(mMes.dia)+': '+nd(mMes.socorro_ant)),
       ].join('');
-    } else {
-      const idade = tel.dias_atras==null ? 'coleta Gobrax'
-        : (tel.dias_atras<=0 ? 'coleta de hoje'
-           : 'coleta de '+tel.dias_atras+'d atrás');
-      const kml=tel.km_l_frota, alvo=tel.alvo_km_l||2.5;
-      const fr=tel.freadas_alta_por_mil_km;
-      /* A LEITURA DESCARTADA VAI PARA A TELA. O km/l da frota é calculado só
-         sobre quem passa na faixa física (ver api/gobrax/torre.py): sem isso
-         a soma bruta trazia 0,7 km/l com 66 mil litros num único veículo. Em
-         TV não há tooltip, então o quanto se descartou tem de caber no
-         subtítulo — senão o número parece medir a frota inteira. */
-      const desc=(tel.leitura_suspeita||0);
-      /* O BLOCO E SO DA FROTA RODANDO (pedido de quem opera, 13/09/2026): o
-         servidor filtra frota + locacao com km no mes (api/gobrax/torre.py).
-         Sairam "Abaixo do alvo", "Leitura descartada" e "Carga sem veiculo",
-         que ninguem sabia ler; entraram tres indicadores de conducao da
-         coleta diaria de performance. Os tres sao RAZAO DE TEMPO somada na
-         frota e vao sem cor: nao ha meta nossa para eles, e verde so existe
-         quando havia meta a bater. O descarte de leitura fora da faixa fisica
-         continua dito, agora no proprio subtitulo do consumo. */
-      /* MENOS TEXTO (pedido de quem opera, 13/09/2026): o subtitulo diz a
-         UNIDADE e a base, e a proporcao vai na barra. A idade da coleta so
-         aparece quando NAO e de hoje -- fresca e o normal; velha e que
-         precisa ser dita, senao dado de dias atras se le como ao vivo. O
-         descarte da faixa fisica continua no numero de veiculos do consumo
-         ("41 veic." com 47 rodando). */
-      const velha = d => (d!=null && d>0) ? ' · coleta de '+d+'d atrás' : '';
-      const pctTel = (v, casas=1) => v==null ? 'n/d' : v.toFixed(casas).replace('.',',')+'%';
-      const rMot=tvRegua(tel.motor_parado_pct, TV_REGUAS.motor_parado),
-            rEco=tvRegua(tel.faixa_extra_eco_pct, TV_REGUAS.faixa_extra_eco),
-            rPed=tvRegua(tel.pedal_critico_pct, TV_REGUAS.pedal_critico);
-      document.getElementById('tvope-k2').innerHTML=[
-        tvCard('Consumo da frota', kml!=null?kml.toFixed(1).replace('.',','):'n/d',
-               kml==null?'warn':(kml>=alvo?'ok':'ruim'),
-               kml==null ? 'leitura fora da faixa física'+velha(tel.dias_atras)
-                 : ('km/l · alvo '+alvo.toFixed(1).replace('.',',')+' · '
-                    +(tel.com_consumo_valido||0)+' veíc.'+velha(tel.dias_atras))),
-        /* motor parado e pedal critico com DUAS casas (quem opera, 14/09/2026):
-           com uma, 14,29 e 14,34 viravam o mesmo 14,3% e pareciam repetidos */
-        tvCard('Motor ligado parado', pctTel(tel.motor_parado_pct, 2), rMot.cls,
-               'do tempo de motor · meta ≤5%'+velha(tel.conducao_dias_atras), '', rMot.barra),
-        tvCard('Faixa extra econômica', pctTel(tel.faixa_extra_eco_pct), rEco.cls,
-               'do tempo andando · meta >95%', '', rEco.barra),
-        tvCard('Pedal crítico', pctTel(tel.pedal_critico_pct, 2), rPed.cls,
-               'do tempo de pedal · meta ≤5%', '', rPed.barra),
-        /* A razão sai da INTERSEÇÃO (freadas e km do mesmo conjunto) --
-           api/gobrax/torre.py. */
-        tvCard('Freada brusca', fr!=null?fr.toFixed(1).replace('.',','):'—',
-               (fr||0)>15?'ruim':'ok', 'por 1.000 km'),
-        tvCard('Velocidade média', tel.vel_media!=null?tel.vel_media.toFixed(0):'—', '', 'km/h'),
-      ].join('');
-    }
     tvDestacar('tvope-k1'); tvDestacar('tvope-k2');
     if(rk.ok && km.kpis){
       const kk=km.kpis;
@@ -18288,6 +18237,12 @@ async function loadTvOpe(){
     // o proprio sai do Globus; sem ele (Oracle fora), o numero e so do cadastro e o rodape DIZ
     if(pk.cnh_vencida_rodando>0) tick.push('🚫 '+pk.cnh_vencida_rodando+' motorista(s) com CNH vencida em viagem'
       +(pk.cnh_globus_ok===false?' (sem conferir no Globus)':''));
+    /* REVISAO VENCIDA pede acao hoje: vai para o rodape por nome, com o quanto
+       ja passou (km no cavalo, dias no semirreboque). No maximo 6, como as
+       atrasadas. */
+    ((mt.revisoes||{}).vencidas||[]).slice(0,6).forEach(r=>
+      tick.push('🔧 '+r.frota+' revisão vencida — '+(r.km!=null
+        ? r.km.toLocaleString('pt-BR')+' km' : r.dias+(r.dias===1?' dia':' dias'))));
     try{
       // do Radar, so a via FECHADA: lentidao numa rodovia qualquer e contexto
       const estradas=await tvEstradas();

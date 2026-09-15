@@ -411,6 +411,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/operacao/torre",           frozenset({"torre", "tvope"})),
     ("/api/operacao/programacao",     frozenset({"prog", "tvope"})),
     ("/api/operacao/seguranca",       frozenset({"tvope"})),
+    ("/api/operacao/manutencao",      frozenset({"tvope"})),
     ("/api/bi/produtividade-veiculos", frozenset({"tvprod"})),
     ("/api/operacao/analise-km",      frozenset({"km", "tvope"})),
     ("/api/operacao/make-vs-buy",     frozenset({"mvb"})),

@@ -4799,7 +4799,10 @@ SELECT v.placa, coalesce(u.descricao,'(sem)') AS utilizacao,
        (v.possuimotor = 1) AS com_motor,
        t.ult_saida::date AS ult_saida,
        coalesce(t.em_viagem,0)::int AS em_viagem,
-       coalesce(os.abertas,0)::int AS os_abertas
+       coalesce(os.abertas,0)::int AS os_abertas,
+       -- a OS aberta MAIS ANTIGA: ha quanto tempo o veiculo esta na oficina
+       -- (quadrante de manutencao da TV de operacao, get_manutencao_tv)
+       os.desde AS os_desde
 FROM veiculo v
 LEFT JOIN utilizacaoveiculo u ON u.codigo = v.utilizacaoveiculo
 LEFT JOIN (SELECT veiculo, max(dtsaida) AS ult_saida,
@@ -4808,7 +4811,7 @@ LEFT JOIN (SELECT veiculo, max(dtsaida) AS ult_saida,
            WHERE dtcancelamento IS NULL AND semaforo = 1
              AND dtsaida >= current_date - 120
            GROUP BY veiculo) t ON t.veiculo = v.placa
-LEFT JOIN (SELECT veiculo, count(*) AS abertas
+LEFT JOIN (SELECT veiculo, count(*) AS abertas, min(dtemissao)::date AS desde
            FROM ordemservico
            WHERE dtfechamento IS NULL AND dtemissao >= current_date - 180
            GROUP BY veiculo) os ON os.veiculo = v.placa
@@ -5048,7 +5051,7 @@ def get_programacao() -> dict:
         key=lambda x: -(x["dias_parado"] if x["dias_parado"] is not None else 999))
     for o in ociosos:
         o["ult_saida"] = o["ult_saida"].isoformat() if o["ult_saida"] else None
-        o.pop("em_viagem"), o.pop("os_abertas")
+        o.pop("em_viagem"), o.pop("os_abertas"), o.pop("os_desde", None)
 
     # ---- disponibilidade de motoristas (rodaram nos últimos 30 dias) ----
     mot_total = len(mot_disp)
@@ -5963,6 +5966,111 @@ def get_sac_freetime(dt_de: str, dt_ate: str) -> dict:
 
 
 # ============================================================================
+# TV de operação — o quadrante de MANUTENÇÃO (quem opera, 15/09/2026: "no
+# quadrante onde tem a telemetria vamos mudar para indicadores de manutenção,
+# revisões vencidas, a vencer, tanto de cavalo quanto de semirreboque,
+# veículos parados em manutenção"). Tudo da FROTA DA CASA (frota + locação):
+# agregado se mantém por conta própria, e a preventiva do ERP só cobre a casa
+# (medido no dia: 66 cavalos, 35 de locação e 31 de frota, e 175
+# semirreboques).
+# ============================================================================
+
+#: Objetivos de OS no ERP (`objetivoordemservico`): 14 PREVENTIVA, 15
+#: CORRETIVA, 16 QUEBRA EM ROTA/SOCORRO.
+OS_PREVENTIVA, OS_CORRETIVA, OS_SOCORRO = 14, 15, 16
+
+#: "Na oficina há muito tempo" = OS aberta há MAIS de 7 dias. Medido em
+#: 15/09/2026 nas OS da frota fechadas em 180 dias: 90% fecham em até 6 dias
+#: no cavalo (390 OS) e em até 9 no semirreboque (1.077). Sete fica entre os
+#: dois: quem passa disso já está entre as mais demoradas. Nenhuma OS aberta
+#: tinha mais de 50 dias — não há OS esquecida inflando o número.
+OFICINA_LONGA_DIAS = 7
+
+# OS emitidas no recorte, por objetivo, da frota da casa. SEM `FILTER`: o ERP
+# e 9.3.
+MANUT_TV_MES_SQL = """
+SELECT sum(CASE WHEN o.objetivoordemservico = %(prev)s THEN 1 ELSE 0 END)::int AS preventivas,
+       sum(CASE WHEN o.objetivoordemservico = %(corr)s THEN 1 ELSE 0 END)::int AS corretivas,
+       sum(CASE WHEN o.objetivoordemservico = %(socorro)s THEN 1 ELSE 0 END)::int AS socorro
+FROM ordemservico o
+JOIN veiculo v ON v.placa = o.veiculo
+WHERE v.utilizacaoveiculo IN ('TRA','LOC')
+  AND o.dtemissao >= %(de)s::date AND o.dtemissao < %(ate)s::date
+"""
+
+
+@cached(ttl=120, velha_ate=VELHA_ATE)
+def get_manutencao_tv() -> dict:
+    """O quadrante de manutenção da TV de operação.
+
+    Cavalo e semirreboque SEMPRE separados: são duas regras de revisão (o
+    cavalo por km, o semirreboque por data — `get_manutencao_preventiva`) e
+    duas oficinas de ritmo diferente. Somar os dois esconderia justamente
+    qual deles está atrasando.
+    """
+    import calendar
+    hoje = date.today()
+    ini = hoje.replace(day=1)
+    ini_ant = (ini - _timedelta(days=1)).replace(day=1)
+    # JANELA EQUIVALENTE: o mês anterior até o MESMO dia (ou até o último dia
+    # dele, quando é mais curto). Comparar o mês em curso com o anterior
+    # inteiro faria todo começo de mês parecer melhora.
+    dia_ant = min(hoje.day, calendar.monthrange(ini_ant.year, ini_ant.month)[1])
+    fim_ant = ini_ant.replace(day=dia_ant) + _timedelta(days=1)
+    obj = {"prev": OS_PREVENTIVA, "corr": OS_CORRETIVA, "socorro": OS_SOCORRO}
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(PROG_VEIC_DISP_SQL)
+        veic = cur.fetchall()
+        cur.execute(MANUT_TV_MES_SQL, {**obj, "de": ini, "ate": hoje + _timedelta(days=1)})
+        mes = cur.fetchone() or {}
+        cur.execute(MANUT_TV_MES_SQL, {**obj, "de": ini_ant, "ate": fim_ant})
+        ant = cur.fetchone() or {}
+        cur.execute("SELECT current_timestamp AS ts")
+        meta = cur.fetchone()
+
+    # PARADO EM MANUTENÇÃO é a MESMA conta do "tração em OS" da programação
+    # (get_programacao), sobre a MESMA consulta: OS aberta e nenhuma viagem
+    # aberta. Duas contas fariam o cartão de tração e o de manutenção
+    # discordarem na mesma parede. Com viagem aberta E OS aberta (1 cavalo no
+    # dia da medição) o veículo está rodando — a OS é que ficou para trás.
+    def _oficina(motor: bool) -> dict:
+        frota = [v for v in veic if bool(v["com_motor"]) == motor]
+        parados = [v for v in frota if v["em_viagem"] == 0 and v["os_abertas"] > 0]
+        longa = [v for v in parados if v.get("os_desde")
+                 and (hoje - v["os_desde"]).days > OFICINA_LONGA_DIAS]
+        return {"frota": len(frota), "parados": len(parados), "longa": len(longa)}
+
+    prev = get_manutencao_preventiva()
+    k = prev["kpis"]
+    # as VENCIDAS vão por nome para o rodapé da TV, com o quanto já passou
+    vencidas = ([{"frota": t["frota"] or t["veiculo"], "km": -t["km_faltante"]}
+                 for t in prev["tracoes"] if t["status"] == "vencida"]
+                + [{"frota": c["frota"] or c["veiculo"], "dias": -c["dias"]}
+                   for c in prev["carretas"] if c["status"] == "vencida"])
+    n = lambda d, c: int(d.get(c) or 0)  # noqa: E731
+    return {
+        "revisoes": {
+            "cavalos": {"vencidas": k["tracoes_vencidas"], "a_vencer": k["tracoes_proximas"],
+                        "avaliados": k["tracoes_avaliadas"]},
+            "semirreboques": {"vencidas": k["carretas_vencidas"],
+                              "a_vencer": k["carretas_proximas"],
+                              "avaliados": k["carretas_avaliadas"]},
+            "horizonte_dias": prev["horizonte"],
+            "vencidas": vencidas,
+        },
+        "oficina": {"cavalos": _oficina(True), "semirreboques": _oficina(False),
+                    "longa_dias": OFICINA_LONGA_DIAS},
+        "mes": {"preventivas": n(mes, "preventivas"), "corretivas": n(mes, "corretivas"),
+                "socorro": n(mes, "socorro"), "socorro_ant": n(ant, "socorro"),
+                "dia": hoje.day, "mes_ant": ini_ant.isoformat()[:7]},
+        "atualizado_em": meta["ts"].isoformat(),
+        "fonte": ("ERP AVA · ordemservico (OS aberta e objetivo) × programação de "
+                  "embarque × revisões preventivas (fnc_manutencaopreventiva) · "
+                  "frota + locação"),
+    }
+
+
+# ============================================================================
 # Manutenção Preventiva — revisões próximas/vencidas
 # ----------------------------------------------------------------------------
 # Fonte: função avacorpi.fnc_manutencaopreventiva_gridview + regras oficiais
@@ -6101,6 +6209,7 @@ def get_manutencao_preventiva(horizonte: int = 30) -> dict:
     kpis["vencidas"] = kpis["tracoes_vencidas"] + kpis["carretas_vencidas"]
     kpis["planos_ruins"] = len(planos_ruins)
     kpis["tracoes_avaliadas"] = len(tra)
+    kpis["carretas_avaliadas"] = sum(1 for c in car if c["ult"])
 
     # Aderência ao plano: razão real/plano por troca. Razão > 3 é marcador
     # furado (mesma família do desvio > 1 ciclo), não operação — fica fora.

@@ -13,8 +13,8 @@ régua com dublê vazio mede o esqueleto, não a tela.
 5. meta do dia E do mês, cada uma com a sua data — e o dia sem meta DIZ
    isso em vez de mostrar o dia anterior;
 6. tração e motoristas com frota e agregado separados;
-7. telemetria com os três indicadores de condução no lugar dos cartões que
-   ninguém sabia ler;
+7. o quadrante da telemetria virou MANUTENÇÃO DA FROTA (15/09/2026):
+   revisões, parados e oficina longa, cavalo e semirreboque lado a lado;
 8. mapa com legenda, tração no marcador e grupos de no máximo 5.
 """
 from __future__ import annotations
@@ -103,6 +103,21 @@ KM = {"kpis": {"km_total": 454000.0, "km_carregado": 363000.0, "km_vazio": 91000
           {"utilizacao": "TERCEIROS", "viagens": 25, "km_total": 12000.0}]}
 
 
+# O QUADRANTE DE MANUTENÇÃO, na ordem de grandeza do dia real (15/09/2026):
+# 66 cavalos e 175 semirreboques na preventiva, 80 e 228 na frota.
+MANUT = {"revisoes": {"cavalos": {"vencidas": 1, "a_vencer": 3, "avaliados": 66},
+                      "semirreboques": {"vencidas": 2, "a_vencer": 12, "avaliados": 175},
+                      "horizonte_dias": 30,
+                      "vencidas": [{"frota": "C901", "km": 1557},
+                                   {"frota": "S902", "dias": 15},
+                                   {"frota": "S903", "dias": 1}]},
+         "oficina": {"cavalos": {"frota": 80, "parados": 6, "longa": 3},
+                     "semirreboques": {"frota": 228, "parados": 15, "longa": 6},
+                     "longa_dias": 7},
+         "mes": {"preventivas": 26, "corretivas": 62, "socorro": 15,
+                 "socorro_ant": 12, "dia": 15, "mes_ant": "2026-08"}}
+
+
 def _visao(com_hoje: bool) -> dict:
     """DOMINGO: o dia sem meta NÃO entra no `diario` -- é exatamente o que fazia
     a TV mostrar o sábado. O dia anterior tem realizado para a regra velha ter
@@ -115,7 +130,9 @@ def _visao(com_hoje: bool) -> dict:
             "atualizado_em": AGORA.isoformat(), "kpis": {}}
 
 
-def _abre(pg, base, *, com_hoje=False, prog=None, posicoes=None, estradas=None):
+def _abre(pg, base, *, com_hoje=False, prog=None, posicoes=None, estradas=None,
+          manut=MANUT):
+    """`manut=None` faz a rota da manutenção FALHAR (500)."""
     pedidos = []
 
     def rota(r):
@@ -123,6 +140,12 @@ def _abre(pg, base, *, com_hoje=False, prog=None, posicoes=None, estradas=None):
         pedidos.append(url)
         if "/api/auth/me" in url:
             corpo = ADMIN
+        elif "/api/operacao/manutencao" in url:
+            if manut is None:
+                r.fulfill(status=500, content_type="application/json",
+                          body=json.dumps({"erro": "erro_consulta"}))
+                return
+            corpo = manut
         elif "/api/operacao/torre/estradas" in url:
             corpo = {}
         elif "/api/tv/estradas" in url:
@@ -396,28 +419,59 @@ def test_o_cartao_de_motoristas_e_so_da_frota(pagina):
     assert "64 de 68" in r["txt"], r
 
 
-def test_as_reguas_de_conducao_pintam_numero_e_barra(pagina):
+def test_o_quadrante_de_manutencao_substitui_a_telemetria(pagina):
+    """Quem opera, 15/09/2026: "no quadrante onde tem a telemetria vamos
+    mudar para indicadores de manutenção, revisões vencidas, a vencer, tanto
+    de cavalo quanto de semirreboque, veículos parados em manutenção". Cada
+    cartão leva cavalo e semirreboque lado a lado, com o seu denominador."""
     pg, base = pagina
     _abre(pg, base)
+    rotulos = pg.evaluate("""() => [...document.querySelectorAll('#tvope-k2 .tv-label')]
+                                   .map(l => l.innerText.trim().toUpperCase())""")
+    assert rotulos == ["REVISÕES VENCIDAS", "REVISÕES A VENCER", "PARADOS EM MANUTENÇÃO",
+                       "NA OFICINA HÁ +7 DIAS", "PREVENTIVAS NO MÊS",
+                       "QUEBRA EM ROTA NO MÊS"], rotulos
+    c = _cartao(pg, "tvope-k2", "Revisões vencidas")
+    assert c["nums"] == ["1", "2"] and "de 66" in c["texto"] and "de 175" in c["texto"], c
+    assert _cartao(pg, "tvope-k2", "Revisões a vencer")["nums"] == ["3", "12"]
+    # parados: a barra é a fração da FROTA (6 de 80, 15 de 228)
+    assert _cartao(pg, "tvope-k2", "Parados em manutenção")["nums"] == ["6", "15"]
+    assert _barras(pg, "tvope-k2", "Parados em manutenção") == [8, 7]
+    assert _cartao(pg, "tvope-k2", "Na oficina há +7 dias")["nums"] == ["3", "6"]
+    # preventiva sobre preventiva + corretiva: 26 de 88 = 30%
+    p = _cartao(pg, "tvope-k2", "Preventivas no mês")
+    assert p["nums"] == ["30%"] and "26 de 88" in p["texto"], p
+    # quebra em rota contra o mês anterior ATÉ O MESMO DIA
+    q = _cartao(pg, "tvope-k2", "Quebra em rota no mês")
+    assert q["nums"] == ["15"] and "ago até dia 15: 12" in q["texto"], q
+    # cor só onde há régua: vencida vermelha, oficina longa amarela, o resto sem cor
     cls = pg.evaluate("""() => Object.fromEntries([...document.querySelectorAll('#tvope-k2 .tv-card')]
         .map(c => [c.querySelector('.tv-label').innerText.trim().toUpperCase(),
-                   c.querySelector('.tv-num').className]))""")
-    assert "ruim" in cls["MOTOR LIGADO PARADO"]      # 14,3% > 10
-    assert "ruim" in cls["PEDAL CRÍTICO"]            # 14,5% > 10
-    assert "warn" in cls["FAIXA EXTRA ECONÔMICA"]    # 93,9% entre 90 e 95
-    # as fronteiras, pela própria função da tela
-    casos = pg.evaluate("""() => [
-        [4.9, 5, 5.1, 10, 10.1].map(v => tvRegua(v, TV_REGUAS.pedal_critico).cls),
-        [89.9, 90, 95, 95.1].map(v => tvRegua(v, TV_REGUAS.faixa_extra_eco).cls),
-        tvRegua(null, TV_REGUAS.motor_parado).cls]""")
-    assert casos[0] == ["ok", "ok", "warn", "warn", "ruim"], casos[0]
-    assert casos[1] == ["ruim", "warn", "warn", "ok"], casos[1]
-    assert casos[2] == "", "sem leitura não pode ganhar cor"
-    # a barra desenha as faixas no trilho
-    trilho = pg.evaluate("""() => [...document.querySelectorAll('#tvope-k2 .tv-card')]
-        .find(c => c.innerText.toUpperCase().includes('PEDAL CRÍTICO'))
-        .querySelector('.tv-barra').getAttribute('style') || ''""")
-    assert "linear-gradient" in trilho, trilho
+                   [...c.querySelectorAll('.tv-num')].map(n => n.className.replace('tv-num', '').trim())]))""")
+    assert cls["REVISÕES VENCIDAS"] == ["ruim", "ruim"], cls
+    assert cls["NA OFICINA HÁ +7 DIAS"] == ["warn", "warn"], cls
+    for neutro in ("REVISÕES A VENCER", "PARADOS EM MANUTENÇÃO", "PREVENTIVAS NO MÊS",
+                   "QUEBRA EM ROTA NO MÊS"):
+        assert all(x == "" for x in cls[neutro]), (neutro, cls[neutro])
+
+
+def test_revisao_vencida_vai_para_o_rodape_com_o_quanto_passou(pagina):
+    pg, base = pagina
+    _abre(pg, base)
+    rod = pg.evaluate("() => document.getElementById('tvope-ticker').textContent")
+    assert "C901 revisão vencida — 1.557 km" in rod, rod[:400]
+    assert "S902 revisão vencida — 15 dias" in rod, rod[:400]
+    assert "S903 revisão vencida — 1 dia" in rod and "1 dias" not in rod, rod[:400]
+
+
+def test_sem_leitura_de_manutencao_so_o_quadrante_diz(pagina):
+    """A rota da manutenção falhar não derruba a parede: o quadrante diz que
+    não leu, e o resto segue com os números dele."""
+    pg, base = pagina
+    _abre(pg, base, manut=None)
+    k2 = pg.evaluate("() => document.getElementById('tvope-k2').innerText")
+    assert "sem leitura" in k2.lower(), k2
+    assert _cartao(pg, "tvope-k1", "Em trânsito")["nums"] == [str(len(TRANSITO))]
 
 
 def test_carregado_e_vazio_numa_barra_so(pagina):
@@ -467,21 +521,21 @@ def test_todo_cartao_tem_borda_na_cor_do_numero(pagina):
         '#tvope-k1 .tv-card, #tvope-k2 .tv-card')].map(c => [
           c.querySelector('.tv-label').innerText.trim().toUpperCase(),
           {cls: c.className, sombra: getComputedStyle(c).boxShadow}]))""")
-    for rot in ("MOTOR LIGADO PARADO", "PEDAL CRÍTICO", "MOTORISTAS DA FROTA", "TRAÇÃO DISPONÍVEL"):
+    for rot in ("REVISÕES VENCIDAS", "MOTORISTAS DA FROTA", "TRAÇÃO DISPONÍVEL"):
         assert "destaque-ruim" in info[rot]["cls"], (rot, info[rot])
-    for rot in ("FAIXA EXTRA ECONÔMICA", "CHEGANDO 72H"):
+    for rot in ("NA OFICINA HÁ +7 DIAS", "CHEGANDO 72H"):
         assert "destaque-warn" in info[rot]["cls"], (rot, info[rot])
-    for rot in ("CONSUMO DA FROTA", "SEM SINAL HÁ +6H", "FREADA BRUSCA"):
+    for rot in ("SEM SINAL HÁ +6H",):
         assert "destaque-ok" in info[rot]["cls"], (rot, info[rot])
     # número branco: borda BRANCA (e não a discreta azul-acinzentada)
-    for rot in ("EM TRÂNSITO", "VELOCIDADE MÉDIA", "SAÍRAM HOJE"):
+    for rot in ("EM TRÂNSITO", "SAÍRAM HOJE", "PREVENTIVAS NO MÊS", "QUEBRA EM ROTA NO MÊS"):
         assert "destaque-neutro" in info[rot]["cls"], (rot, info[rot])
         assert "229, 237, 244" in info[rot]["sombra"], (rot, info[rot]["sombra"])
     # e TODOS têm borda de verdade no navegador (a regra pode existir e perder)
     sem = [r for r, v in info.items() if v["sombra"] in ("none", "")]
     assert not sem, sem
     # as bordas de estado não são a mesma cor da branca
-    assert info["CONSUMO DA FROTA"]["sombra"] != info["EM TRÂNSITO"]["sombra"]
+    assert info["SEM SINAL HÁ +6H"]["sombra"] != info["EM TRÂNSITO"]["sombra"]
 
 
 def test_o_cartao_de_km_divide_a_altura_entre_os_blocos(pagina):
@@ -503,28 +557,6 @@ def test_sem_sinal_traz_o_denominador(pagina):
     c = _cartao(pg, "tvope-k1", "Sem sinal há +6h")
     assert c and "de %d em viagem" % len(TRANSITO) in c["texto"], c
     assert "ocupação" not in c["texto"].lower()
-
-
-def test_telemetria_troca_os_cartoes_confusos_pelos_de_conducao(pagina):
-    pg, base = pagina
-    _abre(pg, base)
-    rotulos = pg.evaluate("""() => [...document.querySelectorAll('#tvope-k2 .tv-label')]
-                                   .map(l => l.innerText.trim().toUpperCase())""")
-    for novo in ("MOTOR LIGADO PARADO", "FAIXA EXTRA ECONÔMICA", "PEDAL CRÍTICO"):
-        assert novo in rotulos, rotulos
-    for velho in ("ABAIXO DO ALVO", "LEITURA DESCARTADA", "CARGA SEM VEÍCULO"):
-        assert velho not in rotulos, rotulos
-    # duas casas no motor parado e no pedal crítico (14/09/2026); a faixa
-    # extra-econômica segue com uma
-    assert _cartao(pg, "tvope-k2", "Motor ligado parado")["nums"] == ["14,30%"]
-    assert _cartao(pg, "tvope-k2", "Pedal crítico")["nums"] == ["14,50%"]
-    assert _cartao(pg, "tvope-k2", "Faixa extra econômica")["nums"] == ["93,9%"]
-    # a barra vai na escala de 0 a 20% (a régua é 5/10): 14,3% = 72% do trilho
-    assert _barras(pg, "tvope-k2", "Motor ligado parado") == [72]
-    consumo = _cartao(pg, "tvope-k2", "Consumo da frota")["texto"]
-    assert "41 veíc." in consumo
-    # coleta de hoje não se anuncia; só a velha é dita
-    assert "coleta" not in consumo.lower()
 
 
 def test_subtitulos_curtos(pagina):

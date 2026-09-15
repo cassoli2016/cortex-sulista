@@ -1,3 +1,15 @@
+- versao: "1.93.0"
+  data: "2026-09-15"
+  adicionado:
+    - >-
+      Painel TV › Operação — o quadrante de telemetria virou MANUTENÇÃO DA
+      FROTA: revisões vencidas e a vencer, veículos parados em manutenção e os
+      que estão na oficina há mais de 7 dias — sempre cavalo e semirreboque
+      lado a lado —, a parcela de preventivas nas OS do mês e as quebras em
+      rota do mês comparadas com o mesmo período do mês anterior. Revisão
+      vencida também aparece no rodapé, com quantos km (cavalo) ou dias
+      (semirreboque) já passou. A telemetria continua na Torre de Controle.
+
 - versao: "1.92.0"
   data: "2026-09-15"
   adicionado:

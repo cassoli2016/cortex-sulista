@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.93.0] — 15/09/2026  ·  CX-15/09/2026-v1.93.0
+
+### Adicionado
+- Painel TV › Operação — o quadrante de telemetria virou MANUTENÇÃO DA FROTA: revisões vencidas e a vencer, veículos parados em manutenção e os que estão na oficina há mais de 7 dias — sempre cavalo e semirreboque lado a lado —, a parcela de preventivas nas OS do mês e as quebras em rota do mês comparadas com o mesmo período do mês anterior. Revisão vencida também aparece no rodapé, com quantos km (cavalo) ou dias (semirreboque) já passou. A telemetria continua na Torre de Controle.
+
 ## [1.92.0] — 15/09/2026  ·  CX-15/09/2026-v1.92.0
 
 ### Adicionado
