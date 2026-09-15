@@ -31,9 +31,11 @@ CÓRTEX:
    comercial é gravado, em lugar nenhum deste módulo: status gravado envelhece
    sozinho e passa a mentir sem que nada pareça errado.
 
-A BASE DO AVACORP CONTINUA. A tela antiga (leitura de `sulista.gestaocomercial`,
-`pipelineprojetos` e `pipelineprojetos_repactuacoes`) segue viva numa sub-aba,
-intocada. Nada é copiado de lá: o vínculo entre os dois mundos é o
-`crm_contas.ava_agrupamento`, e duas verdades sobre o mesmo lead seria o preço
-de uma importação que ninguém pediu.
+A BASE DO AVACORP VIROU HISTÓRICO (15/09/2026). Até aqui nada era copiado de
+lá — duas verdades sobre o mesmo lead seria o preço de uma importação que
+ninguém tinha pedido. Agora quem opera pediu: o CÓRTEX passa a ser o CRM da
+casa, e `importacao` traz leads, projetos e repactuações do ERP, uma vez e sem
+reescrever o que já é daqui. A tela antiga (`sulista.gestaocomercial`,
+`pipelineprojetos`, `pipelineprojetos_repactuacoes`) segue numa sub-aba, como
+histórico. O vínculo de receita continua o `crm_contas.ava_agrupamento`.
 """
