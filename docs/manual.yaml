@@ -3,6 +3,15 @@ sistema: 'O CÓRTEX é o painel de gestão da Transportadora Sulista S/A. Ele l�
   — financeiro, comercial, operação, frota, pessoas e controladoria. Nenhum número é digitado aqui: tudo
   vem do ERP, e cada card diz no ⓘ de qual tabela e de qual regra ele saiu.'
 glossario:
+- termo: Acesso simulado
+  definicao: >-
+    Na Gestão › Usuários (ou no relatório de Permissões), o botão Simular faz o
+    administrador ver o sistema exatamente como aquela pessoa vê — as mesmas
+    telas no menu, as mesmas abas, a mesma página inicial e, para login de
+    cliente, o mesmo recorte. É o servidor que decide, pela conta da própria
+    pessoa, então o que aparece é o acesso dela de verdade. É só leitura (nada
+    pode ser gravado enquanto dura), termina sozinho em uma hora ou no botão
+    Sair da simulação, e o início e o fim ficam registrados na auditoria.
 - termo: Modalidade (ADM, OPER, MOT)
   definicao: >-
     Como o People Analytics recorta o quadro. ADM é o departamento

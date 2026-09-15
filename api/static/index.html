@@ -2425,6 +2425,20 @@ body.tvmode #tarja-velha{background:#3A2E12;border-color:#FBBF24;color:#FBBF24}
 .ges-perm-t.lib{color:var(--orange-600);font-weight:600}
 .ges-perm-t.hit{background:rgba(232,93,16,.16);border-radius:4px;padding:0 3px}
 tr.ges-perm-inativo td{opacity:.6}
+/* ACESSO SIMULADO: a faixa fica fixa enquanto o administrador vê o sistema
+   como outra pessoa. Fora do fluxo (fixed) de propósito: nenhuma tela muda de
+   altura por causa dela, e a régua de altura não precisa saber que ela existe.
+   `--navy-900` não muda com o tema; a borda é o accent, não o semáforo — é um
+   MODO, não um estado bom ou ruim. Tinta #1E172F sobre o laranja: 4,9:1. */
+.sim-faixa{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:5000;
+  display:flex;gap:18px;align-items:center;max-width:calc(100vw - 36px);box-sizing:border-box;
+  padding:9px 18px;border-radius:9px;background:var(--navy-900);color:#fff;
+  border:2px solid var(--orange-500);box-shadow:0 6px 24px rgba(0,0,0,.35);font-size:13px}
+.sim-faixa b{display:block;font-size:14px}
+.sim-faixa span{color:rgba(255,255,255,.82)}
+.sim-faixa button{flex:none;border:0;border-radius:6px;padding:9px 18px;font:inherit;
+  font-weight:600;background:#E85D10;color:#1E172F;cursor:pointer}
+@media(max-width:640px){.sim-faixa{bottom:84px;flex-direction:column;align-items:stretch;gap:9px}}
 .ges-audbar input{flex:1;padding:9px 10px;border:1px solid var(--n300,#d3dae2);border-radius:6px;font:inherit;font-size:14px}
 /* `.card` não tem padding próprio — cada bloco de conteúdo põe o seu (.modl,
    .alerts, .chartwrap todos fazem isso). `.ges-cfg` era a exceção e ficava
@@ -39317,6 +39331,7 @@ function entrar(){
     if(compAte && !compAte.value) compAte.value=`${hj.getFullYear()}-${String(hj.getMonth()+1).padStart(2,'0')}`;
   }
   aplicarPermissoes(); avatarRender(); void sinoCarregar();
+  simulacaoFaixa();   // acesso simulado: a faixa e a saída, se for o caso
   /* A razao social sob o titulo (#empNome) so era preenchida pelo initFiltros(),
      chamado APENAS por load() (Financeiro) e loadOc(): abrir qualquer uma das
      outras telas deixava o campo com o travessao do HTML. O endpoint e leve,
@@ -39558,6 +39573,50 @@ document.addEventListener('click', e=>{
   if(m && m.classList.contains('aberto') && !m.contains(e.target) && e.target.id!=='avBtn') m.classList.remove('aberto');
 });
 async function sair(){ try{ await fetch('/api/auth/logout',{method:'POST'}); }catch(e){} location.reload(); }
+
+/* ACESSO SIMULADO (15/09/2026). O servidor decide TUDO — telas, abas,
+   recorte de cliente — pela pessoa simulada (api/auth.sessao_simulada), e o
+   /api/auth/me já chega como ela: menu, página inicial e abas se montam pelo
+   mesmo caminho de sempre. A tela só avisa que é simulação e oferece a saída.
+   Só leitura: o servidor recusa toda gravação enquanto ela durar. */
+function simulacaoFaixa(){
+  let f = document.getElementById('simFaixa');
+  const s = USER && USER.simulacao;
+  if(!s){ if(f) f.remove(); return; }
+  if(!f){
+    f = document.createElement('div');
+    f.id = 'simFaixa'; f.className = 'sim-faixa'; f.setAttribute('role', 'status');
+    document.body.appendChild(f);
+  }
+  f.innerHTML = `<div><b>Simulando o acesso de ${esc(USER.nome)}</b>`
+    + `<span>${esc(USER.perfil || '')}${USER.admin ? ' · administrador' : ''} — você vê o que `
+    + `essa pessoa vê. Só leitura: nada pode ser gravado. Termina sozinha às `
+    + `${esc(String(s.expira || '').slice(11, 16))}.</span></div>`
+    + `<button type="button" onclick="simulacaoSair()">Sair da simulação</button>`;
+}
+/* Recarrega a página INTEIRA nos dois sentidos: o boot é que monta menu,
+   página inicial e permissões a partir do /api/auth/me. Trocar só o hash não
+   recarrega nada; por isso o replaceState antes do reload. */
+async function simulacaoIniciar(id){
+  try{
+    const rr = await respostaJSON(await fetch('/api/gestao/simular/' + id, {method: 'POST'}));
+    if(!rr.ok){ showBanner((rr.dados || {}).mensagem || 'Não foi possível simular este acesso.'); return; }
+  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); return; }
+  // sem o #gestao: a pessoa simulada talvez não abra a Gestão, e o boot a
+  // leva à página inicial DELA — que também é parte do que se quer validar
+  history.replaceState(null, '', location.pathname);
+  location.reload();
+}
+async function simulacaoSair(){
+  try{ await fetch('/api/auth/simulacao/sair', {method: 'POST'}); }catch(e){}
+  history.replaceState(null, '', location.pathname + '#gestao');
+  location.reload();
+}
+function gesSimAttr(u){
+  if(USER && u.id === USER.id) return 'disabled title="Esse é você: o sistema já está como você vê"';
+  if(!u.ativo) return 'disabled title="Usuário inativo não acessa nada — reative para simular"';
+  return 'title="Ver o sistema exatamente como esta pessoa vê — só leitura, por até uma hora"';
+}
 
 /* ---------------- Sino de notificações ----------------
    O QUE VEM DO SERVIDOR é a lista já resolvida: a notificação é DERIVADA a
@@ -44623,6 +44682,7 @@ function renderGesUsuarios(){
     <td class="num">${u.ultimo_login?esc(fmtDT(String(u.ultimo_login).replace('T',' ').slice(0,16))):'<span style="color:var(--n500)">nunca acessou</span>'}</td>
     <td class="num"><button class="ghost gbtn" onclick="gesUsuarioModal(${u.id})">Editar</button>
       <button class="ghost gbtn" onclick="gesAcessosModal(${u.id})">Acessos</button>
+      <button class="ghost gbtn" data-simular="${u.id}" onclick="simulacaoIniciar(${u.id})" ${gesSimAttr(u)}>Simular</button>
       <button class="ghost gbtn" onclick="gesUsuarioExcluir(${u.id})">Excluir</button></td>
   </tr>`).join('') || '<tr><td colspan="6">Nenhum usuário.</td></tr>';
 }
@@ -44719,7 +44779,10 @@ function gesPermRender(){
     if(u.abas_tiradas.length) aj.push('<b>− abas tiradas:</b> ' + esc(u.abas_tiradas.map(a => {
       const x = gesPermAba(a); return nome(x.tela) + ' › ' + x.rotulo; }).join(', ')));
     return `<tr data-id="${u.id}"${u.ativo ? '' : ' class="ges-perm-inativo"'}>
-      <td>${esc(u.nome)}<span class="sub">${esc(u.email)}</span></td>
+      <td>${esc(u.nome)}<span class="sub">${esc(u.email)}</span>${
+        (u.ativo && !(USER && u.id === USER.id))
+          ? `<button class="ghost gbtn" data-simular="${u.id}" onclick="simulacaoIniciar(${u.id})"`
+            + ` title="Ver o sistema exatamente como esta pessoa vê — só leitura">Simular acesso</button>` : ''}</td>
       <td>${esc(u.perfil)}${u.admin ? ' <span class="badge b-warn">admin</span>' : ''}</td>
       <td>${u.ativo ? 'ativo' : '<span style="color:var(--n500)">inativo</span>'}</td>
       <td class="num">${u.admin ? 'todas' : u.telas.length}</td>
@@ -44773,7 +44836,12 @@ function gesPermExportar(modo){
 
 function gesUsuarioModal(id){
   const u = id ? DATAGES.usuarios.find(x=>x.id===id) : null;
-  const perfs = DATAGES.perfis.map(p=>`<option value="${p.id}" ${u&&u.perfil_id===p.id?'selected':''}>${esc(p.nome)}</option>`).join('');
+  /* PERFIL EM BRANCO NO CADASTRO NOVO (quem opera, 15/09/2026). A lista vem
+     com o administrador PRIMEIRO, e o select nascia nele: um "Criar usuário"
+     desatento criava alguém que vê tudo e mexe na Gestão. Agora a escolha é
+     obrigatória e consciente — o servidor também recusa perfil ausente. */
+  const perfs = (u ? '' : '<option value="" selected disabled>— escolha o perfil —</option>')
+    + DATAGES.perfis.map(p=>`<option value="${p.id}" ${u&&u.perfil_id===p.id?'selected':''}>${esc(p.nome)}${p.admin?' (acesso total)':''}</option>`).join('');
   fotoEdIniciar(u?u.nome:'', u?u.id:0, u?u.foto_em:null);
   abrirModal(`
     <h3>${u?'Editar usuário':'Novo usuário'}</h3>
@@ -44781,7 +44849,8 @@ function gesUsuarioModal(id){
       ${fotoEdHtml()}
       <div><label for="gu-nome">Nome</label><input type="text" id="gu-nome" value="${u?esc(u.nome):''}"></div>
       <div><label for="gu-email">E-mail</label><input type="email" id="gu-email" value="${u?esc(u.email):''}"></div>
-      <div><label for="gu-perfil">Perfil</label><select id="gu-perfil" onchange="gesPaginaRefazer()">${perfs}</select></div>
+      <div><label for="gu-perfil">Perfil</label><select id="gu-perfil" onchange="gesPaginaRefazer();gesPerfilAviso()">${perfs}</select>
+        <div class="hint" id="gu-perfil-hint" style="margin-top:4px"></div></div>
       <div><label for="gu-pagina">Página inicial</label><select id="gu-pagina"></select>
         <div class="hint" style="margin-top:4px">A tela que abre quando a pessoa entra. Só aparecem as telas que ela pode abrir; se ela perder o acesso a esta tela, abre o Radar.</div></div>
       <div><label for="gu-tel">Telefone <span style="font-weight:400;text-transform:none">(opcional)</span></label>
@@ -44812,7 +44881,19 @@ function gesUsuarioModal(id){
   GU_ACESSOS = u ? (u.acessos||[]) : [];
   GU_PAGINA = u ? (u.pagina_inicial||'') : '';
   gesPaginaRefazer();
+  gesPerfilAviso();
   gesBvAviso();
+}
+/* Administrador escolhido: diz o que isso dá, porque é o único perfil que
+   ignora os ajustes da pessoa e abre a Gestão (inclusive os acessos dos
+   outros). O aviso é da escolha, não do erro — por isso é hint, não bloqueio. */
+function gesPerfilAviso(){
+  const h = document.getElementById('gu-perfil-hint'); if(!h) return;
+  const p = DATAGES.perfis.find(x => x.id === +document.getElementById('gu-perfil').value);
+  h.innerHTML = (p && p.admin)
+    ? '<b style="color:var(--yellow-700)">Administrador vê todas as telas e mexe na Gestão</b>'
+      + ' — inclusive nos usuários e nos acessos dos outros. Os ajustes de acesso da pessoa não valem para ele.'
+    : '';
 }
 async function gesUsuarioSalvar(id){
   const V=x=>(document.getElementById(x).value||'').trim();
@@ -44822,6 +44903,11 @@ async function gesUsuarioSalvar(id){
     telefone:V('gu-tel'), cargo:V('gu-cargo'), setor:V('gu-setor'), ramal:V('gu-ramal'),
     cliente_cnpj_raiz:V('gu-cliente'),
   };
+  if(!payload.perfil_id){
+    document.getElementById('m-err').textContent =
+      'Escolha o perfil do usuário — é ele que decide o que a pessoa pode abrir.';
+    return;
+  }
   /* A página inicial só vai quando MUDOU: uma página que ficou sem acesso
      (a pessoa perdeu a tela) não pode travar a edição do telefone dela. */
   const pag=V('gu-pagina');
@@ -44926,7 +45012,13 @@ function gesAcessoResumo(u){
 function gesPaginaRefazer(){
   const sel=document.getElementById('gu-pagina'); if(!sel) return;
   const atual = sel.options.length ? sel.value : GU_PAGINA;
-  const ef = gesAcessoEfetivo(+document.getElementById('gu-perfil').value, GU_ACESSOS);
+  const pid = +document.getElementById('gu-perfil').value;
+  if(!pid){   // cadastro novo, perfil ainda não escolhido: não há acesso a calcular
+    sel.innerHTML = '<option value="">Radar (padrão da casa) — escolha o perfil para ver as outras</option>';
+    sel.value = '';
+    return;
+  }
+  const ef = gesAcessoEfetivo(pid, GU_ACESSOS);
   const semMenu = new Set((DATAGES.catalogo||{}).sem_menu||[]);
   const grupos = {};
   DATAGES.telas.forEach(t=>{

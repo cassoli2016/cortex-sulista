@@ -24,6 +24,9 @@ def _novo(pg, nome="Evelyn Teste", email="evelyn@exemplo.test"):
     pg.wait_for_selector("#gu-bv", timeout=5000)
     pg.fill("#gu-nome", nome)
     pg.fill("#gu-email", email)
+    # o perfil nasce em branco desde 15/09/2026 (antes, no administrador) e a
+    # tela não manda cadastro sem ele: escolhe-se, como a pessoa faria
+    pg.select_option("#gu-perfil", "2")
 
 
 def _ultimo(gravadas, caminho):

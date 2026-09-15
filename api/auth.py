@@ -35,6 +35,14 @@ log = logging.getLogger("cortex.auth")
 ROOT = Path(__file__).resolve().parent.parent
 COOKIE = "cortex_sess"
 
+# ACESSO SIMULADO (15/09/2026): o administrador vê o sistema como outra pessoa
+# vê. Cookie PRÓPRIO, separado do de login, assinado e preso a quem simula
+# (ver `sessao_simulada`); some sozinho em SIMULA_TTL_MIN.
+COOKIE_SIMULA = "cortex_simula"
+SIMULA_TTL_MIN = 60
+# as únicas escritas que a simulação deixa passar: sair dela e sair do sistema
+_ROTAS_DA_SIMULACAO = ("/api/auth/simulacao/sair", "/api/auth/logout")
+
 # Manopla de redirecionamento, no lugar do antigo `DB_PATH`: o teste faz
 # `monkeypatch.setattr(auth, "ESQUEMA", <schema do teste>)`.
 ESQUEMA: str | None = None
@@ -482,7 +490,10 @@ _PUBLICAS_MOTORISTA = ("/api/motorista/",)
 # própria senha/sair. /api/gestao/* não entra aqui: já é checado à parte
 # (admin) antes de chegar em _telas_da_rota.
 _ROTAS_AUTOSERVICO = ("/api/auth/me", "/api/auth/logout", "/api/auth/trocar-senha",
-                      "/api/auth/perfil", "/api/auth/atividade")
+                      "/api/auth/perfil", "/api/auth/atividade",
+                      # sair da simulação: quem está simulado pode não ser
+                      # administrador, e /api/gestao ficaria fechado para ele
+                      "/api/auth/simulacao/sair")
 
 # Rotas /api/* que EXIGEM sessão mas não pertencem a tela nenhuma: valem para
 # qualquer usuário logado. Push é assinatura do próprio aparelho; report é
@@ -1270,24 +1281,39 @@ def sessao_atual(token: str | None) -> dict | None:
     except jwt.InvalidTokenError:
         return None
     with _conn() as c:
-        u = c.execute(
-            """SELECT u.*, p.nome AS perfil_nome, p.admin AS perfil_admin,
-                      f.atualizado_em AS foto_em
-               FROM usuarios u
-               JOIN perfis p ON p.id = u.perfil_id
-               LEFT JOIN usuario_fotos f ON f.usuario_id = u.id
-               WHERE u.id = %s""", (int(claims["sub"]),),
-        ).fetchone()
+        u = c.execute(_SQL_SESSAO, (int(claims["sub"]),)).fetchone()
         if not u or not u["ativo"] or u["token_ver"] != claims.get("ver"):
             return None
-        admin = bool(u["perfil_admin"])
-        # ACESSO EFETIVO = perfil + ajustes da pessoa (api/acessos.py): liberar
-        # e tirar telas, tirar abas bloqueáveis. Calculado AQUI, a cada
-        # requisição — é por isso que tirar uma tela vale no clique seguinte
-        # sem derrubar a sessão. Admin ignora os ajustes (decisão de 13/09/2026).
-        telas, abas_tiradas = acessos.efetivas(
-            _telas_do_perfil(c, u["perfil_id"], admin),
-            acessos.ajustes_de(c, u["id"]), admin, TELAS.keys())
+        s = _montar_sessao(c, u)
+    s.update({"token_ver": u["token_ver"], "exp": claims["exp"], "iat": claims["iat"],
+              "sid": claims.get("sid")})   # sid: a sessao da auditoria de uso
+    return s
+
+
+_SQL_SESSAO = """SELECT u.*, p.nome AS perfil_nome, p.admin AS perfil_admin,
+                        f.atualizado_em AS foto_em
+                 FROM usuarios u
+                 JOIN perfis p ON p.id = u.perfil_id
+                 LEFT JOIN usuario_fotos f ON f.usuario_id = u.id
+                 WHERE u.id = %s"""
+
+
+def _montar_sessao(c, u) -> dict:
+    """O acesso de UMA pessoa a partir da linha dela.
+
+    É o MESMO para a sessão de verdade (`sessao_atual`) e para a simulada
+    (`sessao_simulada`): uma simulação com regra própria poderia mostrar ao
+    administrador um acesso que a pessoa não tem, e aí a validação que ela
+    existe para fazer validaria outra coisa.
+    """
+    admin = bool(u["perfil_admin"])
+    # ACESSO EFETIVO = perfil + ajustes da pessoa (api/acessos.py): liberar
+    # e tirar telas, tirar abas bloqueáveis. Calculado AQUI, a cada
+    # requisição — é por isso que tirar uma tela vale no clique seguinte
+    # sem derrubar a sessão. Admin ignora os ajustes (decisão de 13/09/2026).
+    telas, abas_tiradas = acessos.efetivas(
+        _telas_do_perfil(c, u["perfil_id"], admin),
+        acessos.ajustes_de(c, u["id"]), admin, TELAS.keys())
     return {
         "id": u["id"], "nome": u["nome"], "email": u["email"],
         "perfil_id": u["perfil_id"], "perfil": u["perfil_nome"],
@@ -1307,10 +1333,57 @@ def sessao_atual(token: str | None) -> dict | None:
         # NULL/ausente é o estado normal (gente da casa) e é o estado SEGURO:
         # quem lê isto é `portal_cliente.escopo()`, que recusa sem vínculo.
         "cliente_cnpj_raiz": (dict(u).get("cliente_cnpj_raiz") or ""),
-        "token_ver": u["token_ver"], "exp": claims["exp"], "iat": claims["iat"],
-        "sid": claims.get("sid"),   # sessao da auditoria de uso
-
     }
+
+
+def sessao_simulada(real: dict | None, token: str | None) -> dict | None:
+    """A sessão de QUEM ESTÁ SENDO SIMULADO, para o administrador `real` ver o
+    sistema como essa pessoa vê (pedido de quem opera, 15/09/2026: "validar
+    quais telas estão liberadas e os acessos que o usuário possui").
+
+    TRÊS TRAVAS, todas aqui e não na tela:
+    1. vale só para quem é administrador AGORA — perdeu o perfil, a simulação
+       morre no clique seguinte;
+    2. o token é assinado e PRESO ao administrador que o pediu (`sub`): copiado
+       para outro navegador, com outra sessão, não vale;
+    3. expira sozinho em SIMULA_TTL_MIN — simulação esquecida numa aba não
+       vira modo permanente.
+    Usuário inativo não se simula (ele não acessa nada), nem a si mesmo.
+
+    NUNCA AMPLIA ACESSO: quem simula já é administrador e vê tudo; o que sai
+    daqui é sempre o acesso de outra pessoa, montado por `_montar_sessao`.
+
+    A sessão de LOGIN continua sendo a do administrador — renovação, saída e
+    auditoria de uso são dele (`simulacao.por_*`), e `sid` fica vazio para
+    nenhum sinal de uso ser contado na conta de quem foi simulado.
+    """
+    if not real or not token or not real.get("admin"):
+        return None
+    try:
+        claims = jwt.decode(token, SECRET, algorithms=["HS256"])
+    except jwt.InvalidTokenError:
+        return None
+    if claims.get("tipo") != "simulacao" or str(claims.get("sub")) != str(real["id"]):
+        return None
+    try:
+        alvo = int(claims.get("alvo"))
+    except (TypeError, ValueError):
+        return None
+    if alvo == real["id"]:
+        return None
+    with _conn() as c:
+        u = c.execute(_SQL_SESSAO, (alvo,)).fetchone()
+        if not u or not u["ativo"]:
+            return None
+        s = _montar_sessao(c, u)
+    s.update({
+        "token_ver": real["token_ver"], "exp": real["exp"], "iat": real["iat"], "sid": None,
+        "simulacao": {"por_id": real["id"], "por_nome": real["nome"],
+                      "por_email": real["email"], "por_sid": real.get("sid"),
+                      "expira": datetime.fromtimestamp(int(claims["exp"])).strftime(
+                          "%Y-%m-%d %H:%M:%S")},
+    })
+    return s
 
 
 def _payload_me(s: dict) -> dict:
@@ -1328,16 +1401,21 @@ def _payload_me(s: dict) -> dict:
     # montada à mão em teste, e a tela trata ausente como "o padrão da casa".
     dados["pagina_inicial"] = s.get("pagina_inicial")
     dados["abas_ocultas"] = acessos.ocultas(s.get("abas_tiradas") or [])
+    # Acesso simulado: a tela precisa saber que é simulação (a faixa e a
+    # saída). Quem simula e até quando; nada além do nome e do e-mail.
+    sim = s.get("simulacao")
+    dados["simulacao"] = ({"por_nome": sim["por_nome"], "por_email": sim["por_email"],
+                           "expira": sim["expira"]} if sim else None)
     return dados
 
 
 # ---------------------------------------------------------------- middleware
 
-def _cookie_do_scope(scope) -> str | None:
+def _cookie_do_scope(scope, qual: str = COOKIE) -> str | None:
     cookies = Headers(scope=scope).get("cookie") or ""
     for parte in cookies.split(";"):
         nome, _, valor = parte.strip().partition("=")
-        if nome == COOKIE:
+        if nome == qual:
             return valor or None
     return None
 
@@ -1373,6 +1451,26 @@ class AuthMiddleware:
             resp = JSONResponse(status_code=401, content={
                 "erro": "nao_autenticado", "mensagem": "Faça login para continuar."})
             return await resp(scope, receive, send)
+
+        # ACESSO SIMULADO (`sessao_simulada`): daqui em diante TODA decisão de
+        # acesso — e toda rota, que lê `request.state.sessao` — vê a pessoa
+        # simulada: telas, abas, perfil de administrador, vínculo de cliente do
+        # portal. `real` fica para o que é do administrador: renovar o login.
+        real = sess
+        sim = sessao_simulada(real, _cookie_do_scope(scope, COOKIE_SIMULA))
+        if sim is not None:
+            sess = sim
+            # SÓ LEITURA: gravar durante a simulação sairia em nome de outra
+            # pessoa — ou do administrador fazendo o que ela não pode. Recusa
+            # legível é 4xx; 5xx o Cloudflare troca pela página dele.
+            if ((scope.get("method") or "GET").upper() not in ("GET", "HEAD", "OPTIONS")
+                    and path not in _ROTAS_DA_SIMULACAO):
+                resp = JSONResponse(status_code=409, content={
+                    "erro": "simulacao_so_leitura",
+                    "mensagem": (f"Você está simulando o acesso de {sim['nome']}: nada "
+                                 "pode ser gravado. Saia da simulação para voltar a "
+                                 "trabalhar como você.")})
+                return await resp(scope, receive, send)
 
         if path.startswith("/api/gestao") and not sess["admin"]:
             resp = JSONResponse(status_code=403, content={
@@ -1416,14 +1514,15 @@ class AuthMiddleware:
         # NUNCA em /api/auth/*: logout e trocar-senha emitem o próprio Set-Cookie
         # (o cookie de renovação apagaria o delete/trocaria por token_ver antigo).
         novo_cookie: str | None = None
-        exp = datetime.fromtimestamp(sess["exp"], tz=timezone.utc)
-        iat = datetime.fromtimestamp(sess["iat"], tz=timezone.utc)
+        # sempre pela sessão REAL: na simulação, `sess` é de outra pessoa
+        exp = datetime.fromtimestamp(real["exp"], tz=timezone.utc)
+        iat = datetime.fromtimestamp(real["iat"], tz=timezone.utc)
         if not path.startswith("/api/auth/") and datetime.now(timezone.utc) > iat + (exp - iat) / 2:
             https = Headers(scope=scope).get("x-forwarded-proto", scope.get("scheme")) == "https"
             # `sess["sid"]` VAI JUNTO: sem ele a renovacao (a cada meia-vida
             # do token) perderia a sessao da auditoria, e o mesmo acesso
             # viraria varias sessoes curtas na trilha.
-            token = _emitir_token(sess["id"], sess["token_ver"], sess.get("sid"))
+            token = _emitir_token(real["id"], real["token_ver"], real.get("sid"))
             tmp = Response()
             _set_cookie(tmp, token, https)
             novo_cookie = tmp.headers["set-cookie"]
@@ -1701,14 +1800,36 @@ def me(request: Request) -> JSONResponse:
 @router_auth.post("/logout")
 def logout(request: Request) -> JSONResponse:
     sess = request.state.sessao
+    # DURANTE A SIMULAÇÃO QUEM SAI É O ADMINISTRADOR. A sessão da requisição é
+    # a da pessoa simulada: invalidar o token_ver DELA derrubaria o login de
+    # alguém que nem sabe que foi simulado.
+    sim = sess.get("simulacao") or {}
+    uid = sim.get("por_id", sess["id"])
+    email = sim.get("por_email", sess["email"])
+    sid = sim["por_sid"] if sim else sess.get("sid")
     # invalida a sessão no servidor (token roubado deixa de valer, não só o cookie)
     with _conn() as c:
-        c.execute("UPDATE usuarios SET token_ver=token_ver+1 WHERE id=%s", (sess["id"],))
-    audit(sess["email"], "logout", ip=_ip(request))
+        c.execute("UPDATE usuarios SET token_ver=token_ver+1 WHERE id=%s", (uid,))
+    audit(email, "logout", ip=_ip(request))
     from . import auditoria
-    auditoria.fechar_sessao(sess.get("sid"), "logout")
+    auditoria.fechar_sessao(sid, "logout")
     resp = JSONResponse({"ok": True})
     resp.delete_cookie(COOKIE, path="/")
+    resp.delete_cookie(COOKIE_SIMULA, path="/")
+    return resp
+
+
+@router_auth.post("/simulacao/sair")
+def simulacao_sair(request: Request) -> JSONResponse:
+    """Volta a ser você. Fica em /api/auth, e não em /api/gestao, porque quem
+    está simulado pode não ser administrador — e o middleware fecha a Gestão
+    antes de a rota ser alcançada."""
+    sim = request.state.sessao.get("simulacao")
+    if sim:
+        audit(sim["por_email"], "simulacao_fim", alvo=request.state.sessao["email"],
+              ip=_ip(request))
+    resp = JSONResponse({"ok": True})
+    resp.delete_cookie(COOKIE_SIMULA, path="/")
     return resp
 
 
@@ -2093,6 +2214,44 @@ def permissoes_relatorio() -> JSONResponse:
                  "efetivo, o mesmo que o servidor aplica a cada clique"})
 
 
+@router_gestao.post("/simular/{usuario_id}")
+def simulacao_iniciar(usuario_id: int, request: Request) -> JSONResponse:
+    """Começa a simulação do acesso de `usuario_id` (ver `sessao_simulada`).
+
+    Rota de administrador pelo prefixo /api/gestao. A AUDITORIA VEM ANTES do
+    cookie: simulação que não ficou registrada não aconteceu para ninguém.
+    """
+    sess = request.state.sessao
+    if sess.get("simulacao"):
+        return JSONResponse(status_code=409, content={
+            "erro": "ja_simulando",
+            "mensagem": "Você já está simulando um acesso. Saia dele antes de simular outro."})
+    if usuario_id == sess["id"]:
+        return JSONResponse(status_code=409, content={
+            "erro": "simular_a_si_mesmo",
+            "mensagem": "Esse é você: o sistema já está como você vê."})
+    with _conn() as c:
+        u = c.execute("SELECT id, nome, email, ativo FROM usuarios WHERE id=%s",
+                      (usuario_id,)).fetchone()
+    if not u:
+        return JSONResponse(status_code=404, content={
+            "erro": "nao_encontrado", "mensagem": "Usuário não encontrado."})
+    if not u["ativo"]:
+        return JSONResponse(status_code=409, content={
+            "erro": "usuario_inativo",
+            "mensagem": "Usuário inativo não acessa nada — reative o cadastro para simular."})
+    audit(sess["email"], "simulacao_inicio", alvo=u["email"],
+          detalhe=f"por até {SIMULA_TTL_MIN} min", ip=_ip(request))
+    agora = datetime.now(timezone.utc)
+    token = jwt.encode({"sub": str(sess["id"]), "alvo": str(u["id"]), "tipo": "simulacao",
+                        "iat": agora, "exp": agora + timedelta(minutes=SIMULA_TTL_MIN)},
+                       SECRET, algorithm="HS256")
+    resp = JSONResponse({"ok": True, "alvo": {"id": u["id"], "nome": u["nome"]}})
+    resp.set_cookie(key=COOKIE_SIMULA, value=token, max_age=SIMULA_TTL_MIN * 60,
+                    httponly=True, samesite="lax", path="/", secure=_https(request))
+    return resp
+
+
 @router_gestao.get("/usuarios")
 def usuarios_lista() -> JSONResponse:
     with _conn() as c:
@@ -2215,6 +2374,13 @@ def usuario_criar(payload: dict, request: Request) -> JSONResponse:
             "erro": "senha_fraca",
             "mensagem": f"A senha temporária precisa de ao menos {cfg('senha_min')} caracteres."})
     perfil_id = payload.get("perfil_id")
+    # PERFIL É ESCOLHA OBRIGATÓRIA (15/09/2026): a tela nascia no
+    # administrador, e um cadastro desatento criava alguém que vê tudo. Sem
+    # perfil a recusa diz o que falta, não "inexistente".
+    if perfil_id in (None, 0, ""):
+        return JSONResponse(status_code=422, content={
+            "erro": "perfil_obrigatorio",
+            "mensagem": "Escolha o perfil do usuário — é ele que decide o que a pessoa pode abrir."})
     with _conn() as c:
         if not isinstance(perfil_id, int) or not c.execute(
                 "SELECT 1 FROM perfis WHERE id=%s", (perfil_id,)).fetchone():
