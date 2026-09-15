@@ -215,11 +215,7 @@ def condicao_da_frota(*, forcar: bool = False, limite: int | None = None,
         placas = []
         vistas = set()
         for v in viagens:
-            # caminhão com a chegada no cliente apontada está na doca, não na
-            # estrada: consultar o trânsito dele gastaria franquia à toa
-            if v.get("chegada_cliente"):
-                continue
-            pl = (v.get("placa") or "").strip().upper()
+            pl =(v.get("placa") or "").strip().upper()
             if pl and pl not in vistas:
                 vistas.add(pl)
                 placas.append(pl)

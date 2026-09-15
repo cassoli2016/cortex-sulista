@@ -3825,26 +3825,47 @@ OCORRENCIA_CARGA_CRITICA = 261
 #: não aconteceu em nenhuma, então o 396 basta.
 OCORRENCIA_CHEGADA_DESCARGA = 396
 
-# CHEGADA NO CLIENTE: o primeiro 396 da coleta DEPOIS da saida da programacao.
-# Vale a hora do fato (dtocorrencia), nao a da digitacao. Fragmento UNICO da
-# torre e da ficha do veiculo -- as duas leem `coleta co` e `programacaoembarque
-# p`, e duas copias da regra discordariam no primeiro ajuste.
+# CHEGADA NA ULTIMA ENTREGA (quem opera, 15/09/2026: "com mais de uma entrega
+# considerar a ultima"): o N-esimo 396 da coleta DEPOIS da saida da
+# programacao, com N = destinatarios distintos em `coleta_cliente` (1 quando o
+# destino e unico). O 396 NAO diz em qual entrega foi lancado: nas viagens com
+# mais de um destino dos ultimos 45 dias, `sequenciacliente` e `destinatario`
+# vieram vazios nos 195 apontamentos -- o ERP so repete o 396 a cada parada, e
+# e a CONTAGEM que separa "chegou no primeiro" de "chegou no ultimo". A regra e
+# a da propria operacao: das 96 dessas viagens com 396, a baixa da programacao
+# ficou mais perto do ULTIMO em 62 e do primeiro em 15. Faltando o apontamento
+# de alguma entrega, nao ha chegada e a viagem espera a baixa, como antes.
+# Desempate pela sequencia (empate em ORDER BY e sorteio); vale a hora do fato
+# (dtocorrencia), nao a da digitacao. Fragmento UNICO da torre e da ficha do
+# veiculo -- as duas leem `coleta co` e `programacaoembarque p`, e duas copias
+# da regra discordariam no primeiro ajuste.
 _CHEGADA_CLIENTE_SQL = """
-       to_char((SELECT min(o.dtocorrencia) FROM coleta_ocorrencia o
-                 WHERE o.grupo = co.grupo AND o.empresa = co.empresa
-                   AND o.filial = co.filial AND o.unidade = co.unidade
-                   AND o.diferenciadornumero = co.diferenciadornumero
-                   AND o.serie = co.serie AND o.numero = co.numero
-                   AND o.ocorrencia = %(ocorrencia_chegada)s
-                   AND o.dtcancelar IS NULL
-                   AND o.dtocorrencia >= p.dtsaida),
+       to_char((SELECT max(CASE WHEN s.rn = greatest(1,
+                          (SELECT count(DISTINCT nullif(trim(x.destinatario), ''))
+                             FROM coleta_cliente x
+                            WHERE x.grupo = co.grupo AND x.empresa = co.empresa
+                              AND x.filial = co.filial AND x.unidade = co.unidade
+                              AND x.diferenciadornumero = co.diferenciadornumero
+                              AND x.serie = co.serie AND x.numero = co.numero))
+                                THEN s.dt END)
+                  FROM (SELECT o.dtocorrencia AS dt,
+                               row_number() OVER (ORDER BY o.dtocorrencia,
+                                                           o.sequenciaocorrencia) AS rn
+                          FROM coleta_ocorrencia o
+                         WHERE o.grupo = co.grupo AND o.empresa = co.empresa
+                           AND o.filial = co.filial AND o.unidade = co.unidade
+                           AND o.diferenciadornumero = co.diferenciadornumero
+                           AND o.serie = co.serie AND o.numero = co.numero
+                           AND o.ocorrencia = %(ocorrencia_chegada)s
+                           AND o.dtcancelar IS NULL
+                           AND o.dtocorrencia >= p.dtsaida) s),
                'YYYY-MM-DD HH24:MI') AS chegada_cliente,"""
 
 
 def _atraso_da_viagem(t: dict) -> None:
-    """ATRASADA = previsão vencida E sem chegada no cliente apontada. A que já
-    chegou continua em trânsito (a programação está aberta), mas não está
-    atrasada: está no cliente."""
+    """ATRASADA = previsão vencida E sem a chegada na última entrega apontada.
+    Quem chegou já sai da torre e da ficha como viagem FINALIZADA; a condição
+    fica aqui para nenhum caminho novo pintar de vermelho quem está na doca."""
     t["atrasada"] = (bool(t.pop("previsao_vencida", False))
                      and not t.get("chegada_cliente"))
 
@@ -3927,6 +3948,13 @@ def get_torre(filial: int | None = None) -> dict:
 
     _identidade = _frota_ident
 
+    # FINALIZADA NO CLIENTE (quem opera, 15/09/2026): a chegada na ÚLTIMA
+    # entrega apontada encerra a viagem na torre, sem esperar a baixa da
+    # programação — que vem horas depois, às vezes no dia seguinte. Ela sai da
+    # lista e das contagens; quantas foram vai em `kpis.no_cliente`.
+    no_cliente = [t for t in transito if t.get("chegada_cliente")]
+    transito = [t for t in transito if not t.get("chegada_cliente")]
+
     pos_por_placa = {p["placa"]: p for p in posicoes}
     em_viagem = set()
     for t in transito:
@@ -3951,7 +3979,7 @@ def get_torre(filial: int | None = None) -> dict:
     kpis = {
         "em_transito": len(transito),
         "atrasadas": sum(1 for t in transito if t["atrasada"]),
-        "no_cliente": sum(1 for t in transito if t.get("chegada_cliente")),
+        "no_cliente": len(no_cliente),
         "criticas": sum(1 for t in transito if t["critica"]),
         "com_posicao_24h": sum(1 for p in posicoes if p["recente"]),
         "veiculos_monitorados": len(posicoes),
@@ -4336,6 +4364,9 @@ def get_veiculo_ficha(placa: str, dias: int = 30) -> dict:
         cur.execute(VEICF_VIAGEM_SQL, {
             **par, "ocorrencia_chegada": OCORRENCIA_CHEGADA_DESCARGA})
         viagem = cur.fetchone()
+        # a chegada na última entrega apontada encerra a viagem, como na torre
+        if viagem and viagem.get("chegada_cliente"):
+            viagem = None
         if viagem:
             _atraso_da_viagem(viagem)
         cur.execute(VEICF_VIAGENS_SQL, par); vgs = cur.fetchall()

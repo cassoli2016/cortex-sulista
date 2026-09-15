@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.90.3] — 15/09/2026  ·  CX-15/09/2026-v1.90.3
+
+### Corrigido
+- Painel TV › Operação e Torre de Controle — a viagem que chegou no cliente passa a contar como finalizada: sai da lista, do "em trânsito" e das atrasadas assim que a chegada para descarga é apontada no SAC, sem esperar a baixa da programação (que às vezes só vem no dia seguinte). A Torre mostra quantas estão "já no cliente". Com mais de uma entrega, vale a chegada na ÚLTIMA: a viagem só encerra quando todas as paradas tiverem a chegada apontada.
+
 ## [1.90.2] — 15/09/2026  ·  CX-15/09/2026-v1.90.2
 
 ### Corrigido

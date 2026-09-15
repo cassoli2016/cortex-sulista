@@ -159,26 +159,26 @@ def test_a_consulta_leva_o_codigo_da_ocorrencia_como_PARAMETRO(monkeypatch):
     assert queries.OCORRENCIA_CHEGADA_DESCARGA == 396
 
 
-def test_a_viagem_que_ja_chegou_no_cliente_nao_esta_atrasada(monkeypatch):
+def test_a_viagem_que_chegou_na_ultima_entrega_esta_FINALIZADA(monkeypatch):
     """15/09/2026: um agregado chegou no cliente 7 min ANTES da previsão, com
     a chegada para descarga (SAC 396) apontada, e ficou ATRASADA na TV a
-    tarde toda — a viagem só sai do trânsito com a baixa da programação, e a
-    previsão venceu antes dela. No mesmo dia eram 3 das 12 "atrasadas"."""
+    tarde toda — a viagem só saía do trânsito com a baixa da programação, e a
+    previsão venceu antes dela. Decisão de quem opera no mesmo dia: chegou na
+    última entrega, está finalizada — sai da lista e das contagens, e a
+    posição do caminhão deixa de ser "em viagem"."""
     d, _, _ = _torre(monkeypatch, [
         _viagem("AAA1A11", "101", False, atrasada=True),
-        _viagem("BBB2B22", "102", False, atrasada=True, chegada="2026-09-15 12:53"),
+        _viagem("BBB2B22", "102", True, atrasada=True, chegada="2026-09-15 12:53"),
         _viagem("CCC3C33", "103", False, chegada="2026-09-15 08:00"),
         _viagem("DDD4D44", "104", False),
-    ])
-    v = {x["placa"]: x for x in d["transito"]}
-    assert v["AAA1A11"]["atrasada"] is True
-    assert v["BBB2B22"]["atrasada"] is False
-    assert v["BBB2B22"]["chegada_cliente"] == "2026-09-15 12:53"
-    assert v["DDD4D44"]["atrasada"] is False and v["DDD4D44"]["chegada_cliente"] is None
+    ], posicoes=[_posicao("BBB2B22", "102", None), _posicao("AAA1A11", "101", None)])
+    assert [x["placa"] for x in d["transito"]] == ["AAA1A11", "DDD4D44"]
     k = d["kpis"]
-    assert (k["atrasadas"], k["no_cliente"]) == (1, 2)
-    # a programação continua aberta: a viagem segue em trânsito, só não atrasada
-    assert k["em_transito"] == 4
+    assert (k["em_transito"], k["atrasadas"], k["no_cliente"]) == (2, 1, 2)
+    # a crítica que já chegou também sai da contagem de críticas em trânsito
+    assert k["criticas"] == 0
+    pos = {p["placa"]: p["em_viagem"] for p in d["posicoes"]}
+    assert pos == {"BBB2B22": False, "AAA1A11": True}
     assert all("previsao_vencida" not in x for x in d["transito"])
 
 
@@ -188,13 +188,12 @@ def test_as_atrasadas_abrem_a_lista_e_o_resto_fica_na_ordem_da_previsao(monkeypa
     ordem da previsão que veio do banco."""
     d, _, _ = _torre(monkeypatch, [
         _viagem("AAA1A11", "101", False),
-        _viagem("BBB2B22", "102", False, atrasada=True, chegada="2026-09-15 12:53"),
-        _viagem("CCC3C33", "103", False, atrasada=True),
-        _viagem("DDD4D44", "104", False),
-        _viagem("EEE5E55", "105", False, atrasada=True),
+        _viagem("BBB2B22", "102", False, atrasada=True),
+        _viagem("CCC3C33", "103", False),
+        _viagem("DDD4D44", "104", False, atrasada=True),
     ])
     assert [x["placa"] for x in d["transito"]] == [
-        "CCC3C33", "EEE5E55", "AAA1A11", "BBB2B22", "DDD4D44"]
+        "BBB2B22", "DDD4D44", "AAA1A11", "CCC3C33"]
 
 
 def test_a_ficha_do_veiculo_usa_a_MESMA_chegada_da_torre():
@@ -203,6 +202,11 @@ def test_a_ficha_do_veiculo_usa_a_MESMA_chegada_da_torre():
     for sql in (queries.TORRE_TRANSITO_SQL, queries.VEICF_VIAGEM_SQL):
         assert queries._CHEGADA_CLIENTE_SQL in sql
         assert "previsao_vencida" in sql and " AS atrasada" not in sql
+    # a ÚLTIMA entrega: o N-ésimo 396, contado contra os destinatários da
+    # coleta — o "primeiro 396" (min) encerraria a viagem na primeira parada
+    frag = queries._CHEGADA_CLIENTE_SQL.lower()
+    assert "coleta_cliente" in frag and "row_number()" in frag
+    assert "min(o.dtocorrencia)" not in frag
 
 
 def test_a_viagem_ganha_o_numero_de_frota_so_quando_e_numero(monkeypatch):
