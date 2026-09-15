@@ -215,7 +215,7 @@ def condicao_da_frota(*, forcar: bool = False, limite: int | None = None,
         placas = []
         vistas = set()
         for v in viagens:
-            pl =(v.get("placa") or "").strip().upper()
+            pl = (v.get("placa") or "").strip().upper()
             if pl and pl not in vistas:
                 vistas.add(pl)
                 placas.append(pl)
