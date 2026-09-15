@@ -1496,7 +1496,17 @@ body.tvfull #sidebar,body.tvfull aside,body.tvfull .topbar,body.tvfull #topbar,b
    o vermelho ja diz ATRASADA na mesma tabela. O selo escrito vai junto com a
    cor -- numa TV nao ha tooltip, e cor sem rotulo nao se explica. Tinta
    #1E172F sobre o laranja mede 4,9:1 (o branco daria 3,5). */
-.tv-badge.crit{background:#E85D10;color:#1E172F}
+.tv-badge.crit{background:#E85D10;color:#1E172F;animation:tvCritPisca 1.1s ease-in-out infinite}
+/* O SELO PISCA (pedido de quem opera, 15/09/2026: "precisa apenas piscar").
+   Pisca o SELO, na linha da carga — não o título: o selo "CRITICO" piscando
+   no cabeçalho saiu em 13/09 porque competia com a tabela e não dizia O QUE
+   era crítico; aqui o piscar está em cima da própria carga. No pico o selo é
+   o mesmo de sempre (4,9:1); 1,1 s por ciclo fica longe do teto de 3
+   piscadas por segundo. Com "reduzir movimento" ligado no sistema, a regra
+   global da casa congela a animação e o selo fica ACESO, parado — a
+   preferência vale também na parede. */
+@keyframes tvCritPisca{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(232,93,16,.85)}
+  50%{opacity:.4;box-shadow:0 0 0 0.5vw rgba(232,93,16,0)}}
 .tv-tab tr.crit td{background:rgba(232,93,16,.22)}
 .tv-tab tr.crit td:first-child{box-shadow:inset 0.3vw 0 0 #E85D10}
 @media(max-width:1100px){.tv-grid{grid-template-columns:repeat(2,1fr)}.tv-num{font-size:44px}}

@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.82.1] — 15/09/2026  ·  CX-15/09/2026-v1.82.1
+
+### Alterado
+- Painel TV — Operação — o selo CRÍTICA da carga crítica, na lista de chegadas, passa a piscar, para chamar o olho de quem olha a parede de longe. Só ele pisca: o cabeçalho continua sem nada piscando. Se o Windows da TV estiver com as animações desligadas, o selo fica aceso, sem piscar.
+
 ## [1.82.0] — 15/09/2026  ·  CX-15/09/2026-v1.82.0
 
 ### Adicionado

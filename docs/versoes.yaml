@@ -1,3 +1,13 @@
+- versao: "1.82.1"
+  data: "2026-09-15"
+  alterado:
+    - >-
+      Painel TV — Operação — o selo CRÍTICA da carga crítica, na lista de
+      chegadas, passa a piscar, para chamar o olho de quem olha a parede de
+      longe. Só ele pisca: o cabeçalho continua sem nada piscando. Se o
+      Windows da TV estiver com as animações desligadas, o selo fica aceso,
+      sem piscar.
+
 - versao: "1.82.0"
   data: "2026-09-15"
   adicionado:

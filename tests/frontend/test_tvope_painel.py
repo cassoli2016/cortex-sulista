@@ -198,6 +198,42 @@ def test_a_linha_critica_e_destacada_e_diz_por_que(pagina):
     assert "CRÍTICA" not in normal["texto"]
 
 
+def _animacao_dos_selos(pg):
+    return pg.evaluate("""() => [...document.querySelectorAll('#tvope-cheg .tv-badge')]
+        .map(b => ({crit: b.classList.contains('crit'),
+                    nome: getComputedStyle(b).animationName,
+                    vezes: getComputedStyle(b).animationIterationCount}))""")
+
+
+def test_o_selo_da_carga_critica_pisca_e_os_outros_nao(pagina):
+    """Pedido de quem opera (15/09/2026): o selo CRÍTICA "precisa apenas
+    piscar". Lido no que o NAVEGADOR aplica, não no texto do CSS — regra que
+    existe e perde a briga de especificidade não pisca nada."""
+    pg, base = pagina
+    _abre(pg, base)
+    pg.emulate_media(reduced_motion="no-preference")
+    selos = _animacao_dos_selos(pg)
+    crit = [s for s in selos if s["crit"]]
+    assert len(crit) == 2, selos        # as duas críticas do dublê
+    assert all(s["nome"] == "tvCritPisca" and s["vezes"] == "infinite" for s in crit), crit
+    outros = [s for s in selos if not s["crit"]]
+    assert outros and all(s["nome"] == "none" for s in outros), (
+        "selo de trânsito piscando dilui o da carga crítica: %r" % outros)
+
+
+def test_com_reduzir_movimento_o_selo_critico_fica_aceso_e_parado(pagina):
+    """A preferência do sistema vale também na parede: a regra global da casa
+    congela a animação (uma volta instantânea) e o selo fica ACESO, com a
+    opacidade cheia — não some nem fica a meio caminho."""
+    pg, base = pagina
+    _abre(pg, base)                    # _abre já emula reduced-motion
+    crit = [s for s in _animacao_dos_selos(pg) if s["crit"]]
+    assert crit and all(s["vezes"] == "1" for s in crit), crit
+    opac = pg.evaluate("() => getComputedStyle(document.querySelector("
+                       "'#tvope-cheg .tv-badge.crit')).opacity")
+    assert opac == "1", opac
+
+
 def test_a_tabela_mostra_a_frota_e_nao_a_placa(pagina):
     pg, base = pagina
     _abre(pg, base)
