@@ -2412,7 +2412,14 @@ body.tvmode #tarja-velha{background:#3A2E12;border-color:#FBBF24;color:#FBBF24}
    nada) — mudar lá seria mexer em dezenas de botões para consertar dois. 7px é
    o mesmo vão que `button.btn` já usa entre ícone e texto. */
 .ges-tabs button{gap:7px}
-.ges-audbar{display:flex;gap:8px;margin:0 0 10px}
+.ges-audbar{display:flex;gap:8px;margin:0 0 10px;flex-wrap:wrap}
+/* Relatório de permissões: a tela LIBERADA na ficha da pessoa se distingue da
+   que vem do perfil — é a exceção com nome, e é ela que a revisão procura. */
+.ges-perm-g{font-size:12.5px;line-height:1.55}
+.ges-perm-g b{font-size:10.5px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--n500)}
+.ges-perm-t.lib{color:var(--orange-600);font-weight:600}
+.ges-perm-t.hit{background:rgba(232,93,16,.16);border-radius:4px;padding:0 3px}
+tr.ges-perm-inativo td{opacity:.6}
 .ges-audbar input{flex:1;padding:9px 10px;border:1px solid var(--n300,#d3dae2);border-radius:6px;font:inherit;font-size:14px}
 /* `.card` não tem padding próprio — cada bloco de conteúdo põe o seu (.modl,
    .alerts, .chartwrap todos fazem isso). `.ges-cfg` era a exceção e ficava
@@ -9021,6 +9028,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="ges-tabs">
             <button class="ghost" id="gtab-usuarios" aria-pressed="true" onclick="gesTab('usuarios')">Usuários</button>
             <button class="ghost" id="gtab-perfis" aria-pressed="false" onclick="gesTab('perfis')">Perfis de acesso</button>
+            <button class="ghost" id="gtab-permissoes" aria-pressed="false" onclick="gesTab('permissoes')">Permissões</button>
             <button class="ghost" id="gtab-auditoria" aria-pressed="false" onclick="gesTab('auditoria')">Auditoria</button>
             <button class="ghost" id="gtab-config" aria-pressed="false" onclick="gesTab('config')">Segurança</button>
             <button class="ghost" id="gtab-contrapartida" aria-pressed="false" onclick="gesTab('contrapartida')">CT-e de contrapartida</button>
@@ -9043,6 +9051,22 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             <div class="tablewrap tabroll"><table><thead><tr>
               <th>Perfil</th><th>Descrição</th><th>Telas liberadas</th><th class="num">Usuários</th><th></th>
             </tr></thead><tbody id="ges-per"></tbody></table></div>
+          </div>
+        </div>
+        <div id="gpane-permissoes" style="display:none">
+          <div class="card">
+            <div class="head"><h2>Relatório de permissões <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada usuário, cada tela que ele abre e POR QUE abre: pelo perfil, por uma liberação na ficha de Acessos da pessoa (em laranja), por ser administrador ou por ser tela de todo usuário logado (Radar, Aplicativos, Suporte). Mostra também o que um ajuste tirou — telas e abas. O cálculo é o MESMO que o servidor aplica a cada clique, então o relatório não pode dizer que alguém abre uma tela que o sistema recusa. Buscar pelo nome de uma tela responde quem a abre. Banco local do CÓRTEX (usuarios × perfil_telas × usuario_acessos). A exportação leva exatamente o que está filtrado.">i</span></h2>
+              <span class="hint" id="ges-perm-hint"></span></div>
+            <div class="ges-audbar">
+              <input type="text" id="ges-perm-busca" aria-label="Filtrar por usuário, perfil ou tela" placeholder="filtrar por usuário, perfil ou tela…" oninput="gesPermRender()">
+              <select id="ges-perm-status" aria-label="Situação do usuário" onchange="gesPermRender()">
+                <option value="ativos">Só ativos</option><option value="todos">Ativos e inativos</option><option value="inativos">Só inativos</option></select>
+              <button class="ghost" onclick="gesPermExportar('lista')" title="Uma linha por usuário e tela — boa para filtrar e fazer tabela dinâmica no Excel">Exportar lista (CSV)</button>
+              <button class="ghost" onclick="gesPermExportar('matriz')" title="Uma linha por usuário e uma coluna por tela">Exportar matriz (CSV)</button>
+            </div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Usuário</th><th>Perfil</th><th>Situação</th><th class="num">Telas</th><th>O que acessa</th><th>Ajustes da pessoa</th>
+            </tr></thead><tbody id="ges-perm"></tbody></table></div>
           </div>
         </div>
         <div id="gpane-auditoria" style="display:none">
@@ -42289,16 +42313,18 @@ async function loadGestao(){
     DATAGES={usuarios:(await ru.json()).usuarios, perfis:(await rp.json()).perfis,
              telas:(await rt.json()).telas, config:await rc.json(), catalogo};
     LOADEDQS.gestao=qsView('gestao');
+    GES_PERM=null;   // "Atualizar" refaz o relatório de permissões na próxima vez que ele aparecer
     hideBanner(); renderGestao();
   }catch(e){ if(seq===gesSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===gesSeq){ btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
 }
 function gesTab(t){
   GES_TAB=t;
-  ['usuarios','perfis','auditoria','config','contrapartida','email','whatsapp','feriados'].forEach(x=>{
+  ['usuarios','perfis','permissoes','auditoria','config','contrapartida','email','whatsapp','feriados'].forEach(x=>{
     document.getElementById('gpane-'+x).style.display = (x===t)?'':'none';
     document.getElementById('gtab-'+x).setAttribute('aria-pressed', String(x===t));
   });
+  if(t==='permissoes' && !GES_PERM) gesPermCarregar();
   if(t==='auditoria' && !document.getElementById('ges-aud').children.length) audCarregar();
   if(t==='contrapartida') cpcfgCarregar();
   if(t==='email') emailCarregar();
@@ -44509,6 +44535,138 @@ function renderGesPerfis(){
     </tr>`;
   }).join('') || '<tr><td colspan="5">Nenhum perfil.</td></tr>';
 }
+
+/* RELATÓRIO DE PERMISSÕES (pedido de quem opera, 15/09/2026). O servidor
+   manda o acesso EFETIVO de cada pessoa, já com a origem de cada tela
+   (/api/gestao/permissoes, o mesmo cálculo da sessão); aqui só se filtra,
+   desenha e exporta — a tela não refaz regra nenhuma, senão poderia
+   discordar do que o sistema de fato libera.
+   `var` e não `let`: `loadGestao`, lá em cima, zera o relatório, e declarar
+   com `let` aqui embaixo reabriria a janela de TDZ que já derrubou o boot. */
+var GES_PERM = null, gesPermSeq = 0;
+const GES_PERM_ORIGEM = {perfil:'Perfil', liberada:'Liberada na ficha da pessoa',
+  administrador:'Administrador', todo_logado:'Todo usuário logado'};
+function gesPermNorm(s){
+  return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+}
+async function gesPermCarregar(){
+  const seq = ++gesPermSeq, tb = document.getElementById('ges-perm');
+  if(tb) tb.innerHTML = '<tr><td colspan="6" style="color:var(--n500)">montando o relatório…</td></tr>';
+  try{
+    const rr = await respostaJSON(await fetch('/api/gestao/permissoes', {cache:'no-store'}));
+    if(seq !== gesPermSeq) return;
+    if(!rr.ok){
+      tb.innerHTML = '<tr><td colspan="6" style="color:var(--red)">'
+        + esc((rr.dados||{}).mensagem || 'Não foi possível montar o relatório.') + '</td></tr>';
+      return;
+    }
+    GES_PERM = rr.dados;
+    gesPermRender();
+  }catch(e){
+    if(seq === gesPermSeq && tb)
+      tb.innerHTML = '<tr><td colspan="6" style="color:var(--red)">Falha de rede: ' + esc(e.message) + '</td></tr>';
+  }
+}
+function gesPermTelas(){
+  const R = {};
+  ((GES_PERM||{}).telas||[]).forEach(t => { R[t.chave] = t; });
+  return R;
+}
+function gesPermAba(chave){
+  return ((GES_PERM||{}).abas||[]).find(a => a.chave === chave) || {chave, rotulo: chave, tela: ''};
+}
+/* O filtro. Texto que casa com o NOME de uma tela transforma a lista na
+   resposta a "quem abre esta tela?" — é a pergunta que a auditoria faz. */
+function gesPermFiltro(){
+  const D = GES_PERM || {usuarios: [], telas: []};
+  const st = (document.getElementById('ges-perm-status')||{}).value || 'ativos';
+  const q = gesPermNorm(((document.getElementById('ges-perm-busca')||{}).value||'').trim());
+  const telasQ = q ? D.telas.filter(t => gesPermNorm(t.rotulo).includes(q) || t.chave === q)
+                            .map(t => t.chave) : [];
+  const lista = D.usuarios.filter(u => {
+    if(st === 'ativos' && !u.ativo) return false;
+    if(st === 'inativos' && u.ativo) return false;
+    if(!q) return true;
+    return [u.nome, u.email, u.perfil].some(x => gesPermNorm(x).includes(q))
+      || u.telas.some(t => telasQ.includes(t.chave));
+  });
+  return {q, telasQ, lista};
+}
+function gesPermRender(){
+  const tb = document.getElementById('ges-perm'); if(!tb || !GES_PERM) return;
+  const R = gesPermTelas(), {q, telasQ, lista} = gesPermFiltro();
+  const nome = k => (R[k]||{}).rotulo || k;
+  tb.innerHTML = lista.map(u => {
+    const grupos = {};
+    u.telas.forEach(t => { const g = (R[t.chave]||{}).grupo || 'Outros'; (grupos[g] = grupos[g] || []).push(t); });
+    const acessa = u.admin
+      ? '<span class="badge b-warn">acesso total + Gestão</span>'
+      : Object.keys(grupos).sort((a,b) => a.localeCompare(b, 'pt-BR')).map(g =>
+          `<div class="ges-perm-g"><b>${esc(g)}</b> ${grupos[g].map(t =>
+            `<span class="ges-perm-t${t.origem==='liberada'?' lib':''}${telasQ.includes(t.chave)?' hit':''}"`
+            + ` title="${esc(GES_PERM_ORIGEM[t.origem]||t.origem)}">${esc(nome(t.chave))}</span>`).join(' · ')}</div>`
+        ).join('');
+    const aj = [];
+    if(u.admin && u.ajustes_ignorados)
+      aj.push(esc(u.ajustes_ignorados + ' ajuste(s) guardado(s), ignorado(s) enquanto for administrador'));
+    const lib = u.telas.filter(t => t.origem === 'liberada');
+    if(lib.length) aj.push('<b>+ liberadas:</b> ' + esc(lib.map(t => nome(t.chave)).join(', ')));
+    if(u.tiradas.length) aj.push('<b>− telas tiradas:</b> ' + esc(u.tiradas.map(nome).join(', ')));
+    if(u.abas_tiradas.length) aj.push('<b>− abas tiradas:</b> ' + esc(u.abas_tiradas.map(a => {
+      const x = gesPermAba(a); return nome(x.tela) + ' › ' + x.rotulo; }).join(', ')));
+    return `<tr data-id="${u.id}"${u.ativo ? '' : ' class="ges-perm-inativo"'}>
+      <td>${esc(u.nome)}<span class="sub">${esc(u.email)}</span></td>
+      <td>${esc(u.perfil)}${u.admin ? ' <span class="badge b-warn">admin</span>' : ''}</td>
+      <td>${u.ativo ? 'ativo' : '<span style="color:var(--n500)">inativo</span>'}</td>
+      <td class="num">${u.admin ? 'todas' : u.telas.length}</td>
+      <td>${acessa}</td>
+      <td>${aj.join('<br>') || '<span style="color:var(--n500)">nenhum</span>'}</td></tr>`;
+  }).join('') || '<tr><td colspan="6">Nenhum usuário neste filtro.</td></tr>';
+  const h = document.getElementById('ges-perm-hint');
+  if(h) h.textContent = lista.length + ' de ' + GES_PERM.usuarios.length + ' usuário(s)'
+    + (telasQ.length ? ' · quem abre: ' + telasQ.map(nome).join(', ') : '')
+    + (GES_PERM.gerado_em ? ' · lido em ' + fmtDT(String(GES_PERM.gerado_em).replace('T',' ').slice(0,16)) : '');
+}
+/* EXPORTA O QUE ESTÁ NA TELA (a regra da casa): quem filtrou por uma tela ou
+   só pelos ativos leva exatamente isso. Duas formas, porque respondem
+   perguntas diferentes: a LISTA (uma linha por pessoa × tela, com a origem)
+   é a que se filtra e vira tabela dinâmica; a MATRIZ (pessoa × tela) é a que
+   se lê de relance numa revisão de acessos. As telas TIRADAS entram nas duas
+   — "o perfil daria e um ajuste tirou" também é permissão. */
+function gesPermExportar(modo){
+  if(!GES_PERM) return;
+  const R = gesPermTelas(), {lista} = gesPermFiltro();
+  const nome = k => (R[k]||{}).rotulo || k;
+  const d = new Date();
+  const dia = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  const base = [{rotulo:'Usuário', valor:u => u.nome}, {rotulo:'E-mail', valor:u => u.email},
+                {rotulo:'Perfil', valor:u => u.perfil},
+                {rotulo:'Administrador', valor:u => u.admin ? 'sim' : 'não'},
+                {rotulo:'Situação', valor:u => u.ativo ? 'ativo' : 'inativo'}];
+  if(modo === 'matriz'){
+    const telas = [...GES_PERM.telas].sort((a,b) =>
+      (a.grupo + ' ' + a.rotulo).localeCompare(b.grupo + ' ' + b.rotulo, 'pt-BR'));
+    const sigla = {perfil:'perfil', liberada:'liberada', administrador:'admin', todo_logado:'todos'};
+    baixarCSV('permissoes-matriz-' + dia + '.csv', base.concat(telas.map(t => ({
+      rotulo: t.grupo + ' · ' + t.rotulo,
+      valor: u => { const x = u.telas.find(y => y.chave === t.chave);
+                    return x ? sigla[x.origem] : (u.tiradas.includes(t.chave) ? 'tirada' : ''); }}))), lista);
+    return;
+  }
+  const linhas = [];
+  lista.forEach(u => {
+    u.telas.forEach(t => linhas.push({u, chave: t.chave, acessa: 'sim', origem: GES_PERM_ORIGEM[t.origem] || t.origem}));
+    u.tiradas.forEach(k => linhas.push({u, chave: k, acessa: 'não', origem: 'Tirada na ficha da pessoa'}));
+  });
+  const abas = (u, k) => u.abas_tiradas.map(gesPermAba).filter(a => a.tela === k).map(a => a.rotulo).join(', ');
+  baixarCSV('permissoes-' + dia + '.csv',
+    base.map(c => ({rotulo: c.rotulo, valor: l => c.valor(l.u)})).concat([
+      {rotulo:'Grupo', valor:l => (R[l.chave]||{}).grupo || ''},
+      {rotulo:'Tela', valor:l => nome(l.chave)}, {rotulo:'Chave', valor:l => l.chave},
+      {rotulo:'Acessa', valor:l => l.acessa}, {rotulo:'Origem', valor:l => l.origem},
+      {rotulo:'Abas tiradas', valor:l => abas(l.u, l.chave)}]), linhas);
+}
+
 function gesUsuarioModal(id){
   const u = id ? DATAGES.usuarios.find(x=>x.id===id) : null;
   const perfs = DATAGES.perfis.map(p=>`<option value="${p.id}" ${u&&u.perfil_id===p.id?'selected':''}>${esc(p.nome)}</option>`).join('');

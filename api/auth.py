@@ -2031,6 +2031,68 @@ def acessos_catalogo() -> JSONResponse:
         "sem_menu": sorted(TELAS_SEM_MENU)})
 
 
+@router_gestao.get("/permissoes")
+def permissoes_relatorio() -> JSONResponse:
+    """RELATÓRIO DE PERMISSÕES (pedido de quem opera, 15/09/2026): todo
+    usuário, toda tela que ele abre e POR QUE abre — perfil, liberação na
+    ficha da pessoa, administrador ou tela de todo usuário logado —, o que um
+    ajuste tirou e as abas tiradas.
+
+    O acesso sai de `acessos.detalhar()`, que é o `efetivas()` da sessão com a
+    origem anotada: o relatório não tem regra própria para discordar da que o
+    servidor aplica a cada requisição.
+
+    As telas de TODO usuário logado (Radar, Aplicativos, Suporte) e as de
+    administrador (Gestão, Saúde do Servidor) NÃO estão em `TELAS` — entram
+    aqui com a origem delas, senão o relatório diria que ninguém abre o
+    Suporte. A Ficha de Jornada fica de fora: ela segue a tela `jorn`, não é
+    permissão própria.
+
+    Sai todo mundo, ativo e inativo: a tela escolhe o que mostrar, e a
+    exportação leva o que está na tela. Rota de administrador pelo prefixo
+    `/api/gestao` (o middleware recusa antes de chegar aqui).
+    """
+    todas = list(TELAS.keys())
+    with _conn() as c:
+        tem = acessos.tem_estrutura(c)
+        rows = c.execute(
+            """SELECT u.id, u.nome, u.email, u.ativo, u.ultimo_login, u.perfil_id,
+                      {pagina} p.nome AS perfil, p.admin AS perfil_admin
+               FROM usuarios u JOIN perfis p ON p.id=u.perfil_id
+               ORDER BY u.nome""".format(
+                   pagina=("u.pagina_inicial," if tem else "NULL::text AS pagina_inicial,"))
+        ).fetchall()
+        por_perfil: dict[int, list[str]] = {}
+        for r in c.execute("SELECT perfil_id, tela FROM perfil_telas ORDER BY tela").fetchall():
+            if r["tela"] in TELAS:
+                por_perfil.setdefault(r["perfil_id"], []).append(r["tela"])
+        ajustes = acessos.todos_os_ajustes(c)
+    de_todos = [{"chave": k, "origem": "todo_logado"} for k in sorted(TELAS_TODO_LOGADO)]
+    de_admin = [{"chave": k, "origem": "administrador"} for k in ("gestao", "srv")]
+    usuarios = []
+    for r in rows:
+        admin = bool(r["perfil_admin"])
+        d = acessos.detalhar(todas if admin else por_perfil.get(r["perfil_id"], []),
+                             ajustes.get(r["id"], []), admin, todas)
+        d["telas"] = d["telas"] + de_todos + (de_admin if admin else [])
+        usuarios.append({
+            "id": r["id"], "nome": r["nome"], "email": r["email"],
+            "ativo": bool(r["ativo"]), "perfil": r["perfil"], "admin": admin,
+            "ultimo_login": str(r["ultimo_login"]) if r["ultimo_login"] else None,
+            "pagina_inicial": acessos.pagina_efetiva(
+                r["pagina_inicial"], [t["chave"] for t in d["telas"]], admin),
+            **d})
+    registro = [{"chave": k, "rotulo": rot, "grupo": grp} for k, (rot, grp) in TELAS.items()]
+    registro += [{"chave": k, "rotulo": rot, "grupo": grp}
+                 for k, (rot, grp) in TELAS_FORA_DO_RBAC.items() if k != "jornf"]
+    return JSONResponse({
+        "usuarios": usuarios, "telas": registro,
+        "abas": acessos.catalogo_abas(TELAS),
+        "gerado_em": _agora(),
+        "fonte": "CÓRTEX · usuarios × perfil_telas × usuario_acessos — o acesso "
+                 "efetivo, o mesmo que o servidor aplica a cada clique"})
+
+
 @router_gestao.get("/usuarios")
 def usuarios_lista() -> JSONResponse:
     with _conn() as c:

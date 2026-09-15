@@ -340,6 +340,40 @@ def gravar(c, usuario_id: int, ajustes, autor: str, agora: str) -> None:
                   " VALUES(%s,%s,%s,%s,%s)", (usuario_id, chave, efeito, agora, autor))
 
 
+def detalhar(telas_perfil, ajustes, admin: bool, todas) -> dict:
+    """O acesso de UMA pessoa, tela a tela e com a ORIGEM de cada uma — para o
+    relatório de permissões da Gestão (pedido de quem opera, 15/09/2026).
+
+    SAI DO MESMO `efetivas()` QUE A SESSÃO USA, e esse é o ponto: um relatório
+    que refizesse a regra por conta própria poderia afirmar um acesso que o
+    servidor recusa, ou esconder um que ele concede — e relatório de permissão
+    que discorda do sistema é pior que relatório nenhum, porque é nele que a
+    auditoria confia. Aqui só se EXPLICA de onde veio cada tela.
+
+    Origem: `perfil` (o perfil dá — liberar o que o perfil já dá é redundante
+    e continua sendo "perfil"), `liberada` (ajuste da pessoa) ou
+    `administrador`. `tiradas` são as telas que o perfil ou uma liberação
+    dariam e um ajuste tira; "tirar" o que a pessoa nem teria é inerte e não
+    aparece. Admin ignora os ajustes: `ajustes_ignorados` diz quantos estão
+    guardados, que é o que a ficha mostra.
+    """
+    todas = list(todas)
+    ajustes = list(ajustes)
+    telas, abas = efetivas(telas_perfil, ajustes, admin, todas)
+    if admin:
+        return {"telas": [{"chave": t, "origem": "administrador"} for t in telas],
+                "tiradas": [], "abas_tiradas": [], "ajustes_ignorados": len(ajustes)}
+    do_perfil = set(telas_perfil)
+    liberar = {c for c, e in ajustes if e == "liberar"}
+    tirar = {c for c, e in ajustes if e == "tirar"}
+    return {
+        "telas": [{"chave": t, "origem": "perfil" if t in do_perfil else "liberada"}
+                  for t in telas],
+        "tiradas": [t for t in todas if t in tirar and (t in do_perfil or t in liberar)],
+        "abas_tiradas": abas,
+        "ajustes_ignorados": 0}
+
+
 def catalogo_abas(telas_registro: dict) -> list[dict]:
     """As abas bloqueáveis para a Gestão, com o rótulo e o grupo da tela."""
     saida = []
