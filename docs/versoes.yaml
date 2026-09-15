@@ -1,3 +1,15 @@
+- versao: "1.82.0"
+  data: "2026-09-15"
+  adicionado:
+    - >-
+      People Analytics — dois filtros novos ao lado de Todos · Liderança ·
+      Demais: a modalidade (ADM, OPER ou MOT) e a filial. Cada opção mostra
+      quantas pessoas tem, e todos os cartões da tela seguem o recorte
+      escolhido — os indicadores do topo, os afastamentos, a pirâmide etária,
+      o tempo de casa, o custo por área, os cargos e a composição da
+      liderança. MOT são os motoristas pela lotação (área MOT no GLOBUS), não
+      pelo cargo: motorista lotado na manutenção aparece em OPER.
+
 - versao: "1.81.1"
   data: "2026-09-15"
   corrigido:

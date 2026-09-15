@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.82.0] — 15/09/2026  ·  CX-15/09/2026-v1.82.0
+
+### Adicionado
+- People Analytics — dois filtros novos ao lado de Todos · Liderança · Demais: a modalidade (ADM, OPER ou MOT) e a filial. Cada opção mostra quantas pessoas tem, e todos os cartões da tela seguem o recorte escolhido — os indicadores do topo, os afastamentos, a pirâmide etária, o tempo de casa, o custo por área, os cargos e a composição da liderança. MOT são os motoristas pela lotação (área MOT no GLOBUS), não pelo cargo: motorista lotado na manutenção aparece em OPER.
+
 ## [1.81.1] — 15/09/2026  ·  CX-15/09/2026-v1.81.1
 
 ### Corrigido
