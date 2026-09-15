@@ -1,3 +1,11 @@
+-- NOTA DO CORTEX (15/09/2026): esta e uma COPIA de julho/2026 do SQL do BI
+-- Bi/Financeiro/Inadimplencia e soma o PENDENTE CRU da composicao.
+-- A TELA do BI, lida no navegador em 14/09/2026, bate ao centavo com o
+-- MENOR entre o pendente e o saldo da fatura -- least(valorpendentecnpjcliente,
+-- valorsaldoreceber), `api/queries._VAL_OF` -- e a referencia e a TELA.
+-- Rodar esta copia hoje da um total MAIOR que o do BI (a fatura paga em parte
+-- entra cheia). Ver CLAUDE.md, secao 3, "A INADIMPLENCIA E A DO BI".
+
 -- Qtde docs e total em aberto TOTAIS
 
 WITH FaturasVencidas AS (

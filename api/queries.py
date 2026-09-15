@@ -482,19 +482,33 @@ def _previsao_sazonal(hist: list[dict], fallback: float):
 
 # O fluxo respeita o range de vencimento (filtro de período) quando informado.
 # O corte por horizonte é feito em Python para não consumir o bucket 'atrasado'.
+#
+# O LADO DO RECEBER É O DA REGRA OFICIAL — as MESMAS peças do KPI e do aging
+# (`_REC_OF_*`, `_VAL_OF`) —, e o balde 'atrasado' é o vencido até a data de
+# referência: o mesmo número do "A receber vencido" ao lado. Até 15/09/2026
+# este lado lia `fatura.valorsaldoreceber` de TODA fatura, com o pendente de
+# faturamento (composição 2) junto e o corte no dia 1º do mês: o 'atrasado'
+# dizia ~17 vezes o vencido oficial, e mais de quatro quintos disso era
+# pendente de faturamento — que a casa mostra à parte e nunca soma ao oficial,
+# e que aqui entrava no saldo projetado como caixa a receber. Ele continua à
+# vista, fora da conta, em `pendente_fatur_fora` da linha 'atrasado'.
+# O CORTE na data de referência vale dos dois lados: com o dia 1º, o vencido
+# do mês corrente se misturava ao que ainda vai vencer, e o rótulo "vencidos
+# até a ref." era falso para esses dias. O saldo acumulado não muda com o
+# corte — muda só em que barra o título aparece.
 FLUXO_SQL = f"""
 WITH mov AS (
-  SELECT CASE WHEN dtvencimento < date_trunc('month',{DREF})::date THEN 'atrasado'
-              ELSE to_char(dtvencimento,'YYYY-MM') END AS mes,
-         CASE WHEN dtvencimento < date_trunc('month',{DREF})::date THEN '0000-00'
-              ELSE to_char(dtvencimento,'YYYY-MM') END AS ord,
-         valorsaldoreceber AS receber, 0::numeric AS pagar
-  FROM fatura WHERE coalesce(valorsaldoreceber,0) > 0 AND dtcancelamento IS NULL
-    AND dtvencimento IS NOT NULL {FIL} {CLI_FAT} {RNG}
+  SELECT CASE WHEN {_REC_OF_VENC} < {DREF} THEN 'atrasado'
+              ELSE to_char({_REC_OF_VENC},'YYYY-MM') END AS mes,
+         CASE WHEN {_REC_OF_VENC} < {DREF} THEN '0000-00'
+              ELSE to_char({_REC_OF_VENC},'YYYY-MM') END AS ord,
+         {_VAL_OF} AS receber, 0::numeric AS pagar
+  {_REC_OF_FROM} {_REC_OF_WHERE} {_REC_OF_RNG}
+    AND {_REC_OF_VENC} IS NOT NULL
   UNION ALL
-  SELECT CASE WHEN dtvencimento < date_trunc('month',{DREF})::date THEN 'atrasado'
+  SELECT CASE WHEN dtvencimento < {DREF} THEN 'atrasado'
               ELSE to_char(dtvencimento,'YYYY-MM') END,
-         CASE WHEN dtvencimento < date_trunc('month',{DREF})::date THEN '0000-00'
+         CASE WHEN dtvencimento < {DREF} THEN '0000-00'
               ELSE to_char(dtvencimento,'YYYY-MM') END,
          0::numeric, valorpendente
   FROM contaapagar WHERE coalesce(valorpendente,0) > 0
@@ -841,6 +855,9 @@ def get_overview(filial: int | None = None, data_ref: str | None = None,
     # Corte por horizonte sem consumir o bucket 'atrasado' (ele é estoque, não mês).
     if fluxo and fluxo[0]["periodo"] == "atrasado":
         fluxo = fluxo[:1] + fluxo[1:horizonte + 1]
+        # O pendente de faturamento vencido fica FORA da conta (não é
+        # recebível oficial), mas a barra diz o tamanho do que deixou de fora.
+        fluxo[0]["pendente_fatur_fora"] = kpis.get("receber_pendente_fatur") or 0.0
     else:
         fluxo = fluxo[:horizonte]
 

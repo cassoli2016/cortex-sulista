@@ -21,6 +21,7 @@ from pathlib import Path
 import pytest
 
 from api import db, pglocal, queries
+from api.antecipacoes import conciliacao, elegiveis
 from api.financeiro import inadimplencia as fi
 
 RAIZ = Path(__file__).resolve().parents[2]
@@ -30,6 +31,7 @@ CREATE TABLE fatura (
   grupo integer, empresa integer, filial integer, unidade integer, sequencia integer,
   cliente varchar, composicao integer, dtcancelamento date, dtpagamento date,
   dtprevisaopagamento date, dtvencimento date, dtemissao timestamp,
+  dtemissaodocumentoorigem timestamp,
   valorsaldoreceber numeric, valortitulo numeric);
 CREATE TABLE fatura_composicao (
   grupo integer, empresa integer, filial integer, unidade integer, sequencia integer,
@@ -249,6 +251,33 @@ def test_o_email_soma_as_faixas_e_conta_clientes_por_grupo(ava):
         assert cnpj not in bruto
 
 
+# ═════════════════════════════════════ o fluxo de caixa e a antecipação ══
+
+def test_o_ATRASADO_do_fluxo_de_caixa_e_o_vencido_oficial(ava):
+    """O balde 'atrasado' do Fluxo de Caixa — que a Visão Geral e a TV da
+    Diretoria também mostram — é o MESMO número do "A receber vencido": sem o
+    pendente de faturamento, sem o título pago, pelo valor do BI, cortado na
+    data de referência. Até 15/09/2026 ele somava o saldo de toda fatura
+    vencida antes do dia 1º do mês e dizia ~17 vezes o vencido oficial."""
+    fluxo = _sql(ava, queries.FLUXO_SQL, P_REC)
+    kpi = _sql(ava, queries.KPI_SQL, P_REC)[0]
+    assert fluxo[0]["periodo"] == "atrasado"
+    assert kpi["receber_vencido"] == pytest.approx(1000.0)
+    assert fluxo[0]["receber"] == pytest.approx(kpi["receber_vencido"])
+    assert sum(r["receber"] for r in fluxo) == pytest.approx(kpi["receber_aberto"]), \
+        "o a vencer segue no fluxo, pelo mesmo valor e sem o pendente de faturamento"
+
+
+def test_a_antecipacao_le_o_MESMO_valor(ava):
+    """Os elegíveis (e o plano de antecipação, que reusa a consulta) e a
+    conferência com o portal: a fatura paga em 70% vale os 30% que faltam."""
+    esperado = [100.0, 100.0, 200.0, 300.0, 500.0]   # o grupo NORTE/SUL, em aberto
+    eleg = _sql(ava, elegiveis.ERP_SQL, {"raizes": [NORTE[:8]]})
+    assert sorted(round(r["valor"], 2) for r in eleg) == esperado
+    conc = _sql(ava, conciliacao.CONC_SQL, {"docs": [r["documento"] for r in eleg]})
+    assert sorted(round(r["valor"], 2) for r in conc) == esperado
+
+
 # ═══════════════════════════════════════════════ guards sem banco ════════
 
 def _norm(s: str) -> str:
@@ -268,7 +297,7 @@ def test_nenhuma_consulta_da_regra_oficial_soma_o_pendente_CRU():
     vale `_VAL_OF`; o pendente cru só aparece no filtro `> 0`. A varredura sai
     dos MÓDULOS, não de uma lista escrita à mão — consulta nova entra sozinha."""
     achadas, cruas = [], []
-    for mod in (queries, fi):
+    for mod in (queries, fi, elegiveis, conciliacao):
         for nome, v in vars(mod).items():
             if not (isinstance(v, str) and "fatura_composicao fc" in v
                     and re.search(r"composicao ?= ?1\b", v)):
@@ -284,7 +313,8 @@ def test_nenhuma_consulta_da_regra_oficial_soma_o_pendente_CRU():
                 cruas.append(f"{mod.__name__}.{nome}")
     assert {"KPI_SQL", "AGING_AR_SQL", "VENC_AR_SQL", "DRILL_AR_SQL", "COB_CLI_SQL",
             "COB_TIT_SQL", "CLIF_RECEB_SQL", "FLUXCON_REC_SQL", "ANTEC_REC_TIT_SQL",
-            "TOTAIS_SQL", "ABERTO_SQL", "NOVOS_SQL", "AVENCER_SQL", "SERIE_SQL"} <= set(achadas), \
+            "TOTAIS_SQL", "ABERTO_SQL", "NOVOS_SQL", "AVENCER_SQL", "SERIE_SQL",
+            "FLUXO_SQL", "ERP_SQL", "CONC_SQL"} <= set(achadas), \
         "a varredura não achou as consultas que devia — ela está olhando o lugar certo?"
     assert not cruas, f"somam o pendente cru, e não o valor do BI: {cruas}"
 

@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.81.1] — 15/09/2026  ·  CX-15/09/2026-v1.81.1
+
+### Corrigido
+- Fluxo de Caixa, Visão Geral e painel de TV da Diretoria — a barra "Atrasado" passa a ser o mesmo "A receber vencido" das outras telas: só o que já foi faturado, pelo valor que falta pagar, vencido até hoje. Antes ela somava também o pendente de faturamento e cortava no dia 1º do mês, e mostrava um vencido muitas vezes maior que o do Contas a Receber — e o saldo projetado contava esse valor como caixa a entrar. O pendente de faturamento vencido continua à vista no detalhe da barra, fora da conta.
+- Antecipação — os títulos que ainda dá para antecipar, o plano de antecipação e a conferência com o portal passam a usar o mesmo valor da inadimplência: fatura paga em parte conta só o que falta pagar.
+
 ## [1.81.0] — 14/09/2026  ·  CX-14/09/2026-v1.81.0
 
 ### Adicionado

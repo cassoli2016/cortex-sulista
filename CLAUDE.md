@@ -434,7 +434,9 @@ moram em arquivos que não falam do assunto.
 - **A INADIMPLÊNCIA É A DO BI DO AVACORP** (`Bi/Financeiro/Inadimplencia`,
   14/09/2026, a pedido de quem opera). As três peças moram em `api/queries.py`
   e valem para Contas a Receber, Régua, Ficha do Cliente, Fluxo Consolidado,
-  Antecipação, o e-mail diário e o Copiloto: o VALOR é `_VAL_OF`, o menor
+  Antecipação, o e-mail diário, o Copiloto e — desde 15/09 — o balde
+  "Atrasado" do Fluxo de Caixa (Visão Geral e TV da Diretoria juntos) e o
+  portal de antecipação (elegíveis, plano e conciliação): o VALOR é `_VAL_OF`, o menor
   entre o pendente da composição e o saldo da fatura — o pendente sozinho não
   enxerga pagamento parcial (o único grupo que divergia tinha faturas 70%
   pagas com a composição cheia); as FAIXAS são as do BI (15/30/90 dias), mas
@@ -445,8 +447,15 @@ moram em arquivos que não falam do assunto.
   `agrupamentocliente` (vínculo 1), por `DISTINCT ON`, porque o cadastro põe
   CNPJ em dois grupos e o join direto dobraria o título. **Reproduzir um
   relatório oficial não é copiar o defeito dele**: total e grupos batem ao
-  centavo; as faixas, de propósito, não. Guard que RODA o SQL num banco de
-  dublê com os tipos do ERP: `tests/financeiro/test_inadimplencia_regra_bi.py`.
+  centavo; as faixas, de propósito, não. **A referência é a TELA do BI, não o
+  SQL guardado em `Querys Sulista/AVACORP/INADIMPLENCIA - *.sql`**: aquela
+  cópia é de julho e soma o pendente cru, e quem a rodar hoje acha o CÓRTEX
+  abaixo do BI (a tela, lida no navegador em 14/09, bate com o menor). E o
+  Fluxo de Caixa ficou um dia de fora porque nunca tinha usado a regra
+  oficial — somava o saldo de toda fatura, pendente de faturamento junto, e o
+  seu "Atrasado" dizia ~17× o vencido da tela vizinha. Guard que RODA o SQL
+  num banco de dublê com os tipos do ERP e VARRE os módulos:
+  `tests/financeiro/test_inadimplencia_regra_bi.py`.
 - Integração é **módulo por fornecedor** em `api/<fornecedor>/` (gobrax,
   smartec, tomtom, whatsapp, monkey, jornada/RasterJOR, pedagio/QualP) — não
   existe hub genérico de conectores.

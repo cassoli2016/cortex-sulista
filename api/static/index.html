@@ -13087,6 +13087,11 @@ function chartFluxo(fluxo){
            ? ' <span style="color:#6B7580">vencidos at\u00E9 a ref.</span>' : '')
         + '<br><span style="color:#1E7F4F">&#9632;</span> Receber: <b>'
         + BRL.format(f.receber) + '</b>'
+        /* O pendente de faturamento vencido NÃO entra no receber (não é
+           recebível oficial), mas a barra diz o tamanho do que ficou de fora. */
+        + (f.pendente_fatur_fora > 0
+           ? '<br><span style="color:#6B7580">fora da conta: pendente de faturamento '
+             + BRL.format(f.pendente_fatur_fora) + '</span>' : '')
         + '<br><span style="color:#C03221">&#9632;</span> Pagar: <b>'
         + BRL.format(f.pagar) + '</b>'
         + '<br>L\u00EDquido: ' + BRL.format(f.liquido)

@@ -34,6 +34,7 @@ from datetime import date
 
 from api import db
 from api.antecipacoes.elegiveis import normalizar_documento
+from api.queries import _VAL_OF
 
 # Diferença de valor abaixo disto é arredondamento, não divergência.
 TOL_VALOR = 0.05
@@ -41,10 +42,13 @@ TOL_VALOR = 0.05
 # Recebíveis em aberto do ERP, pelo número do documento. Restringe ao CNPJ do
 # sacado para não casar a nota 100226 de OUTRO cliente — numeração de NF se
 # repete entre emitentes, e um falso casamento aqui vira número errado na tela.
-CONC_SQL = """
+# O VALOR é o do BI de Inadimplência (`queries._VAL_OF`): título pago em parte
+# vale o que falta pagar. Com o pendente cru da composição, a nota paga em
+# parte apareceria como "valor diferente" do portal — que já desconta o pago.
+CONC_SQL = f"""
 SELECT fc.numerosequenciadocumentoorigem::text AS documento,
        coalesce(f.dtprevisaopagamento, f.dtvencimento)::date AS vencimento,
-       sum(fc.valorpendentecnpjcliente)::float8 AS valor,
+       sum({_VAL_OF})::float8 AS valor,
        count(*)::int AS partes,
        min(coalesce(nullif(trim(ca.nomefantasia),''),
                     nullif(trim(ca.razaosocial),''))) AS cliente

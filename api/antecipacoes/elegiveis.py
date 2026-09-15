@@ -78,7 +78,7 @@ from datetime import date
 
 from api import db, pglocal
 from api.antecipacoes import valores
-from api.queries import cached
+from api.queries import _VAL_OF, cached
 
 # O teste redireciona isto para um schema próprio (fixture `esquema_pg`).
 ESQUEMA: str | None = None
@@ -197,7 +197,12 @@ normalizar_documento = valores.documento
 # `f.composicao = 1` e `dtpagamento IS NULL` são a mesma régua do
 # `conciliacao.CONC_SQL` — duas telas que medem "em aberto" com critérios
 # diferentes discordam entre si, e aí ninguém confia em nenhuma.
-ERP_SQL = """
+#
+# O VALOR é o do BI de Inadimplência (`queries._VAL_OF`), o mesmo das outras
+# telas do a receber: título pago em parte vale o que falta pagar, não o
+# pendente cheio da composição. O plano de antecipação reusa esta consulta —
+# com o pendente cru, ele contaria como antecipável dinheiro que já entrou.
+ERP_SQL = f"""
 SELECT fc.numerosequenciadocumentoorigem::text AS documento,
        ca.codigo AS cnpj,
        coalesce(f.dtprevisaopagamento, f.dtvencimento)::date AS vencimento,
@@ -208,7 +213,7 @@ SELECT fc.numerosequenciadocumentoorigem::text AS documento,
        -- agrupá-la por cima quebraria o grupo se o ERP trouxer duas datas
        -- para a mesma nota — que é justamente o caso que não se quer.
        min(coalesce(f.dtemissaodocumentoorigem, f.dtemissao))::date AS emissao,
-       sum(fc.valorpendentecnpjcliente)::float8 AS valor
+       sum({_VAL_OF})::float8 AS valor
 FROM fatura f
 JOIN fatura_composicao fc USING (grupo, empresa, filial, unidade, sequencia)
 JOIN cadastro ca ON ca.codigo = f.cliente
