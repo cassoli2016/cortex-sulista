@@ -94,14 +94,17 @@ def da_gobrax(cliente=None, agora: datetime | None = None) -> dict[str, dict]:
     coordenada é o produto.
     """
     from api.gobrax import cliente as gbx
-    from api.gobrax.comunicacao import CAMINHO, _quando, periodo_api
+    from api.gobrax.comunicacao import CAMINHO, _quando
 
     agora = agora or datetime.now()
     if not gbx.configurado():
         return {}
     c = cliente or gbx.Cliente()
     hoje = agora.date()
-    ini, fim = periodo_api(hoje - timedelta(days=2), hoje)
+    # a janela vai em UTC: o /positions lê o fim nesse fuso (medido em
+    # 15/09/2026, ver `periodo_posicoes`) — em hora local, das 21h à meia-noite
+    # o mapa ficava com a posição das 20:59
+    ini, fim = gbx.periodo_posicoes(hoje - timedelta(days=2), hoje)
     corpo = c.get(CAMINHO, {"startDate": ini, "endDate": fim}, timeout=180)
     fora: dict[str, dict] = {}
     for v in (corpo.get("data") or []):

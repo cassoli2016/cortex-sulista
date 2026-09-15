@@ -155,3 +155,73 @@ def test_veiculo_sem_data_valida_nao_entra():
     resp = {"data": [{"identification": "AAA1A11",
                       "positions": [{"date": None}, {"date": "xx"}]}]}
     assert comunicacao.coletar(cliente=ClienteFalso(resp)) == []
+
+
+# ── a janela: o /positions lê o FIM em UTC ─────────────────────────────────
+#
+# Medido em 15/09/2026, às 02:16 de Brasília, contra a API real: endDate
+# "2026-09-15 01:00:00" → posição mais nova 2026-09-14 21:59:59; endDate
+# "2026-09-14 23:59:59" → 20:59:59. O dado sai em hora LOCAL (a mais nova de
+# uma janela aberta era 02:16, a hora da consulta).
+
+class GobraxQueLeUTC:
+    """Dublê do comportamento MEDIDO — as 3 h vêm da medição acima, não do
+    código testado: devolve só as posições cuja hora local cabe no fim da
+    janela lido em UTC."""
+
+    def __init__(self, pontos):
+        self.pontos = pontos
+        self.chamadas = []
+
+    def get(self, caminho, params=None, timeout=120):
+        self.chamadas.append((caminho, params))
+        limite_local = datetime.fromisoformat(params["endDate"]) - timedelta(hours=3)
+        vistos = [p for p in self.pontos if datetime.fromisoformat(p["date"]) <= limite_local]
+        return {"data": [{"identification": "AAA1A11", "positions": vistos,
+                          }]} if vistos else {"data": []}
+
+
+PONTOS_DA_NOITE = [{"date": "2026-09-14 20:50:00", "lat": -23.5, "lon": -46.6, "speed": 0},
+                   {"date": "2026-09-14 22:15:00", "lat": -23.6, "lon": -46.7, "speed": 42}]
+
+
+class _As2230(datetime):
+    @classmethod
+    def now(cls, tz=None):
+        return cls(2026, 9, 14, 22, 30)
+
+
+def test_o_dublê_reproduz_a_medicao():
+    """Se o dublê não reproduzisse a medição, o guard abaixo não guardaria nada."""
+    g = GobraxQueLeUTC(PONTOS_DA_NOITE)
+    assert g.get("", {"endDate": "2026-09-14 23:59:59"})["data"][0]["positions"] == PONTOS_DA_NOITE[:1]
+    assert len(g.get("", {"endDate": "2026-09-15 01:59:59"})["data"][0]["positions"]) == 2
+
+
+def test_as_22h30_a_coleta_ve_a_posicao_das_22h15(monkeypatch):
+    """Antes: das 21h à meia-noite a última posição de todo veículo parava nas
+    20:59, porque o fim "hoje 23:59:59" em hora local vira 20:59 lido em UTC."""
+    monkeypatch.setattr(comunicacao, "datetime", _As2230)
+    g = GobraxQueLeUTC(PONTOS_DA_NOITE)
+    linhas = comunicacao.coletar(cliente=g)
+    assert linhas and linhas[0]["ultima"] == "2026-09-14T22:15:00", (linhas, g.chamadas)
+
+
+def test_o_mapa_da_torre_tambem_ve_a_posicao_das_22h15(monkeypatch):
+    """`posicoes.da_gobrax` monta a MESMA janela por conta própria — a posição
+    que a Torre e o painel de TV desenham."""
+    import json
+    from api import posicoes
+    from api.gobrax import cliente as gbx
+    monkeypatch.setattr(gbx, "configurado", lambda: True)
+    g = GobraxQueLeUTC(PONTOS_DA_NOITE)
+    res = posicoes.da_gobrax(cliente=g, agora=datetime(2026, 9, 14, 22, 30))
+    assert "22:15" in json.dumps(res, default=str), (res, g.chamadas)
+
+
+def test_periodo_posicoes_converte_o_dia_local_para_utc():
+    from datetime import date
+    from api.gobrax.cliente import periodo_posicoes
+    assert periodo_posicoes(date(2026, 9, 14), date(2026, 9, 14)) == (
+        "2026-09-14 03:00:00", "2026-09-15 02:59:59")
+    assert periodo_posicoes(date(2026, 12, 31), date(2026, 12, 31))[1] == "2027-01-01 02:59:59"

@@ -243,10 +243,18 @@ def obter(mes: str | None = None, force: bool = False, agora=None,
                             aviso = ("a coleta não trouxe motorista nenhum para este mês — "
                                      "nada foi gravado, para o mês não ficar registrado "
                                      "como zero")
+                        # Os dois ramos eram MUDOS no log: setembro/2026 passou
+                        # duas semanas sem um snapshot (a Gobrax devolvia os
+                        # motoristas do mês com km e nota zerados) e nada
+                        # registrava por quê.
+                        log.warning("premiacao %s: coleta sem motorista com km ou nota "
+                                    "- nada gravado", mes)
                     else:
                         coleta.gravar_snapshot(novo, SNAP_DIR)
                         snap = novo
-                except (gbx.GobraxIndisponivel, gbx.GobraxNaoConfigurado, ValueError):
+                except (gbx.GobraxIndisponivel, gbx.GobraxNaoConfigurado, ValueError) as exc:
+                    log.warning("premiacao %s: coleta falhou (%s)%s", mes, type(exc).__name__,
+                                "" if snap_relido is not None else " e nao ha snapshot anterior")
                     if snap_relido is None:
                         raise
                     snap = snap_relido

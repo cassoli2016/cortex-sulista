@@ -13348,6 +13348,7 @@ function _premScoreLabel(k){
 // parâmetro usam este formatador local, até 4 casas e SEM zero à direita;
 // o fmtNumBR global (tabelas) fica intacto.
 let PREM_ANCOROU=false;   // a âncora no último mês com dado roda UMA vez por sessão
+let PREM_ANCORA=null;     // {mes, texto}: o aviso que a âncora deixa no mês em que pousou
 async function loadPrem(forceSerie){
   const seq=++premSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
   document.getElementById('content').classList.add('loading');
@@ -13375,6 +13376,15 @@ async function loadPrem(forceSerie){
       // e confiar na posição ancorou a tela em fevereiro uma vez
       const ult = idx.length ? idx.map(x=>x.month).sort().pop() : null;
       if(ult && ult !== d.month && !(d.linhas || []).length && selM){
+        /* A ÂNCORA SE DECLARA (15/09/2026). Calada, a tela abria em agosto e
+           "os números não mudam" era a leitura natural de quem esperava
+           setembro — a Gobrax devolvia os motoristas do mês com km e nota
+           zerados, e nada na tela dizia. O aviso do mês pedido vai junto. */
+        const rotulo = m => ((idx.find(x => x.month === m) || {}).label)
+                            || (m.slice(5, 7) + '/' + m.slice(0, 4));
+        PREM_ANCORA = {mes: ult, texto: rotulo(d.month) + ' ainda não tem km nem nota na Gobrax'
+          + (d.aviso ? ' (' + d.aviso + ')' : '') + ' — mostrando ' + rotulo(ult)
+          + ', o último mês com dados.'};
         selM.value = ult; selM.dataset.pronto = '1';
         loadPrem(forceSerie); return;
       }
@@ -13431,8 +13441,11 @@ function renderPrem(d){
   }
   naoconf.style.display='none';
   contDiv.style.display='';
-  avisoEl.innerHTML = d.aviso
-    ? `<div class="banner-inline" style="display:flex;margin:0 0 14px"><i>${ICONS['sevWarn']}</i><span>${esc(d.aviso)}</span></div>` : '';
+  const avisosPrem = [];
+  if(PREM_ANCORA && PREM_ANCORA.mes === d.month) avisosPrem.push(PREM_ANCORA.texto);
+  if(d.aviso) avisosPrem.push(d.aviso);
+  avisoEl.innerHTML = avisosPrem.map(a =>
+    `<div class="banner-inline" style="display:flex;margin:0 0 14px"><i>${ICONS['sevWarn']}</i><span>${esc(a)}</span></div>`).join('');
   document.getElementById('premColetadoEm').textContent = d.coletado_em ? ('coletado em '+fmtDT(d.coletado_em)) : '';
 
   const ft=d.frota_telemetria||{};

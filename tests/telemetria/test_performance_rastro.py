@@ -86,9 +86,12 @@ def test_rastro_da_frota_usa_o_caminho_geral():
     assert c.chamadas[0][0].endswith("/positions")
 
 
-def test_rastro_pede_o_dia_inteiro():
+def test_rastro_pede_o_dia_inteiro_LOCAL_no_UTC_que_a_api_le():
+    """O /positions lê a janela em UTC (medido em 15/09/2026). O dia 15 local
+    vai de 15 03:00 a 16 02:59 em UTC; pedido como 00:00–23:59, a trilha
+    começava às 21h da véspera e acabava às 20:59."""
     c = ClienteFalso(RESP_POS)
     rastro.coletar(date(2026, 7, 15), cliente=c)
     params = c.chamadas[0][1]
-    assert params["startDate"] == "2026-07-15 00:00:00"
-    assert params["endDate"] == "2026-07-15 23:59:59"
+    assert params["startDate"] == "2026-07-15 03:00:00"
+    assert params["endDate"] == "2026-07-16 02:59:59"

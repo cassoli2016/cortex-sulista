@@ -5,18 +5,23 @@ Rápida ao contrário das outras: 0,7 s para a frota inteira num dia (medido em
 
 O ponto pode vir sem velocidade; nesse caso ele entra na trilha mas não recebe
 cor de velocidade no mapa.
+
+O DIA É O DIA LOCAL, PEDIDO EM UTC (`cliente.periodo_posicoes`): o /positions
+lê a janela nesse fuso (medido em 15/09/2026). Em hora local, a trilha de um
+dia começava às 21h da véspera e acabava às 20:59 — três horas da noite de
+ontem no lugar das três últimas de hoje.
 """
 from __future__ import annotations
 
 from datetime import date
 
-from api.gobrax.cliente import Cliente, periodo_api
+from api.gobrax.cliente import Cliente, periodo_posicoes
 
 CAMINHO = "/api/v2/positions"
 
 
 def coletar(dia: date, placa: str | None = None, cliente=None) -> list[dict]:
-    ini, fim = periodo_api(dia, dia)
+    ini, fim = periodo_posicoes(dia, dia)
     c = cliente or Cliente()
     caminho = f"{CAMINHO}/{placa.strip()}" if (placa or "").strip() else CAMINHO
     corpo = c.get(caminho, {"startDate": ini, "endDate": fim}, timeout=120)

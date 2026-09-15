@@ -14,10 +14,13 @@ não entra na conta, porque não tem como cumprir a regra.
 
 O QUE A API ENTREGA, E O QUE ELA NÃO ENTREGA
 ============================================
-`/api/v2/positions` devolve as **últimas 20 posições de cada veículo, e ignora
-a janela pedida** — medido em 30/08/2026: as janelas de 2 e de 7 dias
-devolveram exatamente os mesmos 1.960 pontos, 20 por veículo. Duas
-consequências:
+`/api/v2/positions` devolve as **últimas 20 posições de cada veículo DENTRO da
+janela** — e o INÍCIO dela quase nunca pesa: medido em 30/08/2026, as janelas
+de 2 e de 7 dias devolveram os mesmos 1.960 pontos, 20 por veículo. O FIM
+pesa, e é lido em UTC (medido em 15/09/2026, ver `cliente.periodo_posicoes`):
+pedido em hora local, ele cortava toda noite as posições depois das 21h. Este
+parágrafo dizia que a API "ignora a janela", e era verdade sobre o que se
+mediu — o início; o fim ninguém tinha variado. Duas consequências:
 
 1. A **última** posição é confiável, e é ela que responde "quando falou pela
    última vez". É o que este módulo usa.
@@ -35,7 +38,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from api.gobrax import armazenamento
-from api.gobrax.cliente import Cliente, periodo_api
+from api.gobrax.cliente import Cliente, periodo_posicoes
 
 CAMINHO = "/api/v2/positions"
 COLECAO = "comunicacao"
@@ -59,11 +62,13 @@ def coletar(cliente=None, dias: int = 2) -> list[dict]:
     """Última posição de cada veículo que a Gobrax tem.
 
     `dias` existe para a chamada ter um período válido, não para recortar: a
-    API devolve as últimas 20 posições independentemente dele.
+    API devolve as últimas 20 posições independentemente dele. O FIM é que
+    importa, e vai em UTC (`periodo_posicoes`) — em hora local, das 21h à
+    meia-noite a última posição de todo veículo parava nas 20:59.
     """
     c = cliente or Cliente()
     hoje = datetime.now().date()
-    ini, fim = periodo_api(hoje - timedelta(days=dias), hoje)
+    ini, fim = periodo_posicoes(hoje - timedelta(days=dias), hoje)
     corpo = c.get(CAMINHO, {"startDate": ini, "endDate": fim}, timeout=180)
     saida = []
     for v in (corpo.get("data") or []):

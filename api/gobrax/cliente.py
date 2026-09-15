@@ -74,6 +74,33 @@ def periodo_api(inicio: date, fim: date) -> tuple[str, str]:
     return (inicio.strftime("%Y-%m-%d 00:00:00"), fim.strftime("%Y-%m-%d 23:59:59"))
 
 
+def periodo_posicoes(inicio: date, fim: date) -> tuple[str, str]:
+    """Os dias LOCAIS [inicio, fim] no UTC que o `/api/v2/positions` lê.
+
+    O /positions LÊ A JANELA EM UTC e devolve o horário em hora LOCAL. Medido
+    em 15/09/2026, às 02:16: com endDate "2026-09-15 01:00:00" a posição mais
+    nova veio 2026-09-14 21:59:59; com "2026-09-14 23:59:59", 20:59:59 — três
+    horas antes nos dois casos. E numa janela aberta a mais nova era 02:16, a
+    hora da consulta: o dado sai no relógio de Brasília. Pedir "até hoje
+    23:59:59" em hora local, como `periodo_api` faz, cortava TODA NOITE as
+    posições depois das 21h — das 21h à meia-noite o mapa da Torre e da TV
+    ficava parado nas 20:59 da Gobrax, sem erro nenhum.
+
+    SÓ para o /positions, que é onde a leitura em UTC foi medida. As APIs de
+    estatística do mês seguem em `periodo_api` até alguém medir a delas: mover
+    a borda do mês três horas por analogia mudaria km de fechamento sem prova.
+
+    UTC−3 FIXO: o Brasil não tem horário de verão desde 2019, e o Python do
+    Windows não traz o banco de fusos (`zoneinfo` sem `tzdata` levanta).
+    """
+    from datetime import datetime, timedelta, timezone
+    brasilia = timezone(timedelta(hours=-3))
+    a = datetime(inicio.year, inicio.month, inicio.day, 0, 0, 0, tzinfo=brasilia)
+    b = datetime(fim.year, fim.month, fim.day, 23, 59, 59, tzinfo=brasilia)
+    return (a.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+            b.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"))
+
+
 def _http(url: str, headers: dict, timeout: int):
     req = urllib.request.Request(url, headers=headers)
     try:
