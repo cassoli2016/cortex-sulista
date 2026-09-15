@@ -127,3 +127,86 @@ def test_envio_que_saiu_CONFIRMA_para_quem(pagina):
     pg.click("#modalBox button:has-text('Criar usuário')")
     pg.wait_for_timeout(400)
     assert avisos and "evelyn@exemplo.test" in avisos[0] and "enviado" in avisos[0]
+
+
+# ───────────────────────────────────────────── o botão de reenvio (15/09) ──
+
+def _responder_reenvio(pg, corpo, pedidos):
+    """O POST do usuário 7 com resposta própria, guardando o que foi pedido."""
+    def rota(route):
+        if route.request.method == "POST":
+            pedidos.append(route.request.post_data_json)
+            route.fulfill(status=200, content_type="application/json", body=json.dumps(corpo))
+        else:
+            route.fallback()
+    pg.route("**/api/gestao/usuarios/7", rota)
+
+
+BOTAO = "#ges-usr tr:has-text('Beto Lima') button:has-text('Reenviar acesso')"
+
+
+def test_o_botao_REENVIAR_ACESSO_pergunta_antes_e_so_manda_o_pedido(pagina):
+    """Pedido de quem opera ("o João disse que não recebeu"). Reenviar troca a
+    senha, então pergunta — e o pedido é SÓ o reenvio: nenhum campo do
+    cadastro vai junto, para um clique não reescrever o que não se viu."""
+    pg, base = pagina
+    _gestao(pg, base, [])
+    pedidos = []
+    _responder_reenvio(pg, {"ok": True, "email": {"ok": True, "erro": ""}}, pedidos)
+    avisos, decisao = [], {"aceitar": False}
+
+    def dialogo(d):
+        avisos.append((d.type, d.message))
+        if d.type == "confirm" and not decisao["aceitar"]:
+            d.dismiss()
+        else:
+            d.accept()
+    pg.on("dialog", dialogo)
+    pg.click(BOTAO)
+    pg.wait_for_timeout(300)
+    assert avisos and avisos[0][0] == "confirm", avisos
+    assert "beto@exemplo.test" in avisos[0][1] and "senha" in avisos[0][1]
+    assert pedidos == [], "cancelado, nada sai"
+    decisao["aceitar"] = True
+    pg.click(BOTAO)
+    pg.wait_for_timeout(400)
+    assert pedidos == [{"enviar_boas_vindas": True}], pedidos
+    assert avisos[-1] == ("alert", "Acesso enviado por e-mail para beto@exemplo.test.")
+
+
+def test_reenvio_que_falhou_diz_que_a_senha_JA_FOI_TROCADA_e_mostra_a_nova(pagina):
+    pg, base = pagina
+    _gestao(pg, base, [])
+    _responder_reenvio(pg, {"ok": True, "senha_temporaria": "Nw4pQ2wzAbcd!9",
+                            "email": {"ok": False, "erro": "SMTP recusou"}}, [])
+    avisos = []
+    pg.on("dialog", lambda d: (avisos.append(d.message), d.accept()))
+    pg.click(BOTAO)
+    pg.wait_for_timeout(400)
+    ultimo = avisos[-1]
+    assert "A senha foi trocada" in ultimo and "SMTP recusou" in ultimo
+    assert "Nw4pQ2wzAbcd!9" in ultimo
+
+
+def test_o_cadastro_do_usuario_tem_o_botao_e_o_modal_FICA_aberto(pagina):
+    pg, base = pagina
+    _gestao(pg, base, [])
+    pedidos = []
+    _responder_reenvio(pg, {"ok": True, "email": {"ok": True, "erro": ""}}, pedidos)
+    pg.on("dialog", lambda d: d.accept())
+    # cadastro NOVO não tem o que reenviar
+    pg.click("button:has-text('+ Novo usuário')")
+    pg.wait_for_selector("#gu-bv", timeout=5000)
+    assert pg.locator("#modalBox button:has-text('Reenviar acesso')").count() == 0
+    pg.evaluate("() => fecharModal()")
+    pg.click("#ges-usr tr:has-text('Beto Lima') button:has-text('Editar')")
+    pg.wait_for_selector("#gu-bv", timeout=5000)
+    pg.fill("#gu-ramal", "115")
+    pg.click("#modalBox button:has-text('Reenviar acesso por e-mail')")
+    pg.wait_for_timeout(400)
+    assert pedidos == [{"enviar_boas_vindas": True}], "o ramal digitado NÃO vai junto"
+    # o formulário continua no DOM depois de fecharModal() — ler o campo não
+    # prova nada; quem diz se o modal está aberto é a classe do fundo
+    aberto = pg.evaluate("() => document.getElementById('modalBg').classList.contains('aberto')")
+    assert aberto, "o modal tem de ficar ABERTO"
+    assert pg.input_value("#gu-ramal") == "115", "e o que foi digitado não se perde"

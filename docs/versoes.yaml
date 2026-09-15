@@ -1,3 +1,13 @@
+- versao: "1.89.0"
+  data: "2026-09-15"
+  adicionado:
+    - >-
+      Gestão › Usuários — botão "Reenviar acesso" na linha de cada usuário
+      ativo e "Reenviar acesso por e-mail" dentro do cadastro dele: gera uma
+      senha provisória nova e manda o e-mail de acesso de novo, depois de
+      confirmar (a senha anterior deixa de valer). Diz se o e-mail saiu e, se
+      não saiu, mostra a senha nova para entregar por outro caminho.
+
 - versao: "1.88.0"
   data: "2026-09-15"
   adicionado:

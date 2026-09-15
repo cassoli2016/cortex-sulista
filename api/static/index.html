@@ -44683,6 +44683,7 @@ function renderGesUsuarios(){
     <td class="num">${u.ultimo_login?esc(fmtDT(String(u.ultimo_login).replace('T',' ').slice(0,16))):'<span style="color:var(--n500)">nunca acessou</span>'}</td>
     <td class="num"><button class="ghost gbtn" onclick="gesUsuarioModal(${u.id})">Editar</button>
       <button class="ghost gbtn" onclick="gesAcessosModal(${u.id})">Acessos</button>
+      ${u.ativo?`<button class="ghost gbtn" onclick="gesReenviarAcesso(${u.id})">Reenviar acesso</button>`:''}
       <button class="ghost gbtn" data-simular="${u.id}" onclick="simulacaoIniciar(${u.id})" ${gesSimAttr(u)}>Simular</button>
       <button class="ghost gbtn" onclick="gesUsuarioExcluir(${u.id})">Excluir</button></td>
   </tr>`).join('') || '<tr><td colspan="6">Nenhum usuário.</td></tr>';
@@ -44877,7 +44878,8 @@ function gesUsuarioModal(id){
       ${u&&u.bloqueado_ate&&u.bloqueado_ate>agoraLocal()?`<div><label><input type="checkbox" id="gu-desb"> Desbloquear agora</label></div>`:''}
     </div>
     <div class="m-err" id="m-err"></div>
-    <div class="m-foot"><button class="ghost" onclick="fecharModal()">Cancelar</button>
+    <div class="m-foot">${u&&u.ativo?`<button class="ghost" style="margin-right:auto" onclick="gesReenviarAcesso(${u.id})">Reenviar acesso por e-mail</button>`:''}
+      <button class="ghost" onclick="fecharModal()">Cancelar</button>
       <button class="btn" onclick="gesUsuarioSalvar(${id||'null'})">${u?'Salvar':'Criar usuário'}</button></div>`);
   GU_ACESSOS = u ? (u.acessos||[]) : [];
   GU_PAGINA = u ? (u.pagina_inicial||'') : '';
@@ -44929,27 +44931,53 @@ async function gesUsuarioSalvar(id){
     const r=await fetch('/api/gestao/usuarios'+(id?'/'+id:''),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const d=await r.json();
     if(!r.ok){ mErro(d.mensagem||'Não foi possível salvar.'); return; }
-    /* O E-MAIL PODE TER FALHADO COM O CADASTRO FEITO. Fechar o modal em
-       silêncio deixaria um usuário criado sem ninguém saber a senha dele — e o
-       servidor devolve a senha JUSTAMENTE nesse caso, para quem cadastrou
-       entregar por outro caminho. Isso não pode passar despercebido. */
-    if(d.email && !d.email.ok){
-      const L = [id ? 'Dados salvos, mas o e-mail de acesso NÃO saiu:'
-                    : 'Usuário criado, mas o e-mail de boas-vindas NÃO saiu:', '',
-                 (d.email.erro || 'erro desconhecido')];
-      if(d.senha_temporaria)
-        L.push('', 'Entregue a senha provisória por outro caminho:', d.senha_temporaria);
-      alert(L.join(String.fromCharCode(10)));
-    } else if(d.email && d.email.ok){
-      /* E o sucesso também se diz: "mandei" e "não mandei" eram o mesmo modal
-         fechando, e foi assim que a falta do e-mail passou 16 dias. */
-      alert('Acesso enviado por e-mail para '+payload.email+'.');
-    }
+    gesAvisoEmail(d, payload.email, id ? 'Dados salvos, mas o e-mail de acesso NÃO saiu:'
+                                       : 'Usuário criado, mas o e-mail de boas-vindas NÃO saiu:');
     fecharModal(); loadGestao();
     /* o admin pode ter editado a SI MESMO: sem isto o avatar da barra e o menu
        continuariam com o nome e a foto antigos até o próximo F5 */
     if(id===USER.id){ try{ USER=await (await fetch('/api/auth/me',{cache:'no-store'})).json(); avatarRender(); }catch(e){} }
   }catch(e){ mErro('Não foi possível falar com a API.'); }
+}
+/* O RESULTADO DO E-MAIL DE ACESSO — o cadastro, a edição e o botão de reenvio
+   dizem do mesmo jeito. A FALHA não pode passar despercebida: a senha já está
+   gravada, e o servidor a devolve JUSTAMENTE nesse caso, para quem cadastrou
+   entregar por outro caminho. E o SUCESSO também se diz: "mandei" e "não
+   mandei" eram o mesmo modal fechando, e foi assim que a falta do e-mail
+   passou 16 dias. */
+function gesAvisoEmail(d, email, falhou){
+  if(d.email && !d.email.ok){
+    const L = [falhou, '', (d.email.erro || 'erro desconhecido')];
+    if(d.senha_temporaria)
+      L.push('', 'Entregue a senha provisória por outro caminho:', d.senha_temporaria);
+    alert(L.join(String.fromCharCode(10)));
+  } else if(d.email && d.email.ok){
+    alert('Acesso enviado por e-mail para '+email+'.');
+  }
+}
+/* REENVIAR O ACESSO (pedido de quem opera, 15/09/2026: "o João disse que não
+   recebeu"). É o MESMO pedido da caixa "Gerar senha nova e mandar o acesso"
+   da edição — o servidor gera a provisória nova, derruba as sessões abertas
+   e manda o e-mail —, num clique e sem levar nenhum outro campo do cadastro.
+   Pergunta antes, porque troca a senha: de quem já entra no sistema, derruba
+   o acesso até ele ler o e-mail. Chamado do modal, o modal fica aberto — o
+   que estava digitado lá não se perde. */
+async function gesReenviarAcesso(id){
+  const u=(DATAGES.usuarios||[]).find(x=>x.id===id); if(!u) return;
+  const NL=String.fromCharCode(10);
+  const pergunta=(u.ultimo_login
+      ? u.nome+' já entra no CÓRTEX. Reenviar o acesso TROCA a senha: a atual deixa de valer agora.'
+      : 'Reenviar o e-mail de acesso de '+u.nome+'? A senha provisória do e-mail anterior deixa de valer.')
+    +NL+NL+'Vai para: '+u.email+NL+'Com uma senha provisória nova, de troca obrigatória no primeiro acesso.';
+  if(!confirm(pergunta)) return;
+  try{
+    const r=await fetch('/api/gestao/usuarios/'+id,{method:'POST',headers:{'Content-Type':'application/json'},
+                                                     body:JSON.stringify({enviar_boas_vindas:true})});
+    const rr=await respostaJSON(r), d=rr.dados||{};
+    if(!rr.ok){ alert(d.mensagem||'Não foi possível reenviar o acesso.'); return; }
+    gesAvisoEmail(d, u.email, 'A senha foi trocada, mas o e-mail de acesso NÃO saiu:');
+    loadGestao();
+  }catch(e){ alert(e.message||'Não foi possível falar com a API.'); }
 }
 /* O aviso muda com o interruptor: sem e-mail, a senha TEM de ser digitada,
    porque não há por onde entregá-la depois. */

@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.89.0] — 15/09/2026  ·  CX-15/09/2026-v1.89.0
+
+### Adicionado
+- Gestão › Usuários — botão "Reenviar acesso" na linha de cada usuário ativo e "Reenviar acesso por e-mail" dentro do cadastro dele: gera uma senha provisória nova e manda o e-mail de acesso de novo, depois de confirmar (a senha anterior deixa de valer). Diz se o e-mail saiu e, se não saiu, mostra a senha nova para entregar por outro caminho.
+
 ## [1.88.0] — 15/09/2026  ·  CX-15/09/2026-v1.88.0
 
 ### Adicionado
