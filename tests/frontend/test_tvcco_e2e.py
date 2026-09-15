@@ -47,14 +47,70 @@ PAYLOAD = {
 
 TELAS = [(1920, 1080), (1600, 900)]
 
+# A FORMA de /api/operacao/cco/detalhe, com os números do PAYLOAD: cada aba
+# traz tantas linhas quanto o cartão diz (o servidor garante; aqui é o dublê).
+ESTADOS_DUBLE = {
+    "programacao": [("atrasadas", "Sem veículo, janela vencida", 2), ("no_prazo", "No prazo", 297)],
+    "coletas": [("atrasadas", "Atrasadas", 31), ("a_vencer", "A vencer", 45),
+                ("no_prazo", "Chegou na janela", 69), ("sem_apontamento", "Sem apontamento", 13)],
+    "emissoes": [("atrasadas", "Atrasadas", 21), ("aguardando", "Aguardando CT-e", 5),
+                 ("no_prazo", "No prazo", 61)],
+    "entregas": [("atrasadas", "Atrasadas", 52), ("a_vencer", "A vencer", 68),
+                 ("no_prazo", "Chegou na janela", 67), ("sem_apontamento", "Sem apontamento", 6)],
+    "carregamento": [("freetime", "Freetime excedido", 14), ("motivos", "Motivo de atraso", 1),
+                     ("sem_clausula", "Sem cláusula de freetime", 9)],
+    "descarga": [("freetime", "Freetime excedido", 27), ("motivos", "Motivo de atraso", 0),
+                 ("sem_clausula", "Sem cláusula de freetime", 4)],
+    "pendentes": [("pendentes", "Sem fim de descarga", 0)],
+}
 
-def _abre(pagina, payload=PAYLOAD, status=200, largura=1920, altura=1080, parede=True):
+
+def _linha(i):
+    return {"coleta": 30000 + i, "filial": 1 + i % 3,
+            "cliente": f"CLIENTE COM NOME BEM COMPRIDO DA OPERAÇÃO {i}",
+            "veiculo": f"ABC{i:04d}", "janela_carga": "2026-09-15 08:00",
+            # par: o veículo segue no cliente (sem saída, relógio correndo)
+            "chegada_carga": "2026-09-15 09:10",
+            "saida_carga": None if i % 2 == 0 else "2026-09-15 11:00",
+            "cte": "2026-09-15 11:20", "janela_entrega": "2026-09-16 07:00",
+            "chegada_entrega": "2026-09-16 08:30", "fim_descarga": None,
+            "horas": round(1 + i / 7, 2), "freetime_h": 3.0, "permanencia_h": 5.5,
+            "agora": i % 2 == 0,
+            "motivo": "ATRASO NA COLETA - AGUARDANDO LIBERAÇÃO DA DOCA" if i == 0 else None}
+
+
+def _detalhe(card):
+    if card == "cobertura":
+        mon = [{"cliente": f"CLIENTE MONITORADO {i}", "coletas": c,
+                "cobertura_pct": 96.0 + i / 10, "coletas_30d": 150 + i}
+               for i, c in enumerate([60, 40, 30, 24, 20, 15, 12, 8, 5])]
+        fora = [{"cliente": n, "coletas": c, "cobertura_pct": p, "coletas_30d": 90}
+                for n, c, p in [("MWM", 80, 25.0), ("ADIENT", 50, 22.0), ("TWE", 20, 78.0),
+                                ("CLIENTE X", 10, 60.0), ("CLIENTE Y", 6, 40.0),
+                                ("CLIENTE Z", 4, None), ("CLIENTE W", 2, 12.5)]]
+        estados = [{"estado": "monitorados", "rotulo": "Acompanhados", "n": 214, "linhas": mon},
+                   {"estado": "fora", "rotulo": "Fora da conta", "n": 172, "linhas": fora}]
+    else:
+        estados = [{"estado": e, "rotulo": r, "n": n, "linhas": [_linha(i) for i in range(n)]}
+                   for e, r, n in ESTADOS_DUBLE[card]]
+    return {"card": card, "regra": f"A regra do cartão {card}, escrita pelo servidor.",
+            "periodo": PAYLOAD["periodo"], "agora": PAYLOAD["agora"], "estados": estados,
+            "cobertura_min_pct": 90, "cobertura_dias": 30}
+
+
+def _abre(pagina, payload=PAYLOAD, status=200, largura=1920, altura=1080, parede=True,
+          detalhe=_detalhe, det_status=200, pedidos=None):
     pg, base = pagina
 
     def rota(r):
         url = r.request.url
         if "/api/auth/me" in url:
             corpo, st = ADMIN, 200
+        elif "/api/operacao/cco/detalhe" in url:
+            card = url.split("card=", 1)[1].split("&", 1)[0]
+            if pedidos is not None:
+                pedidos.append(card)
+            corpo, st = detalhe(card), det_status
         elif "/api/operacao/cco" in url:
             corpo, st = payload, status
         else:
@@ -206,3 +262,172 @@ def test_no_celular_nada_sai_para_o_lado(pagina):
     larg = pg.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
     assert larg == 0, larg
     assert pg.evaluate(_CORTADOS) == []
+
+
+# ------------------------------------------------------------ os modais (1.91.0)
+
+_PARTE = "#tvcco-k1 > .tv-card:nth-child({c}) .tv-duo > div:nth-child({p})"
+_MODAL = """() => {
+    const bg = document.getElementById('modalBg'), box = document.getElementById('modalBox');
+    const ab = box.querySelector('.ccm-aba[aria-pressed="true"]');
+    return {aberto: bg.classList.contains('aberto'),
+            titulo: (box.querySelector('h3') || {}).textContent,
+            aba: ab ? ab.dataset.estado : null,
+            linhas: box.querySelectorAll('#ccm-lista tbody tr').length,
+            cont: (document.getElementById('ccm-cont') || {}).textContent,
+            cab: [...box.querySelectorAll('#ccm-lista th')].map(t => t.textContent),
+            per: (document.getElementById('ccm-per') || {}).textContent}; }"""
+
+
+def _modal(pg):
+    pg.wait_for_selector("#ccm-lista > *")
+    return pg.evaluate(_MODAL)
+
+
+def test_todo_numero_do_painel_abre_um_detalhe(pagina):
+    """Cada número, barra e coluna tem alvo com rótulo — e continua tendo
+    depois da recarga, que redesenha os cartões."""
+    pg = _abre(pagina)
+    conta = """() => ({
+        alvos: document.querySelectorAll('#view-tvcco [role="button"][data-cco]').length,
+        sem_rotulo: [...document.querySelectorAll('#view-tvcco [role="button"][data-cco]')]
+                      .filter(e => !e.getAttribute('aria-label')).length,
+        orfaos: [...document.querySelectorAll('#view-tvcco .tv-num, #view-tvcco .tvd-col, #view-tvcco .tv-cco-col')]
+                  .filter(e => !e.closest('[data-cco]')).map(e => e.textContent.trim().slice(0, 30))})"""
+    esperado = {"alvos": 25, "sem_rotulo": 0, "orfaos": []}
+    assert pg.evaluate(conta) == esperado
+    pg.evaluate("loadTvCco()")
+    assert pg.evaluate(conta) == esperado
+
+
+def test_clicar_no_numero_abre_o_detalhe_na_situacao_dele(pagina):
+    pedidos = []
+    pg = _abre(pagina, pedidos=pedidos)
+    pg.click(_PARTE.format(c=2, p=2))          # Coletas · o vermelho das atrasadas
+    m = _modal(pg)
+    assert pedidos == ["coletas"], pedidos
+    assert (m["aberto"], m["titulo"], m["aba"], m["linhas"]) == (True, "Coletas", "atrasadas", 31), m
+    assert m["cont"] == "31 coletas", m
+    assert m["cab"][:4] == ["Coleta", "Filial", "Cliente", "Veículo"] and m["cab"][-1] == "Atraso", m
+    assert "leitura 15:35" in m["per"] and "mais nova" not in m["per"], m
+    assert "A regra do cartão coletas" in pg.inner_text("#modalBox")
+
+
+def test_o_resto_do_cartao_abre_na_primeira_situacao_com_coleta(pagina):
+    def det(card):
+        d = _detalhe(card)
+        d["estados"][0].update(n=0, linhas=[])          # nenhuma atrasada
+        return d
+    pg = _abre(pagina, detalhe=det)
+    pg.click("#tvcco-k1 > .tv-card:nth-child(2) .tv-label")
+    m = _modal(pg)
+    assert (m["aba"], m["linhas"], m["cab"][-1]) == ("a_vencer", 45, "Janela em"), m
+
+
+def test_abas_e_filtro(pagina):
+    pg = _abre(pagina)
+    pg.click(_PARTE.format(c=2, p=2))
+    _modal(pg)
+    pg.click('#modalBox .ccm-aba[data-estado="no_prazo"]')
+    m = pg.evaluate(_MODAL)
+    assert (m["aba"], m["linhas"], m["cab"][-1]) == ("no_prazo", 69, "Antes da janela"), m
+    pg.fill("#modalBox .ccm-busca", "30003")
+    m = pg.evaluate(_MODAL)
+    assert (m["linhas"], m["cont"]) == (1, "1 de 69 coletas"), m
+    pg.fill("#modalBox .ccm-busca", "abc0010")                 # placa, sem caixa
+    assert pg.evaluate(_MODAL)["linhas"] == 1
+    pg.fill("#modalBox .ccm-busca", "nada disso")
+    assert "Nada com esse filtro" in pg.inner_text("#ccm-lista")
+
+
+def test_teclado_abre_e_esc_fecha_e_devolve_o_foco(pagina):
+    pg = _abre(pagina)
+    pg.focus(_PARTE.format(c=3, p=2))                           # Emissão · atrasadas
+    pg.keyboard.press("Enter")
+    m = _modal(pg)
+    assert (m["titulo"], m["aba"], m["linhas"]) == ("Emissão do CT-e", "atrasadas", 21), m
+    pg.keyboard.press("Escape")
+    fim = pg.evaluate("""() => ({aberto: document.getElementById('modalBg').classList.contains('aberto'),
+        foco: document.activeElement.dataset.cco + '/' + document.activeElement.dataset.estado})""")
+    assert fim == {"aberto": False, "foco": "emissoes/atrasadas"}, fim
+
+
+def test_as_barras_as_colunas_e_a_pontualidade_abrem_o_cartao_delas(pagina):
+    pg = _abre(pagina)
+    casos = [("#tvcco-k3 .tvd-col:nth-child(4)", "Descarga", "freetime"),
+             ("#tvcco-k3 .tv-cco-col:nth-child(2)", "Emissão do CT-e", "atrasadas"),
+             ("#tvcco-k3 .tv-cco-pont > div:nth-child(2)", "Entregas", "atrasadas")]
+    for sel, titulo, aba in casos:
+        pg.click(sel)
+        m = _modal(pg)
+        assert (m["titulo"], m["aba"]) == (titulo, aba), (sel, m)
+        pg.keyboard.press("Escape")
+        pg.wait_for_selector("#modalBg.aberto", state="hidden")
+    # o freetime diz a cláusula, a permanência, o excesso e o motivo
+    pg.click("#tvcco-k3 .tvd-col:nth-child(3)")
+    m = _modal(pg)
+    assert (m["titulo"], m["linhas"]) == ("Carregamento", 14), m
+    assert m["cab"][-4:] == ["Freetime", "Permanência", "Excesso", "Motivo apontado"], m
+    assert "segue lá" in pg.inner_text("#ccm-lista")
+
+
+def test_a_cobertura_mostra_os_clientes(pagina):
+    pg = _abre(pagina)
+    pg.click("#tvcco-k2 > .tv-card:nth-child(4)")
+    m = _modal(pg)
+    assert (m["titulo"], m["aba"], m["linhas"]) == ("Acompanhados pelo SAC", "monitorados", 9), m
+    assert m["cont"] == "9 clientes · 214 coletas", m
+    pg.click('#modalBox .ccm-aba[data-estado="fora"]')
+    m = pg.evaluate(_MODAL)
+    assert (m["linhas"], m["cont"]) == (7, "7 clientes · 172 coletas"), m
+    primeira = pg.evaluate("""() => { const tr = document.querySelector('#ccm-lista tbody tr');
+        const at = tr.querySelector('.ccm-at');
+        return [tr.cells[0].textContent, at ? at.textContent : null]; }""")
+    assert primeira == ["MWM", "25%"], primeira
+
+
+@pytest.mark.parametrize("largura,altura", [(1920, 1080), (400, 860)])
+def test_o_modal_cabe_na_tela_e_a_lista_rola_dentro(pagina, largura, altura):
+    pg = _abre(pagina, largura=largura, altura=altura)
+    pg.click("#tvcco-k1 > .tv-card:nth-child(1) .tv-duo > div:nth-child(1)")   # 297 no prazo
+    assert _modal(pg)["linhas"] == 297
+    med = pg.evaluate("""() => { const b = document.getElementById('modalBox').getBoundingClientRect();
+        const l = document.getElementById('ccm-lista');
+        return {top: b.top, bottom: b.bottom, left: b.left, right: b.right, w: innerWidth, h: innerHeight,
+                rola: l.scrollHeight > l.clientHeight + 50,
+                lado: document.documentElement.scrollWidth - document.documentElement.clientWidth}; }""")
+    assert med["top"] >= 0 and med["bottom"] <= med["h"], med
+    assert med["left"] >= 0 and med["right"] <= med["w"], med
+    assert med["rola"] and med["lado"] == 0, med
+
+
+def test_a_largura_do_detalhe_nao_vaza_para_o_proximo_modal(pagina):
+    """O detalhe é mais largo que a ficha da casa, e a largura vem do
+    conteúdo: o formulário que abrir depois volta aos 560px."""
+    pg = _abre(pagina)
+    pg.click(_PARTE.format(c=2, p=2))
+    _modal(pg)
+    larga = pg.evaluate("document.getElementById('modalBox').getBoundingClientRect().width")
+    pg.keyboard.press("Escape")
+    pg.evaluate("abrirModal('<h3>Outro modal</h3><p>formulário da casa</p>')")
+    padrao = pg.evaluate("document.getElementById('modalBox').getBoundingClientRect().width")
+    assert larga > 1100 and padrao <= 560, (larga, padrao)
+
+
+def test_a_falha_do_detalhe_e_dita_no_modal(pagina):
+    pg = _abre(pagina, det_status=503, detalhe=lambda c: {
+        "erro": "banco_inacessivel", "mensagem": "Sem conexão com o banco do ERP."})
+    pg.click(_PARTE.format(c=2, p=2))
+    pg.wait_for_function("(document.getElementById('ccm-corpo') || {}).textContent"
+                         " && document.getElementById('ccm-corpo').textContent.includes('Não foi possível')")
+    assert "Sem conexão com o banco do ERP." in pg.inner_text("#ccm-corpo")
+
+
+def test_leitura_mais_nova_que_a_do_painel_e_dita(pagina):
+    def det(card):
+        d = _detalhe(card)
+        d["agora"] = "2026-09-15 15:37"
+        return d
+    pg = _abre(pagina, detalhe=det)
+    pg.click(_PARTE.format(c=2, p=2))
+    assert "leitura 15:37 · mais nova que a do painel (15:35)" in _modal(pg)["per"]

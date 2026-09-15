@@ -1,3 +1,17 @@
+- versao: "1.91.0"
+  data: "2026-09-15"
+  adicionado:
+    - >-
+      Painéis TV › CCO — os cartões abrem um detalhe ao clique: a lista das
+      coletas por trás de cada número (cliente, veículo, janela, chegada,
+      saída, CT-e, atraso ou excesso de freetime e o motivo apontado), com uma
+      aba por situação e a regra da conta escrita no alto. Clicar num número
+      (o vermelho das atrasadas, por exemplo) abre o detalhe já nessa aba; as
+      barras dos gargalos, as colunas do "por etapa" e a pontualidade também
+      abrem. A lista sai da mesma leitura e da mesma conta do cartão, então
+      sempre bate com o número clicado. Na parede nada muda: a TV continua se
+      lendo sem clique.
+
 - versao: "1.90.3"
   data: "2026-09-15"
   corrigido:

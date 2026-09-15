@@ -108,16 +108,19 @@ _CHAVE = ("grupo, empresa, filial, unidade, diferenciadornumero, serie, numero")
 COBERTURA_SQL = """
 WITH col AS (
   SELECT c.grupo, c.empresa, c.filial, c.unidade, c.diferenciadornumero,
-         c.serie, c.numero, acc.codigo AS cod
+         c.serie, c.numero, acc.codigo AS cod,
+         btrim(coalesce(ac.descricao, '')) AS cliente
   FROM coleta c
   JOIN agrupamentocliente_cnpjcpfcodigo acc
     ON acc.grupo = c.grupo AND acc.empresa = c.empresa
    AND acc.cnpjcpfcodigo = c.cnpjcpfcodigopagadorfrete AND acc.vinculo = 1
+  LEFT JOIN agrupamentocliente ac
+    ON ac.grupo = acc.grupo AND ac.empresa = acc.empresa AND ac.codigo = acc.codigo
   WHERE c.dtcancelamento IS NULL
     AND c.dtcoletar >= current_date - %(dias)s
     AND c.dtcoletar <  current_date
 )
-SELECT col.cod, count(*) AS coletas,
+SELECT col.cod, max(col.cliente) AS cliente, count(*) AS coletas,
        sum(CASE WHEN EXISTS (
              SELECT 1 FROM coleta_ocorrencia o
              JOIN ocorrencia oc ON oc.codigo = o.ocorrencia
@@ -163,12 +166,14 @@ alvo AS (
 ev AS (
   SELECT o.grupo, o.empresa, o.filial, o.unidade, o.diferenciadornumero,
          o.serie, o.numero, o.ocorrencia, o.dtocorrencia,
+         btrim(coalesce(oc.descricao, '')) AS descricao,
          row_number() OVER (PARTITION BY o.grupo, o.empresa, o.filial, o.unidade,
                                          o.diferenciadornumero, o.serie, o.numero,
                                          o.ocorrencia
                             ORDER BY o.sequenciaocorrencia) AS rn
   FROM coleta_ocorrencia o
   JOIN alvo a ON {_k("a", "o")}
+  LEFT JOIN ocorrencia oc ON oc.codigo = o.ocorrencia
   WHERE o.ocorrencia IN (394, 395, 396, 397, 401)
      OR o.ocorrencia BETWEEN 425 AND 456
 ),
@@ -183,7 +188,15 @@ evc AS (
          -- aconteceu
          max(CASE WHEN ocorrencia = 401 THEN 1 ELSE 0 END) AS fin,
          max(CASE WHEN ocorrencia BETWEEN 425 AND 440 THEN 1 ELSE 0 END) AS motivo_coleta,
-         max(CASE WHEN ocorrencia BETWEEN 441 AND 456 THEN 1 ELSE 0 END) AS motivo_entrega
+         max(CASE WHEN ocorrencia BETWEEN 441 AND 456 THEN 1 ELSE 0 END) AS motivo_entrega,
+         -- o TEXTO do motivo, para o modal: o cartão conta a coleta, o
+         -- detalhe diz qual motivo o SAC apontou
+         string_agg(DISTINCT CASE WHEN ocorrencia BETWEEN 425 AND 440 THEN descricao END,
+                    ' · ' ORDER BY CASE WHEN ocorrencia BETWEEN 425 AND 440
+                                        THEN descricao END) AS motivo_coleta_txt,
+         string_agg(DISTINCT CASE WHEN ocorrencia BETWEEN 441 AND 456 THEN descricao END,
+                    ' · ' ORDER BY CASE WHEN ocorrencia BETWEEN 441 AND 456
+                                        THEN descricao END) AS motivo_entrega_txt
   FROM ev
   GROUP BY {_CHAVE}
 ),
@@ -213,6 +226,7 @@ SELECT a.numero, a.filial, a.cod, a.cliente, a.veiculo, a.jc, a.je,
        coalesce(evc.motivo_coleta, 0) AS motivo_coleta,
        coalesce(evc.motivo_entrega, 0) AS motivo_entrega,
        coalesce(evc.fin, 0) AS fin,
+       evc.motivo_coleta_txt, evc.motivo_entrega_txt,
        cte.cte_em,
        -- A CLÁUSULA DE FREETIME é a do módulo da casa: a da mercadoria, a
        -- genérica do contrato, e o último recurso — a mesma do SAC/freetime.
@@ -248,12 +262,113 @@ def _pct(bom: int, ruim: int) -> float | None:
     return round(100.0 * bom / tot, 1) if tot else None
 
 
+#: OS MODAIS (quem opera, 15/09/2026: "ao clicar nos cards trazer um modal com
+#: o detalhamento"). Cada cartão e os estados que o modal dele mostra, na
+#: ordem das abas — o que pede ação primeiro.
+ESTADOS = {
+    "programacao": ("atrasadas", "no_prazo"),
+    "coletas": ("atrasadas", "a_vencer", "no_prazo", "sem_apontamento"),
+    "emissoes": ("atrasadas", "aguardando", "no_prazo"),
+    "entregas": ("atrasadas", "a_vencer", "no_prazo", "sem_apontamento"),
+    "carregamento": ("freetime", "motivos", "sem_clausula"),
+    "descarga": ("freetime", "motivos", "sem_clausula"),
+    "pendentes": ("pendentes",),
+}
+CARDS_DETALHE = tuple(ESTADOS) + ("cobertura",)
+
+TITULOS = {"programacao": "Programação", "coletas": "Coletas",
+           "emissoes": "Emissão do CT-e", "entregas": "Entregas",
+           "carregamento": "Carregamento", "descarga": "Descarga",
+           "pendentes": "Pendentes de finalização",
+           "cobertura": "Acompanhados pelo SAC"}
+
+_ROTULOS = {"atrasadas": "Atrasadas", "no_prazo": "No prazo",
+            "a_vencer": "A vencer", "sem_apontamento": "Sem apontamento",
+            "aguardando": "Aguardando CT-e", "freetime": "Freetime excedido",
+            "motivos": "Motivo de atraso", "sem_clausula": "Sem cláusula de freetime",
+            "pendentes": "Sem fim de descarga", "monitorados": "Acompanhados",
+            "fora": "Fora da conta"}
+_ROTULO_CARD = {("programacao", "atrasadas"): "Sem veículo, janela vencida",
+                ("coletas", "no_prazo"): "Chegou na janela",
+                ("entregas", "no_prazo"): "Chegou na janela"}
+
+
+def rotulo(card: str, estado: str) -> str:
+    return _ROTULO_CARD.get((card, estado), _ROTULOS[estado])
+
+
+def regras() -> dict:
+    """A regra de cada cartão, em texto, escrita a partir das MESMAS constantes
+    que o código usa — o modal diz a conta que produziu a lista."""
+    t, s, p = TOLERANCIA_CTE_MIN, SEM_APONTAMENTO_H, PENDENTE_FIM_H
+    ft = ("o relógio começa no que vier depois (a janela ou a chegada) e vai "
+          "até a saída — ou até agora, se o veículo segue lá — contra a "
+          "cláusula de freetime do contrato (a da mercadoria, a genérica, ou a "
+          f"de último recurso); permanência acima de {TETO_PERMANENCIA_H} h é "
+          "apontamento que faltou e fica fora")
+    return {
+        "programacao": "Coletas com janela de carregamento de ontem a amanhã, de "
+                       "TODOS os clientes. Atrasada = sem veículo e com a janela "
+                       "já vencida.",
+        "coletas": "Clientes acompanhados pelo SAC. No prazo = chegada ao "
+                   "carregamento (SAC 394) até a janela. Atrasada = chegou "
+                   f"depois, ou ainda não chegou com a janela vencida há até {s} h. "
+                   "Sem apontamento = carregou (tem saída ou CT-e) sem a chegada "
+                   f"lançada, ou janela vencida há mais de {s} h. Atraso = chegada "
+                   "(ou agora) menos a janela.",
+        "emissoes": f"No prazo = CT-e emitido até {t} min depois da saída do "
+                    f"carregamento (SAC 395). Atrasada = depois disso, ou saiu há "
+                    f"mais de {t} min sem CT-e. Aguardando = carregando, ou saiu "
+                    f"há menos de {t} min.",
+        "entregas": "Clientes acompanhados pelo SAC. No prazo = chegada no "
+                    "destino (SAC 396) até a janela de entrega. Atrasada = chegou "
+                    f"depois, ou ainda não chegou com a janela vencida há até {s} h. "
+                    "Sem apontamento = descarregou (397) ou viagem finalizada "
+                    f"(401) sem a chegada lançada, ou janela vencida há mais de {s} h.",
+        "carregamento": f"Freetime excedido na carga: {ft}. Motivo de atraso = "
+                        "ocorrência SAC 425 a 440 apontada na coleta.",
+        "descarga": f"Freetime excedido na descarga: {ft}. Motivo de atraso = "
+                    "ocorrência SAC 441 a 456 apontada na coleta.",
+        "pendentes": f"Chegou no destino (SAC 396) há mais de {p} h e o fim da "
+                     "descarga (397) não foi apontado.",
+        "cobertura": f"Entra na pontualidade o cliente com pelo menos "
+                     f"{int(COBERTURA_MIN * 100)}% das coletas apontadas pelo SAC "
+                     f"nos {COBERTURA_DIAS} dias fechados. Os outros ficam fora: "
+                     "sem apontamento, uma coleta sem chegada lançada não é "
+                     "atraso.",
+    }
+
+
+def _fmt(v) -> str | None:
+    return v.strftime("%Y-%m-%d %H:%M") if v else None
+
+
+def _linha_det(r: dict, horas: float | None = None, **extra) -> dict:
+    """Uma coleta no modal: a identificação e os horários que as regras usam.
+    Motorista não entra — a coleta e a placa bastam para achar a carga no ERP.
+    `horas` tem SINAL: positivo é atraso ou excesso; negativo, antecedência ou o
+    que falta para a janela."""
+    d = {"coleta": r["numero"], "filial": r["filial"],
+         "cliente": r["cliente"] or "sem cliente", "veiculo": r["veiculo"] or None,
+         "janela_carga": _fmt(r["jc"]), "chegada_carga": _fmt(r["cc"]),
+         "saida_carga": _fmt(r["sc"]), "cte": _fmt(r["cte_em"]),
+         "janela_entrega": _fmt(r["je"]), "chegada_entrega": _fmt(r["cd"]),
+         "fim_descarga": _fmt(r["fd"]),
+         "horas": None if horas is None else round(horas, 2)}
+    d.update(extra)
+    return d
+
+
 def classificar(linhas: list[dict], agora: datetime, monitorados, de: date,
-                ate: date) -> dict:
+                ate: date, detalhe: bool = False) -> dict:
     """As regras do painel, sobre as linhas do ERP. Função PURA: é aqui que o
     teste afirma cada regra com linha escrita à mão.
 
     `monitorados` são os códigos de cliente com cobertura SAC de 90%+.
+
+    `detalhe=True` devolve também, por cartão e estado, a LISTA das coletas —
+    montada no MESMO ponto em que o contador soma (`marca`), então o modal
+    nunca discorda do número do cartão.
     """
     monitorados = set(monitorados or ())
     dentro = lambda x: x is not None and de <= x.date() <= ate  # noqa: E731
@@ -265,51 +380,69 @@ def classificar(linhas: list[dict], agora: datetime, monitorados, de: date,
     ent = {"no_prazo": 0, "atrasadas": 0, "a_vencer": 0, "sem_apontamento": 0}
     car = {"motivos": 0, "freetime": 0, "freetime_agora": 0, "sem_clausula": 0}
     des = {"motivos": 0, "freetime": 0, "freetime_agora": 0, "sem_clausula": 0}
-    pendentes = 0
+    pend = {"pendentes": 0}
     alertas: list[dict] = []
     fora: Counter = Counter()
     cli_mon: set = set()
     n_mon = 0
+    det = {c: {e: [] for e in es} for c, es in ESTADOS.items()} if detalhe else None
+    por_cliente: dict = {}
+
+    def marca(card: str, bloco: dict, estado: str, r: dict,
+              horas: float | None = None, **extra) -> None:
+        bloco[estado] += 1
+        if det is not None:
+            det[card][estado].append(_linha_det(r, horas, **extra))
 
     def avisa(tipo: str, horas: float, texto: str) -> None:
         alertas.append({"tipo": tipo, "horas": round(horas, 2), "texto": texto})
 
-    def freetime(ft_h, janela, chegada, saida, bloco: dict, rotulo: str, r) -> None:
+    def freetime(ft_h, janela, chegada, saida, card: str, bloco: dict,
+                 rotulo_: str, r, motivo_txt) -> None:
         """O relógio começa no que vier DEPOIS — a janela ou a chegada: o
         veículo que chega cedo não consome freetime, e o que chega atrasado não
         cobra do cliente o próprio atraso. É a conta da planilha que o cliente
         aceita (crônica da Horas Paradas)."""
         if ft_h is None:
-            bloco["sem_clausula"] += 1
+            marca(card, bloco, "sem_clausula", r)
             return
         inicio = max(janela, chegada) if janela else chegada
         dur = _horas(saida or agora, inicio)
         if dur <= ft_h or dur > TETO_PERMANENCIA_H:
             return
-        bloco["freetime"] += 1
+        marca(card, bloco, "freetime", r, dur - ft_h, freetime_h=round(ft_h, 2),
+              permanencia_h=round(dur, 2), agora=not saida, motivo=motivo_txt)
         if not saida:
             bloco["freetime_agora"] += 1
-            avisa("freetime", dur - ft_h, f"{rotulo} além do freetime · coleta "
+            avisa("freetime", dur - ft_h, f"{rotulo_} além do freetime · coleta "
                   f"{r['numero']} · {r['cliente'] or 'sem cliente'} · +{_hm(dur - ft_h)}")
 
     for r in linhas:
         jc, je = r["jc"], r["je"]
         na_carga, na_entrega = dentro(jc), dentro(je)
         cliente = r["cliente"] or "sem cliente"
+        # o SQL já recorta pela janela; aqui é para a contagem dos
+        # acompanhados (`coletas` da cobertura) e a lista do modal contarem as
+        # MESMAS linhas
+        if not (na_carga or na_entrega):
+            continue
+        if detalhe:
+            pc = por_cliente.setdefault(r["cod"], {"cliente": cliente, "coletas": 0})
+            pc["coletas"] += 1
 
         if na_carga:
             prog["total"] += 1
             if not r["veiculo"] and jc < agora:
-                prog["atrasadas"] += 1
+                marca("programacao", prog, "atrasadas", r, _horas(agora, jc))
                 avisa("programacao", _horas(agora, jc),
                       f"Sem veículo · coleta {r['numero']} · {cliente} · janela há "
                       f"{_hm(_horas(agora, jc))}")
             else:
-                prog["no_prazo"] += 1
+                marca("programacao", prog, "no_prazo", r,
+                      _horas(agora, jc) if not r["veiculo"] else None)
 
         if r["cod"] not in monitorados:
-            if na_carga or na_entrega:
-                fora[cliente] += 1
+            fora[cliente] += 1
             continue
         n_mon += 1
         cli_mon.add(r["cod"])
@@ -317,15 +450,16 @@ def classificar(linhas: list[dict], agora: datetime, monitorados, de: date,
         if na_carga:
             cc, sc, cte_em = r["cc"], r["sc"], r["cte_em"]
             if cc:
-                col["no_prazo" if cc <= jc else "atrasadas"] += 1
+                marca("coletas", col, "no_prazo" if cc <= jc else "atrasadas", r,
+                      _horas(cc, jc))
             elif jc >= agora:
-                col["a_vencer"] += 1
+                marca("coletas", col, "a_vencer", r, _horas(agora, jc))
             elif sc or cte_em or _horas(agora, jc) > SEM_APONTAMENTO_H:
                 # carregou (tem saída ou CT-e), ou a janela venceu há mais de
                 # um dia: é o apontamento que falta, não o veículo
-                col["sem_apontamento"] += 1
+                marca("coletas", col, "sem_apontamento", r, _horas(agora, jc))
             else:
-                col["atrasadas"] += 1
+                marca("coletas", col, "atrasadas", r, _horas(agora, jc))
                 # sem veículo, o aviso é o da programação: a mesma coleta não
                 # ocupa duas vezes o rodapé
                 if r["veiculo"]:
@@ -334,48 +468,54 @@ def classificar(linhas: list[dict], agora: datetime, monitorados, de: date,
 
             if cc or sc:
                 if cte_em:
-                    emi["no_prazo" if (sc is None or cte_em <= sc + tol)
-                        else "atrasadas"] += 1
+                    marca("emissoes", emi, "no_prazo" if (sc is None or cte_em <= sc + tol)
+                          else "atrasadas", r, _horas(cte_em, sc) if sc else None)
                 elif sc and agora > sc + tol:
-                    emi["atrasadas"] += 1
+                    marca("emissoes", emi, "atrasadas", r, _horas(agora, sc))
                     avisa("cte", _horas(agora, sc), f"Saiu sem CT-e · coleta "
                           f"{r['numero']} · {cliente} · há {_hm(_horas(agora, sc))}")
                 else:
-                    emi["aguardando"] += 1
+                    marca("emissoes", emi, "aguardando", r,
+                          _horas(agora, sc) if sc else None)
 
             if cc:
-                freetime(r["ft_carga_h"], jc, cc, sc, car, "No cliente", r)
+                freetime(r["ft_carga_h"], jc, cc, sc, "carregamento", car,
+                         "No cliente", r, r.get("motivo_coleta_txt"))
             if r["motivo_coleta"]:
-                car["motivos"] += 1
+                marca("carregamento", car, "motivos", r,
+                      motivo=r.get("motivo_coleta_txt"))
 
         if na_entrega:
             cd, fd = r["cd"], r["fd"]
             if cd:
-                ent["no_prazo" if cd <= je else "atrasadas"] += 1
+                marca("entregas", ent, "no_prazo" if cd <= je else "atrasadas", r,
+                      _horas(cd, je))
             elif je >= agora:
-                ent["a_vencer"] += 1
+                marca("entregas", ent, "a_vencer", r, _horas(agora, je))
             elif fd or r.get("fin") or _horas(agora, je) > SEM_APONTAMENTO_H:
                 # descarregou (fim de descarga), a viagem foi finalizada, ou a
                 # janela venceu há mais de um dia: é a chegada que não foi
                 # apontada, não a carga que não chegou
-                ent["sem_apontamento"] += 1
+                marca("entregas", ent, "sem_apontamento", r, _horas(agora, je))
             else:
-                ent["atrasadas"] += 1
+                marca("entregas", ent, "atrasadas", r, _horas(agora, je))
                 avisa("entrega", _horas(agora, je), f"Entrega atrasada · coleta "
                       f"{r['numero']} · {cliente} · +{_hm(_horas(agora, je))}")
 
             if cd:
-                freetime(r["ft_descarga_h"], je, cd, fd, des, "Na descarga", r)
+                freetime(r["ft_descarga_h"], je, cd, fd, "descarga", des,
+                         "Na descarga", r, r.get("motivo_entrega_txt"))
                 if not fd and _horas(agora, cd) > PENDENTE_FIM_H:
-                    pendentes += 1
+                    marca("pendentes", pend, "pendentes", r, _horas(agora, cd))
                     avisa("pendente", _horas(agora, cd), f"Sem fim de descarga · "
                           f"coleta {r['numero']} · {cliente} · chegou há "
                           f"{_hm(_horas(agora, cd))}")
             if r["motivo_entrega"]:
-                des["motivos"] += 1
+                marca("descarga", des, "motivos", r,
+                      motivo=r.get("motivo_entrega_txt"))
 
     alertas.sort(key=lambda a: -a["horas"])
-    return {
+    res = {
         "kpis": {
             "programacao": prog,
             "coletas": {**col, "pontualidade": _pct(col["no_prazo"], col["atrasadas"])},
@@ -383,7 +523,7 @@ def classificar(linhas: list[dict], agora: datetime, monitorados, de: date,
             "entregas": {**ent, "pontualidade": _pct(ent["no_prazo"], ent["atrasadas"])},
             "carregamento": car,
             "descarga": des,
-            "pendentes_finalizacao": pendentes,
+            "pendentes_finalizacao": pend["pendentes"],
         },
         "cobertura": {
             "clientes": len(cli_mon),
@@ -395,6 +535,10 @@ def classificar(linhas: list[dict], agora: datetime, monitorados, de: date,
         "alertas": alertas[:MAX_ALERTAS],
         "alertas_total": len(alertas),
     }
+    if detalhe:
+        res["detalhe"] = det
+        res["por_cliente"] = por_cliente
+    return res
 
 
 @cached(ttl=3600)
@@ -406,13 +550,20 @@ def clientes_monitorados() -> dict:
         rows = cur.fetchall()
     codigos = sorted(r["cod"] for r in rows
                      if r["coletas"] and r["com_sac"] / r["coletas"] >= COBERTURA_MIN)
-    return {"codigos": codigos, "avaliados": len(rows)}
+    clientes = [{"cod": r["cod"], "cliente": r.get("cliente") or "sem cliente",
+                 "coletas": r["coletas"], "com_sac": r["com_sac"],
+                 "pct": round(100.0 * r["com_sac"] / r["coletas"], 1) if r["coletas"] else None}
+                for r in rows]
+    return {"codigos": codigos, "avaliados": len(rows), "clientes": clientes}
 
 
-# SEM `velha_ate`, e é requisito: o painel publica "agora" (veículo que não
-# chegou, caminhão que saiu sem CT-e). Guard: tests/test_leitura_velha.py.
+# UMA LEITURA para o cartão e para o modal: com dois caches, o modal podia vir
+# de uma leitura dois minutos mais nova que o número que a pessoa clicou, e a
+# lista não bateria com ele. SEM `velha_ate`, e é requisito: o painel publica
+# "agora" (veículo que não chegou, caminhão que saiu sem CT-e). Guard:
+# tests/test_leitura_velha.py.
 @cached(ttl=120)
-def get_cco() -> dict:
+def _leitura_cco() -> dict:
     hoje = date.today()
     de = hoje - timedelta(days=JANELA_DIAS)
     ate = hoje + timedelta(days=JANELA_DIAS)
@@ -421,7 +572,56 @@ def get_cco() -> dict:
         cur.execute(CCO_SQL, {"de": de, "ate": ate})
         linhas = cur.fetchall()
     agora = linhas[0]["agora"] if linhas else datetime.now()
-    res = classificar(linhas, agora, monit["codigos"], de, ate)
+    return {"linhas": linhas, "agora": agora, "de": de, "ate": ate, "monit": monit}
+
+
+def _ordena(card: str, estado: str, linhas: list[dict]) -> list[dict]:
+    """O que pede ação sai do mais velho para o mais novo; o que está em dia,
+    pela janela."""
+    if estado in ("no_prazo", "a_vencer"):
+        campo = "janela_entrega" if card in ("entregas", "pendentes", "descarga") else "janela_carga"
+        return sorted(linhas, key=lambda x: (x.get(campo) or "9999", x["coleta"]))
+    return sorted(linhas, key=lambda x: (x["horas"] is None, -(x["horas"] or 0), x["coleta"]))
+
+
+def get_cco_detalhe(card: str) -> dict:
+    """A lista por trás de um cartão, da MESMA leitura e da MESMA contagem."""
+    if card not in CARDS_DETALHE:
+        raise ValueError(f"cartão desconhecido: {card!r}")
+    lt = _leitura_cco()
+    res = classificar(lt["linhas"], lt["agora"], lt["monit"]["codigos"],
+                      lt["de"], lt["ate"], detalhe=True)
+    base = {"card": card, "titulo": TITULOS[card], "regra": regras()[card],
+            "periodo": {"de": lt["de"].isoformat(), "ate": lt["ate"].isoformat()},
+            "agora": lt["agora"].strftime("%Y-%m-%d %H:%M")}
+    if card == "cobertura":
+        cob = {c["cod"]: c for c in lt["monit"].get("clientes", [])}
+        mon = set(lt["monit"]["codigos"])
+        base["cobertura_min_pct"] = int(round(COBERTURA_MIN * 100))
+        base["cobertura_dias"] = COBERTURA_DIAS
+        grupos: dict = {"monitorados": [], "fora": []}
+        for cod, pc in res["por_cliente"].items():
+            c30 = cob.get(cod) or {}
+            grupos["monitorados" if cod in mon else "fora"].append({
+                "cliente": pc["cliente"], "coletas": pc["coletas"],
+                "cobertura_pct": c30.get("pct"), "coletas_30d": c30.get("coletas")})
+        base["estados"] = [
+            {"estado": e, "rotulo": rotulo(card, e), "n": sum(x["coletas"] for x in grupos[e]),
+             "linhas": sorted(grupos[e], key=lambda x: (-x["coletas"], x["cliente"]))}
+            for e in ("monitorados", "fora")]
+        return base
+    base["estados"] = [
+        {"estado": e, "rotulo": rotulo(card, e), "n": len(res["detalhe"][card][e]),
+         "linhas": _ordena(card, e, res["detalhe"][card][e])}
+        for e in ESTADOS[card]]
+    return base
+
+
+def get_cco() -> dict:
+    lt = _leitura_cco()
+    monit = lt["monit"]
+    res = classificar(lt["linhas"], lt["agora"], monit["codigos"], lt["de"], lt["ate"])
+    de, ate, agora = lt["de"], lt["ate"], lt["agora"]
     res["periodo"] = {"de": de.isoformat(), "ate": ate.isoformat()}
     res["agora"] = agora.strftime("%Y-%m-%d %H:%M")
     res["cobertura"]["clientes_avaliados"] = monit["avaliados"]

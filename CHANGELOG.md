@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.91.0] — 15/09/2026  ·  CX-15/09/2026-v1.91.0
+
+### Adicionado
+- Painéis TV › CCO — os cartões abrem um detalhe ao clique: a lista das coletas por trás de cada número (cliente, veículo, janela, chegada, saída, CT-e, atraso ou excesso de freetime e o motivo apontado), com uma aba por situação e a regra da conta escrita no alto. Clicar num número (o vermelho das atrasadas, por exemplo) abre o detalhe já nessa aba; as barras dos gargalos, as colunas do "por etapa" e a pontualidade também abrem. A lista sai da mesma leitura e da mesma conta do cartão, então sempre bate com o número clicado. Na parede nada muda: a TV continua se lendo sem clique.
+
 ## [1.90.3] — 15/09/2026  ·  CX-15/09/2026-v1.90.3
 
 ### Corrigido

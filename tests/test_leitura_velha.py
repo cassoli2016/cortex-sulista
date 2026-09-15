@@ -170,8 +170,9 @@ def test_a_visao_geral_declara_a_janela_de_duas_horas():
 # olhando uma posição de vinte minutos atrás já foi tomada.
 TEMPO_REAL = ("get_torre", "get_seguranca", "get_portaria", "get_programacao",
               # a TV do CCO publica "agora": veículo que não chegou, caminhão
-              # que saiu sem CT-e (api/cco.py)
-              "get_cco")
+              # que saiu sem CT-e (api/cco.py). O cache é o da LEITURA, que o
+              # cartão e o modal dividem
+              "_leitura_cco")
 
 
 # ONDE ESTE GUARD PROCURA — E POR QUE A LISTA SAI DO DISCO.

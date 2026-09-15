@@ -2028,6 +2028,41 @@ body.tvfull.tvwall #view-tvcco .tv-ticker{flex-shrink:0;margin-top:18px}
   .tv-cco-col em{font-size:10px}
 }
 
+/* O DETALHE DOS CARTÕES DA TV DO CCO (1.91.0). O que abre o detalhe ganha a
+   mão do mouse e o anel do foco do teclado; na parede, sem mouse, nada muda. */
+#view-tvcco [data-cco]{cursor:pointer}
+#view-tvcco [role="button"][data-cco]{border-radius:6px}
+#view-tvcco [role="button"][data-cco]:hover{filter:brightness(1.18)}
+#view-tvcco [role="button"][data-cco]:focus-visible{outline:3px solid #7DD3FC;outline-offset:3px}
+/* o modal é o da casa, largo, e segue o tema: não é superfície de TV */
+/* mais largo que a ficha padrão: a aba do freetime tem dez colunas, e a 980px
+   o nome do cliente caía em três linhas. Pelo CONTEÚDO (`:has`), e não por
+   classe no #modalBox -- `abrirModal` só limpa a `.larga`, e uma classe nossa
+   ali vazaria para o próximo modal da casa. */
+#modalBox.larga:has(> .ccm-cab){width:min(96vw,1240px)}
+.ccm-cab{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
+.ccm-cab h3{margin:0}
+.ccm-per{font-size:12px;color:var(--n500);margin-top:4px}
+.ccm-regra{font-size:13px;line-height:1.45;color:var(--n700);margin:9px 0 0}
+.ccm-abas{display:flex;flex-wrap:wrap;gap:9px;margin-top:18px}
+#modalBox button.ccm-aba{display:inline-flex;align-items:center;gap:9px;border:1px solid var(--n200);
+  background:var(--n0);color:var(--n900);border-radius:999px;padding:6px 14px;font:inherit;
+  font-size:13px;font-weight:600;cursor:pointer;min-height:0}
+#modalBox button.ccm-aba b{font-variant-numeric:tabular-nums}
+#modalBox button.ccm-aba[aria-pressed="true"]{background:var(--n900);color:var(--n0);border-color:var(--n900)}
+.ccm-ferr{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin-top:18px}
+#modalBox .ccm-ferr input.ccm-busca{flex:1 1 220px;min-width:0}
+.ccm-cont{font-size:12px;color:var(--n500)}
+.ccm-lista{margin-top:9px;max-height:50vh;overflow:auto;border:1px solid var(--n200);border-radius:8px}
+.ccm-lista th,.ccm-lista td{padding:7px 9px}
+.ccm-lista td{white-space:nowrap;font-size:13px}
+.ccm-lista .num{text-align:right;font-variant-numeric:tabular-nums}
+.ccm-lista td.ccm-cli{white-space:normal;min-width:150px}
+.ccm-lista td.ccm-mot{white-space:normal;min-width:180px;font-size:12px}
+.ccm-lista thead th{position:sticky;top:0;z-index:1;background:var(--n0);box-shadow:inset 0 -1px 0 var(--n200)}
+.ccm-at{color:var(--red);font-weight:700}
+.ccm-ok{color:var(--green);font-weight:700}
+.ccm-vazio{padding:25px 18px;text-align:center;color:var(--n500)}
 /* Painel TV Operação (tvope) no celular: sem viewport de parede, colapsa a
    grade 3x2 para coluna única e o mapa deixa de exigir 2 linhas fixas (as
    fontes em vw já viram clamp() acima, legíveis em qualquer largura). */
@@ -17304,7 +17339,7 @@ async function loadTvJor(){
    conta TODOS os clientes (a coleta tem veículo?) e as outras etapas só os
    que o SAC acompanha -- em contagem absoluta a programação achataria as
    outras três, e seriam dois universos no mesmo eixo. */
-let tvCcoSeq = 0, tvCcoOk = 0;
+let tvCcoSeq = 0, tvCcoOk = 0, tvCcoAgora = '';
 function tvCcoSem(p){ return p==null ? '' : (p>=95 ? 'ok' : (p>=70 ? 'warn' : 'ruim')); }
 function tvCcoPct(bom, ruim){ const t=(bom||0)+(ruim||0); return t ? 100*(bom||0)/t : null; }
 async function loadTvCco(){
@@ -17319,6 +17354,7 @@ async function loadTvCco(){
        falha -- e preserva o último dado bom se já havia um na tela. */
     if(!r.ok || !d || !d.kpis){ tvErro('tvcco-k1', tvCcoOk); return; }
     tvCcoOk = Date.now();
+    tvCcoAgora = d.agora || '';
     const k = d.kpis, cob = d.cobertura || {}, reg = d.regras || {};
     const n = v => (v==null ? '—' : Number(v).toLocaleString('pt-BR'));
     const pr=k.programacao||{}, co=k.coletas||{}, em=k.emissoes||{}, en=k.entregas||{},
@@ -17403,7 +17439,232 @@ async function loadTvCco(){
     tvTicker('tvcco-ticker', al);
     tvDestacar('tvcco-k1'); tvDestacar('tvcco-k2'); tvDestacar('tvcco-k3');
     tvAnimarNums('tvcco-k1'); tvAnimarNums('tvcco-k2'); tvAnimarNums('tvcco-k3');
+    tvCcoMarcar(); tvCcoLigar();
   }catch(e){ if(seq === tvCcoSeq) tvErro('tvcco-k1', tvCcoOk); }
+}
+/* O DETALHE DE CADA CARTÃO (1.91.0 -- quem opera, 15/09/2026: "ao clicar nos
+   cards trazer um modal com o detalhamento das informacoes").
+   Clicar num NÚMERO abre o detalhe já na situação dele (o vermelho das
+   atrasadas abre as atrasadas); o resto do cartão abre na primeira situação
+   que tem coleta, na ordem do que pede ação. As barras dos gargalos, as
+   colunas do "por etapa" e a pontualidade abrem o cartão de que saíram.
+   A LISTA SAI DA MESMA LEITURA DO CARTÃO (`api/cco._leitura_cco`) e é montada
+   no ponto em que o contador soma: o número da aba é o número do cartão. O
+   cache é por processo e o painel se recarrega sozinho, então o modal carimba
+   a leitura dele e DIZ quando ela é mais nova que a do painel.
+   Na parede nada muda: a TV continua se lendo sem clique. */
+const TVCCO_TIT = {programacao:'Programação', coletas:'Coletas', emissoes:'Emissão do CT-e',
+  entregas:'Entregas', carregamento:'Carregamento', descarga:'Descarga',
+  pendentes:'Pendentes de finalização', cobertura:'Acompanhados pelo SAC'};
+/* a ORDEM das partes de cada tvCardDuo, a mesma em que loadTvCco as desenha */
+const TVCCO_DUO = {programacao:['no_prazo','atrasadas'], coletas:['no_prazo','atrasadas'],
+  emissoes:['no_prazo','atrasadas','aguardando'], entregas:['no_prazo','atrasadas'],
+  carregamento:['motivos','freetime'], descarga:['motivos','freetime']};
+function tvCcoAlvo(el, card, estado, rotulo){
+  if(!el) return;
+  el.dataset.cco = card;
+  if(estado) el.dataset.estado = estado; else delete el.dataset.estado;
+  el.setAttribute('role', 'button');
+  el.tabIndex = 0;
+  el.setAttribute('aria-label', 'Abrir o detalhe: '+rotulo);
+}
+function tvCcoMarcar(){
+  const k1 = document.querySelectorAll('#tvcco-k1 > .tv-card');
+  const k2 = document.querySelectorAll('#tvcco-k2 > .tv-card');
+  const k3 = document.querySelectorAll('#tvcco-k3 > .tv-card');
+  const duo = (card, el) => {
+    if(!el) return;
+    el.dataset.cco = card;
+    el.querySelectorAll('.tv-duo > div').forEach((p, i) => {
+      const sub = p.querySelector('.tv-sub');
+      if(TVCCO_DUO[card][i]) tvCcoAlvo(p, card, TVCCO_DUO[card][i],
+        TVCCO_TIT[card]+' · '+(sub ? sub.textContent : ''));
+    });
+  };
+  ['programacao','coletas','emissoes','entregas'].forEach((c, i) => duo(c, k1[i]));
+  duo('carregamento', k2[0]); duo('descarga', k2[1]);
+  tvCcoAlvo(k2[2], 'pendentes', null, TVCCO_TIT.pendentes);
+  tvCcoAlvo(k2[3], 'cobertura', null, TVCCO_TIT.cobertura);
+  const pont = k3[0] ? k3[0].querySelectorAll('.tv-cco-pont > div') : [];
+  tvCcoAlvo(pont[0], 'coletas', null, 'Pontualidade da coleta');
+  tvCcoAlvo(pont[1], 'entregas', null, 'Pontualidade da entrega');
+  const garg = [['carregamento','motivos','Atraso na carga'], ['descarga','motivos','Atraso na descarga'],
+                ['carregamento','freetime','Freetime na carga'], ['descarga','freetime','Freetime na descarga']];
+  (k3[1] ? k3[1].querySelectorAll('.tvd-col') : []).forEach((c, i) => {
+    if(garg[i]) tvCcoAlvo(c, garg[i][0], garg[i][1], garg[i][2]); });
+  const et = ['programacao','emissoes','coletas','entregas'];
+  (k3[2] ? k3[2].querySelectorAll('.tv-cco-col') : []).forEach((c, i) => {
+    if(et[i]) tvCcoAlvo(c, et[i], null, 'Por etapa · '+TVCCO_TIT[et[i]]); });
+}
+let tvCcoLigado = false;
+function tvCcoLigar(){
+  if(tvCcoLigado) return;
+  const v = document.getElementById('view-tvcco');
+  if(!v) return;
+  tvCcoLigado = true;
+  /* UM ouvinte na tela, e não um por cartão: a recarga redesenha os cartões,
+     e o ouvinte preso ao cartão velho morreria com ele. */
+  v.addEventListener('click', e => {
+    const el = e.target.closest('[data-cco]');
+    if(el && v.contains(el)) tvCcoDetalhe(el.dataset.cco, el.dataset.estado || null);
+  });
+  v.addEventListener('keydown', e => {
+    if(e.key !== 'Enter' && e.key !== ' ') return;
+    const el = e.target.closest('[role="button"][data-cco]');
+    if(!el || !v.contains(el)) return;
+    e.preventDefault();
+    tvCcoDetalhe(el.dataset.cco, el.dataset.estado || null);
+  });
+}
+const tvCcoData = s => s ? s.slice(8,10)+'/'+s.slice(5,7)+' '+s.slice(11,16) : '—';
+function tvCcoHm(h){
+  const m = Math.round(Math.abs(h)*60), hh = Math.floor(m/60), mm = m%60;
+  return hh ? hh+'h'+String(mm).padStart(2,'0') : mm+' min';
+}
+/* A COLUNA DO TEMPO muda de nome com a situação: o mesmo número é atraso
+   numa aba, antecedência na outra e "falta" na de a vencer (o servidor manda
+   com sinal; aqui só se escolhe a palavra). */
+const TVCCO_DELTA = {
+  programacao: {atrasadas:'Vencida há'},
+  coletas: {atrasadas:'Atraso', no_prazo:'Antes da janela', a_vencer:'Janela em', sem_apontamento:'Janela vencida há'},
+  emissoes: {atrasadas:'Depois da saída', no_prazo:'CT-e × saída', aguardando:'Saiu há'},
+  entregas: {atrasadas:'Atraso', no_prazo:'Antes da janela', a_vencer:'Janela em', sem_apontamento:'Janela vencida há'},
+  carregamento: {freetime:'Excesso'}, descarga: {freetime:'Excesso'},
+  pendentes: {pendentes:'Chegou há'},
+};
+function tvCcoDelta(card, estado, h){
+  if(h == null) return (card === 'emissoes' && estado === 'aguardando') ? 'carregando' : '—';
+  /* o CT-e pode sair ANTES da saída da doca (22% das coletas, medido) */
+  if(card === 'emissoes' && estado === 'no_prazo') return tvCcoHm(h)+(h < 0 ? ' antes' : ' depois');
+  const t = tvCcoHm(h);
+  return ['atrasadas','freetime','pendentes'].includes(estado) ? '<span class="ccm-at">+'+t+'</span>' : t;
+}
+const TVCCO_COL = {
+  coleta:  ['Coleta', l => esc(String(l.coleta)), 'num'],
+  filial:  ['Filial', l => esc(String(l.filial == null ? '—' : l.filial)), 'num'],
+  cliente: ['Cliente', l => esc(l.cliente || '—'), 'ccm-cli'],
+  veiculo: ['Veículo', l => l.veiculo ? esc(l.veiculo) : 'sem veículo'],
+  jc:  ['Janela de carga', l => tvCcoData(l.janela_carga)],
+  cc:  ['Chegada', l => tvCcoData(l.chegada_carga)],
+  /* sem saída e com o relógio do freetime correndo: o veículo segue lá */
+  sc:  ['Saída', l => l.saida_carga ? tvCcoData(l.saida_carga) : (l.agora ? 'segue lá' : '—')],
+  cte: ['CT-e', l => l.cte ? tvCcoData(l.cte) : 'sem CT-e'],
+  je:  ['Janela de entrega', l => tvCcoData(l.janela_entrega)],
+  cd:  ['Chegada', l => tvCcoData(l.chegada_entrega)],
+  fd:  ['Fim da descarga', l => l.fim_descarga ? tvCcoData(l.fim_descarga) : (l.agora ? 'segue lá' : '—')],
+  ft:  ['Freetime', l => l.freetime_h == null ? '—' : tvCcoHm(l.freetime_h), 'num'],
+  perm:['Permanência', l => l.permanencia_h == null ? '—' : tvCcoHm(l.permanencia_h), 'num'],
+  motivo: ['Motivo apontado', l => esc(l.motivo || '—'), 'ccm-mot'],
+};
+function tvCcoColunas(card, estado){
+  const base = {
+    programacao: ['coleta','filial','cliente','veiculo','jc'],
+    coletas: ['coleta','filial','cliente','veiculo','jc','cc','sc'],
+    emissoes: ['coleta','filial','cliente','veiculo','cc','sc','cte'],
+    entregas: ['coleta','filial','cliente','veiculo','je','cd','fd'],
+    pendentes: ['coleta','filial','cliente','veiculo','je','cd'],
+    carregamento: ['coleta','cliente','veiculo','jc','cc','sc'],
+    descarga: ['coleta','cliente','veiculo','je','cd','fd'],
+  }[card] || [];
+  const cols = base.map(k => TVCCO_COL[k]);
+  const pontas = card === 'carregamento' || card === 'descarga';
+  if(pontas && estado === 'freetime') cols.push(TVCCO_COL.ft, TVCCO_COL.perm);
+  const dl = (TVCCO_DELTA[card] || {})[estado];
+  if(dl) cols.push([dl, l => tvCcoDelta(card, estado, l.horas), 'num']);
+  if(pontas && estado !== 'sem_clausula') cols.push(TVCCO_COL.motivo);
+  return cols;
+}
+function tvCcoColCob(d){
+  const lim = d.cobertura_min_pct || 90;
+  const nf = v => Number(v).toLocaleString('pt-BR');
+  return [
+    ['Cliente', l => esc(l.cliente || '—'), 'ccm-cli'],
+    ['Coletas na janela', l => nf(l.coletas || 0), 'num'],
+    ['Apontadas pelo SAC em '+(d.cobertura_dias || 30)+' dias', l => l.cobertura_pct == null ? 'sem coleta'
+      : `<span class="${l.cobertura_pct >= lim ? 'ccm-ok' : 'ccm-at'}">${Number(l.cobertura_pct).toLocaleString('pt-BR', {maximumFractionDigits:1})}%</span>`, 'num'],
+    ['Coletas em '+(d.cobertura_dias || 30)+' dias', l => l.coletas_30d == null ? '—' : nf(l.coletas_30d), 'num'],
+  ];
+}
+let tvCcoDetSeq = 0, tvCcoDet = null;
+async function tvCcoDetalhe(card, estado){
+  const seq = ++tvCcoDetSeq;
+  abrirModal(`<div class="ccm-cab"><div><h3>${esc(TVCCO_TIT[card] || card)}</h3>`
+    + `<div class="ccm-per" id="ccm-per"></div></div>`
+    + `<button type="button" class="btn" onclick="fecharModal()">Fechar</button></div>`
+    + `<div id="ccm-corpo"><div class="ccm-vazio">carregando…</div></div>`);
+  document.getElementById('modalBox').classList.add('larga');
+  /* fechado (ou trocado por outro) enquanto carregava: não reabre */
+  const vivo = () => seq === tvCcoDetSeq && !!document.getElementById('ccm-corpo')
+    && document.getElementById('modalBg').classList.contains('aberto');
+  let d;
+  try{
+    const r = await fetch('/api/operacao/cco/detalhe?card='+encodeURIComponent(card), {cache:'no-store'});
+    const j = await respostaJSON(r);
+    if(!j.ok || !j.dados || !j.dados.estados)
+      throw new Error((j.dados && j.dados.mensagem) || ('HTTP '+r.status));
+    d = j.dados;
+  }catch(e){
+    if(vivo()) document.getElementById('ccm-corpo').innerHTML =
+      '<div class="ccm-vazio">Não foi possível abrir o detalhe. '+esc(e.message || '')+'</div>';
+    return;
+  }
+  if(!vivo()) return;
+  const primeira = d.estados.find(x => x.n > 0) || d.estados[0] || {};
+  tvCcoDet = {d, busca: '',
+    estado: (estado && d.estados.some(x => x.estado === estado)) ? estado : primeira.estado};
+  tvCcoDetMontar();
+}
+function tvCcoDetMontar(){
+  const d = tvCcoDet.d, corpo = document.getElementById('ccm-corpo');
+  if(!corpo) return;
+  const dm = s => s ? s.slice(8,10)+'/'+s.slice(5,7) : '';
+  const per = document.getElementById('ccm-per');
+  if(per) per.textContent = dm((d.periodo || {}).de)+' a '+dm((d.periodo || {}).ate)
+    + (d.agora ? ' · leitura '+d.agora.slice(11,16) : '')
+    + (d.agora && tvCcoAgora && d.agora !== tvCcoAgora
+        ? ' · mais nova que a do painel ('+tvCcoAgora.slice(11,16)+'), que se atualiza sozinho' : '');
+  const cob = d.card === 'cobertura';
+  corpo.innerHTML = `<p class="ccm-regra">${esc(d.regra || '')}</p>`
+    + `<div class="ccm-abas" role="group" aria-label="Situação">`
+    + d.estados.map(e => `<button type="button" class="ccm-aba" data-estado="${esc(e.estado)}" aria-pressed="false">`
+        + `${esc(e.rotulo)}<b>${Number(e.n || 0).toLocaleString('pt-BR')}</b></button>`).join('')
+    + `</div><div class="ccm-ferr"><input type="search" class="ccm-busca" aria-label="Filtrar a lista" placeholder="`
+    + (cob ? 'Filtrar por cliente' : 'Filtrar por coleta, cliente ou placa')
+    + `"><span class="ccm-cont" id="ccm-cont"></span></div><div class="ccm-lista" id="ccm-lista"></div>`;
+  corpo.querySelectorAll('.ccm-aba').forEach(b => b.addEventListener('click', () => {
+    tvCcoDet.estado = b.dataset.estado; tvCcoDetLista(); }));
+  corpo.querySelector('.ccm-busca').addEventListener('input', e => {
+    tvCcoDet.busca = e.target.value; tvCcoDetLista(); });
+  tvCcoDetLista();
+}
+function tvCcoDetLista(){
+  const {d, estado, busca} = tvCcoDet;
+  const lista = document.getElementById('ccm-lista');
+  if(!lista) return;
+  document.querySelectorAll('#ccm-corpo .ccm-aba').forEach(b =>
+    b.setAttribute('aria-pressed', b.dataset.estado === estado ? 'true' : 'false'));
+  const est = d.estados.find(x => x.estado === estado) || {linhas: [], estado};
+  const todas = est.linhas || [];
+  const q = (busca || '').trim().toLowerCase();
+  const linhas = !q ? todas : todas.filter(l => [l.coleta, l.cliente, l.veiculo, l.motivo]
+    .some(v => v != null && String(v).toLowerCase().includes(q)));
+  const cob = d.card === 'cobertura';
+  const nf = v => Number(v).toLocaleString('pt-BR');
+  const qt = nf(linhas.length) + (q ? ' de '+nf(todas.length) : '');
+  const cont = document.getElementById('ccm-cont');
+  if(cont) cont.textContent = cob
+    ? qt+(todas.length === 1 && !q ? ' cliente' : ' clientes')+' · '+nf(linhas.reduce((s, l) => s+(l.coletas || 0), 0))+' coletas'
+    : qt+(todas.length === 1 && !q ? ' coleta' : ' coletas');
+  if(!linhas.length){
+    lista.innerHTML = '<div class="ccm-vazio">'+(q ? 'Nada com esse filtro.'
+      : (cob ? 'Nenhum cliente nesta situação.' : 'Nenhuma coleta nesta situação.'))+'</div>';
+    return;
+  }
+  const cols = cob ? tvCcoColCob(d) : tvCcoColunas(d.card, est.estado);
+  const cl = c => c[2] ? ' class="'+c[2]+'"' : '';
+  lista.innerHTML = '<table><thead><tr>'+cols.map(c => `<th${cl(c)}>${c[0]}</th>`).join('')+'</tr></thead><tbody>'
+    + linhas.map(l => '<tr>'+cols.map(c => `<td${cl(c)}>${c[1](l)}</td>`).join('')+'</tr>').join('')
+    + '</tbody></table>';
 }
 
 async function loadTvCom(){

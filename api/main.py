@@ -7028,6 +7028,28 @@ def operacao_cco() -> JSONResponse:
             "erro": "erro_consulta", "mensagem": "Erro ao consultar o painel do CCO."})
 
 
+@app.get("/api/operacao/cco/detalhe")
+def operacao_cco_detalhe(card: str = "") -> JSONResponse:
+    """O modal de um cartão da TV do CCO: a lista de coletas por estado, da
+    MESMA leitura e da MESMA contagem do cartão (`api/cco.get_cco_detalhe`)."""
+    from api import cco
+    if card not in cco.CARDS_DETALHE:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "cartao_desconhecido",
+            "mensagem": "Cartão desconhecido no painel do CCO."})
+    try:
+        return JSONResponse(cco.get_cco_detalhe(card))
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco do ERP."})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("cco detalhe falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar o detalhe do CCO."})
+
+
 # ───────────────────────── HORAS PARADAS (`hp`) ─────────────────────────────
 # A estadia que se COBRA, cliente a cliente: o Monitoramento SAC do ERP, a
 # regra de cobrança de cada cliente (perfil) e os ajustes manuais com motivo.
