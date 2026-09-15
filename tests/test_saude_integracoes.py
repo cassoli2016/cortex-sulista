@@ -89,15 +89,29 @@ def test_manda_a_colecao_mais_atrasada():
 
 
 def test_coleta_parada_por_mais_de_duas_janelas_e_alerta():
-    """A tarefa roda de 3 em 3 h. Foi assim que o cache ficou cinco dias
-    parado sem ninguém perceber."""
+    """A tarefa roda de hora em hora (era de 3 em 3 h até 15/09/2026). Duas
+    janelas perdidas, com meia hora de folga, é coleta parada — foi assim que o
+    cache ficou cinco dias parado sem ninguém perceber."""
     d = diag_gobrax()
     for c in d["colecoes"].values():
-        c["quando"] = _agora(400)
+        c["quando"] = _agora(160)
     assert sv._servico_gobrax(d)["status"] == "alerta"
     for c in d["colecoes"].values():
-        c["quando"] = _agora(380)
+        c["quando"] = _agora(140)
     assert sv._servico_gobrax(d)["status"] == "ok"
+
+
+def test_indicadores_de_conducao_tem_limiar_de_sete_horas():
+    """Varridos a cada ~3 h desde 15/09/2026 (antes, uma vez ao dia, com
+    limiar de 30 h). Duas varreduras perdidas e uma hora de folga é parada;
+    uma varredura de 3 h não pode acender nada."""
+    d = diag_gobrax(diarias={"performance": {"competencia": "2026-08",
+                                             "quando": _agora(8 * 60), "registros": 47}})
+    s = sv._servico_gobrax(d)
+    assert s["status"] == "alerta" and "parado há" in s["detalhe"], s
+    d["diarias"]["performance"]["quando"] = _agora(6 * 60)
+    s = sv._servico_gobrax(d)
+    assert s["status"] == "ok" and "47 veículos" in s["detalhe"], s
 
 
 def test_uma_colecao_ausente_e_nomeada():

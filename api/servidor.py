@@ -1937,14 +1937,17 @@ def _servico_gobrax(d: dict) -> dict:
     ausentes = [rot for colecao, rot in COLECOES
                 if not (d["colecoes"] or {}).get(colecao)]
     sem = (" · sem coleta de " + " e ".join(ausentes)) if ausentes else ""
-    # a tarefa agendada roda de 3 em 3 h; passar de duas janelas é coleta
-    # parada — e aí a Torre envelhece calada, que foi como se perdeu 5 dias
-    velha = idade is None or idade > 390
+    # a tarefa agendada roda DE HORA EM HORA (era de 3 em 3 h até 15/09/2026);
+    # passar de duas janelas é coleta parada — e aí a Torre envelhece calada,
+    # que foi como se perdeu 5 dias. 150 min = duas janelas de 1 h e meia hora
+    # de folga para uma passagem lenta (a coleta inteira leva ~1 min).
+    velha = idade is None or idade > 150
 
     # OS INDICADORES DE CONDUÇÃO TÊM LIMIAR PRÓPRIO porque têm cadência
-    # própria: uma chamada por placa, varrida uma vez ao dia. Cobrá-los pelo
-    # relógio do par de 3 h acenderia o alarme todo dia com tudo funcionando.
-    # 30 h dá folga para a varredura atrasar uma execução sem virar alarme.
+    # própria: uma chamada por placa, varrida a cada ~3 h no mês corrente (era
+    # uma vez ao dia até 15/09/2026; ver `CONDUCAO_HORAS` no coletor). Cobrá-los
+    # pelo relógio do par de 1 h acenderia o alarme várias vezes ao dia com
+    # tudo funcionando. 7 h = duas varreduras perdidas e uma hora de folga.
     diario = ""
     for colecao, rot in COLECOES_DIARIAS:
         c = (d.get("diarias") or {}).get(colecao)
@@ -1952,7 +1955,7 @@ def _servico_gobrax(d: dict) -> dict:
             diario = f" · sem coleta de {rot} ainda"
             continue
         i = _idade_min(c["quando"])
-        if i is None or i > 30 * 60:
+        if i is None or i > 7 * 60:
             velha = True
             diario = (f" · {rot} parado há {_ha_quanto(i)}"
                       if i is not None else f" · {rot} sem data")

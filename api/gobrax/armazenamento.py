@@ -3,7 +3,7 @@
 O ÚNICO STORE QUE FICOU EM SQLITE, e de propósito. Os outros dez migraram para
 o PostgreSQL em 27/08/2026 (docs/MIGRACAO_POSTGRES.md); este não, porque é
 CACHE DESCARTÁVEL de verdade: guarda exatamente as duas competências que a
-tarefa agendada recoleta de 3 em 3 horas (mês corrente e anterior, ver
+tarefa agendada recoleta de hora em hora (mês corrente e anterior, ver
 `scripts/coletar_telemetria.py`). Apagar o arquivo custa uma coleta, não um
 dado — e levá-lo para o banco só encheria o backup de linhas que se refazem
 sozinhas antes do próximo dump.
@@ -140,20 +140,39 @@ def ultima(colecao: str, path: Path | None = None) -> dict | None:
     return dict(row) if row else None
 
 
+def quando_da(colecao: str, competencia: str, path: Path | None = None) -> str | None:
+    """Quando ESTA competência foi coletada pela última vez (None = nunca).
+
+    `ultima()` diz a última gravação de QUALQUER mês, e o coletor grava dois
+    por passagem (corrente e anterior): usar ela como trava de um mês
+    específico faria a coleta do anterior contar como a do corrente.
+    """
+    p = path or DB_PATH
+    if not Path(p).exists():
+        return None
+    with _conn(p) as c:
+        row = c.execute(
+            "SELECT MAX(quando) AS q FROM coleta_log WHERE colecao=? AND competencia=?",
+            (colecao, competencia)).fetchone()
+    return row["q"] if row else None
+
+
 # coleções que a tarefa agendada alimenta. Estatística e odômetro andam
 # JUNTAS: a Torre cruza as duas, e uma fresca com a outra parada é pior que as
 # duas velhas — por isso o diagnóstico reporta sempre a MAIS ATRASADA.
 COLECOES = (("estatisticas", "estatísticas"), ("odometro", "odômetro"))
 
-# CADÊNCIA DIÁRIA, e por isso FORA da lista acima. `vehicle-performance` exige
-# uma chamada POR PLACA: são 108 chamadas contra 1 das outras duas, e varrer a
-# frota de 3 em 3 horas seriam ~860 requisições por dia ao fornecedor para um
-# dado que muda devagar (o acumulado do mês).
+# CADÊNCIA PRÓPRIA, e por isso FORA da lista acima. `vehicle-performance` exige
+# uma chamada POR PLACA (~47 por mês, contra 1 das outras duas): vai a cada
+# ~3 h no mês corrente e uma vez ao dia no anterior (`CONDUCAO_HORAS` em
+# `scripts/coletar_telemetria.py`). O nome `DIARIAS` ficou da cadência antiga:
+# até 15/09/2026 era uma vez ao dia, e medir mostrou que o dado anda ao longo
+# do dia (3 de 10 placas mudaram em 4 h, de madrugada).
 #
 # Misturá-la com o par acima quebraria o alarme da Saúde: aquele limiar é de
-# duas janelas de 3 h, e uma coleta diária o estouraria TODO DIA — o cartão
-# ficaria vermelho com a integração funcionando, que é a forma conhecida de
-# ensinar a ignorar o alarme.
+# duas janelas de 1 h, e uma varredura de 3 em 3 h o estouraria várias vezes
+# ao dia — o cartão ficaria vermelho com a integração funcionando, que é a
+# forma conhecida de ensinar a ignorar o alarme.
 COLECOES_DIARIAS = (("performance", "indicadores de condução"),)
 
 

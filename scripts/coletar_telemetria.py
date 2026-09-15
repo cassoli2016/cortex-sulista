@@ -49,24 +49,48 @@ def competencias(hoje: date) -> list[str]:
     return [atual, ant]
 
 
-def _ja_coletou_hoje(colecao: str, horas: int = 20) -> bool:
-    """A trava da varredura diaria, lida do proprio cache.
+# INDICADORES DE CONDUCAO: o mes CORRENTE a cada ~3 h, o ANTERIOR uma vez por
+# dia (15/09/2026; antes, os dois uma vez por dia). Medido no dia da troca: 3
+# de 10 placas tinham indicador diferente do da coleta de 4 h antes (26
+# indicadores, de madrugada) -- o dado anda ao longo do dia. Nao vai de hora
+# em hora como o resto porque custa uma chamada POR PLACA (~47 por mes): de
+# hora em hora seriam ~1.100 requisicoes diarias ao fornecedor. O anterior so
+# muda enquanto a Gobrax fecha o mes, e uma vez por dia basta.
+#
+# 2,5 h e nao 3: a tarefa passa de hora em hora aos :30 e a coleta das 00:30
+# termina 00:31. Com trava de 3 h, a passagem das 03:30 (2 h 59 depois)
+# pularia, e a cadencia real viraria de 4 em 4 h.
+CONDUCAO_HORAS = (2.5, 20)   # (mes corrente, mes anterior)
 
-    Menos de `horas` desde a ultima coleta = pula. Guardar a decisao no cache
-    (e nao num arquivo de carimbo) faz a trava sobreviver a qualquer coisa que
-    apague estado solto, e mantem UMA fonte da verdade sobre quando a coleta
-    aconteceu -- a mesma que a Saude le.
+
+def _data(valor):
+    from datetime import datetime
+    if not valor:
+        return None
+    try:
+        return datetime.fromisoformat(str(valor).replace("T", " ")[:19])
+    except ValueError:
+        return None
+
+
+def conducao_a_coletar(hoje: date, quando, agora=None) -> list[str]:
+    """As competencias cujos indicadores de conducao vencem nesta passagem.
+
+    `quando(competencia)` devolve a ultima coleta DAQUELA competencia (ou
+    None). A trava e o PROPRIO CACHE, nao um relogio a parte: guardar a
+    decisao ali faz ela sobreviver a qualquer coisa que apague estado solto,
+    mantem UMA fonte da verdade (a mesma que a Saude le), e uma execucao
+    perdida se recupera na seguinte. E e POR COMPETENCIA: `ultima()` diria a
+    ultima gravacao de qualquer mes, e o coletor grava dois por passagem.
     """
     from datetime import datetime
-    from api.gobrax import armazenamento
-    u = armazenamento.ultima(colecao)
-    if not u or not u.get("quando"):
-        return False
-    try:
-        q = datetime.fromisoformat(str(u["quando"]).replace("T", " ")[:19])
-    except ValueError:
-        return False
-    return (datetime.now() - q).total_seconds() < horas * 3600
+    agora = agora or datetime.now()
+    saida = []
+    for comp, horas in zip(competencias(hoje), CONDUCAO_HORAS):
+        q = _data(quando(comp))
+        if q is None or (agora - q).total_seconds() >= horas * 3600:
+            saida.append(comp)
+    return saida
 
 
 def main() -> int:
@@ -105,7 +129,7 @@ def main() -> int:
 
     houve_erro = False
 
-    # COMUNICACAO: uma chamada so, 0,5 s, e entra no ciclo de 3 h porque o
+    # COMUNICACAO: uma chamada so, 0,5 s, e entra em TODA passagem porque o
     # alarme e "esta calado AGORA" -- um retrato de ontem responderia outra
     # pergunta. Fora do laco de competencias porque e um retrato do instante,
     # nao um acumulado mensal.
@@ -138,18 +162,16 @@ def main() -> int:
                             type(exc).__name__, exc)
                 houve_erro = True
 
-    # ── indicadores de conducao: UMA VEZ POR DIA ─────────────────────────
+    # ── indicadores de conducao: cadencia propria (ver CONDUCAO_HORAS) ─────
     # Nao entra no laco acima porque tem custo diferente: uma chamada POR
-    # PLACA (108 contra 1). De 3 em 3 h seriam ~860 requisicoes diarias ao
-    # fornecedor para um acumulado mensal que mal se move nesse intervalo.
-    #
-    # A trava e o PROPRIO CACHE, nao um relogio a parte: se a ultima coleta
-    # tem menos de 20 h, pula. Assim a tarefa continua sendo uma so, sem
-    # instalador novo no Agendador, e uma execucao perdida se recupera na
-    # seguinte em vez de esperar 24 h exatas.
-    if not _ja_coletou_hoje("performance"):
+    # PLACA contra uma so. A tarefa continua sendo uma so, sem instalador novo
+    # no Agendador: quem decide se esta passagem varre e o cache.
+    from api.gobrax import armazenamento
+    vencidas = conducao_a_coletar(
+        date.today(), lambda comp: armazenamento.quando_da("performance", comp))
+    if vencidas:
         from api.gobrax import performance
-        for comp in competencias(date.today()):
+        for comp in vencidas:
             try:
                 r = performance.sincronizar(comp)
                 log.info("performance %s: %s veiculo(s)", comp, r["gravadas"])
@@ -161,7 +183,7 @@ def main() -> int:
                             type(exc).__name__, exc)
                 houve_erro = True
     else:
-        log.info("performance: coletada ha menos de 20 h — pulando")
+        log.info("performance: os dois meses coletados ha pouco — pulando")
 
     log.info("coleta encerrada%s", " com falhas" if houve_erro else " sem falhas")
     return 0

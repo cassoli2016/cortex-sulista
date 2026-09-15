@@ -80,9 +80,13 @@ if (-not (Test-Path $uv)) { throw "uv nao encontrado. Instale ou ajuste o PATH."
 Write-Host "repo: $repo"
 Write-Host "uv:   $uv"
 
-# 3 em 3 horas: a Gobrax agrega por dia, entao coletar de hora em hora so
-# gastaria chamada de API sem trazer numero novo; e um dia inteiro parado
-# (que era o caso) deixa a Torre com dado velho demais para decidir.
+# DE HORA EM HORA (15/09/2026; era de 3 em 3 h). O comentario antigo dizia
+# que "a Gobrax agrega por dia" e que coletar de hora em hora so gastaria
+# chamada sem trazer numero novo -- e isso nunca tinha sido medido. Medido no
+# dia da troca: entre a coleta das 05:30 e as 06:47, cinco veiculos ganharam
+# km (+159 km no total), nove mudaram litros e quatro mudaram frenagens. O
+# dado anda ao longo do dia; o relogio e que estava lento. Uma passagem
+# inteira (posicoes + estatisticas e odometro de dois meses) leva ~50 s.
 # PYTHON DO VENV, CAMINHO ABSOLUTO. Antes era `uv run python
 # scripts\coletar_telemetria.py` com -WorkingDirectory, e o caminho relativo NAO
 # resolvia: a tarefa tentava abrir C:\Windows\System32\scripts\coletar_telemetria.py
@@ -101,12 +105,12 @@ $acao = New-ScheduledTaskAction -Execute $py `
   -Argument "`"$alvo`"" -WorkingDirectory $repo
 
 $gatilhos = @(
-  (New-ScheduledTaskTrigger -Daily -At 05:30),
+  (New-ScheduledTaskTrigger -Daily -At 00:30),
   (New-ScheduledTaskTrigger -AtStartup)
 )
-# repeticao a cada 3h dentro do dia
-$gatilhos[0].Repetition = (New-ScheduledTaskTrigger -Once -At 05:30 `
-  -RepetitionInterval (New-TimeSpan -Hours 3) `
+# repeticao de hora em hora dentro do dia: 00:30, 01:30 ... 23:30
+$gatilhos[0].Repetition = (New-ScheduledTaskTrigger -Once -At 00:30 `
+  -RepetitionInterval (New-TimeSpan -Hours 1) `
   -RepetitionDuration (New-TimeSpan -Hours 23)).Repetition
 
 $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest

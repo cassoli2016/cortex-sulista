@@ -209,8 +209,8 @@ def _norm(nome: str) -> str:
 def _competencias(hoje: date | None = None) -> tuple[str, str]:
     """(mês corrente, mês anterior) — as duas que o cache da Gobrax mantém.
 
-    `scripts/coletar_telemetria.py` recoleta exatamente estas duas de 3 em 3
-    horas; pedir uma terceira devolveria vazio e a tela diria "sem dado" sobre
+    `scripts/coletar_telemetria.py` recoleta exatamente estas duas de hora em
+    hora; pedir uma terceira devolveria vazio e a tela diria "sem dado" sobre
     um mês que existe. O corrente é PARCIAL, e a tela diz isso.
     """
     hoje = hoje or date.today()
