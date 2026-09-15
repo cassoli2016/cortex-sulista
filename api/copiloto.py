@@ -82,7 +82,7 @@ _SNAP_TTL = 600      # 10 min: o snapshot custa ~12 consultas no ERP
 # resposta precisa saber o que a IA viu (e o que ela NÃO viu).
 _FONTES_ROTULO = {
     "produtividade_veiculos": "Produtividade de Veículos",
-    "cco_gestao_vista": "Painel TV — CCO",
+    "cco_gestao_vista": "Painel TV — Coletas e Entregas",
     "faturamento_detalhado": "Faturamento Detalhado",
     "portal_tupy": "Portal Tupy (Monkey)",
     "visao_geral": "Visão Geral",

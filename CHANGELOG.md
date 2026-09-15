@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.93.1] — 15/09/2026  ·  CX-15/09/2026-v1.93.1
+
+### Alterado
+- Painéis TV — o painel do CCO passa a se chamar "Coletas e Entregas", no título da TV, no menu e na busca. Com o carrossel, o CCO virou uma das filiais que programam as coletas (a lâmina "Programação CCO"), e o nome antigo fazia o painel inteiro parecer ser só dele. Quem já tinha acesso continua tendo: só o nome mudou.
+
 ## [1.93.0] — 15/09/2026  ·  CX-15/09/2026-v1.93.0
 
 ### Adicionado

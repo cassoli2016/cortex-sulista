@@ -167,7 +167,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "telcond": ("Condução Econômica", "Telemetria"),
     "telhod":  ("Hodômetro e Rastro", "Telemetria"),
     "fat":     ("Faturamento Detalhado", "Controladoria"),
-    "tvcco":   ("Painel TV — CCO", "Business Intelligence"),
+    "tvcco":   ("Painel TV — Coletas e Entregas", "Business Intelligence"),
     "tvcli":   ("Painel TV — Operação do Cliente", "Business Intelligence"),
     "tvfat":   ("Painel TV — Faturamento", "Business Intelligence"),
     "tvope":   ("Painel TV — Operação", "Business Intelligence"),

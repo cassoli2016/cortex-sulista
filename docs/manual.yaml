@@ -1406,7 +1406,8 @@ grupos:
     A área onde ficam os painéis de leitura da empresa inteira: quem produz,
     quanto, e o que exige ação. Os painéis de TV são uma família dentro dela —
     telas de mural, sem tooltip, em que cada número precisa se explicar
-    sozinho, de longe, para quem passa pelo corredor. O do CCO também abre o
+    sozinho, de longe, para quem passa pelo corredor. O de Coletas e Entregas
+    gira entre as filiais que programam as coletas e também abre o
     detalhe ao clique: cada número, barra e coluna mostra a lista das coletas
     por trás dele, para quem está na frente da tela com um mouse.
   telas:
