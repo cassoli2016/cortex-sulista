@@ -2351,6 +2351,11 @@ button.avatar{border:0;cursor:pointer}
 .ct-form textarea,.ct-form input[type=date]{width:100%;padding:9px 10px;border:1px solid var(--n300,#d3dae2);
   border-radius:6px;font:inherit;font-size:14px}
 .ct-duas{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px}
+/* DIVERGÊNCIAS DO DDA: a linha de detalhe (boletos e títulos do grupo) cola
+   na linha do grupo, sem a borda que a separaria dela. */
+.dda-div-n{font-size:11px;color:var(--n500);font-family:var(--font)}
+tr.dda-div-det td{font-size:11.5px;color:var(--n500);padding-top:0;border-top:0;
+  overflow-wrap:anywhere}
 /* A CAIXA DE "LEMBRAR": o mesmo defeito de especificidade, e no celular
    ele aparecia inteiro. `.lg-lembrar` (0,1,0) perdia para `.lg-body label`
    (0,1,1), entao a linha herdava o estilo de ROTULO DE CAMPO — 12px, peso
@@ -19991,7 +19996,9 @@ async function ddaDetalhe(mes){
       + (est.extraido_em ? fmtD(est.extraido_em.slice(0, 10)) : '—') + ' ('
       + (est.idade_dias != null ? est.idade_dias + ' dias' : 'idade desconhecida') + ') · '
       + (res.boletos || 0) + ' boletos no total, ' + (res.casados || 0)
-      + ' com título correspondente, ' + (res.divergentes || 0) + ' com valor diferente e '
+      + ' com título correspondente, ' + (res.agrupados || 0) + ' casados pela soma do dia '
+      + '(a fatura do fornecedor junta parcelas de várias notas), ' + (res.divergentes || 0)
+      + ' em divergência (' + (res.divergencias || 0) + ' dias de credor) e '
       + (res.prorrogados || 0) + ' com vencimento prorrogado. Os <b>' + linhas.length
       + '</b> abaixo somam <b>' + BRL.format(total) + '</b>'
       + (todos.length > 300 ? ' (mostrando os 300 maiores)' : '') + '.</p>'
@@ -20011,8 +20018,92 @@ async function ddaDetalhe(mes){
         || '<tr><td colspan="6" style="color:var(--n500)">nenhum boleto sem título no ERP</td></tr>')
       + '</tbody></table></div></div>'
       + '<div class="m-foot"><button class="ghost" onclick="ddaImportar()">Importar extrato novo</button>'
+      + (d.erp_indisponivel ? ''
+         : '<button class="ghost" data-mes="' + esc(mes || '') + '" onclick="ddaDivergencias(this.dataset.mes)">'
+           + 'Ver divergências (' + (res.divergencias || 0) + ')</button>'
+           + '<button class="ghost" id="dda-rel" onclick="ddaRelatorio()">Baixar relatório (.xlsx)</button>')
       + '<button class="btn" onclick="fecharModal()">Fechar</button></div>');
   }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
+}
+
+/* AS DIVERGÊNCIAS DO DDA, POR DIA DE CREDOR. Não se pareia boleto com título:
+   o que se confere é o GRUPO — os boletos do fornecedor naquele vencimento, os
+   títulos do ERP no mesmo dia e a diferença entre as somas (positivo: o banco
+   cobra mais do que o ERP tem lançado). O dia que fecha pela soma não aparece
+   aqui: é a fatura juntando parcelas de várias notas, e está na aba "Casados
+   pela soma" do relatório, para quem quiser auditar a regra. */
+async function ddaDivergencias(mes){
+  try{
+    const r = await fetch('/api/financeiro/dda' + (mes ? '?mes=' + encodeURIComponent(mes) : ''),
+                          {cache: 'no-store'});
+    const rr = await respostaJSON(r);
+    if(!r.ok){ showBanner((rr.dados||{}).mensagem || 'Não foi possível consultar o DDA.'); return; }
+    const d = rr.dados, res = d.resumo || {}, gs = d.divergencias || [];
+    const m2 = v => BRL2.format(v || 0);
+    const plural = (n, s) => n + ' ' + s + (n === 1 ? '' : 's');
+    const linhas = gs.map(g => {
+      const dif = g.diferenca || 0;
+      return '<tr><td><div style="font-weight:600">' + esc(g.credor || '—') + '</div>'
+        + '<div class="mono" style="font-size:11px;color:var(--n500)">' + esc(g.beneficiario_doc || '') + '</div></td>'
+        + '<td>' + fmtD(g.vencimento) + '</td>'
+        + '<td class="num">' + m2(g.soma_dda) + '<div class="dda-div-n">' + plural(g.boletos, 'boleto') + '</div></td>'
+        + '<td class="num">' + m2(g.soma_erp) + '<div class="dda-div-n">' + plural(g.titulos, 'título') + '</div></td>'
+        + '<td class="num" style="font-weight:700;color:' + (dif > 0 ? 'var(--red)' : 'var(--yellow-700)') + '">'
+        + (dif > 0 ? '+' : '') + m2(dif) + '</td></tr>'
+        + '<tr class="dda-div-det"><td colspan="5"><b>Banco:</b> '
+        + esc((g.itens_dda || []).map(i => (i.documento || '—') + ' ' + BRL2.format(i.valor)).join(' · '))
+        + '<br><b>ERP:</b> '
+        + esc((g.itens_erp || []).map(i => (i.titulo || '—') + ' ' + BRL2.format(i.valor)
+                                      + (i.pago ? ' (pago ' + fmtD(i.pago) + ')' : '')).join(' · '))
+        + '</td></tr>';
+    }).join('');
+    abrirModal('<div class="m-head"><h3>Divergências do DDA' + (mes ? ' · ' + esc(mes) : '') + '</h3>'
+      + '<button class="m-x" onclick="fecharModal()" aria-label="Fechar">&times;</button></div>'
+      + '<div class="m-body">'
+      + '<p style="color:var(--n500);font-size:12.5px;margin:0 0 10px">Dias de credor em que o banco e o ERP '
+      + 'têm lançamentos e as somas NÃO fecham: ' + plural(gs.length, 'dia') + ', ' + m2(res.divergencias_banco_a_mais)
+      + ' que o banco cobra a mais e ' + m2(res.divergencias_erp_a_mais) + ' que o ERP tem a mais. '
+      + (res.agrupados || 0) + ' boletos já casaram pela soma do dia (' + (d.grupos_soma || 0)
+      + ' dias de credor): a fatura do fornecedor junta as parcelas de várias notas. Estão no relatório, '
+      + 'para conferência.</p>'
+      + (d.erp_indisponivel
+          ? '<div class="t-warn" style="margin-bottom:8px">O ERP não respondeu: não dá para conferir agora.</div>'
+          : '')
+      + '<div class="tablewrap tabroll" style="max-height:52vh"><table><thead><tr>'
+      + '<th>Credor</th><th>Vencimento</th><th class="num">No banco</th><th class="num">No ERP</th>'
+      + '<th class="num">Diferença</th></tr></thead><tbody>'
+      + (linhas || '<tr><td colspan="5" style="color:var(--n500)">nenhuma divergência — todo boleto '
+                  + 'com título no ERP casou pelo valor ou pela soma do dia</td></tr>')
+      + '</tbody></table></div></div>'
+      + '<div class="m-foot"><button class="ghost" data-mes="' + esc(mes || '') + '" '
+      + 'onclick="ddaDetalhe(this.dataset.mes)">Voltar aos sem título</button>'
+      + '<button class="ghost" id="dda-rel" onclick="ddaRelatorio()">Baixar relatório (.xlsx)</button>'
+      + '<button class="btn" onclick="fecharModal()">Fechar</button></div>');
+    const box = document.getElementById('modalBox'); if(box) box.classList.add('larga');
+  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
+}
+
+/* O RELATÓRIO É O MESMO CONFRONTO DA TELA, em planilha: resumo, divergências,
+   o detalhe item a item, os casados pela soma, os sem título e os prorrogados.
+   Recusa vem em JSON com a frase para mostrar; o arquivo vem como anexo. */
+async function ddaRelatorio(){
+  const bt = document.getElementById('dda-rel'); if(bt) bt.disabled = true;
+  try{
+    const r = await fetch('/api/financeiro/dda/relatorio', {cache: 'no-store'});
+    if(!r.ok){
+      const j = await respostaJSON(r);
+      showBanner((j.dados || {}).mensagem || 'Não foi possível gerar o relatório.');
+      return;
+    }
+    const cd = r.headers.get('content-disposition') || '';
+    const m = cd.match(/filename\*=UTF-8''([^;]+)/i);
+    const nome = m ? decodeURIComponent(m[1]) : 'DDA-conferencia.xlsx';
+    const url = URL.createObjectURL(await r.blob());
+    const a = document.createElement('a'); a.href = url; a.download = nome;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }catch(e){ showBanner('Não foi possível gerar o relatório.', e.message); }
+  finally{ if(bt) bt.disabled = false; }
 }
 
 /* O upload vai como CORPO BRUTO, igual ao extrato bancario e a planilha de

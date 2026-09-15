@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.86.0] — 15/09/2026  ·  CX-15/09/2026-v1.86.0
+
+### Adicionado
+- Fluxo de Caixa Consolidado › DDA — relatório das divergências: a lista "Ver divergências" mostra cada dia de fornecedor em que o banco e o ERP não fecham, com a soma dos boletos, a soma dos títulos, a diferença e o detalhe dos documentos e títulos de cada lado. O botão "Baixar relatório" entrega a planilha completa da conferência: resumo, divergências, detalhe item a item, os casados pela soma do dia, os boletos sem título no ERP e os prorrogados.
+
+### Alterado
+- Fluxo de Caixa Consolidado › DDA — o pagamento parcelado deixa de aparecer como divergência. Quando o fornecedor emite um boleto que junta as parcelas de várias notas que vencem no mesmo dia, a conferência compara a soma dos boletos com a soma dos títulos do ERP naquele dia; se fecham, estão casados. Divergência passa a ser só o dia que não fecha, conferido como um grupo — sem juntar um boleto com um título qualquer do dia.
+
 ## [1.85.1] — 15/09/2026  ·  CX-15/09/2026-v1.85.1
 
 ### Alterado

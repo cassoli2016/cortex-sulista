@@ -1,3 +1,23 @@
+- versao: "1.86.0"
+  data: "2026-09-15"
+  adicionado:
+    - >-
+      Fluxo de Caixa Consolidado › DDA — relatório das divergências: a lista
+      "Ver divergências" mostra cada dia de fornecedor em que o banco e o ERP
+      não fecham, com a soma dos boletos, a soma dos títulos, a diferença e o
+      detalhe dos documentos e títulos de cada lado. O botão "Baixar relatório"
+      entrega a planilha completa da conferência: resumo, divergências, detalhe
+      item a item, os casados pela soma do dia, os boletos sem título no ERP e
+      os prorrogados.
+  alterado:
+    - >-
+      Fluxo de Caixa Consolidado › DDA — o pagamento parcelado deixa de aparecer
+      como divergência. Quando o fornecedor emite um boleto que junta as parcelas
+      de várias notas que vencem no mesmo dia, a conferência compara a soma dos
+      boletos com a soma dos títulos do ERP naquele dia; se fecham, estão
+      casados. Divergência passa a ser só o dia que não fecha, conferido como um
+      grupo — sem juntar um boleto com um título qualquer do dia.
+
 - versao: "1.85.1"
   data: "2026-09-15"
   alterado:

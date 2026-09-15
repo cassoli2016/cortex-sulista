@@ -5004,6 +5004,19 @@ def financeiro_dda(mes: str = "") -> JSONResponse:
                           "beneficiario_doc": queries._mask_doc(b.get("beneficiario_doc"))})
         return sorted(saida, key=lambda x: -x["valor"])
 
+    def _grupos(itens):
+        """Um dia de credor, dos dois lados — datas em ISO e CNPJ mascarado."""
+        saida = []
+        for g in itens:
+            v = g["vencimento"]
+            if mes and f"{v.year:04d}-{v.month:02d}" != mes:
+                continue
+            saida.append({**g, "vencimento": v.isoformat(),
+                          "beneficiario_doc": queries._mask_doc(g.get("beneficiario_doc")),
+                          "itens_erp": [{**i, "pago": i["pago"].isoformat() if i.get("pago")
+                                         else None} for i in g["itens_erp"]]})
+        return saida
+
     return JSONResponse({
         "disponivel": conf.get("disponivel", False),
         "erp_indisponivel": conf.get("erp_indisponivel", False),
@@ -5012,9 +5025,50 @@ def financeiro_dda(mes: str = "") -> JSONResponse:
         "faltantes": _fatia(conf.get("faltantes", ())),
         "divergentes": _fatia(conf.get("divergentes", ()))[:80],
         "prorrogados": _fatia(conf.get("prorrogados", ()))[:80],
+        "divergencias": _grupos(conf.get("divergencias", ())),
+        "grupos_soma": len(conf.get("grupos_soma", ())),
         "fonte": ("DDA importado do portal do banco × contaapagar do ERP "
-                  "(CNPJ + vencimento + valor, com tolerância) · leitura"),
+                  "(CNPJ + vencimento + valor; a soma do dia por credor; prorrogação "
+                  "de até 7 dias) · leitura"),
     })
+
+
+@app.get("/api/financeiro/dda/relatorio")
+def financeiro_dda_relatorio() -> Response:
+    """A planilha da conferência do DDA: resumo, divergências (um dia de credor
+    por linha), o detalhe item a item, os casados pela soma, os sem título e os
+    prorrogados — das MESMAS listas que a tela mostra.
+
+    Recusa é 409 e não 5xx: o Cloudflare troca o corpo das respostas 5xx, e a
+    tela precisa da frase ("importe o extrato", "o ERP não respondeu")."""
+    from urllib.parse import quote
+
+    from api.financeiro import dda as dda_mod
+    try:
+        conf = dda_mod.confronto()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("relatorio do DDA falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao montar a conferência do DDA."})
+    if not conf.get("disponivel"):
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "sem_extrato", "mensagem": "Nenhum extrato do DDA importado ainda."})
+    if conf.get("erp_indisponivel"):
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "erp_indisponivel",
+            "mensagem": "O ERP não respondeu: sem ele não dá para conferir o DDA. "
+                        "Tente de novo em instantes."})
+    try:
+        nome, conteudo = dda_mod.relatorio_xlsx(conf)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("planilha do DDA falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_planilha", "mensagem": "Não foi possível gerar a planilha."})
+    return Response(
+        content=conteudo,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=\"%s\"; filename*=UTF-8''%s"
+                 % (nome, quote(nome))})
 
 
 _DDA_MAX_BYTES = 12 * 1024 * 1024   # o extrato real tem 1.061 linhas e ~120 KB

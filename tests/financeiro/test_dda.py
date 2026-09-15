@@ -159,8 +159,10 @@ def test_arquivo_que_nao_e_o_extrato_diz_o_que_fazer():
 # ------------------------------------------------------------- casamento
 
 def _titulo(doc, venc, valor, credor="OFICINA EXEMPLO LTDA"):
+    """Um título no FORMATO de `ERP_TITULOS_SQL` — todas as colunas, porque o
+    guard da projeção cobra que o dublê tenha tudo o que a consulta devolve."""
     return {"doc": doc, "venc": venc, "valor": valor, "pendente": valor,
-            "pago": None, "credor": credor}
+            "pago": None, "titulo": None, "parcela": None, "credor": credor}
 
 
 def _b(doc, venc, valor, barras="x"):
@@ -281,6 +283,110 @@ def test_erp_fora_do_ar_nao_vira_zero_faltante():
     """Zero afirmaria 'conferi e está tudo lançado', que ninguém conferiu."""
     assert dda.faltantes_por_mes({"disponivel": True, "erp_indisponivel": True,
                                   "faltantes": []}) == {}
+
+
+# ------------------------------------------------ a soma do dia (parcelas)
+
+def _t(doc, venc, valor, titulo=None, pendente=None):
+    return {**_titulo(doc, venc, valor), "titulo": titulo, "parcela": None,
+            "pendente": valor if pendente is None else pendente}
+
+
+def test_a_fatura_que_junta_parcelas_de_varias_notas_casa_pela_SOMA_do_dia():
+    """O caso que motivou o nível (15/09/2026): o ERP lança por NOTA, cada nota
+    partida nas parcelas dela, e o fornecedor emite UM boleto por fatura e
+    parcela juntando as parcelas de várias notas que vencem no mesmo dia. Dez
+    títulos contra dois boletos, R$ 0,02 de arredondamento — e nenhum título
+    com o valor de nenhum boleto. Antes, os dois caíam em "valor diferente",
+    pareados com um título qualquer do dia. E a fatura vem pela matriz com os
+    títulos na filial: o dia é o do CREDOR (raiz)."""
+    d = date(2026, 9, 10)
+    boletos = [_b("18784161000155", d, 1262.24, "b1"), _b("18784161000155", d, 462.00, "b2")]
+    valores = (336.24, 36.29, 93.12, 25.75, 20.29, 112.08, 141.77, 52.22, 237.16, 669.34)
+    titulos = [_t("18784161024499", d, v, f"2836{i}/2") for i, v in enumerate(valores)]
+    r = dda.casar(boletos, titulos)
+    s = r["resumo"]
+    assert (s["casados"], s["agrupados"], s["divergentes"], s["faltantes"]) == (0, 2, 0, 0), s
+    g = r["grupos_soma"][0]
+    assert (g["boletos"], g["titulos"], g["soma_dda"], g["soma_erp"], g["diferenca"]) == \
+        (2, 10, 1724.24, 1724.26, -0.02)
+    assert {b["nivel"] for b in r["agrupados"]} == {"soma"}
+
+
+def test_a_soma_fecha_ate_UM_REAL_no_grupo_e_nao_um_centavo_alem():
+    d = date(2026, 9, 11)
+    dentro = dda.casar([_b("777", d, 500.0, "b1")], [_t("777", d, 200.0), _t("777", d, 301.0)])
+    assert dentro["resumo"]["agrupados"] == 1, dentro["resumo"]
+    fora = dda.casar([_b("777", d, 500.0, "b1")], [_t("777", d, 200.0), _t("777", d, 301.01)])
+    assert fora["resumo"]["agrupados"] == 0 and fora["resumo"]["divergentes"] == 1
+
+
+def test_o_que_nao_fecha_vira_DIVERGENCIA_do_grupo_com_os_dois_lados():
+    """Não se pareia boleto com título: o que se confere é o dia do credor —
+    os boletos, os títulos e a diferença entre as somas."""
+    d = date(2026, 9, 18)
+    boletos = [_b("333", d, 1040.05, "b1"), _b("333", d, 600.00, "b2")]
+    titulos = [_t("333", d, 700.00, "10/1"), _t("333", d, 850.22, "11/1")]
+    r = dda.casar(boletos, titulos)
+    assert r["resumo"]["agrupados"] == 0 and r["resumo"]["divergentes"] == 2
+    g = r["divergencias"][0]
+    assert (g["boletos"], g["titulos"], g["soma_dda"], g["soma_erp"], g["diferenca"]) == \
+        (2, 2, 1640.05, 1550.22, 89.83)
+    assert [i["titulo"] for i in g["itens_erp"]] == ["11/1", "10/1"], "maior primeiro"
+    assert r["resumo"]["divergencias"] == 1
+    assert r["resumo"]["divergencias_banco_a_mais"] == 89.83
+    assert r["divergentes"][0]["diferenca"] == 89.83, "cada boleto leva a diferença do GRUPO"
+
+
+def test_o_prorrogado_no_meio_do_dia_nao_impede_o_resto_de_fechar_pela_soma():
+    """A soma roda de novo depois do prorrogado: com ele no grupo, o dia não
+    fechava, e os outros dois boletos virariam divergência."""
+    d = date(2026, 10, 5)
+    boletos = [_b("444", d, 300.0, "b1"), _b("444", d, 200.0, "b2"), _b("444", d, 900.0, "b3")]
+    titulos = [_t("444", d, 150.0), _t("444", d, 250.0), _t("444", d, 100.0),
+               _t("444", date(2026, 10, 8), 900.0)]
+    r = dda.casar(boletos, titulos)
+    s = r["resumo"]
+    assert (s["prorrogados"], s["agrupados"], s["divergentes"], s["faltantes"]) == (1, 2, 0, 0), s
+
+
+def test_o_EXCESSO_da_divergencia_entra_no_piso_e_o_do_ERP_nao():
+    """O que o banco cobra acima do lançado no dia tem boleto e não tem título;
+    o que o ERP tem a mais não é obrigação que o banco conheça."""
+    boletos = [_b("555", date(2026, 10, 5), 1000.0, "b1"),
+               _b("666", date(2026, 11, 5), 100.0, "b2")]
+    titulos = [_t("555", date(2026, 10, 5), 700.0), _t("666", date(2026, 11, 5), 400.0)]
+    conf = dda.casar(boletos, titulos)
+    conf["disponivel"] = True
+    conf["erp_indisponivel"] = False
+    assert dda.faltantes_por_mes(conf) == {"2026-10": 300.0}
+
+
+def test_o_relatorio_tem_as_seis_abas_e_os_grupos_dos_dois_lados():
+    openpyxl = pytest.importorskip("openpyxl")
+    doc = "33161948000100"
+    boletos = [_b(doc, date(2026, 9, 18), 1040.05, "b1"),
+               _b(doc, date(2026, 9, 10), 1724.24, "b2"),
+               _b("99", date(2026, 9, 20), 50.0, "b3")]
+    titulos = [_t(doc, date(2026, 9, 18), 700.0, "10/1"),
+               _t(doc, date(2026, 9, 10), 1000.0, "20/1"),
+               _t(doc, date(2026, 9, 10), 724.25, "21/1")]
+    conf = dda.casar(boletos, titulos)
+    conf["estado"] = {"extraido_em": "2026-09-09T17:24:00-03:00"}
+    nome, dados = dda.relatorio_xlsx(conf)
+    assert nome == "DDA-conferencia-2026-09-09.xlsx"
+    wb = openpyxl.load_workbook(io.BytesIO(dados))
+    assert wb.sheetnames == ["Resumo", "Divergências", "Detalhe das divergências",
+                             "Casados pela soma", "Sem título no ERP", "Prorrogados"]
+    div = list(wb["Divergências"].iter_rows(values_only=True))
+    assert (div[1][4], div[1][6], div[1][7]) == (1040.05, 700.0, 340.05)
+    assert div[1][8] == "banco cobra a mais"
+    assert doc not in str(div[1][1]) and "•" in div[1][1], "o CNPJ sai MASCARADO"
+    det = list(wb["Detalhe das divergências"].iter_rows(values_only=True))
+    assert [l[3] for l in det[1:]] == ["Banco", "ERP"]
+    soma = list(wb["Casados pela soma"].iter_rows(values_only=True))
+    assert (soma[1][3], soma[1][5]) == (1, 2)
+    assert len(list(wb["Sem título no ERP"].iter_rows())) == 2
 
 
 # --------------------------------------------------- posição e reconciliação

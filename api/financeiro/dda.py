@@ -61,6 +61,12 @@ TOL_VALOR = 1.00
 # refazer o lançamento — é a "alteração/instrução por parte do beneficiário"
 # que 898 das 1.061 linhas do primeiro extrato carregam na observação.
 TOL_DIAS = 7
+# Tolerância da SOMA DO DIA (nível 2). É por GRUPO e não por boleto: a fatura
+# do fornecedor junta as parcelas de várias notas, cada uma arredondada no
+# centavo, e a soma de 12 títulos contra 2 boletos chega a diferir em R$ 0,02
+# (extrato de 09/09/2026). Um real cobre o arredondamento de dezenas de
+# parcelas e fica abaixo de qualquer título de verdade que falte.
+TOL_SOMA = 1.00
 
 
 class ArquivoInvalido(Exception):
@@ -462,7 +468,8 @@ def estado(esquema: str | None = None) -> dict:
 ERP_TITULOS_SQL = """
 SELECT a.cnpjcpfcodigo AS doc, a.dtvencimento::date AS venc,
        a.valortitulo::float8 AS valor, a.valorpendente::float8 AS pendente,
-       a.dtpagamento::date AS pago,
+       a.dtpagamento::date AS pago, a.numerotitulo AS titulo,
+       a.numeroparcela AS parcela,
        coalesce(nullif(trim(c.nomefantasia),''), nullif(trim(c.razaosocial),''), '') AS credor
 FROM contaapagar a
 LEFT JOIN cadastro c ON c.codigo = a.cnpjcpfcodigo
@@ -474,7 +481,7 @@ WHERE a.valortitulo > 0
 def casar(boletos: list[dict], titulos: list[dict]) -> dict:
     """Confronta boleto do banco × título do ERP. PURO — recebe os dois lados.
 
-    TRÊS NÍVEIS, e a ordem importa porque cada título só pode ser consumido uma
+    OS NÍVEIS, e a ordem importa porque cada título só pode ser consumido uma
     vez: um fornecedor com cinco boletos de R$ 350 no mesmo dia tem cinco
     títulos, e casar o mesmo cinco vezes esconderia quatro que faltam lançar.
 
@@ -482,13 +489,23 @@ def casar(boletos: list[dict], titulos: list[dict]) -> dict:
        completo e, em seguida, a RAIZ de 8 dígitos (ver o comentário no corpo:
        matriz × filial custou R$ 333 mil de falso "não lançado" no primeiro
        extrato real).
-    2. **CNPJ + vencimento**, valor diferente — mesmo compromisso lançado com
-       outro valor (juros, desconto, agrupamento de parcelas). Casado, mas
-       reportado à parte: é onde mora divergência de valor de verdade.
+    2. **A SOMA DO DIA** — mesmo credor (raiz) e mesmo vencimento, a soma dos
+       boletos que sobraram contra a soma dos títulos que sobraram, até
+       `TOL_SOMA` no grupo. É o PARCELAMENTO: o ERP lança por nota, cada nota
+       partida nas parcelas dela, e o fornecedor emite UM boleto por fatura e
+       parcela juntando as parcelas de várias notas que vencem no mesmo dia.
+       Medido no extrato de 09/09/2026: 75 dias de credor (117 boletos) fecham
+       assim ao centavo — e caíam em "valor diferente", pareados com um título
+       qualquer do dia.
     3. **CNPJ completo + valor**, vencimento a até 7 dias — prorrogação
        registrada no banco sem refazer o lançamento. 898 das 1.061 linhas do
        primeiro extrato trazem "sofreu alteração/instrução por parte do
-       beneficiário".
+       beneficiário". Depois dele a soma do dia roda DE NOVO: um boleto
+       prorrogado no meio do dia impedia o resto de fechar.
+    4. **DIVERGÊNCIA, por dia de credor** — há título no ERP naquele credor e
+       dia, mas as somas não fecham. Não se pareia boleto com título: o que se
+       reporta é o GRUPO (os boletos, os títulos e a diferença), que é o que
+       dá para conferir.
 
     O que sobra é o que o ERP não tem. NÃO é "erro do financeiro": boleto pode
     ter chegado ontem. É a fila de lançamento, com nome e prazo.
@@ -529,14 +546,47 @@ def casar(boletos: list[dict], titulos: list[dict]) -> dict:
                 return c
         return None
 
-    casados, divergentes, prorrogados, faltantes = [], [], [], []
+    def _soma(xs, campo="valor"):
+        return round(sum(float(x.get(campo) or 0) for x in xs), 2)
+
+    def _livres(chave) -> list[dict]:
+        return [t for t in por_raiz_venc.get(chave, ()) if not t["usado"]]
+
+    def _por_dia(bs) -> dict:
+        g: dict[tuple, list[dict]] = defaultdict(list)
+        for b in bs:
+            g[(_so_digitos(b.get("beneficiario_doc"))[:8], b["vencimento"])].append(b)
+        return g
+
+    def _grupo(gb, ts) -> dict:
+        """O dia de um credor, dos DOIS lados — é o que se confere."""
+        sd, se = _soma(gb), _soma(ts)
+        return {
+            "credor": gb[0].get("beneficiario") or "",
+            "erp_credor": ts[0].get("credor") or "" if ts else "",
+            "beneficiario_doc": gb[0].get("beneficiario_doc"),
+            "vencimento": gb[0]["vencimento"],
+            "boletos": len(gb), "titulos": len(ts),
+            "soma_dda": sd, "soma_erp": se, "diferenca": round(sd - se, 2),
+            "itens_dda": [{"documento": b.get("documento"), "valor": float(b["valor"]),
+                           "a_pagar": b.get("a_pagar"), "tipo": b.get("tipo")}
+                          for b in sorted(gb, key=lambda x: -float(x["valor"]))],
+            "itens_erp": [{"titulo": t.get("titulo"), "parcela": t.get("parcela"),
+                           "valor": float(t["valor"]), "pendente": t.get("pendente"),
+                           "pago": t.get("pago")}
+                          for t in sorted(ts, key=lambda x: -float(x["valor"]))],
+        }
+
+    casados, agrupados, prorrogados, divergentes, faltantes = [], [], [], [], []
+    grupos_soma, divergencias = [], []
+
+    # 1 — sem dúvida: CNPJ (completo, depois raiz) + vencimento + valor
+    resto = []
     for b in boletos:
         doc = _so_digitos(b.get("beneficiario_doc"))
-        venc = b["vencimento"]
-        valor = float(b["valor"])
         if doc:
-            mesmo_valor = lambda c: abs(c["valor"] - valor) <= TOL_VALOR  # noqa: E731
-            # 1a e 1b — sem dúvida: CNPJ (completo, depois raiz) + venc + valor
+            venc, valor = b["vencimento"], float(b["valor"])
+            mesmo_valor = lambda c, v=valor: abs(c["valor"] - v) <= TOL_VALOR  # noqa: E731
             alvo = (_pegar(por_doc_venc.get((doc, venc), ()), mesmo_valor)
                     or _pegar(por_raiz_venc.get((doc[:8], venc), ()), mesmo_valor))
             if alvo:
@@ -545,39 +595,82 @@ def casar(boletos: list[dict], titulos: list[dict]) -> dict:
                                 "erp_doc": alvo["doc"],
                                 "nivel": "exato" if alvo["doc"] == doc else "raiz"})
                 continue
-            # 2 — mesmo credor e vencimento, valor diferente
-            alvo = (_pegar(por_doc_venc.get((doc, venc), ()), lambda c: True)
-                    or _pegar(por_raiz_venc.get((doc[:8], venc), ()), lambda c: True))
-            if alvo:
-                divergentes.append({**b, "erp_valor": alvo["valor"],
-                                    "erp_pendente": alvo["pendente"],
-                                    "diferenca": round(valor - alvo["valor"], 2),
-                                    "nivel": "valor"})
-                continue
-            # 3 — vencimento prorrogado no banco. Só pelo CNPJ COMPLETO: a raiz
-            # numa janela de 7 dias casaria postos diferentes do mesmo grupo.
-            alvo = _pegar(
-                por_doc.get(doc, ()),
-                lambda c: (abs(c["valor"] - valor) <= TOL_VALOR
-                           and abs((c["venc"] - venc).days) <= TOL_DIAS))
-            if alvo:
-                prorrogados.append({**b, "erp_venc": alvo["venc"].isoformat(),
-                                    "dias": (alvo["venc"] - venc).days,
-                                    "erp_pendente": alvo["pendente"],
-                                    "nivel": "data"})
-                continue
-        faltantes.append({**b, "nivel": "ausente"})
+        resto.append(b)
+    # boleto sem CNPJ não casa por nome (quatro grafias no mesmo arquivo)
+    faltantes.extend({**b, "nivel": "ausente"} for b in resto
+                     if not _so_digitos(b.get("beneficiario_doc")))
+    resto = [b for b in resto if _so_digitos(b.get("beneficiario_doc"))]
 
-    def _soma(xs):
-        return round(sum(float(x["valor"]) for x in xs), 2)
+    def _pela_soma(bs) -> list[dict]:
+        """2 — o dia do credor fecha pela SOMA: todos casam juntos."""
+        sobra = []
+        for chave, gb in _por_dia(bs).items():
+            ts = _livres(chave)
+            if ts and abs(_soma(gb) - _soma(ts)) <= TOL_SOMA:
+                for t in ts:
+                    t["usado"] = True
+                g = _grupo(gb, ts)
+                grupos_soma.append(g)
+                agrupados.extend({**b, "nivel": "soma", "grupo_boletos": g["boletos"],
+                                  "grupo_titulos": g["titulos"], "grupo_dda": g["soma_dda"],
+                                  "grupo_erp": g["soma_erp"]} for b in gb)
+            else:
+                sobra.extend(gb)
+        return sobra
+
+    resto = _pela_soma(resto)
+
+    # 3 — vencimento prorrogado no banco. Só pelo CNPJ COMPLETO: a raiz numa
+    # janela de 7 dias casaria postos diferentes do mesmo grupo.
+    sobra = []
+    for b in resto:
+        doc, venc, valor = _so_digitos(b["beneficiario_doc"]), b["vencimento"], float(b["valor"])
+        alvo = _pegar(
+            por_doc.get(doc, ()),
+            lambda c, v=valor, d=venc: (abs(c["valor"] - v) <= TOL_VALOR
+                                        and abs((c["venc"] - d).days) <= TOL_DIAS))
+        if alvo:
+            prorrogados.append({**b, "erp_venc": alvo["venc"].isoformat(),
+                                "dias": (alvo["venc"] - venc).days,
+                                "erp_pendente": alvo["pendente"],
+                                "nivel": "data"})
+            continue
+        sobra.append(b)
+
+    # 2 de novo: o prorrogado que estava no meio do dia impedia o resto de fechar
+    sobra = _pela_soma(sobra)
+
+    # 4 — divergência: há título no credor e dia, mas as somas não fecham
+    for chave, gb in _por_dia(sobra).items():
+        ts = _livres(chave)
+        if not ts:
+            faltantes.extend({**b, "nivel": "ausente"} for b in gb)
+            continue
+        for t in ts:
+            t["usado"] = True
+        g = _grupo(gb, ts)
+        divergencias.append(g)
+        divergentes.extend({**b, "nivel": "valor", "erp_valor": g["soma_erp"],
+                            "erp_pendente": _soma(ts, "pendente"),
+                            "diferenca": g["diferenca"], "grupo_boletos": g["boletos"],
+                            "grupo_titulos": g["titulos"]} for b in gb)
+    divergencias.sort(key=lambda g: -abs(g["diferenca"]))
 
     return {
-        "casados": casados, "divergentes": divergentes,
+        "casados": casados, "agrupados": agrupados, "divergentes": divergentes,
         "prorrogados": prorrogados, "faltantes": faltantes,
+        "grupos_soma": grupos_soma, "divergencias": divergencias,
         "resumo": {
             "boletos": len(boletos), "valor": _soma(boletos),
             "casados": len(casados), "casados_valor": _soma(casados),
+            "agrupados": len(agrupados), "agrupados_valor": _soma(agrupados),
+            "grupos_soma": len(grupos_soma),
             "divergentes": len(divergentes), "divergentes_valor": _soma(divergentes),
+            "divergencias": len(divergencias),
+            "divergencias_banco_a_mais": round(sum(g["diferenca"] for g in divergencias
+                                                   if g["diferenca"] > 0), 2),
+            "divergencias_erp_a_mais": round(-sum(g["diferenca"] for g in divergencias
+                                                  if g["diferenca"] < 0), 2),
             "prorrogados": len(prorrogados), "prorrogados_valor": _soma(prorrogados),
             "faltantes": len(faltantes), "faltantes_valor": _soma(faltantes),
         },
@@ -617,15 +710,176 @@ def confronto(esquema: str | None = None) -> dict:
 def faltantes_por_mes(conf: dict) -> dict[str, float]:
     """O que o banco tem e o ERP não, somado por mês de vencimento.
 
-    É o piso MEDIDO do "a lançar" da projeção. Prorrogado e divergente ficam de
-    fora: aqueles já têm título no ERP, e somá-los contaria a mesma obrigação
-    duas vezes no mesmo mês.
+    É o piso MEDIDO do "a lançar" da projeção. Prorrogado, casado pela soma e
+    divergente ficam de fora: já têm título no ERP, e somá-los contaria a mesma
+    obrigação duas vezes no mesmo mês. A exceção é o EXCESSO de uma divergência
+    em que o banco cobra MAIS que o ERP tem no dia: essa parte tem boleto e não
+    tem título (a fatura trouxe uma nota que ninguém lançou, ou juros). O que o
+    ERP tem a mais não sai do piso — o piso é só o que o banco sabe.
     """
     if not conf.get("disponivel") or conf.get("erp_indisponivel"):
         return {}
     acc: dict[str, float] = {}
-    for b in conf.get("faltantes", ()):
-        v: date = b["vencimento"]
+
+    def _somar(v: date, valor: float) -> None:
         k = f"{v.year:04d}-{v.month:02d}"
-        acc[k] = acc.get(k, 0.0) + float(b["valor"])
+        acc[k] = acc.get(k, 0.0) + valor
+
+    for b in conf.get("faltantes", ()):
+        _somar(b["vencimento"], float(b["valor"]))
+    for g in conf.get("divergencias", ()):
+        if g["diferenca"] > 0:
+            _somar(g["vencimento"], float(g["diferenca"]))
     return {k: round(v, 2) for k, v in acc.items()}
+
+
+# --------------------------------------------------------------- relatório
+
+def _data_br(d) -> str:
+    return d.strftime("%d/%m/%Y") if d else ""
+
+
+def relatorio_xlsx(conf: dict) -> tuple[str, bytes]:
+    """A planilha da conferência do DDA — as MESMAS listas que a tela mostra.
+
+    Seis abas, na ordem em que se trabalha: o resumo; as DIVERGÊNCIAS (um dia
+    de credor por linha, maior diferença primeiro); o DETALHE delas (cada
+    boleto e cada título do grupo, para conferir item a item); os CASADOS PELA
+    SOMA (a regra nova tem de poder ser auditada — heurística escondida vira
+    verdade do sistema); os sem título no ERP; os prorrogados.
+
+    O CNPJ sai MASCARADO, como em toda saída da casa: o cadastro do ERP mistura
+    CNPJ e CPF na mesma coluna. O nome e o número do título bastam para achar
+    no ERP.
+    """
+    import io
+
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+    from openpyxl.utils import get_column_letter
+
+    from .. import queries
+
+    mask = queries._mask_doc
+    MOEDA = '"R$" #,##0.00'
+    cab_fonte = Font(bold=True, color="FFFFFF")
+    cab_fundo = PatternFill("solid", fgColor="942821")
+    res = conf.get("resumo") or {}
+    est = conf.get("estado") or {}
+    wb = Workbook()
+
+    def aba(titulo, colunas, linhas, moeda=(), datas=(), larguras=None):
+        ws = wb.create_sheet(titulo)
+        ws.append([c for c in colunas])
+        for j in range(1, len(colunas) + 1):
+            cel = ws.cell(row=1, column=j)
+            cel.font, cel.fill = cab_fonte, cab_fundo
+        for lin in linhas:
+            ws.append(lin)
+        for i in range(2, ws.max_row + 1):
+            for j in moeda:
+                ws.cell(row=i, column=j + 1).number_format = MOEDA
+            for j in datas:
+                ws.cell(row=i, column=j + 1).number_format = "dd/mm/yyyy"
+        for j, w in enumerate(larguras or [], start=1):
+            ws.column_dimensions[get_column_letter(j)].width = w
+        ws.freeze_panes = "A2"
+        return ws
+
+    # 1 — resumo
+    ws = wb.active
+    ws.title = "Resumo"
+    extr = est.get("extraido_em")
+    ws.append(["Conferência do DDA × contas a pagar do ERP"])
+    ws["A1"].font = Font(bold=True, size=13)
+    ws.append([f"Extrato do banco de {extr[:10][8:10]}/{extr[5:7]}/{extr[:4]}"
+               if extr else "Extrato do banco sem data declarada"])
+    ws.append([])
+    ws.append(["Situação", "Boletos", "Valor", "O que fazer"])
+    for j in range(1, 5):
+        c = ws.cell(row=ws.max_row, column=j)
+        c.font, c.fill = cab_fonte, cab_fundo
+    linhas_res = [
+        ("Casados (mesmo valor e vencimento)", res.get("casados"), res.get("casados_valor"),
+         "Nada."),
+        ("Casados pela soma do dia", res.get("agrupados"), res.get("agrupados_valor"),
+         "Nada: a fatura do fornecedor junta parcelas de várias notas do mesmo dia. "
+         "Auditar na aba Casados pela soma."),
+        ("Vencimento prorrogado no banco", res.get("prorrogados"), res.get("prorrogados_valor"),
+         "Conferir a data do título no ERP."),
+        ("Em divergência", res.get("divergentes"), res.get("divergentes_valor"),
+         f"Conferir os {res.get('divergencias') or 0} dias de credor da aba Divergências."),
+        ("Sem título no ERP", res.get("faltantes"), res.get("faltantes_valor"), "Lançar."),
+    ]
+    for lin in linhas_res:
+        ws.append(list(lin))
+        ws.cell(row=ws.max_row, column=3).number_format = MOEDA
+    ws.append([])
+    ws.append(["Divergências: o banco cobra a mais", None, res.get("divergencias_banco_a_mais")])
+    ws.cell(row=ws.max_row, column=3).number_format = MOEDA
+    ws.append(["Divergências: o ERP tem a mais", None, res.get("divergencias_erp_a_mais")])
+    ws.cell(row=ws.max_row, column=3).number_format = MOEDA
+    for col, w in zip("ABCD", (40, 10, 16, 90)):
+        ws.column_dimensions[col].width = w
+
+    def _docs(g):
+        return ", ".join(str(i["documento"] or "—") for i in g["itens_dda"])
+
+    def _tits(g):
+        return ", ".join(str(i["titulo"] or "—") for i in g["itens_erp"])
+
+    # 2 — divergências (um dia de credor por linha)
+    divs = conf.get("divergencias") or []
+    aba("Divergências",
+        ["Credor", "CNPJ", "Vencimento", "Boletos", "Soma no banco", "Títulos",
+         "Soma no ERP", "Diferença", "Leitura", "Documentos no banco", "Títulos no ERP"],
+        [[g["credor"], mask(g["beneficiario_doc"]), g["vencimento"], g["boletos"],
+          g["soma_dda"], g["titulos"], g["soma_erp"], g["diferenca"],
+          "banco cobra a mais" if g["diferenca"] > 0 else "ERP tem a mais",
+          _docs(g), _tits(g)] for g in divs],
+        moeda=(4, 6, 7), datas=(2,), larguras=(34, 20, 12, 9, 15, 9, 15, 14, 20, 40, 40))
+
+    # 3 — detalhe, item a item
+    det = []
+    for n, g in enumerate(divs, start=1):
+        for i in g["itens_dda"]:
+            det.append([n, g["credor"], g["vencimento"], "Banco", i["documento"] or "—",
+                        None, i["valor"], None, None])
+        for i in g["itens_erp"]:
+            det.append([n, g["erp_credor"] or g["credor"], g["vencimento"], "ERP",
+                        i["titulo"] or "—", i["parcela"], i["valor"], i["pendente"], i["pago"]])
+    aba("Detalhe das divergências",
+        ["Grupo", "Credor", "Vencimento", "Lado", "Documento / título", "Parcela",
+         "Valor", "Em aberto no ERP", "Pago em"],
+        det, moeda=(6, 7), datas=(2, 8), larguras=(7, 34, 12, 8, 22, 8, 14, 16, 12))
+
+    # 4 — casados pela soma (auditoria da regra)
+    aba("Casados pela soma",
+        ["Credor", "CNPJ", "Vencimento", "Boletos", "Soma no banco", "Títulos",
+         "Soma no ERP", "Diferença", "Documentos no banco", "Títulos no ERP"],
+        [[g["credor"], mask(g["beneficiario_doc"]), g["vencimento"], g["boletos"],
+          g["soma_dda"], g["titulos"], g["soma_erp"], g["diferenca"], _docs(g), _tits(g)]
+         for g in sorted(conf.get("grupos_soma") or [],
+                         key=lambda g: (g["vencimento"], g["credor"]))],
+        moeda=(4, 6, 7), datas=(2,), larguras=(34, 20, 12, 9, 15, 9, 15, 12, 40, 40))
+
+    # 5 — sem título no ERP
+    aba("Sem título no ERP",
+        ["Beneficiário", "CNPJ", "Vencimento", "Valor", "A pagar hoje", "Documento", "Tipo"],
+        [[b.get("beneficiario"), mask(b.get("beneficiario_doc")), b["vencimento"],
+          float(b["valor"]), b.get("a_pagar"), b.get("documento"), b.get("tipo")]
+         for b in sorted(conf.get("faltantes") or [], key=lambda x: (x["vencimento"], -x["valor"]))],
+        moeda=(3, 4), datas=(2,), larguras=(34, 20, 12, 14, 14, 18, 26))
+
+    # 6 — prorrogados
+    aba("Prorrogados",
+        ["Beneficiário", "CNPJ", "Vencimento no banco", "Vencimento no ERP", "Dias", "Valor"],
+        [[b.get("beneficiario"), mask(b.get("beneficiario_doc")), b["vencimento"],
+          date.fromisoformat(b["erp_venc"]), b["dias"], float(b["valor"])]
+         for b in conf.get("prorrogados") or []],
+        moeda=(5,), datas=(2, 3), larguras=(34, 20, 16, 16, 8, 14))
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    carimbo = (extr[:10] if extr else date.today().isoformat())
+    return f"DDA-conferencia-{carimbo}.xlsx", buf.getvalue()

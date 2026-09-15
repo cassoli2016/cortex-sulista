@@ -946,10 +946,20 @@ glossario:
   definicao: A lista dos boletos que fornecedores registraram contra o CNPJ da empresa, exportada à mão
     do portal do banco e importada no Fluxo Consolidado. É o único número MEDIDO da projeção, porque
     boleto registrado é obrigação com nome, CNPJ, valor e vencimento, não estimativa. O CÓRTEX casa cada
-    boleto com contaapagar por CNPJ mais vencimento mais valor, com tolerância para prorrogação e para
-    juros, e o que sobra é a fila de lançamento. Quando ela supera o que o modelo estimou, vale o
-    medido. O extrato é um RETRATO — boleto pago some da extração seguinte —, e por isso a Saúde do
-    Servidor mede a idade dele e avisa acima de uma semana.
+    boleto com contaapagar por CNPJ mais vencimento mais valor; depois pela soma do dia do credor
+    (parcelamento); depois com tolerância de até 7 dias para prorrogação. O que tem título no dia mas
+    não fecha é divergência, conferida por dia de credor, e o que sobra é a fila de lançamento. Quando
+    ela supera o que o modelo estimou, vale o medido. O extrato é um RETRATO — boleto pago some da
+    extração seguinte —, e por isso a Saúde do Servidor mede a idade dele e avisa acima de uma semana.
+- termo: Casado pela soma do dia (DDA)
+  definicao: >-
+    O boleto que não tem título do mesmo valor, mas cujo dia fecha — a soma dos boletos do
+    fornecedor naquele vencimento é igual à soma dos títulos do ERP no mesmo dia, até R$ 1 no grupo. É o
+    PARCELAMENTO visto dos dois lados: o ERP lança por nota, cada nota partida nas parcelas dela, e o
+    fornecedor emite um boleto por fatura e parcela juntando as parcelas de várias notas. Não é
+    divergência e não entra na lista delas; aparece à parte no relatório do DDA (aba Casados pela soma)
+    para quem quiser auditar a regra. O dia que não fecha vira DIVERGÊNCIA, e é conferido como grupo —
+    os boletos, os títulos e a diferença entre as somas —, sem parear boleto com título ao acaso.
 - termo: Convênio de antecipação (cliente elegível)
   definicao: Cliente que mantém portal de risco sacado, onde a Sulista pode antecipar os títulos dele.
     Só o recebível desses clientes entra nas Operações de antecipação sugeridas — supor que qualquer recebível
