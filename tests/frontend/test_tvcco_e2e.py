@@ -45,6 +45,20 @@ PAYLOAD = {
                "cobertura_dias": 30, "pendente_fim_h": 24},
 }
 
+def _prog(cod, sigla, no_prazo):
+    """Uma lâmina do carrossel: o mesmo painel, com a programação no prazo
+    marcando qual filial está na tela."""
+    k = json.loads(json.dumps(PAYLOAD["kpis"]))
+    k["programacao"]["no_prazo"] = no_prazo
+    return {"codigo": cod, "sigla": sigla, "kpis": k, "alertas_total": 3,
+            "cobertura": dict(PAYLOAD["cobertura"], coletas=no_prazo)}
+
+
+# as filiais de programação na ordem do rádio do Avacorp (api/cco.PROGRAMACAO)
+PAYLOAD["programacoes"] = [_prog(1, "CCO", 151), _prog(2, "SBC", 72), _prog(15, "PSA", 31),
+                           _prog(19, "JOI", 9), _prog(20, "CRZ", 30)]
+PAYLOAD["sem_programacao"] = 14
+
 TELAS = [(1920, 1080), (1600, 900)]
 
 # A FORMA de /api/operacao/cco/detalhe, com os números do PAYLOAD: cada aba
@@ -109,7 +123,8 @@ def _abre(pagina, payload=PAYLOAD, status=200, largura=1920, altura=1080, parede
         elif "/api/operacao/cco/detalhe" in url:
             card = url.split("card=", 1)[1].split("&", 1)[0]
             if pedidos is not None:
-                pedidos.append(card)
+                prog = url.split("prog=", 1)[1].split("&", 1)[0] if "prog=" in url else None
+                pedidos.append(card if prog is None else f"{card}&prog={prog}")
             corpo, st = detalhe(card), det_status
         elif "/api/operacao/cco" in url:
             corpo, st = payload, status
@@ -128,6 +143,11 @@ def _abre(pagina, payload=PAYLOAD, status=200, largura=1920, altura=1080, parede
     modo = pg.evaluate("() => ({cheia: document.body.classList.contains('tvfull'),"
                        " parede: document.body.classList.contains('tvwall')})")
     assert modo == {"cheia": parede, "parede": True}, modo
+    # o giro das filiais de programação é armado na troca de tela; aqui ele é
+    # DESLIGADO depois de conferido, para uma troca de lâmina no meio de um
+    # teste não mudar o número que ele lê (o teste do giro chama o passo)
+    assert pg.evaluate("!!tvTour"), "o giro das filiais de programação não foi armado"
+    pg.evaluate("clearInterval(tvTour)")
     return pg
 
 
@@ -146,7 +166,7 @@ def test_os_numeros_e_as_regras_chegam_nos_cartoes(pagina):
 _CORTADOS = """() => [...document.querySelectorAll(
     '#view-tvcco .tv-sub, #view-tvcco .tv-label, #view-tvcco .tv-num, #view-tvcco .tvd-col b,'
     + ' #view-tvcco .tv-cco-col b, #view-tvcco .tv-cco-col em, #view-tvcco .tv-cco-pl b,'
-    + ' #view-tvcco .tv-cco-periodo')]
+    + ' #view-tvcco .tv-cco-periodo, #view-tvcco .tvp-lamina, #view-tvcco .tvp-lamina span')]
     .filter(e => e.scrollWidth > e.clientWidth + 1)
     .map(e => (e.className || e.tagName) + ': ' + e.textContent.trim().slice(0, 40))"""
 
@@ -262,6 +282,77 @@ def test_no_celular_nada_sai_para_o_lado(pagina):
     larg = pg.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
     assert larg == 0, larg
     assert pg.evaluate(_CORTADOS) == []
+    # no celular o carrossel continua, então a pílula que diz a lâmina fica
+    assert pg.is_visible("#tvcco-lamina"), "a pílula da lâmina sumiu no celular"
+    assert pg.evaluate(_CABECALHO) == _CABECALHO_OK
+
+
+# ------------------------------------------------------------ o carrossel (1.92.0)
+
+_PILULA = """() => { const el = document.getElementById('tvcco-lamina');
+    const pts = [...el.querySelectorAll('i')];
+    return {pontos: pts.length, aceso: pts.findIndex(i => i.classList.contains('on')),
+            rotulo: el.querySelector('span').textContent}; }"""
+_PRIMEIRO = "#tvcco-k1 > .tv-card:nth-child(1) .tv-duo > div:nth-child(1) .tv-num"
+
+# O CABEÇALHO COM A PÍLULA (1.92.0). A régua de texto cortado não pega isto:
+# a pílula não corta o PRÓPRIO texto, ela sai inteira pela borda da tela; e o
+# contador que quebra em duas linhas também não se corta.
+_CABECALHO = """() => { const q = s => document.querySelector('#view-tvcco ' + s);
+    const fs = el => parseFloat(getComputedStyle(el).fontSize);
+    const umaLinha = el => getComputedStyle(el).display === 'none'
+        || el.getBoundingClientRect().height <= 1.6 * fs(el);
+    const p = q('.tvp-lamina').getBoundingClientRect();
+    return {pilula_dentro: p.width > 0 && p.left >= 0 && p.right <= innerWidth,
+            titulo_1_linha: umaLinha(q('.tv-head h2')),
+            relogio_1_linha: umaLinha(q('.tv-head .tv-next'))}; }"""
+_CABECALHO_OK = {"pilula_dentro": True, "titulo_1_linha": True, "relogio_1_linha": True}
+
+
+def test_o_giro_passa_pelas_filiais_de_programacao_e_volta_ao_geral(pagina):
+    pg = _abre(pagina)
+    assert pg.evaluate(_PILULA) == {"pontos": 6, "aceso": 0, "rotulo": "Geral · 14 sem programação"}
+    assert pg.inner_text(_PRIMEIRO) == "297"
+    for i, (sigla, n) in enumerate([("CCO", "151"), ("SBC", "72"), ("PSA", "31"),
+                                    ("JOI", "9"), ("CRZ", "30")], 1):
+        pg.evaluate("tvCcoPasso()")
+        pg.wait_for_timeout(2800)                    # a recontagem dos números
+        assert pg.evaluate(_PILULA) == {"pontos": 6, "aceso": i, "rotulo": "Programação " + sigla}
+        assert pg.inner_text(_PRIMEIRO) == n, (sigla, pg.inner_text(_PRIMEIRO))
+        # a lâmina nova continua clicável: os alvos são refeitos a cada desenho
+        assert pg.evaluate("document.querySelectorAll('#view-tvcco [role=\"button\"][data-cco]').length") == 25
+    pg.evaluate("tvCcoPasso()")
+    assert pg.evaluate(_PILULA)["aceso"] == 0
+    # o rodapé é um só, e não é redesenhado pela troca de lâmina
+    assert "58 avisos" in pg.inner_text("#tvcco-ticker")
+
+
+def test_o_modal_e_da_filial_da_tela_e_o_giro_espera_ele_fechar(pagina):
+    pedidos = []
+    pg = _abre(pagina, pedidos=pedidos)
+    pg.evaluate("tvCcoPasso(); tvCcoPasso()")            # SBC
+    pg.wait_for_timeout(2800)
+    pg.click(_PARTE.format(c=2, p=2))
+    m = _modal(pg)
+    assert pedidos == ["coletas&prog=2"], pedidos
+    assert m["titulo"] == "Coletas · SBC", m
+    pg.evaluate("tvCcoPasso()")                          # o giro chega com o modal aberto
+    assert pg.evaluate("TVCCO_IDX") == 2
+    pg.keyboard.press("Escape")
+    pg.evaluate("tvCcoPasso()")
+    assert pg.evaluate("TVCCO_IDX") == 3
+
+
+@pytest.mark.parametrize("largura,altura", TELAS)
+def test_nenhum_texto_corta_na_lamina_de_uma_filial(pagina, largura, altura):
+    pg = _abre(pagina, largura=largura, altura=altura)
+    pg.evaluate("tvCcoPasso()")
+    pg.wait_for_timeout(2800)
+    assert pg.evaluate(_PILULA)["rotulo"] == "Programação CCO"
+    assert pg.evaluate(_CORTADOS) == []
+    assert pg.evaluate(_CABECALHO) == _CABECALHO_OK
+    larg = pg.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
+    assert larg == 0, larg
 
 
 # ------------------------------------------------------------ os modais (1.91.0)

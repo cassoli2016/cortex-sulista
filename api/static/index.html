@@ -1961,6 +1961,14 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
 #view-tvcco .tv-label{font-size:16px}
 #view-tvcco .tv-sub{font-size:15px}
 #view-tvcco .tv-duo{gap:18px}
+/* O CABEÇALHO NA FORMA DA TVOPE (1.92.0): com a pílula do carrossel o título
+   cresceu, e a grade `1fr auto 1fr` deixou a coluna da esquerda mais
+   estreita que logo + "↻ 00:55" em 30px -- a 1600px o contador quebrava em
+   duas linhas. Fonte proporcional à tela, e o contador não quebra. */
+#view-tvcco .tv-head h2{font-size:clamp(16px,1.5vw,30px)}
+#view-tvcco .tv-head .tv-clock{font-size:clamp(16px,1.5vw,30px)}
+#view-tvcco .tv-head .tv-next{font-size:clamp(14px,1.5vw,30px) !important;white-space:nowrap}
+#view-tvcco .tvp-lamina{font-size:clamp(11px,0.9vw,18px)}
 #view-tvcco .tv-cco-span2{grid-column:span 2}
 .tv-cco-periodo{display:block;font-size:15px;color:#8FA6BC;font-weight:600;letter-spacing:.02em;margin-top:2px;text-align:center}
 .tv-cco-serie{height:220px}
@@ -2024,6 +2032,18 @@ body.tvfull.tvwall #view-tvcco .tv-ticker{flex-shrink:0;margin-top:18px}
   #view-tvcco .tv-sub{font-size:12px}
   #view-tvcco .tv-head h2{font-size:17px}
   .tv-cco-etapas,.tv-cco-serie{height:180px}
+  /* ao contrário da produtividade, aqui o carrossel CONTINUA no celular (é o
+     mesmo painel com outro recorte), então a pílula que diz a lâmina fica */
+  #view-tvcco .tvp-lamina{display:inline-flex}
+  /* e o título desce para uma linha própria, como na tvope: espremido entre
+     o logo e o relógio, o nome quebrava palavra por palavra e a pílula saía
+     pela borda da tela */
+  #view-tvcco .tv-head{grid-template-columns:1fr auto;row-gap:9px;margin-bottom:12px}
+  #view-tvcco .tv-head .tv-title{grid-column:1/-1;grid-row:2;justify-content:flex-start;flex-wrap:wrap;gap:9px}
+  #view-tvcco .tv-head h2{text-align:left}
+  #view-tvcco .tv-head .tv-next{display:none}
+  #view-tvcco .tv-head .tv-clock{font-size:18px}
+  #view-tvcco .tv-cco-periodo{text-align:left;margin-top:0}
   .tv-cco-col b{font-size:11px}
   .tv-cco-col em{font-size:10px}
 }
@@ -5235,7 +5255,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
            programação, coleta, CT-e, entrega e onde a operação trava. Mural:
            sem aba, sem tooltip, cada número diz a própria regra no rótulo. -->
       <section class="view" id="view-tvcco">
-        <div class="tv-head"><div class="tv-left"><img class="tv-logo" src="/static/sulista-logo-branco.svg" alt="Sulista"><span class="tv-upd tv-next"></span></div><div class="tv-title"><h2>GESTÃO À VISTA — CCO</h2><span class="tv-cco-periodo" id="tvcco-periodo"></span></div><div class="tv-right"><span class="tv-clock"></span><a href="javascript:tvFull()" title="tela cheia" aria-label="Tela cheia">⛶</a><a href="#home" title="sair do modo TV" aria-label="Sair do modo TV">✕</a></div></div>
+        <div class="tv-head"><div class="tv-left"><img class="tv-logo" src="/static/sulista-logo-branco.svg" alt="Sulista"><span class="tv-upd tv-next"></span></div><div class="tv-title"><h2>GESTÃO À VISTA — CCO</h2><span class="tv-cco-periodo" id="tvcco-periodo"></span><span class="tvp-lamina" id="tvcco-lamina"></span></div><div class="tv-right"><span class="tv-clock"></span><a href="javascript:tvFull()" title="tela cheia" aria-label="Tela cheia">⛶</a><a href="#home" title="sair do modo TV" aria-label="Sair do modo TV">✕</a></div></div>
         <div class="tv-grid" id="tvcco-k1"></div>
         <div class="tv-grid tv-cco-linha" id="tvcco-k2"></div>
         <div class="tv-grid tv-cco-linha tv-cco-k3" id="tvcco-k3"></div>
@@ -11216,6 +11236,7 @@ function router(){
   if(ehTv){
     if(v==='tvope') tvTour=setInterval(tvTourPasso, 20000);
     if(v==='tvprod') tvTour=setInterval(tvProdPasso, 20000);   // o carrossel
+    if(v==='tvcco') tvTour=setInterval(tvCcoPasso, 20000);     // as filiais de programação
     TV_NEXT=Date.now()+60000;
     tvTimer=setInterval(()=>{ TV_NEXT=Date.now()+60000;
       /* RECARGA PELO MAPA, não por cadeia de `else if`: a cadeia era a
@@ -17355,6 +17376,50 @@ async function loadTvCco(){
     if(!r.ok || !d || !d.kpis){ tvErro('tvcco-k1', tvCcoOk); return; }
     tvCcoOk = Date.now();
     tvCcoAgora = d.agora || '';
+    tvCcoDados = d;
+    /* O RODAPÉ é UM só para todas as lâminas, com a sigla da filial de
+       programação em cada aviso: trocá-lo a cada lâmina zeraria a rolagem. Os
+       mais antigos primeiro, cortados no servidor -- e o corte é DITO. */
+    const al = (d.alertas||[]).map(a=>a.texto);
+    if((d.alertas_total||0) > al.length) al.unshift(d.alertas_total+' avisos · os '+al.length+' mais antigos');
+    tvTicker('tvcco-ticker', al);
+    tvCcoDesenhar();
+  }catch(e){ if(seq === tvCcoSeq) tvErro('tvcco-k1', tvCcoOk); }
+}
+/* O CARROSSEL DAS FILIAIS DE PROGRAMAÇÃO (quem opera, 15/09/2026: "um
+   carrossel com as filiais responsáveis pela programação, o mesmo painel
+   filtrado"). Lâmina 0 é o geral; as outras vêm do servidor, na ordem do
+   rádio "Programação" do pedido de coleta (api/cco.PROGRAMACAO). É o MESMO
+   desenho com outro recorte, da mesma leitura: a troca redesenha os cartões
+   e reconta os números, sem nova consulta. */
+let tvCcoDados = null;
+var TVCCO_IDX = 0;   // var, e nao let: o giro pode ser armado antes desta linha rodar
+function tvCcoProg(){
+  const ls = (tvCcoDados && tvCcoDados.programacoes) || [];
+  return TVCCO_IDX > 0 ? (ls[TVCCO_IDX-1] || null) : null;
+}
+function tvCcoPilula(){
+  const el = document.getElementById('tvcco-lamina');
+  if(!el || !tvCcoDados) return;
+  const ls = tvCcoDados.programacoes || [], p = tvCcoProg(), sem = tvCcoDados.sem_programacao || 0;
+  const rot = p ? 'Programação '+p.sigla
+    : 'Geral'+(sem ? ' · '+sem.toLocaleString('pt-BR')+' sem programação' : '');
+  el.innerHTML = [null].concat(ls).map((x, i) => '<i class="'+(i===TVCCO_IDX ? 'on' : '')+'"></i>').join('')
+    + '<span>'+esc(rot)+'</span>';
+}
+function tvCcoPasso(){
+  if(currentView()!=='tvcco' || !tvCcoDados) return;
+  /* com o detalhe aberto a lâmina NÃO troca: quem clicou está lendo a lista
+     desta filial, e o painel atrás mudaria de assunto sem ele ver */
+  if(document.getElementById('modalBg').classList.contains('aberto')) return;
+  TVCCO_IDX = (TVCCO_IDX+1) % (1+(tvCcoDados.programacoes || []).length);
+  tvCcoDesenhar();
+}
+function tvCcoDesenhar(){
+  if(!tvCcoDados) return;
+  if(TVCCO_IDX > (tvCcoDados.programacoes || []).length) TVCCO_IDX = 0;
+  const p = tvCcoProg();
+  const d = p ? Object.assign({}, tvCcoDados, {kpis: p.kpis, cobertura: p.cobertura}) : tvCcoDados;
     const k = d.kpis, cob = d.cobertura || {}, reg = d.regras || {};
     const n = v => (v==null ? '—' : Number(v).toLocaleString('pt-BR'));
     const pr=k.programacao||{}, co=k.coletas||{}, em=k.emissoes||{}, en=k.entregas||{},
@@ -17432,15 +17497,10 @@ async function loadTvCco(){
         }).join('')
       + '</div></div>';
     document.getElementById('tvcco-k3').innerHTML = pont + gargHtml + etHtml;
-    /* O RODAPÉ: os avisos mais antigos primeiro, cortados no servidor -- e o
-       corte é DITO, senão vira total falso. */
-    const al = (d.alertas||[]).map(a=>a.texto);
-    if((d.alertas_total||0) > al.length) al.unshift(d.alertas_total+' avisos · os '+al.length+' mais antigos');
-    tvTicker('tvcco-ticker', al);
+    tvCcoPilula();
     tvDestacar('tvcco-k1'); tvDestacar('tvcco-k2'); tvDestacar('tvcco-k3');
     tvAnimarNums('tvcco-k1'); tvAnimarNums('tvcco-k2'); tvAnimarNums('tvcco-k3');
     tvCcoMarcar(); tvCcoLigar();
-  }catch(e){ if(seq === tvCcoSeq) tvErro('tvcco-k1', tvCcoOk); }
 }
 /* O DETALHE DE CADA CARTÃO (1.91.0 -- quem opera, 15/09/2026: "ao clicar nos
    cards trazer um modal com o detalhamento das informacoes").
@@ -17588,7 +17648,9 @@ function tvCcoColCob(d){
 let tvCcoDetSeq = 0, tvCcoDet = null;
 async function tvCcoDetalhe(card, estado){
   const seq = ++tvCcoDetSeq;
-  abrirModal(`<div class="ccm-cab"><div><h3>${esc(TVCCO_TIT[card] || card)}</h3>`
+  /* a lâmina da vez, lida NO CLIQUE: o modal é da filial que estava na tela */
+  const prog = tvCcoProg();
+  abrirModal(`<div class="ccm-cab"><div><h3>${esc((TVCCO_TIT[card] || card)+(prog ? ' · '+prog.sigla : ''))}</h3>`
     + `<div class="ccm-per" id="ccm-per"></div></div>`
     + `<button type="button" class="btn" onclick="fecharModal()">Fechar</button></div>`
     + `<div id="ccm-corpo"><div class="ccm-vazio">carregando…</div></div>`);
@@ -17598,7 +17660,8 @@ async function tvCcoDetalhe(card, estado){
     && document.getElementById('modalBg').classList.contains('aberto');
   let d;
   try{
-    const r = await fetch('/api/operacao/cco/detalhe?card='+encodeURIComponent(card), {cache:'no-store'});
+    const r = await fetch('/api/operacao/cco/detalhe?card='+encodeURIComponent(card)
+      + (prog ? '&prog='+encodeURIComponent(prog.codigo) : ''), {cache:'no-store'});
     const j = await respostaJSON(r);
     if(!j.ok || !j.dados || !j.dados.estados)
       throw new Error((j.dados && j.dados.mensagem) || ('HTTP '+r.status));

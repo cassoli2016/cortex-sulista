@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.92.0] — 15/09/2026  ·  CX-15/09/2026-v1.92.0
+
+### Adicionado
+- Painéis TV › CCO — carrossel das filiais de programação: o painel gira, de 20 em 20 segundos, entre o geral e o mesmo painel só com as coletas de cada filial que programa (CCO, SBC, PSA, JOI e CRZ — o campo "Programação" da aba Datas/Mercadoria do pedido de coleta). A pílula no alto diz qual está na tela, e no geral diz também quantas coletas vieram sem programação. O rodapé segue com todos os avisos, agora com a sigla da filial na frente de cada um. O detalhe de um cartão abre com as coletas da filial que estava na tela, e enquanto ele está aberto o painel não troca de filial.
+
 ## [1.91.0] — 15/09/2026  ·  CX-15/09/2026-v1.91.0
 
 ### Adicionado

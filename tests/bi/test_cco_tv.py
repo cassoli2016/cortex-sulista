@@ -397,6 +397,64 @@ def test_cartao_desconhecido_e_recusa_legivel():
     assert main.operacao_cco_detalhe("financeiro").status_code == 409
 
 
+# ------------------------------------------------------------ o carrossel (1.92.0)
+
+def test_o_sql_traz_a_filial_de_programacao():
+    assert "c.filial_programacao AS fp" in cco.CCO_SQL
+    assert "SELECT a.numero, a.filial, a.fp," in cco.CCO_SQL
+
+
+def test_as_laminas_seguem_a_ordem_do_radio_do_avacorp():
+    assert cco.PROGRAMACAO == ((1, "CCO"), (2, "SBC"), (15, "PSA"), (19, "JOI"), (20, "CRZ"))
+
+
+def test_o_aviso_do_rodape_diz_a_filial_de_programacao():
+    linha = _l(numero=1, fp=2, veiculo="", jc=AGORA - H(2))
+    com = cco.classificar([linha], AGORA, MON, DE, ATE, sigla_no_aviso=True)
+    assert com["alertas"][0]["texto"].startswith("SBC · Sem veículo"), com["alertas"]
+    assert _c(linha)["alertas"][0]["texto"].startswith("Sem veículo")
+    sem_prog = cco.classificar([dict(linha, fp=None)], AGORA, MON, DE, ATE, sigla_no_aviso=True)
+    assert sem_prog["alertas"][0]["texto"].startswith("Sem veículo")
+
+
+FPS = [1, 2, 2, 15, 19, 20, None, 1, 2, 15, 99, 20, 1]   # uma por linha do _dia_cheio
+
+
+def test_cada_lamina_e_o_mesmo_painel_so_com_as_coletas_da_filial(monkeypatch):
+    linhas = [dict(r, fp=fp) for r, fp in zip(_dia_cheio(), FPS, strict=True)]
+    monkeypatch.setattr(cco, "_leitura_cco", lambda: _leitura_falsa(linhas))
+    p = cco.get_cco()
+    assert [x["sigla"] for x in p["programacoes"]] == ["CCO", "SBC", "PSA", "JOI", "CRZ"]
+    assert p["sem_programacao"] == 2          # a vazia e o código que o rádio não tem
+    for x in p["programacoes"]:
+        so = cco.classificar([r for r in linhas if r["fp"] == x["codigo"]], AGORA, [1], DE, ATE)
+        assert x["kpis"] == so["kpis"] and x["cobertura"] == so["cobertura"], x["sigla"]
+        assert x["kpis"]["programacao"]["total"] or x["cobertura"]["coletas"], x["sigla"]
+    # as lâminas e as sem programação somam o geral: nenhuma coleta some
+    soma = sum(x["cobertura"]["coletas"] + x["cobertura"]["fora_coletas"] for x in p["programacoes"])
+    assert soma + p["sem_programacao"] == p["cobertura"]["coletas"] + p["cobertura"]["fora_coletas"]
+
+
+def test_o_modal_da_lamina_so_tem_as_coletas_da_filial(monkeypatch):
+    linhas = [dict(r, fp=(2 if i % 2 else 1)) for i, r in enumerate(_dia_cheio())]
+    monkeypatch.setattr(cco, "_leitura_cco", lambda: _leitura_falsa(linhas))
+    sbc = next(x for x in cco.get_cco()["programacoes"] if x["sigla"] == "SBC")
+    det = cco.get_cco_detalhe("coletas", 2)
+    assert det["programacao"] == "SBC"
+    assert sum(e["n"] for e in det["estados"]) > 0
+    for e in det["estados"]:
+        assert e["n"] == sbc["kpis"]["coletas"][e["estado"]], e["estado"]
+        assert all(x["coleta"] % 2 == 0 for x in e["linhas"]), e["linhas"]   # só as da SBC
+    assert cco.get_cco_detalhe("coletas")["programacao"] is None
+
+
+def test_filial_de_programacao_desconhecida_e_recusa_legivel():
+    with pytest.raises(ValueError):
+        cco.get_cco_detalhe("coletas", 7)
+    from api import main
+    assert main.operacao_cco_detalhe("coletas", 7).status_code == 409
+
+
 def test_a_regra_do_modal_e_escrita_com_as_constantes(monkeypatch):
     monkeypatch.setattr(cco, "TOLERANCIA_CTE_MIN", 45)
     monkeypatch.setattr(cco, "PENDENTE_FIM_H", 36)

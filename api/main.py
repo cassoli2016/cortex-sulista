@@ -7029,16 +7029,21 @@ def operacao_cco() -> JSONResponse:
 
 
 @app.get("/api/operacao/cco/detalhe")
-def operacao_cco_detalhe(card: str = "") -> JSONResponse:
+def operacao_cco_detalhe(card: str = "", prog: int | None = None) -> JSONResponse:
     """O modal de um cartão da TV do CCO: a lista de coletas por estado, da
-    MESMA leitura e da MESMA contagem do cartão (`api/cco.get_cco_detalhe`)."""
+    MESMA leitura e da MESMA contagem do cartão (`api/cco.get_cco_detalhe`).
+    `prog` é a filial de programação da lâmina do carrossel que está na tela."""
     from api import cco
     if card not in cco.CARDS_DETALHE:
         return JSONResponse(status_code=HTTP_RECUSA, content={
             "erro": "cartao_desconhecido",
             "mensagem": "Cartão desconhecido no painel do CCO."})
+    if prog is not None and prog not in cco.SIGLA_PROG:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "programacao_desconhecida",
+            "mensagem": "Filial de programação desconhecida no painel do CCO."})
     try:
-        return JSONResponse(cco.get_cco_detalhe(card))
+        return JSONResponse(cco.get_cco_detalhe(card, prog))
     except psycopg.OperationalError as exc:
         log.warning("banco inacessivel: %s", exc)
         return JSONResponse(status_code=503, content={

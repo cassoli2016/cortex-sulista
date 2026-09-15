@@ -85,6 +85,20 @@ TETO_PERMANENCIA_H = 24
 #: Quantos avisos vão para o rodapé. O servidor corta e DIZ o total.
 MAX_ALERTAS = 20
 
+#: A FILIAL QUE PROGRAMA A COLETA (quem opera, 15/09/2026: "vamos fazer um
+#: carrossel com as filiais responsáveis pela programação"). É o rádio
+#: "Programação" da aba Datas/Mercadoria do pedido de coleta do Avacorp
+#: (`/web/ped_coleta_sulista/`), gravado em `coleta.filial_programacao` —
+#: campo da Sulista, que não existe na cópia de auditoria. As SIGLAS são as do
+#: rádio e NÃO estão no cadastro de filiais (o apelido do código 1 é "FIL
+#: MTZ"): o código saiu do cadastro e a sigla da tela, ancorados numa coleta
+#: marcada como CCO (a 20027, com 1). A ordem é a do rádio. Não é a filial da
+#: coleta: há coleta da filial 15 programada pelo CCO. Em 30 dias, ~3,7% das
+#: coletas vieram sem programação — essas só entram no geral, e o painel diz
+#: quantas são.
+PROGRAMACAO = ((1, "CCO"), (2, "SBC"), (15, "PSA"), (19, "JOI"), (20, "CRZ"))
+SIGLA_PROG = dict(PROGRAMACAO)
+
 #: Quantos dias antes da janela uma coleta pode ter sido emitida e ainda ter
 #: janela dentro dela — a mesma folga da Horas Paradas.
 FOLGA_EMISSAO_DIAS = 45
@@ -139,7 +153,7 @@ CCO_SQL = f"""
 WITH col AS (
   SELECT c.grupo, c.empresa, c.filial, c.unidade, c.diferenciadornumero,
          c.serie, c.numero, c.mercadorias,
-         btrim(coalesce(c.veiculo, '')) AS veiculo,
+         btrim(coalesce(c.veiculo, '')) AS veiculo, c.filial_programacao AS fp,
          acc.codigo AS cod, btrim(coalesce(ac.descricao, '')) AS cliente,
          CASE WHEN c.remetentedefinido = 1 THEN c.dtcoletar
               ELSE coalesce((SELECT x.dtagendamentocoleta FROM coleta_cliente x
@@ -221,7 +235,7 @@ cte AS (
 ),
 {_q.SAC_FT_REP},
 {_q.SAC_FT_MERC}
-SELECT a.numero, a.filial, a.cod, a.cliente, a.veiculo, a.jc, a.je,
+SELECT a.numero, a.filial, a.fp, a.cod, a.cliente, a.veiculo, a.jc, a.je,
        evc.cc, evc.sc, evc.cd, evc.fd,
        coalesce(evc.motivo_coleta, 0) AS motivo_coleta,
        coalesce(evc.motivo_entrega, 0) AS motivo_entrega,
@@ -360,7 +374,7 @@ def _linha_det(r: dict, horas: float | None = None, **extra) -> dict:
 
 
 def classificar(linhas: list[dict], agora: datetime, monitorados, de: date,
-                ate: date, detalhe: bool = False) -> dict:
+                ate: date, detalhe: bool = False, sigla_no_aviso: bool = False) -> dict:
     """As regras do painel, sobre as linhas do ERP. Função PURA: é aqui que o
     teste afirma cada regra com linha escrita à mão.
 
@@ -394,8 +408,13 @@ def classificar(linhas: list[dict], agora: datetime, monitorados, de: date,
         if det is not None:
             det[card][estado].append(_linha_det(r, horas, **extra))
 
+    # o rodapé é UM só para as lâminas do carrossel (trocá-lo a cada lâmina
+    # zeraria a rolagem): com `sigla_no_aviso`, cada aviso diz de que filial
+    # de programação é a coleta
+    pre = ""
+
     def avisa(tipo: str, horas: float, texto: str) -> None:
-        alertas.append({"tipo": tipo, "horas": round(horas, 2), "texto": texto})
+        alertas.append({"tipo": tipo, "horas": round(horas, 2), "texto": pre + texto})
 
     def freetime(ft_h, janela, chegada, saida, card: str, bloco: dict,
                  rotulo_: str, r, motivo_txt) -> None:
@@ -421,6 +440,8 @@ def classificar(linhas: list[dict], agora: datetime, monitorados, de: date,
         jc, je = r["jc"], r["je"]
         na_carga, na_entrega = dentro(jc), dentro(je)
         cliente = r["cliente"] or "sem cliente"
+        sigla = SIGLA_PROG.get(r.get("fp"))
+        pre = f"{sigla} · " if (sigla_no_aviso and sigla) else ""
         # o SQL já recorta pela janela; aqui é para a contagem dos
         # acompanhados (`coletas` da cobertura) e a lista do modal contarem as
         # MESMAS linhas
@@ -584,14 +605,32 @@ def _ordena(card: str, estado: str, linhas: list[dict]) -> list[dict]:
     return sorted(linhas, key=lambda x: (x["horas"] is None, -(x["horas"] or 0), x["coleta"]))
 
 
-def get_cco_detalhe(card: str) -> dict:
-    """A lista por trás de um cartão, da MESMA leitura e da MESMA contagem."""
+def _da_programacao(linhas: list[dict], cod: int) -> list[dict]:
+    """As coletas de UMA filial de programação. Lista nova, linhas as mesmas
+    do cache — ninguém aqui as altera."""
+    return [r for r in linhas if r.get("fp") == cod]
+
+
+def _resumo_programacao(lt: dict, cod: int, sigla: str) -> dict:
+    d = classificar(_da_programacao(lt["linhas"], cod), lt["agora"],
+                    lt["monit"]["codigos"], lt["de"], lt["ate"])
+    return {"codigo": cod, "sigla": sigla, "kpis": d["kpis"],
+            "cobertura": d["cobertura"], "alertas_total": d["alertas_total"]}
+
+
+def get_cco_detalhe(card: str, prog: int | None = None) -> dict:
+    """A lista por trás de um cartão, da MESMA leitura e da MESMA contagem —
+    e, na lâmina de uma filial de programação, das coletas dela."""
     if card not in CARDS_DETALHE:
         raise ValueError(f"cartão desconhecido: {card!r}")
+    if prog is not None and prog not in SIGLA_PROG:
+        raise ValueError(f"filial de programação desconhecida: {prog!r}")
     lt = _leitura_cco()
-    res = classificar(lt["linhas"], lt["agora"], lt["monit"]["codigos"],
+    linhas = lt["linhas"] if prog is None else _da_programacao(lt["linhas"], prog)
+    res = classificar(linhas, lt["agora"], lt["monit"]["codigos"],
                       lt["de"], lt["ate"], detalhe=True)
     base = {"card": card, "titulo": TITULOS[card], "regra": regras()[card],
+            "programacao": SIGLA_PROG.get(prog),
             "periodo": {"de": lt["de"].isoformat(), "ate": lt["ate"].isoformat()},
             "agora": lt["agora"].strftime("%Y-%m-%d %H:%M")}
     if card == "cobertura":
@@ -620,7 +659,13 @@ def get_cco_detalhe(card: str) -> dict:
 def get_cco() -> dict:
     lt = _leitura_cco()
     monit = lt["monit"]
-    res = classificar(lt["linhas"], lt["agora"], monit["codigos"], lt["de"], lt["ate"])
+    res = classificar(lt["linhas"], lt["agora"], monit["codigos"], lt["de"], lt["ate"],
+                      sigla_no_aviso=True)
+    # O CARROSSEL: o mesmo painel por filial de programação, da MESMA leitura.
+    # A coleta sem programação (ou com um código que o rádio não tem) só
+    # entra no geral, e o número vai junto para a tela dizer.
+    res["programacoes"] = [_resumo_programacao(lt, cod, sigla) for cod, sigla in PROGRAMACAO]
+    res["sem_programacao"] = sum(1 for r in lt["linhas"] if r.get("fp") not in SIGLA_PROG)
     de, ate, agora = lt["de"], lt["ate"], lt["agora"]
     res["periodo"] = {"de": de.isoformat(), "ate": ate.isoformat()}
     res["agora"] = agora.strftime("%Y-%m-%d %H:%M")
