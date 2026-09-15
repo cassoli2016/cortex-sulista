@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.85.1] — 15/09/2026  ·  CX-15/09/2026-v1.85.1
+
+### Alterado
+- Telemetria — a coleta da Gobrax passa de 3 em 3 horas para de hora em hora: quilometragem, consumo, frenagens, odômetro e a última posição de cada veículo se atualizam oito vezes mais ao longo do dia. Os indicadores de condução (motor ligado parado, pedal crítico, faixa econômica…) passam de uma vez por dia para a cada três horas no mês corrente. Medido antes da troca: o dado da Gobrax muda ao longo do dia.
+- Saúde do Servidor — o alarme da Gobrax acompanha a cadência nova: acende quando a coleta passa de duas horas e meia parada, e os indicadores de condução quando passam de sete horas.
+
 ## [1.85.0] — 15/09/2026  ·  CX-15/09/2026-v1.85.0
 
 ### Adicionado
