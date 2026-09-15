@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.90.1] — 15/09/2026  ·  CX-15/09/2026-v1.90.1
+
+### Corrigido
+- Painéis TV › CCO — nenhum texto corta mais: os subtítulos dos cartões quebram em duas linhas em vez de terminar em reticências ("sem veículo, janela vencida", "até 1 h da saída", "freetime excedido · 4 agora"). Em tela cheia o painel ocupa a TV inteira, com os gráficos crescendo até o rodapé; a pontualidade fica com a coleta em cima e a entrega embaixo, sem sobrar cartão vazio; e as barras dos gargalos ficam na mesma base.
+
 ## [1.90.0] — 15/09/2026  ·  CX-15/09/2026-v1.90.0
 
 ### Adicionado

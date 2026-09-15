@@ -1979,6 +1979,41 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
 .tv-cco-col em{font-style:normal;font-size:13px;color:#A9BCCD;white-space:nowrap}
 .tv-cco-leg{font-size:13px;color:#8FA6BC;text-transform:none;letter-spacing:0;font-weight:600;margin-left:9px}
 .tv-cco-leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 4px 0 12px;vertical-align:middle}
+/* O TEXTO NAO CORTA (quem opera, 15/09/2026: "ainda tem informacoes
+   cortando"). O `.tv-duo .tv-sub` da casa e uma linha so com reticencias, e
+   no cartao de tres numeros "ate 1 h da saida" virava "ate 1 h da sai...".
+   Aqui o subtitulo quebra em ate duas linhas. O guard mede CADA texto, nao
+   o cartao: a reticencia corta dentro do elemento, e o cartao nao vaza. */
+#view-tvcco .tv-duo .tv-sub{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.25}
+/* PONTUALIDADE EMPILHADA: coleta em cima, entrega embaixo. Lado a lado, os
+   dois numeros ficavam no alto e sobrava meio cartao vazio embaixo. */
+#view-tvcco .tv-cco-k3 .tv-card{display:flex;flex-direction:column}
+.tv-cco-pont{display:flex;flex-direction:column;justify-content:space-around;gap:18px;flex:1 1 auto}
+.tv-cco-pl{display:flex;align-items:baseline;justify-content:space-between;gap:9px}
+.tv-cco-pl b{font-size:18px;color:#A9BCCD;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+/* OS QUATRO ROTULOS DOS GARGALOS TEM A MESMA ALTURA (duas linhas, quebra
+   escrita): "Freetime na descarga" caia em tres e subia a propria barra --
+   a base do grafico ficava torta. */
+.tv-cco-serie .tvd-col b{height:2.5em;line-height:1.2;white-space:nowrap}
+#view-tvcco .tv-cco-k3 .tv-cco-serie,#view-tvcco .tv-cco-k3 .tv-cco-etapas{flex:1 1 auto}
+/* TV MENOR (1600 px): o cartao de tres numeros tem um terco de quarto de
+   tela, e "aguardando" -- uma palavra so, que nao quebra -- nao cabia */
+@media(max-width:1700px){
+  .tv-cco-serie .tvd-col b{font-size:13px}
+  #view-tvcco .tv-num{font-size:42px}
+  #view-tvcco .tv-sub{font-size:13px}
+  #view-tvcco .tv-duo{gap:12px}
+  #view-tvcco .tv-card{padding:16px 18px}
+}
+/* PAREDE (tela cheia): o painel ocupa a TV inteira, e quem cresce e a
+   terceira linha -- os graficos vao ate o rodape (a mesma anatomia da TV de
+   operacao e da de produtividade). */
+body.tvfull.tvwall #view-tvcco.on{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+body.tvfull.tvwall #view-tvcco .tv-head{flex-shrink:0}
+body.tvfull.tvwall #view-tvcco .tv-cco-k3{flex:1 1 auto;min-height:0}
+body.tvfull.tvwall #view-tvcco .tv-cco-k3 .tv-cco-serie,
+body.tvfull.tvwall #view-tvcco .tv-cco-k3 .tv-cco-etapas{height:auto;min-height:200px}
+body.tvfull.tvwall #view-tvcco .tv-ticker{flex-shrink:0;margin-top:18px}
 @media(max-width:880px){
   #view-tvcco .tv-grid{grid-template-columns:minmax(0,1fr);gap:12px}
   #view-tvcco .tv-cco-linha{margin-top:12px}
@@ -5168,7 +5203,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="tv-head"><div class="tv-left"><img class="tv-logo" src="/static/sulista-logo-branco.svg" alt="Sulista"><span class="tv-upd tv-next"></span></div><div class="tv-title"><h2>GESTÃO À VISTA — CCO</h2><span class="tv-cco-periodo" id="tvcco-periodo"></span></div><div class="tv-right"><span class="tv-clock"></span><a href="javascript:tvFull()" title="tela cheia" aria-label="Tela cheia">⛶</a><a href="#home" title="sair do modo TV" aria-label="Sair do modo TV">✕</a></div></div>
         <div class="tv-grid" id="tvcco-k1"></div>
         <div class="tv-grid tv-cco-linha" id="tvcco-k2"></div>
-        <div class="tv-grid tv-cco-linha" id="tvcco-k3"></div>
+        <div class="tv-grid tv-cco-linha tv-cco-k3" id="tvcco-k3"></div>
         <div class="tv-ticker"><div class="tv-ticker-inner" id="tvcco-ticker"></div></div>
       </section>
 
@@ -11138,7 +11173,7 @@ function router(){
   const cont=document.getElementById('content'); if(cont) cont.scrollTop=0;
   const ehTv = esTv(v);
   document.body.classList.toggle('tvmode', ehTv);
-  document.body.classList.toggle('tvwall', v==='tvope'||v==='tvprod');
+  document.body.classList.toggle('tvwall', v==='tvope'||v==='tvprod'||v==='tvcco');
   setTimeout(tvChecaFull, 50);
   if(tvTimer){ clearInterval(tvTimer); tvTimer=null; }
   if(tvClock){ clearInterval(tvClock); tvClock=null; }
@@ -17326,13 +17361,20 @@ async function loadTvCco(){
         n(cob.clientes)+' clientes · fora: '+n(cob.fora_coletas)+(foraNomes ? ' ('+esc(foraNomes)+')' : '')),
     ].join('');
     const pc=co.pontualidade, pe=en.pontualidade;
-    const pont = tvCardDuo('Pontualidade', [
-      {num:pc==null?'—':Math.round(pc)+'%', cls:tvCcoSem(pc),
-       sub:'coleta · '+n(co.no_prazo)+' de '+n((co.no_prazo||0)+(co.atrasadas||0)), barra:{pct:pc, cls:tvCcoSem(pc)}},
-      {num:pe==null?'—':Math.round(pe)+'%', cls:tvCcoSem(pe),
-       sub:'entrega · '+n(en.no_prazo)+' de '+n((en.no_prazo||0)+(en.atrasadas||0)), barra:{pct:pe, cls:tvCcoSem(pe)}}]);
-    const garg=[['Atraso na carga', ca.motivos, '#F87171'], ['Atraso na descarga', ds.motivos, '#F87171'],
-                ['Freetime na carga', ca.freetime, '#FBBF24'], ['Freetime na descarga', ds.freetime, '#FBBF24']];
+    /* EMPILHADA (quem opera, 15/09/2026): coleta em cima, entrega embaixo.
+       Lado a lado os dois números ficavam no alto e sobrava meio cartão. */
+    const pBloco = (rot, p, np, tot) => `<div><div class="tv-cco-pl"><b>${rot}</b>`
+      + `<div class="tv-num ${tvCcoSem(p)}">${p==null?'—':Math.round(p)+'%'}</div></div>`
+      + tvBarra({pct:p, cls:tvCcoSem(p)})
+      + `<div class="tv-sub">${n(np)} de ${n(tot)} no prazo</div></div>`;
+    const pont = '<div class="tv-card"><div class="tv-label">Pontualidade</div><div class="tv-cco-pont">'
+      + pBloco('Coleta', pc, co.no_prazo, (co.no_prazo||0)+(co.atrasadas||0))
+      + pBloco('Entrega', pe, en.no_prazo, (en.no_prazo||0)+(en.atrasadas||0))
+      + '</div></div>';
+    /* rótulo em DUAS linhas escritas: com a quebra deixada ao navegador,
+       "Freetime na descarga" caía em três e subia a própria barra */
+    const garg=[['Atraso<br>carga', ca.motivos, '#F87171'], ['Atraso<br>descarga', ds.motivos, '#F87171'],
+                ['Freetime<br>carga', ca.freetime, '#FBBF24'], ['Freetime<br>descarga', ds.freetime, '#FBBF24']];
     const gMax=Math.max(1, ...garg.map(g=>g[1]||0));
     const gargHtml = '<div class="tv-card"><div class="tv-label">Gargalos</div><div class="tvd-serie tv-cco-serie">'
       + garg.map(g=>`<div class="tvd-col"><span class="v">${n(g[1]||0)}</span>`

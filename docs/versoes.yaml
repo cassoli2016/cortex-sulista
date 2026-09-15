@@ -1,3 +1,14 @@
+- versao: "1.90.1"
+  data: "2026-09-15"
+  corrigido:
+    - >-
+      Painéis TV › CCO — nenhum texto corta mais: os subtítulos dos cartões
+      quebram em duas linhas em vez de terminar em reticências ("sem veículo,
+      janela vencida", "até 1 h da saída", "freetime excedido · 4 agora").
+      Em tela cheia o painel ocupa a TV inteira, com os gráficos crescendo até
+      o rodapé; a pontualidade fica com a coleta em cima e a entrega embaixo,
+      sem sobrar cartão vazio; e as barras dos gargalos ficam na mesma base.
+
 - versao: "1.90.0"
   data: "2026-09-15"
   adicionado:
