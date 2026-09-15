@@ -185,11 +185,21 @@ def test_a_composicao_da_lideranca_e_auditavel(fonte):
         "os cargos deixados de fora de propósito têm de ser declarados")
 
 
-def test_o_denominador_de_liderados_e_o_quadro_inteiro(fonte):
-    """`por_liderado` usa o total geral, não o do escopo — com o filtrado a aba
-    Liderança mostraria 1 liderado por chefia."""
-    assert "geral_n - lid_n) / lid_n" in fonte
-    assert "WHERE {_ATIVO}\"\"\", p)[0]" in fonte.replace("'''", '"""')
+def test_o_denominador_de_liderados_e_o_quadro_do_recorte_sem_o_nivel(monkeypatch):
+    """`por_liderado` usa o quadro do recorte (modalidade e filial), NÃO o do
+    nível — com o nível aplicado a aba Liderança mostraria 1 liderado por
+    chefia. Lido no SQL que a função EXECUTA, não no texto do arquivo."""
+    ppl, ch = _gravar(monkeypatch)
+    ppl.get_people("lideranca", "OPER", "FILIAL SBC")
+    # a regra da modalidade tem LIKE 'MOT%' dentro; tirada ela, o LIKE que
+    # sobrar só pode ser o do nível (liderança) — que o denominador não leva
+    geral = [s for s, _ in ch
+             if s.lstrip().startswith("SELECT COUNT(*) n, ROUND(SUM(vf.salbase),2) massa")
+             and "'F'" not in s and "LIKE" not in s.replace(ppl.MODALIDADE, "")]
+    assert len(geral) == 1, "o denominador sumiu ou passou a receber o nível"
+    assert ":filial" in geral[0] and ":modal" in geral[0], (
+        "a liderança da filial tem de se medir contra o quadro da filial")
+    assert "geral_n - lid_n) / lid_n" in FONTE.read_text(encoding="utf-8")
 
 
 def test_nivel_sem_ocupante_continua_na_tela(html):
@@ -232,3 +242,144 @@ def test_o_cargo_e_normalizado_no_agrupamento(fonte):
     assert '_CARGO = "UPPER(TRIM(vf.descfuncaocompleta))"' in fonte
     assert "GROUP BY vf.descfuncaocompleta" not in fonte, (
         "algum agrupamento por cargo ficou sem normalizar")
+
+
+# ------------------------------------------------ modalidade e filial
+#
+# Pedido de quem opera (15/09/2026): filtrar a tela por modalidade — ADM, OPER
+# e MOT — e por filial. Medido no mesmo dia, 193 ativos: ADM 29 · OPER 83 ·
+# MOT 81; filial é a `descsecao` (12 unidades), a mesma das telas de Férias e
+# CNH.
+#
+# Os testes abaixo trocam `_q` por um gravador: o que se confere é o SQL que a
+# função de fato EXECUTA e os parâmetros que ela manda junto.
+
+class _Linha(dict):
+    """Linha de dublê: coluna que o teste não preencheu vem None, como um
+    agregado vazio do Oracle — menos `n`, que é COUNT(*) e nunca é NULL."""
+    def __missing__(self, chave):
+        return 0 if chave == "n" else None
+
+
+def _gravar(monkeypatch, filiais=("FILIAL SBC", "MATRIZ"),
+            modais=(("ADM", 29), ("OPER", 83), ("MOT", 81))):
+    import api.people as ppl
+    chamadas = []
+
+    def q(sql, params=None):
+        chamadas.append((sql, dict(params or {})))
+        if "descsecao f" in sql:
+            return [_Linha(f=f, total=10, n=10) for f in filiais]
+        if " m, COUNT(*) total" in sql:
+            return [_Linha(m=m, total=n, n=n) for m, n in modais]
+        return [_Linha()]
+
+    monkeypatch.setattr(ppl, "_q", q)
+    return ppl, chamadas
+
+
+def _binds(sql: str) -> set[str]:
+    """Os `:nome` do SQL, fora dos literais — 'HH24:MI' não é bind."""
+    return set(re.findall(r":(\w+)", re.sub(r"'[^']*'", "''", sql)))
+
+
+def _excecao(sql: str) -> bool:
+    """As consultas que NÃO recebem o recorte, de propósito: o relógio do
+    banco, as listas que alimentam os próprios filtros (contam o quadro
+    inteiro, `COUNT(*) total`) e o "já houve na casa" dos níveis."""
+    return ("FROM dual" in sql or "COUNT(*) total" in sql
+            or ("situacaofunc" not in sql and "flp_afastados" not in sql))
+
+
+@pytest.mark.parametrize("args", [
+    ("todos", "todas", ""), ("lideranca", "MOT", "FILIAL SBC"),
+    ("demais", "ADM", ""), ("todos", "OPER", "MATRIZ")])
+def test_cada_consulta_leva_exatamente_os_parametros_que_usa(monkeypatch, args):
+    """O driver Oracle recusa parâmetro que o SQL não usa (DPY-4008) e o que
+    falta. Um dicionário único para a tela inteira derrubaria as consultas da
+    casa inteira, que não levam `:filial` — e a tela viraria 503 no primeiro
+    clique em uma filial."""
+    ppl, ch = _gravar(monkeypatch)
+    ppl.get_people(*args)
+    assert len(ch) >= 18, "o gravador não viu as consultas da tela"
+    for sql, params in ch:
+        assert _binds(sql) == set(params), (sorted(_binds(sql)), sorted(params), sql)
+
+
+def test_modalidade_e_filial_entram_em_toda_consulta_do_quadro(monkeypatch):
+    """Filtro que só alguns cartões obedecem é pior que filtro nenhum. Toda
+    consulta ao quadro — KPIs, afastamentos, áreas, cargos, pirâmide, tempo de
+    casa e o cartão da liderança — recebe os dois."""
+    ppl, ch = _gravar(monkeypatch)
+    ppl.get_people("todos", "MOT", "FILIAL SBC")
+    quadro = [s for s, _ in ch if not _excecao(s)]
+    assert len(quadro) >= 14, f"só {len(quadro)} consultas ao quadro — a varredura encolheu"
+    for sql in quadro:
+        assert "vf.descsecao = :filial" in sql, sql
+        assert ppl.MODALIDADE + " = :modal" in sql, sql
+    # a exceção do "já houve na casa" não pode esconder consulta de verdade
+    historico = [s for s, _ in ch if _excecao(s)
+                 and "FROM dual" not in s and "COUNT(*) total" not in s]
+    assert len(historico) == 4, "só os quatro níveis de liderança olham a casa inteira"
+
+
+def test_recorte_desconhecido_cai_em_todas_e_nao_zera_a_tela(monkeypatch):
+    """Filial fora da lista ou modalidade inventada na URL: a tela mostra o
+    quadro e DIZ que o recorte é "todas" — não uma tela zerada sem motivo."""
+    ppl, ch = _gravar(monkeypatch)
+    d = ppl.get_people("todos", "motoqueiro", "FILIAL QUE NAO EXISTE")
+    assert d["filtros"] == {"escopo": "todos", "modalidade": "todas", "filial": ""}
+    assert not any("filial" in p or "modal" in p for _, p in ch)
+
+
+def test_modalidade_aceita_minuscula(monkeypatch):
+    ppl, _ = _gravar(monkeypatch)
+    assert ppl.get_people("todos", " mot ", "")["filtros"]["modalidade"] == "MOT"
+
+
+def test_sem_departamento_so_vira_opcao_quando_existe(monkeypatch):
+    """"Sem departamento" é ausência de cadastro: chip que diz 0 para sempre
+    seria ruído, e chip que some quando alguém cai lá esconderia o furo."""
+    ppl, _ = _gravar(monkeypatch)
+    assert [m["modalidade"] for m in ppl.get_people()["modalidades"]] == ["ADM", "OPER", "MOT"]
+    ppl, _ = _gravar(monkeypatch, modais=(("ADM", 29), ("OPER", 83), ("MOT", 81), ("SEM", 2)))
+    assert [m["modalidade"] for m in ppl.get_people()["modalidades"]] == ["ADM", "OPER", "MOT", "SEM"]
+
+
+def test_a_regra_da_modalidade_executada_em_casos_do_cadastro_real(esquema_pg):
+    """A regra RODA num banco, contra as combinações de área × departamento
+    que o GLOBUS tem (15/09/2026). Três coisas que ler a expressão não prova:
+    MOT vence o departamento (as áreas MOT estão todas no OPERACIONAL); a área
+    "MOT AUDI " tem espaço no fim; e "GESTAO DE MOTORISTAS" não é motorista.
+    O CASE usa só SQL padrão (UPPER, TRIM, LIKE), igual no Oracle e aqui."""
+    from api import pglocal
+    import api.people as ppl
+    casos = [("MOT SBC", "OPERACIONAL", "MOT"),
+             ("MOT AUDI ", "OPERACIONAL", "MOT"),
+             ("mot matriz", "OPERACIONAL", "MOT"),
+             ("GESTAO DE MOTORISTAS", "OPERACIONAL", "OPER"),
+             ("MANUTENCAO SBC", "OPERACIONAL", "OPER"),
+             ("CCO", "OPERACIONAL", "OPER"),
+             ("CCO", "ADMINISTRATIVO", "ADM"),
+             ("MANUTENCAO MATRIZ", "ADMINISTRATIVO", "ADM"),
+             ("RH", None, "SEM"),
+             (None, None, "SEM")]
+
+    def lit(v):
+        return "NULL" if v is None else "'" + v.replace("'", "''") + "'"
+    valores = ", ".join(f"({lit(a)}::text, {lit(d)}::text, {lit(e)})" for a, d, e in casos)
+    r = pglocal.query(
+        f"SELECT vf.descarea, vf.esperado, {ppl.MODALIDADE} AS obtido "
+        f"FROM (VALUES {valores}) AS vf(descarea, descdepto, esperado)",
+        esquema=esquema_pg)
+    assert len(r) == len(casos)
+    errados = [x for x in r if x["esperado"] != x["obtido"]]
+    assert not errados, errados
+
+
+def test_trocar_modalidade_ou_filial_refaz_a_consulta(html):
+    """Mediana e massa não se recalculam a partir do agregado recebido."""
+    assert re.search(r"pplModal\(m\)\{.*?loadPeople\(\)", html, re.S)
+    assert re.search(r"pplFilial\(f\)\{.*?loadPeople\(\)", html, re.S)
+    assert "'&modalidade='+encodeURIComponent(PPL_MODAL)" in html
+    assert "'&filial='+encodeURIComponent(PPL_FILIAL)" in html

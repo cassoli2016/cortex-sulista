@@ -3002,6 +3002,15 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
   color:var(--on-accent);font-weight:600}
 .ppl-escopo button .n{font-family:var(--mono);font-size:11.5px;opacity:.75;margin-left:6px}
 .ppl-escopo button:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px}
+/* A linha de filtros: nível, modalidade e filial lado a lado, quebrando no
+   celular. Gap na escala da casa: 9 entre linhas, 18 entre grupos. */
+.ppl-filtros{display:flex;flex-wrap:wrap;align-items:center;gap:9px 18px}
+.ppl-escopo .ppl-rot,.ppl-filial{font:600 10.5px/1 var(--font);letter-spacing:.8px;
+  text-transform:uppercase;color:var(--n500)}
+.ppl-escopo .ppl-rot{align-self:center}
+.ppl-filial{display:flex;align-items:center;gap:6px}
+.view .ppl-filial select{padding:5px 10px;font-size:13px;text-transform:none;
+  letter-spacing:0;min-height:0;height:auto}
 
 /* Os quatro níveis pedidos pelo negócio. Nível com ZERO ocupante continua
    aparecendo, esmaecido: sumir com ele faria o filtro parecer quebrado — e
@@ -5820,7 +5829,11 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
       </section>
       <section class="view" id="view-people">
-        <div class="ppl-escopo" id="ppl-escopo" role="group" aria-label="Recorte do quadro"></div>
+        <div class="ppl-filtros">
+          <div class="ppl-escopo" id="ppl-escopo" role="group" aria-label="Recorte do quadro"></div>
+          <div class="ppl-escopo" id="ppl-modal" role="group" aria-label="Modalidade"></div>
+          <label class="ppl-filial">Filial<select id="fPplFilial" onchange="pplFilial(this.value)" aria-label="Filial"><option value="">Todas</option></select></label>
+        </div>
         <div class="hint" id="ppl-escopo-hint"></div>
         <div class="kpis k4" id="kpis-people"></div>
         <div class="kpis k4" id="kpis-people2"></div>
@@ -22872,7 +22885,15 @@ function renderPneus(d){
 //
 // AFASTADO NAO ENTRA NO QUADRO ATIVO. Somar inflaria a capacidade; ignorar
 // esconderia o custo e a reposicao. Fica ao lado, sempre.
-let DATAPPL = null, pplSeq = 0, PPL_ESCOPO = 'todos';
+let DATAPPL = null, pplSeq = 0, PPL_ESCOPO = 'todos', PPL_MODAL = 'todas', PPL_FILIAL = '';
+// MODALIDADE: [rótulo do chip, leitura curta para a linha de recorte, dica].
+// MOT é pela LOTAÇÃO (área MOT …), não pelo cargo — a regra mora no servidor
+// (api/people.py, MODALIDADE); aqui só se escreve o que ela quer dizer.
+const PPL_MODAIS = {
+  ADM:  ['ADM',  'administrativo', 'Administrativo — departamento ADMINISTRATIVO no GLOBUS'],
+  OPER: ['OPER', 'operacional sem motoristas', 'Operacional — departamento OPERACIONAL, fora das áreas de motorista'],
+  MOT:  ['MOT',  'motoristas, pela lotação', 'Motoristas — lotados numa área MOT (MOT SBC, MOT CRUZEIRO…). Conta a lotação, não o cargo: motorista lotado na manutenção fica em OPER'],
+  SEM:  ['Sem departamento', 'sem departamento', 'Pessoas sem departamento no cadastro do GLOBUS']};
 
 /* ==================== Avaliação de Desempenho — nine box ==================
    DUAS NOTAS DE 1 A 3, do gestor: desempenho (o que a pessoa entregou) e
@@ -23166,10 +23187,17 @@ async function loadPeople(fundo){
   const seq=++pplSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
   if(!fundo) document.getElementById('content').classList.add('loading');
   try{
-    const r=await fetch('/api/rh/people?escopo='+encodeURIComponent(PPL_ESCOPO),
+    const r=await fetch('/api/rh/people?escopo='+encodeURIComponent(PPL_ESCOPO)
+      +'&modalidade='+encodeURIComponent(PPL_MODAL)+'&filial='+encodeURIComponent(PPL_FILIAL),
       {cache:'no-store', headers: fundo?{'X-Carga-Fundo':'1'}:{}});
     const d=await r.json(); if(seq!==pplSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar a folha.'); return; }
+    /* A tela adota o recorte que o servidor APLICOU: modalidade ou filial que
+       ele não reconhece caem em "todas", e um chip ligado sobre números que
+       não são dele mentiria sobre o recorte. */
+    const f=d.filtros||{};
+    if(f.modalidade) PPL_MODAL=f.modalidade;
+    if(f.filial!=null) PPL_FILIAL=f.filial;
     hideBanner(); DATAPPL=d; renderPeople(d);
   }catch(e){ if(seq===pplSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===pplSeq){ if(btn) btn.disabled=false;
@@ -23184,6 +23212,19 @@ function pplEscopo(e){
   pplChips();                 // pinta o chip ativo antes da resposta chegar
   loadPeople();               // refaz a consulta: mediana, dispersao e massa
 }                             // nao se recalculam a partir do agregado antigo
+/* Modalidade e filial seguem o mesmo contrato do nível: refazem a consulta. */
+function pplModal(m){
+  if(m === PPL_MODAL) return;
+  PPL_MODAL = m;
+  pplChips();
+  loadPeople();
+}
+function pplFilial(f){
+  if(f === PPL_FILIAL) return;
+  PPL_FILIAL = f;
+  pplChips();
+  loadPeople();
+}
 
 /* Os chips. A contagem ao lado sai do bloco `lideranca`, que o servidor manda
    em QUALQUER escopo — sem isso o chip "Lideranca" nao saberia dizer quantos
@@ -23196,16 +23237,54 @@ function pplChips(){
   const itens = [['todos','Todos', tot], ['lideranca','Liderança', lid],
                  ['demais','Demais', dem]];
   const el = document.getElementById('ppl-escopo'); if(!el) return;
-  el.innerHTML = itens.map(([k,r,n]) =>
+  el.innerHTML = '<span class="ppl-rot">Nível</span>' + itens.map(([k,r,n]) =>
     `<button type="button" class="${PPL_ESCOPO===k?'on':''}" onclick="pplEscopo('${k}')"`
     + ` aria-pressed="${PPL_ESCOPO===k}">${r}${n!=null?`<span class="n">${n}</span>`:''}</button>`
   ).join('');
+
+  /* MODALIDADE. A contagem de cada chip já vem do servidor com o nível e a
+     filial aplicados: é o número que a tela vai mostrar se você clicar nele.
+     "Sem departamento" só aparece quando o servidor manda (alguém sem
+     departamento no cadastro) — hoje ninguém. */
+  const M = (DATAPPL && DATAPPL.modalidades) || [];
+  const chaves = M.length ? M.map(x => x.modalidade) : ['ADM','OPER','MOT'];
+  const modais = [['todas', 'Todas', M.length ? M.reduce((a,x)=>a+(x.n||0),0) : null,
+                   'ADM, OPER e MOT juntos']].concat(chaves.map(k => {
+    const x = M.find(y => y.modalidade === k), info = PPL_MODAIS[k] || [k, k, k];
+    return [k, info[0], x ? x.n : null, info[2]];
+  }));
+  const em = document.getElementById('ppl-modal');
+  if(em) em.innerHTML = '<span class="ppl-rot">Modalidade</span>' + modais.map(([k,r,n,t]) =>
+    `<button type="button" class="${PPL_MODAL===k?'on':''}" onclick="pplModal('${esc(k)}')"`
+    + ` title="${esc(t)}" aria-pressed="${PPL_MODAL===k}">${esc(r)}${n!=null?`<span class="n">${n}</span>`:''}</button>`
+  ).join('');
+
+  /* FILIAL. A lista é a do quadro inteiro — filial que zera na modalidade
+     escolhida continua ali com (0), senão o seletor não conseguiria mostrar a
+     opção que está escolhida. */
+  const fs = document.getElementById('fPplFilial');
+  if(fs){
+    const F = (DATAPPL && DATAPPL.filiais) || [];
+    fs.innerHTML = `<option value="">Todas${F.length ? ` (${F.reduce((a,x)=>a+(x.n||0),0)})` : ''}</option>`
+      + F.map(x => `<option value="${esc(x.filial)}">${esc(x.filial)} (${x.n})</option>`).join('');
+    fs.value = PPL_FILIAL;
+  }
+
   const h = document.getElementById('ppl-escopo-hint');
-  if(h) h.textContent = PPL_ESCOPO==='todos'
-    ? 'quadro ativo inteiro · todos os cartões desta tela seguem este recorte'
-    : (PPL_ESCOPO==='lideranca'
-        ? 'só coordenador, supervisor, gerente e diretor — TODOS os números abaixo são apenas deles'
-        : 'todo o quadro EXCETO a liderança — os números abaixo excluem coordenador, supervisor, gerente e diretor');
+  if(h){
+    const recorte = [];
+    if(PPL_MODAL !== 'todas')
+      recorte.push('modalidade ' + (PPL_MODAIS[PPL_MODAL]||[PPL_MODAL])[0]
+                   + ' (' + (PPL_MODAIS[PPL_MODAL]||[,PPL_MODAL])[1] + ')');
+    if(PPL_FILIAL) recorte.push(PPL_FILIAL);
+    const nivel = PPL_ESCOPO==='todos'
+      ? (recorte.length ? 'quadro ativo' : 'quadro ativo inteiro · todos os cartões desta tela seguem este recorte')
+      : (PPL_ESCOPO==='lideranca'
+          ? 'só coordenador, supervisor, gerente e diretor — TODOS os números abaixo são apenas deles'
+          : 'todo o quadro EXCETO a liderança — os números abaixo excluem coordenador, supervisor, gerente e diretor');
+    h.textContent = nivel + (recorte.length
+      ? ' · só ' + recorte.join(' · ') + ' — todos os cartões seguem modalidade e filial' : '');
+  }
 }
 
 function pplPct(v, casas){
@@ -23242,8 +23321,8 @@ function pplLideranca(d){
         ? 'Este cartão mostra a LIDERANÇA, que é exatamente quem o recorte '
           + '"Demais" exclui do restante da tela. Os números aqui não estão '
           + 'em nenhum outro cartão desta página.'
-        : 'Este cartão mostra só a liderança; o restante da tela mostra o '
-          + 'quadro ativo inteiro.';
+        : 'Este cartão mostra só a liderança (dentro da modalidade e da filial '
+          + 'escolhidas); o restante da tela mostra todo o recorte, com e sem chefia.';
     }
   }
 

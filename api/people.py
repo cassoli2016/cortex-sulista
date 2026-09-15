@@ -79,6 +79,48 @@ _LIMITROFES = ("LIDER", "BUSINESS PARTNER", "CONTADOR", "ESPECIALISTA", "ESP ")
 
 ESCOPOS = ("todos", "lideranca", "demais")
 
+# MODALIDADE — ADM, OPER e MOT, como o RH fala do quadro.
+#
+# O GLOBUS tem DOIS departamentos (`descdepto`): ADMINISTRATIVO e OPERACIONAL.
+# MOT não é departamento, é LOTAÇÃO: o motorista mora numa área cujo nome
+# começa por MOT (MOT SBC, MOT CRUZEIRO, "MOT AUDI " com espaço no fim…), e
+# todas elas estão dentro do OPERACIONAL. Por isso a ordem do CASE importa: MOT
+# é conferido ANTES do departamento — na ordem inversa os motoristas virariam
+# OPER e o chip MOT nasceria zerado, sem erro nenhum.
+#
+# É A LOTAÇÃO, NÃO O CARGO, e a diferença foi medida (15/09/2026, 193 ativos:
+# ADM 29 · OPER 83 · MOT 81). Pelo cargo seriam 82 motoristas: dois MOTORISTA
+# CARRETEIRO lotados na MANUTENÇÃO contam aqui como OPER, e um LIDER OPERACAO
+# lotado em MOT AUDI conta como MOT. A lotação é o que a folha usa para custo
+# (a massa das áreas MOT é a de quem está dirigindo), é o "lotado dirigindo" da
+# tela de CNH e são os mesmos 81 motoristas que a Frequência tira do ponto.
+#
+# Departamento vazio NÃO vira OPER por omissão: cai em SEM, que só aparece como
+# opção quando existir alguém nele — hoje ninguém.
+MODALIDADES = ("ADM", "OPER", "MOT", "SEM")
+_AREA_MOT = "UPPER(TRIM(vf.descarea)) LIKE 'MOT%'"
+MODALIDADE = ("CASE WHEN " + _AREA_MOT + " THEN 'MOT'"
+              " WHEN UPPER(TRIM(vf.descdepto)) = 'ADMINISTRATIVO' THEN 'ADM'"
+              " WHEN UPPER(TRIM(vf.descdepto)) = 'OPERACIONAL' THEN 'OPER'"
+              " ELSE 'SEM' END")
+
+
+def _modalidade_sql(modalidade: str) -> tuple[str, dict]:
+    """Modalidade e filial trazem o PRÓPRIO bind, e ele só entra na consulta
+    que tem o marcador: o driver Oracle recusa parâmetro que o SQL não usa
+    (DPY-4008), então um dicionário único para a tela inteira derrubaria as
+    consultas da casa inteira, que não levam recorte."""
+    if modalidade in MODALIDADES:
+        return f" AND {MODALIDADE} = :modal", {"modal": modalidade}
+    return "", {}
+
+
+def _filial_sql(filial: str) -> tuple[str, dict]:
+    """Filial é a `descsecao`, a mesma "Unidade" das telas de Férias e CNH."""
+    if filial:
+        return " AND vf.descsecao = :filial", {"filial": filial}
+    return "", {}
+
 
 def _escopo_sql(escopo: str) -> str:
     """O recorte vira uma condição que TODA consulta da tela recebe.
@@ -98,10 +140,46 @@ def _pct(a: int, b: int) -> float | None:
     return round(100 * a / b, 1) if b else None
 
 
-def get_people(escopo: str = "todos") -> dict:
+def get_people(escopo: str = "todos", modalidade: str = "todas",
+               filial: str = "") -> dict:
     escopo = escopo if escopo in ESCOPOS else "todos"
-    esc = _escopo_sql(escopo)          # entra em TODA consulta desta função
-    p = {"emp": EMPRESA}
+    m = (modalidade or "").strip().upper()
+    modalidade = m if m in MODALIDADES else "todas"
+    filial = (filial or "").strip()
+    pg = {"emp": EMPRESA}              # consultas da CASA inteira, sem recorte
+
+    # AS OPÇÕES DOS PRÓPRIOS FILTROS. Cada contagem aplica os OUTROS recortes
+    # ("MOT 20" dentro da FILIAL SBC), mas a LISTA é a do quadro inteiro: filial
+    # que zera numa modalidade continua no seletor com (0) — senão ele não
+    # conseguiria mostrar a opção que está escolhida.
+    mod_sql, mod_p = _modalidade_sql(modalidade)
+    filiais = [
+        {"filial": r["f"], "n": int(r["n"] or 0), "total": int(r["total"] or 0)}
+        for r in _q(f"""
+            SELECT vf.descsecao f, COUNT(*) total,
+                   SUM(CASE WHEN 1=1{_escopo_sql(escopo)}{mod_sql}
+                            THEN 1 ELSE 0 END) n
+            FROM vw_funcionarios vf WHERE {_ATIVO}
+            GROUP BY vf.descsecao ORDER BY COUNT(*) DESC""", {**pg, **mod_p})
+        if r["f"]]
+    # Filial fora da lista cai em "todas", como o escopo: recorte digitado
+    # errado na URL não pode deixar a tela zerada sem dizer por quê.
+    if filial not in {f["filial"] for f in filiais}:
+        filial = ""
+    fil_sql, fil_p = _filial_sql(filial)
+    cont = {r["m"]: (int(r["n"] or 0), int(r["total"] or 0)) for r in _q(f"""
+            SELECT {MODALIDADE} m, COUNT(*) total,
+                   SUM(CASE WHEN 1=1{_escopo_sql(escopo)}{fil_sql}
+                            THEN 1 ELSE 0 END) n
+            FROM vw_funcionarios vf WHERE {_ATIVO}
+            GROUP BY {MODALIDADE}""", {**pg, **fil_p})}
+    modalidades = [
+        {"modalidade": k, "n": cont.get(k, (0, 0))[0], "total": cont.get(k, (0, 0))[1]}
+        for k in MODALIDADES if k != "SEM" or cont.get(k, (0, 0))[1]]
+
+    rec = mod_sql + fil_sql            # modalidade + filial: TODA consulta do quadro
+    esc = _escopo_sql(escopo) + rec    # + o nível: todas, menos o cartão da liderança
+    p = {**pg, **mod_p, **fil_p}
 
     # ------------------------------------------------------------ quadro
     tot = _q(f"""
@@ -237,15 +315,17 @@ def get_people(escopo: str = "todos") -> dict:
         for r in _q(f"""
             SELECT {_CARGO} cargo, COUNT(*) n,
                    ROUND(SUM(vf.salbase),2) massa, ROUND(AVG(vf.salbase),2) media
-            FROM vw_funcionarios vf WHERE {_ATIVO} AND {LIDERANCA}
+            FROM vw_funcionarios vf WHERE {_ATIVO} AND {LIDERANCA}{rec}
             GROUP BY {_CARGO} ORDER BY AVG(vf.salbase) DESC""", p)]
     lid_n = sum(c["n"] for c in lid_cargos)
     lid_massa = sum(c["massa"] for c in lid_cargos)
 
-    # Total do QUADRO INTEIRO — não do escopo. É o denominador de "quantos por
-    # liderado", e usar o total filtrado daria 1 para 1 na aba Liderança.
+    # Total do QUADRO do recorte (modalidade e filial) — NÃO do nível. É o
+    # denominador de "quantos por liderado", e com o nível aplicado a aba
+    # Liderança daria 1 liderado por chefia. Modalidade e filial entram: a
+    # liderança da FILIAL SBC se mede contra o quadro da FILIAL SBC.
     geral = _q(f"""SELECT COUNT(*) n, ROUND(SUM(vf.salbase),2) massa
-                   FROM vw_funcionarios vf WHERE {_ATIVO}""", p)[0]
+                   FROM vw_funcionarios vf WHERE {_ATIVO}{rec}""", p)[0]
     geral_n = geral["n"] or 0
 
     # OS LIMÍTROFES. Declarados, não escondidos: são os cargos que alguém pode
@@ -257,7 +337,7 @@ def get_people(escopo: str = "todos") -> dict:
         for r in _q(f"""
             SELECT {_CARGO} cargo, COUNT(*) n,
                    ROUND(AVG(vf.salbase),2) media
-            FROM vw_funcionarios vf WHERE {_ATIVO} AND ({_lim}) AND NOT {LIDERANCA}
+            FROM vw_funcionarios vf WHERE {_ATIVO} AND ({_lim}) AND NOT {LIDERANCA}{rec}
             GROUP BY {_CARGO} ORDER BY AVG(vf.salbase) DESC""", p)]
 
     # QUAIS DOS QUATRO NÍVEIS EXISTEM DE FATO. Sem isto a aba mostraria zero
@@ -269,16 +349,22 @@ def get_people(escopo: str = "todos") -> dict:
         cond = " OR ".join(f"{_CAMPO_CARGO} LIKE '{x}%' OR {_CAMPO_CARGO} LIKE '% {x}%'"
                            for x in prefixos)
         r = _q(f"""SELECT COUNT(*) n, ROUND(SUM(vf.salbase),2) massa
-                   FROM vw_funcionarios vf WHERE {_ATIVO} AND ({cond})""", p)[0]
+                   FROM vw_funcionarios vf WHERE {_ATIVO} AND ({cond}){rec}""", p)[0]
         # Havia esse cargo na casa algum dia? É o que separa "nunca existiu"
-        # de "existiu e hoje não há".
+        # de "existiu e hoje não há". É a CASA, sem recorte: a tela diz "já
+        # houve na casa", e a filial de quem saiu é a da última lotação.
         j = _q(f"""SELECT COUNT(*) n FROM vw_funcionarios vf
-                   WHERE vf.codigoempresa = :emp AND ({cond})""", p)[0]["n"] or 0
+                   WHERE vf.codigoempresa = :emp AND ({cond})""", pg)[0]["n"] or 0
         niveis.append({"nivel": rotulo, "n": r["n"] or 0,
                        "massa": r["massa"] or 0.0, "ja_existiu": j > 0})
 
     return {
         "escopo": escopo,
+        # O recorte que o servidor APLICOU — valor desconhecido já caiu em
+        # "todas"/"", e a tela passa a mostrar isso em vez do que pediu.
+        "filtros": {"escopo": escopo, "modalidade": modalidade, "filial": filial},
+        "modalidades": modalidades,
+        "filiais": filiais,
         "lideranca": {
             "n": lid_n, "massa": lid_massa,
             "pct_pessoas": _pct(lid_n, geral_n),
