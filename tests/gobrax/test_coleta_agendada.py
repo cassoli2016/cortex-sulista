@@ -75,8 +75,11 @@ def test_o_mes_anterior_so_volta_depois_de_vinte_horas():
     from datetime import datetime
     agora = datetime(2026, 9, 15, 10, 30)
     assert conducao_a_coletar(date(2026, 9, 15), _quando(
+        **{"2026_09": "2026-09-15 06:31:00", "2026_08": "2026-09-14 14:29:00"}), agora) == [
+        "2026-09", "2026-08"], "20 h 01 depois, o anterior vence"
+    assert conducao_a_coletar(date(2026, 9, 15), _quando(
         **{"2026_09": "2026-09-15 06:31:00", "2026_08": "2026-09-14 14:31:00"}), agora) == [
-        "2026-09", "2026-08"]
+        "2026-09"], "19 h 59 depois, o anterior ainda não vence"
     assert CONDUCAO_HORAS == (2.5, 20)
 
 
