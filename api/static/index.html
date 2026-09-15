@@ -1949,6 +1949,50 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
 #view-tvope .tv-head .tv-beat{font-size:clamp(14px,1.5vw,30px);gap:0.4em}
 #view-tvope .tv-head .tv-beat i{width:0.45em;height:0.45em}
 
+/* PAINEL DE TV DO CCO (tvcco). Grade de 4 com `minmax(0,1fr)`: `1fr` cru e
+   minmax(auto,1fr), e o cartao de tres numeros (emissao do CT-e) empurraria
+   o vizinho para fora da tela sem erro nenhum. O "por etapa" e 100%
+   empilhado: a programacao conta todos os clientes e as outras etapas so os
+   acompanhados pelo SAC -- em contagem absoluta ela achataria as outras. */
+#view-tvcco .tv-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
+#view-tvcco .tv-cco-linha{margin-top:18px}
+#view-tvcco .tv-card{min-width:0;padding:20px 24px}
+#view-tvcco .tv-num{font-size:50px}
+#view-tvcco .tv-label{font-size:16px}
+#view-tvcco .tv-sub{font-size:15px}
+#view-tvcco .tv-duo{gap:18px}
+#view-tvcco .tv-cco-span2{grid-column:span 2}
+.tv-cco-periodo{display:block;font-size:15px;color:#8FA6BC;font-weight:600;letter-spacing:.02em;margin-top:2px;text-align:center}
+.tv-cco-serie{height:220px}
+/* quatro colunas num cartao de um quarto de tela: o rotulo quebra em duas
+   linhas em vez de vazar para a coluna vizinha */
+.tv-cco-serie .tvd-col{min-width:0}
+.tv-cco-serie .tvd-col b{white-space:normal;text-align:center;line-height:1.15}
+.tv-cco-etapas{display:flex;gap:18px;height:230px;padding-top:8px}
+.tv-cco-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.tv-cco-col .v{font-size:20px;font-weight:800;color:#E5EDF4;font-variant-numeric:tabular-nums}
+.tv-cco-pilha{flex:1;width:100%;display:flex;flex-direction:column;justify-content:flex-end;border-radius:6px;overflow:hidden;background:#1E3A54}
+.tv-cco-pilha i{display:block;width:100%}
+.tv-cco-pilha .at{background:#F87171}
+.tv-cco-pilha .ok{background:#4ADE80}
+.tv-cco-col b{font-size:15px;color:#8FA6BC;font-weight:600;white-space:nowrap}
+.tv-cco-col em{font-style:normal;font-size:13px;color:#A9BCCD;white-space:nowrap}
+.tv-cco-leg{font-size:13px;color:#8FA6BC;text-transform:none;letter-spacing:0;font-weight:600;margin-left:9px}
+.tv-cco-leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 4px 0 12px;vertical-align:middle}
+@media(max-width:880px){
+  #view-tvcco .tv-grid{grid-template-columns:minmax(0,1fr);gap:12px}
+  #view-tvcco .tv-cco-linha{margin-top:12px}
+  #view-tvcco .tv-cco-span2{grid-column:auto}
+  #view-tvcco .tv-card{padding:12px 14px}
+  #view-tvcco .tv-num{font-size:30px}
+  #view-tvcco .tv-label{font-size:11px}
+  #view-tvcco .tv-sub{font-size:12px}
+  #view-tvcco .tv-head h2{font-size:17px}
+  .tv-cco-etapas,.tv-cco-serie{height:180px}
+  .tv-cco-col b{font-size:11px}
+  .tv-cco-col em{font-size:10px}
+}
+
 /* Painel TV Operação (tvope) no celular: sem viewport de parede, colapsa a
    grade 3x2 para coluna única e o mapa deixa de exigir 2 linhas fixas (as
    fontes em vw já viram clamp() acima, legíveis em qualquer largura). */
@@ -3574,6 +3618,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <span class="ic" data-ic="tv"></span><span>Painéis TV</span><span class="ic chev" data-ic="chev"></span>
         </button>
         <div class="subs2 closed" id="subsTv">
+          <a href="#tvcco" class="sub sub2" data-view="tvcco" title="Gestão à vista do CCO para TV — programação, coleta, CT-e, entrega e gargalos"><span class="ic" data-ic="tvccoic"></span><span>CCO</span></a>
           <a href="#tvcli" class="sub sub2" data-view="tvcli" title="Painel de Operação do Cliente para TV"><span class="ic" data-ic="tvcliic"></span><span>Cliente</span></a>
           <a href="#tvcom" class="sub sub2" data-view="tvcom" title="Painel de Comunicação com as rastreadoras para TV"><span class="ic" data-ic="tvcomic"></span><span>Comunicação</span></a>
           <a href="#tvdir" class="sub sub2" data-view="tvdir" title="Painel da Diretoria para TV"><span class="ic" data-ic="tvdiric"></span><span>Diretoria</span></a>
@@ -5113,6 +5158,18 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
         <div class="tv-ticker"><div class="tv-ticker-inner" id="tvjor-ticker"></div></div>
+      </section>
+
+      <!-- GESTÃO À VISTA DO CCO (tvcco). Nasceu do painel "Gestão a Vista - CCO"
+           do Avacorp, com as regras do CÓRTEX (api/cco.py): de ontem a amanhã,
+           programação, coleta, CT-e, entrega e onde a operação trava. Mural:
+           sem aba, sem tooltip, cada número diz a própria regra no rótulo. -->
+      <section class="view" id="view-tvcco">
+        <div class="tv-head"><div class="tv-left"><img class="tv-logo" src="/static/sulista-logo-branco.svg" alt="Sulista"><span class="tv-upd tv-next"></span></div><div class="tv-title"><h2>GESTÃO À VISTA — CCO</h2><span class="tv-cco-periodo" id="tvcco-periodo"></span></div><div class="tv-right"><span class="tv-clock"></span><a href="javascript:tvFull()" title="tela cheia" aria-label="Tela cheia">⛶</a><a href="#home" title="sair do modo TV" aria-label="Sair do modo TV">✕</a></div></div>
+        <div class="tv-grid" id="tvcco-k1"></div>
+        <div class="tv-grid tv-cco-linha" id="tvcco-k2"></div>
+        <div class="tv-grid tv-cco-linha" id="tvcco-k3"></div>
+        <div class="tv-ticker"><div class="tv-ticker-inner" id="tvcco-ticker"></div></div>
       </section>
 
       <!-- ===================== CONTABILIDADE (AJUSTES) ===================== -->
@@ -10463,6 +10520,8 @@ const ICONS = {
   fatic: IC('<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h6M8 17h4"/>'),
   tvjoric: IC('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
   tvprodic: IC('<path d="M4 20h16"/><path d="M7 16v-4"/><path d="M11 16V8"/><path d="M15 16v-6"/><path d="M19 16V5"/>'),
+  /* CCO: a sala de controle -- o monitor com a marca de conferido */
+  tvccoic: IC('<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/><path d="M8.5 10l2.5 2.5 4.5-4.5"/>'),
   tvcomic: IC('<path d="M12 13a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M12 13v8"/><path d="M7.8 15.2a6 6 0 0 1 0-8.4M16.2 6.8a6 6 0 0 1 0 8.4"/><path d="M4.9 18.1a10 10 0 0 1 0-14.2M19.1 3.9a10 10 0 0 1 0 14.2"/>'),
   tvcliic: IC('<rect x="2.5" y="4" width="19" height="12.5" rx="2"/><path d="M8 20.5h8"/><path d="M12 16.5v4"/><path d="M6.5 12.5l3-3 2.5 2.5 4.5-4.5"/>'),
   tvdiric: IC('<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M9 21h6M12 17v4"/><path d="M7 14v-3M11 14V8M15 14v-4M19 14v-6"/>'),
@@ -10504,7 +10563,7 @@ const FAIXAS_AR = {
 
    `esTv()` passa a ser a única pergunta, e `LOADMAPTV` diz quem recarrega —
    ele sai do `LOADMAP` que já existe, em vez de ser uma sétima cópia. */
-const TELAS_TV = new Set(['tvfat', 'tvope', 'tvdir', 'tvcom', 'tvcli', 'tvjor', 'tvprod']);
+const TELAS_TV = new Set(['tvfat', 'tvope', 'tvdir', 'tvcom', 'tvcli', 'tvjor', 'tvprod', 'tvcco']);
 const esTv = v => TELAS_TV.has(v);
 
 /* Quem recarrega cada painel. O mapa é montado DENTRO da função, na hora da
@@ -10514,11 +10573,11 @@ const esTv = v => TELAS_TV.has(v);
 function tvRecarregar(v){
   const mapa = {tvfat: loadTvFat, tvope: loadTvOpe, tvdir: loadTvDir,
                 tvcom: loadTvCom, tvcli: loadTvCli, tvjor: loadTvJor,
-                tvprod: loadTvProd};
+                tvprod: loadTvProd, tvcco: loadTvCco};
   if(esTv(v) && mapa[v]) mapa[v]();
 }
 
-const VIEWS = { hp:'Horas Paradas', radar:'Radar do Transporte', tvcom:'Painel TV — Comunicação', tvjor:'Painel TV — Jornada', tvprod:'Painel TV — Produtividade',home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Central de Documentos', eqp:'Equipamentos', wmspan:'Painel do Armazém', wmsrec:'Recebimento', wmsest:'Estoque e Inventário', wmsexp:'Separação e Expedição', wmscad:'Cadastros do Armazém', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', freq:'Frequência e Banco de Horas', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', gesind:'Ritual — Indicadores e Metas', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { hp:'Horas Paradas', radar:'Radar do Transporte', tvcco:'Painel TV — CCO', tvcom:'Painel TV — Comunicação', tvjor:'Painel TV — Jornada', tvprod:'Painel TV — Produtividade',home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Central de Documentos', eqp:'Equipamentos', wmspan:'Painel do Armazém', wmsrec:'Recebimento', wmsest:'Estoque e Inventário', wmsexp:'Separação e Expedição', wmscad:'Cadastros do Armazém', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', freq:'Frequência e Banco de Horas', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', gesind:'Ritual — Indicadores e Metas', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -10797,7 +10856,7 @@ const VIEW_GROUP = {radar:'',home:'',cop:'',apps:'',
   torre:'Ope',milkrun:'Ope',poli:'Ope',hp:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',cliop:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',pedagio:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',pecas:'Sup',
-  fat:'Ctr',gr:'Ope',tvcli:'Bi',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',tvcom:'Bi',tvjor:'Bi',tvprod:'Bi',
+  fat:'Ctr',gr:'Ope',tvcli:'Bi',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',tvcom:'Bi',tvjor:'Bi',tvprod:'Bi',tvcco:'Bi',
   rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',freq:'Rh',cnh:'Rh',ferias:'Rh',rhmot:'Rh',people:'Rh',des:'Rh',gestao:'Adm',srv:'Adm',sup:'Spt',supfila:'Spt',doc:'Adm',aud:'Adm',integ:'Adm',mon:'Adm',gesacao:'Ges',gesata:'Ges',gesrit:'Ges',gesind:'Ges',
   // Telemetria e ANTT tinham grupo na barra lateral mas ficaram de fora deste
   // mapa: o acordeao nao abria sozinho ao navegar para elas (agora a busca
@@ -11046,7 +11105,8 @@ function semFilterbar(v){
   // aplicar. (Os painéis de TV mais antigos não estão nesta lista; ficam
   // como estão porque mexer neles não foi pedido, mas têm o mesmo defeito.)
   // `tvprod` (13/09/2026): recorte FIXO -- 30 dias e 12 meses --, nada a filtrar.
-  return v==='radar'||v==='tvjor'||v==='tvprod'||v==='cop'||v==='mon'||v==='aud'||v==='integ'||v==='apps'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='gesind'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
+  // `tvcco` (15/09/2026): recorte FIXO -- ontem, hoje e amanhã --, nada a filtrar.
+  return v==='radar'||v==='tvjor'||v==='tvprod'||v==='tvcco'||v==='cop'||v==='mon'||v==='aud'||v==='integ'||v==='apps'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='gesind'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
          v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='freq'||v==='custos'||v==='pecas'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='antport'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='rhmot'||v==='pneus'||v==='people'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='eqp'||
          v==='wmspan'||v==='wmsrec'||v==='wmsest'||v==='wmsexp'||v==='wmscad'||v==='hp';
@@ -11183,7 +11243,7 @@ function router(){
   document.getElementById('grpFluxcon').style.display = fluxcon ? 'flex' : 'none';
   const ges = (v==='gestao');
   const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = semFilterbar(v) ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (v==='tvjor'||v==='tvprod'||cop||ges||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='gesind'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='prem'||v==='doc'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='apps'||v==='wmscad'||v==='hp') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (v==='tvjor'||v==='tvprod'||v==='tvcco'||cop||ges||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='gesind'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='prem'||v==='doc'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='apps'||v==='wmscad'||v==='hp') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', semFilterbar(v)); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -11207,7 +11267,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,freq:DATAFREQ,custos:DATACUSTOS,pecas:DATAPECAS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={hp:loadHp,radar:loadRadar,apps:loadApps,integ:loadInteg,dfe:loadDfe,eqp:loadEqp,wmspan:loadWmsPan,wmsrec:loadWmsRec,wmsest:loadWmsEst,wmsexp:loadWmsExp,wmscad:loadWmsCad,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,freq:loadFreq,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvprod:loadTvProd,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+  const LOADMAP={hp:loadHp,radar:loadRadar,apps:loadApps,integ:loadInteg,dfe:loadDfe,eqp:loadEqp,wmspan:loadWmsPan,wmsrec:loadWmsRec,wmsest:loadWmsEst,wmsexp:loadWmsExp,wmscad:loadWmsCad,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,freq:loadFreq,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvprod:loadTvProd,tvcco:loadTvCco,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -13345,7 +13405,7 @@ function reloadCurrent(){
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,
     torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,freq:loadFreq,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
-    cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvprod:loadTvProd,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+    cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvprod:loadTvProd,tvcco:loadTvCco,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   (M[currentView()]||load)();
 }
 
@@ -17196,6 +17256,112 @@ async function loadTvJor(){
           + (e.veiculo ? ' (' + esc(e.veiculo) + ')' : '')).slice(0, 20)
       : ['sem exceção de jornada nas últimas 48 h']);
   }catch(e){ if(seq === tvJorSeq) tvErro('tvjor-k1', tvJorOk); }
+}
+
+/* ================ PAINEL DE TV — GESTÃO À VISTA DO CCO (tvcco) ================
+   O painel "Gestão a Vista - CCO" do Avacorp, com as REGRAS DO CÓRTEX
+   (api/cco.py) -- decisão de quem opera, 15/09/2026: as lupas de lá abrem
+   consultas internas do Avacorp que a réplica não tem, e os números daqui NÃO
+   batem com os de lá. Por isso cada cartão diz a própria regra no subtítulo:
+   na TV ninguém passa o mouse.
+   AS ROSCAS DE LÁ VIRARAM BARRA: parte-do-todo com categoria dominante é
+   barra (regra da casa). E o "por etapa" é 100% empilhado: a programação
+   conta TODOS os clientes (a coleta tem veículo?) e as outras etapas só os
+   que o SAC acompanha -- em contagem absoluta a programação achataria as
+   outras três, e seriam dois universos no mesmo eixo. */
+let tvCcoSeq = 0, tvCcoOk = 0;
+function tvCcoSem(p){ return p==null ? '' : (p>=95 ? 'ok' : (p>=70 ? 'warn' : 'ruim')); }
+function tvCcoPct(bom, ruim){ const t=(bom||0)+(ruim||0); return t ? 100*(bom||0)/t : null; }
+async function loadTvCco(){
+  const seq = ++tvCcoSeq;
+  try{
+    const r = await fetch('/api/operacao/cco', {cache:'no-store'});
+    let d = null;
+    try{ d = await r.json(); }catch(_){ d = null; }
+    if(seq !== tvCcoSeq) return;
+    /* SEM TARJA DE LEITURA VELHA, de propósito: o painel publica "agora"
+       (veículo que não chegou, caminhão que saiu sem CT-e). Falhou, mostra a
+       falha -- e preserva o último dado bom se já havia um na tela. */
+    if(!r.ok || !d || !d.kpis){ tvErro('tvcco-k1', tvCcoOk); return; }
+    tvCcoOk = Date.now();
+    const k = d.kpis, cob = d.cobertura || {}, reg = d.regras || {};
+    const n = v => (v==null ? '—' : Number(v).toLocaleString('pt-BR'));
+    const pr=k.programacao||{}, co=k.coletas||{}, em=k.emissoes||{}, en=k.entregas||{},
+          ca=k.carregamento||{}, ds=k.descarga||{};
+    const ruim = v => (v||0)>0 ? 'ruim' : 'ok', warn = v => (v||0)>0 ? 'warn' : 'ok';
+    const dm = s => s ? s.slice(8,10)+'/'+s.slice(5,7) : '';
+    const per = document.getElementById('tvcco-periodo');
+    if(per) per.textContent = 'ontem, hoje e amanhã · '+dm((d.periodo||{}).de)+' a '+dm((d.periodo||{}).ate)
+      + (d.agora ? ' · leitura '+d.agora.slice(11,16) : '');
+    const tol = reg.tolerancia_cte_min || 60;
+    const tolTxt = (tol%60===0) ? (tol/60)+' h' : tol+' min';
+    document.getElementById('tvcco-k1').innerHTML = [
+      tvCardDuo('Programação', [
+        {num:n(pr.no_prazo), sub:'no prazo'},
+        {num:n(pr.atrasadas), cls:ruim(pr.atrasadas), sub:'sem veículo, janela vencida'}]),
+      tvCardDuo('Coletas', [
+        {num:n(co.no_prazo), sub:'chegou na janela'},
+        {num:n(co.atrasadas), cls:ruim(co.atrasadas), sub:'atrasadas · '+n(co.a_vencer)+' a vencer'}]),
+      tvCardDuo('Emissão do CT-e', [
+        {num:n(em.no_prazo), sub:'até '+tolTxt+' da saída'},
+        {num:n(em.atrasadas), cls:ruim(em.atrasadas), sub:'atrasadas'},
+        {num:n(em.aguardando), sub:'aguardando'}]),
+      tvCardDuo('Entregas', [
+        {num:n(en.no_prazo), sub:'chegou na janela'},
+        {num:n(en.atrasadas), cls:ruim(en.atrasadas), sub:'atrasadas · '+n(en.a_vencer)+' a vencer'}]),
+    ].join('');
+    const foraNomes = (cob.fora_clientes||[]).join(', ');
+    document.getElementById('tvcco-k2').innerHTML = [
+      tvCardDuo('Carregamento', [
+        {num:n(ca.motivos), cls:warn(ca.motivos), sub:'motivo de atraso'},
+        {num:n(ca.freetime), cls:warn(ca.freetime), sub:'freetime excedido · '+n(ca.freetime_agora)+' agora'}]),
+      tvCardDuo('Descarga', [
+        {num:n(ds.motivos), cls:warn(ds.motivos), sub:'motivo de atraso'},
+        {num:n(ds.freetime), cls:warn(ds.freetime), sub:'freetime excedido · '+n(ds.freetime_agora)+' agora'}]),
+      tvCard('Pendentes de finalização', n(k.pendentes_finalizacao), warn(k.pendentes_finalizacao),
+        'chegou há +'+(reg.pendente_fim_h||24)+' h sem fim de descarga'),
+      /* O DENOMINADOR NA PAREDE: sem este cartão, quem lê "65 no prazo" acha
+         que é a operação inteira, e é só a que o SAC acompanha. */
+      tvCard('Acompanhados pelo SAC', n(cob.coletas), '',
+        n(cob.clientes)+' clientes · fora: '+n(cob.fora_coletas)+(foraNomes ? ' ('+esc(foraNomes)+')' : '')),
+    ].join('');
+    const pc=co.pontualidade, pe=en.pontualidade;
+    const pont = tvCardDuo('Pontualidade', [
+      {num:pc==null?'—':Math.round(pc)+'%', cls:tvCcoSem(pc),
+       sub:'coleta · '+n(co.no_prazo)+' de '+n((co.no_prazo||0)+(co.atrasadas||0)), barra:{pct:pc, cls:tvCcoSem(pc)}},
+      {num:pe==null?'—':Math.round(pe)+'%', cls:tvCcoSem(pe),
+       sub:'entrega · '+n(en.no_prazo)+' de '+n((en.no_prazo||0)+(en.atrasadas||0)), barra:{pct:pe, cls:tvCcoSem(pe)}}]);
+    const garg=[['Atraso na carga', ca.motivos, '#F87171'], ['Atraso na descarga', ds.motivos, '#F87171'],
+                ['Freetime na carga', ca.freetime, '#FBBF24'], ['Freetime na descarga', ds.freetime, '#FBBF24']];
+    const gMax=Math.max(1, ...garg.map(g=>g[1]||0));
+    const gargHtml = '<div class="tv-card"><div class="tv-label">Gargalos</div><div class="tvd-serie tv-cco-serie">'
+      + garg.map(g=>`<div class="tvd-col"><span class="v">${n(g[1]||0)}</span>`
+          /* 60% no máximo: o rótulo quebra em duas linhas, e a barra de 78%
+             (a da TV da diretoria) passava da coluna e era espremida pelo
+             flex -- a proporção entre as barras deixava de ser a dos números */
+          + `<i style="height:${Math.max(1, 60*(g[1]||0)/gMax).toFixed(1)}%;background:${g[2]}"></i><b>${g[0]}</b></div>`).join('')
+      + '</div></div>';
+    const etapas=[['Programação', pr.no_prazo, pr.atrasadas], ['Emissão', em.no_prazo, em.atrasadas],
+                  ['Coleta', co.no_prazo, co.atrasadas], ['Entrega', en.no_prazo, en.atrasadas]];
+    const etHtml = '<div class="tv-card tv-cco-span2"><div class="tv-label">Por etapa · % no prazo'
+      + '<span class="tv-cco-leg"><i style="background:#4ADE80"></i>no prazo<i style="background:#F87171"></i>atrasado</span></div>'
+      + '<div class="tv-cco-etapas">'
+      + etapas.map(e=>{
+          const p=tvCcoPct(e[1], e[2]);
+          return `<div class="tv-cco-col"><span class="v">${p==null?'—':Math.round(p)+'%'}</span><div class="tv-cco-pilha">`
+            + (p==null ? '' : `<i class="at" style="height:${(100-p).toFixed(1)}%"></i><i class="ok" style="height:${p.toFixed(1)}%"></i>`)
+            + `</div><b>${e[0]}</b><em>${n(e[1]||0)} no prazo · ${n(e[2]||0)} atrasadas</em></div>`;
+        }).join('')
+      + '</div></div>';
+    document.getElementById('tvcco-k3').innerHTML = pont + gargHtml + etHtml;
+    /* O RODAPÉ: os avisos mais antigos primeiro, cortados no servidor -- e o
+       corte é DITO, senão vira total falso. */
+    const al = (d.alertas||[]).map(a=>a.texto);
+    if((d.alertas_total||0) > al.length) al.unshift(d.alertas_total+' avisos · os '+al.length+' mais antigos');
+    tvTicker('tvcco-ticker', al);
+    tvDestacar('tvcco-k1'); tvDestacar('tvcco-k2'); tvDestacar('tvcco-k3');
+    tvAnimarNums('tvcco-k1'); tvAnimarNums('tvcco-k2'); tvAnimarNums('tvcco-k3');
+  }catch(e){ if(seq === tvCcoSeq) tvErro('tvcco-k1', tvCcoOk); }
 }
 
 async function loadTvCom(){
@@ -38846,6 +39012,7 @@ function podeVer(v){ if(v==='jornf') v='jorn'; if(v==='sup'||v==='apps'||v==='ra
 const BUSCA_SINONIMOS = {
   hp:['hora parada','horas paradas','estadia','diaria','freetime','permanencia','cobranca de estadia','tempo excedido','planilha do cliente','hp'],
   cliop:['portal do cliente','portal','minha operacao','cliente','iochpe','maxion','permanencia','freetime','estadia','patio','carga em curso','onde esta minha carga','nivel de servico','sla'],
+  tvcco:['cco','gestao a vista','central de controle','painel cco','tv cco','programacao sem veiculo','coleta atrasada','entrega atrasada','ct-e atrasado','emissao','freetime excedido','pendente de finalizacao','gargalo'],
   tvprod:['produtividade da frota','produtividade','painel produtividade','tv produtividade','km por veiculo','receita por veiculo','veiculos parados','ociosidade','frota parada'],
   tvjor:['jornada tempo real','tempo real','motorista agora','direcao continua','5h30','lei 13103','onde esta o motorista','painel jornada','em direcao','repouso','monitoramento'],
   tvcom:['rastreador','rastreadora','comunicacao','sem sinal','mudo','localizador','carreta sem sinal','3s','raster','onixsat','sem posicao'],
@@ -49132,6 +49299,7 @@ boot();
     <div class="dgrp" data-grp="Bi">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Business Intelligence</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
+        <a href="#tvcco" onclick="fecharDrawer()"><span class="ic" data-ic="tvccoic"></span>Painéis TV — CCO</a>
         <a href="#tvcli" onclick="fecharDrawer()"><span class="ic" data-ic="tvcliic"></span>Painéis TV — Cliente</a>
         <a href="#tvcom" onclick="fecharDrawer()"><span class="ic" data-ic="tvcomic"></span>Painéis TV — Comunicação</a>
         <a href="#tvdir" onclick="fecharDrawer()"><span class="ic" data-ic="tvdiric"></span>Painéis TV — Diretoria</a>

@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.90.0] — 15/09/2026  ·  CX-15/09/2026-v1.90.0
+
+### Adicionado
+- Painéis TV › CCO — a gestão à vista do CCO na TV, a partir do painel "Gestão a Vista - CCO" do Avacorp: de ontem a amanhã, a programação (e quem está sem veículo com a janela vencida), coletas e entregas no prazo e atrasadas, a emissão do CT-e (no prazo até 1 h depois da saída do carregamento), os motivos de atraso e o freetime excedido na carga e na descarga, os pendentes de finalização, a pontualidade, os gargalos e o desempenho por etapa, com os avisos mais antigos correndo no rodapé. As regras são do CÓRTEX e cada cartão diz a sua. Coleta, entrega, CT-e e freetime contam só os clientes que o SAC acompanha (90% ou mais das coletas apontadas em 30 dias), e o painel diz quantas coletas ficaram de fora. Os números não batem com os do Avacorp: as consultas de lá não estão na base que o CÓRTEX lê.
+
 ## [1.89.0] — 15/09/2026  ·  CX-15/09/2026-v1.89.0
 
 ### Adicionado

@@ -7007,6 +7007,27 @@ def sac_freetime(dt_de: str | None = None, dt_ate: str | None = None) -> JSONRes
             "erro": "erro_consulta", "mensagem": "Erro ao consultar o SAC/freetime."})
 
 
+@app.get("/api/operacao/cco")
+def operacao_cco() -> JSONResponse:
+    """O painel de TV do CCO (`tvcco`): programação, coleta, CT-e, entrega e
+    os gargalos de ontem a amanhã. Regras em `api/cco.py`.
+
+    SEM leitura velha: o painel publica "agora" (veículo que não chegou,
+    caminhão que saiu sem CT-e). Se a leitura falhar, a resposta é erro."""
+    from api import cco
+    try:
+        return JSONResponse(cco.get_cco())
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco do ERP."})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("cco falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao consultar o painel do CCO."})
+
+
 # ───────────────────────── HORAS PARADAS (`hp`) ─────────────────────────────
 # A estadia que se COBRA, cliente a cliente: o Monitoramento SAC do ERP, a
 # regra de cobrança de cada cliente (perfil) e os ajustes manuais com motivo.

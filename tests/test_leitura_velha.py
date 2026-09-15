@@ -168,7 +168,10 @@ def test_a_visao_geral_declara_a_janela_de_duas_horas():
 # Telas que publicam MINUTOS ou a palavra "agora". Servir leitura velha aqui
 # não é conforto, é perigo: a tarja avisa, mas a decisão que a pessoa toma
 # olhando uma posição de vinte minutos atrás já foi tomada.
-TEMPO_REAL = ("get_torre", "get_seguranca", "get_portaria", "get_programacao")
+TEMPO_REAL = ("get_torre", "get_seguranca", "get_portaria", "get_programacao",
+              # a TV do CCO publica "agora": veículo que não chegou, caminhão
+              # que saiu sem CT-e (api/cco.py)
+              "get_cco")
 
 
 # ONDE ESTE GUARD PROCURA — E POR QUE A LISTA SAI DO DISCO.

@@ -175,7 +175,7 @@ além do perfil. Organizadas assim:
 | Telemetria | prem, telcon, telcond, telhod | Gobrax (`api/gobrax/`) + `prem_*` |
 | Recursos Humanos | rh, hc, folha, folhaind, cnh, ferias, people, he, freq | AVA (folha/Globus) + ponto (`FRQ_*`) |
 | ANTT | anpiso, anrntrc | `config/antt_coeficientes.yaml`, `config/antt_cargas.yaml`, `rntrc_*` |
-| Business Intelligence | tvope, tvprod, tvfat, tvdir, tvcli, tvcom, tvjor | AVA (tvdir lê a mesma /api/visao-geral da home) |
+| Business Intelligence | tvope, tvprod, tvfat, tvdir, tvcli, tvcom, tvjor, tvcco | AVA (tvdir lê a mesma /api/visao-geral da home; tvcco lê coleta + SAC + CT-e em `api/cco.py`) |
 | Gestão | gesacao, gesata, gesrit | `ges_*` (banco local) |
 | TMS | ctecp, dfe | a frente FISCAL: documento eletrônico direto com a SEFAZ. Emite (`api/contrapartida/`) e recolhe (`api/sefaz/`, `dfe_*`) com o mesmo certificado A1 — quando ele vence, as duas param no mesmo dia |
 | WMS | wmspan, wmsrec, wmsest, wmsexp, wmscad | o ARMAZÉM, no banco da casa (`wms_*`, `api/wms/`); do Avacorp só a nota do cliente com os itens (`coleta_notafiscal_item`) e o cadastro de clientes, por uma porta só (`api/wms/erp.py`) |

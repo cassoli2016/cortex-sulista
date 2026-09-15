@@ -627,7 +627,7 @@ def test_o_rodape_so_tem_o_que_e_de_hoje_e_pede_acao(pagina):
 # ------------------------------------------------------------ a marca
 
 
-@pytest.mark.parametrize("tela", ["tvope", "tvfat", "tvdir", "tvcom", "tvcli", "tvjor", "tvprod"])
+@pytest.mark.parametrize("tela", ["tvope", "tvfat", "tvdir", "tvcom", "tvcli", "tvjor", "tvprod", "tvcco"])
 def test_a_logo_aparece_em_todo_painel_de_tv_sem_tela_cheia(pagina, tela):
     """A logo só acendia com `body.tvfull`; TV de parede em modo quiosque não
     passa por lá. O guard abre cada painel SEM tela cheia e mede a imagem

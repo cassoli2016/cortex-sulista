@@ -167,6 +167,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "telcond": ("Condução Econômica", "Telemetria"),
     "telhod":  ("Hodômetro e Rastro", "Telemetria"),
     "fat":     ("Faturamento Detalhado", "Controladoria"),
+    "tvcco":   ("Painel TV — CCO", "Business Intelligence"),
     "tvcli":   ("Painel TV — Operação do Cliente", "Business Intelligence"),
     "tvfat":   ("Painel TV — Faturamento", "Business Intelligence"),
     "tvope":   ("Painel TV — Operação", "Business Intelligence"),
@@ -415,6 +416,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/operacao/make-vs-buy",     frozenset({"mvb"})),
     ("/api/operacao/custos-extras",   frozenset({"cex"})),
     ("/api/operacao/sac-freetime",    frozenset({"sac"})),
+    ("/api/operacao/cco",             frozenset({"tvcco"})),
     ("/api/operacao/horas-paradas",   frozenset({"hp"})),
     ("/api/operacao/portaria",        frozenset({"port"})),
     ("/api/portal/cliente",           frozenset({"cliop", "tvcli"})),
@@ -661,8 +663,8 @@ _PERFIS_MODELO = [
       "pneus", "telcon", "telcond", "telhod", "cnh"]),
     ("Suprimentos", "Ordens de compra, painel de custos e preço de peças.",
      ["oc", "custos", "pecas"]),
-    ("Painéis TV",  "Apenas os painéis de TV (faturamento, operação e produtividade) — para telão/quiosque.",
-     ["tvfat", "tvope", "tvprod"]),
+    ("Painéis TV",  "Apenas os painéis de TV (faturamento, operação, produtividade e CCO) — para telão/quiosque.",
+     ["tvfat", "tvope", "tvprod", "tvcco"]),
     ("Recursos Humanos", "Vagas, headcount, custo de folha, indicadores, horas "
                          "extras, frequência, CNH e o canal com o motorista.",
      ["rh", "hc", "folha", "folhaind", "he", "freq", "cnh", "ferias", "people",
@@ -1210,6 +1212,18 @@ def _seed_perfis_modelo(c: psycopg.Connection) -> None:
             c.execute("DELETE FROM usuario_acessos WHERE chave='prodveic'")
             c.execute("UPDATE usuarios SET pagina_inicial='tvprod' WHERE pagina_inicial='prodveic'")
         c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v46', '1') ON CONFLICT(chave) DO NOTHING")
+
+    # v47 (2026-09-15): o painel de TV do CCO (`tvcco`) ao perfil de Painéis
+    # TV -- quem liga a TV da sala -- e à Diretoria, que já vê os outros
+    # painéis. O seed acima só alcança instalação nova.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v47'").fetchone():
+        for nome in ("Painéis TV", "Diretoria"):
+            row = c.execute("SELECT id FROM perfis WHERE nome=%s", (nome,)).fetchone()
+            if row:
+                c.execute("INSERT INTO perfil_telas(perfil_id, tela)"
+                          " VALUES(%s,%s) ON CONFLICT DO NOTHING",
+                          (row["id"], "tvcco"))
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v47', '1') ON CONFLICT(chave) DO NOTHING")
 
 
 def _agora() -> str:
