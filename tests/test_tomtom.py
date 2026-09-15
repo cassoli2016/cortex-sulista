@@ -317,6 +317,26 @@ def test_a_frota_consultada_e_a_que_esta_EM_VIAGEM(coleta_isolada, monkeypatch):
     assert len(chamadas) == 2
 
 
+def test_viagem_JA_NO_CLIENTE_nao_gasta_consulta(coleta_isolada, monkeypatch):
+    """A viagem com a chegada para descarga apontada (SAC 396) segue em
+    trânsito até a baixa da programação, mas o caminhão está na doca: não há
+    estrada para estar congestionada, e a franquia é mensal."""
+    chamadas = []
+
+    def falso(lat, lon, zoom=cliente.ZOOM):
+        chamadas.append((lat, lon))
+        return {"flowSegmentData": {"currentSpeed": 80, "freeFlowSpeed": 80,
+                                    "confidence": 1, "currentTravelTime": 60,
+                                    "freeFlowTravelTime": 60}}
+    monkeypatch.setattr(cliente, "fluxo", falso)
+    viagens = [{"placa": "AAA1A11", "chegada_cliente": "2026-09-15 12:53"},
+               {"placa": "BBB2B22", "chegada_cliente": None}]
+    r = coleta_isolada.condicao_da_frota(forcar=True, viagens=viagens,
+                                         posicoes_atuais=POSICOES)
+    assert (r["viagens"], r["consultados"], len(chamadas)) == (1, 1, 1)
+    assert [t["placa"] for t in r["trechos"]] == ["BBB2B22"]
+
+
 def test_SEM_POSICAO_sai_do_numerador_E_do_denominador(coleta_isolada, monkeypatch):
     """Tratar como "livre" diria que está tudo bem por falta de dado — o erro
     dos 664 rastreadores "sem sinal"."""

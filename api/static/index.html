@@ -17845,10 +17845,17 @@ async function loadTvOpe(){
        laco la embaixo, que tira linha pelo FIM quando o cartao estoura. */
     const porPrev=(x,y)=>{ const a=x.previsao_chegada||'9', b=y.previsao_chegada||'9';
       return a<b?-1:(a>b?1:0); };
-    const criticas=(t.transito||[]).filter(v=>v.critica)
+    /* A QUE JA CHEGOU NO CLIENTE SAI DAQUI e do rodape (ocorrencia SAC 396,
+       `chegada_cliente` do servidor). Ela segue em transito ate alguem dar
+       baixa na programacao, horas depois, e nesse meio-tempo a previsao vence:
+       em 15/09/2026 um agregado chegou 7 min ANTES da previsao e ficou
+       ATRASADA na TV a tarde toda. Nao e chegada por vir nem atraso -- e
+       caminhao na doca. */
+    const aCaminho=(t.transito||[]).filter(v=>!v.chegada_cliente);
+    const criticas=aCaminho.filter(v=>v.critica)
       .sort((a,b)=>((b.atrasada?1:0)-(a.atrasada?1:0)) || porPrev(a,b));
-    const atrasadas=(t.transito||[]).filter(v=>v.atrasada && !v.critica).sort(porPrev);
-    const futuras=(t.transito||[]).filter(v=>v.previsao_chegada && !v.atrasada && !v.critica)
+    const atrasadas=aCaminho.filter(v=>v.atrasada && !v.critica).sort(porPrev);
+    const futuras=aCaminho.filter(v=>v.previsao_chegada && !v.atrasada && !v.critica)
       .sort(porPrev);
     // 20 e teto de montagem, nao de tela: o laco la embaixo tira pelo FIM o que
     // nao couber no cartao, e o contador do rotulo diz quantas ficaram
@@ -17950,9 +17957,9 @@ async function loadTvOpe(){
        previstas para HOJE. Rodape vazio diz "sem ocorrencia" (tvTicker). */
     const tick=[];
     const hojeYmd=_iso(new Date());
-    (t.transito||[]).filter(v=>v.critica).forEach(v=>
+    aCaminho.filter(v=>v.critica).forEach(v=>
       tick.push('🔥 '+idV(v)+' carga crítica'+(v.atrasada?' atrasada':'')+' — '+(v.destino||'')));
-    (t.transito||[]).filter(v=>v.atrasada && !v.critica).slice(0,6).forEach(v=>
+    aCaminho.filter(v=>v.atrasada && !v.critica).slice(0,6).forEach(v=>
       tick.push('⚠️ '+idV(v)+' atrasada — '+(v.destino||'')));
     (t.posicoes||[]).filter(pp=>pp.velocidade>90).forEach(pp=>
       tick.push('🚨 '+(pp.rotulo||pp.frota||pp.placa)+' a '+pp.velocidade+' km/h'));
@@ -17964,7 +17971,7 @@ async function loadTvOpe(){
       const estradas=await tvEstradas();
       estradas.filter(x=>x.startsWith('⛔')).forEach(x=>tick.push('🛣️ '+x));
     }catch(e){}
-    (t.transito||[]).filter(v=>!v.atrasada && !v.critica
+    aCaminho.filter(v=>!v.atrasada && !v.critica
                               && (v.previsao_chegada||'').startsWith(hojeYmd))
       .sort(porPrev).slice(0,6).forEach(v=>
         tick.push('🚛 '+idV(v)+' chega hoje em '+(v.destino||'')+' às '+v.previsao_chegada.slice(11,16)));
@@ -27447,7 +27454,7 @@ function renderVeicf(d){
     <div style="margin-left:auto;display:flex;gap:8px;align-items:center">${c.modalidade?`<span class="badge b-info">${esc(c.modalidade)}</span>`:''}${c.ativo?'<span class="badge b-ok">Ativo</span>':'<span class="badge b-warn">Inativo</span>'}</div>
   </div></div>`;
   if(va){
-    h+=`<div class="card"><div class="head"><h2>Status: em viagem <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Viagem de programacaoembarque sem data de chegada e não cancelada. A previsão vem de coleta.dtprevisaochegadaviagem; ATRASADA é previsão já vencida sem chegada lançada.">i</span></h2><span class="hint">${va.vazio?'deslocamento vazio':'carregado'}${va.atrasada?' · <b style="color:var(--red)">ATRASADA</b>':''}</span></div>
+    h+=`<div class="card"><div class="head"><h2>Status: em viagem <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Viagem de programacaoembarque sem data de chegada e não cancelada. A previsão vem de coleta.dtprevisaochegadaviagem; ATRASADA é previsão já vencida sem chegada no cliente apontada (ocorrência SAC 396).">i</span></h2><span class="hint">${va.vazio?'deslocamento vazio':'carregado'}${va.chegada_cliente?' · no cliente desde '+esc(va.chegada_cliente.slice(8,10)+'/'+va.chegada_cliente.slice(5,7)+' '+va.chegada_cliente.slice(11)):''}${va.atrasada?' · <b style="color:var(--red)">ATRASADA</b>':''}</span></div>
       <div style="padding:0 18px 16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px">
         ${veicfStat('Cliente', esc(va.cliente))}${veicfStat('Rota', esc(va.origem)+' → '+esc(va.destino))}
         ${veicfStat('Motorista', esc(va.motorista||'—'))}${veicfStat('Saída', esc(fmtDT(va.saida)))}
@@ -35240,7 +35247,7 @@ function renderTorre(d){
     kpi('Atrasadas', atrasadas.toLocaleString('pt-BR'),
         tr.length?(pct(atrasadas,tr.length)+' das viagens em trânsito'):'sem viagens em trânsito',
         atrasadas>0?'neg':'pos',
-        'Previsão de chegada já vencida. A tabela abaixo ordena estas primeiro e diz de quanto é o atraso em cada uma.',
+        'Previsão de chegada já vencida e sem chegada no cliente apontada (ocorrência SAC 396). A que já chegou segue em trânsito até a baixa da programação, com o selo "No cliente", e não conta aqui. A tabela abaixo ordena as atrasadas primeiro e diz de quanto é o atraso em cada uma.',
         atrasadas>0?statChip('bad','ação necessária','Cada uma precisa de contato com o motorista e aviso ao cliente.','sevCrit')
                    :statChip('good','todas no prazo','Nenhuma previsão de chegada vencida.','sevOk')),
     kpi('Sem posição há +6h', semPos.toLocaleString('pt-BR'),
@@ -35313,7 +35320,9 @@ function renderTorre(d){
       <td class="num">${t.km?Math.round(t.km).toLocaleString('pt-BR'):'—'}</td>
       <td class="num" style="white-space:nowrap">${t.saida?t.saida.slice(8,10)+'/'+t.saida.slice(5,7)+' '+t.saida.slice(11):'—'} <span style="color:var(--n400)">&rarr;</span> ${t.previsao_chegada?t.previsao_chegada.slice(8,10)+'/'+t.previsao_chegada.slice(5,7)+' '+t.previsao_chegada.slice(11):'—'}</td>
       <td class="num" style="color:${corPos};${hPos!=null&&hPos>6?'font-weight:600':''}" title="${t.posicao_em?('última posição transmitida: '+t.posicao_em):'nenhuma posição transmitida nesta viagem'}">${posTxt}</td>
-      <td style="white-space:nowrap"><span class="badge ${t.atrasada?'b-dang':'b-ok'}" title="${t.atrasada&&hAtr!=null?('previsão vencida há '+_dur(hAtr)):'dentro da previsão de chegada'}">${t.atrasada?('Atrasada'+(hAtr!=null?' · '+_dur(hAtr):'')):'No prazo'}</span></td></tr>`;
+      <td style="white-space:nowrap">${t.chegada_cliente
+        ? `<span class="badge b-info" title="chegada para descarga apontada (SAC 396) em ${esc(t.chegada_cliente)} — a programação segue aberta até a baixa">No cliente · ${esc(t.chegada_cliente.slice(11))}</span>`
+        : `<span class="badge ${t.atrasada?'b-dang':'b-ok'}" title="${t.atrasada&&hAtr!=null?('previsão vencida há '+_dur(hAtr)):'dentro da previsão de chegada'}">${t.atrasada?('Atrasada'+(hAtr!=null?' · '+_dur(hAtr):'')):'No prazo'}</span>`}</td></tr>`;
   }).join('') || '<tr><td colspan="9" style="color:var(--n500)">nenhuma viagem em trânsito</td></tr>';
   const ts=new Date(d.atualizado_em);
   document.getElementById('meta').innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>auto-refresh 2 min';

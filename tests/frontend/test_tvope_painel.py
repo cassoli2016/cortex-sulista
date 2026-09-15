@@ -115,8 +115,10 @@ def _visao(com_hoje: bool) -> dict:
             "atualizado_em": AGORA.isoformat(), "kpis": {}}
 
 
-def _abre(pg, base, *, com_hoje=False, prog=None, posicoes=None, estradas=None):
+def _abre(pg, base, *, com_hoje=False, prog=None, posicoes=None, estradas=None,
+          transito=None):
     pedidos = []
+    transito = TRANSITO if transito is None else transito
 
     def rota(r):
         url = r.request.url
@@ -128,9 +130,9 @@ def _abre(pg, base, *, com_hoje=False, prog=None, posicoes=None, estradas=None):
         elif "/api/tv/estradas" in url:
             corpo = estradas or {}
         elif "/api/operacao/torre" in url:
-            corpo = {"kpis": {"em_transito": len(TRANSITO), "atrasadas": 2, "criticas": 2,
+            corpo = {"kpis": {"em_transito": len(transito), "atrasadas": 2, "criticas": 2,
                               "saidas_hoje": 3, "chegadas_previstas_hoje": 1},
-                     "posicoes": posicoes or POSICOES, "transito": TRANSITO,
+                     "posicoes": posicoes or POSICOES, "transito": transito,
                      "telemetria": TELEMETRIA}
         elif "/api/operacao/programacao" in url:
             corpo = {"kpis": prog or PROG_KPIS}
@@ -184,6 +186,39 @@ def test_a_carga_critica_vem_primeiro_mesmo_sem_previsao(pagina):
         % [l["texto"][:20] for l in ls[:4]])
     # e as atrasadas vêm logo depois, antes das que ainda estão no prazo
     assert {ls[2]["texto"].split()[0], ls[3]["texto"].split()[0]} == {"B020", "B021"}
+
+
+def test_a_viagem_que_ja_chegou_no_cliente_sai_das_chegadas_e_do_rodape(pagina):
+    """15/09/2026: a viagem com a chegada para descarga apontada (SAC 396)
+    segue em trânsito até a baixa da programação. O servidor já não a chama
+    de atrasada — mas, com a previsão no passado, a regra velha a punha no
+    TOPO das futuras, com "no prazo" e um horário que já passou. Chegou: não
+    é chegada por vir, nem atraso, nem crítica a vigiar, nem "chega hoje"."""
+    pg, base = pagina
+    no_cliente = _fmt(AGORA - timedelta(hours=2))
+    chegaram = [
+        {**_viagem(40, "D040", "DDD4D40", horas=-1), "chegada_cliente": no_cliente},
+        {**_viagem(41, "D041", "DDD4D41", critica=True, horas=-1),
+         "chegada_cliente": no_cliente},
+        # previsão para daqui a pouco, HOJE: sem a regra, iria para o rodapé
+        {**_viagem(42, "D042", "DDD4D42", horas=0.5), "chegada_cliente": no_cliente},
+    ]
+    _abre(pg, base, transito=list(TRANSITO) + chegaram)
+    ls = _linhas(pg)
+    textos = " | ".join(l["texto"] for l in ls)
+    for frota in ("D040", "D041", "D042"):
+        assert frota not in textos, (frota, textos[:300])
+    # O TOPO EXATO, e não a contagem: o cartão corta pelo fim o que não cabe,
+    # e a ausência pela regra se confunde com o corte. Sem a regra, D041 (a
+    # crítica) estaria entre as críticas e D040/D042 (as previsões mais cedo
+    # das futuras) viriam antes de A000.
+    topo = [l["texto"].split()[0] for l in ls[:5]]
+    assert sorted(topo[:2]) == ["C030", "C031"], topo
+    assert sorted(topo[2:4]) == ["B020", "B021"], topo
+    assert topo[4] == "A000", topo
+    rod = pg.evaluate("() => document.getElementById('tvope-ticker').textContent")
+    for frota in ("D040", "D041", "D042"):
+        assert frota not in rod, (frota, rod[:300])
 
 
 def test_a_linha_critica_e_destacada_e_diz_por_que(pagina):

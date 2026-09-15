@@ -3814,6 +3814,40 @@ def _tracao(tipo: str | None) -> str | None:
 #: no topo das chegadas da TV de operação, com a linha destacada.
 OCORRENCIA_CARGA_CRITICA = 261
 
+#: "CHEGADA PARA DESCARGA (SAC)" — o apontamento de que o caminhão chegou no
+#: cliente. A viagem só sai do trânsito quando alguém dá BAIXA na programação
+#: (`dtchegada`), e isso vem horas depois: até lá a previsão vence e a viagem
+#: que já está na doca aparecia ATRASADA na TV. Medido em 15/09/2026: das 12
+#: viagens que a TV dava como atrasadas, 3 já tinham o 396 apontado, as três
+#: ANTES da previsão (uma delas chegou 7 min antes e ficou vermelha a tarde
+#: toda). Só vale o 396 posterior à SAÍDA da programação — nenhuma das 50 em
+#: trânsito tinha um anterior, e ele seria de outra perna. O 397/401 sem 396
+#: não aconteceu em nenhuma, então o 396 basta.
+OCORRENCIA_CHEGADA_DESCARGA = 396
+
+# CHEGADA NO CLIENTE: o primeiro 396 da coleta DEPOIS da saida da programacao.
+# Vale a hora do fato (dtocorrencia), nao a da digitacao. Fragmento UNICO da
+# torre e da ficha do veiculo -- as duas leem `coleta co` e `programacaoembarque
+# p`, e duas copias da regra discordariam no primeiro ajuste.
+_CHEGADA_CLIENTE_SQL = """
+       to_char((SELECT min(o.dtocorrencia) FROM coleta_ocorrencia o
+                 WHERE o.grupo = co.grupo AND o.empresa = co.empresa
+                   AND o.filial = co.filial AND o.unidade = co.unidade
+                   AND o.diferenciadornumero = co.diferenciadornumero
+                   AND o.serie = co.serie AND o.numero = co.numero
+                   AND o.ocorrencia = %(ocorrencia_chegada)s
+                   AND o.dtcancelar IS NULL
+                   AND o.dtocorrencia >= p.dtsaida),
+               'YYYY-MM-DD HH24:MI') AS chegada_cliente,"""
+
+
+def _atraso_da_viagem(t: dict) -> None:
+    """ATRASADA = previsão vencida E sem chegada no cliente apontada. A que já
+    chegou continua em trânsito (a programação está aberta), mas não está
+    atrasada: está no cliente."""
+    t["atrasada"] = (bool(t.pop("previsao_vencida", False))
+                     and not t.get("chegada_cliente"))
+
 TORRE_TRANSITO_SQL = """
 SELECT p.numero, p.filial, p.veiculo AS placa, coalesce(u.descricao,'(sem)') AS utilizacao,
        coalesce(nullif(trim(m.nomefantasia),''), nullif(trim(m.razaosocial),'')) AS motorista,
@@ -3822,7 +3856,9 @@ SELECT p.numero, p.filial, p.veiculo AS placa, coalesce(u.descricao,'(sem)') AS 
        coalesce(nullif(trim(p.cidadedestino),''),'?')||'/'||coalesce(p.ufdestino,'?') AS destino,
        to_char(p.dtsaida,'YYYY-MM-DD HH24:MI') AS saida,
        to_char(co.dtprevisaochegadaviagem,'YYYY-MM-DD HH24:MI') AS previsao_chegada,
-       (co.dtprevisaochegadaviagem IS NOT NULL AND co.dtprevisaochegadaviagem < current_timestamp) AS atrasada,
+       -- PREVISAO VENCIDA ainda nao e ATRASO: quem decide e get_torre(), que
+       -- tira a viagem que ja chegou no cliente (chegada_cliente, abaixo)
+       (co.dtprevisaochegadaviagem IS NOT NULL AND co.dtprevisaochegadaviagem < current_timestamp) AS previsao_vencida,""" + _CHEGADA_CLIENTE_SQL + """
        (p.tipo = 3) AS vazio,
        coalesce(p.kmfretecompra,0)::float8 AS km,
        coalesce(p.valorfrete,0)::float8 AS valorfrete,
@@ -3857,7 +3893,7 @@ WHERE p.dtcancelamento IS NULL AND p.semaforo = 1
   AND p.dtsaida IS NOT NULL AND p.dtchegada IS NULL
   AND p.dtsaida >= current_date - 15
   AND (p.filial = %(filial)s OR %(filial)s::int IS NULL)
-ORDER BY atrasada DESC, co.dtprevisaochegadaviagem NULLS LAST
+ORDER BY co.dtprevisaochegadaviagem NULLS LAST
 """
 
 
@@ -3881,7 +3917,8 @@ def get_torre(filial: int | None = None) -> dict:
         cur.execute(TORRE_POS_SQL)
         posicoes = cur.fetchall()
         cur.execute(TORRE_TRANSITO_SQL, {
-            "filial": filial, "ocorrencia_critica": OCORRENCIA_CARGA_CRITICA})
+            "filial": filial, "ocorrencia_critica": OCORRENCIA_CARGA_CRITICA,
+            "ocorrencia_chegada": OCORRENCIA_CHEGADA_DESCARGA})
         transito = cur.fetchall()
         cur.execute(TORRE_FROTA_SQL)
         frota_placas = cur.fetchall()
@@ -3893,6 +3930,7 @@ def get_torre(filial: int | None = None) -> dict:
     pos_por_placa = {p["placa"]: p for p in posicoes}
     em_viagem = set()
     for t in transito:
+        _atraso_da_viagem(t)
         em_viagem.add(t["placa"])
         p = pos_por_placa.get(t["placa"])
         t["lat"] = p["lat"] if p else None
@@ -3905,11 +3943,15 @@ def get_torre(filial: int | None = None) -> dict:
         p["em_viagem"] = p["placa"] in em_viagem
         _identidade(p)
         p["tracao"] = _tracao(p.pop("tipo_veiculo", None))
+    # as atrasadas primeiro; a ordenação é estável, então dentro de cada grupo
+    # fica a ordem da previsão, que veio do SQL
+    transito.sort(key=lambda t: not t["atrasada"])
 
     hoje = str(date.today())
     kpis = {
         "em_transito": len(transito),
         "atrasadas": sum(1 for t in transito if t["atrasada"]),
+        "no_cliente": sum(1 for t in transito if t.get("chegada_cliente")),
         "criticas": sum(1 for t in transito if t["critica"]),
         "com_posicao_24h": sum(1 for p in posicoes if p["recente"]),
         "veiculos_monitorados": len(posicoes),
@@ -4204,7 +4246,7 @@ SELECT coalesce(nullif(trim(m.nomefantasia),''), nullif(trim(m.razaosocial),''))
        coalesce(nullif(trim(p.cidadedestino),''),'?')||'/'||coalesce(p.ufdestino,'?') AS destino,
        to_char(p.dtsaida,'YYYY-MM-DD HH24:MI') AS saida,
        to_char(co.dtprevisaochegadaviagem,'YYYY-MM-DD HH24:MI') AS previsao_chegada,
-       (co.dtprevisaochegadaviagem IS NOT NULL AND co.dtprevisaochegadaviagem < current_timestamp) AS atrasada,
+       (co.dtprevisaochegadaviagem IS NOT NULL AND co.dtprevisaochegadaviagem < current_timestamp) AS previsao_vencida,""" + _CHEGADA_CLIENTE_SQL + """
        (p.tipo = 3) AS vazio,
        coalesce(p.kmfretecompra,0)::float8 AS km, coalesce(p.valorfrete,0)::float8 AS valorfrete
 FROM programacaoembarque p
@@ -4291,7 +4333,11 @@ def get_veiculo_ficha(placa: str, dias: int = 30) -> dict:
     with db.get_conn() as conn, conn.cursor() as cur:
         cur.execute(VEICF_CAD_SQL, par); cad = cur.fetchone()
         cur.execute(VEICF_POS_SQL, par); pos = cur.fetchone()
-        cur.execute(VEICF_VIAGEM_SQL, par); viagem = cur.fetchone()
+        cur.execute(VEICF_VIAGEM_SQL, {
+            **par, "ocorrencia_chegada": OCORRENCIA_CHEGADA_DESCARGA})
+        viagem = cur.fetchone()
+        if viagem:
+            _atraso_da_viagem(viagem)
         cur.execute(VEICF_VIAGENS_SQL, par); vgs = cur.fetchall()
         cur.execute(VEICF_COMB_SQL, par); comb = cur.fetchone()
         cur.execute(VEICF_MAN_SQL, par); man = cur.fetchone()

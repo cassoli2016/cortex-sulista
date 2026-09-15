@@ -101,11 +101,14 @@ def _banco(monkeypatch, respostas):
 
 # ------------------------------------------------------------------ a torre
 
-def _viagem(placa, numerofrota, critica, atrasada=False):
+def _viagem(placa, numerofrota, critica, atrasada=False, chegada=None):
+    """A linha como o SQL a devolve: `atrasada` aqui é a PREVISÃO VENCIDA —
+    quem decide o atraso é get_torre(), olhando a chegada no cliente."""
     return {"numero": 1, "filial": 1, "placa": placa, "utilizacao": "AGREGADOS",
             "motorista": "M", "cliente": "C", "origem": "A/PR", "destino": "B/SP",
             "saida": "2026-09-13 08:00", "previsao_chegada": "2026-09-14 10:00",
-            "atrasada": atrasada, "vazio": False, "km": 100.0, "valorfrete": 1.0,
+            "previsao_vencida": atrasada, "chegada_cliente": chegada,
+            "vazio": False, "km": 100.0, "valorfrete": 1.0,
             "numerofrota": numerofrota, "critica": critica}
 
 
@@ -151,6 +154,55 @@ def test_a_consulta_leva_o_codigo_da_ocorrencia_como_PARAMETRO(monkeypatch):
     assert params and params[0]["ocorrencia_critica"] == 261
     assert queries.OCORRENCIA_CARGA_CRITICA == 261
     assert "%(ocorrencia_critica)s" in queries.TORRE_TRANSITO_SQL
+    # a chegada no cliente, idem
+    assert params[0]["ocorrencia_chegada"] == 396
+    assert queries.OCORRENCIA_CHEGADA_DESCARGA == 396
+
+
+def test_a_viagem_que_ja_chegou_no_cliente_nao_esta_atrasada(monkeypatch):
+    """15/09/2026: um agregado chegou no cliente 7 min ANTES da previsão, com
+    a chegada para descarga (SAC 396) apontada, e ficou ATRASADA na TV a
+    tarde toda — a viagem só sai do trânsito com a baixa da programação, e a
+    previsão venceu antes dela. No mesmo dia eram 3 das 12 "atrasadas"."""
+    d, _, _ = _torre(monkeypatch, [
+        _viagem("AAA1A11", "101", False, atrasada=True),
+        _viagem("BBB2B22", "102", False, atrasada=True, chegada="2026-09-15 12:53"),
+        _viagem("CCC3C33", "103", False, chegada="2026-09-15 08:00"),
+        _viagem("DDD4D44", "104", False),
+    ])
+    v = {x["placa"]: x for x in d["transito"]}
+    assert v["AAA1A11"]["atrasada"] is True
+    assert v["BBB2B22"]["atrasada"] is False
+    assert v["BBB2B22"]["chegada_cliente"] == "2026-09-15 12:53"
+    assert v["DDD4D44"]["atrasada"] is False and v["DDD4D44"]["chegada_cliente"] is None
+    k = d["kpis"]
+    assert (k["atrasadas"], k["no_cliente"]) == (1, 2)
+    # a programação continua aberta: a viagem segue em trânsito, só não atrasada
+    assert k["em_transito"] == 4
+    assert all("previsao_vencida" not in x for x in d["transito"])
+
+
+def test_as_atrasadas_abrem_a_lista_e_o_resto_fica_na_ordem_da_previsao(monkeypatch):
+    """O SQL já não ordena por atraso (ele não sabe quem chegou): a ordem das
+    atrasadas primeiro é do Python, e é ESTÁVEL — dentro de cada grupo fica a
+    ordem da previsão que veio do banco."""
+    d, _, _ = _torre(monkeypatch, [
+        _viagem("AAA1A11", "101", False),
+        _viagem("BBB2B22", "102", False, atrasada=True, chegada="2026-09-15 12:53"),
+        _viagem("CCC3C33", "103", False, atrasada=True),
+        _viagem("DDD4D44", "104", False),
+        _viagem("EEE5E55", "105", False, atrasada=True),
+    ])
+    assert [x["placa"] for x in d["transito"]] == [
+        "CCC3C33", "EEE5E55", "AAA1A11", "BBB2B22", "DDD4D44"]
+
+
+def test_a_ficha_do_veiculo_usa_a_MESMA_chegada_da_torre():
+    """As duas telas leem a mesma viagem; duas cópias da regra discordariam no
+    primeiro ajuste (uma dizendo ATRASADA, a outra "no cliente")."""
+    for sql in (queries.TORRE_TRANSITO_SQL, queries.VEICF_VIAGEM_SQL):
+        assert queries._CHEGADA_CLIENTE_SQL in sql
+        assert "previsao_vencida" in sql and " AS atrasada" not in sql
 
 
 def test_a_viagem_ganha_o_numero_de_frota_so_quando_e_numero(monkeypatch):

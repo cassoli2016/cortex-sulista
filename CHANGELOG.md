@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.90.2] — 15/09/2026  ·  CX-15/09/2026-v1.90.2
+
+### Corrigido
+- Painel TV › Operação e Torre de Controle — a viagem que já chegou no cliente não aparece mais como ATRASADA. A viagem só sai do trânsito quando alguém dá baixa na programação, e até lá a previsão vencia e ela ficava vermelha, mesmo com a chegada para descarga apontada no SAC (houve caminhão que chegou antes da previsão e ficou atrasado a tarde toda). Agora, com a chegada apontada, ela sai das chegadas e do rodapé da TV, deixa de contar nas atrasadas e, na Torre e na ficha do veículo, aparece como "No cliente" com o horário da chegada.
+
 ## [1.90.1] — 15/09/2026  ·  CX-15/09/2026-v1.90.1
 
 ### Corrigido
