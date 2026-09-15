@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.84.0] — 15/09/2026  ·  CX-15/09/2026-v1.84.0
+
+### Adicionado
+- Gestão › Permissões — um relatório com todas as permissões dos usuários: cada pessoa, cada tela que ela abre e por quê (pelo perfil, liberada na ficha da pessoa, por ser administrador ou por ser tela de todo usuário logado), e o que um ajuste tirou — telas e abas. Buscar pelo nome de uma tela mostra quem a abre. Exporta o que está filtrado em planilha (CSV): em lista, uma linha por pessoa e tela, ou em matriz, pessoas nas linhas e telas nas colunas.
+
+### Corrigido
+- Torre de Controle e Painel TV — Operação — das 21h à meia-noite a posição dos veículos que vem da Gobrax parava nas 20:59; agora segue até a hora da consulta. O rastro de um dia do veículo também passa a ir da meia-noite à meia-noite (antes começava às 21h da véspera).
+- Premiação de Motoristas — quando o mês corrente ainda não tem km nem nota na Gobrax, a tela abre no último mês com dados e agora avisa isso, em vez de mostrar o mês anterior sem dizer nada.
+
 ## [1.83.0] — 15/09/2026  ·  CX-15/09/2026-v1.83.0
 
 ### Adicionado
