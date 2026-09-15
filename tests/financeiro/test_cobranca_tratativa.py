@@ -146,6 +146,36 @@ def test_sem_o_banco_da_casa_a_regua_segue_e_DIZ(monkeypatch):
         "None, nunca 'sem tratativa': ninguém conferiu"
 
 
+def test_cliente_sem_ref_fica_SEM_resposta_e_fora_das_contagens(monkeypatch):
+    """Sem identificação não há como saber se há tratativa: None — "sem
+    tratativa" afirmaria que alguém conferiu."""
+    monkeypatch.setattr(ct, "ultimas", lambda refs, esquema=None: {})
+    d = ct.anexar({"clientes": [{"cliente": "A", "ref": None, "vencido": 9.0}]}, hoje=HOJE)
+    assert d["clientes"][0]["tratativa"] is None
+    assert d["tratativas"]["contagem"]["sem_tratativa"] == 0
+
+
+def test_para_hoje_na_ORDEM_da_urgencia_e_so_o_que_pede_acao():
+    def cli(nome, vencido, ultima):
+        return {"cliente": nome, "vencido": vencido,
+                "tratativa": ct._montar(ultima, vencido, HOJE)}
+    clientes = [
+        cli("retorno atrasado", 900.0, _ult("contato", r="2026-09-12")),
+        cli("promessa futura", 800.0, _ult("promessa", p="2026-09-20")),
+        cli("retorno hoje", 700.0, _ult("contato", r="2026-09-15")),
+        cli("promessa vencida", 600.0, _ult("promessa", p="2026-09-14")),
+        cli("promessa hoje pequena", 100.0, _ult("promessa", p="2026-09-15")),
+        cli("promessa hoje grande", 500.0, _ult("promessa", p="2026-09-15")),
+        cli("sem tratativa", 5000.0, None),
+        {"cliente": "sem leitura", "vencido": 1.0, "tratativa": None},
+    ]
+    r = ct.para_hoje(clientes, hoje=HOJE)
+    assert [x["cliente"] for x in r] == ["promessa hoje grande", "promessa hoje pequena",
+                                         "promessa vencida", "retorno hoje", "retorno atrasado"]
+    assert [x["motivo"] for x in r] == ["promessa_hoje", "promessa_hoje", "promessa_vencida",
+                                        "retorno_hoje", "retorno_atrasado"]
+
+
 # ════════════════════════════════════════ o ref e a Régua viva do ERP ═══
 
 def test_o_ref_e_opaco_estavel_e_confere_com_a_regua_viva(ava, esq):

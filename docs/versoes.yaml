@@ -1,3 +1,14 @@
+- versao: "1.85.0"
+  data: "2026-09-15"
+  adicionado:
+    - >-
+      E-mail diário da inadimplência — nova seção "Tratativa da cobrança", depois
+      dos maiores devedores, com o que pede ação hoje na Régua de Cobrança:
+      promessas de pagamento que vencem hoje, promessas vencidas, retornos
+      marcados para hoje e retornos atrasados, com a data e quem fez o último
+      registro. Embaixo, quantos clientes da Régua estão sem nenhuma tratativa
+      ou sem movimento há mais de 7 dias, e quanto eles devem.
+
 - versao: "1.84.0"
   data: "2026-09-15"
   adicionado:

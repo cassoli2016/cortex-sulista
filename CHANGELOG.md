@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.85.0] — 15/09/2026  ·  CX-15/09/2026-v1.85.0
+
+### Adicionado
+- E-mail diário da inadimplência — nova seção "Tratativa da cobrança", depois dos maiores devedores, com o que pede ação hoje na Régua de Cobrança: promessas de pagamento que vencem hoje, promessas vencidas, retornos marcados para hoje e retornos atrasados, com a data e quem fez o último registro. Embaixo, quantos clientes da Régua estão sem nenhuma tratativa ou sem movimento há mais de 7 dias, e quanto eles devem.
+
 ## [1.84.0] — 15/09/2026  ·  CX-15/09/2026-v1.84.0
 
 ### Adicionado

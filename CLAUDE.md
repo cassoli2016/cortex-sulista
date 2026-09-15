@@ -470,8 +470,12 @@ moram em arquivos que não falam do assunto.
   do ERP e guarda a foto do vencido na hora; a tratativa entra DEPOIS do cache
   de 90 s da Régua, numa cópia. Sem o banco da casa a Régua segue e a coluna diz
   "indisponível" — nunca "sem tratativa", que afirmaria que alguém conferiu.
-  Guards: `tests/financeiro/test_cobranca_tratativa.py` e
-  `tests/frontend/test_cob_tratativa_e2e.py`.
+  Desde a 1.85.0 ela entra no e-mail das 13h (seção "Tratativa da cobrança":
+  o que pede ação HOJE, via `para_hoje`), cruzando o banco da casa com os
+  clientes da MESMA leitura do ERP (`regua` do resumo, só com o `ref`); o bloco
+  tem `try` próprio — defeito nele não derruba o e-mail inteiro.
+  Guards: `tests/financeiro/test_cobranca_tratativa.py`,
+  `tests/frontend/test_cob_tratativa_e2e.py` e `tests/correio/test_inadimplencia.py`.
 - Integração é **módulo por fornecedor** em `api/<fornecedor>/` (gobrax,
   smartec, tomtom, whatsapp, monkey, jornada/RasterJOR, pedagio/QualP) — não
   existe hub genérico de conectores.

@@ -340,6 +340,10 @@ def anexar(d: dict, *, hoje: date | None = None, esquema: str | None = None) -> 
     contagem = {"sem_tratativa": 0, "promessa_vencida": 0, "retorno_atrasado": 0, "parada": 0}
     valor = dict.fromkeys(contagem, 0.0)
     for c in clientes:
+        if not ref_valido(c.get("ref")):
+            # sem identificação não há como saber — None, e fora das contagens
+            c["tratativa"] = None
+            continue
         t = _montar(ult.get(c.get("ref")), c.get("vencido"), hoje)
         c["tratativa"] = t
         if t["estado"] in contagem:
@@ -348,6 +352,36 @@ def anexar(d: dict, *, hoje: date | None = None, esquema: str | None = None) -> 
     novo["tratativas"] = {**base, "disponivel": True, "contagem": contagem,
                           "valor": {k: round(v, 2) for k, v in valor.items()}}
     return novo
+
+
+#: O que o e-mail das 13h cobra HOJE, na ordem da urgência. A promessa que
+#: vence hoje vem ANTES da que já venceu porque ainda dá para evitar que vença.
+_HOJE_ORDEM = ("promessa_hoje", "promessa_vencida", "retorno_hoje", "retorno_atrasado")
+
+
+def para_hoje(clientes: list[dict], *, hoje: date) -> list[dict]:
+    """Os clientes (já com `tratativa`, saídos de `anexar`) que pedem ação
+    HOJE: promessa que vence hoje, promessa vencida, retorno marcado para hoje
+    e retorno atrasado — na ordem da urgência e, dentro dela, pelo vencido."""
+    h = hoje.isoformat()
+    out = []
+    for c in clientes:
+        t = c.get("tratativa")
+        if not t or not t.get("ultima"):
+            continue
+        u = t["ultima"]
+        if t["estado"] in ("promessa_vencida", "retorno_atrasado"):
+            motivo, rotulo = t["estado"], t["rotulo"]
+        elif u.get("tipo") == "promessa" and u.get("promessa_data") == h:
+            motivo, rotulo = "promessa_hoje", "promessa vence hoje"
+        elif u.get("retorno_em") == h:
+            motivo, rotulo = "retorno_hoje", "retorno marcado para hoje"
+        else:
+            continue
+        out.append({"cliente": str(c.get("cliente") or ""), "vencido": float(c.get("vencido") or 0),
+                    "motivo": motivo, "rotulo": rotulo, "ultima": u})
+    out.sort(key=lambda x: (_HOJE_ORDEM.index(x["motivo"]), -x["vencido"]))
+    return out
 
 
 def resumo_copiloto() -> dict:

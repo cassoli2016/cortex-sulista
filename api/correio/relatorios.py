@@ -25,6 +25,12 @@ from api.gestao.comum import ROTULO_PRIORIDADE
 
 log = logging.getLogger("cortex.correio.relatorios")
 
+#: A tratativa no e-mail da inadimplência: quantas linhas cabem na tabela do
+#: dia, e a cor do selo de cada motivo.
+_TRAT_MAX = 15
+_CHIP_TRAT = {"promessa_hoje": "warn", "promessa_vencida": "bad",
+              "retorno_hoje": "neutro", "retorno_atrasado": "warn"}
+
 
 def _dia_br(iso) -> str:
     t = str(iso or "")[:10].split("-")
@@ -807,6 +813,52 @@ def inadimplencia() -> dict:
                   p.inteiro(d["titulos"]), _antigo(d)] for d in dev],
                 alinha_dir=(1, 2, 3)))
 
+        # A TRATATIVA DA RÉGUA (pedido de quem opera, 15/09/2026): o que pede
+        # ação HOJE — promessa que vence hoje, promessa vencida, retorno marcado
+        # para hoje ou atrasado. Clientes e vencido são os desta mesma leitura
+        # do ERP; a tratativa vem só do banco da casa. Sem ele o e-mail DIZ que
+        # não leu, em vez de afirmar "sem tratativa". E o bloco tem `try`
+        # PRÓPRIO: defeito aqui não pode derrubar o e-mail inteiro.
+        acoes: list = []
+        try:
+            from api.financeiro import cobranca_tratativa as ct
+            trat = ct.anexar({"clientes": r.get("regua") or []}, hoje=hoje)
+            leu = trat["tratativas"]["disponivel"]
+            acoes = ct.para_hoje(trat["clientes"], hoje=hoje) if leu else []
+            blocos.append(p.secao(
+                "Tratativa da cobrança",
+                (f"{_TRAT_MAX} de {len(acoes)} · " if len(acoes) > _TRAT_MAX else "")
+                + "o que pede ação hoje · Régua de Cobrança"))
+            if not leu:
+                blocos.append(p.paragrafo(
+                    "A tratativa não pôde ser lida agora. Os valores acima vêm do "
+                    "ERP e estão certos."))
+            else:
+                if acoes:
+                    blocos.append(p.tabela(
+                        ["Cliente", "Vencido", "Situação", "Último registro"],
+                        [[a["cliente"][:30], p.brl(a["vencido"]),
+                          p.chip(a["rotulo"], _CHIP_TRAT[a["motivo"]]),
+                          f"{_dia_br(a['ultima']['em'])} · {a['ultima']['autor_nome']}"]
+                         for a in acoes[:_TRAT_MAX]], alinha_dir=(1,)))
+                else:
+                    blocos.append(p.paragrafo(
+                        "Nenhuma promessa ou retorno para hoje, e nenhuma promessa vencida."))
+                cont, val = trat["tratativas"]["contagem"], trat["tratativas"]["valor"]
+                soltos = [s for s in (
+                    f"{cont['sem_tratativa']} sem nenhuma tratativa registrada "
+                    f"({p.brl(val['sem_tratativa'])})" if cont["sem_tratativa"] else "",
+                    f"{cont['parada']} sem movimento há mais de {ct.PARADA_DIAS} dias "
+                    f"({p.brl(val['parada'])})" if cont["parada"] else "") if s]
+                if soltos:
+                    blocos.append(p.paragrafo("Na Régua: " + "; ".join(soltos) + "."))
+        except Exception as exc:  # noqa: BLE001
+            log.warning("inadimplencia: bloco da tratativa falhou (%s)", type(exc).__name__)
+            acoes = []
+            blocos.append(p.paragrafo(
+                "A tratativa não pôde ser lida agora. Os valores acima vêm do ERP e "
+                "estão certos."))
+
         def _residuo(lista) -> None:
             # QUEM SAIU DA LISTA SE DIZ: "10 clientes" no total e 7 linhas na
             # tabela, sem explicação, se lê como defeito do relatório.
@@ -862,6 +914,10 @@ def inadimplencia() -> dict:
         if dev:
             linhas.append("Maiores devedores:")
             linhas += [f"  {d['cliente'][:40]} — {p.brl(d['vencido'])}" for d in dev[:5]]
+        if acoes:
+            linhas += ["", "Tratativa — pede ação hoje:"]
+            linhas += [f"  {a['cliente'][:40]} — {a['rotulo']} ({p.brl(a['vencido'])})"
+                       for a in acoes[:_TRAT_MAX]]
 
         assunto = (f"[CÓRTEX] Inadimplência {hoje.strftime('%d/%m')} — "
                    + (f"{_mil(venc)} vencidos ({_pct(taxa_pct)})" if venc

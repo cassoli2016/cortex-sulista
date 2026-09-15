@@ -258,6 +258,71 @@ def test_o_email_NAO_leva_a_metodologia_nem_o_pendente_de_faturamento(email):
     assert "Gerado pelo CÓRTEX" in r["html"], "o resto do rodapé continua"
 
 
+def _ultima(tipo, em, **kw):
+    from api.financeiro.cobranca_tratativa import TIPOS
+    return {"id": 1, "tipo": tipo, "tipo_rotulo": TIPOS[tipo], "canal": None,
+            "canal_rotulo": None, "descricao": "x", "promessa_data": kw.get("p"),
+            "promessa_valor": None, "retorno_em": kw.get("r"), "titulos": [],
+            "vencido_ref": None, "titulos_ref": 0, "autor_nome": "Ana Cobrança",
+            "em": em, "total": 1}
+
+
+_TOP_TRAT = [
+    {"chave": "c" + CNPJ, "codigo": CNPJ, "cliente": "TRANSPORTADORA FICTICIA LTDA",
+     "titulos": 12, "vencido": 200_000.0, "vencimento_mais_antigo": "2026-06-11"},
+    {"chave": "g2", "codigo": "44555666000172", "cliente": "INDUSTRIA DE MENTIRA SA",
+     "titulos": 3, "vencido": 50_000.0, "vencimento_mais_antigo": "2026-09-02"},
+    {"chave": "g3", "codigo": "77888999000155", "cliente": "COMERCIO SEM TRATATIVA",
+     "titulos": 1, "vencido": 30_000.0, "vencimento_mais_antigo": "2026-09-01"},
+]
+
+
+def test_o_email_traz_o_que_a_TRATATIVA_pede_hoje(email, monkeypatch):
+    """A seção lê a tratativa do banco da casa para os clientes DESTA leitura:
+    a promessa que vence hoje antes da vencida, e quem está sem tratativa."""
+    from api.financeiro import cobranca_tratativa as ct
+    ref = queries.cobranca_ref
+    ult = {ref("c" + CNPJ): _ultima("promessa", "2026-09-10T16:20:00-03:00", p=SEG.isoformat()),
+           ref("g2"): _ultima("promessa", "2026-09-08T09:00:00-03:00", p=SEX.isoformat())}
+    monkeypatch.setattr(ct, "ultimas",
+                        lambda refs, esquema=None: {k: v for k, v in ult.items() if k in refs})
+    r = email(top=_TOP_TRAT)
+    h = r["html"]
+    sec = h[h.index("Tratativa da cobrança"):]
+    assert "promessa vence hoje" in sec and "promessa vencida em 11/09" in sec
+    assert sec.index("TRANSPORTADORA FICTICIA LTDA") < sec.index("INDUSTRIA DE MENTIRA SA"), \
+        "a que vence hoje ainda dá para salvar: vem antes"
+    assert "10/09 · Ana Cobrança" in sec
+    assert "1 sem nenhuma tratativa registrada" in sec
+    assert "Tratativa — pede ação hoje:" in r["texto"]
+    assert "promessa vence hoje" in r["texto"]
+    assert CNPJ not in h and CNPJ not in r["texto"]
+
+
+def test_sem_o_banco_da_casa_o_email_sai_e_DIZ_que_nao_leu_a_tratativa(email, monkeypatch):
+    from api.financeiro import cobranca_tratativa as ct
+
+    def quebra(*a, **k):
+        raise RuntimeError("banco da casa fora do ar")
+    monkeypatch.setattr(ct, "ultimas", quebra)
+    r = email(top=_TOP_TRAT)
+    assert "Vencido agora" in r["html"] and r["vazio"] is False, "o resto do e-mail sai"
+    assert "A tratativa não pôde ser lida agora" in r["html"]
+    assert "sem nenhuma tratativa" not in r["html"], "não afirma o que não conferiu"
+
+
+def test_defeito_no_bloco_da_tratativa_NAO_derruba_o_email(email, monkeypatch):
+    from api.financeiro import cobranca_tratativa as ct
+
+    def quebra(*a, **k):
+        raise KeyError("defeito de programação")
+    monkeypatch.setattr(ct, "para_hoje", quebra)
+    monkeypatch.setattr(ct, "ultimas", lambda refs, esquema=None: {})
+    r = email(top=_TOP_TRAT)
+    assert "Maiores devedores" in r["html"] and "Vencem nos próximos" in r["html"]
+    assert "A tratativa não pôde ser lida agora" in r["html"]
+
+
 def test_o_grafico_e_CELULA_e_a_unica_imagem_e_a_logo(email):
     h = email()["html"]
     assert "<svg" not in h

@@ -317,6 +317,13 @@ def montar(*, hoje: date, tot: dict, ab: dict, aging: list, top: list,
         "pontos": [{**p, "dia": p["dia"].isoformat()} for p in pontos],
         "faixas": faixas,
         "devedores": devedores,
+        # A RÉGUA, para o e-mail cruzar com a tratativa no banco da casa: o
+        # `ref` opaco no lugar da chave do grupo, que leva CNPJ quando não há
+        # grupo. Os mesmos clientes e o mesmo vencido desta leitura.
+        "regua": [{"ref": queries.cobranca_ref(t["chave"]) if t.get("chave") else None,
+                   "cliente": str(t.get("cliente") or "(sem cadastro)"),
+                   "vencido": float(t.get("vencido") or 0)}
+                  for t in top if float(t.get("vencido") or 0) >= RESIDUO],
         "concentracao": (soma_top / vencido) if vencido else None,
         "novos": _lista(novos, "venc_ate"),
         "a_vencer": _lista(avencer, "venc_de"),
