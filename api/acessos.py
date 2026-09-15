@@ -96,7 +96,8 @@ ABAS: dict[str, dict] = {
     # ── Financeiro ──
     "fluxcon.plano": _u("fluxcon", "Projeção", [("fluxcon", "plano")],
                         ["/api/financeiro/dda"], exatas=["/api/financeiro/projecao"],
-                        leitores=["loadProjecao"], acoes=["ddaDetalhe", "ddaImportar"]),
+                        leitores=["loadProjecao"],
+                        acoes=["ddaDetalhe", "ddaImportar", "ddaDivergencias", "ddaRelatorio"]),
     "antport.eleg": _u("antport", "Elegíveis fora de portal", [("antport", "eleg")],
                        ["/api/financeiro/antecipacao/elegiveis"], leitores=["loadElegiveis"]),
     # ── Operação ──

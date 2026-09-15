@@ -1,3 +1,11 @@
+- versao: "1.86.1"
+  data: "2026-09-15"
+  corrigido:
+    - >-
+      Fluxo de Caixa Consolidado › DDA — quem tem a aba Projeção bloqueada no
+      seu acesso também deixa de abrir a lista de divergências e de baixar o
+      relatório do DDA, como já acontecia com a lista dos boletos sem título.
+
 - versao: "1.86.0"
   data: "2026-09-15"
   adicionado:

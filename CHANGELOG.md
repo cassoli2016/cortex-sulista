@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.86.1] — 15/09/2026  ·  CX-15/09/2026-v1.86.1
+
+### Corrigido
+- Fluxo de Caixa Consolidado › DDA — quem tem a aba Projeção bloqueada no seu acesso também deixa de abrir a lista de divergências e de baixar o relatório do DDA, como já acontecia com a lista dos boletos sem título.
+
 ## [1.86.0] — 15/09/2026  ·  CX-15/09/2026-v1.86.0
 
 ### Adicionado
