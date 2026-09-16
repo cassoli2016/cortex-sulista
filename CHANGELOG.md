@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.98.0] — 16/09/2026  ·  CX-16/09/2026-v1.98.0
+
+### Alterado
+- Painel TV › Operação — nos detalhes que abrem ao clicar nos cartões, o veículo passa a ser chamado pelo NÚMERO DE FROTA, como na parede, no lugar da placa. Onde o cadastro não tem número de frota (ou tem a placa copiada no campo), continua saindo a placa — o painel não inventa número. A ficha do veículo, que abre pelo mapa, mostra os dois.
+- Painel TV › Operação — no cartão "KM do mês e metas", as três barras de modalidade ganharam degradê e cores novas: a frota em azul claro e o agregado em coral, com o terceiro seguindo no ocre. A troca vale só neste cartão; o mapa e a legenda seguem com as cores de sempre.
+
 ## [1.97.1] — 16/09/2026  ·  CX-16/09/2026-v1.97.1
 
 ### Corrigido

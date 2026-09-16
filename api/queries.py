@@ -4724,6 +4724,9 @@ WHERE p.dtcancelamento IS NULL AND p.semaforo = 1
 
 PROG_CHEGADAS_SQL = f"""
 SELECT p.veiculo AS placa, coalesce(u.descricao,'(sem)') AS utilizacao,
+       -- CRU: quem decide se isto e numero de frota ou placa copiada no campo
+       -- e `frota_identidade.rotulo()`, em Python (_frota_ident)
+       nullif(trim(v.numerofrota),'') AS numerofrota,
        coalesce(nullif(trim(p.cidadedestino),''),'?') AS cidade,
        coalesce(p.ufdestino,'?') AS uf,
        to_char(p.dtprevisaochegadaviagem,'YYYY-MM-DD HH24:MI') AS eta,
@@ -4796,6 +4799,10 @@ SELECT coalesce(sum(coalesce(p.kmfretecompra,0)),0)::float8 AS km
 
 PROG_VEIC_DISP_SQL = """
 SELECT v.placa, coalesce(u.descricao,'(sem)') AS utilizacao,
+       -- CRU, como na torre: a identidade sai de `frota_identidade`, nunca de
+       -- um coalesce(numerofrota, placa) -- em 943 cadastros a PLACA esta
+       -- copiada no campo de frota
+       nullif(trim(v.numerofrota),'') AS numerofrota,
        (v.possuimotor = 1) AS com_motor,
        t.ult_saida::date AS ult_saida,
        coalesce(t.em_viagem,0)::int AS em_viagem,
@@ -4961,6 +4968,7 @@ def get_programacao() -> dict:
     casamentos, sem_retorno = [], []
     cid_com_chegada = set()
     for c in chegadas:
+        _frota_ident(c)          # frota/rótulo, como na torre
         k = key(c["cidade"], c["uf"])
         cid_com_chegada.add(k)
         # carga compatível: sai depois da chegada prevista MAIS a descarga
@@ -5052,6 +5060,9 @@ def get_programacao() -> dict:
     for o in ociosos:
         o["ult_saida"] = o["ult_saida"].isoformat() if o["ult_saida"] else None
         o.pop("em_viagem"), o.pop("os_abertas"), o.pop("os_desde", None)
+        # o veículo se chama pelo NÚMERO DE FROTA, como na parede: a régua é a
+        # mesma da torre (`frota` só quando é número de verdade)
+        _frota_ident(o)
 
     # ---- disponibilidade de motoristas (rodaram nos últimos 30 dias) ----
     mot_total = len(mot_disp)
@@ -6007,6 +6018,7 @@ OFICINA_LONGA_DIAS = 7
 # nao ha corte -- o teto e o mundo: a frota nao abre mais OS do que abre.
 MANUT_TV_OS_SQL = """
 SELECT o.numero, o.filial, o.veiculo AS placa,
+       nullif(trim(v.numerofrota),'') AS numerofrota,
        o.objetivoordemservico AS objetivo,
        to_char(o.dtemissao,'YYYY-MM-DD HH24:MI') AS emissao,
        to_char(o.dtfechamento,'YYYY-MM-DD') AS fechamento,
@@ -6072,10 +6084,16 @@ def get_manutencao_tv() -> dict:
     # A LISTA VAI JUNTO COM A CONTAGEM, e sai da MESMA filtragem: é ela que o
     # modal do cartão mostra quando alguém clica (16/09/2026). Lista e número
     # que se calculam em lugares diferentes discordam no primeiro ajuste.
+    for v in veic:
+        _frota_ident(v)          # `frota` só quando é número de verdade
+    for o in os_mes:
+        _frota_ident(o)
+
     def _oficina(motor: bool) -> dict:
         frota = [v for v in veic if bool(v["com_motor"]) == motor]
         parados = [v for v in frota if v["em_viagem"] == 0 and v["os_abertas"] > 0]
-        lista = [{"placa": v["placa"], "utilizacao": v["utilizacao"],
+        lista = [{"placa": v["placa"], "frota": v.get("frota"),
+                  "rotulo": v.get("rotulo"), "utilizacao": v["utilizacao"],
                   "os_abertas": v["os_abertas"],
                   "desde": v["os_desde"].isoformat() if v.get("os_desde") else None,
                   "dias": (hoje - v["os_desde"]).days if v.get("os_desde") else None,

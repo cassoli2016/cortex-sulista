@@ -17102,6 +17102,18 @@ async function tvMapa(t){
    --navy-500 da paleta clara, que aparece no escuro e segura o texto branco
    do marcador no mapa (cerca de 6:1). */
 const TV_FROTA_COR='#38648D';
+/* AS BARRAS DO CARTAO DE KM TEM PALETA PROPRIA (quem opera, 16/09/2026: "mude
+   a cor da barra do agregado e da frota, e faca as 3 barras em degrade"), e o
+   ALCANCE foi escolhido com o custo na mesa: vale SO no cartao -- o mapa e a
+   legenda seguem com `tvCorMod`, entao a mesma palavra tem duas cores no
+   painel. Isso revisa, so para as barras, a decisao de 13/09 ("mesma cor no
+   mapa, na legenda e no cartao de km").
+   O degrade e do PROPRIO tom, do escuro para o claro: a barra continua
+   dizendo a categoria. Verde e vermelho ficam fora desta paleta de proposito
+   -- na TV eles sao ESTADO (semaforo), e cor de estado em barra de categoria
+   seria um terceiro significado para a mesma tinta. */
+const TV_KM_BARRA={FROTA:['#5B8FD6','#9CC2F2'], AGREGADOS:['#F2764B','#FBA684'],
+                   TERCEIROS:['#B97709','#E0A63C'], _:['#6E7883','#9AA3AD']};
 function tvCorMod(u){
   if(u==='FROTA' || u==='LOCACAO') return TV_FROTA_COR;
   return MOD_COR[u] || '#6E7883';
@@ -17976,7 +17988,12 @@ function tvoHa(s){
 }
 const TVO_COL={
   veic:['Veículo', l=>esc(l.rotulo||l.frota||l.placa||'—')],
-  placa:['Placa', l=>esc(l.placa||'—')],
+  /* O VEICULO SE CHAMA PELO NUMERO DE FROTA, tambem nos modais (quem opera,
+     16/09/2026: "nos modais pode trocar as placas por frota"). `frota` so vem
+     do servidor quando e numero DE VERDADE (frota_identidade): onde o
+     cadastro tem a placa copiada no campo, sai a placa mesmo -- e e por isso
+     que aqui nao ha coalesce inventado. */
+  frota:['Frota', l=>esc(l.frota||l.placa||'—')],
   mod:['Modalidade', l=>esc(l.utilizacao||'—')],
   cliente:['Cliente', l=>esc(l.cliente||'—'),'ccm-cli'],
   rota:['Origem → destino', l=>esc((l.origem||'?')+' → '+(l.destino||'?')),'ccm-cli'],
@@ -17990,7 +18007,7 @@ const TVO_COL={
 };
 const TVO_VIAGEM=[TVO_COL.veic,TVO_COL.cliente,TVO_COL.rota,TVO_COL.saida,
                   TVO_COL.prev,TVO_COL.pos,TVO_COL.km,TVO_COL.crit];
-const TVO_OFICINA=[TVO_COL.placa,TVO_COL.mod,
+const TVO_OFICINA=[TVO_COL.frota,TVO_COL.mod,
   ['OS abertas', l=>tvoN(l.os_abertas),'num'],
   ['Na oficina desde', l=>tvoD(l.desde),'num'],
   ['Dias', l=>l.dias==null?'—':(l.longa?'<span class="ccm-at">'+tvoN(l.dias)+'</span>':tvoN(l.dias)),'num']];
@@ -18027,7 +18044,7 @@ function tvOpeCard(card){
   const cav=rev.cavalos||{}, smr=rev.semirreboques||{};
   const oCav=ofi.cavalos||{}, oSmr=ofi.semirreboques||{};
   const hoje=_iso(new Date());
-  const revCols=chave=>[['Frota', l=>esc(l.frota||l.placa||'—')], TVO_COL.placa,
+  const revCols=chave=>[TVO_COL.frota,
     [chave==='km'?'Falta rodar':'Faltam', l=>{
       const v=chave==='km'?l.km_faltante:l.dias;
       if(v==null) return '—';
@@ -18036,7 +18053,7 @@ function tvOpeCard(card){
     },'num'],
     chave==='km' ? ['Intervalo', l=>l.intervalo?tvoN(l.intervalo)+' km':'—','num']
                  : ['Última troca', l=>tvoD(l.ultima),'num']];
-  const osCols=[TVO_COL.placa, TVO_COL.mod,
+  const osCols=[TVO_COL.frota, TVO_COL.mod,
     ['Aberta em', l=>tvoDT(l.emissao),'num'],
     ['Fechada em', l=>l.fechamento?tvoD(l.fechamento):'<span class="ccm-at">aberta</span>','num'],
     ['OS', l=>esc(String(l.numero||'—')),'num']];
@@ -18051,7 +18068,7 @@ function tvOpeCard(card){
     case 'tracao': return cfg('veículos', [
       {estado:'disponivel', rotulo:'Disponível', n:pk.tracao_disp,
        linhas:(p.ociosos||[]).filter(o=>o.com_motor),
-       cols:[TVO_COL.placa, TVO_COL.mod, ['Última saída', l=>tvoD(l.ult_saida),'num'],
+       cols:[TVO_COL.frota, TVO_COL.mod, ['Última saída', l=>tvoD(l.ult_saida),'num'],
              ['Dias parado', l=>l.dias_parado==null?'—':tvoN(l.dias_parado),'num']]},
       {estado:'em_viagem', rotulo:'Em viagem', n:pk.tracao_viagem,
        linhas:tr.filter(v=>['FROTA','LOCACAO'].indexOf(String(v.utilizacao||'').toUpperCase())>=0),
@@ -18063,7 +18080,7 @@ function tvOpeCard(card){
       {estado:'chegam', rotulo:'Chegam hoje', n:k.chegadas_previstas_hoje,
        linhas:tr.filter(v=>String(v.previsao_chegada||'').startsWith(hoje)), cols:TVO_VIAGEM}]);
     case 'chegando': {
-      const cols=[TVO_COL.placa, TVO_COL.mod,
+      const cols=[TVO_COL.frota, TVO_COL.mod,
         ['Destino', l=>esc((l.cidade||'?')+'/'+(l.uf||'?'))],
         ['Chegada prevista', l=>tvoDT(l.eta),'num']];
       return cfg('chegadas', [
@@ -18201,6 +18218,10 @@ function tvOpeVeiculo(placa){
     return (venc?'<span class="ccm-at">vencida há ':'faltam ')+val+(venc?'</span>':'');
   };
   tvoFicha((pos.rotulo||v&&v.rotulo||placa)+' — ficha do veículo', [
+    /* na FICHA os dois ficam: o numero e como a operacao chama o veiculo, e a
+       placa e a chave da casa (e o que se procura no ERP). Nas LISTAS vale so
+       a frota, que e como a parede fala. */
+    ['Frota', esc(pos.frota||(v&&v.frota)||'—')],
     ['Placa', esc(placa||'—')],
     ['Modalidade', esc(pos.utilizacao||(v&&v.utilizacao)||'—')],
     pos.tracao ? ['Tração', esc(pos.tracao)] : null,
@@ -18228,11 +18249,11 @@ function tvOpeGrupo(ps, emViagem){
   abrirModal(`<div class="ccm-cab"><div><h3>${tvoN(linhas.length)} veículos neste ponto</h3>`
     + `<div class="ccm-per">${emViagem?'em viagem':'sem viagem aberta'} · clique num veículo para a ficha dele</div></div>`
     + `<button type="button" class="btn" onclick="fecharModal()">Fechar</button></div>`
-    + `<div id="ccm-corpo"><div class="ccm-lista"><table><thead><tr><th>Veículo</th><th>Placa</th>`
+    + `<div id="ccm-corpo"><div class="ccm-lista"><table><thead><tr><th>Frota</th>`
     + `<th>Modalidade</th><th class="num">Velocidade</th><th class="num">Última posição</th></tr></thead><tbody>`
     + linhas.map(l=>`<tr role="button" tabindex="0" data-placa="${esc(l.placa||'')}">`
-        + `<td>${esc(l.rotulo||l.placa||'—')}${l.atrasada?' <span class="ccm-at">atrasada</span>':''}</td>`
-        + `<td>${esc(l.placa||'—')}</td><td>${esc(l.utilizacao||'—')}</td>`
+        + `<td>${esc(l.frota||l.rotulo||l.placa||'—')}${l.atrasada?' <span class="ccm-at">atrasada</span>':''}</td>`
+        + `<td>${esc(l.utilizacao||'—')}</td>`
         + `<td class="num">${l.velocidade!=null?tvoN(l.velocidade)+' km/h':'—'}</td>`
         + `<td class="num">${l.posicao_em?tvoDT(l.posicao_em):'—'}</td></tr>`).join('')
     + `</tbody></table></div></div>`);
@@ -18503,9 +18524,9 @@ async function loadTvOpe(){
         <div class="kmstack"><i style="width:${(100-Math.min(100,pctV)).toFixed(1)}%;background:${corC}"></i><i style="width:${Math.min(100,pctV).toFixed(1)}%;background:${corV}"></i><u style="left:80%"></u></div>
         <div class="kmvz-lab">marca = limite de 20% de vazio</div></div>
         <div class="kmgrp kmmods">${mods.map(m=>{
-          const cor=tvCorMod(m.utilizacao), pm=pctMod(m.km_total);
+          const g=TV_KM_BARRA[m.utilizacao]||TV_KM_BARRA._, pm=pctMod(m.km_total);
           return `<div class="mod"><b>${esc(utLbl(m.utilizacao)[0])}</b>
-            <div class="trk"><i style="width:${pm.toFixed(1)}%;background:${cor}"></i></div>
+            <div class="trk"><i style="width:${pm.toFixed(1)}%;background:linear-gradient(90deg,${g[0]},${g[1]})"></i></div>
             <span>${((m.km_total||0)/1000).toLocaleString('pt-BR',{maximumFractionDigits:0})} mil km</span>
             <span class="kpct">${pm.toFixed(0)}%</span></div>`;
         }).join('')}</div>`;

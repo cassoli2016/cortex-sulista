@@ -122,7 +122,12 @@ def _rev_sem(i, status):
 
 
 def _os(i, motor, dias):
-    return {"placa": (f"CAV{i:04d}" if motor else f"SEM{i:04d}"), "utilizacao": "FROTA",
+    """Na oficina: número de frota de verdade, MENOS no primeiro semirreboque —
+    ali o cadastro tem a placa copiada no campo, e o servidor devolve `frota`
+    nulo. É o caso que prova que a lista cai na placa em vez de inventar."""
+    return {"placa": (f"CAV{i:04d}" if motor else f"SEM{i:04d}"),
+            "frota": None if (not motor and i == 0) else ("C%03d" % i if motor else "S%03d" % i),
+            "utilizacao": "FROTA",
             "os_abertas": 1 + i % 2, "desde": "2026-09-0%d" % (1 + i % 9),
             "dias": dias, "longa": dias > 7}
 
@@ -146,7 +151,7 @@ MANUT = {"revisoes": {"cavalos": {"vencidas": 1, "a_vencer": 3, "avaliados": 66,
          "mes": {"preventivas": 26, "corretivas": 62, "socorro": 15,
                  "socorro_ant": 12, "dia": 15, "mes_ant": "2026-08",
                  "lista": [{"numero": 9000 + i, "filial": 1, "placa": f"CAV{i:04d}",
-                            "utilizacao": "FROTA", "objetivo": obj,
+                            "frota": f"C{i:03d}", "utilizacao": "FROTA", "objetivo": obj,
                             "emissao": "2026-09-0%d 08:00" % (1 + i % 9),
                             "fechamento": None if i % 3 else "2026-09-10",
                             "com_motor": True}
@@ -156,16 +161,18 @@ MANUT = {"revisoes": {"cavalos": {"vencidas": 1, "a_vencer": 3, "avaliados": 66,
 # AS LISTAS DA PROGRAMAÇÃO, com o CORTE do servidor: 20 ociosos de 72 e 20
 # motoristas parados de 157 — é o que faz o contador do modal ter de dizer
 # "de quantos", em vez de deixar 20 passar por total.
-OCIOSOS = [{"placa": f"FRT{i:04d}", "utilizacao": "FROTA", "com_motor": i % 3 != 0,
-            "ult_saida": "2026-09-01", "dias_parado": 30 - i} for i in range(20)]
+OCIOSOS = [{"placa": f"FRT{i:04d}", "frota": f"F{i:03d}", "utilizacao": "FROTA",
+            "com_motor": i % 3 != 0, "ult_saida": "2026-09-01",
+            "dias_parado": 30 - i} for i in range(20)]
 MOT_PARADOS = [{"motorista": f"MOTORISTA PARADO {i}", "dias_parado": 20 - i,
                 "ult_saida": "2026-08-26", "em_viagem": False, "venc_cnh": "2027-05-01",
                 "cnh_vencida": False, "fonte_cnh": "cadastro"} for i in range(20)]
 CNH_ALERTAS = [{"motorista": f"MOTORISTA CNH {i}", "dias_parado": i, "ult_saida": "2026-09-01",
                 "em_viagem": i == 0, "venc_cnh": "2026-08-01", "cnh_vencida": True,
                 "fonte_cnh": "cadastro"} for i in range(2)]
-CHEGADAS = [{"placa": f"CHG{i:04d}", "utilizacao": "AGREGADOS", "cidade": f"CIDADE {i}",
-             "uf": "SP", "eta": _fmt(AGORA + timedelta(hours=i + 1)), "n_cargas": 1 + i % 3}
+CHEGADAS = [{"placa": f"CHG{i:04d}", "frota": f"G{i:03d}", "utilizacao": "AGREGADOS",
+             "cidade": f"CIDADE {i}", "uf": "SP",
+             "eta": _fmt(AGORA + timedelta(hours=i + 1)), "n_cargas": 1 + i % 3}
             for i in range(25)]
 # A LISTA DA FROTA, sem corte: 68 motoristas da casa, 4 em viagem e 2 com a
 # CNH vencida — os mesmos números dos KPIs do cartão.
@@ -576,6 +583,27 @@ def test_cada_modalidade_diz_e_PREENCHE_a_sua_fatia(pagina):
     assert larguras[1] < larguras[0], larguras
 
 
+def test_as_barras_do_km_tem_paleta_PROPRIA_e_degrade(pagina):
+    """Quem opera, 16/09/2026: "mude a cor da barra do agregado e da frota, e
+    faça as 3 barras em degradê". O ALCANCE foi escolhido: vale só no cartão —
+    o mapa e a legenda seguem com a cor de sempre, e é isso que a segunda
+    metade deste teste guarda. Sem ela, mexer em `tvCorMod` passaria batido."""
+    pg, base = pagina
+    _abre(pg, base)
+    fundos = pg.evaluate("""() => [...document.querySelectorAll('#tvope-km .mod .trk i')]
+                                   .map(i => i.style.background)""")
+    assert len(fundos) == 3 and all("linear-gradient" in f for f in fundos), fundos
+    # na ordem do cartão: agregado, frota, terceiro
+    assert "242, 118, 75" in fundos[0], fundos[0]      # #F2764B coral
+    assert "91, 143, 214" in fundos[1], fundos[1]      # #5B8FD6 azul claro
+    assert "185, 119, 9" in fundos[2], fundos[2]       # #B97709 ocre, o de sempre
+    # o MAPA não entra nesta troca: o marcador do agregado segue laranja
+    mapa = pg.evaluate("""() => [...document.querySelectorAll('#tvMapa .tv-vmk')]
+                                 .map(m => m.style.background)""")
+    assert any("232, 93, 16" in m for m in mapa), mapa[:5]   # #E85D10, tvCorMod
+    assert not any("242, 118, 75" in m for m in mapa), mapa[:5]
+
+
 def test_chegadas_uma_linha_por_carga_e_com_contador(pagina):
     pg, base = pagina
     _abre(pg, base)
@@ -689,6 +717,7 @@ _DET = """() => {
             titulo: (box.querySelector('h3') || {}).textContent,
             aba: ab ? ab.dataset.estado : null,
             abas: [...box.querySelectorAll('.ccm-aba')].map(b => b.textContent.trim()),
+            cab: [...box.querySelectorAll('.ccm-lista th')].map(t => t.textContent.trim()),
             linhas: box.querySelectorAll('.ccm-lista tbody tr').length,
             cont: (document.getElementById('ccm-cont') || {}).textContent,
             texto: box.innerText}; }"""
@@ -772,6 +801,26 @@ def test_a_lista_cortada_pelo_servidor_diz_quantas_de_quantas(pagina):
     assert pg.evaluate(_DET)["linhas"] == 6          # os cavalos na oficina
     pg.keyboard.press("Escape")
     assert not pg.evaluate("document.getElementById('modalBg').classList.contains('aberto')")
+
+
+def test_as_listas_chamam_o_veiculo_pelo_NUMERO_DE_FROTA(pagina):
+    """Quem opera, 16/09/2026: "nos modais pode trocar as placas por frota".
+    A parede chama o veículo pelo número; as listas mostravam a placa. E o
+    fallback é regra da casa: onde o cadastro tem a PLACA copiada no campo de
+    frota, o servidor manda `frota` nulo e a lista mostra a placa — nunca um
+    número inventado."""
+    pg, base = pagina
+    _abre(pg, base)
+    pg.click("#tvope-k2 > .tv-card:nth-child(3) .tv-duo > div:nth-child(2)")   # parados · semirreboques
+    d = _detalhe(pg)
+    assert d["cab"][0] == "Frota" and "Placa" not in d["cab"], d["cab"]
+    col = pg.evaluate("""() => [...document.querySelectorAll('#ccm-lista tbody tr')]
+                                .map(tr => tr.cells[0].innerText.trim())""")
+    # 15 semirreboques: 14 com número e o primeiro (sem número no cadastro)
+    # caindo na placa — e nenhuma outra placa na coluna
+    assert "SEM0000" in col, col[:5]
+    assert [c for c in col if c.startswith("SEM")] == ["SEM0000"], col
+    assert sum(1 for c in col if c.startswith("S0")) == 14, col
 
 
 def test_o_detalhe_dos_motoristas_e_SO_DA_FROTA(pagina):

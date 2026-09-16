@@ -50,15 +50,20 @@ PREV = {"kpis": {"tracoes_vencidas": 1, "tracoes_proximas": 3, "tracoes_avaliada
                       "ultima": "2026-03-20", "limite": 240, "bau": True}]}
 
 
-def _v(placa, motor, em_viagem=0, os_abertas=0, desde=None):
-    return {"placa": placa, "utilizacao": "FROTA", "com_motor": motor, "ult_saida": None,
+def _v(placa, motor, em_viagem=0, os_abertas=0, desde=None, frota=None):
+    """`frota=None` é o cadastro SEM número; `frota=placa` é a placa copiada
+    no campo — os dois casos reais, e em nenhum deles a lista pode inventar um
+    número de frota (regra de `frota_identidade`)."""
+    return {"placa": placa, "numerofrota": frota, "utilizacao": "FROTA",
+            "com_motor": motor, "ult_saida": None,
             "em_viagem": em_viagem, "os_abertas": os_abertas, "os_desde": desde}
 
 
 # hoje = 31/03/2026
 VEIC = [
-    _v("CAV0001", True, os_abertas=1, desde=date(2026, 3, 20)),   # 11 dias: longa
-    _v("CAV0002", True, os_abertas=2, desde=date(2026, 3, 24)),   # 7 dias: NÃO é "mais de 7"
+    _v("CAV0001", True, os_abertas=1, desde=date(2026, 3, 20), frota="B9001"),  # 11 dias: longa
+    # a PLACA copiada no campo de frota: não é número, e a lista mostra a placa
+    _v("CAV0002", True, os_abertas=2, desde=date(2026, 3, 24), frota="CAV0002"),
     _v("CAV0003", True, em_viagem=1, os_abertas=1, desde=date(2026, 1, 5)),  # rodando
     _v("CAV0004", True),
     _v("SEM0001", False, os_abertas=1, desde=date(2026, 3, 30)),
@@ -151,6 +156,11 @@ def test_a_lista_da_oficina_e_a_MESMA_dos_numeros(monkeypatch):
     assert len(cav) == of["cavalos"]["parados"]
     assert sum(1 for x in cav if x["longa"]) == of["cavalos"]["longa"]
     assert of["semirreboques"]["lista"][0]["placa"] == "SEM0002"   # 58 dias, o mais velho
+    # o NÚMERO DE FROTA vai junto, pela régua da casa: número de verdade vira
+    # `frota`; a placa copiada no campo, não (16/09/2026, os modais chamam o
+    # veículo pelo número)
+    assert [x["frota"] for x in cav] == ["B9001", None], cav
+    assert cav[1]["rotulo"] == "CAV0002", cav[1]
 
 
 def test_as_contagens_do_mes_saem_da_PROPRIA_lista(monkeypatch):
@@ -158,7 +168,11 @@ def test_as_contagens_do_mes_saem_da_PROPRIA_lista(monkeypatch):
     detalhe passam a discordar sem ninguém ver."""
     _banco(monkeypatch)
     mes = queries.get_manutencao_tv()["mes"]
-    assert mes["lista"] == OS_MES
+    # a MESMA lista, linha a linha — comparada pelo que identifica a OS, e não
+    # pelo dicionário inteiro: as linhas ganham `frota`/`rotulo` no caminho
+    assert [(l["numero"], l["placa"], l["objetivo"]) for l in mes["lista"]] == [
+        (o["numero"], o["placa"], o["objetivo"]) for o in OS_MES]
+    assert all("rotulo" in l and "numerofrota" not in l for l in mes["lista"])
     assert (mes["preventivas"], mes["corretivas"], mes["socorro"]) == (2, 3, 1)
     for chave, objetivo in (("preventivas", 14), ("corretivas", 15), ("socorro", 16)):
         assert mes[chave] == sum(1 for o in mes["lista"] if o["objetivo"] == objetivo)
