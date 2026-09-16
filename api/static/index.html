@@ -3756,13 +3756,19 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#orc" class="sub" data-view="orc" title="Orçamento — orçado × realizado"><span class="ic" data-ic="orcic"></span><span>Orçamento</span></a>
         <a href="#qual" class="sub" data-view="qual" title="Qualidade — certidões e licenças com vencimento"><span class="ic" data-ic="qualic"></span><span>Qualidade e Certidões</span></a>
       </div>
+      <button class="group" id="grpFat" aria-expanded="false" aria-controls="subsFat" onclick="toggleGroup('grpFat','subsFat','cs.fatGroup')" title="Faturamento">
+        <span class="ic" data-ic="fatic"></span><span>Faturamento</span><span class="ic chev" data-ic="chev"></span>
+      </button>
+      <div class="subs closed" id="subsFat">
+        <a href="#cob" class="sub" data-view="cob" title="Inadimplência — o vencido por grupo de cliente e a tratativa da cobrança"><span class="ic" data-ic="cob"></span><span>Inadimplência</span></a>
+        <a href="#whrval" class="sub" data-view="whrval" title="Validação de Emissão — Whirlpool: o Pré-Cálculo anexado à coleta contra o CT-e emitido"><span class="ic" data-ic="whrvalic"></span><span>Validação de Emissão — Whirlpool</span></a>
+      </div>
       <button class="group" id="grpFin" aria-expanded="false" aria-controls="subsFin" onclick="toggleGroup('grpFin','subsFin','cs.finGroup')" title="Financeiro">
         <span class="ic" data-ic="fin"></span><span>Financeiro</span><span class="ic chev" data-ic="chev"></span>
       </button>
       <div class="subs closed" id="subsFin">
         <a href="#antec" class="sub" data-view="antec" title="Antecipação de Recebíveis — quanto antecipar para o caixa não furar"><span class="ic" data-ic="antecic"></span><span>Antecipação</span></a>
         <a href="#banc" class="sub" data-view="banc" title="Bancos — saldo, volume e custo por instituição"><span class="ic" data-ic="bancic"></span><span>Bancos</span></a>
-        <a href="#cob" class="sub" data-view="cob" title="Régua de Cobrança"><span class="ic" data-ic="cob"></span><span>Cobrança</span></a>
         <a href="#pagar" class="sub" data-view="pagar" title="Contas a Pagar"><span class="ic" data-ic="pag"></span><span>Contas a Pagar</span></a>
         <a href="#receber" class="sub" data-view="receber" title="Contas a Receber"><span class="ic" data-ic="rec"></span><span>Contas a Receber</span></a>
         <a href="#extb" class="sub" data-view="extb" title="Extrato Bancário — conciliação"><span class="ic" data-ic="extbic"></span><span>Extrato Bancário</span></a>
@@ -3813,7 +3819,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#prog" class="sub" data-view="prog" title="Programação Inteligente"><span class="ic" data-ic="prog"></span><span>Programação Intel.</span></a>
         <a href="#sac" class="sub" data-view="sac" title="SAC / Freetime e Estadia"><span class="ic" data-ic="sacic"></span><span>SAC / Freetime</span></a>
         <a href="#torre" class="sub" data-view="torre" title="Torre de Controle"><span class="ic" data-ic="tor"></span><span>Torre de Controle</span></a>
-        <a href="#whrval" class="sub" data-view="whrval" title="Validação de Emissão — Whirlpool: o Pré-Cálculo anexado à coleta contra o CT-e emitido"><span class="ic" data-ic="whrvalic"></span><span>Validação de Emissão — Whirlpool</span></a>
         <a href="#pedagio" class="sub" data-view="pedagio" title="Validação de Pedágio — o vale-pedágio contra o que se cobra no CT-e e o que a coleta lança, por eixo e modalidade"><span class="ic" data-ic="pedic"></span><span>Validação de Pedágio</span></a>
       </div>
       <button class="group" id="grpRh" aria-expanded="false" aria-controls="subsRh" onclick="toggleGroup('grpRh','subsRh','cs.rhGroup')" title="Recursos Humanos">
@@ -10751,7 +10756,7 @@ function tvRecarregar(v){
   if(esTv(v) && mapa[v]) mapa[v]();
 }
 
-const VIEWS = { agrcanal:'Canal do Agregado', hp:'Horas Paradas', radar:'Radar do Transporte', tvcco:'Painel TV — Coletas e Entregas', tvcom:'Painel TV — Comunicação', tvjor:'Painel TV — Jornada', tvprod:'Painel TV — Produtividade',home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Central de Documentos', eqp:'Equipamentos', wmspan:'Painel do Armazém', wmsrec:'Recebimento', wmsest:'Estoque e Inventário', wmsexp:'Separação e Expedição', wmscad:'Cadastros do Armazém', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', whrval:'Validação de Emissão — Whirlpool', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', freq:'Frequência e Banco de Horas', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', gesind:'Ritual — Indicadores e Metas', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { agrcanal:'Canal do Agregado', hp:'Horas Paradas', radar:'Radar do Transporte', tvcco:'Painel TV — Coletas e Entregas', tvcom:'Painel TV — Comunicação', tvjor:'Painel TV — Jornada', tvprod:'Painel TV — Produtividade',home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Central de Documentos', eqp:'Equipamentos', wmspan:'Painel do Armazém', wmsrec:'Recebimento', wmsest:'Estoque e Inventário', wmsexp:'Separação e Expedição', wmscad:'Cadastros do Armazém', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', whrval:'Validação de Emissão — Whirlpool', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Inadimplência', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', freq:'Frequência e Banco de Horas', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', gesind:'Ritual — Indicadores e Metas', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -10983,7 +10988,7 @@ function toggleMini(){
   document.getElementById('miniIcon').innerHTML = ICONS[mini?'chevr':'chevl'];
 }
 // grupos do menu (botão, submenu). Ordem = ordem visual da sidebar.
-const GRUPOS = [['grpBi','subsBi'],['grpCom','subsCom'],['grpFin','subsFin'],
+const GRUPOS = [['grpBi','subsBi'],['grpCom','subsCom'],['grpFat','subsFat'],['grpFin','subsFin'],
   ['grpCtr','subsCtr'],['grpOpe','subsOpe'],['grpFro','subsFro'],['grpSup','subsSup'],
   ['grpRh','subsRh'],['grpSpt','subsSpt'],['grpAdm','subsAdm']];
 
@@ -11023,11 +11028,11 @@ function toggleGroup(gid,sid,key){
 
 const VIEW_GROUP = {radar:'',home:'',cop:'',apps:'',
   com:'Com',clif:'Com',crm:'Com',rent:'Com',drecli:'Com',
-  fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fin',banc:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',antport:'Fin',fluxcon:'Fin',rec:'Fin',
+  fluxo:'Fin',receber:'Fin',pagar:'Fin',cob:'Fat',banc:'Fin',extb:'Fin',lanc:'Fin',antec:'Fin',antport:'Fin',fluxcon:'Fin',rec:'Fin',
   dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',
   ctecp:'Tms',eqp:'Tms',dfe:'Tms',
   wmspan:'Wms',wmsrec:'Wms',wmsest:'Wms',wmsexp:'Wms',wmscad:'Wms',
-  torre:'Ope',milkrun:'Ope',poli:'Ope',hp:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',cliop:'Ope',port:'Ope',km:'Ope',agr:'Ope',agrcanal:'Ope',mvb:'Ope',pedagio:'Ope',whrval:'Ope',
+  torre:'Ope',milkrun:'Ope',poli:'Ope',hp:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',cliop:'Ope',port:'Ope',km:'Ope',agr:'Ope',agrcanal:'Ope',mvb:'Ope',pedagio:'Ope',whrval:'Fat',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',pecas:'Sup',
   fat:'Ctr',gr:'Ope',tvcli:'Bi',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',tvcom:'Bi',tvjor:'Bi',tvprod:'Bi',tvcco:'Bi',
@@ -11046,7 +11051,7 @@ function syncGroups(v){
   if(ativo===undefined) return;
   // 'Spt' e o SUPORTE; 'Sup' ja era SUPRIMENTOS. Sigla nova tem de entrar
   // AQUI tambem, senao o acordeao nao abre no grupo da tela ativa.
-  ['Bi','Com','Fin','Ctr','Ope','Fro','Sup','Rh','Ges','Spt','Adm','Tel','Antt','Tms','Wms'].forEach(k=>{
+  ['Bi','Com','Fat','Fin','Ctr','Ope','Fro','Sup','Rh','Ges','Spt','Adm','Tel','Antt','Tms','Wms'].forEach(k=>{
     const btn=document.getElementById('grp'+k), subs=document.getElementById('subs'+k);
     if(!btn||!subs) return;
     const open = (k===ativo);
@@ -14906,7 +14911,7 @@ function renderHome(d){
       BRL.format(d.receber_vencido)+' vencido · '+BRL.format(d.receber_pendente_fatur||0)+' pendente de faturamento',
       '', '#receber',
       d.receber_vencido>0 ? statChip('bad', pct(d.receber_vencido,d.receber_aberto)+' vencido',
-        'R$ '+BRL.format(d.receber_vencido).replace('R$ ','')+' de títulos vencidos e não liquidados (método oficial fatura_composicao). Ver Régua de Cobrança.','sevCrit') : ''),
+        'R$ '+BRL.format(d.receber_vencido).replace('R$ ','')+' de títulos vencidos e não liquidados (método oficial fatura_composicao). Ver Faturamento › Inadimplência.','sevCrit') : ''),
     kpiLink('A pagar', BRL.format(d.pagar_aberto), BRL.format(d.pagar_vencido)+' vencido · títulos em aberto no ERP', '', '#pagar',
       d.pagar_vencido>0 ? statChip('warn', pct(d.pagar_vencido,d.pagar_aberto)+' vencido',
         'R$ '+BRL.format(d.pagar_vencido).replace('R$ ','')+' com vencimento já passado.','sevWarn') : ''),
@@ -40244,7 +40249,7 @@ const BUSCA_SINONIMOS = {
   radar:['inicio','pagina inicial','noticias','diesel','preco do diesel','anp','brent','petroleo','dolar','ptax','reforma tributaria','ibs','cbs','antt','rodovias','estradas','interdicao','bloqueio','mercado'],
   home:['visao geral','resumo','inicio','dashboard'],
 };
-const BUSCA_GRUPO_LBL = {Com:'Comercial',Fin:'Financeiro',Ctr:'Controladoria',Ope:'Operação',
+const BUSCA_GRUPO_LBL = {Com:'Comercial',Fat:'Faturamento',Fin:'Financeiro',Ctr:'Controladoria',Ope:'Operação',
   Fro:'Frota',Sup:'Suprimentos',Rh:'Recursos Humanos',Bi:'Business Intelligence',Adm:'Administração',Spt:'Suporte',
   Tel:'Telemetria',Antt:'ANTT',Wms:'WMS'};
 // ABC1234 (antiga) e ABC1D23 (Mercosul) — a busca não valida placa, só
@@ -50507,12 +50512,18 @@ boot();
         <a href="#qual" onclick="fecharDrawer()"><span class="ic" data-ic="qualic"></span>Qualidade e Certidões</a>
       </div>
     </div>
+    <div class="dgrp" data-grp="Fat">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Faturamento</span><span class="dchev">›</span></button>
+      <div class="dgrp-b">
+        <a href="#cob" onclick="fecharDrawer()"><span class="ic" data-ic="cob"></span>Inadimplência</a>
+        <a href="#whrval" onclick="fecharDrawer()"><span class="ic" data-ic="whrvalic"></span>Validação de Emissão — Whirlpool</a>
+      </div>
+    </div>
     <div class="dgrp" data-grp="Fin">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Financeiro</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
         <a href="#antec" onclick="fecharDrawer()"><span class="ic" data-ic="antecic"></span>Antecipação</a>
         <a href="#banc" onclick="fecharDrawer()"><span class="ic" data-ic="bancic"></span>Bancos</a>
-        <a href="#cob" onclick="fecharDrawer()"><span class="ic" data-ic="cob"></span>Cobrança</a>
         <a href="#pagar" onclick="fecharDrawer()"><span class="ic" data-ic="pag"></span>Contas a Pagar</a>
         <a href="#receber" onclick="fecharDrawer()"><span class="ic" data-ic="rec"></span>Contas a Receber</a>
         <a href="#extb" onclick="fecharDrawer()"><span class="ic" data-ic="ctb"></span>Extrato Bancário</a>
@@ -50563,7 +50574,6 @@ boot();
         <a href="#prog" onclick="fecharDrawer()"><span class="ic" data-ic="prog"></span>Programação Intel.</a>
         <a href="#sac" onclick="fecharDrawer()"><span class="ic" data-ic="sacic"></span>SAC / Freetime</a>
         <a href="#torre" onclick="fecharDrawer()"><span class="ic" data-ic="tor"></span>Torre de Controle</a>
-        <a href="#whrval" onclick="fecharDrawer()"><span class="ic" data-ic="whrvalic"></span>Validação de Emissão — Whirlpool</a>
         <a href="#pedagio" onclick="fecharDrawer()"><span class="ic" data-ic="pedic"></span>Validação de Pedágio</a>
       </div>
     </div>

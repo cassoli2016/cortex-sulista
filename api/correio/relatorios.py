@@ -828,7 +828,7 @@ def inadimplencia() -> dict:
             blocos.append(p.secao(
                 "Tratativa da cobrança",
                 (f"{_TRAT_MAX} de {len(acoes)} · " if len(acoes) > _TRAT_MAX else "")
-                + "o que pede ação hoje · Régua de Cobrança"))
+                + "o que pede ação hoje · Faturamento › Inadimplência"))
             if not leu:
                 blocos.append(p.paragrafo(
                     "A tratativa não pôde ser lida agora. Os valores acima vêm do "

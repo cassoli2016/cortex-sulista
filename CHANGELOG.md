@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.103.0] — 16/09/2026  ·  CX-16/09/2026-v1.103.0
+
+### Alterado
+- Menu novo: Faturamento, entre Controladoria e Financeiro. Ele reúne a tela de cobrança, que saiu do Financeiro e passa a se chamar Inadimplência, e a Validação de Emissão da Whirlpool, que saiu da Operação. Quem já tinha acesso continua com o mesmo acesso: muda só o lugar no menu e o nome. O e-mail diário da tratativa aponta para o nome novo.
+
 ## [1.102.0] — 16/09/2026  ·  CX-16/09/2026-v1.102.0
 
 ### Adicionado

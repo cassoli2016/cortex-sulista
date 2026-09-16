@@ -1,3 +1,14 @@
+- versao: "1.103.0"
+  data: "2026-09-16"
+  alterado:
+    - >-
+      Menu novo: Faturamento, entre Controladoria e Financeiro. Ele reúne a
+      tela de cobrança, que saiu do Financeiro e passa a se chamar
+      Inadimplência, e a Validação de Emissão da Whirlpool, que saiu da
+      Operação. Quem já tinha acesso continua com o mesmo acesso: muda só o
+      lugar no menu e o nome. O e-mail diário da tratativa aponta para o nome
+      novo.
+
 - versao: "1.102.0"
   data: "2026-09-16"
   adicionado:

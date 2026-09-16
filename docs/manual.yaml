@@ -939,8 +939,8 @@ glossario:
     Buraco acumulado pede resultado, prazo com fornecedor ou capital.
 - termo: Tratativa de cobrança
   definicao: >-
-    O registro do que está sendo feito com o valor em aberto de um cliente da
-    Régua de Cobrança — contato, promessa de pagamento com data e valor,
+    O registro do que está sendo feito com o valor em aberto de um cliente na
+    tela de Inadimplência — contato, promessa de pagamento com data e valor,
     negociação, contestação, protesto, jurídico —, com quem registrou e quando.
     É HISTÓRICO: um registro não se edita nem se apaga, e o próprio banco
     recusa as duas coisas; o que mudou entra como registro novo, porque apagar
@@ -1240,9 +1240,19 @@ grupos:
   - home
   - cop
   - apps
+- nome: Faturamento
+  resumo: >-
+    O que se fatura e o que se recebe do que foi faturado. A Inadimplência é o
+    vencido por grupo de cliente, na mesma regra do BI de Inadimplência do
+    Avacorp, com a tratativa da cobrança registrada linha a linha. A Validação
+    de Emissão da Whirlpool confere o Pré-Cálculo que o cliente anexa em cada
+    coleta contra o CT-e emitido, fornecedor por fornecedor.
+  telas:
+  - cob
+  - whrval
 - nome: Financeiro
   resumo: >-
-    Caixa e sua projeção, títulos a receber e a pagar, régua de cobrança,
+    Caixa e sua projeção, títulos a receber e a pagar,
     conciliação do extrato, lançamentos bancários (razão do banco lançamento a
     lançamento), antecipação de recebíveis (com importação das planilhas dos
     portais dos clientes). O Fluxo de Caixa Consolidado é a engenharia de
@@ -1255,7 +1265,6 @@ grupos:
   - fluxcon
   - receber
   - pagar
-  - cob
   - banc
   - extb
   - lanc
@@ -1326,7 +1335,6 @@ grupos:
   - torre
   - hp
   - pedagio
-  - whrval
   - milkrun
   - poli
   - prog

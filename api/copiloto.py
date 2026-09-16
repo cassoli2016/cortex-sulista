@@ -99,7 +99,7 @@ _FONTES_ROTULO = {
     "auditoria_uso": "Auditoria — acessos e uso do painel",
     "financeiro_caixa": "Fluxo de Caixa e Bancos",
     "inadimplencia": "Inadimplência — o dia (vencido, fluxo e concentração)",
-    "cobranca_tratativa": "Régua de Cobrança — tratativas (promessas vencidas, sem tratativa)",
+    "cobranca_tratativa": "Inadimplência — tratativas da cobrança (promessas vencidas, sem tratativa)",
     "calendario": "Calendário de feriados (dias úteis)",
     "analise_km_ano": "Análise de KM",
     "agregados_terceiros_ano": "Agregados e Terceiros",
