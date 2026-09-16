@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.97.1] — 16/09/2026  ·  CX-16/09/2026-v1.97.1
+
+### Corrigido
+- Aplicativos › App do agregado — a tela de entrada passou a ser a mesma do app do motorista: fundo navy, o anel da marca girando com CÓRTEX dentro, a logo da Sulista e o cartão branco por baixo. O app fala de dinheiro com quem está fora da casa, e uma tela genérica pedindo o celular tem a forma de um golpe — reconhecer a empresa de imediato faz parte de o código ser usado. O acesso da administração saiu de dentro do cartão e virou o mesmo link discreto do outro app.
+
 ## [1.97.0] — 16/09/2026  ·  CX-16/09/2026-v1.97.0
 
 ### Adicionado

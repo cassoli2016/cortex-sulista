@@ -160,6 +160,42 @@ def test_sem_sessao_a_pagina_mostra_a_entrada_e_nao_o_app(pagina):
     assert _sem_rolagem_lateral(pg) == 0
 
 
+def test_a_entrada_e_a_mesma_marca_do_app_do_motorista(pagina):
+    """A CARA DO LOGIN É REQUISITO, não estética (pedido de quem opera,
+    16/09/2026: "deixe a cara do login igual ao do motorista").
+
+    O app fala de dinheiro com gente de fora da casa: uma tela genérica
+    pedindo o celular tem a forma exata de um golpe. O que prova a marca é o
+    conjunto — fundo navy em gradiente, o cabeçalho escuro, o anel girando com
+    CÓRTEX dentro, a logo da Sulista e o acesso da administração como link
+    discreto FORA do cartão.
+    """
+    pg = _abre(pagina, sessao=False)
+    m = pg.evaluate("""() => {
+        const corpo = getComputedStyle(document.body);
+        const cab = document.querySelector('#entrada .lg-head');
+        const anel = document.getElementById('lg-anel');
+        const r = anel.getBoundingClientRect();
+        const cartao = document.querySelector('#entrada .lg-card').getBoundingClientRect();
+        const link = document.getElementById('b-abrir-mestre').getBoundingClientRect();
+        return {gradiente: corpo.backgroundImage.includes('gradient'),
+                entrando: document.body.classList.contains('entrando'),
+                cabecalho: getComputedStyle(cab).backgroundColor,
+                anel_desenhado: anel.dataset.anel === '1',
+                anel_quadrado: Math.abs(r.width - r.height) < 2 && r.width > 100,
+                marca: (document.querySelector('.lg-marca span') || {}).textContent,
+                logo: (document.querySelector('.lg-head img') || {}).getAttribute('alt'),
+                link_fora_do_cartao: link.top > cartao.bottom,
+                campo_alto: document.querySelector('#fone').getBoundingClientRect().height}; }""")
+    assert m["entrando"] and m["gradiente"], m
+    assert m["cabecalho"] == "rgb(11, 25, 38)", m          # o navy da casa
+    assert m["anel_desenhado"] and m["anel_quadrado"], m
+    assert m["marca"] == "CÓRTEX" and m["logo"] == "Sulista", m
+    assert m["link_fora_do_cartao"], m
+    # alvo de toque de celular: 48px, e não os ~38 do painel
+    assert m["campo_alto"] >= 48, m
+
+
 def test_o_codigo_chega_e_a_sessao_abre(pagina):
     """O fluxo inteiro: telefone → código → app. A mensagem que a página
     mostra é a do SERVIDOR, e ela é a mesma para número que existe e que não

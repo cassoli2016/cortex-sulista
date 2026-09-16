@@ -25,16 +25,26 @@
    diferença deliberada é o alvo de toque: este app é de celular, e quem lê
    está no pátio, muitas vezes de luva. */
 :root{
+  /* Os MESMOS tokens do app do motorista, que são os do painel: a entrada dos
+     dois apps é a mesma marca, e quem abre um reconhece o outro. */
   --navy-900:#0B1926; --navy-800:#102538; --navy-700:#17344F;
   --brand:#942821; --accent:#E85D10;
-  --ok:#1E7F4F; --aviso:#B97709; --ruim:#C03221;
-  --n0:#FFFFFF; --n50:#F6F7F9; --n200:#E3E7EB; --n500:#636C76; --n900:#14181D;
+  --ok:#1E7F4F; --aviso:#B97709; --erro:#C03221; --ruim:#C03221;
+  --n0:#fff; --n100:#ECEEF1; --n200:#DCE0E5; --n300:#C2C8D0;
+  --n500:#636C76; --n600:#4F5860; --n900:#14181D;
+  --n50:#F4F5F7;
+  --radius:10px;
   --e1:9px; --e2:18px; --e3:25px;
   --font:'Saira',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:light dark;
 }
+/* O TEMA ESCURO VALE SÓ DENTRO DO APP. A tela de entrada é a marca da casa —
+   ela é navy em todo aparelho, como o login do painel e o do motorista (o
+   `--navy-*` é o token que a casa congela de propósito). */
 @media (prefers-color-scheme: dark){
-  :root{ --n0:#141A20; --n50:#1B222A; --n200:#2A333D; --n500:#9AA6B2; --n900:#EAF0F6; }
+  :root{ --n0:#1E232A; --n50:#14181D; --n200:#2C333C; --n500:#9AA4AF;
+         --n900:#EEF1F4; --ok:#4ADE80; --aviso:#FBBF24; --erro:#F87171; }
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -43,30 +53,72 @@ body{font:16px/1.45 var(--font);background:var(--n50);color:var(--n900);
 body.entrando{background:var(--navy-900)}
 [hidden]{display:none !important}
 button{font:inherit}
-/* ───────────────────────────── entrada ───────────────────────────── */
-.lg-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:var(--e2)}
-.lg-card{width:min(100%,420px);background:var(--n0);border-radius:14px;padding:var(--e3);
-  box-shadow:0 10px 30px rgba(0,0,0,.25)}
-.lg-marca{display:flex;align-items:center;gap:var(--e1);margin-bottom:var(--e2)}
-.lg-marca b{font-size:20px;letter-spacing:.04em}
-.lg-marca span{font-size:13px;color:var(--n500)}
-.lg-card h1{font-size:19px;margin:0 0 6px}
-.lg-card p.ajuda{font-size:14px;color:var(--n500);margin:0 0 var(--e2)}
-.lg-card label{display:block;font-size:13px;font-weight:600;margin:0 0 6px}
-.lg-card input{width:100%;min-height:48px;font-size:16px;padding:0 12px;border-radius:10px;
-  border:1px solid var(--n200);background:var(--n0);color:var(--n900)}
-.lg-btn{width:100%;min-height:52px;margin-top:var(--e2);border:0;border-radius:10px;
-  background:var(--brand);color:#fff;font-size:16px;font-weight:700;cursor:pointer;
-  display:inline-flex;align-items:center;justify-content:center;gap:var(--e1)}
-.lg-card button.lg-btn.fraco{background:transparent;color:var(--n500);
-  border:1px solid var(--n200);font-weight:600;min-height:44px}
-.lg-card button.lg-btn[disabled]{opacity:.6}
-.msg{margin-top:var(--e2);padding:10px 12px;border-radius:10px;font-size:14px;
-  background:#FDECEA;color:var(--ruim)}
-.msg.ok{background:#EAF5EE;color:var(--ok)}
-.escolha button{width:100%;min-height:52px;margin-top:var(--e1);border-radius:10px;
-  border:1px solid var(--n200);background:var(--n0);color:var(--n900);text-align:left;
-  padding:0 14px;font-weight:600;cursor:pointer}
+/* ==================== a entrada (a MESMA do app do motorista) ==========
+   Enquanto o dono não entrou, a página INTEIRA é o login: fundo navy em
+   gradiente e o cartão centrado, com o anel girando e a logo da Sulista. Isso
+   não é enfeite: quem abre isto precisa reconhecer a empresa de imediato — o
+   app fala de dinheiro, e uma tela genérica pedindo o celular tem a forma
+   exata de um golpe. */
+body.entrando{
+  background:linear-gradient(160deg,var(--navy-900) 0%,var(--navy-700) 100%);
+  min-height:100dvh; display:flex;
+  padding:var(--e2) var(--e2) calc(var(--e2) + env(safe-area-inset-bottom));
+}
+/* CENTRADO POR `margin:auto`, e não por `align-items:center`: a diferença só
+   aparece no celular baixo, em que um cartão mais alto que a tela transborda
+   para os DOIS lados e o navegador corta o topo, sem deixar rolar até lá. */
+body.entrando #entrada{margin:auto;width:min(100%,400px)}
+.lg-card{background:var(--n0);color:var(--n900);border-radius:var(--radius);
+  box-shadow:0 10px 30px rgba(0,0,0,.25);width:100%;overflow:hidden}
+.lg-head{background:var(--navy-900);padding:26px 30px 20px;
+  display:flex;flex-direction:column;gap:8px;align-items:center}
+.lg-head img{height:34px}
+/* A MARCA: o anel girando com CÓRTEX centrado no vazio dele. O texto fica em
+   HTML POR CIMA do canvas, nunca desenhado nele — continua selecionável,
+   legível por leitor de tela e nítido em qualquer densidade. O `text-indent`
+   compensa o rastreio da ÚLTIMA letra, que sem ele descentraliza a palavra. */
+.lg-marca{position:relative;display:grid;place-items:center;line-height:0}
+.lg-marca span{position:absolute;inset:0;display:grid;place-items:center;
+  line-height:1;pointer-events:none;text-indent:.10em;
+  color:#fff;font-weight:700;letter-spacing:.12em;font-size:15px}
+.lg-anel{width:150px;height:150px;display:block;margin:-6px 0 -2px}
+.lg-body{padding:24px 25px 28px}
+.lg-body h1{margin:0 0 4px;font-size:18px;font-weight:700}
+.lg-sub{margin:0 0 14px;font-size:13px;color:var(--n500)}
+.lg-body label{display:block;font-size:12px;font-weight:600;color:var(--n500);
+  margin:10px 0 4px}
+/* REGRA DE COMPONENTE NASCE QUALIFICADA: no painel, `.lg-btn` (0,1,0) perdia
+   para `button.btn` (0,2,1) e o padding escrito nunca valia. */
+.lg-body input.campo{
+  width:100%; font:inherit; font-size:16px;   /* 16 evita o zoom do iOS ao focar */
+  padding:13px 12px; min-height:48px;          /* 48: polegar, não mouse */
+  border:1px solid var(--n300); border-radius:6px;
+  background:var(--n0); color:var(--n900);
+}
+.lg-body input.campo:focus{outline:2px solid var(--accent);outline-offset:1px}
+.lg-body button.lg-btn{
+  width:100%; margin-top:16px; padding:13px 16px; min-height:52px;
+  font:inherit; font-size:15px; font-weight:600;
+  color:#fff; background:var(--navy-700); border:0; border-radius:var(--radius);
+  cursor:pointer;
+}
+.lg-body button.lg-btn[disabled]{opacity:.55}
+.lg-body button.lg-btn.claro{
+  background:transparent; color:var(--n500); border:1px solid var(--n300);
+  font-weight:500; min-height:48px; margin-top:var(--e1);
+}
+.lg-body .msg{border-radius:8px;padding:11px 12px;font-size:13.5px;margin-top:var(--e2)}
+.lg-body .msg.erro{background:#FBEAE8;color:var(--erro)}
+.lg-body .msg.ok{background:#E8F2EC;color:var(--ok)}
+.lg-pe{color:rgba(255,255,255,.62);font-size:12.5px;text-align:center;margin:var(--e2) 0 0}
+.linksec{display:block;width:100%;background:none;border:0;font:inherit;
+  font-size:12.5px;color:rgba(255,255,255,.55);text-align:center;
+  margin-top:var(--e2);padding:10px;cursor:pointer;text-decoration:underline}
+.escolha button{width:100%;text-align:left;font:inherit;font-size:15px;
+  padding:14px 12px;min-height:52px;background:var(--n0);color:var(--n900);
+  border:1px solid var(--n300);border-radius:8px;margin-bottom:var(--e1);
+  cursor:pointer}
+.nota{font-size:12.5px;color:var(--n500);margin:var(--e1) 0 0}
 /* ───────────────────────────── o app ───────────────────────────── */
 .app{padding-bottom:84px}
 .topo{background:var(--navy-900);color:#fff;padding:var(--e2) var(--e2) var(--e1)}
@@ -116,49 +168,65 @@ button{font:inherit}
 
 <!-- ═══════════════════════════ entrada ═══════════════════════════ -->
 <div id="entrada">
-  <div class="lg-wrap"><div class="lg-card">
-    <div class="lg-marca"><b>CÓRTEX</b><span>· Agregado</span></div>
+  <div class="lg-card">
+    <div class="lg-head">
+      <div class="lg-marca">
+        <canvas id="lg-anel" class="lg-anel" aria-hidden="true"></canvas>
+        <span>CÓRTEX</span>
+      </div>
+      <img src="/static/sulista-logo-branco.svg" alt="Sulista">
+    </div>
 
     <div class="lg-body" id="tela-entrar">
       <h1>Entrar</h1>
-      <p class="ajuda">Digite o celular cadastrado na Sulista. Você recebe um código no WhatsApp.</p>
-      <label for="fone">Celular</label>
-      <input id="fone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="(41) 99999-9999">
+      <p class="lg-sub">Digite o seu celular. Enviamos um código pelo WhatsApp.</p>
+      <label for="fone">Celular com DDD</label>
+      <input class="campo" id="fone" type="tel" inputmode="tel"
+             autocomplete="tel" placeholder="(41) 99999-8888">
       <button class="lg-btn" id="b-pedir" type="button">Receber código</button>
-      <button class="lg-btn fraco" id="b-mestre" type="button">Acesso da administração</button>
       <div class="msg" id="m-entrar" hidden></div>
     </div>
 
     <div class="lg-body" id="tela-codigo" hidden>
       <h1>Código</h1>
-      <p class="ajuda">Digite os 6 dígitos que chegaram no seu WhatsApp.</p>
+      <p class="lg-sub">Digite os 6 números que chegaram no seu WhatsApp.</p>
       <label for="codigo">Código</label>
-      <input id="codigo" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+      <input class="campo" id="codigo" type="text" inputmode="numeric"
+             autocomplete="one-time-code" maxlength="6"
+             style="letter-spacing:.35em;text-align:center;font-size:26px">
       <button class="lg-btn" id="b-confirmar" type="button">Entrar</button>
-      <button class="lg-btn fraco" id="b-voltar" type="button">Usar outro número</button>
+      <button class="lg-btn claro" id="b-voltar" type="button">Trocar o número</button>
       <div class="msg" id="m-codigo" hidden></div>
     </div>
 
     <div class="lg-body" id="tela-escolha" hidden>
-      <h1>Quem é você?</h1>
-      <p class="ajuda">Este celular está em mais de um cadastro.</p>
+      <h1>Quem está entrando?</h1>
+      <p class="lg-sub">Este celular está cadastrado para mais de um proprietário.</p>
       <div class="escolha" id="lista-escolha"></div>
       <div class="msg" id="m-escolha" hidden></div>
     </div>
 
+    <!-- ACESSO MESTRE. Fica dentro do MESMO cartão da marca, e não numa página
+         escondida: quem administra entra pela porta da frente, com a empresa na
+         tela, e a tarja vermelha aparece assim que ele entra. -->
     <div class="lg-body" id="tela-mestre" hidden>
       <h1>Acesso da administração</h1>
-      <p class="ajuda">Abre o app de um agregado para conferir o que ele vê.</p>
-      <label for="mcodigo">Código mestre</label>
-      <input id="mcodigo" type="password" autocomplete="off">
-      <label for="mbusca" style="margin-top:var(--e2)">Agregado</label>
-      <input id="mbusca" type="text" placeholder="nome do proprietário">
-      <button class="lg-btn" id="b-mbuscar" type="button">Procurar</button>
-      <div class="escolha" id="lista-mestre"></div>
-      <button class="lg-btn fraco" id="b-mvoltar" type="button">Voltar</button>
+      <p class="lg-sub">Abre o app de um agregado para conferência. Tudo o que
+        for aberto aqui fica registrado.</p>
+      <label for="mestre-codigo">Código mestre</label>
+      <input class="campo" id="mestre-codigo" type="password"
+             autocomplete="off" autocapitalize="off" spellcheck="false">
+      <label for="mestre-busca">Proprietário (nome ou parte dele)</label>
+      <input class="campo" id="mestre-busca" type="text" autocomplete="off"
+             placeholder="deixe em branco para listar">
+      <button class="lg-btn" id="b-mestre" type="button">Procurar</button>
+      <button class="lg-btn claro" id="b-mestre-voltar" type="button">Voltar</button>
       <div class="msg" id="m-mestre" hidden></div>
+      <div class="escolha" id="mestre-lista" style="margin-top:var(--e2)"></div>
     </div>
-  </div></div>
+  </div>
+  <p class="lg-pe">Não recebeu? Fale com a Sulista.</p>
+  <button class="linksec" id="b-abrir-mestre" type="button">Acesso da administração</button>
 </div>
 
 <!-- ═══════════════════════════ o app ═══════════════════════════ -->
@@ -185,6 +253,10 @@ button{font:inherit}
   <div class="modal" id="modalBox" role="dialog" aria-modal="true" tabindex="-1"></div>
 </div>
 
+<!-- A MARCA DA CASA, e a única biblioteca desta página (7 KB). O app do
+     motorista carrega o mesmo arquivo, e é ele que faz as duas entradas serem
+     a mesma tela. -->
+<script src="/static/anel.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════════
    APP DO AGREGADO — o que a Sulista paga aos veículos de um proprietário.
@@ -225,8 +297,22 @@ async function pedir(url, opcoes){
 function aviso(id, texto, tipo){
   const el = $(id); if(!el) return;
   el.textContent = texto || "";
-  el.className = "msg" + (tipo === "ok" ? " ok" : "");
+  el.className = "msg " + (tipo === "ok" ? "ok" : "erro");
   el.hidden = !texto;
+}
+/* O ANEL DA MARCA. Falha aqui NÃO pode derrubar a página: sem o anel a tela
+   continua inteira, só sem o desenho. Os parâmetros são os do app do
+   motorista, calibrados para o canvas de 150px. */
+function anelLigar(){
+  try{
+    if(typeof cortexAnel === "undefined") return;
+    const lg = $("lg-anel");
+    if(lg && !lg.dataset.anel){
+      lg.dataset.anel = "1";
+      cortexAnel.ligar(lg, {alfa:.26, largura:1.25, linhas:44, pontos:180,
+                            amplitude:.10, espessura:.14, velocidade:1.35});
+    }
+  }catch(e){ /* a marca é enfeite; o app não depende dela */ }
 }
 function ocupado(btn, sim, texto){
   if(!btn) return;
@@ -282,13 +368,15 @@ $("b-pedir").addEventListener("click", async () => {
   foneAtual = fone;
   mostrar("tela-codigo");
   /* A MESMA mensagem para número que existe e que não existe — é o servidor
-     que decide o texto, e a página não acrescenta nada que denuncie o caso. */
+     que decide o texto, e a página não acrescenta nada que denuncie o caso.
+     Ela aparece AQUI, na tela do código, e não como "enviado com sucesso". */
   aviso("m-codigo", (r.dados && r.dados.mensagem) || "", "ok");
+  $("codigo").focus();      // o cursor já espera os seis dígitos
 });
 
 $("b-voltar").addEventListener("click", () => { aviso("m-codigo", ""); mostrar("tela-entrar"); });
-$("b-mestre").addEventListener("click", () => { aviso("m-mestre", ""); mostrar("tela-mestre"); });
-$("b-mvoltar").addEventListener("click", () => { mostrar("tela-entrar"); });
+$("b-abrir-mestre").addEventListener("click", () => { aviso("m-mestre", ""); mostrar("tela-mestre"); });
+$("b-mestre-voltar").addEventListener("click", () => { mostrar("tela-entrar"); });
 $("b-confirmar").addEventListener("click", () => confirmar(""));
 $("codigo").addEventListener("keydown", (e) => { if(e.key === "Enter") confirmar(""); });
 $("fone").addEventListener("keydown", (e) => { if(e.key === "Enter") $("b-pedir").click(); });
@@ -319,13 +407,13 @@ async function confirmar(agregado){
   await abrirApp();
 }
 
-$("b-mbuscar").addEventListener("click", async () => {
+$("b-mestre").addEventListener("click", async () => {
   aviso("m-mestre", "");
-  ocupado($("b-mbuscar"), true, "Procurando…");
+  ocupado($("b-mestre"), true, "Procurando…");
   const r = await pedir("/api/agregado/mestre/agregados", {method:"POST", body: JSON.stringify(
-    {codigo: $("mcodigo").value, busca: $("mbusca").value})});
-  ocupado($("b-mbuscar"), false, "Procurar");
-  const lista = $("lista-mestre");
+    {codigo: $("mestre-codigo").value, busca: $("mestre-busca").value})});
+  ocupado($("b-mestre"), false, "Procurar");
+  const lista = $("mestre-lista");
   lista.innerHTML = "";
   if(!r.ok) return aviso("m-mestre", r.mensagem);
   const d = r.dados || {};
@@ -334,7 +422,7 @@ $("b-mbuscar").addEventListener("click", async () => {
     b.type = "button"; b.textContent = a.nome || ("Cadastro " + a.id);
     b.addEventListener("click", async () => {
       const e = await pedir("/api/agregado/mestre/entrar", {method:"POST", body: JSON.stringify(
-        {codigo: $("mcodigo").value, agregado: a.id, aparelho: aparelho()})});
+        {codigo: $("mestre-codigo").value, agregado: a.id, aparelho: aparelho()})});
       if(!e.ok) return aviso("m-mestre", e.mensagem);
       await abrirApp();
     });
@@ -596,6 +684,7 @@ async function desConta(alvo){
 
 /* ───────────────────────────── boot ───────────────────────────── */
 document.addEventListener("keydown", (e) => { if(e.key === "Escape") fecharModal(); });
+anelLigar();
 (async function(){
   /* Quem já tem sessão entra direto: o cookie é HttpOnly, então a única forma
      de saber se ele vale é perguntar ao servidor. */
