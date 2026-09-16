@@ -831,8 +831,15 @@ def _app_agregado() -> dict:
             partes.append("mestre configurado (%d uso(s) na semana)"
                           % (r["mestres"] or 0))
         else:
-            partes.append("mestre NÃO configurado — sem %s no cofre não há "
-                          "como conferir o app de um agregado" % _am.CHAVE)
+            # O CARTÃO DIZ ONDE SE RESOLVE. Entre 16/09 de manhã e esta versão
+            # ele dizia só que faltava — e não havia onde gerar: a chave não
+            # estava no catálogo de credenciais, então a tela de Gestão nem
+            # mostrava o campo. Alarme que não diz o caminho vira alarme que se
+            # ignora; pior ainda quando o caminho não existe.
+            partes.append("mestre NÃO configurado — gere em Integrações, no "
+                          "cartão “App do agregado — acesso da administração”; "
+                          "sem %s no cofre não há como conferir o app de um "
+                          "agregado" % _am.CHAVE)
         if (r["recusadas"] or 0) >= _am.MAX_TENTATIVAS_HORA:
             partes.append("⚠ %d tentativa(s) recusada(s) em 24 h"
                           % r["recusadas"])

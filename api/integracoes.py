@@ -96,7 +96,8 @@ CARTAO_DA_SAUDE: dict[str, str] = {
 #: alcançável por ninguém. Defeito sem sintoma: nada dá erro, o botão
 #: simplesmente não aparece. Agora eles saem em `proprios`, com cartão e modal
 #: próprios, e fora do semáforo e das contas do resumo.
-NAO_SAO_FORNECEDOR = frozenset({"cortex", "motorista_mestre"})
+NAO_SAO_FORNECEDOR = frozenset({"cortex", "motorista_mestre",
+                                "agregado_mestre"})
 
 #: Por que estes não têm metade de CHEGADA — e por que isso não é "sem
 #: medição". Não há fornecedor do outro lado: não existe coleta que possa
@@ -106,6 +107,10 @@ SEM_CHEGADA = {
     "motorista_mestre": ("segredo da casa — não há coleta. Ele só é usado "
                          "quando alguém abre o app de um motorista para "
                          "conferência, e esse uso fica na auditoria"),
+    "agregado_mestre": ("segredo da casa — não há coleta. Ele só é usado "
+                        "quando alguém abre o app de um proprietário de "
+                        "agregado para conferência, e esse uso fica na "
+                        "auditoria"),
     "cortex": ("endereço do próprio painel — não há fornecedor do outro lado "
                "para responder"),
 }

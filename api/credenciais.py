@@ -76,6 +76,24 @@ CAMPOS: dict[str, dict] = {
                      "tarja na tela e registro na auditoria. Mínimo de 16 "
                      "caracteres; sem ele o acesso não existe"},
 
+    # App do AGREGADO — o mesmo mecanismo, público diferente, e a razão de ele
+    # existir é ainda mais direta: o app diz a um FORNECEDOR quanto a Sulista
+    # deve a ele, e o único leitor de cada tela é justamente quem não pode
+    # conferir se ela está certa. Sem este código ninguém da casa abre o que o
+    # dono vê para comparar com o ERP.
+    #
+    # ELE NASCEU FORA DAQUI, e essa é a lição: o módulo
+    # `api/agregado/mestre.py` foi escrito em 16/09/2026 já lendo o cofre, mas a
+    # chave não entrou neste catálogo — e a tela de Gestão só sabe editar o que
+    # está aqui (`CONHECIDAS`). O resultado foi um acesso que a Saúde do
+    # Servidor pedia e que não tinha onde ser gerado: nada dava erro, o campo
+    # simplesmente não existia na tela.
+    "AGREGADO_CODIGO_MESTRE": {
+        "rotulo": "Código mestre do app do agregado",
+        "descricao": "Abre o app de qualquer proprietário de agregado para "
+                     "conferência, com tarja na tela e registro na auditoria. "
+                     "Mínimo de 16 caracteres; sem ele o acesso não existe"},
+
     # TomTom — trânsito. SÃO DOIS CAMPOS, e a razão é uma armadilha real:
     #
     # A chave do OVERLAY vai para o NAVEGADOR (o Leaflet baixa os tiles direto,
@@ -648,10 +666,62 @@ SERVICOS: list[dict] = [
                    "campos": ["MOTORISTA_CODIGO_MESTRE"]}],
         "ajustes": [],
     },
+    {
+        # O IRMÃO DO DE CIMA, e um cartão SEPARADO de propósito. Os dois códigos
+        # abrem coisas diferentes para públicos diferentes — um mostra a folha
+        # de uma pessoa, o outro mostra quanto a casa deve a um fornecedor — e
+        # rotacionar um não pode derrubar o outro. Um cartão só, com dois
+        # campos, faria "gerar" parecer uma coisa e ser duas.
+        "chave": "agregado_mestre",
+        "nome": "App do agregado — acesso da administração",
+        "resumo": "Código que abre o app de QUALQUER proprietário de veículo "
+                  "agregado para conferência, com tarja na tela dizendo de "
+                  "quem é a conta, prazo de 8 horas e registro na auditoria. É "
+                  "o que permite validar, contra o ERP, o que o app afirma "
+                  "sobre acerto, desconto e abastecimento. SEM ELE o acesso "
+                  "simplesmente não existe — o app recusa como recusaria um "
+                  "código errado.",
+        "alimenta": "App do agregado",
+        "modos": [{"chave": "codigo", "rotulo": "Código mestre",
+                   "dica": "mínimo de 16 caracteres — abaixo disso o app "
+                           "recusa o próprio código e a Saúde do Servidor diz "
+                           "por quê. Use um valor longo e aleatório; ele não "
+                           "expira.",
+                   "campos": ["AGREGADO_CODIGO_MESTRE"]}],
+        "ajustes": [],
+    },
 ]
 
 # a tela de Gestão só sabe editar o que está no catálogo
 CONHECIDAS = {nome: c["descricao"] for nome, c in CAMPOS.items()}
+
+#: OS CÓDIGOS MESTRE DA CASA, POR APLICATIVO — e por que isto é um REGISTRO e
+#: não mais um `if`.
+#:
+#: Até 16/09/2026 o app do motorista era o único, e "qual é a chave" estava
+#: escrito à mão em três lugares: a rota que gera (`api/main.py`), o botão que
+#: aparece no formulário (`index.html`) e o piso de tamanho aqui embaixo. Quando
+#: o app do AGREGADO nasceu com o MESMO mecanismo (`api/agregado/mestre.py`,
+#: v1.97.0), os três continuaram apontando só para o motorista — e o resultado
+#: não foi erro nenhum: foi um acesso de conferência que a Saúde do Servidor
+#: cobrava e que NÃO TINHA ONDE SER GERADO. Nada levantava exceção, nenhum teste
+#: ficava vermelho; o campo apenas não existia na tela. É a assinatura da lista
+#: escrita à mão, e a correção é a de sempre: virar dado, e o dado ser conferido
+#: contra o código.
+#:
+#: `chave` tem de ser idêntica à `CHAVE` do módulo do app e `minimo` ao
+#: `TAMANHO_MINIMO` dele. Quem confere é `tests/agregado/test_gerar_mestre.py`,
+#: IMPORTANDO os dois módulos — string daqui que descreve código de lá não se
+#: confere por leitura (foi assim que a varredura de agendadores desta casa
+#: passou a vida nomeando uma thread que não existia).
+MESTRES: dict[str, dict] = {
+    "motorista": {"chave": "MOTORISTA_CODIGO_MESTRE",
+                  "modulo": "api.motorista.mestre",
+                  "rotulo": "app do motorista", "minimo": 16},
+    "agregado": {"chave": "AGREGADO_CODIGO_MESTRE",
+                 "modulo": "api.agregado.mestre",
+                 "rotulo": "app do agregado", "minimo": 16},
+}
 
 # senha de SMTP costuma ser curta (e "senha de aplicativo" do Google tem 16
 # caracteres); o mínimo de 8 do token continua valendo para as demais
@@ -665,16 +735,21 @@ MINIMO_POR_CREDENCIAL = {"SMTP_SENHA": 4, "MONKEY_SELLER_ID": 1,
                          "MONKEY_AMBIENTE": 3, "PROLOG_FILIAIS": 1,
                          "PROLOG_USUARIO": 3, "PROLOG_AUTH_PREFIXO": 3,
                          "PROLOG_AUTH_HEADER": 3,
-                         # PARA CIMA, e não para baixo — é o único aqui assim.
-                         # Os outros abaixam o mínimo porque o FORNECEDOR decide
-                         # o tamanho da senha dele (a da 3S entrou depois de a
-                         # tela recusar a senha certa por ser curta). Este é
-                         # segredo NOSSO, e abre a PII de ~300 pessoas: o piso
-                         # é o do módulo que o usa (`mestre.TAMANHO_MINIMO`).
-                         # Sem esta linha, o mínimo de 8 da casa deixaria
-                         # passar um código que o app depois recusaria em
-                         # silêncio — "salvei e não funciona".
-                         "MOTORISTA_CODIGO_MESTRE": 16}
+                         # PARA CIMA, e não para baixo — os códigos mestre são
+                         # os únicos aqui assim. Os outros ABAIXAM o mínimo
+                         # porque o FORNECEDOR decide o tamanho da senha dele (a
+                         # da 3S entrou depois de a tela recusar a senha certa
+                         # por ser curta). Estes são segredo NOSSO, e abrem a
+                         # PII de ~300 pessoas e o financeiro de 201
+                         # fornecedores: o piso é o do módulo que os usa
+                         # (`mestre.TAMANHO_MINIMO`). Sem isto, o mínimo de 8 da
+                         # casa deixaria passar um código que o app depois
+                         # recusaria em silêncio — "salvei e não funciona".
+                         #
+                         # DERIVADO DE `MESTRES`, e não repetido: enquanto era
+                         # uma linha escrita à mão, o código mestre do agregado
+                         # nasceu sem piso nenhum aqui.
+                         **{m["chave"]: m["minimo"] for m in MESTRES.values()}}
 
 
 def gerar_codigo_mestre() -> str:
@@ -767,6 +842,17 @@ def status(nome: str) -> dict:
     }
     if efetivo and not st["segredo"]:
         st["valor"] = efetivo
+    # A MARCA QUE FAZ O BOTÃO "GERAR" APARECER, e ela viaja como DADO.
+    #
+    # O formulário testava o nome da credencial (`=== 'MOTORISTA_CODIGO_MESTRE'`)
+    # e por isso o código do agregado, que existe desde a v1.97.0, era o único
+    # segredo da casa sem gerador na tela. Marcando aqui, app novo com código
+    # mestre ganha o botão por existir em `MESTRES` — não por alguém lembrar de
+    # editar o `index.html`. Não é segredo: diz DE QUE APP o campo é, nunca o
+    # valor, e por isso pode ir para a tela.
+    mestre = next((a for a, m in MESTRES.items() if m["chave"] == nome), None)
+    if mestre:
+        st["mestre"] = mestre
     return st
 
 

@@ -45644,14 +45644,20 @@ function integCampo(c){
   const val=c.segredo?'':esc(c.valor||'');
   const ph=c.segredo?(c.configurado?'digite para trocar':'colar o valor')
                     :esc(c.placeholder||'');
-  /* O CÓDIGO MESTRE DO APP DO MOTORISTA GANHA UM BOTÃO DE GERAR, e é o único.
-     A alternativa era alguém digitar 24 caracteres aleatórios à mão — o que na
-     prática dá um de dois finais: ou ninguém configura (e o acesso de
-     conferência não existe), ou alguém escolhe um valor memorizável, e o
-     segredo que abre a PII de ~300 pessoas vira palpite. O botão também é o
-     que torna a ROTAÇÃO possível: trocar passa a ser um clique. */
-  const gerar = c.nome==='MOTORISTA_CODIGO_MESTRE'
-    ? ' <button type="button" class="integ-lnk" onclick="gerarCodigoMestre()">'
+  /* CÓDIGO MESTRE GANHA UM BOTÃO DE GERAR. A alternativa era alguém digitar 24
+     caracteres aleatórios à mão — o que na prática dá um de dois finais: ou
+     ninguém configura (e o acesso de conferência não existe), ou alguém escolhe
+     um valor memorizável, e o segredo vira palpite. O botão também é o que
+     torna a ROTAÇÃO possível: trocar passa a ser um clique.
+
+     QUEM DECIDE É O SERVIDOR (`c.mestre`, de `credenciais.MESTRES`), e não o
+     nome da credencial escrito aqui. Enquanto esta linha comparava com
+     'MOTORISTA_CODIGO_MESTRE', o código mestre do app do AGREGADO — que existe
+     desde a v1.97.0 e abre o financeiro de 201 fornecedores — era o único
+     segredo da casa sem gerador na tela. Defeito sem sintoma: o botão apenas
+     não aparecia. */
+  const gerar = c.mestre
+    ? ' <button type="button" class="integ-lnk" onclick="gerarCodigoMestre(&quot;'+esc(c.mestre)+'&quot;)">'
       + (c.configurado?'gerar um novo':'gerar agora') + '</button>'
     : '';
   return '<div><label for="'+id+'">'+esc(c.rotulo)+opc+'</label>'
@@ -45664,12 +45670,14 @@ function integCampo(c){
    Por isso ele aparece num campo SELECIONÁVEL, e não num alerta que some: o
    valor precisa poder ser copiado, e "anote antes de fechar" num `alert` é
    como se perde um segredo recém-criado. */
-async function gerarCodigoMestre(){
+async function gerarCodigoMestre(app){
+  app = app || 'motorista';
   if(!confirm('Gerar um código mestre novo? Ele substitui o anterior na hora: '
     + 'quem tinha o antigo perde o acesso. O novo aparece UMA vez.')) return;
   let d;
   try{
-    const r=await fetch('/api/gestao/credenciais/gerar-mestre',{method:'POST'});
+    const r=await fetch('/api/gestao/credenciais/gerar-mestre?app='
+      + encodeURIComponent(app), {method:'POST'});
     d=await respostaJSON(r);
   }catch(e){ d={ok:false, mensagem:'Sem conexão com a API.'}; }
   if(!d.ok){ showBanner(d.mensagem||'Não consegui gerar o código.'); return; }
@@ -45677,7 +45685,12 @@ async function gerarCodigoMestre(){
   const cx=document.createElement('div');
   cx.className='card';
   cx.style.cssText='position:fixed;inset:auto 16px 16px 16px;z-index:9999;max-width:520px;margin:0 auto;box-shadow:0 12px 40px rgba(0,0,0,.3)';
-  cx.innerHTML='<div class="head"><h2>Código mestre do app do motorista</h2></div>'
+  /* O TÍTULO VEM DA RESPOSTA, e não de um texto fixo: com dois apps usando
+     esta mesma caixa, um rótulo escrito aqui diria "do app do motorista" sobre
+     o código do agregado — e quem lesse guardaria o segredo certo com o nome
+     errado. */
+  cx.innerHTML='<div class="head"><h2>Código mestre do '
+    +esc(d.dados.rotulo||('app do '+app))+'</h2></div>'
     +'<p style="margin:0 0 8px">'+esc(d.dados.aviso||'')+'</p>'
     +'<input class="mono" readonly value="'+esc(cod)+'" style="width:100%;font-size:17px;padding:10px" aria-label="Código mestre gerado">'
     +'<div style="display:flex;gap:9px;margin-top:9px">'

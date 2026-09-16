@@ -3682,26 +3682,47 @@ def gestao_credenciais() -> JSONResponse:
 
 @app.post("/api/gestao/credenciais/gerar-mestre")
 def gestao_gerar_codigo_mestre(req: Request) -> JSONResponse:
-    """Gera o código mestre do app do motorista, grava no cofre e MOSTRA UMA VEZ.
+    """Gera o código mestre de UM app, grava no cofre e MOSTRA UMA VEZ.
 
     ESTA É A ÚNICA ROTA DA CASA QUE DEVOLVE UM SEGREDO NO CORPO, e a exceção
     tem a mesma forma da senha provisória: o valor é gerado PELO SISTEMA (nunca
     escolhido), vai para o cofre no mesmo instante, e a resposta é a única
     chance de lê-lo — depois disso nem esta tela consegue.
 
+    QUAL APP VEM DE `credenciais.MESTRES`, E NÃO MAIS DE UM IMPORT FIXO. Até a
+    v1.99.1 esta rota importava `api.motorista.mestre` e só sabia gravar naquela
+    chave; o app do agregado tinha o mecanismo inteiro (`api/agregado/mestre.py`)
+    e nenhuma forma de receber um código — a Saúde do Servidor cobrava o segredo
+    e não havia botão que o gerasse. A lista fechada mora no registro: `app`
+    fora dele é recusa legível, nunca um `KeyError` e nunca uma gravação em
+    chave inventada pelo cliente.
+
+    O PADRÃO CONTINUA SENDO O MOTORISTA, de propósito: é o que mantém válido
+    qualquer chamador anterior a esta versão, inclusive uma aba aberta com o
+    `index.html` antigo em cache. Silenciar isso com um parâmetro obrigatório
+    transformaria a entrega num 422 para quem não recarregou a página.
+
     `/api/gestao/*` já é restrito a admin pelo próprio middleware, antes de
     chegar aqui. E o segredo NÃO ENTRA NA TRILHA: o `audit_log` é append-only e
     imutável, então um valor que entrasse ali não sairia mais. O que se registra
-    é que alguém gerou, e quando — que é a pergunta que a auditoria responde.
+    é que alguém gerou, para qual app, e quando — que é a pergunta que a
+    auditoria responde.
 
     GERAR SUBSTITUI O ANTERIOR, e isso é a rotação: quem sabia o código velho
     perde o acesso na hora. As sessões mestres já abertas continuam valendo até
     vencerem (8 h) — encerrá-las junto seria derrubar a conferência que alguém
     pode estar fazendo no meio, e o prazo curto é justamente o que torna isso
-    aceitável.
+    aceitável. E a rotação é POR APP: gerar o do agregado não pode derrubar o
+    acesso de quem está conferindo o app de um motorista.
     """
     from api import credenciais
-    from api.motorista import mestre as mm
+    qual = (req.query_params.get("app") or "motorista").strip().lower()
+    reg = credenciais.MESTRES.get(qual)
+    if reg is None:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "app_desconhecido",
+            "mensagem": "Não há código mestre para esse aplicativo."})
+    chave = reg["chave"]
     autor = (getattr(req.state, "sessao", None) or {}).get("email") or "?"
     # HAVIA UM ANTES? A resposta muda por causa disso, e o motivo e um erro
     # real de 07/09/2026: o botao foi usado as 10:08 e o cofre foi sobrescrito
@@ -3710,19 +3731,20 @@ def gestao_gerar_codigo_mestre(req: Request) -> JSONResponse:
     # clica precisa LER que o anterior morreu ali. Aviso igual nos dois casos e
     # o que faz alguem clicar "so para ver" e derrubar o acesso de quem estava
     # usando o outro. O valor anterior NAO e lido para nada alem deste booleano.
-    ja_havia = bool(credenciais.ler(mm.CHAVE))
+    ja_havia = bool(credenciais.ler(chave))
     novo = credenciais.gerar_codigo_mestre()
     try:
-        credenciais.gravar(mm.CHAVE, novo)
+        credenciais.gravar(chave, novo)
     except Exception as exc:  # noqa: BLE001
         log.warning("falha ao gravar o codigo mestre: %s", type(exc).__name__)
         return JSONResponse(status_code=500, content={
             "erro": "erro_gravacao",
             "mensagem": "Nao foi possivel gravar o codigo no cofre."})
-    auth.audit(autor, "codigo_mestre_gerado", alvo=mm.CHAVE,
-               detalhe="app do motorista", ip=_ip_do_cliente(req))
+    auth.audit(autor, "codigo_mestre_gerado", alvo=chave,
+               detalhe=reg["rotulo"], ip=_ip_do_cliente(req))
     return JSONResponse({
         "ok": True, "codigo": novo, "substituiu": ja_havia,
+        "app": qual, "rotulo": reg["rotulo"],
         "aviso": ("Copie agora: este código não é mostrado outra vez."
                   + (" Ele SUBSTITUIU o código anterior, que não abre mais — "
                      "quem estava usando aquele perdeu o acesso agora."

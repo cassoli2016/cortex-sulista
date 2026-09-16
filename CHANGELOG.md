@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.100.1] — 16/09/2026  ·  CX-16/09/2026-v1.100.1
+
+### Corrigido
+- Integrações — o código mestre do app do agregado passa a ter onde ser gerado. Ele ganhou cartão próprio, "App do agregado — acesso da administração", com o botão "gerar agora": o CÓRTEX sorteia um código forte, guarda no cofre e mostra UMA vez, do mesmo jeito que já fazia com o do app do motorista. Trocar o de um app não mexe no do outro. Até aqui a Saúde do Servidor cobrava esse código — sem ele ninguém da casa consegue abrir o app de um proprietário para conferir um acerto contra o ERP — e não havia tela nenhuma onde criá-lo: o campo não existia.
+- Saúde do Servidor — o cartão do App do agregado agora diz ONDE se resolve, apontando o cartão de Integrações, em vez de só avisar que o código está faltando.
+
 ## [1.100.0] — 16/09/2026  ·  CX-16/09/2026-v1.100.0
 
 ### Adicionado

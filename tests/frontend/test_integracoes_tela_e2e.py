@@ -472,8 +472,13 @@ MESTRE_COFRE = {
     "resumo": "Código que abre o app de QUALQUER motorista para conferência.",
     "alimenta": "App do motorista", "aba": None,
     "estado": "desligada", "modo_ativo": "codigo", "falta": ["código mestre"],
+    # `mestre` é a marca que o servidor põe no campo (`credenciais.MESTRES`) e
+    # que faz o botão de gerar aparecer. O dublê a carrega porque ela é o
+    # CONTRATO: enquanto o formulário comparava o nome da credencial com uma
+    # string fixa, o app do agregado ficou sem gerador nenhum.
     "modos": [{"chave": "codigo", "rotulo": "Código mestre", "completo": False,
-               "campos": [campo("MOTORISTA_CODIGO_MESTRE", "Código mestre")]}],
+               "campos": [campo("MOTORISTA_CODIGO_MESTRE", "Código mestre",
+                                mestre="motorista")]}],
     "ajustes": [],
 }
 
@@ -496,11 +501,42 @@ MESTRE_PUB = {
 }
 
 
+AGREGADO_COFRE = {
+    "chave": "agregado_mestre",
+    "nome": "App do agregado — acesso da administração",
+    "resumo": "Código que abre o app de QUALQUER proprietário de agregado.",
+    "alimenta": "App do agregado", "aba": None,
+    "estado": "desligada", "modo_ativo": "codigo", "falta": ["código mestre"],
+    "modos": [{"chave": "codigo", "rotulo": "Código mestre", "completo": False,
+               "campos": [campo("AGREGADO_CODIGO_MESTRE", "Código mestre",
+                                mestre="agregado")]}],
+    "ajustes": [],
+}
+
+AGREGADO_PUB = {
+    "chave": "agregado_mestre",
+    "nome": "App do agregado — acesso da administração",
+    "resumo": "Código que abre o app de QUALQUER proprietário de agregado.",
+    "alimenta": "App do agregado", "estado": "info", "proprio": True,
+    "configuracao": {"estado": "desligada", "status": "info",
+                     "falta": ["código mestre"], "modo": "codigo",
+                     "modo_rotulo": "Código mestre", "regime": None,
+                     "modos": [{"chave": "codigo", "rotulo": "Código mestre",
+                                "completo": False,
+                                "campos": [publico("Código mestre",
+                                                   configurado=False)]}],
+                     "ajustes": []},
+    "chegada": {"regime": "nao_se_aplica", "status": "info",
+                "detalhe": "segredo da casa — não há coleta"},
+    "cartao_saude": None, "aba": None,
+}
+
+
 def _com_proprios():
     pan = json.loads(json.dumps(PANORAMA))
-    pan["proprios"] = [MESTRE_PUB]
+    pan["proprios"] = [MESTRE_PUB, AGREGADO_PUB]
     cof = json.loads(json.dumps(CREDENCIAIS))
-    cof["servicos"] = cof["servicos"] + [MESTRE_COFRE]
+    cof["servicos"] = cof["servicos"] + [MESTRE_COFRE, AGREGADO_COFRE]
     return pan, cof
 
 
@@ -544,6 +580,37 @@ def test_o_cartao_dele_ABRE_o_formulario_com_o_botao_de_gerar(pagina):
         '#modalBox button[onclick*="gerarCodigoMestre"]', "es => es.length") == 1
 
 
+def test_CADA_app_com_codigo_mestre_tem_O_PROPRIO_botao_de_gerar(pagina):
+    """O guard que teria pegado o defeito inteiro, e a razão de ele ser
+    parametrizado POR CARTÃO.
+
+    O app do agregado subiu na v1.97.0 com o acesso mestre inteiro e sem
+    gerador: a rota gravava só na chave do motorista e este formulário comparava
+    o nome da credencial com `'MOTORISTA_CODIGO_MESTRE'`. A Saúde do Servidor
+    cobrava o segredo, e não havia botão em lugar nenhum — nada dava erro.
+
+    Conferir "o botão existe" num cartão só prova o MECANISMO, nunca que o
+    próximo app entrou nele: em guard parametrizado, cada parâmetro é um guard.
+    O `data-app` fecha o outro lado — um botão que apareça nos dois cartões
+    mandando o mesmo `app` geraria o código errado com a tela certa.
+    """
+    pg, base = pagina
+    pan, cof = _com_proprios()
+    _abrir(pg, base, panorama=pan, cofre=cof)
+    _aba_casa(pg)
+    for chave, app in (("motorista_mestre", "motorista"),
+                       ("agregado_mestre", "agregado")):
+        _modal(pg, chave)
+        alvo = pg.eval_on_selector_all(
+            '#modalBox button[onclick*="gerarCodigoMestre"]',
+            "es => es.map(e => e.getAttribute('onclick'))")
+        assert len(alvo) == 1, (
+            f"{chave}: esperava um botão de gerar, achei {len(alvo)}")
+        assert f'"{app}"' in alvo[0], (
+            f"{chave}: o botão manda {alvo[0]} — geraria o código do app errado")
+        pg.keyboard.press("Escape")
+
+
 def test_o_cartao_dele_NAO_fala_em_chegada_de_dado(pagina):
     """"Chegada" pressupoe alguem do outro lado. Um cinza permanente ali seria
     alarme que ninguem pode apagar -- e e assim que se ensina a ignorar
@@ -567,7 +634,11 @@ def test_as_abas_dizem_QUANTOS_tem_de_cada_lado(pagina):
     pan, cof = _com_proprios()
     _abrir(pg, base, panorama=pan, cofre=cof)
     assert pg.inner_text("#integ-n-forn").strip() == str(len(pan["integracoes"]))
-    assert pg.inner_text("#integ-n-casa").strip() == "1"
+    # DERIVADO DO DUBLÊ, e não escrito à mão: enquanto era o literal "1", este
+    # guard reprovava por o dublê ter ganhado o segundo segredo da casa — um
+    # vermelho que não fala do produto, e que se "conserta" trocando o número
+    # até ficar verde. O que ele mede é o contador acompanhar a lista.
+    assert pg.inner_text("#integ-n-casa").strip() == str(len(pan["proprios"]))
 
 
 def test_sem_segredos_da_casa_a_aba_DIZ_que_esta_vazia(pagina):
