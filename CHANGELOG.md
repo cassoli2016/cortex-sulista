@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.99.0] — 16/09/2026  ·  CX-16/09/2026-v1.99.0
+
+### Adicionado
+- Aplicativos › App do agregado — "Falar com a Sulista": o proprietário abre um pedido escolhendo o assunto (acerto e pagamento, viagem, desconto e lançamento, abastecimento, documento e cadastro), acompanha o estado de cada um e responde por ali mesmo. Cada assunto traz um texto de ajuda antes de escrever — é ele que responde metade das dúvidas sem virar fila. Um pedido por assunto e até cinco em aberto: é o que faz "aberto há N dias" continuar querendo dizer alguma coisa.
+- Operação › Canal do Agregado — a tela de quem atende: a fila ordenada pelo que está parado há mais tempo, com assunto, dono e estado, o que cada um respondeu na mesma linha do tempo, e os botões de pegar, encerrar e devolver à fila. Dá para abrir conversa com um proprietário (um recado, um pedido de documento). Responder avisa o dono no WhatsApp, e o aviso NÃO leva o conteúdo: diz que existe resposta no app, porque o assunto é o dinheiro dele e WhatsApp se lê na tela de bloqueio. A Saúde do Servidor passa a mostrar a fila e o que está parado há mais de três dias.
+
 ## [1.98.0] — 16/09/2026  ·  CX-16/09/2026-v1.98.0
 
 ### Alterado

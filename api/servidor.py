@@ -838,7 +838,27 @@ def _app_agregado() -> dict:
                           % r["recusadas"])
     except Exception as exc:  # noqa: BLE001
         log.info("saude: mestre do agregado indisponivel (%s)", type(exc).__name__)
-    return {"nome": nome, "status": "ok", "detalhe": " · ".join(partes)}
+
+    # O CANAL COM O SETOR. A FILA PARADA e o unico numero que diz se ele esta
+    # funcionando — o canal foi pedido sabendo que o risco dele e "ninguem le",
+    # e aqui isso deixa de ser sensacao.
+    #
+    # AMARELO E NAO VERMELHO: conversa parada e trabalho atrasado de gente, nao
+    # sistema quebrado. Vermelho aqui treinaria todo mundo a ignorar o cartao do
+    # app, que e onde mora "o codigo parou de chegar".
+    estado = "ok"
+    try:
+        from api.agregado import conversas as _ac
+        f = _ac.contagem()
+        if f["total"]:
+            partes.append("canal: %d aberta(s) de %d viva(s)"
+                          % (f["abertas"], f["vivas"]))
+            if f["paradas"]:
+                partes.append("⚠ %d conversa(s) parada(s) há +3 dias" % f["paradas"])
+                estado = "atencao"
+    except Exception as exc:  # noqa: BLE001
+        log.info("saude: canal do agregado indisponivel (%s)", type(exc).__name__)
+    return {"nome": nome, "status": estado, "detalhe": " · ".join(partes)}
 
 
 def _app_motorista() -> dict:

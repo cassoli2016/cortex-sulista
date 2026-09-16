@@ -312,6 +312,92 @@ def test_a_tarja_do_acesso_mestre_aparece_e_diz_de_quem_e_a_conta(pagina):
     assert cor == "rgb(148, 40, 33)", cor      # o vermelho da marca
 
 
+CANAL = {
+    "conversas": [
+        {"id": 31, "assunto": "acerto", "assunto_rotulo": "Acerto e pagamento",
+         "origem": "agregado", "titulo": "", "status": "aguardando_agregado",
+         "aberta": True, "criada_em": "2026-09-14T10:00:00-03:00",
+         "ultima_em": "2026-09-15T16:20:00-03:00", "nao_lidas": 1,
+         "resumo": "Já está na conta a pagar, vence sexta.", "atendente": "Fernanda"},
+        {"id": 28, "assunto": "viagem", "assunto_rotulo": "Viagem e frete",
+         "origem": "agregado", "titulo": "", "status": "resolvida",
+         "aberta": False, "criada_em": "2026-09-02T08:00:00-03:00",
+         "ultima_em": "2026-09-03T09:00:00-03:00", "nao_lidas": 0,
+         "resumo": "Resolvido no acerto 8790.", "atendente": "Fernanda"},
+    ],
+    "nao_lidas": 1, "abertas": 1, "max_abertas": 5,
+    "assuntos": [
+        {"chave": "acerto", "rotulo": "Acerto e pagamento",
+         "ajuda": "Diga o NÚMERO do acerto — ele aparece na aba Acertos."},
+        {"chave": "viagem", "rotulo": "Viagem e frete", "ajuda": "Diga a PLACA e a data."},
+    ],
+    "fonte": "CÓRTEX · canal do setor de agregados",
+}
+
+CONVERSA = {
+    "conversa": {"id": 31, "assunto": "acerto", "assunto_rotulo": "Acerto e pagamento",
+                 "origem": "agregado", "titulo": "", "status": "aguardando_agregado",
+                 "aberta": True, "criada_em": "2026-09-14T10:00:00-03:00",
+                 "atendente": "Fernanda"},
+    "mensagens": [
+        {"id": 1, "papel": "sistema", "autor": "", "texto": "Pedido aberto sobre Acerto e pagamento.",
+         "evento": "abertura", "quando": "2026-09-14T10:00:00-03:00"},
+        {"id": 2, "papel": "agregado", "autor": "Transportes Fulano",
+         "texto": "O acerto 8801 não caiu na conta.", "evento": "",
+         "quando": "2026-09-14T10:00:05-03:00"},
+        {"id": 3, "papel": "setor", "autor": "Fernanda",
+         "texto": "Já está na conta a pagar, vence sexta.", "evento": "",
+         "quando": "2026-09-15T16:20:00-03:00"},
+    ],
+}
+
+
+def test_a_aba_falar_lista_os_pedidos_e_diz_quem_atende(pagina):
+    """O canal é FILA: cada pedido mostra assunto, estado e quem está com ele."""
+    pg = _abre(pagina, **{"/api/agregado/conversas": (CANAL, 200)})
+    t = _ver(pg, "canal")
+    assert "Acerto e pagamento" in t and "Fernanda" in t
+    assert "1 nova" in t                      # a resposta que ele ainda não leu
+    assert "encerrado" in t                   # o pedido resolvido, marcado
+    assert _sem_rolagem_lateral(pg) == 0
+
+
+def test_abrir_um_pedido_mostra_a_ajuda_do_assunto_antes_de_escrever(pagina):
+    """O texto de ajuda resolve metade dos pedidos ANTES de virar fila."""
+    pg = _abre(pagina, **{"/api/agregado/conversas": (CANAL, 200)})
+    _ver(pg, "canal")
+    pg.select_option("#canal-assunto", "acerto")
+    assert "NÚMERO do acerto" in pg.inner_text("#canal-ajuda")
+
+
+def test_a_conversa_abre_com_a_linha_do_tempo_e_deixa_responder(pagina):
+    pg = _abre(pagina, **{"/api/agregado/conversas": (CANAL, 200)})
+    _ver(pg, "canal")
+    pg.route("**/api/agregado/conversas/31", lambda r: r.fulfill(
+        status=200, content_type="application/json", body=json.dumps(CONVERSA)))
+    pg.click("#tela-canal [data-conversa='31']")
+    pg.wait_for_function(
+        "() => { const b = document.getElementById('modalBox');"
+        " return document.getElementById('modalBg').classList.contains('aberto')"
+        " && !b.textContent.includes('carregando'); }")
+    m = pg.inner_text("#modalBox")
+    assert "Acerto e pagamento" in m and "aguardando você" in m
+    assert "Fernanda" in m and "vence sexta" in m
+    assert "Pedido aberto sobre" in m          # o evento na mesma linha do tempo
+    assert pg.is_visible("#b-canal-responder")
+
+
+def test_com_o_teto_de_pedidos_abertos_o_formulario_da_lugar_ao_aviso(pagina):
+    """Item que a pessoa não pode usar não fica lá desabilitado sem explicação:
+    o formulário some e a tela diz por quê."""
+    cheio = json.loads(json.dumps(CANAL))
+    cheio["abertas"] = cheio["max_abertas"]
+    pg = _abre(pagina, **{"/api/agregado/conversas": (cheio, 200)})
+    t = _ver(pg, "canal")
+    assert "5 pedidos em aberto" in t
+    assert not pg.is_visible("#canal-assunto")
+
+
 def test_a_conta_lista_os_veiculos_e_permite_sair(pagina):
     pg = _abre(pagina)
     t = _ver(pg, "conta")

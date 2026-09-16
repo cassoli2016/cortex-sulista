@@ -244,6 +244,7 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
     <section id="tela-abastecimentos" hidden></section>
     <section id="tela-lancamentos" hidden></section>
     <section id="tela-ocorrencias" hidden></section>
+    <section id="tela-canal" hidden></section>
     <section id="tela-conta" hidden></section>
   </div>
   <nav class="navbar" id="navbar"></nav>
@@ -443,6 +444,7 @@ const ABAS = [
   {id:"abastecimentos", rotulo:"Diesel",   url:"/api/agregado/abastecimentos", desenhar:desAbastec},
   {id:"lancamentos",    rotulo:"Extras",   url:"/api/agregado/lancamentos",    desenhar:desLanc},
   {id:"ocorrencias",    rotulo:"Ocorrên.", url:"/api/agregado/ocorrencias",    desenhar:desOcor},
+  {id:"canal",          rotulo:"Falar",    url:"/api/agregado/conversas",      desenhar:desCanal},
   {id:"conta",          rotulo:"Conta",    url:"",                             desenhar:desConta},
 ];
 let euAtual = {}, abaAtual = "resumo";
@@ -655,6 +657,110 @@ function desOcor(alvo, d){
   alvo.innerHTML = cartao("Ocorrências", corpo + '<div class="conta">'
     + esc(conta(d, plural(d.total, "ocorrência", "ocorrências"))
       + " · motivo de atraso e ocorrência interna") + "</div>");
+}
+
+/* ─────────────────── o canal com o setor de agregados ───────────────────
+   NÃO É CHAT, É FILA: cada pedido tem assunto, dono e estado, e a tela diz os
+   três. O texto de ajuda de cada assunto aparece ANTES de escrever — é ele
+   que resolve metade dos pedidos sem virar fila. */
+let canalDados = null;
+
+function desCanal(alvo, d){
+  canalDados = d;
+  const cx = d.conversas || [];
+  const abertas = d.abertas || 0, teto = d.max_abertas || 5;
+  let h = "";
+  if(cx.length){
+    h += cartao("Meus pedidos", cx.map((c) => {
+      const tag = c.nao_lidas ? '<span class="tag ruim">' + num(c.nao_lidas) + ' nova' + (c.nao_lidas > 1 ? 's' : '') + '</span>'
+        : (c.aberta ? '<span class="tag aviso">' + esc(estadoRotulo(c.status)) + '</span>'
+                    : '<span class="tag ok">encerrado</span>');
+      return '<button class="abrir" type="button" data-conversa="' + c.id + '">'
+        + linha(esc(c.assunto_rotulo), dia(c.ultima_em)
+            + (c.atendente ? " · " + esc(c.atendente) : "")
+            + (c.resumo ? " · " + esc(c.resumo) : ""), "", tag)
+        + "</button>";
+    }).join(""));
+  }
+  h += cartao("Falar com a Sulista", abertas >= teto
+    ? vazio("Você já tem " + num(teto) + " pedidos em aberto. Aguarde a resposta "
+            + "de um deles antes de abrir outro.")
+    : '<div id="canal-novo"></div>');
+  alvo.innerHTML = h;
+  alvo.querySelectorAll("[data-conversa]").forEach((b) => {
+    b.addEventListener("click", () => abrirConversa(b.dataset.conversa));
+  });
+  if(abertas < teto) desNovoPedido($("canal-novo"), d.assuntos || []);
+}
+
+function estadoRotulo(s){
+  return {aberta:"aguardando a Sulista", em_atendimento:"em atendimento",
+          aguardando_agregado:"aguardando você", resolvida:"encerrado"}[s] || s;
+}
+
+function desNovoPedido(alvo, assuntos){
+  if(!alvo) return;
+  alvo.innerHTML = '<label for="canal-assunto">Assunto</label>'
+    + '<select id="canal-assunto" class="campo">'
+    + '<option value="">escolha…</option>'
+    + assuntos.map((a) => '<option value="' + esc(a.chave) + '">' + esc(a.rotulo) + "</option>").join("")
+    + '</select><p class="conta" id="canal-ajuda"></p>'
+    + '<label for="canal-texto">Sua mensagem</label>'
+    + '<textarea id="canal-texto" class="campo" rows="4" maxlength="2000"></textarea>'
+    + '<button class="lg-btn" id="b-canal-enviar" type="button">Enviar</button>'
+    + '<div class="msg" id="m-canal" hidden></div>';
+  const sel = $("canal-assunto");
+  sel.addEventListener("change", () => {
+    const a = (assuntos || []).find((x) => x.chave === sel.value);
+    $("canal-ajuda").textContent = (a && a.ajuda) || "";
+  });
+  $("b-canal-enviar").addEventListener("click", async () => {
+    aviso("m-canal", "");
+    ocupado($("b-canal-enviar"), true, "Enviando…");
+    const r = await pedir("/api/agregado/conversas", {method:"POST", body: JSON.stringify(
+      {assunto: sel.value, texto: $("canal-texto").value})});
+    ocupado($("b-canal-enviar"), false, "Enviar");
+    if(!r.ok) return aviso("m-canal", r.mensagem);
+    await abrirAba("canal");
+  });
+}
+
+async function abrirConversa(id){
+  const box = $("modalBox");
+  box.innerHTML = "<h3>Pedido</h3>" + vazio("carregando…");
+  $("modalBg").classList.add("aberto");
+  const r = await pedir("/api/agregado/conversas/" + encodeURIComponent(id));
+  if(!r.ok){ box.innerHTML = "<h3>Pedido</h3>" + vazio(r.mensagem); return; }
+  const d = r.dados || {}, c = d.conversa || {};
+  const msgs = (d.mensagens || []).map((m) => {
+    if(m.evento) return '<div class="conta">' + esc(m.texto) + " · " + diaHora(m.quando) + "</div>";
+    const quem = m.papel === "setor" ? (m.autor || "Sulista") : "Você";
+    return '<div class="linha"><div class="esq"><div class="t">' + esc(quem) + "</div>"
+      + '<div class="s">' + esc(m.texto) + "</div></div>"
+      + '<div class="val" style="font-size:12px">' + diaHora(m.quando) + "</div></div>";
+  }).join("") || vazio("Sem mensagens.");
+  box.innerHTML = "<h3>" + esc(c.assunto_rotulo || "Pedido") + "</h3>"
+    + '<p class="conta">' + esc(estadoRotulo(c.status))
+    + (c.atendente ? " · " + esc(c.atendente) : "") + "</p>"
+    + msgs
+    + (c.aberta
+        ? '<label for="canal-resposta">Responder</label>'
+          + '<textarea id="canal-resposta" class="campo" rows="3" maxlength="2000"></textarea>'
+          + '<button class="lg-btn" id="b-canal-responder" type="button">Enviar</button>'
+          + '<div class="msg" id="m-canal-resp" hidden></div>'
+        : vazio("Este pedido foi encerrado. Abra um novo se precisar."))
+    + '<button class="lg-btn claro" type="button" onclick="fecharModal()">Fechar</button>';
+  const b = $("b-canal-responder");
+  if(b) b.addEventListener("click", async () => {
+    aviso("m-canal-resp", "");
+    ocupado(b, true, "Enviando…");
+    const e = await pedir("/api/agregado/conversas/" + encodeURIComponent(id) + "/mensagem",
+      {method:"POST", body: JSON.stringify({texto: $("canal-resposta").value})});
+    ocupado(b, false, "Enviar");
+    if(!e.ok) return aviso("m-canal-resp", e.mensagem);
+    fecharModal();
+    await abrirAba("canal");
+  });
 }
 
 async function desConta(alvo){

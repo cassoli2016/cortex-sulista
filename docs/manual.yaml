@@ -1338,6 +1338,7 @@ grupos:
   - port
   - gr
   - agr
+  - agrcanal
   - mvb
 - nome: Frota
   resumo: >-

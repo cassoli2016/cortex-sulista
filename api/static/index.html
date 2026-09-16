@@ -3802,6 +3802,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <div class="subs closed" id="subsOpe">
         <a href="#agr" class="sub" data-view="agr" title="Agregados e Terceiros"><span class="ic" data-ic="agr"></span><span>Agregados e Terceiros</span></a>
         <a href="#km" class="sub" data-view="km" title="Análise de KM"><span class="ic" data-ic="kmv"></span><span>Análise de KM</span></a>
+        <a href="#agrcanal" class="sub" data-view="agrcanal" title="Canal do Agregado — pedidos do proprietário de veículo agregado, abertos no app"><span class="ic" data-ic="agrcanalic"></span><span>Canal do Agregado</span></a>
         <a href="#cex" class="sub" data-view="cex" title="Custos Extras por CT-e"><span class="ic" data-ic="cexic"></span><span>Custos Extras</span></a>
         <a href="#mvb" class="sub" data-view="mvb" title="Frota própria ou agregado, rota a rota"><span class="ic" data-ic="mvb"></span><span>Frota Própria × Agregado</span></a>
         <a href="#gr" class="sub" data-view="gr" title="Gerenciamento de Risco — eventos do rastreamento, cobertura de GR nas viagens e a saúde do fluxo"><span class="ic" data-ic="gric"></span><span>Gerenciamento de Risco</span></a>
@@ -6756,6 +6757,44 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           <div class="card">
             <div class="head"><h2>Publicados</h2><span class="hint" id="hintRhmotMural"></span></div>
             <div class="tablewrap tabroll" id="rhmot-mural"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================
+           OPERAÇÃO · CANAL DO AGREGADO
+           O outro lado do "Fale com a Sulista" do app do proprietário
+           (/agregado). Mesma forma da caixa do RH, e pela mesma razão: a
+           ordem é do MAIS PARADO para o mais recente, porque numa caixa por
+           data quem escreveu há três semanas nunca mais é visto — e aqui essa
+           pessoa está cobrando um acerto.
+           ================================================================ -->
+      <section class="view" id="view-agrcanal">
+        <div class="kpis k4" id="kpis-agrcanal"></div>
+        <div class="card">
+          <div class="head"><h2>Caixa do setor de agregados <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Pedidos que o PROPRIETARIO de veiculo agregado abriu no app (/agregado), do banco da casa (agr_conversas). Cada um tem ASSUNTO de lista fechada, ESTADO e DONO — nao e chat, e fila. A ordem e do MAIS PARADO para o mais recente. 'Parada' conta desde a ultima mensagem, de qualquer lado. O dono nao e usuario do painel: ele entra pelo app com identidade propria, e o que ele ve la e so o dinheiro dele.">i</span></h2>
+            <span class="hint" id="hintAgrcanal"></span></div>
+          <div class="milk-filtros">
+            <label>Estado<select id="fAgrcanalStatus" onchange="loadAgrcanal()" aria-label="Estado da conversa">
+              <option value="">Em aberto</option>
+              <option value="aberta">Sem dono</option>
+              <option value="em_atendimento">Em atendimento</option>
+              <option value="aguardando_agregado">Aguardando o proprietário</option>
+              <option value="resolvida">Resolvidas</option>
+            </select></label>
+            <label>Proprietário<input id="fAgrcanalBusca" type="text" placeholder="nome ou parte dele" oninput="agrcanalBuscaDebounce()" aria-label="Buscar proprietário"></label>
+            <button class="btn" type="button" onclick="agrcanalNova()">Abrir conversa</button>
+          </div>
+        </div>
+        <div class="rhmot-grade">
+          <div class="card">
+            <div class="head"><h2>Conversas</h2><span class="hint" id="hintAgrcanalLista"></span></div>
+            <div class="tablewrap tabroll" id="agrcanal-lista"></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2 id="agrcanal-titulo">Conversa</h2>
+              <span class="hint" id="hintAgrcanalConv"></span></div>
+            <div id="agrcanal-conversa"></div>
           </div>
         </div>
       </section>
@@ -10618,6 +10657,7 @@ const ICONS = {
   poliic: IC('<path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5z"/><circle cx="12" cy="11" r="2.2"/><path d="M12 13.2V17"/>'),
   pneuic: IC('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.6"/><path d="M12 3v5.4M12 15.6V21M3 12h5.4M15.6 12H21"/>'),
   rhmotic: IC('<path d="M4 5.5h16a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 3.5V16.5H4A1.5 1.5 0 0 1 2.5 15V7A1.5 1.5 0 0 1 4 5.5Z"/><path d="M7 9.5h10M7 12.5h6"/>'),
+  agrcanalic: IC('<path d="M3 6.5h13a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5H8l-3.5 3V15.5H3A1.5 1.5 0 0 1 1.5 14V8A1.5 1.5 0 0 1 3 6.5Z"/><path d="M19 9h2.5l1 3v3.5h-2"/><circle cx="18.5" cy="17" r="1.6"/>'),
   feriasic: IC('<rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><path d="m9 15 2 2 4-4"/>'),
   cnhic: IC('<rect x="2" y="4.5" width="20" height="15" rx="2.5"/><circle cx="8" cy="11" r="2.2"/><path d="M4.6 16.4a3.7 3.7 0 0 1 6.8 0"/><path d="M14.5 9.5h5M14.5 12.5h5M14.5 15.5h3"/>'),
   folhaindic: IC('<circle cx="7" cy="6.5" r="3"/><path d="M2.5 14a4.5 4.5 0 0 1 9 0"/><path d="M14 20V9M18 20V5M21.5 20h-11"/>'),
@@ -10686,7 +10726,7 @@ function tvRecarregar(v){
   if(esTv(v) && mapa[v]) mapa[v]();
 }
 
-const VIEWS = { hp:'Horas Paradas', radar:'Radar do Transporte', tvcco:'Painel TV — Coletas e Entregas', tvcom:'Painel TV — Comunicação', tvjor:'Painel TV — Jornada', tvprod:'Painel TV — Produtividade',home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Central de Documentos', eqp:'Equipamentos', wmspan:'Painel do Armazém', wmsrec:'Recebimento', wmsest:'Estoque e Inventário', wmsexp:'Separação e Expedição', wmscad:'Cadastros do Armazém', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', freq:'Frequência e Banco de Horas', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', gesind:'Ritual — Indicadores e Metas', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { agrcanal:'Canal do Agregado', hp:'Horas Paradas', radar:'Radar do Transporte', tvcco:'Painel TV — Coletas e Entregas', tvcom:'Painel TV — Comunicação', tvjor:'Painel TV — Jornada', tvprod:'Painel TV — Produtividade',home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Central de Documentos', eqp:'Equipamentos', wmspan:'Painel do Armazém', wmsrec:'Recebimento', wmsest:'Estoque e Inventário', wmsexp:'Separação e Expedição', wmscad:'Cadastros do Armazém', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', freq:'Frequência e Banco de Horas', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', gesind:'Ritual — Indicadores e Metas', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -10962,7 +11002,7 @@ const VIEW_GROUP = {radar:'',home:'',cop:'',apps:'',
   dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',
   ctecp:'Tms',eqp:'Tms',dfe:'Tms',
   wmspan:'Wms',wmsrec:'Wms',wmsest:'Wms',wmsexp:'Wms',wmscad:'Wms',
-  torre:'Ope',milkrun:'Ope',poli:'Ope',hp:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',cliop:'Ope',port:'Ope',km:'Ope',agr:'Ope',mvb:'Ope',pedagio:'Ope',
+  torre:'Ope',milkrun:'Ope',poli:'Ope',hp:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',cliop:'Ope',port:'Ope',km:'Ope',agr:'Ope',agrcanal:'Ope',mvb:'Ope',pedagio:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',pecas:'Sup',
   fat:'Ctr',gr:'Ope',tvcli:'Bi',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',tvcom:'Bi',tvjor:'Bi',tvprod:'Bi',tvcco:'Bi',
@@ -11189,6 +11229,11 @@ function qsView(k){
 // sem filtro) — fonte única para o filterbar e o botão "☰ Filtros" mobile,
 // que precisam concordar (botão visível abrindo uma barra escondida = bug).
 function semFilterbar(v){
+  // `agrcanal` (16/09/2026) tem os filtros DENTRO da tela — estado da conversa
+  // e busca por proprietário —, e a barra global só traria filial e data, que
+  // a caixa não recebe. Campo que aceita valor e não muda nada é pior que
+  // campo nenhum: quem filtra acredita no resultado.
+  //
   // prog entrou aqui na auditoria de filtros: TODOS os grupos ficam ocultos
   // nela, então a barra aparecia sem um único campo — só o botão "Aplicar
   // filtros", que não tinha o que aplicar.
@@ -11218,7 +11263,8 @@ function semFilterbar(v){
   return v==='radar'||v==='tvjor'||v==='tvprod'||v==='tvcco'||v==='cop'||v==='mon'||v==='aud'||v==='integ'||v==='apps'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='gesind'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
          v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='freq'||v==='custos'||v==='pecas'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='antport'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='rhmot'||v==='pneus'||v==='people'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='eqp'||
-         v==='wmspan'||v==='wmsrec'||v==='wmsest'||v==='wmsexp'||v==='wmscad'||v==='hp';
+         v==='wmspan'||v==='wmsrec'||v==='wmsest'||v==='wmsexp'||v==='wmscad'||v==='hp'||
+         v==='agrcanal';
 }
 function currentView(){
   const h = (location.hash||'').replace('#','').split('?')[0];   // `#sup?chamado=12` é a tela sup
@@ -11377,7 +11423,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,freq:DATAFREQ,custos:DATACUSTOS,pecas:DATAPECAS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={hp:loadHp,radar:loadRadar,apps:loadApps,integ:loadInteg,dfe:loadDfe,eqp:loadEqp,wmspan:loadWmsPan,wmsrec:loadWmsRec,wmsest:loadWmsEst,wmsexp:loadWmsExp,wmscad:loadWmsCad,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,freq:loadFreq,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvprod:loadTvProd,tvcco:loadTvCco,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+  const LOADMAP={agrcanal:loadAgrcanal,hp:loadHp,radar:loadRadar,apps:loadApps,integ:loadInteg,dfe:loadDfe,eqp:loadEqp,wmspan:loadWmsPan,wmsrec:loadWmsRec,wmsest:loadWmsEst,wmsexp:loadWmsExp,wmscad:loadWmsCad,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,freq:loadFreq,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvprod:loadTvProd,tvcco:loadTvCco,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -11431,6 +11477,7 @@ const NAV_KW={
   jorn:'motorista jornada 13103 descanso direcao inconformidade raster rasterjor hora extra repouso', cex:'custo extra estadia devolucao reentrega',
   sac:'freetime estadia detention ocorrencia atendimento', port:'portaria patio visitante entrada saida',
   km:'quilometragem vazio carregado retorno rkm', agr:'agregado terceiro frete comprado transportador',
+  agrcanal:'canal agregado proprietario fale conosco pedido fila conversa acerto desconto app do agregado',
   mvb:'make buy proprio agregado ckm decisao', pedagio:'pedagio vale praca eixo tag semparar concessionaria tarifa', veic:'frota veiculo cavalo carreta ativo placa',
   veicf:'ficha veiculo consulta placa', mprev:'preventiva troca oleo revisao manutencao',
   comrast:'rastreador comunicacao sinal offline', comb:'diesel abastecimento posto consumo km/l arla',
@@ -25556,6 +25603,201 @@ function renderFeriasCusto(d){
 // pessoa que liga para a torre, que e o telefonema que este canal existe para
 // tirar. `parada_dias` vira selo vermelho.
 let RHMOT = {conversas: [], assuntos: [], atual: null}, rhmotSeq = 0, rhmotTimer = 0;
+
+/* ===================== OPERAÇÃO · CANAL DO AGREGADO ======================
+   O outro lado do "Falar" do app do proprietário (/agregado). A forma é a
+   mesma da caixa do RH, e a razão também: isto é FILA, não caixa de e-mail —
+   ordena pelo MAIS PARADO, e o número que diz se o canal funciona é "paradas
+   há 3+ dias", não o total. Ver `api/agregado/conversas.py`. */
+let AGRCANAL = {conversas: [], assuntos: [], atual: null};
+let agrcanalSeq = 0, agrcanalTimer = null;
+
+function agrcanalBuscaDebounce(){
+  // Digitar num campo de busca nao pode ser uma requisicao por tecla.
+  clearTimeout(agrcanalTimer); agrcanalTimer = setTimeout(loadAgrcanal, 350);
+}
+
+async function loadAgrcanal(fundo){
+  skelKpis('kpis-agrcanal',4);
+  const seq=++agrcanalSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  if(!fundo) document.getElementById('content').classList.add('loading');
+  try{
+    const V=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
+    const p=new URLSearchParams();
+    if(V('fAgrcanalStatus')) p.set('status', V('fAgrcanalStatus'));
+    if(V('fAgrcanalBusca')) p.set('busca', V('fAgrcanalBusca'));
+    const r=await fetch('/api/agregados/canal/conversas?'+p.toString(),
+      {cache:'no-store', headers: fundo?{'X-Carga-Fundo':'1'}:{}});
+    const d=await respostaJSON(r); if(seq!==agrcanalSeq) return;
+    if(!d.ok){ showBanner(d.mensagem||'Erro ao carregar a caixa do setor.'); return; }
+    hideBanner();
+    AGRCANAL.conversas=d.dados.conversas||[]; AGRCANAL.assuntos=d.dados.assuntos||[];
+    renderAgrcanal(d.dados);
+  }catch(e){ if(seq===agrcanalSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===agrcanalSeq){ if(btn) btn.disabled=false;
+    document.getElementById('content').classList.remove('loading'); } }
+}
+
+function renderAgrcanal(d){
+  const naoLidas=AGRCANAL.conversas.reduce((a,c)=>a+(c.nao_lidas||0),0);
+  document.getElementById('kpis-agrcanal').innerHTML=[
+    kpi('Em aberto', (d.vivas||0).toLocaleString('pt-BR'),
+        (d.total||0).toLocaleString('pt-BR')+' no total'),
+    kpi('Sem dono', (d.abertas||0).toLocaleString('pt-BR'),
+        'ninguém pegou ainda', (d.abertas||0)>0?'neg':'pos'),
+    /* O NUMERO QUE DIZ SE O CANAL FUNCIONA. Sem ele, "temos um canal com o
+       agregado" e uma frase; com ele, e uma medicao — e do outro lado esta
+       alguem cobrando dinheiro. */
+    kpi('Paradas há 3+ dias', (d.paradas||0).toLocaleString('pt-BR'),
+        'sem mensagem de ninguém', (d.paradas||0)>0?'neg':'pos'),
+    kpi('Não lidas', naoLidas.toLocaleString('pt-BR'),
+        naoLidas===1?'mensagem do proprietário':'mensagens do proprietário')
+  ].join('');
+  document.getElementById('hintAgrcanal').textContent =
+    'CÓRTEX · canal do setor de agregados (agr_conversas)';
+  // TOP-N LEVA CONTADOR: sem ele, as linhas mostradas leem-se como o total.
+  document.getElementById('hintAgrcanalLista').textContent =
+    (d.mostrados>=d.limite) ? (d.mostrados+' de '+(d.total||0)+' — refine a busca')
+                            : (d.mostrados+' conversa(s)');
+
+  const lista=document.getElementById('agrcanal-lista');
+  if(!AGRCANAL.conversas.length){
+    lista.innerHTML='<p class="muted" style="padding:10px">Nenhuma conversa neste filtro.</p>';
+    document.getElementById('agrcanal-conversa').innerHTML='';
+    document.getElementById('agrcanal-titulo').textContent='Conversa';
+    return;
+  }
+  lista.innerHTML=AGRCANAL.conversas.map(function(c){
+    const selos=[];
+    if(c.nao_lidas) selos.push('<span class="badge b-dang">'+c.nao_lidas+' nova(s)</span>');
+    if(c.parada_dias>=3 && c.status!=='resolvida')
+      selos.push('<span class="badge b-warn">parada há '+Math.round(c.parada_dias)+'d</span>');
+    if(c.origem==='setor') selos.push('<span class="badge b-info">da Sulista</span>');
+    if(c.status==='resolvida') selos.push('<span class="badge b-ok">resolvida</span>');
+    return '<button type="button" class="rhmot-item" data-id="'+c.id+'" onclick="agrcanalAbrir(this.dataset.id)">'
+      + '<div class="l1"><span class="nome">'+esc(c.agregado)+'</span>'
+      + '<span class="muted" style="font-size:12px">'+esc(c.assunto_rotulo)+'</span></div>'
+      + '<div class="meta">'+esc((c.resumo||'').slice(0,90))+'</div>'
+      + '<div class="meta">'+selos.join(' ')+(c.atendente?' <span class="muted">com '+esc(c.atendente)+'</span>':'')+'</div>'
+      + '</button>';
+  }).join('');
+}
+
+async function agrcanalAbrir(id){
+  const alvo=document.getElementById('agrcanal-conversa');
+  alvo.innerHTML='<p class="muted" style="padding:10px">Carregando…</p>';
+  let d;
+  try{
+    const r=await fetch('/api/agregados/canal/conversas/'+encodeURIComponent(id),{cache:'no-store'});
+    d=await respostaJSON(r);
+  }catch(e){ d={ok:false, mensagem:'Sem conexão com a API.'}; }
+  if(!d.ok){ alvo.innerHTML='<p class="muted" style="padding:10px">'+esc(d.mensagem)+'</p>'; return; }
+  const c=d.dados.conversa||{}, msgs=d.dados.mensagens||[];
+  AGRCANAL.atual=c;
+  document.getElementById('agrcanal-titulo').textContent=
+    (c.agregado||'Conversa')+' · '+(c.assunto_rotulo||'');
+  document.getElementById('hintAgrcanalConv').textContent=
+    ESTADO_AGR[c.status]||c.status||'';
+  const linhas=msgs.map(function(m){
+    if(m.evento) return '<p class="muted" style="font-size:12px;margin:6px 0">'
+      + esc(m.texto)+' · '+fmtDH(m.quando)+'</p>';
+    const eu = m.papel==='setor';
+    return '<div class="rhmot-msg'+(eu?' eu':'')+'"><b>'
+      + esc(eu ? (m.autor||'Sulista') : (c.agregado||'Proprietário'))+'</b>'
+      + '<span class="muted" style="font-size:11px"> · '+fmtDH(m.quando)+'</span>'
+      + '<div>'+esc(m.texto)+'</div></div>';
+  }).join('') || '<p class="muted">Sem mensagens.</p>';
+  const acoes = c.status==='resolvida'
+    ? '<button class="btn" type="button" onclick="agrcanalStatus(\'em_atendimento\')">Reabrir</button>'
+    : '<button class="btn" type="button" onclick="agrcanalStatus(\'em_atendimento\')">Pegar</button>'
+      + ' <button class="btn" type="button" onclick="agrcanalStatus(\'resolvida\')">Encerrar</button>'
+      + ' <button class="btn" type="button" onclick="agrcanalStatus(\'aberta\')">Devolver à fila</button>';
+  alvo.innerHTML='<div style="padding:0 18px 16px">'+linhas
+    + '<textarea id="agrcanalResp" class="rhmot-resp" rows="3" maxlength="2000"'
+    + ' placeholder="Responder ao proprietário. Ele recebe um aviso no WhatsApp — sem o conteúdo."'
+    + ' aria-label="Resposta ao proprietário"></textarea>'
+    + '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'
+    + '<button class="btn" type="button" onclick="agrcanalResponder()">Enviar resposta</button>'
+    + acoes + '</div></div>';
+}
+
+const ESTADO_AGR = {aberta:'sem dono', em_atendimento:'em atendimento',
+  aguardando_agregado:'aguardando o proprietário', resolvida:'resolvida'};
+
+async function agrcanalResponder(){
+  if(!AGRCANAL.atual) return;
+  const el=document.getElementById('agrcanalResp'), texto=(el.value||'').trim();
+  if(!texto){ el.focus(); return; }
+  let d;
+  try{
+    const r=await fetch('/api/agregados/canal/conversas/'+AGRCANAL.atual.id+'/mensagem',
+      {method:'POST', headers:{'Content-Type':'application/json'},
+       body: JSON.stringify({texto: texto})});
+    d=await respostaJSON(r);
+  }catch(e){ d={ok:false, mensagem:'Sem conexão com a API.'}; }
+  if(!d.ok){ showBanner(d.mensagem||'Não consegui enviar.'); return; }
+  hideBanner();
+  await agrcanalAbrir(AGRCANAL.atual.id); loadAgrcanal(true);
+}
+
+async function agrcanalStatus(novo){
+  if(!AGRCANAL.atual) return;
+  let d;
+  try{
+    const r=await fetch('/api/agregados/canal/conversas/'+AGRCANAL.atual.id+'/status',
+      {method:'POST', headers:{'Content-Type':'application/json'},
+       body: JSON.stringify({status: novo})});
+    d=await respostaJSON(r);
+  }catch(e){ d={ok:false, mensagem:'Sem conexão com a API.'}; }
+  if(!d.ok){ showBanner(d.mensagem||'Não consegui mudar o estado.'); return; }
+  hideBanner();
+  await agrcanalAbrir(AGRCANAL.atual.id); loadAgrcanal(true);
+}
+
+/* ABRIR CONVERSA COM UM PROPRIETÁRIO. A lista vem do servidor e traz só id
+   OPACO e nome — o código do ERP é o CPF para pessoa física, e uma lista de
+   quem é dono de caminhão não sai do servidor. */
+async function agrcanalNova(){
+  let lista=[];
+  try{
+    const r=await fetch('/api/agregados/canal/agregados',{cache:'no-store'});
+    const d=await respostaJSON(r);
+    if(d.ok) lista=(d.dados.agregados||[]);
+  }catch(e){ /* a recusa aparece no modal abaixo */ }
+  const assuntos=(AGRCANAL.assuntos||[]);
+  abrirModal('<h3>Abrir conversa</h3>'
+    + '<label class="lbl" for="agrNovoDono">Proprietário</label>'
+    + '<select id="agrNovoDono" style="width:100%">'
+    + lista.map(a=>'<option value="'+a.id+'">'+esc(a.nome)+'</option>').join('')
+    + '</select>'
+    + '<label class="lbl" for="agrNovoAssunto" style="margin-top:10px">Assunto</label>'
+    + '<select id="agrNovoAssunto" style="width:100%">'
+    + assuntos.map(a=>'<option value="'+esc(a.chave)+'">'+esc(a.rotulo)+'</option>').join('')
+    + '</select>'
+    + '<label class="lbl" for="agrNovoTitulo" style="margin-top:10px">Título</label>'
+    + '<input id="agrNovoTitulo" type="text" maxlength="120" style="width:100%">'
+    + '<label class="lbl" for="agrNovoTexto" style="margin-top:10px">Mensagem</label>'
+    + '<textarea id="agrNovoTexto" rows="4" maxlength="2000" style="width:100%"></textarea>'
+    + '<div id="m-agrnovo" class="muted" style="margin-top:8px"></div>'
+    + '<div style="margin-top:12px;display:flex;gap:8px">'
+    + '<button class="btn" type="button" onclick="agrcanalNovaEnviar()">Enviar</button>'
+    + '<button class="btn" type="button" onclick="fecharModal()">Cancelar</button></div>');
+}
+
+async function agrcanalNovaEnviar(){
+  const v=id=>{const e=document.getElementById(id);return e?e.value:'';};
+  let d;
+  try{
+    const r=await fetch('/api/agregados/canal/conversas',
+      {method:'POST', headers:{'Content-Type':'application/json'},
+       body: JSON.stringify({agregado: v('agrNovoDono'), assunto: v('agrNovoAssunto'),
+                             titulo: v('agrNovoTitulo'), texto: v('agrNovoTexto')})});
+    d=await respostaJSON(r);
+  }catch(e){ d={ok:false, mensagem:'Sem conexão com a API.'}; }
+  const m=document.getElementById('m-agrnovo');
+  if(!d.ok){ if(m) m.textContent=d.mensagem||'Não consegui abrir.'; return; }
+  fecharModal(); loadAgrcanal(true);
+}
 
 function rhmotBuscaDebounce(){
   // Digitar num campo de busca nao pode ser uma requisicao por tecla.
@@ -50124,6 +50366,7 @@ boot();
       <div class="dgrp-b">
         <a href="#agr" onclick="fecharDrawer()"><span class="ic" data-ic="agr"></span>Agregados e Terceiros</a>
         <a href="#km" onclick="fecharDrawer()"><span class="ic" data-ic="kmv"></span>Análise de KM</a>
+        <a href="#agrcanal" onclick="fecharDrawer()"><span class="ic" data-ic="agrcanalic"></span>Canal do Agregado</a>
         <a href="#cex" onclick="fecharDrawer()"><span class="ic" data-ic="cexic"></span>Custos Extras</a>
         <a href="#mvb" onclick="fecharDrawer()"><span class="ic" data-ic="mvb"></span>Frota Própria × Agregado</a>
         <a href="#gr" onclick="fecharDrawer()"><span class="ic" data-ic="gric"></span>Gerenciamento de Risco</a>

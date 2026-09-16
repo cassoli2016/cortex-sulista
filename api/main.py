@@ -925,8 +925,11 @@ def agregado_eu(req: Request) -> JSONResponse:
         sess = _agr_eu(req)
     except asessao.SemSessao:
         return _agr_recusa("Faça login para continuar.", status=401)
+    # O CANAL APARECE SEMPRE: ao contrario do abastecimento, "nao tenho pedido
+    # nenhum" nao e ausencia de dado — e o estado normal de quem nunca precisou
+    # falar com a Sulista, e a aba e justamente onde ele comeca.
     secoes = {"acertos": True, "viagens": True, "abastecimentos": True,
-              "lancamentos": True, "ocorrencias": True}
+              "lancamentos": True, "ocorrencias": True, "canal": True}
     veic: dict = {}
     try:
         veic = adados.veiculos(sess)
@@ -1045,6 +1048,208 @@ def agregado_ocorrencias(req: Request) -> JSONResponse:
     from api.agregado import dados as adados
     return _agr_leitura(req, adados.ocorrencias,
                         dias=_agr_dias(req, adados.JANELA_DIAS))
+
+
+# ── o canal com o setor de agregados, do lado de QUEM PERGUNTA ────────────
+#
+# O escopo e sempre a sessao. O `conversa_id` vem do navegador, e por isso ele
+# entra no `WHERE` JUNTO do dono (`conversas._minha`) — nunca uma busca por id
+# seguida de um `if` conferindo o dono.
+
+
+async def _agr_canal_escrever(req: Request, acao) -> JSONResponse:
+    """Escrita do lado do dono: sessao, recusa legivel, trilha."""
+    from api.agregado import conversas as aconv
+    from api.agregado import sessao as asessao
+    try:
+        sess = _agr_eu(req)
+    except asessao.SemSessao:
+        return _agr_recusa("Faça login para continuar.", status=401)
+    corpo = await _corpo_json(req)
+    try:
+        r = await sem_travar(acao, sess, corpo)
+    except aconv.Recusa as exc:
+        return _agr_recusa(str(exc))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("canal do agregado falhou: %s", type(exc).__name__)
+        return _agr_recusa("Não consegui salvar agora. Tente de novo.")
+    # A TRILHA LEVA O ID OPACO, nunca o codigo do ERP (CPF para pessoa fisica).
+    auth.audit("agregado:%d" % sess["agregado_id"], "agregado_canal_escreveu",
+               alvo=str(r.get("id") or ""), ip=_ip_do_cliente(req))
+    return JSONResponse(r)
+
+
+@app.get("/api/agregado/conversas")
+def agregado_conversas(req: Request) -> JSONResponse:
+    from api.agregado import conversas as aconv
+    return _agr_leitura(req, aconv.minhas)
+
+
+@app.get("/api/agregado/conversas/{cid}")
+def agregado_conversa(cid: int, req: Request) -> JSONResponse:
+    from api.agregado import conversas as aconv
+    from api.agregado import sessao as asessao
+    try:
+        sess = _agr_eu(req)
+    except asessao.SemSessao:
+        return _agr_recusa("Faça login para continuar.", status=401)
+    try:
+        return JSONResponse(aconv.ler(sess, cid))
+    except aconv.Recusa as exc:
+        return _agr_recusa(str(exc), status=404)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("conversa do agregado falhou: %s", type(exc).__name__)
+        return _agr_recusa("Não consegui abrir esta conversa agora.")
+
+
+@app.post("/api/agregado/conversas")
+async def agregado_conversa_abrir(req: Request) -> JSONResponse:
+    from api.agregado import conversas as aconv
+    return await _agr_canal_escrever(req, lambda s, c: aconv.abrir(
+        s, str(c.get("assunto") or ""), str(c.get("texto") or "")))
+
+
+@app.post("/api/agregado/conversas/{cid}/mensagem")
+async def agregado_conversa_responder(cid: int, req: Request) -> JSONResponse:
+    from api.agregado import conversas as aconv
+    return await _agr_canal_escrever(req, lambda s, c: aconv.responder(
+        s, cid, str(c.get("texto") or "")))
+
+
+# ══════════════════════════════════════════ o canal, do lado do SETOR ═════
+#
+# Estas rotas sao do PAINEL e passam pelo middleware normal: `/api/agregados/canal`
+# esta em `ROTA_TELAS` apontando para a tela `agrcanal`, entao quem nao tem a
+# tela leva 403 antes de chegar aqui. Nada do app alcanca isto — o cookie dele
+# nem e enviado para fora de `/api/agregado`.
+#
+# A CAIXA ORDENA PELO MAIS PARADO, nao pelo mais recente: numa caixa por data,
+# quem escreveu ha tres semanas nunca mais e visto, e e exatamente essa pessoa
+# que liga cobrando o acerto.
+
+
+async def _agr_setor_escrever(req: Request, acao, evento: str) -> JSONResponse:
+    """Escrita do lado do setor: grava, audita, e SO ENTAO avisa o mundo.
+
+    Se o WhatsApp falhar, a resposta continua existindo no app e o dono a le
+    quando abrir; o contrario deixaria um aviso apontando para uma resposta que
+    nao existe.
+    """
+    from api.agregado import conversas as aconv
+    sess = req.scope.get("state", {}).get("sessao") or {}
+    autor = sess.get("nome") or sess.get("email") or ""
+    try:
+        r = await sem_travar(acao, sess.get("id"), autor)
+    except aconv.Recusa as exc:
+        return _agr_recusa(str(exc))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("%s falhou: %s", evento, type(exc).__name__)
+        return _agr_recusa("Não consegui salvar agora. Tente de novo.")
+    auth.audit(autor or "setor", evento, alvo=str(r.get("id") or ""),
+               ip=_ip_do_cliente(req))
+    return JSONResponse(r)
+
+
+async def _avisar_agregado(conversa_id: int) -> dict:
+    """Avisa que ha resposta. NUNCA levanta, NUNCA abre a janela de horario.
+
+    O texto NAO leva o conteudo nem o assunto: o que o setor escreveu e sobre o
+    dinheiro de um fornecedor, e WhatsApp e lido em tela de bloqueio — 3 dos 63
+    donos dividem o numero com outro cadastro (medido em 16/09/2026).
+    """
+    from api.agregado import conversas as aconv
+    from api.whatsapp import envio as wa
+    try:
+        fone, _nome = aconv.telefone_de(conversa_id)
+        if not fone:
+            return {"ok": False, "erro": "sem telefone"}
+        return await sem_travar(wa.enviar, fone, aconv.AVISO,
+                                usuario="setor-agregados",
+                                origem="agregado_conversa")
+    except Exception as exc:  # noqa: BLE001
+        # O aviso e ENFEITE do canal: a resposta ja esta gravada e o dono a ve
+        # ao abrir o app. Derrubar a resposta por causa do WhatsApp seria trocar
+        # o essencial pelo acessorio.
+        log.warning("aviso do canal do agregado nao saiu: %s", type(exc).__name__)
+        return {"ok": False, "erro": type(exc).__name__}
+
+
+@app.get("/api/agregados/canal/conversas")
+def setor_agregado_caixa(req: Request, status: str = "",
+                         busca: str = "") -> JSONResponse:
+    from api.agregado import conversas as aconv
+    try:
+        return JSONResponse(aconv.caixa(status, busca))
+    except aconv.Recusa as exc:
+        return _agr_recusa(str(exc))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("caixa do setor de agregados falhou: %s", type(exc).__name__)
+        return _agr_recusa("Não consegui carregar a caixa agora.")
+
+
+@app.get("/api/agregados/canal/conversas/{cid}")
+def setor_agregado_conversa(cid: int, req: Request) -> JSONResponse:
+    from api.agregado import conversas as aconv
+    try:
+        return JSONResponse(aconv.ler_setor(cid))
+    except aconv.Recusa as exc:
+        return _agr_recusa(str(exc), status=404)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("conversa do setor falhou: %s", type(exc).__name__)
+        return _agr_recusa("Não consegui abrir esta conversa agora.")
+
+
+@app.get("/api/agregados/canal/agregados")
+def setor_agregado_lista(req: Request, busca: str = "") -> JSONResponse:
+    """Para quem o setor pode abrir conversa. **So id opaco e nome.**"""
+    from api.agregado import mestre as amestre
+    try:
+        return JSONResponse(amestre.agregados(busca))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("lista de agregados do setor falhou: %s", type(exc).__name__)
+        return _agr_recusa("Não consegui carregar a lista agora.")
+
+
+@app.post("/api/agregados/canal/conversas")
+async def setor_agregado_abrir(req: Request) -> JSONResponse:
+    from api.agregado import conversas as aconv
+    corpo = await _corpo_json(req)
+    resp = await _agr_setor_escrever(
+        req,
+        lambda uid, autor: aconv.abrir_setor(
+            corpo.get("agregado"), str(corpo.get("assunto") or ""),
+            str(corpo.get("titulo") or ""), str(corpo.get("texto") or ""),
+            autor_id=uid, autor_nome=autor),
+        "agregado_canal_abriu")
+    if resp.status_code == 200:
+        import json as _json
+        await _avisar_agregado(_json.loads(bytes(resp.body))["id"])
+    return resp
+
+
+@app.post("/api/agregados/canal/conversas/{cid}/mensagem")
+async def setor_agregado_responder(cid: int, req: Request) -> JSONResponse:
+    from api.agregado import conversas as aconv
+    corpo = await _corpo_json(req)
+    resp = await _agr_setor_escrever(
+        req,
+        lambda uid, autor: aconv.responder_setor(
+            cid, str(corpo.get("texto") or ""), autor_id=uid, autor_nome=autor),
+        "agregado_canal_respondeu")
+    if resp.status_code == 200:
+        await _avisar_agregado(cid)
+    return resp
+
+
+@app.post("/api/agregados/canal/conversas/{cid}/status")
+async def setor_agregado_status(cid: int, req: Request) -> JSONResponse:
+    from api.agregado import conversas as aconv
+    corpo = await _corpo_json(req)
+    return await _agr_setor_escrever(
+        req,
+        lambda uid, autor: aconv.mudar_status(
+            cid, str(corpo.get("status") or ""), autor_id=uid, autor_nome=autor),
+        "agregado_canal_status")
 
 
 @app.get("/motorista")

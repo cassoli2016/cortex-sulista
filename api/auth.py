@@ -124,6 +124,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "prem":    ("Premiação de Motoristas", "Telemetria"),
     "rh":      ("RH — Vagas", "Recursos Humanos"),
     "rhmot":   ("RH — Canal do Motorista", "Recursos Humanos"),
+    "agrcanal": ("Canal do Agregado", "Operação"),
     "hc":      ("Headcount", "Recursos Humanos"),
     "folha":   ("Custo de Folha", "Recursos Humanos"),
     "pedagio": ("Validação de Pedágio", "Operação"),
@@ -305,6 +306,11 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     # qualquer outro `/api/rh/...`: nenhuma entrada aqui pode engoli-lo, e ele
     # nao engole ninguem.
     ("/api/rh/motorista",             frozenset({"rhmot"})),
+    # O canal do setor de agregados com o proprietario. Prefixo PROPRIO
+    # (`/api/agregados/`, com S) e que NAO se confunde com o do aplicativo
+    # (`/api/agregado/`, sem S, liberado no middleware e guardado pela sessao do
+    # app): um e do painel, o outro e de quem esta fora da casa.
+    ("/api/agregados/canal",          frozenset({"agrcanal"})),
     ("/api/rh/vagas",                 frozenset({"rh"})),
     ("/api/financeiro/overview",      frozenset({"fluxo", "receber", "pagar"})),
     # Opções dos filtros de cliente (Contas a Receber) e de credor (Contas a
@@ -1160,6 +1166,25 @@ def _seed_perfis_modelo(c: psycopg.Connection) -> None:
                       " VALUES(%s,%s) ON CONFLICT DO NOTHING",
                       (row["id"], "rhmot"))
         c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v42', '1') ON CONFLICT(chave) DO NOTHING")
+
+    # v48 (2026-09-16): o canal do setor de agregados com o proprietário
+    # (`agrcanal`). A tela mostra o que um FORNECEDOR escreveu sobre acerto,
+    # desconto e pagamento — a lista de quem enxerga precisa ser a MENOR
+    # possível, como foi com o canal do RH: tela nova acaba dentro do perfil
+    # amplo por inércia, e ninguém repara que meia empresa passou a ler a
+    # cobrança de um agregado.
+    #
+    # Entra em Operação (quem cuida de agregado trabalha ali) e a Diretoria
+    # NÃO entra. Sem esta linha a tela nasceria invisível para todo mundo e o
+    # canal ficaria com o dono escrevendo para ninguém.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v48'").fetchone():
+        row = c.execute("SELECT id FROM perfis WHERE nome=%s",
+                        ("Operação",)).fetchone()
+        if row:
+            c.execute("INSERT INTO perfil_telas(perfil_id, tela)"
+                      " VALUES(%s,%s) ON CONFLICT DO NOTHING",
+                      (row["id"], "agrcanal"))
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v48', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v43 (2026-09-09): Frequência e Banco de Horas (`freq`) ao perfil de
     # Recursos Humanos. A Diretoria entra JUNTO, e aqui isso é deliberado —
