@@ -15,7 +15,10 @@ régua com dublê vazio mede o esqueleto, não a tela.
 6. tração e motoristas com frota e agregado separados;
 7. o quadrante da telemetria virou MANUTENÇÃO DA FROTA (15/09/2026):
    revisões, parados e oficina longa, cavalo e semirreboque lado a lado;
-8. mapa com legenda, tração no marcador e grupos de no máximo 5.
+8. mapa com legenda, tração no marcador e grupos de no máximo 5;
+9. cartões e mapa INTERATIVOS (16/09/2026): cada cartão abre o detalhe do
+   próprio número, e o caminhão e o grupo do mapa abrem a ficha — sempre da
+   MESMA lista que fez o número, sem uma segunda consulta.
 """
 from __future__ import annotations
 
@@ -92,6 +95,7 @@ PROG_KPIS = {"tracao_total": 80, "tracao_viagem": 4, "tracao_os": 4, "tracao_dis
              "mot_total": 224, "mot_viagem": 67, "mot_parados": 157,
              "mot_viagem_proprio": 4, "mot_viagem_agregado": 63, "mot_viagem_terceiro": 0,
              "mot_proprios": 68, "mot_proprios_disp": 64, "pct_proprios_disp": 94.1,
+             "com_retorno": 25,
              "chegando_72h": 30, "sem_retorno": 5, "cargas_sem_chegada": 3,
              "cnh_vencida": 2, "cnh_vencida_rodando": 0}
 
@@ -105,17 +109,67 @@ KM = {"kpis": {"km_total": 454000.0, "km_carregado": 363000.0, "km_vazio": 91000
 
 # O QUADRANTE DE MANUTENÇÃO, na ordem de grandeza do dia real (15/09/2026):
 # 66 cavalos e 175 semirreboques na preventiva, 80 e 228 na frota.
-MANUT = {"revisoes": {"cavalos": {"vencidas": 1, "a_vencer": 3, "avaliados": 66},
-                      "semirreboques": {"vencidas": 2, "a_vencer": 12, "avaliados": 175},
+def _rev_cav(i, status):
+    return {"frota": f"C9{i:02d}", "placa": f"CAV{i:04d}", "status": status,
+            "km_faltante": -557 - i if status == "vencida" else 2000 + i,
+            "intervalo": 50000, "odometro": 300000 + i}
+
+
+def _rev_sem(i, status):
+    return {"frota": f"S9{i:02d}", "placa": f"SEM{i:04d}", "status": status,
+            "dias": -15 - i if status == "vencida" else 3 + i,
+            "ultima": "2026-03-01", "limite": 180}
+
+
+def _os(i, motor, dias):
+    return {"placa": (f"CAV{i:04d}" if motor else f"SEM{i:04d}"), "utilizacao": "FROTA",
+            "os_abertas": 1 + i % 2, "desde": "2026-09-0%d" % (1 + i % 9),
+            "dias": dias, "longa": dias > 7}
+
+
+MANUT = {"revisoes": {"cavalos": {"vencidas": 1, "a_vencer": 3, "avaliados": 66,
+                                  "lista": [_rev_cav(0, "vencida")]
+                                           + [_rev_cav(i, "proxima") for i in range(1, 4)]},
+                      "semirreboques": {"vencidas": 2, "a_vencer": 12, "avaliados": 175,
+                                        "lista": [_rev_sem(i, "vencida") for i in range(2)]
+                                                 + [_rev_sem(i, "proxima") for i in range(2, 14)]},
                       "horizonte_dias": 30,
                       "vencidas": [{"frota": "C901", "km": 1557},
                                    {"frota": "S902", "dias": 15},
                                    {"frota": "S903", "dias": 1}]},
-         "oficina": {"cavalos": {"frota": 80, "parados": 6, "longa": 3},
-                     "semirreboques": {"frota": 228, "parados": 15, "longa": 6},
+         "oficina": {"cavalos": {"frota": 80, "parados": 6, "longa": 3,
+                                 "lista": [_os(i, True, 30 - 5 * i) for i in range(6)]},
+                     "semirreboques": {"frota": 228, "parados": 15, "longa": 6,
+                                       "lista": [_os(i, False, 20 - i) for i in range(15)]},
                      "longa_dias": 7},
+         # 103 OS no mês: a lista é a mesma de onde saem as contagens
          "mes": {"preventivas": 26, "corretivas": 62, "socorro": 15,
-                 "socorro_ant": 12, "dia": 15, "mes_ant": "2026-08"}}
+                 "socorro_ant": 12, "dia": 15, "mes_ant": "2026-08",
+                 "lista": [{"numero": 9000 + i, "filial": 1, "placa": f"CAV{i:04d}",
+                            "utilizacao": "FROTA", "objetivo": obj,
+                            "emissao": "2026-09-0%d 08:00" % (1 + i % 9),
+                            "fechamento": None if i % 3 else "2026-09-10",
+                            "com_motor": True}
+                           for obj, qt in ((14, 26), (15, 62), (16, 15))
+                           for i in range(qt)]}}
+
+# AS LISTAS DA PROGRAMAÇÃO, com o CORTE do servidor: 20 ociosos de 72 e 20
+# motoristas parados de 157 — é o que faz o contador do modal ter de dizer
+# "de quantos", em vez de deixar 20 passar por total.
+OCIOSOS = [{"placa": f"FRT{i:04d}", "utilizacao": "FROTA", "com_motor": i % 3 != 0,
+            "ult_saida": "2026-09-01", "dias_parado": 30 - i} for i in range(20)]
+MOT_PARADOS = [{"motorista": f"MOTORISTA PARADO {i}", "dias_parado": 20 - i,
+                "ult_saida": "2026-08-26", "em_viagem": False, "venc_cnh": "2027-05-01",
+                "cnh_vencida": False, "fonte_cnh": "cadastro"} for i in range(20)]
+CNH_ALERTAS = [{"motorista": f"MOTORISTA CNH {i}", "dias_parado": i, "ult_saida": "2026-09-01",
+                "em_viagem": i == 0, "venc_cnh": "2026-08-01", "cnh_vencida": True,
+                "fonte_cnh": "cadastro"} for i in range(2)]
+CHEGADAS = [{"placa": f"CHG{i:04d}", "utilizacao": "AGREGADOS", "cidade": f"CIDADE {i}",
+             "uf": "SP", "eta": _fmt(AGORA + timedelta(hours=i + 1)), "n_cargas": 1 + i % 3}
+            for i in range(25)]
+PROG_LISTAS = {"ociosos": OCIOSOS, "motoristas_parados": MOT_PARADOS,
+               "cnh_alertas": CNH_ALERTAS, "casamentos": CHEGADAS,
+               "sem_retorno": CHEGADAS[:5]}
 
 
 def _visao(com_hoje: bool) -> dict:
@@ -156,7 +210,7 @@ def _abre(pg, base, *, com_hoje=False, prog=None, posicoes=None, estradas=None,
                      "posicoes": posicoes or POSICOES, "transito": TRANSITO,
                      "telemetria": TELEMETRIA}
         elif "/api/operacao/programacao" in url:
-            corpo = {"kpis": prog or PROG_KPIS}
+            corpo = {"kpis": prog or PROG_KPIS, **PROG_LISTAS}
         elif "/api/operacao/seguranca" in url:
             # cercas > 0 de propósito: o rodapé não pode mais publicá-las
             corpo = {"kpis": {"cercas_24h": 7}}
@@ -580,6 +634,134 @@ def test_nenhum_cartao_estoura_a_propria_celula(pagina):
         .filter(c => c.scrollHeight > c.clientHeight + 1 || c.scrollWidth > c.clientWidth + 1)
         .map(c => c.querySelector('.tv-label').innerText + ' ' + c.scrollHeight + '/' + c.clientHeight)""")
     assert not estouros, estouros
+
+
+# ------------------------------------------- o detalhe dos cartões e do mapa
+
+_ALVOS = """() => ({
+    alvos: document.querySelectorAll('#view-tvope [data-tvope]').length,
+    sem_rotulo: [...document.querySelectorAll('#view-tvope [data-tvope]')]
+                  .filter(e => !e.getAttribute('aria-label')).length})"""
+
+_DET = """() => {
+    const box = document.getElementById('modalBox');
+    const ab = box.querySelector('.ccm-aba[aria-pressed="true"]');
+    return {aberto: document.getElementById('modalBg').classList.contains('aberto'),
+            titulo: (box.querySelector('h3') || {}).textContent,
+            aba: ab ? ab.dataset.estado : null,
+            abas: [...box.querySelectorAll('.ccm-aba')].map(b => b.textContent.trim()),
+            linhas: box.querySelectorAll('.ccm-lista tbody tr').length,
+            cont: (document.getElementById('ccm-cont') || {}).textContent,
+            texto: box.innerText}; }"""
+
+
+def _detalhe(pg):
+    pg.wait_for_selector("#modalBox .ccm-lista table")
+    return pg.evaluate(_DET)
+
+
+def test_todo_cartao_da_operacao_abre_um_detalhe(pagina):
+    """Pedido de quem opera (16/09/2026). Cada cartão tem alvo com rótulo — e
+    continua tendo depois da recarga de 60 s, que redesenha os cartões: o
+    ouvinte é um só, na tela, e não um por cartão."""
+    pg, base = pagina
+    _abre(pg, base)
+    # 6 cartões do bloco da esquerda + as duas metades dos 4 cartões de
+    # manutenção com dois números + os 2 cartões inteiros de OS
+    esperado = {"alvos": 16, "sem_rotulo": 0}
+    assert pg.evaluate(_ALVOS) == esperado
+    pg.evaluate("loadTvOpe()")
+    pg.wait_for_timeout(600)
+    assert pg.evaluate(_ALVOS) == esperado
+
+
+def test_o_detalhe_do_cartao_lista_o_MESMO_numero(pagina):
+    pg, base = pagina
+    _abre(pg, base)
+    pg.click("#tvope-k1 > .tv-card:nth-child(1)")          # Em trânsito
+    d = _detalhe(pg)
+    assert d["aberto"] and d["titulo"] == "Viagens em trânsito", d
+    # abre na primeira situação com linha: as atrasadas do próprio painel
+    assert (d["aba"], d["linhas"], d["cont"]) == ("atrasadas", 2, "2 viagens"), d
+    assert d["abas"] == ["Atrasadas2", "Cargas críticas2", "Todas%d" % len(TRANSITO)], d
+    # a régra do cartão vai escrita: numa TV não há tooltip
+    assert "sem a chegada na última entrega apontada" in d["texto"], d["texto"][:300]
+
+
+def test_a_metade_do_cartao_abre_o_lado_dela(pagina):
+    """Cavalo e semirreboque são duas regras de revisão: cada metade do cartão
+    abre a sua."""
+    pg, base = pagina
+    _abre(pg, base)
+    pg.click("#tvope-k2 > .tv-card:nth-child(1) .tv-duo > div:nth-child(2)")
+    d = _detalhe(pg)
+    assert (d["titulo"], d["aba"], d["linhas"]) == ("Revisões vencidas", "semirreboques", 2), d
+    assert "vencida há 15 dias" in d["texto"], d["texto"][:400]
+
+
+def test_a_lista_cortada_pelo_servidor_diz_quantas_de_quantas(pagina):
+    """A programação publica 20 motoristas parados de 157: sem o contador, as
+    20 da tela passariam por todas — a regra de Top-N da casa."""
+    pg, base = pagina
+    _abre(pg, base)
+    pg.click("#tvope-k1 > .tv-card:nth-child(5)")          # Motoristas da frota
+    d = _detalhe(pg)
+    assert (d["aba"], d["linhas"]) == ("parados", 20), d
+    assert d["cont"] == "20 de 157 motoristas · o servidor publica as 20 primeiras", d
+    pg.click('#modalBox .ccm-aba[data-estado="cnh"]')
+    assert pg.evaluate(_DET)["linhas"] == 2
+    pg.fill("#modalBox .ccm-busca", "CNH 1")
+    assert pg.evaluate(_DET)["linhas"] == 1
+    pg.keyboard.press("Escape")
+    assert not pg.evaluate("document.getElementById('modalBg').classList.contains('aberto')")
+
+
+def _clicar_no_mapa(pg, seletor, i=0):
+    """Clica no marcador pelo EVENTO, e não pelo ponteiro.
+
+    O mapa mantém no DOM os marcadores que estão fora do enquadramento, e a
+    checagem de "está clicável" do Playwright briga com isso — o clique
+    expira com "element is outside of the viewport" mesmo depois de centrar o
+    mapa no ponto. O que estes testes provam é a LIGAÇÃO marcador → ficha, e o
+    Leaflet escuta o clique no próprio elemento do marcador: disparar o evento
+    nele é o mesmo caminho, com as coordenadas do elemento junto.
+    """
+    return pg.evaluate("""([sel, i]) => {
+        const el = document.querySelectorAll(sel)[i];
+        if(!el) return null;
+        const b = el.getBoundingClientRect();
+        el.dispatchEvent(new MouseEvent('click', {bubbles: true, clientX: b.left + b.width / 2,
+                                                  clientY: b.top + b.height / 2}));
+        // só o RÓTULO, sem a tração do <small>: no marcador os dois são
+        // textos irmãos, e `textContent` os cola ("4" + "3/4" = "43/4")
+        return (el.childNodes[0].textContent || '').trim(); }""", [seletor, i])
+
+
+def test_o_caminhao_do_mapa_abre_a_ficha(pagina):
+    pg, base = pagina
+    _abre(pg, base)
+    rot = _clicar_no_mapa(pg, "#tvMapa .tv-vmk")
+    assert rot, "nenhum caminhão no mapa"
+    d = _detalhe(pg)
+    assert d["titulo"] == rot + " — ficha do veículo", (rot, d["titulo"])
+    # os rótulos da ficha saem em CAIXA ALTA pelo CSS da casa
+    texto = d["texto"].upper()
+    for campo in ("PLACA", "MODALIDADE", "ESTADO", "ÚLTIMA POSIÇÃO"):
+        assert campo in texto, (campo, d["texto"][:300])
+    # e a ficha é a DAQUELE veículo: a placa do dublê do mapa
+    assert "POS" in texto or "AAA" in texto, d["texto"][:300]
+
+
+def test_o_grupo_do_mapa_lista_os_veiculos_e_dali_abre_a_ficha(pagina):
+    """O círculo diz QUANTOS; o clique diz QUAIS — sem espalhar rótulo
+    empilhado no mapa. O dublê tem 6 veículos parados no mesmo pátio."""
+    pg, base = pagina
+    _abre(pg, base)
+    assert _clicar_no_mapa(pg, "#tvMapa .tv-vgrp.parado"), "nenhum grupo parado no mapa"
+    d = _detalhe(pg)
+    assert d["titulo"] == "6 veículos neste ponto" and d["linhas"] == 6, d
+    pg.click("#modalBox tbody tr:nth-child(1)")
+    assert "ficha do veículo" in pg.evaluate(_DET)["titulo"]
 
 
 # ------------------------------------------------------------ o celular

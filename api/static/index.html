@@ -2048,12 +2048,16 @@ body.tvfull.tvwall #view-tvcco .tv-ticker{flex-shrink:0;margin-top:18px}
   .tv-cco-col em{font-size:10px}
 }
 
-/* O DETALHE DOS CARTÕES DA TV DO CCO (1.91.0). O que abre o detalhe ganha a
-   mão do mouse e o anel do foco do teclado; na parede, sem mouse, nada muda. */
-#view-tvcco [data-cco]{cursor:pointer}
-#view-tvcco [role="button"][data-cco]{border-radius:6px}
-#view-tvcco [role="button"][data-cco]:hover{filter:brightness(1.18)}
-#view-tvcco [role="button"][data-cco]:focus-visible{outline:3px solid #7DD3FC;outline-offset:3px}
+/* O DETALHE DOS CARTÕES DA TV DO CCO (1.91.0) e da TV de Operação (16/09/2026,
+   cartões e mapa). O que abre o detalhe ganha a mão do mouse e o anel do foco
+   do teclado; na parede, sem mouse, nada muda. */
+#view-tvcco [data-cco],#view-tvope [data-tvope]{cursor:pointer}
+#view-tvcco [role="button"][data-cco],#view-tvope [role="button"][data-tvope]{border-radius:6px}
+#view-tvcco [role="button"][data-cco]:hover,#view-tvope [role="button"][data-tvope]:hover{filter:brightness(1.18)}
+#view-tvcco [role="button"][data-cco]:focus-visible,
+#view-tvope [role="button"][data-tvope]:focus-visible{outline:3px solid #7DD3FC;outline-offset:3px}
+/* o caminhão e o grupo do mapa abrem a ficha: a mão do mouse diz isso */
+#view-tvope .tv-vmk,#view-tvope .tv-vgrp{cursor:pointer}
 /* o modal é o da casa, largo, e segue o tema: não é superfície de TV */
 /* mais largo que a ficha padrão: a aba do freetime tem dez colunas, e a 980px
    o nome do cliente caía em três linhas. Pelo CONTEÚDO (`:has`), e não por
@@ -17060,7 +17064,10 @@ async function tvMapa(t){
     const alerta=!!((v&&v.atrasada)||(p.velocidade>90));
     tvPontos.push({lat:p.lat, lng:p.lng, cor:tvCorMod(p.utilizacao), alerta,
       mov:!alerta && p.velocidade>0, viagem:!!v, atrasada:!!(v&&v.atrasada),
-      rot:p.frota||p.placa||'?', tracao:p.tracao||null});
+      rot:p.frota||p.placa||'?', tracao:p.tracao||null,
+      /* a PLACA fica no ponto: e a chave da casa, e e por ela que o clique no
+         marcador acha o veiculo e a viagem dele (16/09/2026) */
+      placa:p.placa||null});
     /* SEM TRACEJADO ATE O DESTINO (pedido de quem opera, 13/09/2026). A
        linha reta do caminhao atrasado ate a cidade de destino cruzava o mapa
        por cima de grupos e rodovias sem dizer nada que a tabela de chegadas
@@ -17137,11 +17144,15 @@ function tvAgrupar(){
 }
 function tvMarcador(p){
   const cls=p.alerta?'alerta':(p.viagem?(p.mov?'mov':''):'parado');
-  L.marker([p.lat,p.lng],{
+  const m=L.marker([p.lat,p.lng],{
     icon:L.divIcon({className:'', iconSize:null, iconAnchor:[18,9],
       html:`<div class="tv-vmk ${cls}" style="background:${p.cor}">${esc(p.rot)}${p.tracao?'<small>'+esc(p.tracao)+'</small>':''}</div>`}),
     zIndexOffset: p.alerta?1000:(p.viagem?500:0), veiculos:1,
   }).addTo(tvLayer);
+  // clique no caminhao = a ficha dele (16/09/2026). Numa parede ninguem
+  // clica; na mesa de quem opera, e o caminho mais curto ate "o que e esse
+  // ponto ali".
+  if(p.placa) m.on('click', () => tvOpeVeiculo(p.placa));
 }
 function tvGrupo(g, emViagem){
   const n=g.ps.length, conta={};
@@ -17152,11 +17163,14 @@ function tvGrupo(g, emViagem){
   // o tamanho cresce com a raiz da contagem, de 24 a 40 px: o patio de 27 e
   // maior que a dupla na rodovia, sem virar uma mancha que cobre a cidade
   const tam=Math.round(24+Math.min(16, 3.2*Math.sqrt(n)));
-  L.marker(tvMap.layerPointToLatLng(L.point(g.x, g.y)),{
+  const m=L.marker(tvMap.layerPointToLatLng(L.point(g.x, g.y)),{
     icon:L.divIcon({className:'', iconSize:null, iconAnchor:[0,0],
       html:`<div class="tv-vgrp ${emViagem?'viagem':'parado'}" style="width:${tam}px;height:${tam}px;background:conic-gradient(${fatias})"><b>${n}</b></div>`}),
     zIndexOffset: emViagem?400:100, veiculos:n,
   }).addTo(tvLayer);
+  // o circulo diz QUANTOS; o clique diz QUAIS -- sem abrir o grupo no mapa,
+  // que era o que enchia a tela de rotulos empilhados
+  m.on('click', () => tvOpeGrupo(g.ps, emViagem));
 }
 /* A LEGENDA DO MAPA: numa TV nao ha tooltip, e cor sem significado escrito
    na tela nao significa nada. A tracao sai do tipo do cadastro (servidor,
@@ -17909,6 +17923,347 @@ function tvTicker(id, itens){
                                     TV_TICKER_PAUSA);
 }
 
+/* ============================================================================
+   O DETALHE DOS CARTOES E DO MAPA DA TV DE OPERACAO (16/09/2026)
+
+   Pedido de quem opera: "deixe os cards do painel de tv operacao interativos
+   tambem e se possivel fazer o mesmo com o mapa, abrindo modais com os
+   detalhes".
+
+   A LISTA SAI DO MESMO PAYLOAD QUE FEZ O NUMERO. Nao ha segunda consulta: o
+   cartao e o modal leem o MESMO array (`tvOpeDados`, guardado no fim da
+   carga), entao nao tem como discordar -- que e o defeito classico da casa
+   (duas telas, dois metodos, os dois certos e incompativeis). Onde o SERVIDOR
+   ja corta a lista (a programacao publica 20 ociosos e 25 sem retorno), o
+   numero do cartao continua sendo o TOTAL e o contador do modal diz quantas
+   das quantas ele esta mostrando.
+
+   O renderizador e irmao do da TV do CCO (1.91.0) e reusa o CSS `.ccm-*`. Sao
+   duas copias de proposito: a do CCO nasceu presa aquela tela (colunas por
+   card, filial do carrossel), e unia-las enquanto as duas mudam toda semana
+   so produziria conflito -- fica anotado como divida.
+   ============================================================================ */
+let tvOpeDados=null, tvOpeDet=null, tvOpeLigado=false;
+const tvoN = v => Number(v||0).toLocaleString('pt-BR');
+const tvoDT = s => s ? String(s).slice(8,10)+'/'+String(s).slice(5,7)+' '+String(s).slice(11,16) : '—';
+const tvoD = s => s ? String(s).slice(8,10)+'/'+String(s).slice(5,7) : '—';
+function tvoHoras(s){
+  if(!s) return null;
+  const [d,hm]=String(s).split(' ');
+  const t=new Date(d+'T'+(hm||'00:00')+':00').getTime();
+  return isFinite(t) ? (Date.now()-t)/3600000 : null;
+}
+function tvoHa(s){
+  const h=tvoHoras(s);
+  if(h==null) return '—';
+  return h<1 ? Math.round(h*60)+' min'
+             : (h<48 ? Math.round(h)+' h' : (h/24).toFixed(1).replace('.',',')+' dias');
+}
+const TVO_COL={
+  veic:['Veículo', l=>esc(l.rotulo||l.frota||l.placa||'—')],
+  placa:['Placa', l=>esc(l.placa||'—')],
+  mod:['Modalidade', l=>esc(l.utilizacao||'—')],
+  cliente:['Cliente', l=>esc(l.cliente||'—'),'ccm-cli'],
+  rota:['Origem → destino', l=>esc((l.origem||'?')+' → '+(l.destino||'?')),'ccm-cli'],
+  saida:['Saída', l=>tvoDT(l.saida),'num'],
+  prev:['Prev. chegada', l=>l.atrasada?'<span class="ccm-at">'+tvoDT(l.previsao_chegada)+'</span>'
+                                      :tvoDT(l.previsao_chegada),'num'],
+  pos:['Última posição', l=>l.posicao_em?tvoDT(l.posicao_em)+' · há '+tvoHa(l.posicao_em)
+                                        :'<span class="ccm-at">sem posição</span>','num'],
+  km:['Km', l=>l.km?tvoN(Math.round(l.km)):'—','num'],
+  crit:['Crítica', l=>l.critica?'<span class="ccm-at">sim</span>':'—'],
+};
+const TVO_VIAGEM=[TVO_COL.veic,TVO_COL.cliente,TVO_COL.rota,TVO_COL.saida,
+                  TVO_COL.prev,TVO_COL.pos,TVO_COL.km,TVO_COL.crit];
+const TVO_OFICINA=[TVO_COL.placa,TVO_COL.mod,
+  ['OS abertas', l=>tvoN(l.os_abertas),'num'],
+  ['Na oficina desde', l=>tvoD(l.desde),'num'],
+  ['Dias', l=>l.dias==null?'—':(l.longa?'<span class="ccm-at">'+tvoN(l.dias)+'</span>':tvoN(l.dias)),'num']];
+const TVO_MOT=[['Motorista', l=>esc(l.motorista||'—'),'ccm-mot'],
+  ['Última saída', l=>tvoD(l.ult_saida),'num'],
+  ['Dias parado', l=>l.dias_parado==null?'—':tvoN(l.dias_parado),'num'],
+  ['CNH', l=>l.venc_cnh?(l.cnh_vencida?'<span class="ccm-at">vencida '+tvoD(l.venc_cnh)+'</span>'
+                                      :tvoD(l.venc_cnh)):'—','num']];
+const TVOPE_TIT={transito:'Viagens em trânsito', tracao:'Tração da frota',
+  saidas:'Saídas e chegadas de hoje', chegando:'Chegando em 72 h',
+  motoristas:'Motoristas da frota', semsinal:'Sem sinal há mais de 6 h',
+  rev_vencidas:'Revisões vencidas', rev_avencer:'Revisões a vencer',
+  parados:'Parados em manutenção', oficina:'Na oficina há mais tempo',
+  os_mes:'Ordens de serviço do mês'};
+/* A REGRA DE CADA CARTAO vai escrita no modal: numa TV nao ha tooltip, e o
+   numero sozinho nao diz o que entrou na conta. */
+const TVOPE_REGRA={
+  transito:'Programação com saída lançada, sem baixa e sem a chegada na última entrega apontada. Quem chegou no cliente conta como finalizada e sai daqui.',
+  tracao:'Frota e locação COM MOTOR. Disponível é quem não está em viagem nem com OS aberta. O agregado fica fora: a lista da casa é da casa.',
+  saidas:'As viagens desta mesma lista de trânsito, pela data de saída e pela previsão de chegada de hoje.',
+  chegando:'Chegadas previstas nas próximas 72 h. "Com retorno" é a cidade que tem carga saindo depois da chegada mais a descarga.',
+  motoristas:'Motoristas da casa parados (sem viagem aberta) e os que estão com a CNH vencida no cadastro.',
+  semsinal:'Viagem em curso cuja rastreadora não transmite há mais de 6 h — ou nunca transmitiu nesta viagem.',
+  rev_vencidas:'Cavalo por KM (marcador da próxima troca contra o odômetro) e semirreboque por DATA (180 dias, 240 no baú).',
+  rev_avencer:'Cavalo com menos de 10% do intervalo para rodar; semirreboque dentro do horizonte de dias do painel.',
+  parados:'Veículo da frota com OS aberta e sem viagem aberta — a mesma conta do cartão de tração.',
+  oficina:'Dos parados, os que estão com OS aberta há mais dias. 90% das OS fecham em até 6 dias (cavalo) e 9 (semirreboque).',
+  os_mes:'OS abertas no mês pela frota da casa, por objetivo do ERP: preventiva, corretiva e quebra em rota.',
+};
+function tvOpeCard(card){
+  const d=tvOpeDados||{}, t=d.t||{}, p=d.p||{}, mt=d.mt||{};
+  const tr=t.transito||[], k=t.kpis||{}, pk=p.kpis||{};
+  const rev=mt.revisoes||{}, ofi=mt.oficina||{}, mes=mt.mes||{};
+  const cav=rev.cavalos||{}, smr=rev.semirreboques||{};
+  const oCav=ofi.cavalos||{}, oSmr=ofi.semirreboques||{};
+  const hoje=_iso(new Date());
+  const revCols=chave=>[['Frota', l=>esc(l.frota||l.placa||'—')], TVO_COL.placa,
+    [chave==='km'?'Falta rodar':'Faltam', l=>{
+      const v=chave==='km'?l.km_faltante:l.dias;
+      if(v==null) return '—';
+      const txt=chave==='km'?tvoN(Math.abs(v))+' km':tvoN(Math.abs(v))+(Math.abs(v)===1?' dia':' dias');
+      return v<0 ? '<span class="ccm-at">vencida há '+txt+'</span>' : txt;
+    },'num'],
+    chave==='km' ? ['Intervalo', l=>l.intervalo?tvoN(l.intervalo)+' km':'—','num']
+                 : ['Última troca', l=>tvoD(l.ultima),'num']];
+  const osCols=[TVO_COL.placa, TVO_COL.mod,
+    ['Aberta em', l=>tvoDT(l.emissao),'num'],
+    ['Fechada em', l=>l.fechamento?tvoD(l.fechamento):'<span class="ccm-at">aberta</span>','num'],
+    ['OS', l=>esc(String(l.numero||'—')),'num']];
+  const osDe=obj=>(mes.lista||[]).filter(o=>o.objetivo===obj);
+  const cfg=(unidade, abas)=>({titulo:TVOPE_TIT[card], regra:TVOPE_REGRA[card], unidade, abas});
+  const porStatus=(lista, st)=>(lista||[]).filter(x=>x.status===st);
+  switch(card){
+    case 'transito': return cfg('viagens', [
+      {estado:'atrasadas', rotulo:'Atrasadas', n:k.atrasadas, linhas:tr.filter(v=>v.atrasada), cols:TVO_VIAGEM},
+      {estado:'criticas', rotulo:'Cargas críticas', n:k.criticas, linhas:tr.filter(v=>v.critica), cols:TVO_VIAGEM},
+      {estado:'todas', rotulo:'Todas', n:k.em_transito, linhas:tr, cols:TVO_VIAGEM}]);
+    case 'tracao': return cfg('veículos', [
+      {estado:'disponivel', rotulo:'Disponível', n:pk.tracao_disp,
+       linhas:(p.ociosos||[]).filter(o=>o.com_motor),
+       cols:[TVO_COL.placa, TVO_COL.mod, ['Última saída', l=>tvoD(l.ult_saida),'num'],
+             ['Dias parado', l=>l.dias_parado==null?'—':tvoN(l.dias_parado),'num']]},
+      {estado:'em_viagem', rotulo:'Em viagem', n:pk.tracao_viagem,
+       linhas:tr.filter(v=>['FROTA','LOCACAO'].indexOf(String(v.utilizacao||'').toUpperCase())>=0),
+       cols:TVO_VIAGEM},
+      {estado:'em_os', rotulo:'Em manutenção', n:pk.tracao_os, linhas:oCav.lista, cols:TVO_OFICINA}]);
+    case 'saidas': return cfg('viagens', [
+      {estado:'sairam', rotulo:'Saíram hoje', n:k.saidas_hoje,
+       linhas:tr.filter(v=>String(v.saida||'').startsWith(hoje)), cols:TVO_VIAGEM},
+      {estado:'chegam', rotulo:'Chegam hoje', n:k.chegadas_previstas_hoje,
+       linhas:tr.filter(v=>String(v.previsao_chegada||'').startsWith(hoje)), cols:TVO_VIAGEM}]);
+    case 'chegando': {
+      const cols=[TVO_COL.placa, TVO_COL.mod,
+        ['Destino', l=>esc((l.cidade||'?')+'/'+(l.uf||'?'))],
+        ['Chegada prevista', l=>tvoDT(l.eta),'num']];
+      return cfg('chegadas', [
+        {estado:'com_retorno', rotulo:'Com carga para voltar', n:pk.com_retorno, linhas:p.casamentos,
+         cols:cols.concat([['Cargas na cidade', l=>tvoN(l.n_cargas),'num']])},
+        {estado:'sem_retorno', rotulo:'Sem retorno', n:pk.sem_retorno, linhas:p.sem_retorno, cols:cols}]);
+    }
+    case 'motoristas': return cfg('motoristas', [
+      {estado:'parados', rotulo:'Parados', n:pk.mot_parados, linhas:p.motoristas_parados, cols:TVO_MOT},
+      {estado:'cnh', rotulo:'CNH vencida', n:pk.cnh_vencida, linhas:p.cnh_alertas, cols:TVO_MOT}]);
+    case 'semsinal': return cfg('viagens', [
+      {estado:'mudos', rotulo:'Sem sinal há +6 h', n:(d.mudos||[]).length, linhas:d.mudos, cols:TVO_VIAGEM}]);
+    case 'rev_vencidas': return cfg('veículos', [
+      {estado:'cavalos', rotulo:'Cavalos', n:cav.vencidas, linhas:porStatus(cav.lista,'vencida'), cols:revCols('km')},
+      {estado:'semirreboques', rotulo:'Semirreboques', n:smr.vencidas,
+       linhas:porStatus(smr.lista,'vencida'), cols:revCols('dias')}]);
+    case 'rev_avencer': return cfg('veículos', [
+      {estado:'cavalos', rotulo:'Cavalos', n:cav.a_vencer, linhas:porStatus(cav.lista,'proxima'), cols:revCols('km')},
+      {estado:'semirreboques', rotulo:'Semirreboques', n:smr.a_vencer,
+       linhas:porStatus(smr.lista,'proxima'), cols:revCols('dias')}]);
+    case 'parados': return cfg('veículos', [
+      {estado:'cavalos', rotulo:'Cavalos', n:oCav.parados, linhas:oCav.lista, cols:TVO_OFICINA},
+      {estado:'semirreboques', rotulo:'Semirreboques', n:oSmr.parados, linhas:oSmr.lista, cols:TVO_OFICINA}]);
+    case 'oficina': return cfg('veículos', [
+      {estado:'cavalos', rotulo:'Cavalos', n:oCav.longa,
+       linhas:(oCav.lista||[]).filter(x=>x.longa), cols:TVO_OFICINA},
+      {estado:'semirreboques', rotulo:'Semirreboques', n:oSmr.longa,
+       linhas:(oSmr.lista||[]).filter(x=>x.longa), cols:TVO_OFICINA}]);
+    case 'os_mes': return cfg('OS', [
+      {estado:'preventiva', rotulo:'Preventivas', n:mes.preventivas, linhas:osDe(14), cols:osCols},
+      {estado:'corretiva', rotulo:'Corretivas', n:mes.corretivas, linhas:osDe(15), cols:osCols},
+      {estado:'socorro', rotulo:'Quebra em rota', n:mes.socorro, linhas:osDe(16), cols:osCols}]);
+  }
+  return null;
+}
+function tvOpeDetalhe(card, estado){
+  const cfg=tvOpeCard(card);
+  if(!cfg) return;
+  abrirModal(`<div class="ccm-cab"><div><h3>${esc(cfg.titulo)}</h3>`
+    + `<div class="ccm-per" id="ccm-per"></div></div>`
+    + `<button type="button" class="btn" onclick="fecharModal()">Fechar</button></div>`
+    + `<div id="ccm-corpo"></div>`);
+  document.getElementById('modalBox').classList.add('larga');
+  const abas=cfg.abas.filter(a=>a);
+  const ini=(estado && abas.some(a=>a.estado===estado)) ? estado
+    : ((abas.find(a=>(a.n||0)>0)||abas[0]||{}).estado);
+  tvOpeDet={cfg, abas, estado:ini, busca:''};
+  tvOpeDetMontar();
+}
+function tvOpeDetMontar(){
+  const {cfg, abas}=tvOpeDet, corpo=document.getElementById('ccm-corpo');
+  if(!corpo) return;
+  const t=(tvOpeDados||{}).t||{};
+  const per=document.getElementById('ccm-per');
+  /* a HORA DA LEITURA que fez o painel: o modal nao busca nada, entao ele
+     nao pode ser mais novo que a parede */
+  if(per && t.atualizado_em) per.textContent='leitura de '+t.atualizado_em.slice(11,16)
+    +' · a mesma do painel, que se atualiza sozinho';
+  corpo.innerHTML=`<p class="ccm-regra">${esc(cfg.regra||'')}</p>`
+    + `<div class="ccm-abas" role="group" aria-label="Situação">`
+    + abas.map(a=>`<button type="button" class="ccm-aba" data-estado="${esc(a.estado)}" aria-pressed="false">`
+        + `${esc(a.rotulo)}<b>${tvoN(a.n!=null?a.n:(a.linhas||[]).length)}</b></button>`).join('')
+    + `</div><div class="ccm-ferr"><input type="search" class="ccm-busca" aria-label="Filtrar a lista"`
+    + ` placeholder="Filtrar por placa, frota, cliente ou cidade">`
+    + `<span class="ccm-cont" id="ccm-cont"></span></div><div class="ccm-lista" id="ccm-lista"></div>`;
+  corpo.querySelectorAll('.ccm-aba').forEach(b=>b.addEventListener('click', ()=>{
+    tvOpeDet.estado=b.dataset.estado; tvOpeDetLista(); }));
+  corpo.querySelector('.ccm-busca').addEventListener('input', e=>{
+    tvOpeDet.busca=e.target.value; tvOpeDetLista(); });
+  tvOpeDetLista();
+}
+const TVO_BUSCA=['placa','frota','rotulo','cliente','origem','destino','cidade','motorista','utilizacao','numero'];
+function tvOpeDetLista(){
+  const {cfg, abas, estado, busca}=tvOpeDet;
+  const lista=document.getElementById('ccm-lista');
+  if(!lista) return;
+  document.querySelectorAll('#ccm-corpo .ccm-aba').forEach(b=>
+    b.setAttribute('aria-pressed', b.dataset.estado===estado ? 'true' : 'false'));
+  const a=abas.find(x=>x.estado===estado)||abas[0]||{};
+  const todas=a.linhas||[];
+  const q=(busca||'').trim().toLowerCase();
+  const linhas=!q ? todas : todas.filter(l=>TVO_BUSCA
+    .some(c=>l[c]!=null && String(l[c]).toLowerCase().includes(q)));
+  /* TOP-N LEVA CONTADOR, e aqui ele diz DUAS coisas: quantas o filtro deixou
+     e, quando o servidor corta a lista (ociosos, sem retorno), que o cartao
+     conta mais do que esta na tela. */
+  const cont=document.getElementById('ccm-cont');
+  const cortada=a.n!=null && todas.length<a.n;
+  if(cont) cont.textContent=tvoN(linhas.length)
+    + ((q||cortada) ? ' de '+tvoN(cortada?a.n:todas.length) : '')+' '+(cfg.unidade||'linhas')
+    + (cortada&&!q ? ' · o servidor publica as '+tvoN(todas.length)+' primeiras' : '');
+  if(!linhas.length){
+    lista.innerHTML='<div class="ccm-vazio">'+(q?'Nada com esse filtro.':'Nada nesta situação.')+'</div>';
+    return;
+  }
+  const cols=a.cols||[];
+  const cl=c=>c[2]?' class="'+c[2]+'"':'';
+  lista.innerHTML='<table><thead><tr>'+cols.map(c=>`<th${cl(c)}>${c[0]}</th>`).join('')+'</tr></thead><tbody>'
+    + linhas.map(l=>'<tr>'+cols.map(c=>`<td${cl(c)}>${c[1](l)}</td>`).join('')+'</tr>').join('')
+    + '</tbody></table>';
+}
+/* ---- o mapa: a ficha do caminhao e a lista do grupo ---- */
+function tvoFicha(titulo, linhas, extra){
+  abrirModal(`<div class="ccm-cab"><div><h3>${esc(titulo)}</h3></div>`
+    + `<button type="button" class="btn" onclick="fecharModal()">Fechar</button></div>`
+    + `<div id="ccm-corpo"><div class="ccm-lista"><table><tbody>`
+    + linhas.filter(l=>l).map(l=>`<tr><th style="text-align:left;white-space:nowrap">${esc(l[0])}</th><td>${l[1]}</td></tr>`).join('')
+    + `</tbody></table></div>${extra||''}</div>`);
+}
+function tvOpeVeiculo(placa){
+  const d=tvOpeDados||{}, t=d.t||{}, mt=d.mt||{};
+  const pos=(t.posicoes||[]).find(x=>x.placa===placa)||{};
+  const v=(t.transito||[]).find(x=>x.placa===placa)||null;
+  const rev=[].concat(((mt.revisoes||{}).cavalos||{}).lista||[],
+                      ((mt.revisoes||{}).semirreboques||{}).lista||[]).find(x=>x.placa===placa);
+  const ofi=[].concat(((mt.oficina||{}).cavalos||{}).lista||[],
+                      ((mt.oficina||{}).semirreboques||{}).lista||[]).find(x=>x.placa===placa);
+  const revTxt=r=>{
+    const km=r.km_faltante, di=r.dias;
+    const val=km!=null ? tvoN(Math.abs(km))+' km' : tvoN(Math.abs(di||0))+(Math.abs(di||0)===1?' dia':' dias');
+    const venc=(km!=null?km:di)<0;
+    return (venc?'<span class="ccm-at">vencida há ':'faltam ')+val+(venc?'</span>':'');
+  };
+  tvoFicha((pos.rotulo||v&&v.rotulo||placa)+' — ficha do veículo', [
+    ['Placa', esc(placa||'—')],
+    ['Modalidade', esc(pos.utilizacao||(v&&v.utilizacao)||'—')],
+    pos.tracao ? ['Tração', esc(pos.tracao)] : null,
+    ['Estado', v ? (v.atrasada?'<span class="ccm-at">em viagem · atrasada</span>':'em viagem')
+                 : 'sem viagem aberta'],
+    ['Velocidade', pos.velocidade!=null?tvoN(pos.velocidade)+' km/h':'—'],
+    ['Última posição', pos.posicao_em?tvoDT(pos.posicao_em)+' · há '+tvoHa(pos.posicao_em)
+                                     :'<span class="ccm-at">sem posição</span>'],
+    v ? ['Cliente', esc(v.cliente||'—')] : null,
+    v ? ['Origem → destino', esc((v.origem||'?')+' → '+(v.destino||'?'))] : null,
+    v ? ['Saída', tvoDT(v.saida)] : null,
+    v ? ['Chegada prevista', v.atrasada?'<span class="ccm-at">'+tvoDT(v.previsao_chegada)+'</span>'
+                                       :tvoDT(v.previsao_chegada)] : null,
+    v && v.km ? ['Km da viagem', tvoN(Math.round(v.km))] : null,
+    rev ? ['Revisão preventiva', revTxt(rev)] : null,
+    ofi ? ['Em manutenção', 'OS aberta desde '+tvoD(ofi.desde)
+           +(ofi.dias!=null?' · '+tvoN(ofi.dias)+(ofi.dias===1?' dia':' dias'):'')] : null,
+  ]);
+}
+function tvOpeGrupo(ps, emViagem){
+  const d=tvOpeDados||{}, t=d.t||{};
+  const porPlaca={}; (t.posicoes||[]).forEach(p=>{ if(p.placa) porPlaca[p.placa]=p; });
+  const linhas=(ps||[]).map(p=>Object.assign({}, porPlaca[p.placa]||{},
+    {placa:p.placa, rotulo:(porPlaca[p.placa]||{}).rotulo||p.rot, atrasada:p.atrasada}));
+  abrirModal(`<div class="ccm-cab"><div><h3>${tvoN(linhas.length)} veículos neste ponto</h3>`
+    + `<div class="ccm-per">${emViagem?'em viagem':'sem viagem aberta'} · clique num veículo para a ficha dele</div></div>`
+    + `<button type="button" class="btn" onclick="fecharModal()">Fechar</button></div>`
+    + `<div id="ccm-corpo"><div class="ccm-lista"><table><thead><tr><th>Veículo</th><th>Placa</th>`
+    + `<th>Modalidade</th><th class="num">Velocidade</th><th class="num">Última posição</th></tr></thead><tbody>`
+    + linhas.map(l=>`<tr role="button" tabindex="0" data-placa="${esc(l.placa||'')}">`
+        + `<td>${esc(l.rotulo||l.placa||'—')}${l.atrasada?' <span class="ccm-at">atrasada</span>':''}</td>`
+        + `<td>${esc(l.placa||'—')}</td><td>${esc(l.utilizacao||'—')}</td>`
+        + `<td class="num">${l.velocidade!=null?tvoN(l.velocidade)+' km/h':'—'}</td>`
+        + `<td class="num">${l.posicao_em?tvoDT(l.posicao_em):'—'}</td></tr>`).join('')
+    + `</tbody></table></div></div>`);
+  document.getElementById('modalBox').classList.add('larga');
+  const abre=el=>{ const tr=el.closest('tr[data-placa]'); if(tr) tvOpeVeiculo(tr.dataset.placa); };
+  const box=document.getElementById('modalBox');
+  box.addEventListener('click', e=>abre(e.target));
+  box.addEventListener('keydown', e=>{
+    if(e.key==='Enter'||e.key===' '){ e.preventDefault(); abre(e.target); } });
+}
+/* ---- o que abre cada cartao ---- */
+function tvOpeAlvo(el, card, estado, rotulo){
+  if(!el) return;
+  el.dataset.tvope=card;
+  if(estado) el.dataset.estado=estado; else delete el.dataset.estado;
+  el.setAttribute('role','button');
+  el.tabIndex=0;
+  el.setAttribute('aria-label','Abrir o detalhe: '+rotulo);
+}
+function tvOpeMarcar(){
+  const k1=document.querySelectorAll('#tvope-k1 > .tv-card');
+  const k2=document.querySelectorAll('#tvope-k2 > .tv-card');
+  [[k1[0],'transito'],[k1[1],'tracao'],[k1[2],'saidas'],[k1[3],'chegando'],
+   [k1[4],'motoristas'],[k1[5],'semsinal'],
+   [k2[4],'os_mes','preventiva'],[k2[5],'os_mes','socorro']].forEach(([el,card,est])=>
+    tvOpeAlvo(el, card, est||null, TVOPE_TIT[card]));
+  /* nos cartoes de dois numeros, cada METADE abre a sua: e o cavalo de um
+     lado e o semirreboque do outro, que sao duas regras diferentes */
+  const duo=(el,card)=>{
+    if(!el) return;
+    el.querySelectorAll('.tv-duo > div').forEach((parte,i)=>{
+      const sub=parte.querySelector('.tv-sub');
+      tvOpeAlvo(parte, card, i===0?'cavalos':'semirreboques',
+        TVOPE_TIT[card]+' · '+(sub?sub.textContent:''));
+    });
+  };
+  duo(k2[0],'rev_vencidas'); duo(k2[1],'rev_avencer');
+  duo(k2[2],'parados'); duo(k2[3],'oficina');
+}
+function tvOpeLigar(){
+  if(tvOpeLigado) return;
+  const v=document.getElementById('view-tvope');
+  if(!v) return;
+  tvOpeLigado=true;
+  /* UM ouvinte na tela, e nao um por cartao: a recarga de 60 s redesenha os
+     cartoes, e o ouvinte preso ao cartao velho morreria com ele. */
+  v.addEventListener('click', e=>{
+    const el=e.target.closest('[data-tvope]');
+    if(el && v.contains(el)) tvOpeDetalhe(el.dataset.tvope, el.dataset.estado||null);
+  });
+  v.addEventListener('keydown', e=>{
+    if(e.key!=='Enter' && e.key!==' ') return;
+    const el=e.target.closest('[role="button"][data-tvope]');
+    if(!el || !v.contains(el)) return;
+    e.preventDefault();
+    tvOpeDetalhe(el.dataset.tvope, el.dataset.estado||null);
+  });
+}
+
 async function loadTvOpe(){
   const seq=++tvOpeSeq;
   try{
@@ -17951,11 +18306,12 @@ async function loadTvOpe(){
        "3" sozinho nao decide, "3 de 67, 1 ha mais de um dia" decide. Nunca ter
        reportado e faixa propria -- e ausencia de leitura, nao leitura velha.
        Medido em 13/09/2026: 3 de 67, nenhuma sem posicao nenhuma. */
-    const idades=(t.transito||[]).map(v=>_hAgo(v.posicao_em));
-    const semPos=idades.filter(h=>h==null).length;
-    const ate24=idades.filter(h=>h!=null && h>6 && h<=24).length;
-    const mais24=idades.filter(h=>h!=null && h>24).length;
-    const mudos=semPos+ate24+mais24;
+    /* A LISTA VEM ANTES DO NUMERO, e o numero e o tamanho dela: e a mesma
+       lista que o modal do cartao mostra (16/09/2026). Duas expressoes -- uma
+       para contar, outra para listar -- discordam no primeiro ajuste. */
+    const mudosL=(t.transito||[]).filter(v=>{ const h=_hAgo(v.posicao_em);
+      return h==null || h>6; });
+    const mudos=mudosL.length;
     /* TRACAO: FROTA E AGREGADO SAO DOIS UNIVERSOS, e o cartao contava so o
        primeiro (TRA+LOC), quando o agregado e a maior parte da operacao --
        em 13/09/2026, 64 agregados em viagem contra 4 da frota. Somar os dois
@@ -18062,6 +18418,10 @@ async function loadTvOpe(){
                mesAnt+' até dia '+nd(mMes.dia)+': '+nd(mMes.socorro_ant)),
       ].join('');
     tvDestacar('tvope-k1'); tvDestacar('tvope-k2');
+    /* O PAYLOAD DA VEZ FICA GUARDADO: e dele que os modais montam as listas,
+       sem uma segunda consulta -- cartao e detalhe leem o mesmo array. */
+    tvOpeDados={t, p, mt, mudos:mudosL};
+    tvOpeMarcar(); tvOpeLigar();
     if(rk.ok && km.kpis){
       const kk=km.kpis;
       const pctV=kk.km_total>0?(100*kk.km_vazio/kk.km_total):0;

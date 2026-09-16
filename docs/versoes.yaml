@@ -1,3 +1,19 @@
+- versao: "1.94.0"
+  data: "2026-09-16"
+  adicionado:
+    - >-
+      Painel TV › Operação — os cartões e o mapa passam a abrir o detalhe. Um
+      clique (ou Enter, pelo teclado) em qualquer cartão abre a lista por trás
+      do número: as viagens em trânsito, a tração disponível, quem chega em
+      72 h, os motoristas, quem está sem sinal, as revisões vencidas e a
+      vencer de cavalo e semirreboque, os parados em manutenção, os que estão
+      há mais tempo na oficina e as OS do mês. No mapa, o caminhão abre a
+      ficha dele — modalidade, velocidade, idade da posição, viagem, revisão e
+      OS aberta — e o círculo de vários veículos abre a lista de quem está
+      ali, com a ficha a um clique. A lista é a mesma leitura que fez o
+      número, e quando o servidor publica só parte dela o modal diz quantas de
+      quantas está mostrando.
+
 - versao: "1.93.1"
   data: "2026-09-15"
   alterado:

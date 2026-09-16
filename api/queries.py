@@ -5986,8 +5986,30 @@ OS_PREVENTIVA, OS_CORRETIVA, OS_SOCORRO = 14, 15, 16
 #: tinha mais de 50 dias — não há OS esquecida inflando o número.
 OFICINA_LONGA_DIAS = 7
 
+# AS OS DO MES, UMA A UMA -- e a lista que o modal do cartao mostra. As
+# contagens do mes saem DELA (em Python), e nao de um SELECT de contagem ao
+# lado: dois caminhos para o mesmo numero e como o cartao e o detalhe passam a
+# discordar sem ninguem ver. A janela e curta (uma centena de OS por mes), e
+# nao ha corte -- o teto e o mundo: a frota nao abre mais OS do que abre.
+MANUT_TV_OS_SQL = """
+SELECT o.numero, o.filial, o.veiculo AS placa,
+       o.objetivoordemservico AS objetivo,
+       to_char(o.dtemissao,'YYYY-MM-DD HH24:MI') AS emissao,
+       to_char(o.dtfechamento,'YYYY-MM-DD') AS fechamento,
+       (v.possuimotor = 1) AS com_motor,
+       coalesce(u.descricao,'(sem)') AS utilizacao
+FROM ordemservico o
+JOIN veiculo v ON v.placa = o.veiculo
+LEFT JOIN utilizacaoveiculo u ON u.codigo = v.utilizacaoveiculo
+WHERE v.utilizacaoveiculo IN ('TRA','LOC')
+  AND o.objetivoordemservico IN (%(prev)s, %(corr)s, %(socorro)s)
+  AND o.dtemissao >= %(de)s::date AND o.dtemissao < %(ate)s::date
+ORDER BY o.dtemissao DESC
+"""
+
 # OS emitidas no recorte, por objetivo, da frota da casa. SEM `FILTER`: o ERP
-# e 9.3.
+# e 9.3. Vale para a janela do mes ANTERIOR, que so entra como comparacao --
+# do mes corrente sai a lista acima, e dela as contagens.
 MANUT_TV_MES_SQL = """
 SELECT sum(CASE WHEN o.objetivoordemservico = %(prev)s THEN 1 ELSE 0 END)::int AS preventivas,
        sum(CASE WHEN o.objetivoordemservico = %(corr)s THEN 1 ELSE 0 END)::int AS corretivas,
@@ -6021,8 +6043,8 @@ def get_manutencao_tv() -> dict:
     with db.get_conn() as conn, conn.cursor() as cur:
         cur.execute(PROG_VEIC_DISP_SQL)
         veic = cur.fetchall()
-        cur.execute(MANUT_TV_MES_SQL, {**obj, "de": ini, "ate": hoje + _timedelta(days=1)})
-        mes = cur.fetchone() or {}
+        cur.execute(MANUT_TV_OS_SQL, {**obj, "de": ini, "ate": hoje + _timedelta(days=1)})
+        os_mes = cur.fetchall()
         cur.execute(MANUT_TV_MES_SQL, {**obj, "de": ini_ant, "ate": fim_ant})
         ant = cur.fetchone() or {}
         cur.execute("SELECT current_timestamp AS ts")
@@ -6033,12 +6055,23 @@ def get_manutencao_tv() -> dict:
     # aberta. Duas contas fariam o cartão de tração e o de manutenção
     # discordarem na mesma parede. Com viagem aberta E OS aberta (1 cavalo no
     # dia da medição) o veículo está rodando — a OS é que ficou para trás.
+    # A LISTA VAI JUNTO COM A CONTAGEM, e sai da MESMA filtragem: é ela que o
+    # modal do cartão mostra quando alguém clica (16/09/2026). Lista e número
+    # que se calculam em lugares diferentes discordam no primeiro ajuste.
     def _oficina(motor: bool) -> dict:
         frota = [v for v in veic if bool(v["com_motor"]) == motor]
         parados = [v for v in frota if v["em_viagem"] == 0 and v["os_abertas"] > 0]
-        longa = [v for v in parados if v.get("os_desde")
-                 and (hoje - v["os_desde"]).days > OFICINA_LONGA_DIAS]
-        return {"frota": len(frota), "parados": len(parados), "longa": len(longa)}
+        lista = [{"placa": v["placa"], "utilizacao": v["utilizacao"],
+                  "os_abertas": v["os_abertas"],
+                  "desde": v["os_desde"].isoformat() if v.get("os_desde") else None,
+                  "dias": (hoje - v["os_desde"]).days if v.get("os_desde") else None,
+                  "longa": bool(v.get("os_desde")
+                                and (hoje - v["os_desde"]).days > OFICINA_LONGA_DIAS)}
+                 for v in parados]
+        # o mais tempo parado primeiro; sem data da OS, no fim
+        lista.sort(key=lambda x: (x["dias"] is None, -(x["dias"] or 0)))
+        return {"frota": len(frota), "parados": len(parados),
+                "longa": sum(1 for x in lista if x["longa"]), "lista": lista}
 
     prev = get_manutencao_preventiva()
     k = prev["kpis"]
@@ -6048,21 +6081,35 @@ def get_manutencao_tv() -> dict:
                 + [{"frota": c["frota"] or c["veiculo"], "dias": -c["dias"]}
                    for c in prev["carretas"] if c["status"] == "vencida"])
     n = lambda d, c: int(d.get(c) or 0)  # noqa: E731
+    # as listas por trás dos números, para o modal do cartão: as MESMAS linhas
+    # que `get_manutencao_preventiva` contou, sem recontar nada aqui
+    cav_lista = [{"frota": t["frota"] or t["veiculo"], "placa": t["veiculo"],
+                  "status": t["status"], "km_faltante": t["km_faltante"],
+                  "intervalo": t["intervalo"], "odometro": t["odometro"]}
+                 for t in prev["tracoes"]]
+    sem_lista = [{"frota": c["frota"] or c["veiculo"], "placa": c["veiculo"],
+                  "status": c["status"], "dias": c["dias"], "ultima": c["ultima"],
+                  "limite": c["limite"]}
+                 for c in prev["carretas"]]
     return {
         "revisoes": {
             "cavalos": {"vencidas": k["tracoes_vencidas"], "a_vencer": k["tracoes_proximas"],
-                        "avaliados": k["tracoes_avaliadas"]},
+                        "avaliados": k["tracoes_avaliadas"], "lista": cav_lista},
             "semirreboques": {"vencidas": k["carretas_vencidas"],
                               "a_vencer": k["carretas_proximas"],
-                              "avaliados": k["carretas_avaliadas"]},
+                              "avaliados": k["carretas_avaliadas"], "lista": sem_lista},
             "horizonte_dias": prev["horizonte"],
             "vencidas": vencidas,
         },
         "oficina": {"cavalos": _oficina(True), "semirreboques": _oficina(False),
                     "longa_dias": OFICINA_LONGA_DIAS},
-        "mes": {"preventivas": n(mes, "preventivas"), "corretivas": n(mes, "corretivas"),
-                "socorro": n(mes, "socorro"), "socorro_ant": n(ant, "socorro"),
-                "dia": hoje.day, "mes_ant": ini_ant.isoformat()[:7]},
+        # as contagens do mês saem da PRÓPRIA lista (ver MANUT_TV_OS_SQL)
+        "mes": {"preventivas": sum(1 for o in os_mes if o["objetivo"] == OS_PREVENTIVA),
+                "corretivas": sum(1 for o in os_mes if o["objetivo"] == OS_CORRETIVA),
+                "socorro": sum(1 for o in os_mes if o["objetivo"] == OS_SOCORRO),
+                "socorro_ant": n(ant, "socorro"),
+                "dia": hoje.day, "mes_ant": ini_ant.isoformat()[:7],
+                "lista": os_mes},
         "atualizado_em": meta["ts"].isoformat(),
         "fonte": ("ERP AVA · ordemservico (OS aberta e objetivo) × programação de "
                   "embarque × revisões preventivas (fnc_manutencaopreventiva) · "

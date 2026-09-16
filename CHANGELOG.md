@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.94.0] — 16/09/2026  ·  CX-16/09/2026-v1.94.0
+
+### Adicionado
+- Painel TV › Operação — os cartões e o mapa passam a abrir o detalhe. Um clique (ou Enter, pelo teclado) em qualquer cartão abre a lista por trás do número: as viagens em trânsito, a tração disponível, quem chega em 72 h, os motoristas, quem está sem sinal, as revisões vencidas e a vencer de cavalo e semirreboque, os parados em manutenção, os que estão há mais tempo na oficina e as OS do mês. No mapa, o caminhão abre a ficha dele — modalidade, velocidade, idade da posição, viagem, revisão e OS aberta — e o círculo de vários veículos abre a lista de quem está ali, com a ficha a um clique. A lista é a mesma leitura que fez o número, e quando o servidor publica só parte dela o modal diz quantas de quantas está mostrando.
+
 ## [1.93.1] — 15/09/2026  ·  CX-15/09/2026-v1.93.1
 
 ### Alterado
