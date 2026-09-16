@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.105.1] — 16/09/2026  ·  CX-16/09/2026-v1.105.1
+
+### Alterado
+- Painel de TV Gente e Segurança: cada cartão ganhou um ícone de acordo com o assunto (colaboradores, filial, gênero, tempo de casa, departamento, liderança, acidentes, RNC, aniversariantes, admitidos, desligados, turnover, absenteísmo, pendências, banco de horas, hora extra e tempo de casa no mês), para achar cada número de longe.
+
 ## [1.105.0] — 16/09/2026  ·  CX-16/09/2026-v1.105.0
 
 ### Adicionado

@@ -1,3 +1,13 @@
+- versao: "1.105.1"
+  data: "2026-09-16"
+  alterado:
+    - >-
+      Painel de TV Gente e Segurança: cada cartão ganhou um ícone de acordo
+      com o assunto (colaboradores, filial, gênero, tempo de casa,
+      departamento, liderança, acidentes, RNC, aniversariantes, admitidos,
+      desligados, turnover, absenteísmo, pendências, banco de horas, hora
+      extra e tempo de casa no mês), para achar cada número de longe.
+
 - versao: "1.105.0"
   data: "2026-09-16"
   adicionado:

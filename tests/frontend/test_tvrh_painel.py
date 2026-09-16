@@ -194,3 +194,32 @@ def test_no_celular_as_laminas_empilham_sem_cortar_nem_rolar_de_lado(pagina):
     cortados = pg.evaluate("""() => [...document.querySelectorAll('#view-tvrh .tv-rh-bar b')]
         .filter(e => e.scrollWidth > e.clientWidth).map(e => e.textContent)   // 1 px já vira reticências""")
     assert cortados == [], cortados
+
+
+CARTOES = ("tvrh-colab", "tvrh-filial", "tvrh-genero", "tvrh-tempo", "tvrh-depto", "tvrh-lider",
+           "tvrh-acid-com", "tvrh-acid-sem", "tvrh-rnc", "tvrh-aniv", "tvrh-aniv-dia", "tvrh-adm",
+           "tvrh-desl", "tvrh-turn", "tvrh-abs", "tvrh-pend", "tvrh-banco", "tvrh-he", "tvrh-casa")
+SEM_ICONE = """(ids) => ids.filter(id => !document.querySelector('#' + id + ' .tv-label .tv-rh-ic svg'))"""
+
+
+def test_todo_cartao_tem_o_seu_icone(pagina):
+    """Pedido de quem opera (16/09/2026): ícones de acordo com o assunto. A
+    lista de cartões é a da SEÇÃO, conferida contra o DOM — cartão novo sem
+    ícone reprova aqui."""
+    pg = _abre(pagina)
+    no_dom = pg.evaluate("[...document.querySelectorAll('#view-tvrh .tv-card[id]')].map(c => c.id)")
+    assert sorted(no_dom) == sorted(CARTOES), no_dom
+    assert pg.evaluate(SEM_ICONE, list(CARTOES)) == []
+    # um ícone por cartão, mesmo depois da recarga de 60 s redesenhar tudo
+    pg.evaluate("loadTvRh()")
+    pg.wait_for_timeout(500)
+    assert pg.evaluate("document.querySelectorAll('#view-tvrh .tv-rh-ic').length") == len(CARTOES)
+
+
+def test_cartao_indisponivel_tambem_tem_icone(pagina):
+    p = _payload()
+    p["mes"] = {"erro": "indisponivel"}
+    p["indicadores"]["turnover"] = {"erro": "indisponivel"}
+    pg = _abre(pagina, payload=json.loads(json.dumps(p)))
+    assert pg.evaluate(SEM_ICONE, ["tvrh-desl", "tvrh-turn", "tvrh-casa"]) == []
+

@@ -1977,6 +1977,14 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
    cortada na altura antiga voltava a esconder meia linha sem contador. A
    linha fica reservada desde o primeiro pixel. */
 #view-tvrh .tv-head .tv-clock:empty::before,#view-tvrh .tv-head .tv-next:empty::before{content:"\00a0"}
+/* O ÍCONE DE CADA CARTÃO (quem opera, 16/09/2026: "ícones de acordo com o
+   que se trata"). Círculo escuro com o traço no laranja do relógio — o
+   destaque da parede; fundo escuro, então a auditoria de superfícies não
+   acende. O ícone ajuda a achar o cartão de longe; quem explica é o rótulo. */
+.tv-rh-rot{display:flex;align-items:center;gap:0.6vw}
+.tv-rh-ic{flex:none;display:inline-flex;align-items:center;justify-content:center;
+  width:clamp(26px,2.6vw,54px);height:clamp(26px,2.6vw,54px);border-radius:50%;background:#1E3A54;color:#F08A4B}
+.tv-rh-ic svg{width:58%;height:58%}
 .tv-rh-gente{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:1fr 1fr}
 .tv-rh-seg{grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:1.05fr 0.85fr 1.1fr}
 .tv-rh-seg .tv-rh-dois{grid-column:span 2}
@@ -2037,6 +2045,7 @@ body.tvfull.tvwall #view-tvrh .tv-ticker{flex-shrink:0;margin-top:0.55vw}
   #view-tvrh .tvw .tv-card{padding:12px 14px;min-height:180px}
   .tv-rh-serie{height:160px;flex:none}
   .tv-rh-bar{grid-template-columns:118px minmax(0,1fr) 44px;font-size:13px}
+  .tv-rh-ic{width:26px;height:26px}
 }
 /* PAINEL DE TV DO CCO (tvcco). Grade de 4 com `minmax(0,1fr)`: `1fr` cru e
    minmax(auto,1fr), e o cartao de tres numeros (emissao do CT-e) empurraria
@@ -17822,6 +17831,38 @@ function tvRhIndicadores(ind, m){
   } else tvRhIndisp('tvrh-casa','Tempo de casa no mês');
 }
 
+/* o ícone de cada cartão, pelo id do cartão: vale para o desenho normal e
+   para o "indisponível", sem que cada um dos 19 desenhos precise lembrar */
+const TVRH_ICONES = {
+  'tvrh-colab':  '<circle cx="9" cy="7.5" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="8.5" r="2.4"/><path d="M15.5 13.6A4.6 4.6 0 0 1 21 18"/>',
+  'tvrh-filial': '<path d="M4 21V5.5l8-3v18.5M12 9h8v12M3 21h18"/><path d="M7 8h2M7 12h2M7 16h2M15 13h2M15 17h2"/>',
+  'tvrh-genero': '<circle cx="8.5" cy="14" r="4.2"/><path d="M8.5 18.2V22M6.5 20.2h4"/><circle cx="15.5" cy="9" r="4.2"/><path d="M18.5 6 21.5 3M18 3h3.5v3.5"/>',
+  'tvrh-tempo':  '<rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4M12 12.5v3.5l2.5 1.5"/>',
+  'tvrh-depto':  '<rect x="9" y="2.5" width="6" height="5" rx="1"/><rect x="2.5" y="16.5" width="6" height="5" rx="1"/><rect x="15.5" y="16.5" width="6" height="5" rx="1"/><path d="M12 7.5V12M5.5 16.5V12h13v4.5"/>',
+  'tvrh-lider':  '<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9Z"/>',
+  'tvrh-acid-com': '<path d="M20.8 5.6a5 5 0 0 0-7.1 0L12 7.3l-1.7-1.7a5 5 0 1 0-7.1 7.1L12 21.5l8.8-8.8a5 5 0 0 0 0-7.1Z"/><path d="M3.8 12h4l1.5-3 3 6 1.5-3h6.4"/>',
+  'tvrh-acid-sem': '<path d="M12 2.5 4 5.5v6c0 5 3.4 8.8 8 10 4.6-1.2 8-5 8-10v-6Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
+  'tvrh-rnc':    '<rect x="5" y="3.5" width="14" height="18" rx="2"/><path d="M9 2.5h6v3H9zM8.5 10.5h7M8.5 14.5h7M8.5 18h4"/>',
+  'tvrh-aniv':   '<path d="M4 21.5h16M5 21.5v-8h14v8M5 17c2 0 2-1.5 3.5-1.5S10.5 17 12 17s2-1.5 3.5-1.5S17 17 19 17M12 13.5v-3"/><path d="M12 7.5c-.9-.9-.9-2.2 0-3.3.9 1.1.9 2.4 0 3.3Z"/>',
+  'tvrh-aniv-dia': '<rect x="3.5" y="8.5" width="17" height="4" rx="1"/><path d="M5 12.5v9h14v-9M12 8.5v13M12 8.5C10.5 4 7 4 7 6.2S10 8.5 12 8.5ZM12 8.5c1.5-4.5 5-4.5 5-2.3S14 8.5 12 8.5Z"/>',
+  'tvrh-adm':    '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20.5c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5M19 8v6M16 11h6"/>',
+  'tvrh-desl':   '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20.5c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5M16 11h6"/>',
+  'tvrh-turn':   '<path d="M4 8h13l-3.5-3.5M20 16H7l3.5 3.5"/>',
+  'tvrh-abs':    '<rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4M9.5 12.5l5 5M14.5 12.5l-5 5"/>',
+  'tvrh-pend':   '<circle cx="12" cy="13" r="8"/><path d="M12 9v4.5l2.5 1.5M4.5 3.5 2 6M19.5 3.5 22 6"/>',
+  'tvrh-banco':  '<path d="M6.5 2.5h11M6.5 21.5h11M7.5 2.5c0 4.5 4.5 5.5 4.5 9.5s-4.5 5-4.5 9.5M16.5 2.5c0 4.5-4.5 5.5-4.5 9.5s4.5 5 4.5 9.5"/>',
+  'tvrh-he':     '<circle cx="11" cy="12.5" r="8"/><path d="M11 8.5v4l2.5 1.5M19 2.5v5M16.5 5h5"/>',
+  'tvrh-casa':   '<path d="M8 3.5h8v5a4 4 0 0 1-8 0ZM8 5.5H4.5a3 3 0 0 0 3.5 4M16 5.5h3.5a3 3 0 0 1-3.5 4M12 12.5v4M9.5 16.5h5v4h-5ZM8 21h8"/>',
+};
+function tvRhIcones(){
+  Object.keys(TVRH_ICONES).forEach(id=>{
+    const lab=document.querySelector('#'+id+' .tv-label');
+    if(!lab || lab.querySelector('.tv-rh-ic')) return;
+    lab.classList.add('tv-rh-rot');
+    lab.insertAdjacentHTML('afterbegin', '<span class="tv-rh-ic">'+IC(TVRH_ICONES[id])+'</span>');
+  });
+}
+
 async function loadTvRh(){
   const seq=++tvRhSeq;
   try{
@@ -17843,6 +17884,7 @@ async function loadTvRh(){
     if(ind.cnh && !ind.cnh.erro && ind.cnh.vence_30) tick.push('🪪 '+ind.cnh.vence_30+' CNH de motorista vencem em 30 dias');
     if(ind.experiencia && !ind.experiencia.erro && ind.experiencia.vencendo) tick.push('📝 '+ind.experiencia.vencendo+' contratos de experiência vencem em '+ind.experiencia.aviso_dias+' dias');
     tvTicker('tvrh-ticker', tick);
+    tvRhIcones();            // antes do corte: o ícone muda a altura do rótulo
     tvRhCortar('tvrh-l2'); tvRhCortar('tvrh-l3');
     /* A FONTE CHEGA DEPOIS: a Saira muda a altura da linha, e o corte medido
        com a fonte de reserva deixava uma linha a mais escondida sem contador */
