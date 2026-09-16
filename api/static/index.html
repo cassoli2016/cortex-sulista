@@ -18003,7 +18003,7 @@ const TVOPE_REGRA={
   tracao:'Frota e locação COM MOTOR. Disponível é quem não está em viagem nem com OS aberta. O agregado fica fora: a lista da casa é da casa.',
   saidas:'As viagens desta mesma lista de trânsito, pela data de saída e pela previsão de chegada de hoje.',
   chegando:'Chegadas previstas nas próximas 72 h. "Com retorno" é a cidade que tem carga saindo depois da chegada mais a descarga.',
-  motoristas:'Motoristas da casa parados (sem viagem aberta) e os que estão com a CNH vencida no cadastro.',
+  motoristas:'Só os motoristas da FROTA (própria + locação), como o cartão. Agregado e terceiro ficam fora: sem viagem conosco não é o mesmo que disponível.',
   semsinal:'Viagem em curso cuja rastreadora não transmite há mais de 6 h — ou nunca transmitiu nesta viagem.',
   rev_vencidas:'Cavalo por KM (marcador da próxima troca contra o odômetro) e semirreboque por DATA (180 dias, 240 no baú).',
   rev_avencer:'Cavalo com menos de 10% do intervalo para rodar; semirreboque dentro do horizonte de dias do painel.',
@@ -18062,9 +18062,22 @@ function tvOpeCard(card){
          cols:cols.concat([['Cargas na cidade', l=>tvoN(l.n_cargas),'num']])},
         {estado:'sem_retorno', rotulo:'Sem retorno', n:pk.sem_retorno, linhas:p.sem_retorno, cols:cols}]);
     }
-    case 'motoristas': return cfg('motoristas', [
-      {estado:'parados', rotulo:'Parados', n:pk.mot_parados, linhas:p.motoristas_parados, cols:TVO_MOT},
-      {estado:'cnh', rotulo:'CNH vencida', n:pk.cnh_vencida, linhas:p.cnh_alertas, cols:TVO_MOT}]);
+    case 'motoristas': {
+      /* SO A FROTA, COMO O CARTAO (quem opera, 16/09/2026: "precisa trazer
+         somente motoristas Frota como o card"). As tres situacoes saem da
+         MESMA lista do servidor (`motoristas_frota`, propria + locacao), e
+         por isso somam o total do cartao. Antes vinham das listas gerais da
+         programacao -- agregado e terceiro juntos, e cortadas em 20 --, que
+         e o universo que o cartao ja tinha deixado de fora em 14/09. */
+      const fr=p.motoristas_frota||[];
+      return cfg('motoristas', [
+        {estado:'em_viagem', rotulo:'Em viagem', n:pk.mot_viagem_proprio,
+         linhas:fr.filter(m=>m.em_viagem), cols:TVO_MOT},
+        {estado:'ociosos', rotulo:'Ociosos', n:pk.mot_proprios_disp,
+         linhas:fr.filter(m=>!m.em_viagem), cols:TVO_MOT},
+        {estado:'cnh', rotulo:'CNH vencida', n:fr.filter(m=>m.cnh_vencida).length,
+         linhas:fr.filter(m=>m.cnh_vencida), cols:TVO_MOT}]);
+    }
     case 'semsinal': return cfg('viagens', [
       {estado:'mudos', rotulo:'Sem sinal há +6 h', n:(d.mudos||[]).length, linhas:d.mudos, cols:TVO_VIAGEM}]);
     case 'rev_vencidas': return cfg('veículos', [

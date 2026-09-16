@@ -350,9 +350,24 @@ def test_cadastro_mais_novo_que_o_globus_continua_valendo(monkeypatch):
 def test_o_cpf_nao_sai_do_servidor(monkeypatch):
     monkeypatch.setattr(queries, "_cnh_globus", lambda: {"11111111111": VALIDA})
     d = _prog_completo(monkeypatch, _motoristas_cnh(), {"total": 0})
-    for lista in ("cnh_alertas", "motoristas_parados"):
+    for lista in ("cnh_alertas", "motoristas_parados", "motoristas_frota"):
         for linha in d[lista]:
             assert "codigo" not in linha and "33333333333" not in str(linha), linha
+
+
+def test_a_lista_de_motoristas_da_frota_e_so_do_PROPRIO(monkeypatch):
+    """A TV tem um cartão só da frota, e o detalhe dele sai DESTA lista
+    (16/09/2026). Com agregado e terceiro juntos seriam dois universos no
+    mesmo número — o que o próprio cartão corrigiu em 14/09. As três situações
+    da tela saem daqui, então somam o total do cartão."""
+    d = _prog_completo(monkeypatch, _motoristas_cnh(), {"total": 0})
+    fr, k = d["motoristas_frota"], d["kpis"]
+    assert len(fr) == k["mot_proprios"] == 3, fr
+    assert sum(1 for m in fr if m["em_viagem"]) == k["mot_viagem_proprio"] == 1
+    assert sum(1 for m in fr if not m["em_viagem"]) == k["mot_proprios_disp"] == 2
+    # o parado abre a lista, e quem está em viagem não tem "dias parado"
+    assert [m["em_viagem"] for m in fr] == [False, False, True], fr
+    assert all(m["dias_parado"] is None for m in fr if m["em_viagem"])
 
 
 def test_a_suite_nunca_le_a_folha_de_producao():

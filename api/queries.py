@@ -5110,6 +5110,19 @@ def get_programacao() -> dict:
             })
         return out
 
+    # OS MOTORISTAS DA FROTA, UM A UM — a lista por trás do cartão "Motoristas
+    # da frota" da TV de operação (16/09/2026, quem opera: "precisa trazer
+    # somente motoristas Frota como o card"). SÓ PRÓPRIO (frota + locação):
+    # o cartão mede a casa, e um detalhe com agregado e terceiro juntos seria
+    # o mesmo defeito que o cartão corrigiu em 14/09 — dois universos no mesmo
+    # número. Sem corte: o teto é o CADASTRO (68 no dia da medição), e as três
+    # situações da tela (em viagem, ocioso, CNH vencida) saem todas daqui,
+    # então somam o total do cartão por construção.
+    mot_frota = _mot_out(sorted(
+        ({**m, "dias_parado": dias(m["ult_saida"]) if m["em_viagem"] == 0 else None}
+         for m in mot_disp if classe(m) == "proprio"),
+        key=lambda x: (x["em_viagem"] > 0, -(x["dias_parado"] or 0))))
+
     return {
         "kpis": {
             "chegando_72h": len(chegadas),
@@ -5151,6 +5164,7 @@ def get_programacao() -> dict:
         },
         "ociosos": ociosos[:20],
         "motoristas_parados": _mot_out(mot_parados[:20]),
+        "motoristas_frota": mot_frota,
         "cnh_alertas": _mot_out(sorted(cnh_vencida, key=lambda m: m["venc_cnh"])[:20]),
         "casamentos": casamentos[:25],
         "sem_retorno": sem_retorno[:25],

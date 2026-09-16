@@ -167,7 +167,17 @@ CNH_ALERTAS = [{"motorista": f"MOTORISTA CNH {i}", "dias_parado": i, "ult_saida"
 CHEGADAS = [{"placa": f"CHG{i:04d}", "utilizacao": "AGREGADOS", "cidade": f"CIDADE {i}",
              "uf": "SP", "eta": _fmt(AGORA + timedelta(hours=i + 1)), "n_cargas": 1 + i % 3}
             for i in range(25)]
+# A LISTA DA FROTA, sem corte: 68 motoristas da casa, 4 em viagem e 2 com a
+# CNH vencida — os mesmos números dos KPIs do cartão.
+MOT_FROTA = ([{"motorista": f"MOTORISTA FROTA {i}", "dias_parado": None,
+               "ult_saida": "2026-09-15", "em_viagem": True, "venc_cnh": "2027-05-01",
+               "cnh_vencida": False, "fonte_cnh": "globus"} for i in range(4)]
+             + [{"motorista": f"MOTORISTA FROTA {4 + i}", "dias_parado": 40 - i,
+                 "ult_saida": "2026-08-26", "em_viagem": False,
+                 "venc_cnh": "2026-08-01" if i < 2 else "2027-05-01",
+                 "cnh_vencida": i < 2, "fonte_cnh": "cadastro"} for i in range(64)])
 PROG_LISTAS = {"ociosos": OCIOSOS, "motoristas_parados": MOT_PARADOS,
+               "motoristas_frota": MOT_FROTA,
                "cnh_alertas": CNH_ALERTAS, "casamentos": CHEGADAS,
                "sem_retorno": CHEGADAS[:5]}
 
@@ -729,20 +739,41 @@ def test_a_metade_do_cartao_abre_o_lado_dela(pagina):
 
 
 def test_a_lista_cortada_pelo_servidor_diz_quantas_de_quantas(pagina):
-    """A programação publica 20 motoristas parados de 157: sem o contador, as
-    20 da tela passariam por todas — a regra de Top-N da casa."""
+    """A programação publica 20 ociosos (13 com motor) de 72 tratores
+    disponíveis: sem o contador, os 13 da tela passariam por todos — a regra
+    de Top-N da casa."""
+    pg, base = pagina
+    _abre(pg, base)
+    pg.click("#tvope-k1 > .tv-card:nth-child(2)")          # Tração disponível
+    d = _detalhe(pg)
+    assert (d["aba"], d["linhas"]) == ("disponivel", 13), d
+    assert d["cont"] == "13 de 72 veículos · o servidor publica as 13 primeiras", d
+    pg.click('#modalBox .ccm-aba[data-estado="em_os"]')
+    assert pg.evaluate(_DET)["linhas"] == 6          # os cavalos na oficina
+    pg.keyboard.press("Escape")
+    assert not pg.evaluate("document.getElementById('modalBg').classList.contains('aberto')")
+
+
+def test_o_detalhe_dos_motoristas_e_SO_DA_FROTA(pagina):
+    """Quem opera, 16/09/2026: "precisa trazer somente motoristas Frota como o
+    card". O detalhe vinha das listas gerais da programação — agregado e
+    terceiro juntos, e cortadas em 20 — enquanto o cartão mede só a casa. As
+    três situações agora saem da lista da frota, e somam o total do cartão."""
     pg, base = pagina
     _abre(pg, base)
     pg.click("#tvope-k1 > .tv-card:nth-child(5)")          # Motoristas da frota
     d = _detalhe(pg)
-    assert (d["aba"], d["linhas"]) == ("parados", 20), d
-    assert d["cont"] == "20 de 157 motoristas · o servidor publica as 20 primeiras", d
-    pg.click('#modalBox .ccm-aba[data-estado="cnh"]')
-    assert pg.evaluate(_DET)["linhas"] == 2
-    pg.fill("#modalBox .ccm-busca", "CNH 1")
+    assert d["abas"] == ["Em viagem4", "Ociosos64", "CNH vencida2"], d
+    assert (d["aba"], d["linhas"], d["cont"]) == ("em_viagem", 4, "4 motoristas"), d
+    pg.click('#modalBox .ccm-aba[data-estado="ociosos"]')
+    m = pg.evaluate(_DET)
+    assert (m["linhas"], m["cont"]) == (64, "64 motoristas"), m
+    # os nomes do dublê das listas GERAIS não podem aparecer aqui
+    for fora in ("MOTORISTA PARADO", "MOTORISTA CNH"):
+        assert fora not in m["texto"].upper(), (fora, m["texto"][:300])
+    assert "MOTORISTA FROTA" in m["texto"].upper(), m["texto"][:300]
+    pg.fill("#modalBox .ccm-busca", "FROTA 7")
     assert pg.evaluate(_DET)["linhas"] == 1
-    pg.keyboard.press("Escape")
-    assert not pg.evaluate("document.getElementById('modalBg').classList.contains('aberto')")
 
 
 def _clicar_no_mapa(pg, seletor, i=0):

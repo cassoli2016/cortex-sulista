@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.96.0] — 16/09/2026  ·  CX-16/09/2026-v1.96.0
+
+### Corrigido
+- Painel TV › Operação — o detalhe do cartão "Motoristas da frota" passa a trazer só motoristas da frota (própria + locação), como o cartão. Ele vinha das listas gerais da programação, com agregado e terceiro juntos e cortadas nos 20 primeiros; agora as três situações — em viagem, ociosos e CNH vencida — saem da lista da frota inteira e somam o total do cartão. Motorista de agregado sem viagem conosco não é motorista disponível, e era isso que o número do detalhe sugeria.
+
 ## [1.95.0] — 16/09/2026  ·  CX-16/09/2026-v1.95.0
 
 ### Alterado
