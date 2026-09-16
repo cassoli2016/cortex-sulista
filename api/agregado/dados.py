@@ -258,8 +258,23 @@ def acerto_detalhe(sess: dict, filial: int, numero: int) -> dict:
     par = {"cod": cod, "filial": int(filial), "numero": int(numero)}
     with db.get_conn() as conn, conn.cursor() as cur:
         cur.execute(
+            # A COMPOSIÇÃO INTEIRA, e não só o líquido: a pergunta que o dono
+            # faz ao abrir um acerto não é "quanto deu?" — isso a lista já
+            # respondeu — é "POR QUE deu isso?". Bruto, descontos,
+            # adiantamentos, despesas e acréscimos são as cinco parcelas dessa
+            # conta, e o ERP já as guarda somadas na própria linha do acerto.
+            #
+            # ELAS VÊM DO SERVIDOR, e não da linha que a tela já tinha em mãos:
+            # o modal abre por `filial/numero` e não pode depender de quem o
+            # abriu ter passado por uma lista antes. E a página da casa não faz
+            # conta — somar no navegador criaria um segundo lugar onde o total
+            # pode discordar das linhas.
             """SELECT to_char(a.dtemissao, 'YYYY-MM-DD') AS emissao,
                       coalesce(a.valortotalfaturamento, 0)::float8 AS bruto,
+                      coalesce(a.valortotaldescontos, 0)::float8    AS descontos,
+                      coalesce(a.valortotaladiantamento, 0)::float8 AS adiantamentos,
+                      coalesce(a.valortotaldespesas, 0)::float8     AS despesas,
+                      coalesce(a.valortotalacrescimos, 0)::float8   AS acrescimos,
                       coalesce(a.valorpagarparaagregado, 0)::float8 AS liquido,
                       (a.concluido = 1) AS fechado
                  FROM acertoviagemagregado a

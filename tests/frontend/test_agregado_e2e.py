@@ -42,7 +42,13 @@ ACERTOS = {
 }
 
 DETALHE = {
-    "acerto": {"emissao": "2026-09-10", "bruto": 18400.0, "liquido": 11300.0, "fechado": True},
+    # A COMPOSIÇÃO INTEIRA, como o servidor passou a devolver: é ela que
+    # responde "por que este acerto deu isso?". Os números fecham a conta
+    # (18.400 − 900 − 5.000 − 1.200 + 0 = 11.300), e fechar importa: dublê que
+    # não fecha deixaria passar um modal que soma errado.
+    "acerto": {"emissao": "2026-09-10", "bruto": 18400.0, "descontos": 900.0,
+               "adiantamentos": 5000.0, "despesas": 1200.0, "acrescimos": 0.0,
+               "liquido": 11300.0, "fechado": True},
     "filial": 1, "numero": 8801,
     "viagens": [{"placa": "ABC1D23", "viagem": 55012, "emissao": "2026-09-02",
                  "documento": "120345", "valor": 9200.0, "descontos": 0.0}],
@@ -141,7 +147,10 @@ def _ver(pg, aba):
     fraca, que se conserta esperando o carregamento SUMIR, nunca afrouxando a
     asserção.
     """
-    pg.click(f"#navbar button[data-aba='{aba}']")
+    # A CONTA NÃO ESTÁ NA BARRA — ela abre pelo botão do cabeçalho, e é por
+    # isso que este helper precisa saber de onde cada aba é aberta. Com ela na
+    # barra eram oito itens em 390px.
+    pg.click("#b-conta" if aba == "conta" else f"#navbar button[data-aba='{aba}']")
     pg.wait_for_function(
         "(id) => { const el = document.getElementById(id);"
         # SEÇÃO VAZIA TAMBÉM NÃO É "PRONTA": a aba Conta busca os veículos
@@ -279,6 +288,152 @@ def test_as_abas_de_viagem_diesel_extras_e_ocorrencia_desenham(pagina):
     for aba, trecho in casos:
         assert trecho in _ver(pg, aba), (aba, trecho)
         assert _sem_rolagem_lateral(pg) == 0
+
+
+def _folha(pg):
+    """Espera a folha de detalhe abrir E o conteúdo chegar.
+
+    Esperar só o `.aberto` mediria o "carregando…" — a mesma espera fraca que
+    já enganou o helper das abas aqui. Conserta-se esperando o carregamento
+    SUMIR, nunca afrouxando a asserção.
+    """
+    pg.wait_for_function(
+        "() => { const b = document.getElementById('modalBox');"
+        " return document.getElementById('modalBg').classList.contains('aberto')"
+        " && b.textContent.trim().length > 0"
+        " && !b.textContent.includes('carregando'); }")
+    return pg.inner_text("#modalBox")
+
+
+def test_a_barra_tem_sete_itens_e_a_conta_SAIU_dela(pagina):
+    """O aperto é aritmética, não gosto: com `conta` na barra eram OITO itens
+    num celular de 390px — 48px por alvo, e o rótulo já vinha abreviado
+    ("Ocorrén."). O app do motorista parou em seis pela mesma conta.
+
+    A largura mínima é medida no NAVEGADOR, e não calculada aqui: é o único
+    lugar que sabe o que o flex fez de verdade.
+    """
+    pg = _abre(pagina)
+    rotulos = pg.eval_on_selector_all(
+        "#navbar button", "es => es.map(e => e.dataset.aba)")
+    assert rotulos == ["resumo", "acertos", "viagens", "abastecimentos",
+                       "lancamentos", "ocorrencias", "canal"], rotulos
+    assert "conta" not in rotulos
+    larguras = pg.eval_on_selector_all(
+        "#navbar button", "es => es.map(e => e.getBoundingClientRect().width)")
+    assert min(larguras) >= 50, larguras
+    # e cada item tem DESENHO além do rótulo — é o que dispensa abreviar
+    assert pg.eval_on_selector_all("#navbar button svg", "es => es.length") == 7
+
+
+def test_os_botoes_DENTRO_do_app_tem_o_estilo_da_casa(pagina):
+    """A armadilha de especificidade desta casa, medida no navegador.
+
+    O estilo do botão grande mora em `.lg-body button.lg-btn` — qualificado
+    pelo cartão de ENTRADA. Dentro do app a regra existe, está certa e NÃO
+    VALE: "Sair deste aparelho" e o botão de enviar do canal saíam com a cara
+    nativa do navegador, pequenos e encostados à esquerda, desde que foram
+    escritos. Teste de estilo lê `getComputedStyle`/caixa real, nunca o texto
+    do CSS — só o navegador sabe quem venceu.
+    """
+    pg = _abre(pagina)
+    _ver(pg, "conta")
+    caixa = pg.evaluate(
+        "() => { const b = document.getElementById('b-sair');"
+        " const r = b.getBoundingClientRect();"
+        " return {w: r.width, h: r.height,"
+        "         fundo: getComputedStyle(b).backgroundColor}; }")
+    assert caixa["w"] >= 300, ("o botão não ocupa a largura do cartão", caixa)
+    assert caixa["h"] >= 44, ("alvo de dedo pequeno demais", caixa)
+    assert caixa["fundo"] not in ("rgba(0, 0, 0, 0)", "rgb(239, 239, 239)"), caixa
+
+
+def test_a_conta_abre_pelo_cabecalho_e_ACENDE_ali(pagina):
+    """Sair da barra não pode virar "sumiu": se nenhum item acende quando a
+    conta está aberta, a tela parece ter perdido o rumo."""
+    pg = _abre(pagina)
+    assert "ABC1D23" in _ver(pg, "conta")
+    assert pg.get_attribute("#b-conta", "aria-current") == "page"
+    acesos = pg.eval_on_selector_all(
+        "#navbar button[aria-current='page']", "es => es.length")
+    assert acesos == 0, "a barra continuou com um item aceso fora da aba aberta"
+    # e voltar para uma aba da barra apaga o botão do cabeçalho
+    _ver(pg, "acertos")
+    assert pg.get_attribute("#b-conta", "aria-current") is None
+
+
+@pytest.mark.parametrize("aba,seletor,esperados", [
+    # O QUE CADA FOLHA PRECISA DIZER, e em toda ela há pelo menos um dado que a
+    # LINHA não mostrava — senão a folha é um clique que não responde nada.
+    ("viagens", "#tela-viagens [data-idx='0']",
+     ["Viagem 55012", "CURITIBA/PR", "SAO BERNARDO DO CAMPO/SP", "412 km", "9.200,00"]),
+    # preço por litro e odômetro vinham do servidor desde o primeiro dia e a
+    # lista não tinha onde dizê-los
+    ("abastecimentos", "#tela-abastecimentos [data-idx='0']",
+     ["320,5 L", "6,18", "812.345", "2,31 km/L", "1.980,00"]),
+    ("lancamentos", "#tela-lancamentos [data-idx='0']",
+     ["ADICIONAL ENTREGAS", "aprovado", "350,00"]),
+    ("ocorrencias", "#tela-ocorrencias [data-idx='0']",
+     ["ATRASO NA ENTREGA - TRANSITO", "44120", "ABC1D23"]),
+    ("conta", "#tela-conta [data-idx='0']",
+     ["ABC1D23", "SCANIA", "R450", "1042", "CAVALO MECANICO", "ativo"]),
+])
+def test_cada_lista_ABRE_A_FOLHA_com_o_que_a_linha_nao_cabia(pagina, aba, seletor, esperados):
+    """Antes desta versão só o acerto tinha detalhe: viagem, diesel, extras,
+    ocorrência e veículo eram linhas mortas — e o acerto, que abria, tinha a
+    mesma cara de uma linha que não abre."""
+    pg = _abre(pagina)
+    _ver(pg, aba)
+    pg.click(seletor)
+    texto = _folha(pg)
+    for trecho in esperados:
+        assert trecho in texto, (aba, trecho, texto[:400])
+    assert _sem_rolagem_lateral(pg) == 0
+
+
+def test_a_folha_fecha_PELO_TOPO_sem_rolar_ate_o_fim(pagina):
+    """O fechar morava só no fim, depois da lista: num acerto com dez viagens
+    era preciso rolar a folha inteira para sair. Sair de uma tela não pode
+    depender do tamanho do conteúdo dela."""
+    pg = _abre(pagina)
+    _ver(pg, "viagens")
+    pg.click("#tela-viagens [data-idx='0']")
+    _folha(pg)
+    x = pg.query_selector("#modalBox .mhead .mx")
+    assert x is not None, "a folha não tem fechar no topo"
+    caixa = pg.evaluate(
+        "() => { const r = document.querySelector('#modalBox .mhead .mx')"
+        ".getBoundingClientRect(); return {w: r.width, h: r.height}; }")
+    assert caixa["w"] >= 44 and caixa["h"] >= 44, caixa   # alvo de dedo
+    # O FECHAR DO RODAPÉ TAMBÉM É BOTÃO DE VERDADE. O estilo do botão grande da
+    # casa mora em `.lg-body button.lg-btn` — qualificado pelo cartão de
+    # ENTRADA —, e a folha não é `.lg-body`: a regra existia, estava certa e
+    # não valia aqui, e o botão saía com a cara nativa do navegador. Só o
+    # navegador sabe quem venceu a especificidade, então o guard MEDE em vez de
+    # procurar a regra no CSS.
+    rodape = pg.evaluate(
+        "() => { const b = document.querySelector('#modalBox button.lg-btn');"
+        " if (!b) return null; const r = b.getBoundingClientRect();"
+        " return {w: r.width, h: r.height}; }")
+    assert rodape, "a folha ficou sem o fechar do rodapé"
+    assert rodape["w"] >= 300 and rodape["h"] >= 44, rodape
+    x.click()
+    assert not pg.eval_on_selector("#modalBg", "e => e.classList.contains('aberto')")
+
+
+def test_o_detalhe_do_acerto_mostra_A_CONTA_INTEIRA(pagina):
+    """"Quanto deu" a lista já respondeu. Quem abre o acerto quer saber POR QUE
+    deu isso — e a conta vem somada do ERP, pelo servidor: a página não soma
+    nada, senão o total daqui poderia discordar do total de lá."""
+    pg = _abre(pagina)
+    _ver(pg, "acertos")
+    pg.click("#tela-acertos [data-acerto='1/8801']")
+    m = _folha(pg)
+    assert "Acerto 8801" in m
+    for parcela in ("18.400,00", "900,00", "5.000,00", "1.200,00", "11.300,00"):
+        assert parcela in m, (parcela, m[:400])
+    assert "Líquido a receber" in m
+    assert _sem_rolagem_lateral(pg) == 0
 
 
 def test_a_multa_e_dita_em_vez_de_virar_aba_com_zero(pagina):

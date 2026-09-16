@@ -121,9 +121,23 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
 .nota{font-size:12.5px;color:var(--n500);margin:var(--e1) 0 0}
 /* ───────────────────────────── o app ───────────────────────────── */
 .app{padding-bottom:84px}
-.topo{background:var(--navy-900);color:#fff;padding:var(--e2) var(--e2) var(--e1)}
-.topo h1{font-size:17px;margin:0;letter-spacing:.03em}
+/* O CABEÇALHO TEM DUAS COLUNAS: quem é a conta, e o botão da conta. Ele existe
+   porque "Conta" SAIU da barra de baixo — com 8 itens em 390px sobravam 48px
+   por alvo, e o rótulo já vinha abreviado. A barra é para o que se usa todos os
+   dias; conta e sair são coisa de uma vez por mês. É a mesma decisão do app do
+   motorista, pelo mesmo motivo. */
+.topo{background:var(--navy-900);color:#fff;padding:var(--e2) var(--e2) var(--e1);
+  display:flex;align-items:flex-start;gap:var(--e1)}
+.topo .quem{flex:1;min-width:0}
+.topo h1{font-size:17px;margin:0;letter-spacing:.03em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .topo .sub{font-size:13px;color:#8FA6BC;margin-top:2px}
+.topo .bconta{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;
+  gap:2px;min-width:52px;min-height:48px;padding:4px 6px;cursor:pointer;
+  background:transparent;border:0;color:#8FA6BC;font:inherit;font-size:11px;font-weight:600}
+.topo .bconta svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round}
+.topo .bconta[aria-current="page"]{color:#fff}
 .mestre{position:sticky;top:0;z-index:16;background:var(--brand);color:#fff;
   padding:8px var(--e2);font-size:13px;font-weight:700}
 .velha{background:#FFF6E5;color:var(--aviso);padding:8px var(--e2);font-size:13px;font-weight:600}
@@ -149,12 +163,29 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
 .tag.ruim{background:#FDECEA;color:var(--ruim)}
 .vazio{padding:var(--e2);color:var(--n500);font-size:14px;text-align:center}
 .conta{font-size:13px;color:var(--n500);margin-top:var(--e1)}
-.abrir{width:100%;text-align:left;background:transparent;border:0;padding:0;cursor:pointer;color:inherit}
+/* LINHA QUE ABRE PRECISA PARECER QUE ABRE. Enquanto só o acerto tinha detalhe,
+   ele era uma linha igual às outras — e linha que não parece clicável não é
+   clicada: o detalhe existia e ninguém chegava nele. A seta é a marca de "tem
+   mais aqui dentro", e ela fica na COLUNA DO VALOR para não empurrar o número. */
+.abrir{width:100%;text-align:left;background:transparent;border:0;padding:0;
+  cursor:pointer;color:inherit;display:block}
+.abrir .linha{padding-right:16px;position:relative}
+.abrir .linha::after{content:"›";position:absolute;right:0;top:50%;
+  transform:translateY(-50%);color:var(--n300);font-size:20px;line-height:1}
+.abrir:active .linha{background:var(--n100)}
 .navbar{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;
   background:var(--n0);border-top:1px solid var(--n200);
   padding-bottom:env(safe-area-inset-bottom,0)}
-.navbar button{flex:1;min-height:56px;border:0;background:transparent;color:var(--n500);
-  font-size:12px;font-weight:600;cursor:pointer}
+/* ÍCONE ACIMA DO RÓTULO: com 7 itens sobram 55px por alvo, e o texto sozinho
+   nessa largura obriga a abreviar ("Ocorrén."), que é pior do que o desenho
+   dizer o assunto. O ícone é o mesmo traço do app do motorista. */
+.navbar button{flex:1;min-width:0;min-height:58px;border:0;background:transparent;
+  color:var(--n500);font:inherit;font-size:10.5px;font-weight:600;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  padding:6px 2px}
+.navbar button svg{width:21px;height:21px;fill:none;stroke:currentColor;
+  stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.navbar button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .navbar button[aria-current="page"]{color:var(--brand)}
 .modal-bg{position:fixed;inset:0;background:rgba(11,25,38,.55);z-index:40;display:none;
   align-items:flex-end;justify-content:center}
@@ -162,6 +193,58 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
 .modal{width:100%;max-height:86vh;overflow:auto;background:var(--n0);
   border-radius:14px 14px 0 0;padding:var(--e2)}
 .modal h3{margin:0 0 var(--e1);font-size:17px}
+/* ─── BOTÃO, CAMPO E AVISO DENTRO DO APP ───────────────────────────────────
+   A ARMADILHA DE ESPECIFICIDADE DA CASA, e aqui ela custou caro sem fazer
+   barulho: as regras lá de cima são qualificadas por `.lg-body`, o cartão de
+   ENTRADA. Dentro do app elas existem, estão certas e NÃO VALEM — "Sair deste
+   aparelho" e o formulário inteiro do canal ("Falar", v1.99.0) saíam com a
+   cara nativa do navegador: botão cinza pequeno encostado à esquerda, caixa de
+   texto sem altura de dedo. Nenhum teste de comportamento vê isso; quem
+   mostrou foi a FOTO da tela.
+   `.campo` sem qualificar o elemento porque o canal usa `select` e `textarea`
+   além de `input` — qualificar por `input` repetiria o defeito nos outros
+   dois. */
+.corpo label, .modal label{display:block;font-size:12px;font-weight:600;
+  color:var(--n500);margin:10px 0 4px}
+.corpo .campo, .modal .campo{width:100%;font:inherit;font-size:16px;
+  padding:13px 12px;min-height:48px;border:1px solid var(--n300);border-radius:6px;
+  background:var(--n0);color:var(--n900)}
+.corpo textarea.campo, .modal textarea.campo{min-height:96px;resize:vertical}
+.corpo .campo:focus, .modal .campo:focus{outline:2px solid var(--accent);outline-offset:1px}
+.corpo button.lg-btn, .modal button.lg-btn{width:100%;margin-top:var(--e2);
+  padding:13px 16px;min-height:52px;font:inherit;font-size:15px;font-weight:600;
+  color:#fff;background:var(--navy-700);border:0;border-radius:var(--radius);cursor:pointer}
+.corpo button.lg-btn.claro, .modal button.lg-btn.claro{background:transparent;
+  color:var(--n500);border:1px solid var(--n300);font-weight:500;min-height:48px}
+.corpo button.lg-btn[disabled], .modal button.lg-btn[disabled]{opacity:.55}
+.corpo .msg, .modal .msg{border-radius:8px;padding:11px 12px;font-size:13.5px;
+  margin-top:var(--e2)}
+.corpo .msg.erro, .modal .msg.erro{background:#FBEAE8;color:var(--erro)}
+.corpo .msg.ok, .modal .msg.ok{background:#E8F2EC;color:var(--ok)}
+/* O FECHAR FICA NO TOPO, e grudado. Ele estava só no fim, depois da lista: num
+   acerto com dez viagens era preciso rolar a folha inteira para sair — e a
+   saída do modal não pode depender do tamanho do conteúdo. O de baixo
+   continua, para quem chegou ao fim lendo. */
+.mhead{position:sticky;top:calc(var(--e2) * -1);z-index:2;background:var(--n0);
+  margin:calc(var(--e2) * -1) calc(var(--e2) * -1) var(--e1);
+  padding:var(--e2) var(--e2) var(--e1);display:flex;align-items:flex-start;gap:var(--e1);
+  border-bottom:1px solid var(--n200)}
+.mhead h3{flex:1;min-width:0;margin:0}
+.mhead .sub{font-size:13px;color:var(--n500);margin-top:2px}
+.mx{flex:0 0 auto;min-width:44px;min-height:44px;border:0;background:transparent;
+  color:var(--n500);font:inherit;font-size:24px;line-height:1;cursor:pointer}
+/* A CONTA DO ACERTO. Cada parcela numa linha, com o sinal à mostra: é o que
+   transforma "deu 11.300" em "deu 11.300 PORQUE". O líquido repete em
+   destaque no fim, que é o número que ele foi conferir. */
+.mconta{margin-top:var(--e1)}
+.mconta .p{display:flex;justify-content:space-between;gap:var(--e1);
+  padding:7px 0;border-top:1px solid var(--n200);font-size:14px}
+.mconta .p:first-child{border-top:0}
+.mconta .p .n{font-family:var(--mono);white-space:nowrap}
+.mconta .p.tot{border-top:2px solid var(--n900);font-weight:800;margin-top:2px}
+.mconta .p.tot .n{font-size:17px}
+.mconta .p .rot{color:var(--n500)}
+.mconta .p.tot .rot{color:var(--n900)}
 </style>
 </head>
 <body class="entrando">
@@ -233,8 +316,15 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
 <div class="app" id="app" hidden>
   <div class="mestre" id="tarja-mestre" hidden></div>
   <div class="topo">
-    <h1 id="ag-nome">—</h1>
-    <div class="sub" id="ag-sub">—</div>
+    <div class="quem">
+      <h1 id="ag-nome">—</h1>
+      <div class="sub" id="ag-sub">—</div>
+    </div>
+    <button class="bconta" id="b-conta" type="button" aria-label="Minha conta">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="8.5" r="3.6"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/>
+      </svg><span>Conta</span>
+    </button>
   </div>
   <div class="velha" id="tarja-velha" hidden></div>
   <div class="corpo">
@@ -436,7 +526,28 @@ $("b-mestre").addEventListener("click", async () => {
           + " — refine a busca pelo nome.", "ok");
 });
 
-/* ───────────────────────────── o app ───────────────────────────── */
+/* ───────────────────────────── o app ─────────────────────────────
+
+   O TRAÇO DE CADA ABA. Desenho, e não emoji: emoji muda de cara em cada
+   aparelho e num app que fala de dinheiro vira enfeite fora de lugar. São os
+   mesmos traços do app do motorista — os dois apps são a mesma casa. */
+const ICON = {
+  resumo: "<path d='M4 20V11'/><path d='M10 20V4'/><path d='M16 20v-6'/><path d='M21 20H3'/>",
+  acertos: "<rect x='2.5' y='6' width='19' height='12' rx='2'/>"
+           + "<circle cx='12' cy='12' r='2.6'/><path d='M6 12h.01M18 12h.01'/>",
+  viagens: "<path d='M3 7h11v9H3z'/><path d='M14 10h4l3 3v3h-7z'/>"
+           + "<circle cx='7' cy='18' r='2'/><circle cx='17' cy='18' r='2'/>",
+  abastecimentos: "<path d='M4 20V5a1.5 1.5 0 0 1 1.5-1.5h6A1.5 1.5 0 0 1 13 5v15'/>"
+                  + "<path d='M3 20h11'/><path d='M13 9h3l2 2v6.5a1.5 1.5 0 0 1-3 0V13'/>"
+                  + "<path d='M6.5 8h4'/>",
+  lancamentos: "<path d='M6 3h9l4 4v14H6z'/><path d='M15 3v4h4'/>"
+               + "<path d='M9.5 13h5'/><path d='M12 10.5v5'/>",
+  ocorrencias: "<path d='M12 3l9 16H3z'/><path d='M12 9.5v4'/><path d='M12 16.5v.5'/>",
+  canal: "<path d='M4 5.5h16a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H10"
+         + "l-4.5 3.5V16.5H4A1.5 1.5 0 0 1 2.5 15V7A1.5 1.5 0 0 1 4 5.5Z'/>"
+         + "<path d='M7 9.5h10M7 12.5h6'/>",
+};
+
 const ABAS = [
   {id:"resumo",         rotulo:"Resumo",   url:"/api/agregado/resumo",         desenhar:desResumo},
   {id:"acertos",        rotulo:"Acertos",  url:"/api/agregado/acertos",        desenhar:desAcertos},
@@ -445,9 +556,20 @@ const ABAS = [
   {id:"lancamentos",    rotulo:"Extras",   url:"/api/agregado/lancamentos",    desenhar:desLanc},
   {id:"ocorrencias",    rotulo:"Ocorrên.", url:"/api/agregado/ocorrencias",    desenhar:desOcor},
   {id:"canal",          rotulo:"Falar",    url:"/api/agregado/conversas",      desenhar:desCanal},
-  {id:"conta",          rotulo:"Conta",    url:"",                             desenhar:desConta},
+  /* `conta` NÃO ENTRA NA BARRA. Ela é uma aba de verdade — seção própria, abre
+     pelo mesmo `abrirAba` —, só não ocupa um dos lugares do polegar: com ela na
+     barra eram OITO itens em 390px, 48px por alvo, e o rótulo já vinha cortado.
+     A barra é para o que se usa todo dia; conta e sair são de vez em quando.
+     Mesma decisão do app do motorista, pelo mesmo motivo. */
+  {id:"conta",          rotulo:"Conta",    url:"",  forade:true,               desenhar:desConta},
 ];
 let euAtual = {}, abaAtual = "resumo";
+
+/* O QUE CADA ABA TROUXE. O detalhe de viagem, diesel, extra, ocorrência e
+   veículo é feito do MESMO dado que a lista já recebeu — não há ida nova ao
+   servidor para abrir uma folha, e não há conta feita aqui: o modal mostra
+   campos que vieram prontos e que a linha não tinha espaço para dizer. */
+const DADOS = {};
 
 /* A ABA SOME QUANDO O SERVIDOR DIZ QUE A PESSOA NÃO TEM AQUILO. Por padrão
    ela aparece: só some com `false` explícito — item que não existe não pode
@@ -455,10 +577,12 @@ let euAtual = {}, abaAtual = "resumo";
 function montarBarra(secoes){
   const nav = $("navbar");
   nav.innerHTML = "";
-  ABAS.filter((a) => a.id === "resumo" || a.id === "conta" || secoes[a.id] !== false)
+  ABAS.filter((a) => !a.forade && (a.id === "resumo" || secoes[a.id] !== false))
       .forEach((a) => {
     const b = document.createElement("button");
-    b.type = "button"; b.textContent = a.rotulo; b.dataset.aba = a.id;
+    b.type = "button"; b.dataset.aba = a.id;
+    b.innerHTML = "<svg viewBox='0 0 24 24' aria-hidden='true'>" + (ICON[a.id] || "")
+      + "</svg><span>" + esc(a.rotulo) + "</span>";
     b.addEventListener("click", () => abrirAba(a.id));
     nav.appendChild(b);
   });
@@ -471,6 +595,15 @@ async function abrirAba(id){
     if(b.dataset.aba === id) b.setAttribute("aria-current", "page");
     else b.removeAttribute("aria-current");
   });
+  /* A CONTA SE ACENDE NO CABEÇALHO, já que ela não tem lugar na barra: sem
+     isto, quem abre a conta fica sem nenhum item aceso e a tela parece ter
+     perdido o rumo. */
+  const bc = $("b-conta");
+  if(bc){
+    if(id === "conta") bc.setAttribute("aria-current", "page");
+    else bc.removeAttribute("aria-current");
+  }
+  window.scrollTo(0, 0);
   const aba = ABAS.find((a) => a.id === id);
   if(!aba) return;
   const alvo = $("tela-" + id);
@@ -485,6 +618,7 @@ async function abrirAba(id){
   $("tarja-velha").hidden = !r.velha;
   if(r.velha) $("tarja-velha").textContent =
     "Mostrando a última leitura boa do sistema — pode estar desatualizada.";
+  DADOS[id] = r.dados || {};
   aba.desenhar(alvo, r.dados || {});
 }
 
@@ -580,11 +714,9 @@ function desAcertos(alvo, d){
 }
 
 async function abrirAcerto(ref){
-  const box = $("modalBox");
-  box.innerHTML = "<h3>Acerto</h3>" + vazio("carregando…");
-  $("modalBg").classList.add("aberto");
+  abrirFolha("Acerto", "", vazio("carregando…"));
   const r = await pedir("/api/agregado/acertos/" + ref);
-  if(!r.ok){ box.innerHTML = "<h3>Acerto</h3>" + vazio(r.mensagem); return; }
+  if(!r.ok){ abrirFolha("Acerto", "", vazio(r.mensagem) + fecharPe()); return; }
   const d = r.dados || {}, a = d.acerto || {};
   const bloco = (titulo, itens, desc) => {
     if(!itens || !itens.length) return "";
@@ -592,50 +724,160 @@ async function abrirAcerto(ref){
       + itens.map((i) => linha(esc(desc(i)), esc(dia(i.emissao)
           + (i.placa ? " · " + i.placa : "")), reais(i.valor))).join("");
   };
-  box.innerHTML = "<h3>Acerto " + esc(String(d.numero)) + "</h3>"
-    + '<div class="linha"><div class="esq"><div class="t">Líquido</div>'
-    + '<div class="s">emitido ' + dia(a.emissao) + (a.fechado ? " · fechado" : " · em aberto")
-    + '</div></div><div class="val">' + reais(a.liquido) + "</div></div>"
+  /* A CONTA DO ACERTO, e não só o líquido. A pergunta de quem abre um acerto
+     não é "quanto deu" — a lista já disse — é "POR QUE deu isso". As cinco
+     parcelas vêm somadas do ERP, pelo servidor: a página não soma nada, senão
+     o total daqui poderia discordar do total de lá. */
+  const conta = folhaConta([
+    parcela("Bruto das viagens", reais(a.bruto)),
+    a.despesas ? parcela("Despesas", "− " + reais(a.despesas)) : "",
+    a.adiantamentos ? parcela("Adiantamentos", "− " + reais(a.adiantamentos)) : "",
+    a.descontos ? parcela("Descontos", "− " + reais(a.descontos)) : "",
+    a.acrescimos ? parcela("Acréscimos", "+ " + reais(a.acrescimos)) : "",
+    parcela("Líquido a receber", reais(a.liquido), "tot"),
+  ]);
+  abrirFolha("Acerto " + String(d.numero),
+    "emitido " + dia(a.emissao) + (a.fechado ? " · fechado" : " · em aberto"),
+    conta
     + bloco("Viagens", d.viagens, (i) => "Viagem " + (i.viagem || i.documento || ""))
     + bloco("Despesas", d.despesas, (i) => i.tipo || "Despesa")
     + bloco("Adiantamentos", d.adiantamentos, (i) => "Adiantamento " + (i.documento || ""))
     + bloco("Descontos", d.descontos, (i) => "Desconto " + (i.documento || ""))
-    + '<button class="lg-btn" type="button" onclick="fecharModal()">Fechar</button>';
+    + fecharPe());
 }
 function fecharModal(){ $("modalBg").classList.remove("aberto"); }
 
+/* ─────────────────────── a folha de detalhe ───────────────────────
+   UMA FUNÇÃO PARA TODAS AS FOLHAS. Enquanto cada modal montava o próprio
+   cabeçalho, o do acerto e o do pedido já divergiam — e o botão de fechar
+   morava só no FIM, depois da lista: num acerto com dez viagens era preciso
+   rolar a folha inteira para sair. Sair de uma tela não pode depender do
+   tamanho do conteúdo dela. */
+function abrirFolha(titulo, sub, corpo){
+  const box = $("modalBox");
+  box.innerHTML = '<div class="mhead"><div style="flex:1;min-width:0">'
+    + "<h3>" + esc(titulo) + "</h3>"
+    + (sub ? '<div class="sub">' + esc(sub) + "</div>" : "")
+    + '</div><button class="mx" type="button" aria-label="Fechar"'
+    + ' onclick="fecharModal()">&times;</button></div>' + corpo;
+  $("modalBg").classList.add("aberto");
+  try{ box.focus(); }catch(e){}
+}
+/* `val` chega PRONTO de quem chama (`reais`, `num`, `esc`): formatar aqui
+   dentro obrigaria esta função a saber o que cada número é. */
+function parcela(rot, val, cls){
+  return '<div class="p' + (cls ? " " + cls : "") + '"><div class="rot">'
+    + esc(rot) + '</div><div class="n">' + val + "</div></div>";
+}
+const folhaConta = (itens) => '<div class="mconta">' + itens.filter(Boolean).join("") + "</div>";
+const fecharPe = () => '<button class="lg-btn claro" type="button" '
+  + 'onclick="fecharModal()">Fechar</button>';
+/* A LISTA APONTA PARA O ÍNDICE do que o servidor mandou, e não carrega o
+   objeto num atributo: `JSON.stringify` dentro de atributo HTML quebra a
+   página inteira quando o texto tem aspas — e observação de lançamento tem. */
+const itemAbrir = (i, dentro) =>
+  '<button class="abrir" type="button" data-idx="' + i + '">' + dentro + "</button>";
+function ligarItens(alvo, fn){
+  alvo.querySelectorAll("[data-idx]").forEach((b) => {
+    b.addEventListener("click", () => fn(Number(b.dataset.idx)));
+  });
+}
+
+function abrirViagem(i){
+  const v = ((DADOS.viagens || {}).viagens || [])[i];
+  if(!v) return;
+  abrirFolha("Viagem " + (v.viagem || ""),
+    (v.placa || "—") + " · " + dia(v.emissao), folhaConta([
+      parcela("Origem", esc(v.origem || "—")),
+      parcela("Destino", esc(v.destino || "—")),
+      parcela("Quilômetros", num(v.km, 0) + " km"),
+      v.vazio ? parcela("Tipo", "viagem vazia") : "",
+      parcela("Frete pago a você", reais(v.valor), "tot"),
+    ]) + fecharPe());
+}
+
+function abrirAbastec(i){
+  const a = ((DADOS.abastecimentos || {}).abastecimentos || [])[i];
+  if(!a) return;
+  /* PREÇO POR LITRO E ODÔMETRO só aparecem aqui: eles vinham do servidor desde
+     o primeiro dia e a linha não tinha onde dizê-los. São as duas coisas que o
+     dono confere quando desconfia de um abastecimento. */
+  abrirFolha("Abastecimento", (a.placa || "—") + " · " + dia(a.data), folhaConta([
+      parcela("Litros", num(a.litros, 1) + " L"),
+      a.preco_litro ? parcela("Preço por litro", reais(a.preco_litro)) : "",
+      a.odometro ? parcela("Odômetro", num(a.odometro, 0) + " km") : "",
+      a.km_litro ? parcela("Média do abastecimento", num(a.km_litro, 2) + " km/L") : "",
+      parcela("Total", reais(a.valor), "tot"),
+    ]) + fecharPe());
+}
+
+function abrirLanc(i){
+  const l = ((DADOS.lancamentos || {}).lancamentos || [])[i];
+  if(!l) return;
+  abrirFolha(l.tipo || "Lançamento", (l.placa || "—") + " · " + dia(l.data), folhaConta([
+      parcela("Situação", l.aprovado ? "aprovado — entra no acerto"
+                                     : "aguardando aprovação da Sulista"),
+      l.observacao ? parcela("Observação", esc(l.observacao)) : "",
+      parcela("Valor", reais(l.valor), "tot"),
+    ]) + fecharPe());
+}
+
+function abrirOcor(i){
+  const o = ((DADOS.ocorrencias || {}).ocorrencias || [])[i];
+  if(!o) return;
+  abrirFolha(o.ocorrencia || "Ocorrência", diaHora(o.quando), folhaConta([
+      parcela("Placa", esc(o.placa || "—")),
+      parcela("Coleta", esc(String(o.coleta || "—"))),
+    ]) + '<p class="conta">Se esta ocorrência não confere, abra um pedido na '
+       + "aba Falar dizendo o número da coleta.</p>" + fecharPe());
+}
+
+function abrirVeiculo(i){
+  const v = (DADOS.veiculos || [])[i];
+  if(!v) return;
+  abrirFolha(v.placa || "Veículo",
+    [v.marca, v.modelo].filter(Boolean).join(" ") || "", folhaConta([
+      v.frota ? parcela("Frota", esc(String(v.frota))) : "",
+      v.tipo ? parcela("Tipo", esc(v.tipo)) : "",
+      v.ano ? parcela("Ano", esc(String(v.ano))) : "",
+      parcela("Situação", v.ativo ? "ativo" : "inativo"),
+    ]) + fecharPe());
+}
+
 function desViagens(alvo, d){
   const linhas = d.viagens || [];
-  const corpo = linhas.length ? linhas.map((v) => linha(
+  const corpo = linhas.length ? linhas.map((v, i) => itemAbrir(i, linha(
       esc(v.placa || "—") + " · " + esc(v.origem) + " → " + esc(v.destino),
       dia(v.emissao) + " · " + num(v.km, 0) + " km" + (v.vazio ? " · vazio" : ""),
-      reais(v.valor))).join("")
+      reais(v.valor)))).join("")
     : vazio("Nenhuma viagem no período.");
   alvo.innerHTML = cartao("Viagens", corpo + '<div class="conta">'
     + esc(conta(d, plural(d.total, "viagem", "viagens"))
       + (d.total ? " · " + num(d.km, 0) + " km · " + reais(d.valor) : "")) + "</div>");
+  ligarItens(alvo, abrirViagem);
 }
 
 function desAbastec(alvo, d){
   const linhas = d.abastecimentos || [];
-  const corpo = linhas.length ? linhas.map((a) => linha(
+  const corpo = linhas.length ? linhas.map((a, i) => itemAbrir(i, linha(
       esc(a.placa || "—"), dia(a.data) + " · " + num(a.litros, 1) + " L"
         + (a.km_litro ? " · " + num(a.km_litro, 2) + " km/L" : ""),
-      reais(a.valor))).join("")
+      reais(a.valor)))).join("")
     : vazio("Nenhum abastecimento no período.");
   alvo.innerHTML = cartao("Abastecimentos", corpo + '<div class="conta">'
     + esc(conta(d, plural(d.total, "abastecimento", "abastecimentos"))
       + (d.total ? " · " + num(d.litros, 0) + " L · " + reais(d.valor) : "")) + "</div>");
+  ligarItens(alvo, abrirAbastec);
 }
 
 function desLanc(alvo, d){
   const linhas = d.lancamentos || [];
-  const corpo = linhas.length ? linhas.map((l) => linha(
+  const corpo = linhas.length ? linhas.map((l, i) => itemAbrir(i, linha(
       esc(l.tipo || "Lançamento"), dia(l.data) + " · " + esc(l.placa || "—")
         + (l.observacao ? " · " + esc(l.observacao) : ""),
       reais(l.valor),
       l.aprovado ? '<span class="tag ok">aprovado</span>'
-                 : '<span class="tag aviso">aguardando</span>')).join("")
+                 : '<span class="tag aviso">aguardando</span>'))).join("")
     : vazio("Nenhum lançamento no período.");
   /* A MULTA É DITA AQUI, e não vira aba com zero: a Smartec — que abastece a
      tela de multas da casa — cobre a frota própria, e não o agregado (medido:
@@ -645,18 +887,20 @@ function desLanc(alvo, d){
     + esc(conta(d, plural(d.total, "lançamento", "lançamentos"))) + "</div>")
     + cartao("Multas", vazio("Multa de veículo agregado não é lançada aqui: ela "
       + "aparece como desconto no acerto. Fale com a Sulista se não encontrar."));
+  ligarItens(alvo, abrirLanc);
 }
 
 function desOcor(alvo, d){
   const linhas = d.ocorrencias || [];
-  const corpo = linhas.length ? linhas.map((o) => linha(
+  const corpo = linhas.length ? linhas.map((o, i) => itemAbrir(i, linha(
       esc(o.ocorrencia || "Ocorrência"),
       diaHora(o.quando) + " · " + esc(o.placa || "—") + " · coleta " + esc(String(o.coleta)),
-      "")).join("")
+      ""))).join("")
     : vazio("Nenhuma ocorrência no período.");
   alvo.innerHTML = cartao("Ocorrências", corpo + '<div class="conta">'
     + esc(conta(d, plural(d.total, "ocorrência", "ocorrências"))
       + " · motivo de atraso e ocorrência interna") + "</div>");
+  ligarItens(alvo, abrirOcor);
 }
 
 /* ─────────────────── o canal com o setor de agregados ───────────────────
@@ -770,16 +1014,18 @@ async function desConta(alvo){
   alvo.innerHTML = '<div class="card"><div class="vazio">carregando…</div></div>';
   const r = await pedir("/api/agregado/veiculos");
   const d = (r.ok && r.dados) || {};
-  const veic = (d.veiculos || []).map((v) => linha(
+  DADOS.veiculos = d.veiculos || [];
+  const veic = (d.veiculos || []).map((v, i) => itemAbrir(i, linha(
     esc(v.placa), [v.marca, v.modelo, v.ano].filter(Boolean).map(esc).join(" · ") || "&nbsp;",
     v.ativo ? '<span class="tag ok">ativo</span>' : '<span class="tag aviso">inativo</span>'
-  )).join("") || vazio("Nenhum veículo no seu cadastro.");
+  ))).join("") || vazio("Nenhum veículo no seu cadastro.");
   alvo.innerHTML = cartao("Meus veículos", veic)
     + cartao("Conta", '<div class="linha"><div class="esq"><div class="t">'
       + esc(euAtual.nome || "") + '</div><div class="s">'
       + (euAtual.mestre ? "acesso da administração" : "acesso pelo seu celular")
       + "</div></div></div>"
       + '<button class="lg-btn" id="b-sair" type="button">Sair deste aparelho</button>');
+  ligarItens(alvo, abrirVeiculo);
   const b = $("b-sair");
   if(b) b.addEventListener("click", async () => {
     await pedir("/api/agregado/sair", {method:"POST", body:"{}"});
@@ -790,6 +1036,10 @@ async function desConta(alvo){
 
 /* ───────────────────────────── boot ───────────────────────────── */
 document.addEventListener("keydown", (e) => { if(e.key === "Escape") fecharModal(); });
+/* A CONTA ABRE PELO CABEÇALHO — é a contrapartida de ela ter saído da barra.
+   O ouvinte fica aqui, e não dentro de `montarBarra`: a barra se remonta a
+   cada entrada, e um ouvinte lá seria empilhado de novo a cada vez. */
+$("b-conta").addEventListener("click", () => abrirAba("conta"));
 anelLigar();
 (async function(){
   /* Quem já tem sessão entra direto: o cookie é HttpOnly, então a única forma

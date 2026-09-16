@@ -80,6 +80,36 @@ def test_o_detalhe_do_acerto_poe_o_dono_no_where_junto_do_numero():
         assert "cnpjcpfcodigoveiculo, '')) = %(cod)s" in sql, nome
 
 
+def test_a_consulta_INLINE_do_cabecalho_do_acerto_tambem_e_presa_ao_dono():
+    """O cabeçalho do detalhe é SQL escrito dentro da função, e por isso ele
+    escapa das duas varreduras deste arquivo — elas colhem constantes `*_SQL`
+    do módulo, e esta consulta não é uma.
+
+    Guard que varre por padrão de nome protege o que segue o padrão; o que fica
+    de fora não tem sintoma nenhum. Aqui o que está em jogo é o extrato
+    financeiro de outro dono, então a consulta inline leva conferência própria:
+    o escopo no WHERE junto do número, e nenhuma coluna da receita da casa.
+    """
+    fonte = ast.parse(FONTE)
+    alvo = next(f for f in ast.walk(fonte)
+                if isinstance(f, ast.FunctionDef) and f.name == "acerto_detalhe")
+    literais = [n.value for n in ast.walk(alvo)
+                if isinstance(n, ast.Constant) and isinstance(n.value, str)
+                and "SELECT" in n.value]
+    assert len(literais) == 1, "mudou o número de consultas inline aqui: confira cada uma"
+    sql = literais[0]
+    assert "a.numero = %(numero)s" in sql
+    assert "cnpjcpfcodigoveiculo, '')) = %(cod)s" in sql
+    assert not re.search(r"valorfrete(?!compra)", sql)
+    # A COMPOSIÇÃO DO ACERTO — as cinco parcelas que respondem "por que deu
+    # isso?". Sem elas o modal mostra só o líquido, que é o número que a lista
+    # já tinha dado.
+    for coluna in ("valortotalfaturamento", "valortotaldescontos",
+                   "valortotaladiantamento", "valortotaldespesas",
+                   "valortotalacrescimos", "valorpagarparaagregado"):
+        assert coluna in sql, coluna
+
+
 def test_nenhuma_funcao_publica_recebe_o_dono_como_parametro():
     """O escopo vem da SESSÃO. Uma função que aceita o dono como argumento é
     uma função que um dia é chamada com o dono errado — e o defeito é mudo."""

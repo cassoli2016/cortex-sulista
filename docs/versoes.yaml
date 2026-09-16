@@ -1,3 +1,37 @@
+- versao: "1.102.0"
+  data: "2026-09-16"
+  adicionado:
+    - >-
+      App do agregado — agora dá para tocar em qualquer linha e ver o detalhe.
+      A viagem abre com origem, destino, quilômetros e o frete pago; o
+      abastecimento abre com litros, PREÇO POR LITRO, odômetro e a média do
+      abastecimento; o lançamento abre com a observação e se já foi aprovado;
+      a ocorrência abre com a placa e o número da coleta; e o veículo, na
+      Conta, abre com marca, modelo, ano e número de frota. Até aqui só o
+      acerto abria — o resto era lista sem saída, e o preço por litro e o
+      odômetro nem apareciam em lugar nenhum.
+    - >-
+      App do agregado — o acerto mostra a conta inteira: bruto das viagens,
+      despesas, adiantamentos, descontos e acréscimos, até o líquido a
+      receber. A pergunta de quem abre um acerto não é "quanto deu" (a lista
+      já diz), é "por que deu isso".
+    - >-
+      App do agregado — a barra de baixo ficou mais fácil de acertar com o
+      dedo: cada item ganhou um desenho e "Conta" saiu dela, virando um botão
+      no alto da tela. Eram oito itens espremidos num celular comum; agora são
+      sete, cada um com mais espaço e com o desenho dizendo o assunto.
+  corrigido:
+    - >-
+      App do agregado — a janela de detalhe passa a ter o "fechar" no alto,
+      sempre à vista. Num acerto com muitas viagens era preciso rolar a janela
+      inteira até o fim para conseguir sair.
+    - >-
+      App do agregado — os botões e os campos dentro do aplicativo voltam a ter
+      a aparência da casa. "Sair deste aparelho" e o formulário de "Falar com a
+      Sulista" (escolher o assunto, escrever e enviar) apareciam pequenos e
+      desalinhados, com a aparência crua do navegador, e a caixa de escrever
+      não tinha altura para o dedo.
+
 - versao: "1.101.0"
   data: "2026-09-16"
   adicionado:
