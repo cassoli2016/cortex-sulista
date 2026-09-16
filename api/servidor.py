@@ -1380,6 +1380,12 @@ def _servico_tress() -> dict:
     return {"nome": nome, "status": "ok", "detalhe": detalhe}
 
 
+def _data_br(iso: str | None) -> str:
+    """'2026-07-11' -> '11/07/2026'; o que não for data ISO volta como veio."""
+    t = str(iso or "")
+    return f"{t[8:10]}/{t[5:7]}/{t[:4]}" if len(t) >= 10 and t[4] == "-" else (t or "?")
+
+
 def _servico_smartec() -> dict:
     """A Smartec está chegando — e o acesso ao SNE ainda vale?
 
@@ -1428,11 +1434,28 @@ def _servico_smartec() -> dict:
               if a.get("servico") == "sne" and a.get("dias") is not None]
     pior = min(piores, key=lambda a: a["dias"]) if piores else None
 
+    # O feed da ANTT parado se lê à parte (o porquê dos 45 dias está em
+    # `smartec.leitura.ANTT_SEM_LOTE_DIAS`) — e vai junto até no vermelho de
+    # OUTRO recurso: em 16/09/2026 `restricoes` falhava e o cartão já estava
+    # vermelho por isso, e um return seco escondia a ANTT parada havia dois
+    # meses. Se é a PRÓPRIA coleta da ANTT que falha, o feed não diz nada.
+    feed = e.get("antt_feed") or {}
+    antt_parada = ""
+    if feed.get("parada"):
+        antt_parada = (f"nenhuma autuação da ANTT emitida há "
+                       f"{feed['dias_sem_lote']} dias (última em "
+                       f"{_data_br(feed.get('ultima_emissao'))}; limite "
+                       f"{feed.get('limite_dias')}) — confirmar com a Smartec "
+                       f"ou no portal da ANTT")
+
     falhando = e.get("falhando") or []
     if falhando:
         quais = ", ".join(f["recurso"] for f in falhando)
+        junto = ("" if not antt_parada
+                 or any(f["recurso"] == "antt" for f in falhando)
+                 else f" · {antt_parada}")
         return {"nome": nome, "status": "erro",
-                "detalhe": f"última coleta de {quais} falhou"}
+                "detalhe": f"última coleta de {quais} falhou{junto}"}
 
     if pior and pior["dias"] < 0:
         return {"nome": nome, "status": "erro",
@@ -1455,11 +1478,22 @@ def _servico_smartec() -> dict:
         except Exception:  # noqa: BLE001
             idade = ""
 
+    # Os dois amarelos se SOMAM em vez de um calar o outro: SNE vencendo e
+    # ANTT parada são problemas de donos diferentes (renovar certificado ×
+    # cobrar o fornecedor), e o primeiro return esconderia o segundo.
+    avisos = []
     if pior and pior["dias"] <= 30:
+        avisos.append(f"acesso ao SNE vence em {pior['dias']} dias "
+                      f"(CNPJ …{str(pior.get('cnpj') or '')[-6:]}) — "
+                      f"renovar o e-CNPJ")
+    # O FEED DA ANTT PAROU, com a coleta sã. Amarelo e não vermelho: a nossa
+    # rotina está chegando (as checagens acima já teriam acusado), e o que
+    # falta é o fornecedor trazer lote novo — pergunta a ele, não defeito aqui.
+    if antt_parada:
+        avisos.append(antt_parada)
+    if avisos:
         return {"nome": nome, "status": "alerta",
-                "detalhe": f"acesso ao SNE vence em {pior['dias']} dias "
-                           f"(CNPJ …{str(pior.get('cnpj') or '')[-6:]}) — "
-                           f"renovar o e-CNPJ{idade}"}
+                "detalhe": " · ".join(avisos) + idade}
 
     n = sum(int(r.get("itens") or 0) for r in e["recursos"])
     extra = (f" · SNE ok por {pior['dias']} dias" if pior else

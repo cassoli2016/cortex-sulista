@@ -189,6 +189,10 @@ def kpis(esquema: str | None = None, placa: str | None = None) -> dict:
         "acessos": [dict(a) for a in acessos],
         "licencas": dict(lic),
         "antt": dict(antt),
+        # O alarme do feed é da EMPRESA, não do veículo: com placa filtrada,
+        # "esta placa não recebe autuação há 60 dias" é boa notícia, e
+        # recortá-lo acenderia o alarme em toda placa comportada.
+        "antt_feed": antt_feed(esq),
         "desde": alcance.get("desde"),
     }
 
@@ -639,6 +643,50 @@ def cargas(limite: int = 30, esquema: str | None = None) -> list[dict]:
     """, {"limite": limite}, esquema=esq)]
 
 
+# ═══════════════════════════════════════════ o feed da ANTT parou de chegar?
+#
+# A COLETA PODE ESTAR SÃ E O FEED PARADO, e só a segunda coisa importa para
+# quem paga multa. Em 14/09 e 16/09/2026 chegaram de FORA (advogado e quem
+# opera) 12 autos de Piso Mínimo que a Smartec nunca trouxe — infrações de
+# 28/05 a 02/09 —, com a coleta rodando 2×/dia em "ok", a API ao vivo
+# respondendo o conjunto inteiro (209) e a emissão mais recente parada em
+# 11/07. A tela dizia "lacunas de um a dois meses são normais" e ninguém
+# desconfiou por dois meses.
+#
+# POR QUE 45 DIAS, e o que ele NÃO distingue. Os intervalos entre emissões
+# consecutivas do que temos (medido em 16/09/2026) são quase todos de 7 a 28
+# dias, com três exceções: 70 (jun→ago/25), 56 (out→dez/25) e 86 (abr→jul/26).
+# A série só tem autuação EM ABERTO — a paga some da API — e por isso lacuna
+# antiga parece maior do que foi; nenhuma das três se pode afirmar natural.
+# 45 dias é a decisão de quem opera, tomada com isso na mesa: prefere um
+# alarme que talvez acenda por lacuna real a mais dois meses sem saber.
+# Alarme aceso é pergunta ao fornecedor (ou ao portal da ANTT), não veredito.
+ANTT_SEM_LOTE_DIAS = 45
+
+
+def antt_feed(esquema: str | None = None) -> dict:
+    """Há quantos dias a Smartec não traz autuação da ANTT emitida.
+
+    Mede a EMISSÃO (a data por que o endpoint filtra), nunca a infração — a
+    ANTT emite meses depois do fato. Sem nenhuma autuação na base não há o
+    que envelhecer: `parada` fica falso e `ultima_emissao` nulo, e quem lê diz
+    "nada emitido ainda" em vez de acender alarme numa conta sem autuação.
+    Calculado na leitura, nunca gravado: estado que envelhece sozinho.
+    """
+    r = pglocal.um("""
+        SELECT max(data_emissao)::text AS ultima_emissao,
+               (current_date - max(data_emissao))::int AS dias_sem_lote
+          FROM smt_antt
+    """, esquema=_esq(esquema)) or {}
+    dias = r.get("dias_sem_lote")
+    return {
+        "ultima_emissao": r.get("ultima_emissao"),
+        "dias_sem_lote": dias,
+        "limite_dias": ANTT_SEM_LOTE_DIAS,
+        "parada": dias is not None and dias > ANTT_SEM_LOTE_DIAS,
+    }
+
+
 def estado(esquema: str | None = None) -> dict:
     """O resumo que a Saúde do Servidor lê.
 
@@ -667,6 +715,7 @@ def estado(esquema: str | None = None) -> dict:
         "recursos": [dict(r) for r in ultimas],
         "falhando": falhando,
         "acessos": [dict(a) for a in acessos],
+        "antt_feed": antt_feed(esq),
     }
 
 

@@ -156,6 +156,42 @@ def test_a_aba_da_ANTT_separa_da_multa_de_transito(tela):
     assert "FELVP00382452026" in txt
 
 
+
+def _cartao_do_lote(tela):
+    tela.click("#tabsmt-antt")
+    tela.wait_for_selector("#aba-smtantt:not([hidden])")
+    cartao = tela.locator("#kpis-smtantt .kpi", has_text="Último lote da ANTT")
+    assert cartao.count() == 1, "o cartão do último lote sumiu da aba ANTT"
+    return cartao
+
+
+@pytest.mark.parametrize("parada", [True, False])
+def test_o_feed_da_ANTT_parado_fica_VERMELHO_na_tela(pagina, base_url, payload,
+                                                     parada):
+    """O veredito vem pronto do servidor (`kpis.antt_feed`); a tela só o
+    pinta. Os dois lados no mesmo teste: sem o `False`, um cartão sempre
+    vermelho passaria."""
+    import copy
+    corpo = copy.deepcopy(payload)
+    corpo["kpis"]["antt_feed"] = {
+        "ultima_emissao": "2026-07-11", "dias_sem_lote": 67 if parada else 20,
+        "limite_dias": 45, "parada": parada}
+    _rotear(pagina, corpo)
+    pagina.goto(f"{base_url}/static/index.html#mul")
+    pagina.wait_for_selector("#view-mul.on", timeout=15000)
+    pagina.wait_for_function(
+        "document.querySelectorAll('#kpis-smtantt .kpi').length > 0", timeout=15000)
+    cartao = _cartao_do_lote(pagina)
+    txt = cartao.inner_text()
+    assert "11/07/2026" in txt
+    classes = cartao.get_attribute("class").split()
+    if parada:
+        assert "bad" in classes, classes
+        assert "acima de 45" in txt, txt
+    else:
+        assert "bad" not in classes, classes
+        assert "acima de" not in txt, txt
+
 def test_a_placa_da_barra_chega_as_abas_da_smartec(tela):
     """O campo Placa chamava só `loadMulErp`: as duas abas do ERP obedeciam e
     as seis da Smartec seguiam com a frota inteira sob o campo preenchido.

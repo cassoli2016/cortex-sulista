@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.100.0] — 16/09/2026  ·  CX-16/09/2026-v1.100.0
+
+### Adicionado
+- Frota › Multas › ANTT — alarme de autuação que parou de chegar. O cartão "Último lote da ANTT" fica vermelho quando a Smartec passa mais de 45 dias sem trazer nenhuma autuação emitida, e diz isso por extenso. Vale para a empresa inteira, mesmo com uma placa filtrada. Até aqui a tela chamava de normal uma lacuna de um a dois meses, e a Smartec passou dois meses sem trazer os autos de Piso Mínimo enquanto a ANTT seguia emitindo: eles só apareceram porque chegaram por fora. Vermelho ali é pergunta à Smartec ou ao portal da ANTT, não prova de que parou.
+- Saúde do Servidor — o cartão da Smartec avisa do mesmo jeito, e o aviso não some atrás de outro: aparece junto com o vencimento do acesso ao SNE e junto com a falha de coleta de outro recurso.
+
 ## [1.99.1] — 16/09/2026  ·  CX-16/09/2026-v1.99.1
 
 ### Corrigido

@@ -27714,16 +27714,26 @@ function renderSmt(d){
            tinha morrido; ela respondia em um segundo.
            A data da infração continua à vista, ao lado, porque ela responde
            OUTRA pergunta — quando a operação errou pela última vez. */
-        const ult=an.ultima||null;
-        const dias=ult? Math.round((new Date()-new Date(ult+'T00:00:00'))/86400000) : null;
+        /* O ALARME É DA EMPRESA, NÃO DA PLACA (antt_feed vem sem o filtro):
+           com placa filtrada, "esta placa não é autuada há 60 dias" é boa
+           notícia. O veredito (parada, limite) é do servidor — 45 dias, e o
+           porquê está em api/smartec/leitura.py (ANTT_SEM_LOTE_DIAS). Em
+           16/09/2026 o feed estava parado desde 11/07 com a coleta verde, e
+           os autos chegavam por fora. */
+        const fd=k.antt_feed||{};
+        const ult=fd.ultima_emissao||null;
+        const dias=fd.dias_sem_lote;
+        const lim=fd.limite_dias||45;
         const inf=an.ultima_infracao||null;
         return kpi('Último lote da ANTT', ult? fmtD(ult) : '—',
-          (dias!=null? ('emitido há '+ni(dias)+' dia'+(dias===1?'':'s')) : 'nada emitido ainda')
+          (dias!=null? ('emitido há '+ni(dias)+' dia'+(dias===1?'':'s')
+                        +(fd.parada? (' · acima de '+ni(lim)+' — conferir com a Smartec') : ''))
+                     : 'nada emitido ainda')
             + (inf? (' · infração mais recente '+fmtD(inf)) : ''),
-          dias!=null&&dias>90?'warn':'',
-          'Data de EMISSÃO do PDF mais recente (max(data_emissao) de smt_antt) — é por ela que o endpoint filtra, e é ela que diz se o feed está vivo. NÃO confunda com a data da infração: a ANTT emite meses depois do fato'
+          fd.parada?'bad':'',
+          'Data de EMISSÃO do PDF mais recente da empresa inteira (max(data_emissao) de smt_antt, sem o filtro de placa) — é por ela que o endpoint filtra, e é ela que diz se o feed está vivo. NÃO confunda com a data da infração: a ANTT emite meses depois do fato'
             + (an.atrasada_dias!=null? (' (hoje a distância entre as duas é de '+ni(an.atrasada_dias)+' dias)') : '')
-            + '. Lacunas de um a dois meses são normais nesta fonte — o gráfico mensal ao lado mostra o padrão, e a linha antt em Cobertura e coleta diz quando a coleta rodou pela última vez.');
+            + '. Fica VERMELHO com mais de '+ni(lim)+' dias sem lote novo: em set/2026 a Smartec ficou dois meses sem trazer autuação enquanto a ANTT seguia emitindo, e a coleta continuava verde. Vermelho aqui é pergunta ao fornecedor ou ao portal da ANTT, não prova de que parou — a linha antt em Cobertura e coleta diz se a NOSSA coleta rodou.');
       })();
 
   /* ── KPIs: COBERTURA ───────────────────────────────────────────────────*/
