@@ -1965,6 +1965,79 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
 #view-tvope .tv-head .tv-beat{font-size:clamp(14px,1.5vw,30px);gap:0.4em}
 #view-tvope .tv-head .tv-beat i{width:0.45em;height:0.45em}
 
+/* PAINEL DE TV DO RH (tvrh). Tres laminas no trilho da produtividade
+   (.tvp-janela/.tvp-trilho). Classes com prefixo `tv-`: a auditoria de
+   superficies isenta a TV pelo NOME. Parte-do-todo e BARRA, nunca rosca. */
+#view-tvrh .tv-head{margin-bottom:0.7vw}
+#view-tvrh .tv-head h2{font-size:clamp(16px,1.5vw,30px)}
+#view-tvrh .tv-head .tv-clock{font-size:clamp(16px,1.5vw,30px)}
+#view-tvrh .tv-head .tv-next{font-size:clamp(14px,1.5vw,30px) !important}
+/* O RELÓGIO NASCE VAZIO e só ganha texto no primeiro tique (1 s): a linha
+   do cabeçalho crescia 7 px DEPOIS da carga, a parede encolhia, e a lista
+   cortada na altura antiga voltava a esconder meia linha sem contador. A
+   linha fica reservada desde o primeiro pixel. */
+#view-tvrh .tv-head .tv-clock:empty::before,#view-tvrh .tv-head .tv-next:empty::before{content:"\00a0"}
+.tv-rh-gente{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:1fr 1fr}
+.tv-rh-seg{grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:1.05fr 0.85fr 1.1fr}
+.tv-rh-seg .tv-rh-dois{grid-column:span 2}
+.tv-rh-seg .tv-rh-todo{grid-column:1/-1}
+.tv-rh-ind{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:1fr 1fr}
+#view-tvrh .tvw .tv-label{font-size:clamp(10px,0.85vw,17px)}
+#view-tvrh .tvw .tv-num{font-size:clamp(22px,2.6vw,56px)}
+#view-tvrh .tvw .tv-sub{font-size:clamp(10px,0.8vw,15px);margin-top:0.2vw}
+#view-tvrh .tv-rh-grande{font-size:clamp(34px,5.2vw,110px) !important;line-height:1}
+.tv-rh-topo{display:flex;align-items:flex-end;gap:1.6vw;flex-wrap:nowrap}
+/* cartão de UM número: ele ocupa o centro, não o canto de um vão escuro */
+.tv-rh-centro{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:0.4vw}
+.tv-rh-centro .tv-rh-topo{align-items:center;gap:3vw}
+#view-tvrh .tv-rh-centro .tv-sub{font-size:clamp(11px,1vw,20px)}
+.tv-rh-topo>div{min-width:0}
+.tv-rh-bars{display:flex;flex-direction:column;justify-content:space-evenly;flex:1;min-height:0;gap:0.35vw}
+.tv-rh-bar{display:grid;grid-template-columns:minmax(0,10vw) minmax(0,1fr) 4.2vw;align-items:center;gap:0.7vw;
+  font-size:clamp(11px,1.05vw,21px);color:#C7D4E0}
+.tv-rh-bar b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tv-rh-bar .tv-rh-trk{height:clamp(8px,1.15vw,24px);background:#1E3A54;border-radius:0.5vw;overflow:hidden}
+.tv-rh-bar .tv-rh-trk i{display:block;height:100%;background:#8FA6BC;border-radius:0.5vw;transition:width .9s cubic-bezier(.2,.6,.2,1)}
+.tv-rh-bar span{text-align:right;font-weight:800;font-variant-numeric:tabular-nums;color:#E5EDF4}
+.tv-rh-stack{display:flex;height:clamp(14px,2vw,40px);border-radius:0.6vw;overflow:hidden;background:#1E3A54;margin:0.6vw 0}
+.tv-rh-stack i{display:block;height:100%;transition:width .9s cubic-bezier(.2,.6,.2,1)}
+.tv-rh-leg{display:flex;justify-content:space-between;gap:1vw;font-size:clamp(11px,1.05vw,21px);color:#C7D4E0}
+.tv-rh-leg u{text-decoration:none;display:inline-block;width:0.7vw;height:0.7vw;min-width:8px;min-height:8px;border-radius:50%;margin-right:0.4vw;vertical-align:middle}
+.tv-rh-leg em{font-style:normal;font-weight:800;color:#E5EDF4;margin-left:0.5vw}
+.tv-rh-serie{height:auto;flex:1;min-height:0;gap:0.45vw;padding-top:0.3vw}
+.tv-rh-serie .tvd-col{gap:0.2vw}
+.tv-rh-serie .tvd-col .v{font-size:clamp(10px,0.9vw,18px)}
+.tv-rh-serie .tvd-col b{font-size:clamp(9px,0.72vw,14px)}
+.tv-rh-serie .tvd-col.sem i{background:#2A4A68}
+.tv-rh-serie .tvd-col.sem .v{color:#4F6B85}
+.tv-rh-serie .tvd-col.tv-rh-ruim i{background:#F87171}
+.tv-rh-serie .tvd-col.tv-rh-leve i{background:#FBBF24}
+.tv-rh-lista{display:flex;flex-direction:column;gap:0.3vw;min-height:0;overflow:hidden;margin-top:0.4vw;
+  font-size:clamp(10px,0.92vw,19px);color:#E5EDF4}
+.tv-rh-lista div{display:flex;gap:0.6vw;white-space:nowrap;min-width:0}
+.tv-rh-lista div b{color:#F08A4B;font-variant-numeric:tabular-nums;flex-shrink:0}
+.tv-rh-lista div span{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.tv-rh-lista div em{font-style:normal;color:#8FA6BC;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.tv-rh-nota{font-size:clamp(9px,0.7vw,14px);color:#8FA6BC}
+.tv-rh-nota.tv-rh-aviso{color:#FBBF24}
+.tv-rh-pend{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0.6vw;flex:1;align-content:center}
+.tv-rh-pend>div{display:flex;flex-direction:column;gap:0.2vw}
+body.tvfull.tvwall #view-tvrh.on{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+body.tvfull.tvwall #view-tvrh .tv-head{flex-shrink:0}
+body.tvfull.tvwall #view-tvrh .tvp-janela{flex:1 1 auto;min-height:0;height:auto}
+body.tvfull.tvwall #view-tvrh .tv-ticker{flex-shrink:0;margin-top:0.55vw}
+@media(max-width:880px){
+  body.tvfull.tvwall #view-tvrh.on{display:block}
+  .tv-rh-gente,.tv-rh-seg,.tv-rh-ind{grid-template-columns:minmax(0,1fr);grid-template-rows:none}
+  .tv-rh-seg .tv-rh-dois,.tv-rh-seg .tv-rh-todo{grid-column:auto}
+  #view-tvrh .tv-head{grid-template-columns:1fr auto;row-gap:9px;margin-bottom:12px}
+  #view-tvrh .tv-head .tv-title{grid-column:1/-1;grid-row:2;justify-content:flex-start}
+  #view-tvrh .tv-head h2{font-size:17px;text-align:left}
+  #view-tvrh .tv-head .tv-next{display:none}
+  #view-tvrh .tvw .tv-card{padding:12px 14px;min-height:180px}
+  .tv-rh-serie{height:160px;flex:none}
+  .tv-rh-bar{grid-template-columns:118px minmax(0,1fr) 44px;font-size:13px}
+}
 /* PAINEL DE TV DO CCO (tvcco). Grade de 4 com `minmax(0,1fr)`: `1fr` cru e
    minmax(auto,1fr), e o cartao de tres numeros (emissao do CT-e) empurraria
    o vizinho para fora da tela sem erro nenhum. O "por etapa" e 100%
@@ -3746,12 +3819,13 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="subs2 closed" id="subsTvCli">
           <a href="#tvcli" class="sub sub2" data-view="tvcli" title="Painel de Operação do Cliente para TV"><span class="ic" data-ic="tvcliic"></span><span>Cliente</span></a>
         </div>
-        <button class="subgrupo" id="sgTvGes" aria-expanded="false" aria-controls="subsTvGes" onclick="toggleSubgrupo('sgTvGes','subsTvGes')" title="Painéis de TV — diretoria e faturamento">
+        <button class="subgrupo" id="sgTvGes" aria-expanded="false" aria-controls="subsTvGes" onclick="toggleSubgrupo('sgTvGes','subsTvGes')" title="Painéis de TV — diretoria, faturamento e RH">
           <span class="ic" data-ic="tvdiric"></span><span>TV — Gestão</span><span class="ic chev" data-ic="chev"></span>
         </button>
         <div class="subs2 closed" id="subsTvGes">
           <a href="#tvdir" class="sub sub2" data-view="tvdir" title="Painel da Diretoria para TV"><span class="ic" data-ic="tvdiric"></span><span>Diretoria</span></a>
           <a href="#tvfat" class="sub sub2" data-view="tvfat" title="Painel de Faturamento para TV"><span class="ic" data-ic="tvfatic"></span><span>Faturamento</span></a>
+          <a href="#tvrh" class="sub sub2" data-view="tvrh" title="Painel de Gente, Segurança e Qualidade para TV — quadro, aniversariantes, acidentes, RNC e indicadores de gente"><span class="ic" data-ic="tvrhic"></span><span>Gente e Segurança</span></a>
         </div>
         <button class="subgrupo" id="sgTvOpe" aria-expanded="false" aria-controls="subsTvOpe" onclick="toggleSubgrupo('sgTvOpe','subsTvOpe')" title="Painéis de TV — operação, frota e jornada">
           <span class="ic" data-ic="tv"></span><span>TV — Operação</span><span class="ic chev" data-ic="chev"></span>
@@ -5126,6 +5200,42 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
            número se explica no rótulo. Lê a MESMA /api/visao-geral da home e
            da TV de faturamento: os números da parede são exatamente os do
            painel, sem um terceiro recorte para explicar em reunião. -->
+      <!-- PAINEL DE TV DO RH (tvrh). Nasceu das duas telas que rodavam na TV do RH
+           ("Gente Sulista" e "Segurança, Qualidade e Gente"), com os números
+           reproduzidos antes (api/rh/tv.py), e de uma terceira lâmina com os
+           indicadores de gente que o CÓRTEX já calculava. -->
+      <section class="view" id="view-tvrh">
+        <div class="tv-head"><div class="tv-left"><img class="tv-logo" src="/static/sulista-logo-branco.svg" alt="Sulista"><span class="tv-upd tv-next"></span></div><div class="tv-title"><h2>GENTE, SEGURANÇA E QUALIDADE</h2><span class="tvp-lamina" id="tvrh-lamina"></span></div><div class="tv-right"><span class="tv-clock"></span><a href="javascript:tvFull()" title="tela cheia" aria-label="Tela cheia">⛶</a><a href="#home" title="sair do modo TV" aria-label="Sair do modo TV">✕</a></div></div>
+        <div class="tvp-janela"><div class="tvp-trilho" id="tvrh-trilho">
+          <div class="tvw tv-rh-gente" id="tvrh-l1">
+            <div class="tv-card" id="tvrh-colab"></div>
+            <div class="tv-card" id="tvrh-filial"></div>
+            <div class="tv-card" id="tvrh-genero"></div>
+            <div class="tv-card" id="tvrh-tempo"></div>
+            <div class="tv-card" id="tvrh-depto"></div>
+            <div class="tv-card" id="tvrh-lider"></div>
+          </div>
+          <div class="tvw tv-rh-seg" id="tvrh-l2">
+            <div class="tv-card tv-rh-dois" id="tvrh-acid-com"></div>
+            <div class="tv-card tv-rh-dois" id="tvrh-acid-sem"></div>
+            <div class="tv-card tv-rh-todo" id="tvrh-rnc"></div>
+            <div class="tv-card" id="tvrh-aniv"></div>
+            <div class="tv-card" id="tvrh-aniv-dia"></div>
+            <div class="tv-card" id="tvrh-adm"></div>
+            <div class="tv-card" id="tvrh-desl"></div>
+          </div>
+          <div class="tvw tv-rh-ind" id="tvrh-l3">
+            <div class="tv-card" id="tvrh-turn"></div>
+            <div class="tv-card" id="tvrh-abs"></div>
+            <div class="tv-card" id="tvrh-pend"></div>
+            <div class="tv-card" id="tvrh-banco"></div>
+            <div class="tv-card" id="tvrh-he"></div>
+            <div class="tv-card" id="tvrh-casa"></div>
+          </div>
+        </div></div>
+        <div class="tv-ticker"><div class="tv-ticker-inner" id="tvrh-ticker"></div></div>
+      </section>
+
       <section class="view" id="view-tvdir">
         <div class="tv-head"><div class="tv-left"><img class="tv-logo" src="/static/sulista-logo-branco.svg" alt="Sulista"><span class="tv-upd tv-next"></span></div><div class="tv-title"><h2>PAINEL DA DIRETORIA</h2><span class="tv-farol" id="tvdir-farol" style="display:none"></span></div><div class="tv-right"><span class="tv-clock"></span><a href="javascript:tvFull()" title="tela cheia" aria-label="Tela cheia">⛶</a><a href="#home" title="sair do modo TV" aria-label="Sair do modo TV">✕</a></div></div>
         <div class="tv-grid" id="tvdir-k1"></div>
@@ -7544,23 +7654,46 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       </section>
       <section class="view" id="view-qual">
         <div class="kpis" id="kpis-qual"></div>
-        <div class="grid2">
-          <div class="card"><div class="head"><h2>Atingimento ESG <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.indicadorescorporativos da matriz: realizado do último dia do mês sobre a meta do dia 1º, casados por ANO-MÊS. A barra é realizado em % da meta — em indicador onde MENOR é melhor (resíduos, km vazio, absenteísmo), passar de 100% é ruim, e a cor já reflete isso.">i</span><span class="hint">realizado em % da meta · verde = na meta</span></div>
-            <div class="chartwrap"><div id="chartQualEsg" style="width:100%;height:200px" role="img"></div></div></div>
-          <div class="card"><div class="head"><h2>Certidões por situação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.certidoes por faixa de vencimento contra hoje. ATENÇÃO: documentos que a própria observação declara sem validade recebem data fictícia no ERP e caem em 'em dia', inflando a fatia verde — eles aparecem marcados na tabela abaixo.">i</span><span class="hint">semáforo de vencimento</span></div>
-            <div class="chartwrap" style="min-height:210px"><div id="chartQualCert" style="width:100%;height:200px" role="img"></div></div></div>
+        <div class="subtabs" role="tablist" data-abas="qual" aria-label="Seções da qualidade">
+          <button role="tab" id="tabqual-ind" data-aba="ind" aria-controls="aba-qual-ind"
+                  aria-selected="true" onclick="abaTrocar('qual','ind')">Indicadores e certidões</button>
+          <button role="tab" id="tabqual-aud" data-aba="aud" aria-controls="aba-qual-aud"
+                  aria-selected="false" onclick="abaTrocar('qual','aud')">Auditoria interna</button>
+          <button role="tab" id="tabqual-fat" data-aba="fat" aria-controls="aba-qual-fat"
+                  aria-selected="false" onclick="abaTrocar('qual','fat')">Acidentes com vítima fatal<span class="aban" id="abanQualFatal"></span></button>
         </div>
-        <div class="card">
-          <div class="head"><h2>Indicadores ESG <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Meta (tipo 1, dia 1º) × realizado (tipo 2, último dia do mês) de sulista.indicadorescorporativos, casados por ANO-MÊS e não por data exata. A coluna Direção diz se menor ou maior é melhor — o status já considera isso. Indicador sem meta cadastrada aparece como 'sem meta', não como aprovado.">i</span><span class="hint">meta × realizado (mês mais recente) · matriz</span></div>
-          <div class="tablewrap tabroll" id="qual-esg"></div>
+        <div class="aba" data-abas="qual" data-aba="ind" id="aba-qual-ind"
+             role="tabpanel" aria-labelledby="tabqual-ind">
+          <div class="grid2">
+            <div class="card"><div class="head"><h2>Atingimento ESG <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.indicadorescorporativos da matriz: realizado do último dia do mês sobre a meta do dia 1º, casados por ANO-MÊS. A barra é realizado em % da meta — em indicador onde MENOR é melhor (resíduos, km vazio, absenteísmo), passar de 100% é ruim, e a cor já reflete isso.">i</span><span class="hint">realizado em % da meta · verde = na meta</span></div>
+              <div class="chartwrap"><div id="chartQualEsg" style="width:100%;height:200px" role="img"></div></div></div>
+            <div class="card"><div class="head"><h2>Certidões por situação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.certidoes por faixa de vencimento contra hoje. ATENÇÃO: documentos que a própria observação declara sem validade recebem data fictícia no ERP e caem em 'em dia', inflando a fatia verde — eles aparecem marcados na tabela abaixo.">i</span><span class="hint">semáforo de vencimento</span></div>
+              <div class="chartwrap" style="min-height:210px"><div id="chartQualCert" style="width:100%;height:200px" role="img"></div></div></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Indicadores ESG <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Meta (tipo 1, dia 1º) × realizado (tipo 2, último dia do mês) de sulista.indicadorescorporativos, casados por ANO-MÊS e não por data exata. A coluna Direção diz se menor ou maior é melhor — o status já considera isso. Indicador sem meta cadastrada aparece como 'sem meta', não como aprovado.">i</span><span class="hint">meta × realizado (mês mais recente) · matriz</span></div>
+            <div class="tablewrap tabroll" id="qual-esg"></div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Certidões e Licenças <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.certidoes com o emissor formatado pela função do ERP. Prazo é contra hoje. Documento cuja observação declara não ter validade aparece marcado como 'sem validade' e sem prazo: a data no ERP é controle interno, não vencimento do documento.">i</span></h2><span class="hint" id="qual-cert-hint">semáforo por vencimento · vencidas primeiro</span></div>
+            <div class="tablewrap tabroll" id="qual-certidoes"></div>
+          </div>
         </div>
-        <div class="card">
-          <div class="head"><h2>Certidões e Licenças <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.certidoes com o emissor formatado pela função do ERP. Prazo é contra hoje. Documento cuja observação declara não ter validade aparece marcado como 'sem validade' e sem prazo: a data no ERP é controle interno, não vencimento do documento.">i</span></h2><span class="hint" id="qual-cert-hint">semáforo por vencimento · vencidas primeiro</span></div>
-          <div class="tablewrap tabroll" id="qual-certidoes"></div>
+        <div class="aba" data-abas="qual" data-aba="aud" id="aba-qual-aud"
+             role="tabpanel" aria-labelledby="tabqual-aud" hidden>
+          <div class="card">
+            <div class="head"><h2>Auditoria Interna <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.controle_auditoria: auditorias internas e externas com resultado, número de não conformidades e o plano de ação associado.">i</span></h2><span class="hint">não-conformidades e plano de ação</span></div>
+            <div class="tablewrap tabroll" id="qual-auditoria"></div>
+          </div>
         </div>
-        <div class="card">
-          <div class="head"><h2>Auditoria Interna <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="sulista.controle_auditoria: auditorias internas e externas com resultado, número de não conformidades e o plano de ação associado.">i</span></h2><span class="hint">não-conformidades e plano de ação</span></div>
-          <div class="tablewrap tabroll" id="qual-auditoria"></div>
+        <div class="aba" data-abas="qual" data-aba="fat" id="aba-qual-fat"
+             role="tabpanel" aria-labelledby="tabqual-fat" hidden>
+          <div class="card">
+            <div class="head"><h2>Acidentes com vítima fatal <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Registro do próprio CÓRTEX (sst_acidente_fatal): a tabela de indicadores da Qualidade no ERP classifica acidente em leve, médio e grave e não tem onde registrar morte. É daqui que o painel de TV do RH conta 'acidentes com vítima'. Não se apaga nem se edita: registro errado sai por RETIRADA, com motivo, e continua na lista riscado.">i</span></h2>
+              <span class="hint" id="hintQualFatal"></span>
+              <button class="btn" type="button" onclick="qualFatalNovo()">Registrar</button></div>
+            <div class="tablewrap tabroll" id="qual-fatais"></div>
+          </div>
         </div>
       </section>
       <!-- ===================== VALIDAÇÃO DE PEDÁGIO ===================== -->
@@ -10729,6 +10862,7 @@ const ICONS = {
   tvjoric: IC('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
   tvprodic: IC('<path d="M4 20h16"/><path d="M7 16v-4"/><path d="M11 16V8"/><path d="M15 16v-6"/><path d="M19 16V5"/>'),
   /* CCO: a sala de controle -- o monitor com a marca de conferido */
+  tvrhic: IC('<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/><circle cx="9.5" cy="9" r="1.8"/><circle cx="14.5" cy="9" r="1.8"/><path d="M6.8 13.5c.6-1.6 1.6-2.3 2.7-2.3s2.1.7 2.5 2.3M12.3 13.5c.5-1.6 1.1-2.3 2.2-2.3s2.1.7 2.7 2.3"/>'),
   tvccoic: IC('<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/><path d="M8.5 10l2.5 2.5 4.5-4.5"/>'),
   tvcomic: IC('<path d="M12 13a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M12 13v8"/><path d="M7.8 15.2a6 6 0 0 1 0-8.4M16.2 6.8a6 6 0 0 1 0 8.4"/><path d="M4.9 18.1a10 10 0 0 1 0-14.2M19.1 3.9a10 10 0 0 1 0 14.2"/>'),
   tvcliic: IC('<rect x="2.5" y="4" width="19" height="12.5" rx="2"/><path d="M8 20.5h8"/><path d="M12 16.5v4"/><path d="M6.5 12.5l3-3 2.5 2.5 4.5-4.5"/>'),
@@ -10771,7 +10905,7 @@ const FAIXAS_AR = {
 
    `esTv()` passa a ser a única pergunta, e `LOADMAPTV` diz quem recarrega —
    ele sai do `LOADMAP` que já existe, em vez de ser uma sétima cópia. */
-const TELAS_TV = new Set(['tvfat', 'tvope', 'tvdir', 'tvcom', 'tvcli', 'tvjor', 'tvprod', 'tvcco']);
+const TELAS_TV = new Set(['tvfat', 'tvope', 'tvdir', 'tvcom', 'tvcli', 'tvjor', 'tvprod', 'tvcco', 'tvrh']);
 const esTv = v => TELAS_TV.has(v);
 
 /* Quem recarrega cada painel. O mapa é montado DENTRO da função, na hora da
@@ -10781,11 +10915,11 @@ const esTv = v => TELAS_TV.has(v);
 function tvRecarregar(v){
   const mapa = {tvfat: loadTvFat, tvope: loadTvOpe, tvdir: loadTvDir,
                 tvcom: loadTvCom, tvcli: loadTvCli, tvjor: loadTvJor,
-                tvprod: loadTvProd, tvcco: loadTvCco};
+                tvprod: loadTvProd, tvcco: loadTvCco, tvrh: loadTvRh};
   if(esTv(v) && mapa[v]) mapa[v]();
 }
 
-const VIEWS = { agrcanal:'Canal do Agregado', hp:'Horas Paradas', radar:'Radar do Transporte', tvcco:'Painel TV — Coletas e Entregas', tvcom:'Painel TV — Comunicação', tvjor:'Painel TV — Jornada', tvprod:'Painel TV — Produtividade',home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Central de Documentos', eqp:'Equipamentos', wmspan:'Painel do Armazém', wmsrec:'Recebimento', wmsest:'Estoque e Inventário', wmsexp:'Separação e Expedição', wmscad:'Cadastros do Armazém', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', whrval:'Validação de Emissão — Whirlpool', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Inadimplência', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', freq:'Frequência e Banco de Horas', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', gesind:'Ritual — Indicadores e Metas', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { agrcanal:'Canal do Agregado', hp:'Horas Paradas', radar:'Radar do Transporte', tvcco:'Painel TV — Coletas e Entregas', tvrh:'Painel TV — Gente e Segurança', tvcom:'Painel TV — Comunicação', tvjor:'Painel TV — Jornada', tvprod:'Painel TV — Produtividade',home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Central de Documentos', eqp:'Equipamentos', wmspan:'Painel do Armazém', wmsrec:'Recebimento', wmsest:'Estoque e Inventário', wmsexp:'Separação e Expedição', wmscad:'Cadastros do Armazém', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', whrval:'Validação de Emissão — Whirlpool', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Inadimplência', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', freq:'Frequência e Banco de Horas', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', gesind:'Ritual — Indicadores e Metas', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -11066,7 +11200,7 @@ const VIEW_GROUP = {radar:'',home:'',cop:'',apps:'',
   torre:'Ope',milkrun:'Ope',poli:'Ope',hp:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',cliop:'Ope',port:'Ope',km:'Ope',agr:'Ope',agrcanal:'Ope',mvb:'Ope',pedagio:'Ope',whrval:'Fat',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',pecas:'Sup',
-  fat:'Ctr',gr:'Ope',tvcli:'Bi',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',tvcom:'Bi',tvjor:'Bi',tvprod:'Bi',tvcco:'Bi',
+  fat:'Ctr',gr:'Ope',tvcli:'Bi',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',tvcom:'Bi',tvjor:'Bi',tvprod:'Bi',tvcco:'Bi',tvrh:'Bi',
   rh:'Rh',hc:'Rh',folha:'Rh',folhaind:'Rh',he:'Rh',freq:'Rh',cnh:'Rh',ferias:'Rh',rhmot:'Rh',people:'Rh',des:'Rh',gestao:'Adm',srv:'Adm',sup:'Spt',supfila:'Spt',doc:'Adm',aud:'Adm',integ:'Adm',mon:'Adm',gesacao:'Ges',gesata:'Ges',gesrit:'Ges',gesind:'Ges',
   // Telemetria e ANTT tinham grupo na barra lateral mas ficaram de fora deste
   // mapa: o acordeao nao abria sozinho ao navegar para elas (agora a busca
@@ -11321,7 +11455,8 @@ function semFilterbar(v){
   // como estão porque mexer neles não foi pedido, mas têm o mesmo defeito.)
   // `tvprod` (13/09/2026): recorte FIXO -- 30 dias e 12 meses --, nada a filtrar.
   // `tvcco` (15/09/2026): recorte FIXO -- ontem, hoje e amanhã --, nada a filtrar.
-  return v==='radar'||v==='tvjor'||v==='tvprod'||v==='tvcco'||v==='cop'||v==='mon'||v==='aud'||v==='integ'||v==='apps'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='gesind'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
+  // `tvrh` (16/09/2026): recorte FIXO -- o quadro de hoje, o mês e 12 meses.
+  return v==='radar'||v==='tvjor'||v==='tvprod'||v==='tvcco'||v==='tvrh'||v==='cop'||v==='mon'||v==='aud'||v==='integ'||v==='apps'||v==='gestao'||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='gesind'||v==='srv'||v==='home'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='prog'||
          v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
          v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='freq'||v==='custos'||v==='pecas'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='antport'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='rhmot'||v==='pneus'||v==='people'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='eqp'||
          v==='wmspan'||v==='wmsrec'||v==='wmsest'||v==='wmsexp'||v==='wmscad'||v==='hp'||
@@ -11357,7 +11492,7 @@ function router(){
   const cont=document.getElementById('content'); if(cont) cont.scrollTop=0;
   const ehTv = esTv(v);
   document.body.classList.toggle('tvmode', ehTv);
-  document.body.classList.toggle('tvwall', v==='tvope'||v==='tvprod'||v==='tvcco');
+  document.body.classList.toggle('tvwall', v==='tvope'||v==='tvprod'||v==='tvcco'||v==='tvrh');
   setTimeout(tvChecaFull, 50);
   if(tvTimer){ clearInterval(tvTimer); tvTimer=null; }
   if(tvClock){ clearInterval(tvClock); tvClock=null; }
@@ -11366,6 +11501,7 @@ function router(){
     if(v==='tvope') tvTour=setInterval(tvTourPasso, 20000);
     if(v==='tvprod') tvTour=setInterval(tvProdPasso, 20000);   // o carrossel
     if(v==='tvcco') tvTour=setInterval(tvCcoPasso, 30000);     // as filiais de programação
+    if(v==='tvrh') tvTour=setInterval(tvRhPasso, 20000);       // as três lâminas do RH
     TV_NEXT=Date.now()+60000;
     tvTimer=setInterval(()=>{ TV_NEXT=Date.now()+60000;
       /* RECARGA PELO MAPA, não por cadeia de `else if`: a cadeia era a
@@ -11463,7 +11599,7 @@ function router(){
   document.getElementById('grpFluxcon').style.display = fluxcon ? 'flex' : 'none';
   const ges = (v==='gestao');
   const fbar=document.getElementById('filterbar'); if(fbar) fbar.style.display = semFilterbar(v) ? 'none' : '';
-  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (v==='tvjor'||v==='tvprod'||v==='tvcco'||cop||ges||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='gesind'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='prem'||v==='doc'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='apps'||v==='wmscad'||v==='hp') ? 'none' : '';
+  const metaEl=document.getElementById('meta'); if(metaEl) metaEl.style.display = (v==='tvjor'||v==='tvprod'||v==='tvcco'||v==='tvrh'||cop||ges||v==='gesacao'||v==='gesata'||v==='gesrit'||v==='gesind'||v==='srv'||v==='veicf'||v==='clif'||v==='jorn'||v==='jornf'||v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='custos'||v==='pecas'||v==='prem'||v==='doc'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='apps'||v==='wmscad'||v==='hp') ? 'none' : '';
   // classe em vez de style: o CSS mobile usa !important no display
   const bfil=document.getElementById('btnFiltros'); if(bfil){ bfil.classList.toggle('oculto', semFilterbar(v)); bfil.style.display=''; }
   document.getElementById('grpKm').style.display = kmv ? 'flex' : 'none';
@@ -11487,7 +11623,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,freq:DATAFREQ,custos:DATACUSTOS,pecas:DATAPECAS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={agrcanal:loadAgrcanal,hp:loadHp,radar:loadRadar,apps:loadApps,integ:loadInteg,dfe:loadDfe,eqp:loadEqp,wmspan:loadWmsPan,wmsrec:loadWmsRec,wmsest:loadWmsEst,wmsexp:loadWmsExp,wmscad:loadWmsCad,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,whrval:loadWhrval,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,freq:loadFreq,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvprod:loadTvProd,tvcco:loadTvCco,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+  const LOADMAP={agrcanal:loadAgrcanal,hp:loadHp,radar:loadRadar,apps:loadApps,integ:loadInteg,dfe:loadDfe,eqp:loadEqp,wmspan:loadWmsPan,wmsrec:loadWmsRec,wmsest:loadWmsEst,wmsexp:loadWmsExp,wmscad:loadWmsCad,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,whrval:loadWhrval,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,freq:loadFreq,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvprod:loadTvProd,tvcco:loadTvCco,tvrh:loadTvRh,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -13627,7 +13763,7 @@ function reloadCurrent(){
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
     agr:loadAgr,mvb:loadMvb,pedagio:loadPedagio,whrval:loadWhrval,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,
     torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,freq:loadFreq,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
-    cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvprod:loadTvProd,tvcco:loadTvCco,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+    cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvprod:loadTvProd,tvcco:loadTvCco,tvrh:loadTvRh,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   (M[currentView()]||load)();
 }
 
@@ -17474,6 +17610,249 @@ async function loadTvJor(){
           + (e.veiculo ? ' (' + esc(e.veiculo) + ')' : '')).slice(0, 20)
       : ['sem exceção de jornada nas últimas 48 h']);
   }catch(e){ if(seq === tvJorSeq) tvErro('tvjor-k1', tvJorOk); }
+}
+
+/* ================ PAINEL DE TV — GENTE, SEGURANÇA E QUALIDADE (tvrh) ================
+   Três lâminas no trilho da produtividade: 1) Gente Sulista; 2) Segurança,
+   Qualidade e Gente; 3) indicadores de gente. Quem calcula é o servidor
+   (api/rh/tv.py); aqui só se desenha. Duas regras que a parede antiga não
+   seguia e esta segue: MÊS SEM LANÇAMENTO na tabela da Qualidade é coluna
+   cinza com travessão — nunca zero —, e DINHEIRO NÃO VAI PARA A PAREDE. */
+var TVRH_LAMINAS=['Gente Sulista','Segurança, qualidade e gente','Indicadores de gente'];
+var TVRH_IDX=0;   // var: o giro pode ser armado antes desta linha rodar
+var TVRH_RAIZES=['tvrh-l1','tvrh-l2','tvrh-l3'];
+let tvRhSeq=0, tvRhOk=false;
+function tvRhMostrar(){
+  const tr=document.getElementById('tvrh-trilho');
+  if(tr) tr.style.transform='translateX('+(-100*TVRH_IDX/TVRH_LAMINAS.length).toFixed(4)+'%)';
+  const el=document.getElementById('tvrh-lamina');
+  if(el) el.innerHTML=TVRH_LAMINAS.map((n,i)=>'<i class="'+(i===TVRH_IDX?'on':'')+'"></i>').join('')
+    +'<span>'+esc(TVRH_LAMINAS[TVRH_IDX])+'</span>';
+  /* a parede ajusta a altura DEPOIS da carga (tela cheia, rodapé): o cartão
+     encolhe alguns px e a lista cortada na altura antiga voltava a esconder
+     meia linha. Recorta a cada troca e a cada mudança de tamanho. */
+  tvRhCortar('tvrh-l2'); tvRhCortar('tvrh-l3');
+}
+if(typeof window!=='undefined') window.addEventListener('resize', ()=>{
+  if(currentView()==='tvrh'){ tvRhCortar('tvrh-l2'); tvRhCortar('tvrh-l3'); } });
+function tvRhPasso(){
+  if(currentView()!=='tvrh') return;
+  TVRH_IDX=(TVRH_IDX+1)%TVRH_LAMINAS.length;
+  tvRhMostrar();
+  tvRhAnimar(TVRH_IDX);
+}
+function tvRhAnimar(i, soBarras){
+  const lam=document.getElementById(TVRH_RAIZES[i]);
+  if(lam){ lam.classList.remove('tvp-anima'); void lam.offsetWidth; lam.classList.add('tvp-anima'); }
+  if(!soBarras && TVRH_RAIZES[i]) tvAnimarNums(TVRH_RAIZES[i]);
+}
+const tvRhN = v => (v==null || !isFinite(v)) ? '—' : Math.round(v).toLocaleString('pt-BR');
+const tvRhMes = m => new Date(+m.slice(0,4), +m.slice(5,7)-1, 1)
+  .toLocaleDateString('pt-BR',{month:'short'}).replace('.','');
+function tvRhIndisp(id, rotulo){
+  const el=document.getElementById(id);
+  if(el) el.innerHTML='<div class="tv-label">'+esc(rotulo)+'</div><div class="tv-sub">indisponível agora</div>';
+}
+/* barras horizontais: comprimento = n ÷ maior da lista */
+function tvRhBarras(itens){
+  const max=Math.max(1,...itens.map(x=>x.n||0));
+  return '<div class="tv-rh-bars">'+itens.map(x=>'<div class="tv-rh-bar"><b>'+esc(x.rotulo)+'</b>'
+    +'<div class="tv-rh-trk"><i style="width:'+(100*(x.n||0)/max).toFixed(1)+'%'+(x.cor?';background:'+x.cor:'')+'"></i></div>'
+    +'<span>'+tvRhN(x.n)+'</span></div>').join('')+'</div>';
+}
+/* duas partes de um todo: barra empilhada com a legenda embaixo */
+function tvRhPilha(a, b){
+  const t=Math.max(1,(a.n||0)+(b.n||0)), pa=100*(a.n||0)/t, pb=100-pa;
+  const pct=v=>v.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%';
+  return '<div class="tv-rh-stack"><i style="width:'+pa.toFixed(1)+'%;background:#8FA6BC"></i>'
+    +'<i style="width:'+pb.toFixed(1)+'%;background:#F08A4B"></i></div>'
+    +'<div class="tv-rh-leg"><span><u style="background:#8FA6BC"></u>'+esc(a.rotulo)+'<em>'+tvRhN(a.n)+' · '+pct(pa)+'</em></span>'
+    +'<span><u style="background:#F08A4B"></u>'+esc(b.rotulo)+'<em>'+tvRhN(b.n)+' · '+pct(pb)+'</em></span></div>';
+}
+/* colunas mensais: mês sem lançamento é cinza com travessão */
+function tvRhSerie(serie, valor, opt){
+  opt=opt||{};
+  const vals=serie.map(valor).filter(v=>v!=null);
+  const max=Math.max(opt.minimo||1,...vals);
+  return '<div class="tvd-serie tv-rh-serie">'+serie.map(x=>{
+    const v=valor(x);
+    if(v==null) return '<div class="tvd-col sem"><span class="v">—</span><i style="height:2%"></i><b>'+tvRhMes(x.mes)+'</b></div>';
+    const cls=(opt.cls ? opt.cls(x,v) : '')+(x.parcial?' parcial':'');
+    const txt=opt.fmt ? opt.fmt(v) : tvRhN(v);
+    return '<div class="tvd-col '+cls+'"><span class="v">'+txt+'</span><i style="height:'+Math.max(2,76*v/max).toFixed(1)+'%"></i>'
+      +'<b>'+tvRhMes(x.mes)+(x.parcial?'*':'')+'</b></div>';
+  }).join('')+'</div>';
+}
+function tvRhLista(itens, linha, vazio){
+  if(!itens.length) return '<div class="tv-sub">'+esc(vazio)+'</div>';
+  return '<div class="tv-rh-lista" data-total="'+itens.length+'">'+itens.map(linha).join('')+'</div>';
+}
+/* A LISTA TEM ALTURA DE PAREDE. Um mês de 28 desligamentos (nov/2025) não
+   cabe no cartão: tira pelo FIM o que não couber e DIZ quantos ficaram de
+   fora — lista cortada sem contador se lê como o total. */
+function tvRhCortar(raiz){
+  document.querySelectorAll('#'+raiz+' .tv-rh-lista').forEach(l=>{
+    const card=l.closest('.tv-card'), total=+l.dataset.total||0;
+    let guarda=60;
+    // a LISTA se encolhe (min-height:0) e esconde linhas sem transbordar o
+    // cartão: medir só o cartão aprovaria o corte calado
+    const sobra=()=>l.scrollHeight>l.clientHeight+2 || card.scrollHeight>card.clientHeight+2;
+    while(guarda-- && sobra() && l.children.length>1){
+      const u=l.lastElementChild;
+      if(u.classList.contains('tv-rh-mais')) l.removeChild(u.previousElementSibling);
+      else l.removeChild(u);
+      const vis=[...l.children].filter(c=>!c.classList.contains('tv-rh-mais')).length;
+      let mais=l.querySelector('.tv-rh-mais');
+      if(!mais){ mais=document.createElement('div'); mais.className='tv-rh-mais'; l.appendChild(mais); }
+      mais.innerHTML='<em>e mais '+(total-vis)+'</em>';
+    }
+  });
+}
+const tvRhDiaMes = iso => iso.slice(8,10)+'/'+iso.slice(5,7);
+const tvRhDois = n => String(n).padStart(2,'0');
+
+function tvRhGente(g){
+  if(!g || g.erro){ ['tvrh-colab','tvrh-filial','tvrh-genero','tvrh-tempo','tvrh-depto','tvrh-lider']
+    .forEach(id=>tvRhIndisp(id,'Gente Sulista')); return; }
+  document.getElementById('tvrh-colab').innerHTML='<div class="tv-label">Colaboradores</div>'
+    +'<div class="tv-rh-centro"><div class="tv-rh-topo">'
+    +'<div><div class="tv-num tv-rh-grande">'+tvRhN(g.ativos)+'</div><div class="tv-sub">ativos</div></div>'
+    +'<div><div class="tv-num tv-rh-grande">'+tvRhN(g.afastados)+'</div><div class="tv-sub">afastados</div></div>'
+    +'</div></div>';
+  document.getElementById('tvrh-filial').innerHTML='<div class="tv-label">Por filial</div>'
+    +tvRhBarras((g.por_filial||[]).map(x=>({rotulo:x.filial, n:x.n})));
+  document.getElementById('tvrh-genero').innerHTML='<div class="tv-label">Por gênero</div>'
+    +'<div class="tv-rh-bars">'+tvRhPilha({rotulo:'Masculino', n:g.genero.masculino},{rotulo:'Feminino', n:g.genero.feminino})+'</div>';
+  document.getElementById('tvrh-tempo').innerHTML='<div class="tv-label">Tempo de casa</div>'
+    +tvRhBarras((g.tempo_casa||[]).map(x=>({rotulo:x.faixa, n:x.n})));
+  document.getElementById('tvrh-depto').innerHTML='<div class="tv-label">Por departamento</div>'
+    +tvRhBarras((g.por_departamento||[]).map(x=>({rotulo:x.departamento, n:x.n})));
+  document.getElementById('tvrh-lider').innerHTML='<div class="tv-label">Liderança</div>'
+    +'<div class="tv-rh-bars">'+tvRhPilha({rotulo:'Colaboradores', n:g.lideranca.colaboradores},{rotulo:'Liderança', n:g.lideranca.lideres})+'</div>';
+}
+
+function tvRhSeguranca(s, m){
+  if(!s || s.erro){ ['tvrh-acid-com','tvrh-acid-sem','tvrh-rnc'].forEach(id=>tvRhIndisp(id,'Segurança e qualidade')); }
+  else{
+    const a=s.acidentes, r=s.rnc;
+    const lanc=u=>u ? 'lançado até '+tvRhMes(u)+'/'+u.slice(2,4) : 'sem lançamento';
+    const atraso=u=>{ if(!u) return true; const h=new Date(); const lim=new Date(h.getFullYear(), h.getMonth()-1, 1);
+      return new Date(+u.slice(0,4), +u.slice(5,7)-1, 1) < lim; };
+    const nota=u=>'<div class="tv-rh-nota'+(atraso(u)?' tv-rh-aviso':'')+'">'+lanc(u)+'</div>';
+    /* COM VÍTIMA = COM MORTE, do registro do CÓRTEX (quem opera, 16/09/2026).
+       Sem o registro legível, o cartão diz — nunca um zero que ninguém mediu. */
+    const regOk = a.registro_fatal !== 'indisponivel';
+    document.getElementById('tvrh-acid-com').innerHTML='<div class="tv-label">Acidentes com vítima fatal · no ano</div>'
+      +'<div class="tv-rh-topo"><div class="tv-num '+(!regOk?'':((a.com_vitima_ano||0)>0?'ruim':'ok'))+'">'+(regOk?tvRhN(a.com_vitima_ano):'—')+'</div>'
+      +'<div class="tv-sub">12 meses: '+(regOk?tvRhN(a.com_vitima_12m):'—')+'</div>'
+      +'<div class="tv-rh-nota'+(regOk?'':' tv-rh-aviso')+'">'+(regOk?'registro do CÓRTEX':'registro indisponível')+'</div></div>'
+      +tvRhSerie(a.serie, x=>x.com_vitima, {cls:(x,v)=>v>0?'tv-rh-ruim':''});
+    document.getElementById('tvrh-acid-sem').innerHTML='<div class="tv-label">Acidentes sem vítima · no ano</div>'
+      +'<div class="tv-rh-topo"><div class="tv-num '+((a.sem_vitima_ano||0)>0?'warn':'ok')+'">'+tvRhN(a.sem_vitima_ano)+'</div>'
+      +'<div class="tv-sub">12 meses: '+tvRhN(a.sem_vitima_12m)+'</div>'+nota(a.ultimo_lancamento)+'</div>'
+      +tvRhSerie(a.serie, x=>x.sem_vitima, {cls:(x,v)=>v>0?'tv-rh-leve':''});
+    document.getElementById('tvrh-rnc').innerHTML='<div class="tv-label">Registros de RNC · no ano</div>'
+      +'<div class="tv-rh-topo"><div class="tv-num">'+tvRhN(r.ano)+'</div>'
+      +'<div class="tv-sub">12 meses: '+tvRhN(r.ultimos_12m)+'</div>'+nota(r.ultimo_lancamento)+'</div>'
+      +tvRhSerie(r.serie, x=>x.rnc);
+  }
+  if(!m || m.erro){ ['tvrh-aniv','tvrh-aniv-dia','tvrh-adm','tvrh-desl'].forEach(id=>tvRhIndisp(id,'O mês')); return; }
+  const an=m.aniversariantes;
+  const mm=m.mes.slice(5,7);
+  document.getElementById('tvrh-aniv').innerHTML='<div class="tv-label">Aniversariantes do mês</div>'
+    +'<div class="tv-num">'+tvRhN(an.total)+'</div><div class="tv-sub">próximos 7 dias</div>'
+    +tvRhLista(an.proximos_7, x=>'<div><b>'+tvRhDois(x.dia)+'/'+mm+'</b><span>'+esc(x.nome)+'</span></div>', 'ninguém nos próximos 7 dias');
+  document.getElementById('tvrh-aniv-dia').innerHTML='<div class="tv-label">Aniversariantes do dia</div>'
+    +tvRhLista(an.hoje, x=>'<div><span>'+esc(x.nome)+'</span><em>'+esc(x.filial)+'</em></div>', 'Sem aniversariantes hoje');
+  document.getElementById('tvrh-adm').innerHTML='<div class="tv-label">Admitidos no mês</div>'
+    +'<div class="tv-num">'+tvRhN(m.admitidos.length)+'</div>'
+    +tvRhLista(m.admitidos, x=>'<div><b>'+tvRhDiaMes(x.data)+'</b><span>'+esc(x.nome)+'</span></div>', 'nenhuma admissão no mês');
+  document.getElementById('tvrh-desl').innerHTML='<div class="tv-label">Desligados no mês</div>'
+    +'<div class="tv-num">'+tvRhN(m.desligados.length)+'</div>'
+    +tvRhLista(m.desligados, x=>'<div><b>'+tvRhDiaMes(x.data)+'</b><span>'+esc(x.nome)+'</span></div>', 'nenhum desligamento no mês');
+}
+
+function tvRhIndicadores(ind, m){
+  ind=ind||{};
+  const ok=x=>x && !x.erro;
+  const pct=v=>v==null?'—':v.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%';
+  const t=ind.turnover;
+  if(ok(t)){
+    const ult=t.serie.filter(x=>!x.parcial).slice(-1)[0]||{};
+    document.getElementById('tvrh-turn').innerHTML='<div class="tv-label">Turnover mensal</div>'
+      +'<div class="tv-rh-topo"><div class="tv-num">'+pct(ult.pct)+'</div><div class="tv-sub">'
+      +(ult.mes?tvRhMes(ult.mes)+': '+tvRhN(ult.admissoes)+' adm. · '+tvRhN(ult.desligamentos)+' deslig.':'')+'</div></div>'
+      +tvRhSerie(t.serie, x=>x.pct, {fmt:v=>v.toLocaleString('pt-BR',{maximumFractionDigits:1})});
+  } else tvRhIndisp('tvrh-turn','Turnover mensal');
+  const ab=ind.absenteismo;
+  if(ok(ab) && ab.serie.length){
+    const ult=ab.serie.filter(x=>!x.parcial).slice(-1)[0]||{};
+    document.getElementById('tvrh-abs').innerHTML='<div class="tv-label">Absenteísmo · administrativo</div>'
+      +'<div class="tv-rh-topo"><div class="tv-num">'+pct(ult.pct)+'</div><div class="tv-sub">'
+      +(ult.mes?tvRhMes(ult.mes)+' · mês fechado':'')+'</div></div>'
+      +tvRhSerie(ab.serie, x=>x.pct, {fmt:v=>v.toLocaleString('pt-BR',{maximumFractionDigits:1})});
+  } else tvRhIndisp('tvrh-abs','Absenteísmo');
+  const f=ind.ferias, c=ind.cnh, e=ind.experiencia;
+  const pend=(rot, v, sub, ruim)=>'<div><div class="tv-num '+(v==null?'':(v>0?ruim:'ok'))+'">'+tvRhN(v)+'</div>'
+    +'<div class="tv-sub">'+esc(rot)+'</div><div class="tv-rh-nota">'+esc(sub)+'</div></div>';
+  document.getElementById('tvrh-pend').innerHTML='<div class="tv-label">Pendências com prazo</div><div class="tv-rh-pend">'
+    +(ok(f)?pend('férias em dobra', f.em_dobra, (f.alerta||0)+' perto do limite', 'ruim'):pend('férias', null, 'indisponível',''))
+    +(ok(c)?pend('CNH vencida', c.vencidas, (c.vence_30||0)+' vencem em 30 dias', 'ruim'):pend('CNH', null, 'indisponível',''))
+    +(ok(e)?pend('experiência vencendo', e.vencendo, 'em '+e.aviso_dias+' dias', 'warn'):pend('experiência', null, 'indisponível',''))
+    +'</div>';
+  const b=ind.banco_horas;
+  if(ok(b)){
+    document.getElementById('tvrh-banco').innerHTML='<div class="tv-label">Banco de horas</div>'
+      +'<div class="tv-rh-bars">'+tvRhBarras([
+        {rotulo:'Crédito (h)', n:b.credor_h, cor:'#FBBF24'},
+        {rotulo:'Débito (h)', n:Math.abs(b.devedor_h||0), cor:'#8FA6BC'}])
+      +'<div class="tv-sub">'+tvRhN(b.credores)+' com crédito · '+tvRhN(b.devedores)+' com débito</div></div>';
+  } else tvRhIndisp('tvrh-banco','Banco de horas');
+  const h=ind.hora_extra;
+  if(ok(h)){
+    document.getElementById('tvrh-he').innerHTML='<div class="tv-label">Hora extra · '+(h.competencia?tvRhMes(h.competencia+'-01')+'/'+h.competencia.slice(2,4):'')+'</div>'
+      +'<div class="tv-rh-centro"><div class="tv-num tv-rh-grande">'+tvRhN(h.horas)+' h</div>'
+      +'<div class="tv-sub">'+tvRhN(h.pessoas)+' pessoas · média '+(h.pessoas?tvRhN(h.horas/h.pessoas):'—')+' h por pessoa</div></div>';
+  } else tvRhIndisp('tvrh-he','Hora extra');
+  const casa=(m && !m.erro) ? (m.tempo_de_casa||[]) : null;
+  if(casa){
+    document.getElementById('tvrh-casa').innerHTML='<div class="tv-label">Tempo de casa no mês</div>'
+      +tvRhLista(casa, x=>'<div><b>'+x.anos+(x.anos===1?' ano':' anos')+'</b><span>'+esc(x.nome)+'</span><em>'+tvRhDois(x.dia)+'/'+m.mes.slice(5,7)+'</em></div>',
+                 'ninguém completa 1, 5, 10… anos neste mês');
+  } else tvRhIndisp('tvrh-casa','Tempo de casa no mês');
+}
+
+async function loadTvRh(){
+  const seq=++tvRhSeq;
+  try{
+    const r=await fetch('/api/rh/tv', {cache:'no-store'});
+    let d=null;
+    try{ d=await r.json(); }catch(_){ d=null; }
+    if(seq!==tvRhSeq) return;
+    if(!r.ok || !d || !d.gente){ tvErro('tvrh-l1', tvRhOk); return; }
+    tvRhOk=true;
+    tvRhGente(d.gente);
+    tvRhSeguranca(d.seguranca, d.mes);
+    tvRhIndicadores(d.indicadores, d.mes);
+    /* O RODAPÉ: o que pede ação e o que precisa ser dito sobre a própria parede */
+    const tick=[], s=d.seguranca, ind=d.indicadores||{};
+    if(s && !s.erro && s.acidentes.ultimo_lancamento)
+      tick.push('📋 Acidentes e RNC lançados pela Qualidade até '+tvRhMes(s.acidentes.ultimo_lancamento)+'/'+s.acidentes.ultimo_lancamento.slice(2,4));
+    if(d.mes && !d.mes.erro) d.mes.aniversariantes.hoje.forEach(x=>tick.push('🎂 Hoje é aniversário de '+x.nome+' · '+x.filial));
+    if(ind.ferias && !ind.ferias.erro && ind.ferias.em_dobra) tick.push('🏖️ '+ind.ferias.em_dobra+' férias em dobra');
+    if(ind.cnh && !ind.cnh.erro && ind.cnh.vence_30) tick.push('🪪 '+ind.cnh.vence_30+' CNH de motorista vencem em 30 dias');
+    if(ind.experiencia && !ind.experiencia.erro && ind.experiencia.vencendo) tick.push('📝 '+ind.experiencia.vencendo+' contratos de experiência vencem em '+ind.experiencia.aviso_dias+' dias');
+    tvTicker('tvrh-ticker', tick);
+    tvRhCortar('tvrh-l2'); tvRhCortar('tvrh-l3');
+    /* A FONTE CHEGA DEPOIS: a Saira muda a altura da linha, e o corte medido
+       com a fonte de reserva deixava uma linha a mais escondida sem contador */
+    if(document.fonts && document.fonts.ready)
+      document.fonts.ready.then(()=>{ if(seq===tvRhSeq){ tvRhCortar('tvrh-l2'); tvRhCortar('tvrh-l3'); } });
+    tvDestacar('tvrh-l1'); tvDestacar('tvrh-l2'); tvDestacar('tvrh-l3');
+    tvRhMostrar();
+    tvAnimarNums(TVRH_RAIZES[TVRH_IDX]);
+    tvRhAnimar(TVRH_IDX, true);
+  }catch(e){ if(seq===tvRhSeq) tvErro('tvrh-l1', tvRhOk); }
 }
 
 /* ================ PAINEL DE TV — GESTÃO À VISTA DO CCO (tvcco) ================
@@ -30537,8 +30916,81 @@ async function loadQual(){
     const d=await r.json(); if(seq!==qualSeq) return;
     if(!r.ok){ showBanner(d.mensagem||'Erro ao consultar a qualidade.', d.detalhe); return; }
     hideBanner(); DATAQUAL=d; LOADEDQS.qual=''; renderQual(d);
+    qualFatalCarregar();   // leitura própria: a base da casa não depende do ERP
   }catch(e){ if(seq===qualSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===qualSeq){ if(btn) btn.disabled=false; document.getElementById('content').classList.remove('loading'); } }
+}
+/* ---- Acidentes com vítima fatal (registro do CÓRTEX; a TV do RH conta daqui) ---- */
+let QUAL_FATAL={registros:[], filiais:[]};
+async function qualFatalCarregar(){
+  const alvo=document.getElementById('qual-fatais'); if(!alvo) return;
+  try{
+    const r=await fetch('/api/qualidade/acidentes-fatais', {cache:'no-store'});
+    const d=await respostaJSON(r);
+    if(!d.ok){ alvo.innerHTML='<p class="muted" style="padding:9px">'+esc(d.mensagem||'Registro indisponível.')+'</p>'; return; }
+    QUAL_FATAL=d.dados; qualFatalRender();
+  }catch(e){ alvo.innerHTML='<p class="muted" style="padding:9px">Registro indisponível agora.</p>'; }
+}
+function qualFatalRender(){
+  const regs=QUAL_FATAL.registros||[], validos=regs.filter(x=>!x.retirado_em);
+  abaContador('abanQualFatal', validos.length);
+  document.getElementById('hintQualFatal').textContent=
+    validos.length+' válido(s)'+(regs.length>validos.length?' · '+(regs.length-validos.length)+' retirado(s)':'');
+  const alvo=document.getElementById('qual-fatais');
+  if(!regs.length){ alvo.innerHTML='<p class="muted" style="padding:9px">Nenhum acidente com vítima fatal registrado.</p>'; return; }
+  alvo.innerHTML='<table><thead><tr><th>Data</th><th>Filial</th><th>Descrição</th><th>Registrado por</th><th></th></tr></thead><tbody>'
+    + regs.map(x=>{
+      const ret=!!x.retirado_em;
+      return '<tr'+(ret?' style="opacity:.6;text-decoration:line-through"':'')+'>'
+        +'<td>'+esc(fmtD(x.data))+'</td><td>'+esc(x.filial)+'</td><td>'+esc(x.descricao)+'</td>'
+        +'<td>'+esc(x.autor)+'<br><span class="muted">'+esc(fmtDT(x.em))+'</span></td>'
+        +'<td style="text-decoration:none">'+(ret
+          ? '<span class="muted" title="'+esc(x.retirado_motivo||'')+'">retirado por '+esc(x.retirado_por||'')+'</span>'
+          : '<button class="btn" type="button" data-id="'+x.id+'" onclick="qualFatalRetirar(+this.dataset.id)">Retirar</button>')
+        +'</td></tr>';
+    }).join('')+'</tbody></table>';
+}
+function qualFatalNovo(){
+  const hoje=_iso(new Date());
+  abrirModal('<h3>Registrar acidente com vítima fatal</h3>'
+    + '<label class="lbl" for="qfData">Data do acidente</label>'
+    + '<input id="qfData" type="date" max="'+hoje+'" value="'+hoje+'" style="width:100%">'
+    + '<label class="lbl" for="qfFilial" style="margin-top:10px">Filial</label>'
+    + '<select id="qfFilial" style="width:100%">'+(QUAL_FATAL.filiais||[]).map(f=>'<option>'+esc(f)+'</option>').join('')+'</select>'
+    + '<label class="lbl" for="qfDesc" style="margin-top:10px">Descrição</label>'
+    + '<textarea id="qfDesc" rows="4" maxlength="1000" style="width:100%"></textarea>'
+    + '<div class="m-err" id="m-err"></div>'
+    + '<div style="margin-top:12px;display:flex;gap:8px">'
+    + '<button class="btn" type="button" onclick="qualFatalEnviar()">Registrar</button>'
+    + '<button class="btn" type="button" onclick="fecharModal()">Cancelar</button></div>');
+}
+async function qualFatalPost(url, corpo){
+  let d;
+  try{
+    const r=await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(corpo)});
+    d=await respostaJSON(r);
+  }catch(e){ d={ok:false, mensagem:'Sem conexão com a API.'}; }
+  if(!d.ok){ mErro(d.mensagem||'Não foi possível gravar.'); return false; }
+  fecharModal();
+  qualFatalCarregar();    // recarrega FORA do try da ação: a gravação já aconteceu
+  return true;
+}
+function qualFatalEnviar(){
+  const v=id=>(document.getElementById(id)||{}).value||'';
+  return qualFatalPost('/api/qualidade/acidentes-fatais', {data:v('qfData'), filial:v('qfFilial'), descricao:v('qfDesc')});
+}
+function qualFatalRetirar(id){
+  abrirModal('<h3>Retirar registro</h3>'
+    + '<p class="muted" style="margin:0 0 9px">O registro não é apagado: fica na lista, riscado, com o motivo e quem retirou.</p>'
+    + '<label class="lbl" for="qfMotivo">Motivo</label>'
+    + '<textarea id="qfMotivo" rows="3" maxlength="500" style="width:100%"></textarea>'
+    + '<div class="m-err" id="m-err"></div>'
+    + '<div style="margin-top:12px;display:flex;gap:8px">'
+    + '<button class="btn" type="button" data-id="'+id+'" onclick="qualFatalRetirarEnviar(+this.dataset.id)">Retirar</button>'
+    + '<button class="btn" type="button" onclick="fecharModal()">Cancelar</button></div>');
+}
+function qualFatalRetirarEnviar(id){
+  return qualFatalPost('/api/qualidade/acidentes-fatais/'+id+'/retirar', {motivo:(document.getElementById('qfMotivo')||{}).value||''});
 }
 function renderQual(d){
   const k=d.kpis||{};
@@ -40214,6 +40666,7 @@ const BUSCA_SINONIMOS = {
   hp:['hora parada','horas paradas','estadia','diaria','freetime','permanencia','cobranca de estadia','tempo excedido','planilha do cliente','hp'],
   cliop:['portal do cliente','portal','minha operacao','cliente','iochpe','maxion','permanencia','freetime','estadia','patio','carga em curso','onde esta minha carga','nivel de servico','sla'],
   tvcco:['coletas e entregas','coleta e entrega','filial de programacao','cco','gestao a vista','central de controle','painel cco','tv cco','programacao sem veiculo','coleta atrasada','entrega atrasada','ct-e atrasado','emissao','freetime excedido','pendente de finalizacao','gargalo'],
+  tvrh:['gente sulista','rh','recursos humanos','seguranca','qualidade','acidentes','rnc','aniversariantes','admitidos','desligados','turnover','absenteismo','tv rh'],
   tvprod:['produtividade da frota','produtividade','painel produtividade','tv produtividade','km por veiculo','receita por veiculo','veiculos parados','ociosidade','frota parada'],
   tvjor:['jornada tempo real','tempo real','motorista agora','direcao continua','5h30','lei 13103','onde esta o motorista','painel jornada','em direcao','repouso','monitoramento'],
   tvcom:['rastreador','rastreadora','comunicacao','sem sinal','mudo','localizador','carreta sem sinal','3s','raster','onixsat','sem posicao'],
@@ -50517,6 +50970,7 @@ boot();
         <a href="#tvcli" onclick="fecharDrawer()"><span class="ic" data-ic="tvcliic"></span>TV Cliente</a>
         <a href="#tvdir" onclick="fecharDrawer()"><span class="ic" data-ic="tvdiric"></span>TV Gestão — Diretoria</a>
         <a href="#tvfat" onclick="fecharDrawer()"><span class="ic" data-ic="tvfatic"></span>TV Gestão — Faturamento</a>
+        <a href="#tvrh" onclick="fecharDrawer()"><span class="ic" data-ic="tvrhic"></span>TV Gestão — Gente e Segurança</a>
         <a href="#tvcco" onclick="fecharDrawer()"><span class="ic" data-ic="tvccoic"></span>TV Operação — Coletas e Entregas</a>
         <a href="#tvcom" onclick="fecharDrawer()"><span class="ic" data-ic="tvcomic"></span>TV Operação — Comunicação</a>
         <a href="#tvjor" onclick="fecharDrawer()"><span class="ic" data-ic="tvjoric"></span>TV Operação — Jornada</a>

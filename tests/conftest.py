@@ -117,12 +117,21 @@ _FOTO_PRODUCAO: dict = {"ultima": None}
 
 def _foto_producao():
     from api import pglocal
+    # TABELA NOVA ENTRA CONDICIONAL: antes do deploy que cria a tabela, a
+    # consulta dela levantaria, `producao_intocada` engoliria a exceção e o
+    # guard INTEIRO ficaria desligado — a armadilha registrada abaixo, do
+    # `aud_telas`. A parcela vale 0 até a tabela existir.
+    fatal = ("(SELECT coalesce(max(id), 0) FROM sst_acidente_fatal)"
+             if pglocal.um("SELECT to_regclass('sst_acidente_fatal') IS NOT NULL AS t")["t"] else "0")
     return pglocal.um(
         "SELECT (SELECT coalesce(max(id), 0) FROM mky_carga) AS cargas,"
         " (SELECT count(*) FROM mky_recebiveis) AS recebiveis,"
         " (SELECT coalesce(max(id), 0) FROM ant_envios) AS envios,"
         " (SELECT coalesce(max(id), 0) FROM sup_chamados) AS chamados,"
         " (SELECT coalesce(max(id), 0) FROM sup_avisos) AS avisos_sup,"
+        # 16/09/2026: o registro de acidente fatal vai para a parede da TV do
+        # RH — um teste que gravasse aqui publicaria uma morte que não houve
+        " " + fatal + " AS acidentes_fatais,"
         # A auditoria de USO entrou aqui depois de vazar: 238 sessões de teste
         # (`ana@sulista.local` e companhia) apareceram na tela de Auditoria de
         # PRODUÇÃO em 03/09/2026, gravadas ao longo de uma suíte inteira. O

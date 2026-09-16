@@ -177,6 +177,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "tvdir":   ("Painel TV — Diretoria", "Business Intelligence"),
     "tvjor":   ("Painel TV — Jornada", "Business Intelligence"),
     "tvprod":  ("Painel TV — Produtividade", "Business Intelligence"),
+    "tvrh":    ("Painel TV — Gente e Segurança", "Business Intelligence"),
     "gesacao": ("Planos de Ação", "Gestão"),
     "gesata":  ("Atas de Reunião", "Gestão"),
     "gesrit":  ("Ritual Semanal", "Gestão"),
@@ -314,6 +315,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     # app): um e do painel, o outro e de quem esta fora da casa.
     ("/api/agregados/canal",          frozenset({"agrcanal"})),
     ("/api/rh/vagas",                 frozenset({"rh"})),
+    ("/api/rh/tv",                    frozenset({"tvrh"})),
     ("/api/financeiro/overview",      frozenset({"fluxo", "receber", "pagar"})),
     # Opções dos filtros de cliente (Contas a Receber) e de credor (Contas a
     # Pagar). MAIS ESPECÍFICA que qualquer outra `/api/financeiro/...`, e com
@@ -684,8 +686,8 @@ _PERFIS_MODELO = [
       "pneus", "telcon", "telcond", "telhod", "cnh"]),
     ("Suprimentos", "Ordens de compra, painel de custos e preço de peças.",
      ["oc", "custos", "pecas"]),
-    ("Painéis TV",  "Apenas os painéis de TV (faturamento, operação, produtividade e CCO) — para telão/quiosque.",
-     ["tvfat", "tvope", "tvprod", "tvcco"]),
+    ("Painéis TV",  "Apenas os painéis de TV (faturamento, operação, produtividade, CCO e RH) — para telão/quiosque.",
+     ["tvfat", "tvope", "tvprod", "tvcco", "tvrh"]),
     ("Recursos Humanos", "Vagas, headcount, custo de folha, indicadores, horas "
                          "extras, frequência, CNH e o canal com o motorista.",
      ["rh", "hc", "folha", "folhaind", "he", "freq", "cnh", "ferias", "people",
@@ -1201,6 +1203,19 @@ def _seed_perfis_modelo(c: psycopg.Connection) -> None:
                           " VALUES(%s,%s) ON CONFLICT DO NOTHING",
                           (row["id"], "whrval"))
         c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v49', '1') ON CONFLICT(chave) DO NOTHING")
+
+    # v50 (2026-09-16): o painel de TV do RH (`tvrh`) — a TV da sala do RH
+    # (perfil Painéis TV), o próprio RH e a Diretoria. A parede mostra NOME de
+    # aniversariante, admitido e desligado, por decisão de quem opera; por isso
+    # a lista é essa e não o perfil amplo.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v50'").fetchone():
+        for nome in ("Painéis TV", "Recursos Humanos", "Diretoria"):
+            row = c.execute("SELECT id FROM perfis WHERE nome=%s", (nome,)).fetchone()
+            if row:
+                c.execute("INSERT INTO perfil_telas(perfil_id, tela)"
+                          " VALUES(%s,%s) ON CONFLICT DO NOTHING",
+                          (row["id"], "tvrh"))
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v50', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v43 (2026-09-09): Frequência e Banco de Horas (`freq`) ao perfil de
     # Recursos Humanos. A Diretoria entra JUNTO, e aqui isso é deliberado —

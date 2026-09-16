@@ -9077,6 +9077,65 @@ def operacao_milkrun(de: str | None = None, ate: str | None = None,
             "erro": "erro_consulta", "mensagem": "Erro ao montar a operacao."})
 
 
+@app.get("/api/qualidade/acidentes-fatais")
+def qualidade_acidentes_fatais() -> JSONResponse:
+    """Os acidentes com vítima fatal registrados no CÓRTEX, retirados junto
+    (a tela mostra o histórico inteiro; a TV conta só os válidos)."""
+    from api.rh import acidentes_fatais as af
+    try:
+        return JSONResponse({"registros": af.listar(), "filiais": list(af.FILIAIS)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("acidentes fatais: leitura falhou (%s)", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Não foi possível ler o registro."})
+
+
+def _acidente_fatal_escrever(request: Request, acao: str, fn) -> JSONResponse:
+    from api.rh import acidentes_fatais as af
+    autor = str((getattr(request.state, "sessao", None) or {}).get("email") or "")
+    try:
+        r = fn(af, autor)
+    except af.Recusa as exc:
+        return JSONResponse(status_code=HTTP_RECUSA, content={"erro": "recusado", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("acidentes fatais: gravacao falhou (%s)", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_gravacao", "mensagem": "Não foi possível gravar o registro."})
+    try:   # gravado; a auditoria não reverte a resposta
+        auth.audit(autor, acao, alvo=str(r["id"]), detalhe=f"{r['data']} · {r['filial']}"[:500])
+    except Exception as exc:  # noqa: BLE001
+        log.warning("audit do acidente fatal falhou (gravado): %s", type(exc).__name__)
+    return JSONResponse({"ok": True, "registro": r})
+
+
+@app.post("/api/qualidade/acidentes-fatais")
+def qualidade_acidente_fatal_registrar(payload: dict, request: Request) -> JSONResponse:
+    """Registra um acidente com vítima fatal (data, filial, descrição)."""
+    return _acidente_fatal_escrever(request, "acidente_fatal_registrar",
+                                    lambda af, autor: af.registrar(payload, autor=autor))
+
+
+@app.post("/api/qualidade/acidentes-fatais/{id_}/retirar")
+def qualidade_acidente_fatal_retirar(id_: int, payload: dict, request: Request) -> JSONResponse:
+    """Retira um registro errado — uma vez, com motivo. A linha fica."""
+    return _acidente_fatal_escrever(request, "acidente_fatal_retirar",
+                                    lambda af, autor: af.retirar(id_, payload.get("motivo"), autor=autor))
+
+
+@app.get("/api/rh/tv")
+def rh_tv() -> JSONResponse:
+    """O painel de TV do RH (`tvrh`). Cada bloco responde sozinho
+    (`api/rh/tv.painel`): um dia ruim do GLOBUS ou do ERP apaga o bloco dele,
+    não a parede."""
+    from api.rh.tv import painel
+    try:
+        return JSONResponse(painel())
+    except Exception as exc:  # noqa: BLE001
+        log.warning("rh tv falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao montar o painel do RH."})
+
+
 @app.get("/api/operacao/whirlpool/validacao")
 def operacao_whirlpool_validacao(de: str | None = None, ate: str | None = None) -> JSONResponse:
     """Cada coleta da Whirlpool na janela: o Pré-Cálculo (ou a Ordem de

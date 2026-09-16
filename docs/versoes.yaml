@@ -1,3 +1,30 @@
+- versao: "1.105.0"
+  data: "2026-09-16"
+  adicionado:
+    - >-
+      Painel de TV do RH: Business Intelligence › TV — Gestão › Gente e
+      Segurança (no celular, na gaveta, em Business Intelligence). Três
+      lâminas que giram sozinhas. Gente Sulista: colaboradores ativos e
+      afastados, por filial, gênero, tempo de casa, departamento e liderança.
+      Segurança, qualidade e gente: acidentes com vítima fatal e sem vítima,
+      RNCs, aniversariantes do mês e do dia, admitidos e desligados do mês.
+      Indicadores de gente: turnover e absenteísmo em 12 meses, pendências com
+      prazo (férias em dobra, CNH vencendo, contratos de experiência), banco
+      de horas, hora extra em horas e quem completa tempo de casa no mês.
+      Mês que a Qualidade ainda não lançou aparece como "sem lançamento", não
+      como zero, e o rodapé diz até quando está lançado.
+    - >-
+      Controladoria › Qualidade e Certidões ganhou a aba "Acidentes com vítima
+      fatal": o registro de acidente com morte, que a tabela da Qualidade no
+      ERP não tem. É daqui que o painel do RH conta os acidentes com vítima.
+      O registro não se apaga nem se edita; registro errado sai pelo botão
+      Retirar, com motivo, e continua na lista riscado.
+  alterado:
+    - >-
+      Controladoria › Qualidade e Certidões agora tem abas: Indicadores e
+      certidões, Auditoria interna e Acidentes com vítima fatal — a tela passou
+      a caber sem rolar.
+
 - versao: "1.104.1"
   data: "2026-09-16"
   alterado:

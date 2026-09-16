@@ -149,7 +149,7 @@ def test_os_paineis_de_tv_estao_nos_submenus_por_tema(html):
     tema = {r: set(re.findall(r'data-view="(\w+)"', c)) for _b, r, c in _subgrupos_bi(html)}
     assert tema == {
         "TV — Cliente": {"tvcli"},
-        "TV — Gestão": {"tvdir", "tvfat"},
+        "TV — Gestão": {"tvdir", "tvfat", "tvrh"},
         "TV — Operação": {"tvcco", "tvcom", "tvjor", "tvope", "tvprod"},
     }, tema
 
