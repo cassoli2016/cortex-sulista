@@ -1,3 +1,14 @@
+- versao: "1.104.0"
+  data: "2026-09-16"
+  alterado:
+    - >-
+      Menu — os painéis de TV agora ficam separados por tema dentro de
+      Business Intelligence: TV — Cliente (Cliente), TV — Gestão (Diretoria e
+      Faturamento) e TV — Operação (Coletas e Entregas, Comunicação, Jornada,
+      Operação e Produtividade). Ao abrir um painel, o menu abre só o tema
+      dele. No celular, os nomes mostram o tema na frente ("TV Operação —
+      Jornada"). Os acessos não mudaram.
+
 - versao: "1.103.2"
   data: "2026-09-16"
   alterado:

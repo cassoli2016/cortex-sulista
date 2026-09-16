@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.104.0] — 16/09/2026  ·  CX-16/09/2026-v1.104.0
+
+### Alterado
+- Menu — os painéis de TV agora ficam separados por tema dentro de Business Intelligence: TV — Cliente (Cliente), TV — Gestão (Diretoria e Faturamento) e TV — Operação (Coletas e Entregas, Comunicação, Jornada, Operação e Produtividade). Ao abrir um painel, o menu abre só o tema dele. No celular, os nomes mostram o tema na frente ("TV Operação — Jornada"). Os acessos não mudaram.
+
 ## [1.103.2] — 16/09/2026  ·  CX-16/09/2026-v1.103.2
 
 ### Alterado

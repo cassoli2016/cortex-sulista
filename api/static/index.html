@@ -195,7 +195,7 @@ nav .group[aria-expanded="false"] .chev{transform:rotate(-90deg)}
 .subs{display:flex;flex-direction:column;gap:1px;
   margin-left:11px;border-left:1px solid rgba(255,255,255,.11)}
 .subs.closed{display:none}
-/* TERCEIRO NÍVEL do menu (Business Intelligence > Painéis TV > painel).
+/* TERCEIRO NÍVEL do menu (Business Intelligence > TV — Operação > painel).
    Existe só onde há uma FAMÍLIA de telas dentro de uma área — não para
    aninhar por aninhar: um nível a mais é um clique a mais para todo mundo
    que passa por ali. O recuo cresce 12px, o mesmo salto do nível anterior,
@@ -3733,15 +3733,25 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <span class="ic" data-ic="bi"></span><span>Business Intelligence</span><span class="ic chev" data-ic="chev"></span>
       </button>
       <div class="subs closed" id="subsBi">
-        <button class="subgrupo" id="sgTv" aria-expanded="false" aria-controls="subsTv" onclick="toggleSubgrupo('sgTv','subsTv')" title="Painéis TV — telão e quiosque">
-          <span class="ic" data-ic="tv"></span><span>Painéis TV</span><span class="ic chev" data-ic="chev"></span>
+        <button class="subgrupo" id="sgTvCli" aria-expanded="false" aria-controls="subsTvCli" onclick="toggleSubgrupo('sgTvCli','subsTvCli')" title="Painéis de TV — o cliente">
+          <span class="ic" data-ic="tvcliic"></span><span>TV — Cliente</span><span class="ic chev" data-ic="chev"></span>
         </button>
-        <div class="subs2 closed" id="subsTv">
+        <div class="subs2 closed" id="subsTvCli">
           <a href="#tvcli" class="sub sub2" data-view="tvcli" title="Painel de Operação do Cliente para TV"><span class="ic" data-ic="tvcliic"></span><span>Cliente</span></a>
-          <a href="#tvcco" class="sub sub2" data-view="tvcco" title="Gestão à vista de coletas e entregas para TV — programação, coleta, CT-e, entrega e gargalos, por filial de programação"><span class="ic" data-ic="tvccoic"></span><span>Coletas e Entregas</span></a>
-          <a href="#tvcom" class="sub sub2" data-view="tvcom" title="Painel de Comunicação com as rastreadoras para TV"><span class="ic" data-ic="tvcomic"></span><span>Comunicação</span></a>
+        </div>
+        <button class="subgrupo" id="sgTvGes" aria-expanded="false" aria-controls="subsTvGes" onclick="toggleSubgrupo('sgTvGes','subsTvGes')" title="Painéis de TV — diretoria e faturamento">
+          <span class="ic" data-ic="tvdiric"></span><span>TV — Gestão</span><span class="ic chev" data-ic="chev"></span>
+        </button>
+        <div class="subs2 closed" id="subsTvGes">
           <a href="#tvdir" class="sub sub2" data-view="tvdir" title="Painel da Diretoria para TV"><span class="ic" data-ic="tvdiric"></span><span>Diretoria</span></a>
           <a href="#tvfat" class="sub sub2" data-view="tvfat" title="Painel de Faturamento para TV"><span class="ic" data-ic="tvfatic"></span><span>Faturamento</span></a>
+        </div>
+        <button class="subgrupo" id="sgTvOpe" aria-expanded="false" aria-controls="subsTvOpe" onclick="toggleSubgrupo('sgTvOpe','subsTvOpe')" title="Painéis de TV — operação, frota e jornada">
+          <span class="ic" data-ic="tv"></span><span>TV — Operação</span><span class="ic chev" data-ic="chev"></span>
+        </button>
+        <div class="subs2 closed" id="subsTvOpe">
+          <a href="#tvcco" class="sub sub2" data-view="tvcco" title="Gestão à vista de coletas e entregas para TV — programação, coleta, CT-e, entrega e gargalos, por filial de programação"><span class="ic" data-ic="tvccoic"></span><span>Coletas e Entregas</span></a>
+          <a href="#tvcom" class="sub sub2" data-view="tvcom" title="Painel de Comunicação com as rastreadoras para TV"><span class="ic" data-ic="tvcomic"></span><span>Comunicação</span></a>
           <a href="#tvjor" class="sub sub2" data-view="tvjor" title="Painel de Jornada em tempo real para TV"><span class="ic" data-ic="tvjoric"></span><span>Jornada</span></a>
           <a href="#tvope" class="sub sub2" data-view="tvope" title="Painel de Operação para TV"><span class="ic" data-ic="tv"></span><span>Operação</span></a>
           <a href="#tvprod" class="sub sub2" data-view="tvprod" title="Painel de Produtividade da Frota para TV"><span class="ic" data-ic="tvprodic"></span><span>Produtividade</span></a>
@@ -11005,8 +11015,10 @@ const GRUPOS = [['grpBi','subsBi'],['grpCom','subsCom'],['grpFat','subsFat'],['g
   ['grpRh','subsRh'],['grpSpt','subsSpt'],['grpAdm','subsAdm']];
 
 /* SUBMENUS de terceiro nível: [botão, submenu, grupo a que pertencem].
-   Hoje só os Painéis TV, dentro de Business Intelligence. */
-const SUBGRUPOS = [['sgTv','subsTv','grpBi']];
+   Hoje os painéis de TV, POR TEMA, dentro de Business Intelligence (quem
+   opera, 16/09/2026): oito painéis numa lista só já não se achavam. */
+const SUBGRUPOS = [['sgTvCli','subsTvCli','grpBi'],['sgTvGes','subsTvGes','grpBi'],
+  ['sgTvOpe','subsTvOpe','grpBi']];
 
 function toggleSubgrupo(bid, sid){
   const b=document.getElementById(bid), s=document.getElementById(sid);
@@ -50495,14 +50507,14 @@ boot();
     <div class="dgrp" data-grp="Bi">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Business Intelligence</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
-        <a href="#tvcli" onclick="fecharDrawer()"><span class="ic" data-ic="tvcliic"></span>Painéis TV — Cliente</a>
-        <a href="#tvcco" onclick="fecharDrawer()"><span class="ic" data-ic="tvccoic"></span>Painéis TV — Coletas e Entregas</a>
-        <a href="#tvcom" onclick="fecharDrawer()"><span class="ic" data-ic="tvcomic"></span>Painéis TV — Comunicação</a>
-        <a href="#tvdir" onclick="fecharDrawer()"><span class="ic" data-ic="tvdiric"></span>Painéis TV — Diretoria</a>
-        <a href="#tvfat" onclick="fecharDrawer()"><span class="ic" data-ic="tvfatic"></span>Painéis TV — Faturamento</a>
-        <a href="#tvjor" onclick="fecharDrawer()"><span class="ic" data-ic="tvjoric"></span>Painéis TV — Jornada</a>
-        <a href="#tvope" onclick="fecharDrawer()"><span class="ic" data-ic="tv"></span>Painéis TV — Operação</a>
-        <a href="#tvprod" onclick="fecharDrawer()"><span class="ic" data-ic="tvprodic"></span>Painéis TV — Produtividade</a>
+        <a href="#tvcli" onclick="fecharDrawer()"><span class="ic" data-ic="tvcliic"></span>TV Cliente</a>
+        <a href="#tvdir" onclick="fecharDrawer()"><span class="ic" data-ic="tvdiric"></span>TV Gestão — Diretoria</a>
+        <a href="#tvfat" onclick="fecharDrawer()"><span class="ic" data-ic="tvfatic"></span>TV Gestão — Faturamento</a>
+        <a href="#tvcco" onclick="fecharDrawer()"><span class="ic" data-ic="tvccoic"></span>TV Operação — Coletas e Entregas</a>
+        <a href="#tvcom" onclick="fecharDrawer()"><span class="ic" data-ic="tvcomic"></span>TV Operação — Comunicação</a>
+        <a href="#tvjor" onclick="fecharDrawer()"><span class="ic" data-ic="tvjoric"></span>TV Operação — Jornada</a>
+        <a href="#tvope" onclick="fecharDrawer()"><span class="ic" data-ic="tv"></span>TV Operação — Operação</a>
+        <a href="#tvprod" onclick="fecharDrawer()"><span class="ic" data-ic="tvprodic"></span>TV Operação — Produtividade</a>
       </div>
     </div>
     <div class="dgrp" data-grp="Com">

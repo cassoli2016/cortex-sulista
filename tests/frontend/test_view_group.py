@@ -27,13 +27,25 @@ def _view_group(html: str) -> dict[str, str]:
 
 
 def _grupo_na_sidebar(html: str) -> dict[str, str]:
-    """Para cada link da barra lateral, o sufixo do `subs<X>` que o contem."""
+    """Para cada link da barra lateral, o sufixo do `subs<X>` que o contem.
+
+    O bloco vai ate o `</div>` que FECHA o grupo, contando os aninhados. O
+    corte era o primeiro `</div>`: com os paineis de TV em tres submenus
+    (`subs2`), o grupo parava no fim do primeiro e os outros dois viravam
+    "grupos" TvGes e TvOpe que o `VIEW_GROUP` nao conhece.
+    """
     fora: dict[str, str] = {}
-    for bloco in re.finditer(
-            r'<div class="subs[^"]*" id="subs(\w+)">(.*?)</div>', html, re.S):
-        grupo, dentro = bloco.group(1), bloco.group(2)
+    for bloco in re.finditer(r'<div class="subs(?: [^"]*)?" id="subs(\w+)">', html):
+        prof, dentro = 0, None
+        for m in re.finditer(r"<div\b|</div>", html[bloco.start():]):
+            prof += 1 if m.group(0) == "<div" else -1
+            if prof == 0:
+                dentro = html[bloco.end():bloco.start() + m.start()]
+                break
+        assert dentro is not None, f"subs{bloco.group(1)} sem fechamento"
         for v in re.findall(r'data-view="(\w+)"', dentro):
-            fora[v] = grupo
+            fora[v] = bloco.group(1)
+    assert fora, "nenhum link lido na barra lateral"
     return fora
 
 

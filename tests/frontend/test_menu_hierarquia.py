@@ -172,3 +172,31 @@ def test_a_trilha_NAO_quebra_quando_a_tela_esta_fora_de_grupo(pagina):
       tem_trilha: !!document.querySelector('#viewTitle .trilha')})""")
     assert not erros, erros
     assert m["titulo"] == "Visão Geral", m
+
+
+def test_o_painel_de_tv_abre_o_submenu_do_TEMA_dele_e_so_ele(pagina):
+    """Os paineis de TV em tres submenus por tema (16/09/2026).
+
+    O grupo Business Intelligence abrir nao basta: com o submenu do tema
+    fechado, o painel ativo fica escondido e o menu nao diz onde voce esta.
+    E abrir TODOS os submenus devolveria a lista comprida que motivou a
+    divisao.
+    """
+    # a TV esconde a barra lateral: o item ativo existe, so nao esta VISIVEL
+    pg, _base = pagina
+    pg.route("**/api/**", lambda r: r.fulfill(
+        status=200, content_type="application/json",
+        body=json.dumps(USUARIO if "/auth/me" in r.request.url else {})))
+    erros = []
+    pg.on("pageerror", lambda e: erros.append(str(e)))
+    pg.goto(f"{_base}/static/index.html#tvfat")
+    pg.wait_for_selector('nav a.active[data-view="tvfat"]', state="attached", timeout=20000)
+    m = pg.evaluate(r"""() => Object.fromEntries(['Cli','Ges','Ope'].map(k => {
+      const b = document.getElementById('sgTv'+k), s = document.getElementById('subsTv'+k);
+      return [k, {aberto: b.getAttribute('aria-expanded') === 'true' && !s.classList.contains('closed'),
+                  marcado: b.classList.contains('tem-ativa')}];
+    }))""")
+    assert not erros, erros
+    assert m["Ges"] == {"aberto": True, "marcado": True}, m
+    assert m["Ope"] == {"aberto": False, "marcado": False}, m
+    assert m["Cli"] == {"aberto": False, "marcado": False}, m
