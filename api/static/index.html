@@ -1912,6 +1912,11 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
 .tvw-km .mod .trk{flex:1;height:clamp(4px,0.95vw,18px);background:#1E3A54;border-radius:0.5vw;overflow:hidden}
 .tvw-km .mod .trk i{display:block;height:100%;transition:width .9s cubic-bezier(.2,.6,.2,1)}
 .tvw-km .mod span{width:clamp(48px,6.2vw,120px);flex-shrink:0;text-align:right;font-variant-numeric:tabular-nums;color:#A9BCCD;font-size:clamp(10px,0.85vw,16px)}
+/* A FATIA EM NUMERO, ao lado da barra que tem o mesmo comprimento. Vem
+   QUALIFICADA (`span.kpct`) porque a regra de cima tambem casa com ela e e
+   mais especifica que uma classe solta -- regra que existe e perde a briga
+   nao muda um pixel. */
+.tvw-km .mod span.kpct{width:clamp(34px,3.6vw,68px);color:#C7D4E0;font-weight:600}
 /* CARREGADO x VAZIO NUMA BARRA SO: a composicao do km do mes de um olhar,
    com a marca do limite de vazio (20%) contada da direita */
 .tvw-km .kmstack{position:relative;display:flex;height:clamp(8px,0.9vw,16px);background:#1E3A54;
@@ -2145,6 +2150,7 @@ body.tvfull.tvwall #view-tvcco .tv-ticker{flex-shrink:0;margin-top:18px}
   #view-tvope .tvw-km .mod{font-size:13px}
   #view-tvope .tvw-km .mod b{width:76px}
   #view-tvope .tvw-km .mod span{width:84px;font-size:12px}
+  #view-tvope .tvw-km .mod span.kpct{width:44px}
   #tvope-km .tvw-arco{width:130px}
   #view-tvope .tvw-gauge .glab{font-size:11px}
   /* chegadas: a lista inteira (a pagina rola), em letra de celular */
@@ -18441,7 +18447,15 @@ async function loadTvOpe(){
       const mods=Object.values(agrMod).sort((a,b)=>
         (CONHECIDAS.includes(b.utilizacao)-CONHECIDAS.includes(a.utilizacao))
         || (b.km_total-a.km_total)).slice(0,3);
-      const maxT=Math.max(1,...mods.map(m=>m.km_total||0));
+      /* CADA MODALIDADE COM A SUA FATIA (pedido de quem opera, 16/09/2026:
+         "coloque o % que cada uma representa e preencha elas com o % que
+         corresponde"). A barra era relativa a MAIOR modalidade: a primeira
+         saia sempre cheia, e cheia se le de longe como "tudo". Agora o
+         comprimento e a fatia do km DO MES -- o mesmo numero escrito ao lado,
+         barra e texto dizendo a mesma coisa. E quando ha uma quarta
+         modalidade no mes, as tres somam menos de 100%: e assim que o corte
+         da lista aparece, em vez de sumir. */
+      const pctMod=v=>kk.km_total>0 ? 100*(v||0)/kk.km_total : 0;
       // as duas cores da barra vem de VARIAVEL, e nao escritas no style=: a
       // verificacao estrutural (scripts/verificar_estrutura.py) recusa cor de
       // fundo literal em style= longe de uma marca de TV, e este trecho fica a
@@ -18454,17 +18468,18 @@ async function loadTvOpe(){
          sua parte da barra. */
       document.getElementById('tvope-km').innerHTML=`
         <div class="kmgrp"><div class="duo">
-          <div><div class="klab">Carregado</div><div class="knum" style="color:#4ADE80">${mil(kk.km_carregado)}</div></div>
+          <div><div class="klab">Carregado · ${(100-Math.min(100,pctV)).toFixed(0)}%</div><div class="knum" style="color:#4ADE80">${mil(kk.km_carregado)}</div></div>
           <div><div class="klab">Vazio · ${pctV.toFixed(0)}%</div><div class="knum" style="color:${corV}">${mil(kk.km_vazio)}</div></div>
           <div><div class="klab">Total</div><div class="knum">${mil(kk.km_total)}</div></div>
         </div>
         <div class="kmstack"><i style="width:${(100-Math.min(100,pctV)).toFixed(1)}%;background:${corC}"></i><i style="width:${Math.min(100,pctV).toFixed(1)}%;background:${corV}"></i><u style="left:80%"></u></div>
         <div class="kmvz-lab">marca = limite de 20% de vazio</div></div>
         <div class="kmgrp kmmods">${mods.map(m=>{
-          const cor=tvCorMod(m.utilizacao);
+          const cor=tvCorMod(m.utilizacao), pm=pctMod(m.km_total);
           return `<div class="mod"><b>${esc(utLbl(m.utilizacao)[0])}</b>
-            <div class="trk"><i style="width:${(100*(m.km_total||0)/maxT).toFixed(1)}%;background:${cor}"></i></div>
-            <span>${((m.km_total||0)/1000).toLocaleString('pt-BR',{maximumFractionDigits:0})} mil km</span></div>`;
+            <div class="trk"><i style="width:${pm.toFixed(1)}%;background:${cor}"></i></div>
+            <span>${((m.km_total||0)/1000).toLocaleString('pt-BR',{maximumFractionDigits:0})} mil km</span>
+            <span class="kpct">${pm.toFixed(0)}%</span></div>`;
         }).join('')}</div>`;
     }
     /* O VEICULO SE CHAMA PELO NUMERO DE FROTA na parede (pedido de quem

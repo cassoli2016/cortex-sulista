@@ -1,3 +1,15 @@
+- versao: "1.95.0"
+  data: "2026-09-16"
+  alterado:
+    - >-
+      Painel TV › Operação — no cartão "KM do mês e metas", cada modalidade
+      passa a dizer quanto representa do km do mês e a barra passa a ter esse
+      mesmo comprimento. Antes a barra era relativa à maior modalidade: a
+      primeira saía sempre cheia, e cheia se lê de longe como "tudo". Quando
+      houver uma quarta modalidade no mês, as três da lista somam menos de
+      100% — é assim que o corte aparece em vez de sumir. O carregado também
+      passa a mostrar a sua fatia, ao lado do vazio, que já mostrava.
+
 - versao: "1.94.0"
   data: "2026-09-16"
   adicionado:

@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.95.0] — 16/09/2026  ·  CX-16/09/2026-v1.95.0
+
+### Alterado
+- Painel TV › Operação — no cartão "KM do mês e metas", cada modalidade passa a dizer quanto representa do km do mês e a barra passa a ter esse mesmo comprimento. Antes a barra era relativa à maior modalidade: a primeira saía sempre cheia, e cheia se lê de longe como "tudo". Quando houver uma quarta modalidade no mês, as três da lista somam menos de 100% — é assim que o corte aparece em vez de sumir. O carregado também passa a mostrar a sua fatia, ao lado do vazio, que já mostrava.
+
 ## [1.94.0] — 16/09/2026  ·  CX-16/09/2026-v1.94.0
 
 ### Adicionado

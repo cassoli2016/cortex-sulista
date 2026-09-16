@@ -535,6 +535,35 @@ def test_carregado_e_vazio_numa_barra_so(pagina):
                                .map(i => Math.round(parseFloat(i.style.width)))""")
     # 91 mil de 454 mil = 20% de vazio
     assert larg == [80, 20], larg
+    # e os DOIS rótulos dizem a sua fatia (16/09/2026): só o vazio dizia
+    labs = pg.evaluate("""() => [...document.querySelectorAll('#tvope-km .klab')]
+                                .map(l => l.innerText.trim().toUpperCase())""")
+    assert labs[:3] == ["CARREGADO · 80%", "VAZIO · 20%", "TOTAL"], labs
+
+
+def test_cada_modalidade_diz_e_PREENCHE_a_sua_fatia(pagina):
+    """Quem opera, 16/09/2026: "coloque o % que cada uma representa e preencha
+    elas com o % que corresponde". A barra era relativa à MAIOR modalidade — a
+    primeira saía sempre cheia, e cheia se lê de longe como "tudo"."""
+    pg, base = pagina
+    _abre(pg, base)
+    linhas = pg.evaluate("""() => [...document.querySelectorAll('#tvope-km .mod')].map(m => ({
+        rot: m.querySelector('b').innerText.trim(),
+        larg: Math.round(parseFloat(m.querySelector('.trk i').style.width)),
+        pct: m.querySelector('.kpct').innerText.trim(),
+        km: m.querySelector('span').innerText.trim()}))""")
+    # do km do mês (454 mil): agregado 365, frota 49+27, terceiro 12
+    assert [(l["rot"], l["larg"], l["pct"], l["km"]) for l in linhas] == [
+        ("Agregado", 80, "80%", "365 mil km"),
+        ("Frota", 17, "17%", "76 mil km"),
+        ("Terceiro", 3, "3%", "12 mil km")], linhas
+    # a barra é o mesmo número que está escrito: o comprimento segue o %
+    assert all(abs(l["larg"] - int(l["pct"].rstrip("%"))) <= 1 for l in linhas), linhas
+    # a coluna do % não pode nascer com a largura da coluna de km (a regra de
+    # cima também casa com ela): sem a qualificação, os dois textos afastam
+    larguras = pg.evaluate("""() => [...document.querySelectorAll('#tvope-km .mod:first-child span')]
+                                    .map(s => Math.round(s.getBoundingClientRect().width))""")
+    assert larguras[1] < larguras[0], larguras
 
 
 def test_chegadas_uma_linha_por_carga_e_com_contador(pagina):
