@@ -1519,6 +1519,10 @@ body.tvfull.tvwall #view-tvope .tv-head{flex-shrink:0}
 body.tvfull.tvwall #view-tvope .tvw{flex:1 1 auto;min-height:0;height:auto}
 body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
 .tvw{display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr;gap:0.45vw;height:calc(100vh - 6.6vw)}
+/* A TV da operacao e UMA parede de seis TVs (3x2), e cada bloco e uma TV: o
+   vao entre os blocos e o que separa um do outro de longe (quem opera,
+   16/09/2026). Os cartoes DENTRO de um bloco seguem com o vao curto. */
+#view-tvope .tvw{gap:1.2vw}
 /* Borda e respiro enxutos: 0.9vw de raio davam 17px numa TV de 1080p e o
    cartao ficava com cara de botao; o padding de 1.1vw comia a altura util que
    os numeros novos precisam. */

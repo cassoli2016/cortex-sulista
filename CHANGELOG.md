@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.103.2] — 16/09/2026  ·  CX-16/09/2026-v1.103.2
+
+### Alterado
+- Painel TV — Operação: o vão entre os seis blocos ficou maior, para cada bloco se separar do vizinho de longe, como uma TV da parede. Os cartões dentro de cada bloco continuam juntos como antes.
+
 ## [1.103.1] — 16/09/2026  ·  CX-16/09/2026-v1.103.1
 
 ### Alterado
