@@ -3813,6 +3813,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#prog" class="sub" data-view="prog" title="Programação Inteligente"><span class="ic" data-ic="prog"></span><span>Programação Intel.</span></a>
         <a href="#sac" class="sub" data-view="sac" title="SAC / Freetime e Estadia"><span class="ic" data-ic="sacic"></span><span>SAC / Freetime</span></a>
         <a href="#torre" class="sub" data-view="torre" title="Torre de Controle"><span class="ic" data-ic="tor"></span><span>Torre de Controle</span></a>
+        <a href="#whrval" class="sub" data-view="whrval" title="Validação de Emissão — Whirlpool: o Pré-Cálculo anexado à coleta contra o CT-e emitido"><span class="ic" data-ic="whrvalic"></span><span>Validação de Emissão — Whirlpool</span></a>
         <a href="#pedagio" class="sub" data-view="pedagio" title="Validação de Pedágio — o vale-pedágio contra o que se cobra no CT-e e o que a coleta lança, por eixo e modalidade"><span class="ic" data-ic="pedic"></span><span>Validação de Pedágio</span></a>
       </div>
       <button class="group" id="grpRh" aria-expanded="false" aria-controls="subsRh" onclick="toggleGroup('grpRh','subsRh','cs.rhGroup')" title="Recursos Humanos">
@@ -7529,6 +7530,31 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
       </section>
       <!-- ===================== VALIDAÇÃO DE PEDÁGIO ===================== -->
+      <section class="view" id="view-whrval">
+        <div class="kpis k4" id="kpis-whrval"></div>
+        <div class="card">
+          <div class="head"><h2>Coletas da Whirlpool: arquivo × CT-e <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="ERP: coleta em que a Whirlpool é remetente, pagadora ou tomadora (raiz do CNPJ), o anexo da ocorrência 262 (PRÉ CÁLCULO) em arquivo.arquivobinario e o CT-e que saiu da coleta (conhecimento_composicao). O Pré-Cálculo tem UMA PÁGINA POR FORNECEDOR e cada página se confere com o seu CT-e: total, frete, pedágio, taxa de coleta, ICMS (componente 100 do CT-e) e a alíquota, peso, contratante = tomador e a filial da Sulista = emissora. A Ordem de Coleta não tem valor: confere-se o peso total. Até R$ 0,05 é igual; até R$ 1,00 é arredondamento (amarelo); acima disso, divergência. O estado é calculado na leitura — CT-e cancelado e reemitido muda a resposta sozinho.">i</span></h2>
+            <span class="hint" id="hintWhrval"></span></div>
+          <div class="milk-filtros">
+            <label>De<input id="fWhrvalDe" type="date" onchange="loadWhrval()" aria-label="Coletas emitidas a partir de"></label>
+            <label>Até<input id="fWhrvalAte" type="date" onchange="loadWhrval()" aria-label="Coletas emitidas até"></label>
+            <label>Estado<select id="fWhrvalEstado" onchange="renderWhrvalLista()" aria-label="Estado da conferência">
+              <option value="pendentes">Precisa de atenção</option>
+              <option value="">Todas</option>
+              <option value="divergente">Divergente</option>
+              <option value="arredondamento">Diferença de arredondamento</option>
+              <option value="sem_arquivo">Sem arquivo</option>
+              <option value="nao_lido">Arquivo não lido</option>
+              <option value="sem_valor">Arquivo sem valor</option>
+              <option value="sem_cte">Aguardando CT-e</option>
+              <option value="ok">Conferido</option>
+            </select></label>
+            <label>Busca<input id="fWhrvalBusca" type="text" placeholder="coleta, CT-e ou fornecedor" oninput="renderWhrvalLista()" aria-label="Buscar coleta, CT-e ou fornecedor"></label>
+          </div>
+          <div class="tablewrap tabroll" id="whrval-lista"></div>
+        </div>
+      </section>
+
       <section class="view" id="view-pedagio">
         <div class="kpis k4" id="kpis-ped"></div>
         <div class="banner-inline" id="ped-aviso" style="display:none"></div>
@@ -10655,6 +10681,7 @@ const ICONS = {
   poliic: IC('<path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5z"/><circle cx="12" cy="11" r="2.2"/><path d="M12 13.2V17"/>'),
   pneuic: IC('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.6"/><path d="M12 3v5.4M12 15.6V21M3 12h5.4M15.6 12H21"/>'),
   rhmotic: IC('<path d="M4 5.5h16a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 3.5V16.5H4A1.5 1.5 0 0 1 2.5 15V7A1.5 1.5 0 0 1 4 5.5Z"/><path d="M7 9.5h10M7 12.5h6"/>'),
+  whrvalic: IC('<path d="M6 2.5h8l4 4V20a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 5 20V4a1.5 1.5 0 0 1 1-1.5Z"/><path d="M14 2.5V6.5h4"/><path d="m8.5 14 2.2 2.2 4.3-4.7"/>'),
   agrcanalic: IC('<path d="M3 6.5h13a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5H8l-3.5 3V15.5H3A1.5 1.5 0 0 1 1.5 14V8A1.5 1.5 0 0 1 3 6.5Z"/><path d="M19 9h2.5l1 3v3.5h-2"/><circle cx="18.5" cy="17" r="1.6"/>'),
   feriasic: IC('<rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/><path d="m9 15 2 2 4-4"/>'),
   cnhic: IC('<rect x="2" y="4.5" width="20" height="15" rx="2.5"/><circle cx="8" cy="11" r="2.2"/><path d="M4.6 16.4a3.7 3.7 0 0 1 6.8 0"/><path d="M14.5 9.5h5M14.5 12.5h5M14.5 15.5h3"/>'),
@@ -10724,7 +10751,7 @@ function tvRecarregar(v){
   if(esTv(v) && mapa[v]) mapa[v]();
 }
 
-const VIEWS = { agrcanal:'Canal do Agregado', hp:'Horas Paradas', radar:'Radar do Transporte', tvcco:'Painel TV — Coletas e Entregas', tvcom:'Painel TV — Comunicação', tvjor:'Painel TV — Jornada', tvprod:'Painel TV — Produtividade',home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Central de Documentos', eqp:'Equipamentos', wmspan:'Painel do Armazém', wmsrec:'Recebimento', wmsest:'Estoque e Inventário', wmsexp:'Separação e Expedição', wmscad:'Cadastros do Armazém', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', freq:'Frequência e Banco de Horas', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', gesind:'Ritual — Indicadores e Metas', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
+const VIEWS = { agrcanal:'Canal do Agregado', hp:'Horas Paradas', radar:'Radar do Transporte', tvcco:'Painel TV — Coletas e Entregas', tvcom:'Painel TV — Comunicação', tvjor:'Painel TV — Jornada', tvprod:'Painel TV — Produtividade',home:'Visão Geral', apps:'Aplicativos', fluxo:'Fluxo de Caixa e Bancos', receber:'Contas a Receber', pagar:'Contas a Pagar', dfe:'Central de Documentos', eqp:'Equipamentos', wmspan:'Painel do Armazém', wmsrec:'Recebimento', wmsest:'Estoque e Inventário', wmsexp:'Separação e Expedição', wmscad:'Cadastros do Armazém', oc:'Ordens de Compra', custos:'Painel de Custos', pecas:'Preço de Peças', agr:'Agregados e Terceiros', mvb:'Frota Própria × Agregado', pedagio:'Validação de Pedágio', whrval:'Validação de Emissão — Whirlpool', comb:'Combustível', man:'Manutenção', com:'Clientes e RKM', clif:'Consulta de Cliente', crm:'CRM — Funil Comercial', km:'Análise de KM', fat:'Faturamento Detalhado', gr:'Gerenciamento de Risco', torre:'Torre de Controle', poli:'Permanência na Planta', ctecp:'CT-e de Contrapartida', veic:'Veículos', veicf:'Consulta de Veículo', mprev:'Manutenção Preventiva', comrast:'Comunicação Rastreadora', mul:'Multas — Smartec', prog:'Programação Inteligente', jorn:'Jornada do Motorista', jornf:'Ficha de Jornada', cex:'Custos Extras', sac:'SAC / Freetime', cliop:'Minha Operação', port:'Portaria', cop:'Copiloto Cortex', cob:'Régua de Cobrança', banc:'Bancos', extb:'Extrato Bancário', lanc:'Lançamentos Bancários', antec:'Antecipação de Recebíveis', antport:'Portais de Antecipação', milkrun:'Operação MWM', rec:'Lançamentos Recorrentes', fluxcon:'Fluxo de Caixa Consolidado', cont:'Contabilidade', qual:'Qualidade e Certidões', orc:'Orçamento', fech:'Fechamento do Mês', prem:'Premiação de Motoristas', dre:'DRE Gerencial', bal:'Balanço Patrimonial', drecli:'DRE por Cliente', tvcli:'Painel TV — Operação do Cliente', tvfat:'Painel TV — Faturamento', tvope:'Painel TV — Operação', tvdir:'Painel TV — Diretoria', rh:'RH — Vagas', hc:'Headcount', folha:'Custo de Folha', folhaind:'Indicadores de Folha', he:'Horas Extras', freq:'Frequência e Banco de Horas', cnh:'CNH dos Motoristas', ferias:'Férias — Vencimento', rhmot:'RH — Canal do Motorista', people:'People Analytics', des:'Avaliação de Desempenho', pneus:'Pneus', gestao:'Gestão', gesacao:'Planos de Ação', gesata:'Atas de Reunião', gesrit:'Ritual Semanal — Execução & Resultados', gesind:'Ritual — Indicadores e Metas', srv:'Saúde do Servidor', aud:'Auditoria e Uso', integ:'Integrações', mon:'Monitoramentos de Carga',sup:'Suporte', supfila:'Suporte — Atendimento', doc:'Documentação', anpiso:'Piso Mínimo de Frete', anrntrc:'RNTRC dos Transportadores', telcon:'Consumo e Estatísticas', telcond:'Condução Econômica', telhod:'Hodômetro e Rastro' };
 const periodoLabel = p => { if(p==='atrasado') return 'Atrasado'; const [y,m]=p.split('-'); return MES[+m-1]+'/'+y.slice(2); };
 const fmtD = s => { if(!s) return ''; const [y,m,dd]=s.split('-'); return dd+'/'+m+'/'+y; };
 /* Idade da posicao bancaria. Cada conta e lancada num dia diferente: mostrar
@@ -11000,7 +11027,7 @@ const VIEW_GROUP = {radar:'',home:'',cop:'',apps:'',
   dre:'Ctr',bal:'Ctr',cont:'Ctr',qual:'Ctr',orc:'Ctr',fech:'Ctr',
   ctecp:'Tms',eqp:'Tms',dfe:'Tms',
   wmspan:'Wms',wmsrec:'Wms',wmsest:'Wms',wmsexp:'Wms',wmscad:'Wms',
-  torre:'Ope',milkrun:'Ope',poli:'Ope',hp:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',cliop:'Ope',port:'Ope',km:'Ope',agr:'Ope',agrcanal:'Ope',mvb:'Ope',pedagio:'Ope',
+  torre:'Ope',milkrun:'Ope',poli:'Ope',hp:'Ope',prog:'Ope',jorn:'Ope',jornf:'Ope',cex:'Ope',sac:'Ope',cliop:'Ope',port:'Ope',km:'Ope',agr:'Ope',agrcanal:'Ope',mvb:'Ope',pedagio:'Ope',whrval:'Ope',
   veic:'Fro',veicf:'Fro',mprev:'Fro',comrast:'Fro',comb:'Fro',man:'Fro',mul:'Fro',pneus:'Fro',
   oc:'Sup',custos:'Sup',pecas:'Sup',
   fat:'Ctr',gr:'Ope',tvcli:'Bi',tvfat:'Bi',tvope:'Bi',tvdir:'Bi',tvcom:'Bi',tvjor:'Bi',tvprod:'Bi',tvcco:'Bi',
@@ -11262,7 +11289,10 @@ function semFilterbar(v){
          v==='cex'||v==='sac'||v==='cliop'||v==='mprev'||v==='comrast'||v==='qual'||v==='port'||v==='crm'||v==='rh'||
          v==='hc'||v==='folha'||v==='folhaind'||v==='he'||v==='freq'||v==='custos'||v==='pecas'||v==='orc'||v==='prem'||v==='banc'||v==='extb'||v==='fech'||v==='fat'||v==='gr'||v==='antport'||v==='doc'||v==='telcon'||v==='telcond'||v==='telhod'||v==='milkrun'||v==='cnh'||v==='ferias'||v==='rhmot'||v==='pneus'||v==='people'||v==='des'||v==='poli'||v==='ctecp'||v==='sup'||v==='supfila'||v==='eqp'||
          v==='wmspan'||v==='wmsrec'||v==='wmsest'||v==='wmsexp'||v==='wmscad'||v==='hp'||
-         v==='agrcanal';
+         v==='agrcanal'||v==='whrval';
+  // `whrval` (16/09/2026): período DENTRO da tela. A consulta recebe só a
+  // janela de emissão da coleta — filial e vencimento da barra global não
+  // chegariam nela.
 }
 function currentView(){
   const h = (location.hash||'').replace('#','').split('?')[0];   // `#sup?chamado=12` é a tela sup
@@ -11421,7 +11451,7 @@ function router(){
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
   const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,freq:DATAFREQ,custos:DATACUSTOS,pecas:DATAPECAS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
-  const LOADMAP={agrcanal:loadAgrcanal,hp:loadHp,radar:loadRadar,apps:loadApps,integ:loadInteg,dfe:loadDfe,eqp:loadEqp,wmspan:loadWmsPan,wmsrec:loadWmsRec,wmsest:loadWmsEst,wmsexp:loadWmsExp,wmscad:loadWmsCad,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,freq:loadFreq,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvprod:loadTvProd,tvcco:loadTvCco,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
+  const LOADMAP={agrcanal:loadAgrcanal,hp:loadHp,radar:loadRadar,apps:loadApps,integ:loadInteg,dfe:loadDfe,eqp:loadEqp,wmspan:loadWmsPan,wmsrec:loadWmsRec,wmsest:loadWmsEst,wmsexp:loadWmsExp,wmscad:loadWmsCad,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,whrval:loadWhrval,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,freq:loadFreq,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvprod:loadTvProd,tvcco:loadTvCco,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
   document.querySelectorAll('.bottomnav [data-bview]').forEach(a=>a.classList.toggle('ativo', a.dataset.bview===v));
@@ -11475,6 +11505,7 @@ const NAV_KW={
   jorn:'motorista jornada 13103 descanso direcao inconformidade raster rasterjor hora extra repouso', cex:'custo extra estadia devolucao reentrega',
   sac:'freetime estadia detention ocorrencia atendimento', port:'portaria patio visitante entrada saida',
   km:'quilometragem vazio carregado retorno rkm', agr:'agregado terceiro frete comprado transportador',
+  whrval:'whirlpool validacao emissao pre calculo precalculo ordem de coleta cte conferencia frete anexo ocorrencia 262',
   agrcanal:'canal agregado proprietario fale conosco pedido fila conversa acerto desconto app do agregado',
   mvb:'make buy proprio agregado ckm decisao', pedagio:'pedagio vale praca eixo tag semparar concessionaria tarifa', veic:'frota veiculo cavalo carreta ativo placa',
   veicf:'ficha veiculo consulta placa', mprev:'preventiva troca oleo revisao manutencao',
@@ -13558,7 +13589,7 @@ function reloadCurrent(){
   // mapa COMPLETO: qualquer filtro compartilhado (Filial, datas, competência)
   // recarrega a TELA ATUAL — antes caía em load() (Financeiro) para várias telas.
   const M={home:loadHome,fluxo:load,receber:load,pagar:load,dre:loadDre,drecli:loadDreCli,oc:loadOc,
-    agr:loadAgr,mvb:loadMvb,pedagio:loadPedagio,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,
+    agr:loadAgr,mvb:loadMvb,pedagio:loadPedagio,whrval:loadWhrval,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,km:loadKm,
     torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,freq:loadFreq,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,rent:loadRent,
     cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvprod:loadTvProd,tvcco:loadTvCco,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   (M[currentView()]||load)();
@@ -25571,6 +25602,174 @@ let RHMOT = {conversas: [], assuntos: [], atual: null}, rhmotSeq = 0, rhmotTimer
    ordena pelo MAIS PARADO, e o número que diz se o canal funciona é "paradas
    há 3+ dias", não o total. Ver `api/agregado/conversas.py`. */
 let AGRCANAL = {conversas: [], assuntos: [], atual: null};
+/* ---------------- Validação de Emissão — Whirlpool (whrval) ----------------
+   Toda coleta da Whirlpool recebe a ocorrência 262 com o Pré-Cálculo DELA em
+   PDF; a tela confere cada página (um fornecedor) com o CT-e que a Sulista
+   emitiu. Quem calcula é o servidor (api/validacao_whirlpool): a tela só
+   mostra — e diz o limite do que conferiu. */
+let whrvalSeq = 0;
+const WHRVAL = {dados: null};
+const WHRVAL_CLS = {ok:'b-ok', arredondamento:'b-warn', divergente:'b-dang', sem_arquivo:'b-dang',
+                    nao_lido:'b-warn', sem_valor:'b-warn', sem_cte:'b-info'};
+const WHRVAL_GRUPO = {valores:'valores', peso:'peso', partes:'partes', ctes:'CT-e por fornecedor'};
+
+function whrvalBRL(v){ return v==null ? '—' : v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+function whrvalNum(v, casas){ return v==null ? '—'
+  : v.toLocaleString('pt-BR',{minimumFractionDigits:casas||0, maximumFractionDigits:casas==null?3:casas}); }
+
+async function loadWhrval(){
+  const deEl=document.getElementById('fWhrvalDe'), ateEl=document.getElementById('fWhrvalAte');
+  if(!deEl.value || !ateEl.value){
+    const hoje=new Date(), ini=new Date(); ini.setDate(ini.getDate()-30);
+    if(!ateEl.value) ateEl.value=_iso(hoje);
+    if(!deEl.value) deEl.value=_iso(ini);
+  }
+  skelKpis('kpis-whrval',4);
+  const seq=++whrvalSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  try{
+    const p=new URLSearchParams({de:deEl.value, ate:ateEl.value});
+    const r=await fetch('/api/operacao/whirlpool/validacao?'+p.toString(), {cache:'no-store'});
+    const d=await respostaJSON(r); if(seq!==whrvalSeq) return;
+    if(!d.ok){ showBanner(d.mensagem||'Erro ao carregar a validação.'); return; }
+    hideBanner();
+    WHRVAL.dados=d.dados;
+    renderWhrval(d.dados);
+  }catch(e){ if(seq===whrvalSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===whrvalSeq){ if(btn) btn.disabled=false;
+    document.getElementById('content').classList.remove('loading'); } }
+}
+
+function renderWhrval(d){
+  const c=d.contagem||{}, n=k=>c[k]||0;
+  const total=(d.coletas||[]).length;
+  const conferidas=n('ok')+n('arredondamento')+n('divergente')+n('sem_valor');
+  const pct=conferidas ? Math.round(100*(n('ok')+n('arredondamento'))/conferidas) : null;
+  document.getElementById('kpis-whrval').innerHTML=[
+    kpi('Coletas no período', total.toLocaleString('pt-BR'),
+        conferidas.toLocaleString('pt-BR')+' com arquivo e CT-e para conferir',
+        '', 'Coletas da Whirlpool emitidas na janela (remetente, pagadora ou tomadora).'),
+    kpi('Batem com o arquivo', pct==null?'n/d':pct+'%',
+        n('ok')+' iguais · '+n('arredondamento')+' com arredondamento até '+whrvalBRL(d.regras.tol_arredondamento),
+        pct==null?'':(pct>=95?'pos':'neg'),
+        'Sobre as coletas que têm arquivo lido E CT-e emitido.'),
+    kpi('Divergentes', n('divergente').toLocaleString('pt-BR'),
+        Object.entries(d.divergencias_por_grupo||{}).map(([g,q])=>q+' em '+(WHRVAL_GRUPO[g]||g)).join(' · ')||'nenhuma',
+        n('divergente')?'neg':'pos'),
+    kpi('Sem arquivo lido', (n('sem_arquivo')+n('nao_lido')).toLocaleString('pt-BR'),
+        n('sem_arquivo')+' sem anexo · '+n('nao_lido')+' em formato não lido · '+n('sem_cte')+' aguardando CT-e',
+        (n('sem_arquivo')+n('nao_lido'))?'neg':'pos')
+  ].join('');
+  document.getElementById('hintWhrval').textContent =
+    'ERP · coleta × ocorrência 262 × CT-e · '+fmtD(d.periodo.de)+' a '+fmtD(d.periodo.ate);
+  const ts=new Date();
+  const mt=document.getElementById('meta');
+  if(mt) mt.innerHTML='<b>Atualizado '+ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</b><br>'+ts.toLocaleDateString('pt-BR');
+  renderWhrvalLista();
+}
+
+function whrvalTotais(c){
+  let arq=0, cte=0, temArq=false;
+  (c.pares||[]).forEach(p=>{
+    const t=(p.itens||[]).find(i=>i.rotulo==='Total a pagar');
+    if(t && t.arquivo!=null){ arq+=t.arquivo; temArq=true; }
+    if(p.cte && p.cte.total!=null) cte+=p.cte.total;
+  });
+  return {arq: temArq?arq:null, cte: (c.pares||[]).some(p=>p.cte)?cte:null};
+}
+
+function renderWhrvalLista(){
+  const d=WHRVAL.dados, alvo=document.getElementById('whrval-lista');
+  if(!d){ alvo.innerHTML=''; return; }
+  const est=document.getElementById('fWhrvalEstado').value;
+  const q=(document.getElementById('fWhrvalBusca').value||'').trim().toLowerCase();
+  const linhas=(d.coletas||[]).filter(c=>{
+    if(est==='pendentes' && (c.estado==='ok' || c.estado==='sem_cte')) return false;
+    if(est && est!=='pendentes' && c.estado!==est) return false;
+    if(!q) return true;
+    const alvoTxt=[c.numero, c.pagador_nome, (c.documento||{}).transporte]
+      .concat((c.pares||[]).map(p=>(p.fornecedor||'')+' '+(p.cte?p.cte.numero:''))).join(' ').toLowerCase();
+    return alvoTxt.indexOf(q)>=0;
+  });
+  if(!linhas.length){
+    alvo.innerHTML='<p class="muted" style="padding:9px">Nenhuma coleta neste filtro.</p>'; return;
+  }
+  alvo.innerHTML='<table><thead><tr><th>Coleta</th><th>Emissão</th><th>Arquivo</th><th class="r">Fornecedores</th>'
+    +'<th class="r">CT-es</th><th class="r">Total do arquivo</th><th class="r">Total dos CT-es</th><th>Estado</th></tr></thead><tbody>'
+    + linhas.map(c=>{
+      const t=whrvalTotais(c), doc=c.documento;
+      const fmt=doc ? (doc.formato==='precalculo'?'Pré-Cálculo':'Ordem de Coleta')+(doc.transporte?' '+esc(doc.transporte):'')
+                    : (c.anexos.length ? 'não lido' : '—');
+      const falhas=Object.entries(c.falhas||{}).map(([g,q])=>q+' '+(WHRVAL_GRUPO[g]||g)).join(', ');
+      return '<tr style="cursor:pointer" data-f="'+c.filial+'" data-s="'+c.serie+'" data-n="'+c.numero+'"'
+        +' onclick="whrvalDetalhe(+this.dataset.f,+this.dataset.s,+this.dataset.n)">'
+        +'<td class="mono">'+c.filial+'/'+c.numero+'</td>'
+        +'<td>'+esc(fmtDT(c.emissao))+'</td>'
+        +'<td>'+fmt+'</td>'
+        +'<td class="r">'+(doc&&doc.formato==='precalculo'?doc.paginas:'—')+'</td>'
+        +'<td class="r">'+c.ctes+(c.ctes_cancelados?' <span class="muted">(+'+c.ctes_cancelados+' canc.)</span>':'')+'</td>'
+        +'<td class="r mono">'+whrvalBRL(t.arq)+'</td>'
+        +'<td class="r mono">'+whrvalBRL(t.cte)+'</td>'
+        +'<td><span class="badge '+(WHRVAL_CLS[c.estado]||'')+'">'+esc(c.estado_rotulo)+'</span>'
+        +(falhas?' <span class="muted" style="font-size:12px">'+esc(falhas)+'</span>':'')+'</td></tr>';
+    }).join('')+'</tbody></table>';
+}
+
+function whrvalValor(it){
+  if(it.grupo==='partes') return v=>esc(v||'—');
+  if(it.rotulo==='% ICMS') return v=>v==null?'—':whrvalNum(v,2)+'%';
+  if(it.grupo==='peso') return v=>whrvalNum(v);
+  return whrvalBRL;
+}
+
+function whrvalDetalhe(f, s, n){
+  const c=((WHRVAL.dados||{}).coletas||[]).find(x=>x.filial===f && x.serie===s && x.numero===n);
+  if(!c) return;
+  const doc=c.documento||{};
+  const anexos=(c.anexos||[]).map(a=>'<a href="/api/operacao/whirlpool/anexo/'+a.id+'" target="_blank" rel="noopener">'
+      +esc(a.nome||'anexo')+'.'+esc(a.extensao||'')+'</a> <span class="muted">('
+      +esc(a.formato==='precalculo'?'Pré-Cálculo':a.formato==='ordem_coleta'?'Ordem de Coleta':(a.motivo||'não lido'))+')</span>').join('<br>')
+    || '<span class="muted">Nenhum anexo na coleta — a ocorrência 262 '+(c.precalculo_em?'foi lançada em '+esc(fmtDT(c.precalculo_em))+' sem arquivo':'não foi lançada')+'.</span>';
+  let corpo='<table><tbody>'
+    +'<tr><th style="text-align:left">Estado</th><td><span class="badge '+(WHRVAL_CLS[c.estado]||'')+'">'+esc(c.estado_rotulo)+'</span></td></tr>'
+    +'<tr><th style="text-align:left">Pagadora</th><td>'+esc(c.pagador_nome||'—')+'</td></tr>'
+    +'<tr><th style="text-align:left">Anexos</th><td>'+anexos+'</td></tr>'
+    +(doc.formato ? '<tr><th style="text-align:left">Documento</th><td>'
+      +esc([doc.transporte&&'transporte '+doc.transporte, doc.tipo_viagem, doc.rota||doc.itinerario, doc.veiculo,
+            doc.icms_pct!=null&&'ICMS '+whrvalNum(doc.icms_pct,2)+'%', doc.data_calculo&&'calculado '+doc.data_calculo]
+            .filter(Boolean).join(' · '))+'</td></tr>' : '')
+    +'</tbody></table>';
+  const itensCol=(c.itens||[]).filter(i=>i.grupo==='ctes' || (!(c.pares||[]).some(p=>(p.itens||[]).includes(i))));
+  (c.pares||[]).forEach(p=>{
+    const cab=(p.fornecedor?esc(p.fornecedor)+' <span class="muted mono">'+esc(p.cnpj||'')+'</span>':'<span class="muted">sem página no arquivo</span>')
+      +' → '+(p.cte?'CT-e <b class="mono">'+p.cte.filial+'/'+p.cte.numero+'</b> <span class="muted">'
+        +esc(fmtDT(p.cte.emissao))+' · '+esc(p.cte.remetente_nome||'')+' → '+esc(p.cte.destinatario_nome||'')+'</span>'
+        :'<span class="ccm-at">sem CT-e</span>');
+    corpo+='<h4 style="margin:18px 0 9px">'+cab+'</h4>';
+    if((p.itens||[]).length){
+      corpo+='<table><thead><tr><th>Conferência</th><th class="r">Arquivo</th><th class="r">CT-e</th><th class="r">Diferença</th><th></th></tr></thead><tbody>'
+        +p.itens.map(it=>{
+          const fv=whrvalValor(it);
+          const dif=it.dif==null?'':(it.grupo==='peso'?whrvalNum(it.dif):it.rotulo==='% ICMS'?whrvalNum(it.dif,2):whrvalBRL(it.dif));
+          const cls=it.nivel==='ok'?'b-ok':it.nivel==='arredondamento'?'b-warn':'b-dang';
+          const txt=it.nivel==='ok'?'igual':it.nivel==='arredondamento'?'arredondamento':'diverge';
+          return '<tr><td>'+esc(it.rotulo)+'</td><td class="r mono">'+fv(it.arquivo)+'</td><td class="r mono">'+fv(it.cte)
+            +'</td><td class="r mono">'+dif+'</td><td><span class="badge '+cls+'">'+txt+'</span></td></tr>';
+        }).join('')+'</tbody></table>';
+    }
+  });
+  itensCol.filter(i=>i.grupo!=='ctes').forEach(it=>{
+    const fv=whrvalValor(it);
+    corpo+='<p style="margin-top:9px">'+esc(it.rotulo)+': arquivo '+fv(it.arquivo)+' · CT-es '+fv(it.cte)
+      +' <span class="badge '+(it.ok?'b-ok':'b-dang')+'">'+(it.ok?'igual':'diverge')+'</span></p>';
+  });
+  if(doc.sem_valor) corpo+='<p class="muted" style="margin-top:9px">O Pré-Cálculo veio ZERADO: a Whirlpool mandou o arquivo antes de calcular o frete. Os valores não foram conferidos.</p>';
+  abrirModal('<div class="ccm-cab"><div><h3>Coleta '+c.filial+'/'+c.numero+' — conferência da emissão</h3></div>'
+    +'<button type="button" class="btn" onclick="fecharModal()">Fechar</button></div>'
+    +'<div id="ccm-corpo"><div class="ccm-lista" style="max-height:70vh">'+corpo+'</div></div>');
+  document.getElementById('modalBox').classList.add('larga');
+}
+
 let agrcanalSeq = 0, agrcanalTimer = null;
 
 function agrcanalBuscaDebounce(){
@@ -40009,6 +40208,7 @@ const BUSCA_SINONIMOS = {
   port:['patio','portaria','saida','autorizacao'],
   agr:['agregado','terceiro','transportador','acerto'],
   mvb:['make vs buy','proprio ou agregado','ckm','spread'],
+  whrval:['whirlpool','pre-calculo','conferencia de emissao','ordem de coleta'],
   pedagio:['validacao de pedagio','vale-pedagio','praca','eixo'],
   veic:['frota','ativo','idade','cavalo','carreta','implemento'],
   veicf:['consultar veiculo','ficha do veiculo','placa'],
@@ -50363,6 +50563,7 @@ boot();
         <a href="#prog" onclick="fecharDrawer()"><span class="ic" data-ic="prog"></span>Programação Intel.</a>
         <a href="#sac" onclick="fecharDrawer()"><span class="ic" data-ic="sacic"></span>SAC / Freetime</a>
         <a href="#torre" onclick="fecharDrawer()"><span class="ic" data-ic="tor"></span>Torre de Controle</a>
+        <a href="#whrval" onclick="fecharDrawer()"><span class="ic" data-ic="whrvalic"></span>Validação de Emissão — Whirlpool</a>
         <a href="#pedagio" onclick="fecharDrawer()"><span class="ic" data-ic="pedic"></span>Validação de Pedágio</a>
       </div>
     </div>

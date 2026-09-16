@@ -15,7 +15,7 @@ import logging
 import re
 import threading
 import tomllib
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from email.utils import formatdate, parsedate_to_datetime
 from pathlib import Path
 
@@ -9075,6 +9075,63 @@ def operacao_milkrun(de: str | None = None, ate: str | None = None,
         log.warning("operacao_milkrun falhou: %s", exc)
         return JSONResponse(status_code=500, content={
             "erro": "erro_consulta", "mensagem": "Erro ao montar a operacao."})
+
+
+@app.get("/api/operacao/whirlpool/validacao")
+def operacao_whirlpool_validacao(de: str | None = None, ate: str | None = None) -> JSONResponse:
+    """Cada coleta da Whirlpool na janela: o Pré-Cálculo (ou a Ordem de
+    Coleta) anexado na ocorrência 262 contra o CT-e emitido. O estado é
+    calculado na leitura (`api/validacao_whirlpool/validacao.py`)."""
+    from api.validacao_whirlpool.validacao import validar
+    hoje = date.today()
+    de = de or (hoje - timedelta(days=30)).isoformat()
+    ate = ate or hoje.isoformat()
+    for nome, valor in (("de", de), ("ate", ate)):
+        if _bad_date(valor):
+            return JSONResponse(status_code=422, content={
+                "erro": "parametro_invalido",
+                "mensagem": f"Parametro {nome} invalido: use AAAA-MM-DD."})
+    if de > ate:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "A data inicial é depois da final."})
+    # a janela tem teto: cada PDF novo é baixado do ERP na primeira leitura
+    if (date.fromisoformat(ate) - date.fromisoformat(de)).days > 92:
+        return JSONResponse(status_code=422, content={
+            "erro": "parametro_invalido", "mensagem": "Janela máxima de 92 dias."})
+    try:
+        return JSONResponse(validar(de, ate))
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexao com o banco. O tunel SSH esta aberto?"})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("whirlpool validacao falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao montar a validação."})
+
+
+@app.get("/api/operacao/whirlpool/anexo/{anexo_id}")
+def operacao_whirlpool_anexo(anexo_id: int) -> Response:
+    """O arquivo original, para conferir a olho. Só abre anexo de coleta da
+    Whirlpool — a rota não é um leitor genérico de arquivo do ERP."""
+    from api.validacao_whirlpool.validacao import baixar_anexo
+    try:
+        a = baixar_anexo(anexo_id)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("whirlpool anexo falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao buscar o arquivo no ERP."})
+    if a is None:
+        return JSONResponse(status_code=404, content={
+            "erro": "nao_encontrado", "mensagem": "Anexo não encontrado."})
+    tipos = {"pdf": "application/pdf", "png": "image/png", "jpg": "image/jpeg",
+             "jpeg": "image/jpeg"}
+    nome = re.sub(r'[^\w .()-]', "_", a["nome"] or "anexo")
+    return Response(content=a["conteudo"],
+                    media_type=tipos.get(a["extensao"], "application/octet-stream"),
+                    headers={"Content-Disposition":
+                             'inline; filename="%s.%s"' % (nome, a["extensao"] or "bin")})
 
 
 @app.get("/api/financeiro/credito")

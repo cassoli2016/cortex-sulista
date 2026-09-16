@@ -128,6 +128,7 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     "hc":      ("Headcount", "Recursos Humanos"),
     "folha":   ("Custo de Folha", "Recursos Humanos"),
     "pedagio": ("Validação de Pedágio", "Operação"),
+    "whrval":  ("Validação de Emissão — Whirlpool", "Operação"),
     "folhaind": ("Indicadores de Folha", "Recursos Humanos"),
     "cnh":     ("CNH dos Motoristas", "Recursos Humanos"),
     "pneus":   ("Pneus", "Frota"),
@@ -293,6 +294,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/jornada/coletar",          frozenset({"jorn"})),
     ("/api/rh/folha-estrutura",       frozenset({"folha"})),
     ("/api/operacao/pedagio",         frozenset({"pedagio"})),
+    ("/api/operacao/whirlpool",       frozenset({"whrval"})),
     ("/api/operacao/gr",              frozenset({"gr"})),
     # o Portal Tupy é ABA de Portais de Antecipação desde a v0.209.0 — a rota
     # herda a tela que a contém (sub-aba não é tela, não tem RBAC próprio)
@@ -1185,6 +1187,20 @@ def _seed_perfis_modelo(c: psycopg.Connection) -> None:
                       " VALUES(%s,%s) ON CONFLICT DO NOTHING",
                       (row["id"], "agrcanal"))
         c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v48', '1') ON CONFLICT(chave) DO NOTHING")
+
+    # v49 (2026-09-16): Validação de Emissão — Whirlpool (`whrval`). Entra em
+    # Operação, que emite o CT-e e é quem corrige a divergência, e na
+    # Diretoria. A tela mostra o frete de UM cliente contra o que ele mesmo
+    # calculou — nada que a Diretoria não veja em Faturamento — e nenhuma
+    # conversa ou dado pessoal. Sem esta linha ela nasceria invisível.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v49'").fetchone():
+        for nome in ("Operação", "Diretoria"):
+            row = c.execute("SELECT id FROM perfis WHERE nome=%s", (nome,)).fetchone()
+            if row:
+                c.execute("INSERT INTO perfil_telas(perfil_id, tela)"
+                          " VALUES(%s,%s) ON CONFLICT DO NOTHING",
+                          (row["id"], "whrval"))
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v49', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v43 (2026-09-09): Frequência e Banco de Horas (`freq`) ao perfil de
     # Recursos Humanos. A Diretoria entra JUNTO, e aqui isso é deliberado —

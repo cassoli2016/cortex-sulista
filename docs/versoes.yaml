@@ -1,3 +1,20 @@
+- versao: "1.101.0"
+  data: "2026-09-16"
+  adicionado:
+    - >-
+      Operação › Validação de Emissão — Whirlpool (tela nova). Toda coleta da
+      Whirlpool recebe a ocorrência 262 (PRÉ CÁLCULO) com o PDF que ela gera;
+      a tela lê esse arquivo e confere com o CT-e emitido. O Pré-Cálculo tem
+      uma página por fornecedor, e cada página é conferida com o seu CT-e:
+      total, frete, pedágio, taxa de coleta, ICMS e alíquota, peso,
+      contratante e a filial da Sulista que emitiu. A Ordem de Coleta, que não
+      traz valor, confere o peso total. Diferença de centavos aparece como
+      arredondamento, em amarelo e separada da divergência (o limite está
+      escrito na tela). Também mostra a
+      coleta sem arquivo, o arquivo em formato que a tela ainda não lê (a
+      requisição de transporte expresso) e a coleta aguardando CT-e. Um clique
+      na linha abre o lado a lado e o PDF original.
+
 - versao: "1.100.1"
   data: "2026-09-16"
   corrigido:

@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.101.0] — 16/09/2026  ·  CX-16/09/2026-v1.101.0
+
+### Adicionado
+- Operação › Validação de Emissão — Whirlpool (tela nova). Toda coleta da Whirlpool recebe a ocorrência 262 (PRÉ CÁLCULO) com o PDF que ela gera; a tela lê esse arquivo e confere com o CT-e emitido. O Pré-Cálculo tem uma página por fornecedor, e cada página é conferida com o seu CT-e: total, frete, pedágio, taxa de coleta, ICMS e alíquota, peso, contratante e a filial da Sulista que emitiu. A Ordem de Coleta, que não traz valor, confere o peso total. Diferença de centavos aparece como arredondamento, em amarelo e separada da divergência (o limite está escrito na tela). Também mostra a coleta sem arquivo, o arquivo em formato que a tela ainda não lê (a requisição de transporte expresso) e a coleta aguardando CT-e. Um clique na linha abre o lado a lado e o PDF original.
+
 ## [1.100.1] — 16/09/2026  ·  CX-16/09/2026-v1.100.1
 
 ### Corrigido

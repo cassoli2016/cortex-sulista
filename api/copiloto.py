@@ -83,6 +83,7 @@ _SNAP_TTL = 600      # 10 min: o snapshot custa ~12 consultas no ERP
 _FONTES_ROTULO = {
     "produtividade_veiculos": "Produtividade de Veículos",
     "cco_gestao_vista": "Painel TV — Coletas e Entregas",
+    "whirlpool_validacao": "Validação de Emissão — Whirlpool (arquivo × CT-e)",
     "faturamento_detalhado": "Faturamento Detalhado",
     "portal_tupy": "Portal Tupy (Monkey)",
     "visao_geral": "Visão Geral",
@@ -169,6 +170,7 @@ def _t(*telas, abas=()):
 FONTE_TELAS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "produtividade_veiculos": _t("tvprod"),
     "cco_gestao_vista": _t("tvcco"),
+    "whirlpool_validacao": _t("whrval"),
     "faturamento_detalhado": _t("fat", "tvfat"),
     "portal_tupy": _t("antport"),
     "visao_geral": _t("home", "tvdir"),
@@ -1206,6 +1208,9 @@ def _fontes_do_snapshot() -> dict:
                           ("clientes", "coletas", "fora_coletas", "fora_clientes_n")},
             "periodo": d["periodo"], "regras": d["regras"]})(
             __import__("api.cco", fromlist=["get_cco"]).get_cco()),
+        # Whirlpool: SÓ contagens por estado; sem coleta, fornecedor nem valor
+        "whirlpool_validacao": lambda: __import__(
+            "api.validacao_whirlpool.validacao", fromlist=["resumo_copiloto"]).resumo_copiloto(),
         "antt_piso": _antt_piso,
         "antt_rntrc": _antt_rntrc,
         "telemetria_consumo": _telemetria,

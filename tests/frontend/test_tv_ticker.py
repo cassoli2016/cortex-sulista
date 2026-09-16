@@ -151,7 +151,7 @@ def test_recarga_com_o_mesmo_conteudo_nao_volta_ao_inicio(pagina):
     pg.wait_for_timeout(1500)
     antes, depois = pg.evaluate("""async () => {
       const id = 'tvope-ticker', st = _tvTickers[id];
-      const itens = st.assinatura.split('');
+      const itens = st.assinatura.split('\u0001');
       const x0 = st.x;
       tvTicker(id, itens);
       tvTicker(id, itens.concat(['aviso novo']));
