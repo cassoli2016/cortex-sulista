@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.103.1] — 16/09/2026  ·  CX-16/09/2026-v1.103.1
+
+### Alterado
+- Painel TV — Coletas e Entregas: cada filial de programação fica 30 segundos na tela antes de o carrossel passar para a próxima (eram 20). Pedido no chamado SUP-2026-0001.
+- Painel TV — Coletas e Entregas: o nome da filial que está na tela ficou bem maior, quase do tamanho do título, para ser lido de longe. O período ("ontem, hoje e amanhã…") desceu para baixo do título para abrir espaço, e o título voltou a caber numa linha só também com a TV em janela maximizada. Pedido no chamado SUP-2026-0001.
+
 ## [1.103.0] — 16/09/2026  ·  CX-16/09/2026-v1.103.0
 
 ### Alterado

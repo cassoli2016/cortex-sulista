@@ -1,3 +1,17 @@
+- versao: "1.103.1"
+  data: "2026-09-16"
+  alterado:
+    - >-
+      Painel TV — Coletas e Entregas: cada filial de programação fica 30
+      segundos na tela antes de o carrossel passar para a próxima (eram 20).
+      Pedido no chamado SUP-2026-0001.
+    - >-
+      Painel TV — Coletas e Entregas: o nome da filial que está na tela ficou
+      bem maior, quase do tamanho do título, para ser lido de longe. O período
+      ("ontem, hoje e amanhã…") desceu para baixo do título para abrir espaço,
+      e o título voltou a caber numa linha só também com a TV em janela
+      maximizada. Pedido no chamado SUP-2026-0001.
+
 - versao: "1.103.0"
   data: "2026-09-16"
   alterado:

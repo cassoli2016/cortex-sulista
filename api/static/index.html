@@ -1980,7 +1980,15 @@ body.tvfull.tvmode, body.tvfull.tvmode *{cursor:none !important}
 #view-tvcco .tv-head h2{font-size:clamp(16px,1.5vw,30px)}
 #view-tvcco .tv-head .tv-clock{font-size:clamp(16px,1.5vw,30px)}
 #view-tvcco .tv-head .tv-next{font-size:clamp(14px,1.5vw,30px) !important;white-space:nowrap}
-#view-tvcco .tvp-lamina{font-size:clamp(11px,0.9vw,18px)}
+/* A FILIAL NA TELA LÊ-SE DE LONGE (SUP-2026-0001, 16/09/2026: "aumentar a
+   fonte do texto que indica a filial"). Com a pílula a 1,4vw ela tomava a
+   largura do título, que quebrava em duas linhas; o período desce para baixo
+   do título e a pílula ocupa a altura das duas linhas ao lado. */
+#view-tvcco .tv-head .tv-title{display:grid;grid-template-columns:auto auto;align-items:center;column-gap:1vw;row-gap:4px}
+#view-tvcco .tv-head .tv-title h2{grid-column:1;grid-row:1}
+#view-tvcco .tv-head .tv-cco-periodo{grid-column:1;grid-row:2;margin-top:0;white-space:nowrap}
+#view-tvcco .tvp-lamina{grid-column:2;grid-row:1/span 2;font-size:clamp(14px,1.4vw,28px)}
+#view-tvcco .tvp-lamina small{font-size:.62em;font-weight:600;color:#C9D6E2}
 #view-tvcco .tv-cco-span2{grid-column:span 2}
 .tv-cco-periodo{display:block;font-size:15px;color:#8FA6BC;font-weight:600;letter-spacing:.02em;margin-top:2px;text-align:center}
 .tv-cco-serie{height:220px}
@@ -2051,11 +2059,11 @@ body.tvfull.tvwall #view-tvcco .tv-ticker{flex-shrink:0;margin-top:18px}
      o logo e o relógio, o nome quebrava palavra por palavra e a pílula saía
      pela borda da tela */
   #view-tvcco .tv-head{grid-template-columns:1fr auto;row-gap:9px;margin-bottom:12px}
-  #view-tvcco .tv-head .tv-title{grid-column:1/-1;grid-row:2;justify-content:flex-start;flex-wrap:wrap;gap:9px}
+  #view-tvcco .tv-head .tv-title{grid-column:1/-1;grid-row:2;display:flex;justify-content:flex-start;flex-wrap:wrap;gap:9px}
   #view-tvcco .tv-head h2{text-align:left}
   #view-tvcco .tv-head .tv-next{display:none}
   #view-tvcco .tv-head .tv-clock{font-size:18px}
-  #view-tvcco .tv-cco-periodo{text-align:left;margin-top:0}
+  #view-tvcco .tv-cco-periodo{text-align:left;margin-top:0;white-space:normal}
   .tv-cco-col b{font-size:11px}
   .tv-cco-col em{font-size:10px}
 }
@@ -11334,7 +11342,7 @@ function router(){
   if(ehTv){
     if(v==='tvope') tvTour=setInterval(tvTourPasso, 20000);
     if(v==='tvprod') tvTour=setInterval(tvProdPasso, 20000);   // o carrossel
-    if(v==='tvcco') tvTour=setInterval(tvCcoPasso, 20000);     // as filiais de programação
+    if(v==='tvcco') tvTour=setInterval(tvCcoPasso, 30000);     // as filiais de programação
     TV_NEXT=Date.now()+60000;
     tvTimer=setInterval(()=>{ TV_NEXT=Date.now()+60000;
       /* RECARGA PELO MAPA, não por cadeia de `else if`: a cadeia era a
@@ -17498,10 +17506,12 @@ function tvCcoPilula(){
   const el = document.getElementById('tvcco-lamina');
   if(!el || !tvCcoDados) return;
   const ls = tvCcoDados.programacoes || [], p = tvCcoProg(), sem = tvCcoDados.sem_programacao || 0;
-  const rot = p ? 'Programação '+p.sigla
-    : 'Geral'+(sem ? ' · '+sem.toLocaleString('pt-BR')+' sem programação' : '');
+  /* a FILIAL é o que se lê de longe; a contagem sem programação é nota de
+     rodapé dela e fica no tamanho de antes (SUP-2026-0001) */
+  const rot = p ? esc('Programação '+p.sigla)
+    : 'Geral'+(sem ? '<small> · '+esc(sem.toLocaleString('pt-BR'))+' sem programação</small>' : '');
   el.innerHTML = [null].concat(ls).map((x, i) => '<i class="'+(i===TVCCO_IDX ? 'on' : '')+'"></i>').join('')
-    + '<span>'+esc(rot)+'</span>';
+    + '<span>'+rot+'</span>';
 }
 function tvCcoPasso(){
   if(currentView()!=='tvcco' || !tvCcoDados) return;

@@ -327,6 +327,39 @@ def test_o_giro_passa_pelas_filiais_de_programacao_e_volta_ao_geral(pagina):
     assert "58 avisos" in pg.inner_text("#tvcco-ticker")
 
 
+def test_cada_lamina_fica_30_segundos_na_tela(pagina):
+    """SUP-2026-0001 (16/09/2026): quem olha a TV pediu mais tempo em cada
+    filial. Mede o intervalo com que o giro é ARMADO pela troca de tela, não o
+    texto do código."""
+    pg, _ = pagina
+    pg.add_init_script("""(() => { const orig = window.setInterval; window.__giros = [];
+        window.setInterval = function(fn, ms, ...r){
+            if (fn && fn.name === 'tvCcoPasso') window.__giros.push(ms);
+            return orig.call(this, fn, ms, ...r); }; })()""")
+    pg = _abre(pagina)
+    assert pg.evaluate("window.__giros") == [30000]
+
+
+@pytest.mark.parametrize("largura,altura,parede", [(1920, 1080, True), (1600, 900, True),
+                                                   (1920, 1080, False)])
+def test_a_filial_da_lamina_le_se_de_longe(pagina, largura, altura, parede):
+    """SUP-2026-0001: a filial na pílula quase do tamanho do título (antes, 0,6
+    dele) — e o título continua numa linha só, na parede e no quiosque, na
+    lâmina de rótulo mais longo ("Geral · N sem programação").
+
+    O quiosque só a 1920, que é a TV da operação (o chamado veio dela): a 1600
+    com o menu lateral aberto a fonte segue a JANELA e o cabeçalho fica 276 px
+    mais estreito, e ali o título já quebrava antes desta mudança."""
+    pg = _abre(pagina, largura=largura, altura=altura, parede=parede)
+    for _ in range(2):                                    # Geral, depois CCO
+        med = pg.evaluate("""() => { const fs = s => parseFloat(getComputedStyle(
+                document.querySelector('#view-tvcco ' + s)).fontSize);
+            return fs('#tvcco-lamina > span') / fs('.tv-head h2'); }""")
+        assert med >= 0.85, med
+        assert pg.evaluate(_CABECALHO) == _CABECALHO_OK
+        pg.evaluate("tvCcoPasso()")
+
+
 def test_o_modal_e_da_filial_da_tela_e_o_giro_espera_ele_fechar(pagina):
     pedidos = []
     pg = _abre(pagina, pedidos=pedidos)
