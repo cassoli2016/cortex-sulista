@@ -499,3 +499,28 @@ def test_o_rodape_ROLA_com_animacao_desligada_no_sistema(pagina):
     pg, base = pagina
     _abre(pg, base)
     _rola_continuo(pg.evaluate(AMOSTRAS, "tvprod-ticker"))
+
+
+_BORDAS = """(i) => { const lam = document.querySelectorAll('#tvprod-trilho > .tvw')[i];
+  const cs = [...lam.children].filter(e => e.offsetParent).map(e => e.getBoundingClientRect());
+  const logo = document.querySelector('#view-tvprod .tv-logo').getBoundingClientRect();
+  const rod = document.querySelector('#view-tvprod .tv-ticker').getBoundingClientRect();
+  return {esq: Math.min(...cs.map(r => r.left)) - logo.left,
+          dir: Math.max(...cs.map(r => r.right)) - rod.right,
+          vao: parseFloat(getComputedStyle(lam).columnGap) / innerWidth * 100}; }"""
+
+
+def test_toda_lamina_alinha_com_o_cabecalho_e_tem_o_vao_das_outras_tvs(pagina):
+    """O padrao das TVs de Operacao e de Coletas (16/09/2026): vao de 1.2vw
+    entre os blocos. E a borda nao pula no giro: o `padding-left` so da
+    segunda lamina em diante deixava as laminas 2 e 3 comecando 9px a direita
+    da primeira, do logo e do rodape."""
+    pg, base = pagina
+    _abre(pg, base)
+    for i in range(3):
+        if i:
+            pg.evaluate("tvProdPasso()")
+            pg.wait_for_timeout(300)
+        m = pg.evaluate(_BORDAS, i)
+        assert abs(m["esq"]) < 1 and abs(m["dir"]) < 1, (i, m)
+        assert m["vao"] >= 1.1, (i, m)

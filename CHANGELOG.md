@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.104.1] — 16/09/2026  ·  CX-16/09/2026-v1.104.1
+
+### Alterado
+- Painel TV — Produtividade da Frota: mesmo espaçamento das TVs de Operação e de Coletas e Entregas, com mais vão entre os blocos e entre os cartões. As três telas do carrossel agora começam e terminam na mesma linha do logo e do rodapé; antes, a segunda e a terceira ficavam um pouco deslocadas para a direita.
+- Painéis TV — Operação e Produtividade no celular: o espaço entre os blocos voltou ao normal (tinha ficado apertado com o ajuste de hoje).
+
 ## [1.104.0] — 16/09/2026  ·  CX-16/09/2026-v1.104.0
 
 ### Alterado

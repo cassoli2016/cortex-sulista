@@ -1,3 +1,16 @@
+- versao: "1.104.1"
+  data: "2026-09-16"
+  alterado:
+    - >-
+      Painel TV — Produtividade da Frota: mesmo espaçamento das TVs de
+      Operação e de Coletas e Entregas, com mais vão entre os blocos e entre
+      os cartões. As três telas do carrossel agora começam e terminam na
+      mesma linha do logo e do rodapé; antes, a segunda e a terceira ficavam
+      um pouco deslocadas para a direita.
+    - >-
+      Painéis TV — Operação e Produtividade no celular: o espaço entre os
+      blocos voltou ao normal (tinha ficado apertado com o ajuste de hoje).
+
 - versao: "1.104.0"
   data: "2026-09-16"
   alterado:
