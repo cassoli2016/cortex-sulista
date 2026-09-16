@@ -1886,8 +1886,6 @@ body.tvfull .tv-head a{display:none}
 @keyframes tvDot{0%{box-shadow:0 0 0 0 rgba(74,222,128,.55)}70%{box-shadow:0 0 0 0.55vw rgba(74,222,128,0)}100%{box-shadow:0 0 0 0 rgba(74,222,128,0)}}
 .tv-ticker{margin-top:0.55vw;background:#132A40;border-radius:0.6vw;overflow:hidden;height:clamp(24px,2.4vw,50px);display:flex;align-items:center}
 .tv-ticker-inner{display:inline-flex;gap:3.2vw;white-space:nowrap;font-size:clamp(12px,1.05vw,22px);color:#D7E1EA;will-change:transform}
-.tv-ticker-inner.anda{animation:tvTick linear infinite}
-@keyframes tvTick{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 .tv-vmk.mov{animation:tvResp 2.8s infinite}
 @keyframes tvResp{0%,100%{box-shadow:0 0.15vw 0.5vw rgba(0,0,0,.55)}50%{box-shadow:0 0 1vw 0.2vw rgba(255,255,255,.4)}}
 /* O CARTAO DE KM E METAS E TRES BLOCOS -- numeros com a barra, modalidades,
@@ -17846,90 +17844,87 @@ async function loadTvCom(){
     tvComOk=true;
   }catch(e){ tvErro('tvcom-k1', tvComOk); }
 }
-/* RODAPE DE TV (ticker). Um so lugar monta os dois rodapes de painel.
+/* RODAPE DE TV. Um so lugar monta os rodapes de painel de parede.
 
-   POR QUE ELE EXISTE, e os dois defeitos que ele conserta (medidos no
-   navegador em 04/09/2026, nao lidos no CSS):
+   A FAIXA ROLA SEMPRE, e quem a move e o JS, quadro a quadro -- nao a
+   animacao do CSS. Esta e a TERCEIRA vez que a queixa "as barras de baixo
+   estao estaticas" chega (16/09/2026, TVs de Coletas e Entregas e de
+   Produtividade), e as duas correcoes anteriores tropecaram no mesmo lugar:
 
-   1. COM `prefers-reduced-motion` LIGADO o rodape CONGELAVA. A regra global
-      `@media (prefers-reduced-motion: reduce){ *{animation-duration:.001ms
-      !important} }` vence o `style.animationDuration` que o JS escreve — o
-      `!important` ganha do estilo inline, sempre. Medido: duracao "1e-06s",
-      transform "none", zero movimento. E congelar AQUI nao e "menos
-      movimento": o conteudo mede 14.653px numa caixa de 1.874px, entao 87%
-      da informacao fica inalcancavel. TV de operacao roda em Windows de
-      quiosque, e "desligar animacoes" e ajuste comum nessas maquinas.
+   1. A rolagem era `@keyframes` + `animation`. A regra global de
+      acessibilidade `@media (prefers-reduced-motion: reduce){ *{animation-
+      duration:.001ms !important} }` vence qualquer duracao que o JS escreva,
+      e a faixa CONGELA. Windows com "efeitos de animacao" desligados -- o
+      ajuste comum em maquina de quiosque -- liga essa preferencia sem que
+      ninguem na sala saiba.
+   2. A saida de 04/09 foi, nesse modo, SALTAR uma pagina a cada 9 s, e nao
+      mover nada quando tudo cabia. Na parede isso se le como faixa parada:
+      nove segundos imovel e o que se ve de passagem, e o aviso curto nunca
+      anda. A largura da pagina ainda era medida UMA vez, antes da tela
+      cheia, e o salto cortava o aviso no meio.
 
-      A correcao NAO e devolver `!important` e atropelar a preferencia. E
-      trocar ROLAGEM CONTINUA por TROCA DISCRETA: um item por vez, sem
-      deslizar. E o que a preferencia pede — ela existe contra movimento
-      continuo, nao contra o conteudo mudar.
+   Por que ignorar a preferencia AQUI: o rodape da TV nao e leitura de uma
+   pessoa na propria maquina, e o painel da sala -- e quem opera pediu,
+   tres vezes, que ele ande. A preferencia continua valendo em todo o resto
+   (piscar, pulsos, transicoes).
 
-   2. COM A LISTA VAZIA o rodape virava uma barra escura vazia, que na parede
-      parece um rodape quebrado. Ausencia de ocorrencia e BOA NOTICIA e
-      merece ser dita.
+   O desenho: a sequencia de avisos se REPETE ate encher a faixa (um aviso
+   curto tambem anda, sem vao escuro), vai duas vezes no DOM e a posicao
+   volta ao inicio ao completar um periodo -- sem emenda visivel. A
+   velocidade e proporcional a largura da faixa (a fonte e em vw, entao a TV
+   4K le no mesmo ritmo). `requestAnimationFrame` dorme sozinho com a aba
+   escondida, e o passo tem teto para a faixa nao pular ao voltar. A
+   recarga do painel (a cada 60 s) com o MESMO conteudo nao toca no DOM, e
+   com conteudo novo mantem a posicao: remontar do zero faria quem esta
+   lendo nunca chegar ao fim.
 
-   A rotacao e ENCADEADA (`setTimeout` depois de cada troca), nunca
-   `setInterval`, e dorme com a aba escondida — a regra da casa para tudo que
-   gira sozinho. */
-const TV_TICKER_PAUSA = 9000;      // ms por pagina quando nao ha rolagem
-const _tvTickers = {};             // id -> {assinatura, pagina, paginas, timer}
+   Lista vazia: diz "sem ocorrencias", centrado e parado -- faixa preta vazia
+   na parede parece rodape quebrado. */
+const TV_TICKER_SEGUNDOS = 19;     // tempo para o texto atravessar a faixa
+const _tvTickers = {};             // id -> {assinatura, unidade, x, periodo, medida, ultimo, raf}
 
 function tvTickerParar(id){
   const st = _tvTickers[id];
-  if(st && st.timer){ clearTimeout(st.timer); st.timer = null; }
+  if(st && st.raf){ cancelAnimationFrame(st.raf); st.raf = null; }
 }
 
-/* Salta UMA PAGINA da faixa. `style.transform` e transform ESTATICO, nao
-   animacao — o `animation-duration:.001ms !important` do prefers-reduced-
-   motion nao alcanca, e o salto acontece de verdade. */
-function tvTickerPagina(id){
+/* Monta o periodo (a sequencia repetida ate cobrir a faixa) e o duplica.
+   Devolve false se a faixa ainda nao tem largura (painel escondido): tenta
+   de novo no proximo quadro, em vez de medir zero e congelar. */
+function tvTickerMontar(id){
   const st = _tvTickers[id];
   const el = document.getElementById(id);
-  if(!st || !el || st.paginas < 2) return;
-  st.pagina = (st.pagina + 1) % st.paginas;
-  el.style.transform = 'translateX(' + (-st.pagina * st.largura) + 'px)';
-  st.timer = setTimeout(() => {
-    // dorme com a aba escondida: paginar para ninguem so deixa a parede numa
-    // pagina do meio quando alguem volta a olhar
-    if(document.hidden){
-      st.timer = setTimeout(() => tvTickerPagina(id), TV_TICKER_PAUSA);
-      return;
-    }
-    tvTickerPagina(id);
-  }, TV_TICKER_PAUSA);
+  const larg = el.parentElement.clientWidth;
+  if(!larg) return false;
+  el.innerHTML = st.unidade;
+  const uma = el.children.length;
+  const w1 = el.scrollWidth;
+  const vezes = Math.max(1, Math.ceil(larg / Math.max(1, w1)));
+  el.innerHTML = st.unidade.repeat(vezes * 2);
+  // o periodo e a distancia entre o 1o item e a sua copia -- inclui o `gap`
+  // entre as duas metades, que o `-50%` da versao em CSS errava
+  st.periodo = el.children[uma * vezes].offsetLeft - el.children[0].offsetLeft;
+  st.medida = larg;
+  if(st.periodo > 0) st.x = st.x % st.periodo;
+  return st.periodo > 0;
 }
 
-/* RODAPE DE TV. Um so lugar monta os rodapes de painel de parede.
+function tvTickerPasso(id, t){
+  const st = _tvTickers[id];
+  const el = document.getElementById(id);
+  if(!st) return;
+  if(!el){ st.raf = null; return; }
+  st.raf = requestAnimationFrame(tt => tvTickerPasso(id, tt));
+  const dt = st.ultimo == null ? 0 : Math.min(t - st.ultimo, 100);
+  st.ultimo = t;
+  const larg = el.parentElement.clientWidth;
+  if(!larg) return;                                  // painel escondido
+  if(larg !== st.medida && !tvTickerMontar(id)) return;  // tela cheia, resize
+  if(!st.periodo) return;
+  st.x = (st.x + dt / 1000 * larg / TV_TICKER_SEGUNDOS) % st.periodo;
+  el.style.transform = 'translateX(' + (-st.x).toFixed(1) + 'px)';
+}
 
-   TRES DEFEITOS MEDIDOS NO NAVEGADOR EM 04/09/2026, nao lidos no CSS:
-
-   1. COM `prefers-reduced-motion` LIGADO o rodape CONGELAVA. A regra global
-      `@media (prefers-reduced-motion: reduce){ *{animation-duration:.001ms
-      !important} }` vence o `style.animationDuration` que o JS escreve — o
-      `!important` ganha do inline, sempre. Medido: duracao "1e-06s",
-      transform "none", zero movimento. E congelar AQUI nao e "menos
-      movimento": o conteudo media 14.653px numa caixa de 1.874px, entao 87%
-      da informacao ficava inalcancavel. TV de operacao roda em Windows de
-      quiosque, onde desligar animacao e ajuste comum.
-
-      A correcao NAO e devolver `!important` e atropelar a preferencia de
-      quem configurou a maquina. E trocar rolagem continua por SALTO DE
-      PAGINA: a faixa inteira preenchida, avancando de uma vez em vez de
-      deslizar. E o que a preferencia pede — ela existe contra movimento
-      continuo, nao contra o conteudo mudar.
-
-   2. O PRIMEIRO desenho deste modo mostrava UM item por vez, e piorou: com
-      poucos avisos `(i+1) % 1` devolve sempre o mesmo, e a barra parecia
-      travada de novo; e um aviso curto encostado a esquerda de uma faixa de
-      1.874px parece defeito. Por isso a faixa agora e usada INTEIRA, e
-      quando tudo cabe nada se move — nao ha o que esconder.
-
-   3. COM A LISTA VAZIA a faixa ficava preta e vazia, que na parede parece
-      rodape quebrado. Ausencia de ocorrencia e boa noticia e se diz.
-
-   A paginacao e ENCADEADA (`setTimeout` depois de cada salto), nunca
-   `setInterval`, e dorme com a aba escondida. */
 function tvTicker(id, itens){
   const el = document.getElementById(id);
   if(!el) return;
@@ -17939,8 +17934,6 @@ function tvTicker(id, itens){
   if(!itens.length){
     tvTickerParar(id);
     delete _tvTickers[id];
-    el.classList.remove('anda');
-    el.style.animationDuration = '';
     el.style.transform = '';
     caixa.style.justifyContent = 'center';
     el.innerHTML = '<span style="color:#8FA6BC">Sem ocorrências na '
@@ -17949,52 +17942,20 @@ function tvTicker(id, itens){
   }
 
   const sep = '<span style="color:#3D5A77">•</span>';
-  const linha = itens.map(x => '<span>' + esc(x) + '</span>').join(sep);
   const assinatura = itens.join('\u0001');
-
-  const reduzido = window.matchMedia
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  if(!reduzido){
-    tvTickerParar(id);
-    delete _tvTickers[id];
-    el.style.transform = '';
-    caixa.style.justifyContent = '';
-    el.innerHTML = linha + sep + linha + sep;
-    el.classList.add('anda');
-    el.style.animationDuration = Math.max(30, itens.length * 6) + 's';
-    return;
-  }
-
-  // MESMO CONTEUDO: nao remonta. O painel recarrega a cada 60 s e remontar
-  // jogaria a faixa de volta para a primeira pagina a cada ciclo — quem
-  // estivesse lendo a terceira nunca chegaria ao fim.
   const st0 = _tvTickers[id];
-  if(st0 && st0.assinatura === assinatura && st0.timer) return;
+  // MESMO CONTEUDO: nao remonta (a faixa segue de onde estava)
+  if(st0 && st0.assinatura === assinatura && st0.raf) return;
 
   tvTickerParar(id);
-  el.classList.remove('anda');
-  el.style.animationDuration = '';
-  el.style.transform = '';
   caixa.style.justifyContent = '';
-  el.innerHTML = linha;
-
-  const largura = caixa.clientWidth || 1;
-  const total = el.getBoundingClientRect().width;
-  const paginas = Math.max(1, Math.ceil(total / largura));
-
-  // CABE INTEIRO: nada se move, e a faixa fica centrada em vez de encostada
-  // na esquerda de um vao escuro.
-  if(paginas < 2){
-    delete _tvTickers[id];
-    caixa.style.justifyContent = 'center';
-    return;
-  }
-
-  _tvTickers[id] = {assinatura: assinatura, pagina: 0, paginas: paginas,
-                    largura: largura, timer: null};
-  _tvTickers[id].timer = setTimeout(() => tvTickerPagina(id),
-                                    TV_TICKER_PAUSA);
+  _tvTickers[id] = {
+    assinatura: assinatura,
+    unidade: itens.map(x => '<span>' + esc(x) + '</span>' + sep).join(''),
+    x: st0 ? st0.x : 0, periodo: 0, medida: 0, ultimo: null, raf: null,
+  };
+  tvTickerMontar(id);
+  _tvTickers[id].raf = requestAnimationFrame(t => tvTickerPasso(id, t));
 }
 
 /* ============================================================================

@@ -522,3 +522,13 @@ def test_leitura_mais_nova_que_a_do_painel_e_dita(pagina):
     pg = _abre(pagina, detalhe=det)
     pg.click(_PARTE.format(c=2, p=2))
     assert "leitura 15:37 · mais nova que a do painel (15:35)" in _modal(pg)["per"]
+
+
+def test_o_rodape_ROLA_com_animacao_desligada_no_sistema(pagina):
+    """16/09/2026: "as barras inferiores estão estáticas". A máquina da TV
+    com efeitos de animação desligados congelava a faixa em CSS; quem move
+    agora é o JS (`tvTicker`), e o guard emula justamente essa máquina."""
+    from tests.frontend.test_tv_ticker import AMOSTRAS, _rola_continuo
+    pagina[0].emulate_media(reduced_motion="reduce")
+    pg = _abre(pagina)
+    _rola_continuo(pg.evaluate(AMOSTRAS, "tvcco-ticker"))

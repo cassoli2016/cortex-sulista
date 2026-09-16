@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.99.1] — 16/09/2026  ·  CX-16/09/2026-v1.99.1
+
+### Corrigido
+- Painéis de TV — a faixa de avisos no rodapé volta a andar em todas as TVs, inclusive nas de Coletas e Entregas e de Produtividade da Frota. Em computador com "efeitos de animação" desligados no Windows (ajuste comum em máquina de TV) ela ficava parada, ou trocava de trecho só a cada 9 segundos cortando o aviso no meio. Agora ela rola sempre, de forma contínua; aviso curto também anda, repetido ao longo da faixa, e a atualização do painel a cada minuto não faz a faixa voltar ao começo.
+
 ## [1.99.0] — 16/09/2026  ·  CX-16/09/2026-v1.99.0
 
 ### Adicionado

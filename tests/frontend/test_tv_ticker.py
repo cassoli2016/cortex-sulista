@@ -1,28 +1,27 @@
 # -*- coding: utf-8 -*-
-"""O rodapé do painel de TV de operações: ele não pode travar, nunca.
+"""O rodapé dos painéis de TV: ele ROLA, sempre, e não pode travar.
 
-Estes guards nasceram de "o rodapé está estático" — e de uma SEGUNDA queixa,
-depois da primeira correção, que é a lição mais cara das duas.
+A queixa "o rodapé está estático" chegou TRÊS vezes (04/09 duas, 16/09 nas
+TVs de Coletas e Entregas e de Produtividade), e a lição é a das três juntas.
 
-PRIMEIRO DEFEITO. A folha tem uma regra global de acessibilidade:
+A folha tem uma regra global de acessibilidade:
 
     @media (prefers-reduced-motion: reduce){ *{animation-duration:.001ms
     !important} }
 
-e o `!important` VENCE o `style.animationDuration` que o JS escreve. Medido
-com `emulate_media(reduced_motion="reduce")`: duração "1e-06s", transform
-"none", zero movimento. O CSS e o JS estavam certos ao LER — só o navegador
-disse quem ganhou. E congelar ali não é "menos movimento": o conteúdo media
-14.653px numa caixa de 1.874px, então 87% da informação ficava fora da tela.
+e o `!important` VENCE qualquer duração de animação que o JS escreva — a
+faixa em `@keyframes` congela. Windows com "efeitos de animação" desligados
+liga essa preferência sem que ninguém na sala saiba.
 
-SEGUNDO DEFEITO — a correção errada. A primeira tentativa passou a mostrar UM
-item por vez. Na parede isso travou de novo, por outro motivo: com poucos
-avisos, `(i+1) % 1` devolve sempre o MESMO item; e um aviso curto encostado à
-esquerda de uma faixa de 1.874px parece defeito, não rodapé.
+A primeira saída mostrava um item por vez (com um aviso só, `(i+1) % 1`
+devolve sempre o mesmo). A segunda saltava uma PÁGINA a cada 9 s e não se
+movia quando tudo cabia — e na parede isso também se lê como faixa parada.
 
-O desenho certo usa a faixa INTEIRA e só se move quando há o que esconder:
-salta uma PÁGINA por vez com `style.transform` — transform estático, que o
-`!important` não alcança. Cabendo tudo, nada se mexe.
+O desenho de agora: o JS move a faixa quadro a quadro (`transform` inline,
+que o `!important` de `animation-duration` não alcança), nos DOIS modos, com
+a sequência repetida até encher a faixa. Por isso os guards medem MOVIMENTO
+CONTÍNUO — passo pequeno entre amostras próximas — e não só "o transform
+mudou", que um salto de página também satisfaria.
 """
 from __future__ import annotations
 
@@ -94,77 +93,85 @@ def _estado(pg):
       }; }""")
 
 
+AMOSTRAS = """async (id) => {
+  const el = document.getElementById(id); const xs = [];
+  for (let i = 0; i < 6; i++) {
+    xs.push(new DOMMatrix(getComputedStyle(el).transform).m41);
+    await new Promise(r => setTimeout(r, 250));
+  }
+  return {xs, caixa: el.parentElement.clientWidth, dentro: el.scrollWidth}; }"""
+
+
+def _rola_continuo(a):
+    """Anda a cada amostra, para a esquerda (ou dá a volta), e em passos
+    pequenos: um salto de página daria um passo do tamanho da faixa."""
+    xs, caixa = a["xs"], a["caixa"]
+    passos = [xs[i] - xs[i + 1] for i in range(len(xs) - 1)]
+    andou = [p for p in passos if p > 0]
+    assert len(andou) >= len(passos) - 1, ("a faixa não rolou", xs)
+    assert max(andou) < caixa / 4, ("a faixa SALTOU em vez de rolar", xs, caixa)
+
+
 # --------------------------------------------------------------------------
-# modo normal: rolagem contínua
+# rolagem contínua, nos dois modos
 # --------------------------------------------------------------------------
 def test_no_modo_normal_o_rodape_ROLA(pagina):
     pg, base = pagina
     _abre(pg, base)
-    t1 = pg.evaluate("() => getComputedStyle(document.getElementById"
-                     "('tvope-ticker')).transform")
-    pg.wait_for_timeout(1200)
-    t2 = pg.evaluate("() => getComputedStyle(document.getElementById"
-                     "('tvope-ticker')).transform")
-    assert t1 != t2, "o rodapé não está rolando (parado em %s)" % t1
-    assert "anda" in _estado(pg)["classe"]
+    _rola_continuo(pg.evaluate(AMOSTRAS, "tvope-ticker"))
 
 
-# --------------------------------------------------------------------------
-# reduced-motion: salto de página, e só quando há o que esconder
-# --------------------------------------------------------------------------
-def test_com_reduced_motion_e_conteudo_longo_o_rodape_PAGINA(pagina):
-    """O guard central: sem animação possível, a faixa tem de SALTAR."""
+def test_com_reduced_motion_o_rodape_ROLA_do_mesmo_jeito(pagina):
+    """O guard central: é exatamente a máquina da sala."""
     pg, base = pagina
     pg.emulate_media(reduced_motion="reduce")
     _abre(pg, base, MUITOS)
-
-    a = _estado(pg)
-    assert a["dentro"] > a["caixa"], (
-        "o cenário não tem conteúdo suficiente para exigir paginação "
-        "(%dpx em %dpx) — o guard mediria uma tela que não existe"
-        % (a["dentro"], a["caixa"]))
-    assert "anda" not in a["classe"]
-
-    pg.wait_for_timeout(11000)
-    b = _estado(pg)
-    assert b["transform"] != a["transform"], (
-        "a faixa congelou com reduced-motion: transform parado em %r"
-        % a["transform"])
+    a = pg.evaluate(AMOSTRAS, "tvope-ticker")
+    assert a["dentro"] > a["caixa"], a
+    _rola_continuo(a)
 
 
-def test_com_reduced_motion_e_conteudo_CURTO_nada_se_move(pagina):
-    """A segunda queixa, virada guard.
-
-    Cabendo tudo na faixa, não há o que esconder — mover seria movimento por
-    movimento, contra a preferência de quem configurou a máquina. E a faixa
-    fica CENTRADA: um aviso curto encostado à esquerda de um vão escuro é o
-    que fez o rodapé parecer quebrado.
-    """
+def test_aviso_CURTO_tambem_anda_e_enche_a_faixa(pagina):
+    """A queixa de 16/09: cabendo tudo, a faixa ficava parada e centrada.
+    Agora a sequência se repete até cobrir a faixa — sem vão escuro — e anda."""
     pg, base = pagina
     pg.emulate_media(reduced_motion="reduce")
     _abre(pg, base, POUCOS)
-
-    a = _estado(pg)
-    assert a["texto"], "a faixa ficou vazia com um aviso só"
-    assert a["dentro"] <= a["caixa"]
-    assert a["centrado"] == "center", (
-        "aviso curto encostado na esquerda (%s)" % a["centrado"])
-
-    pg.wait_for_timeout(11000)
-    b = _estado(pg)
-    assert b["texto"] == a["texto"], "trocou o conteúdo sem ter o que esconder"
+    a = pg.evaluate(AMOSTRAS, "tvope-ticker")
+    assert _estado(pg)["texto"], "a faixa ficou vazia com um aviso só"
+    assert a["dentro"] >= 2 * a["caixa"], ("a faixa não encheu", a)
+    _rola_continuo(a)
 
 
-def test_um_aviso_so_nao_pode_parecer_travado(pagina):
-    """`(i+1) % 1` devolve sempre o mesmo item: era exatamente assim que o
-    desenho anterior travava. Com um aviso só, tudo tem de estar visível."""
+def test_recarga_com_o_mesmo_conteudo_nao_volta_ao_inicio(pagina):
+    """O painel recarrega a cada 60 s: remontar do zero faria quem lê nunca
+    chegar ao fim."""
     pg, base = pagina
-    pg.emulate_media(reduced_motion="reduce")
-    _abre(pg, base, POUCOS)
-    a = _estado(pg)
-    assert a["dentro"] <= a["caixa"]
-    assert a["transform"] in ("", "none"), (
-        "faixa curta não pode carregar transform: %r" % a["transform"])
+    _abre(pg, base, MUITOS)
+    pg.wait_for_timeout(1500)
+    antes, depois = pg.evaluate("""async () => {
+      const id = 'tvope-ticker', st = _tvTickers[id];
+      const itens = st.assinatura.split('');
+      const x0 = st.x;
+      tvTicker(id, itens);
+      tvTicker(id, itens.concat(['aviso novo']));
+      await new Promise(r => setTimeout(r, 100));
+      return [x0, _tvTickers[id].x]; }""")
+    assert antes > 50, antes
+    assert depois >= antes, (antes, depois)
+
+
+def test_painel_escondido_mede_quando_aparece(pagina):
+    """Montado com o painel fora da tela (largura zero), a faixa não pode
+    medir zero e congelar: ela mede no primeiro quadro em que houver largura."""
+    pg, base = pagina
+    _abre(pg, base, MUITOS)
+    pg.evaluate("""() => { const v = document.getElementById('view-tvope');
+      v.style.display = 'none'; tvTicker('tvope-ticker', ['a', 'b', 'c', 'outro aviso']); }""")
+    pg.wait_for_timeout(300)
+    pg.evaluate("() => { document.getElementById('view-tvope').style.display = ''; }")
+    pg.wait_for_timeout(300)
+    _rola_continuo(pg.evaluate(AMOSTRAS, "tvope-ticker"))
 
 
 # --------------------------------------------------------------------------

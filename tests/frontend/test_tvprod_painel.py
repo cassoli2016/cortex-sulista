@@ -490,3 +490,12 @@ def test_leitura_velha_acende_o_selo(pagina):
     b = pg.evaluate("""() => { const e = document.getElementById('tvprod-beat');
         return {t: e.innerText, v: e.classList.contains('velho')}; }""")
     assert b["v"] and "há 40 min" in b["t"], b
+
+
+def test_o_rodape_ROLA_com_animacao_desligada_no_sistema(pagina):
+    """16/09/2026: "as barras inferiores estão estáticas". `_abre` já emula
+    `prefers-reduced-motion`, a máquina em que a faixa em CSS congelava."""
+    from tests.frontend.test_tv_ticker import AMOSTRAS, _rola_continuo
+    pg, base = pagina
+    _abre(pg, base)
+    _rola_continuo(pg.evaluate(AMOSTRAS, "tvprod-ticker"))
