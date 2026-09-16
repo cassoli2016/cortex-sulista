@@ -1539,7 +1539,14 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
 .tvw .tv-num{font-size:clamp(17px,1.72vw,40px);line-height:1.08;
   white-space:nowrap;overflow:hidden;text-overflow:clip}
 .tvw .tv-sub{font-size:clamp(9px,0.66vw,13px);margin-top:0.1vw}
-.tvw-mapa{grid-row:1/3;grid-column:2;position:relative}
+/* O CARTAO DO MAPA E UM MUNDO FECHADO (16/09/2026). A etiqueta da regiao e a
+   legenda sao absolutas com `z-index:500`, e 500 na RAIZ vence a gaveta do
+   celular (70) e ate o modal (180): no celular o menu abria com os blocos
+   escuros do mapa por cima dos itens. `isolation:isolate` cria o contexto de
+   empilhamento do proprio cartao -- dentro dele a ordem continua a mesma, e
+   para fora o cartao vale o que a posicao dele no fluxo diz. E a correcao
+   estrutural: vale para qualquer sobreposicao futura, e nao so para a gaveta. */
+.tvw-mapa{grid-row:1/3;grid-column:2;position:relative;isolation:isolate}
 /* O FUNDO DO MAPA VEM DA FOLHA VENDORIZADA DO LEAFLET, e ela é clara.
    `.leaflet-container{background:#ddd}` (leaflet.css:261) vale para TODO mapa
    da casa, e aparece enquanto os tiles carregam e em qualquer vão da borda —
@@ -1558,7 +1565,9 @@ body.tvfull.tvwall #view-tvope .tv-ticker{flex-shrink:0;margin-top:0.55vw}
 .tvc-mapa .leaflet-container{background:#132A40}
 #tvMapa{position:absolute;inset:0;border-radius:0.42vw;z-index:1}
 #tvCliMapa{position:absolute;inset:0;border-radius:0.42vw;z-index:1}
-.tvc-mapa{position:relative;min-height:9.5vw}
+/* o mapa do painel do cliente tem a mesma anatomia (mapa + sobreposicoes):
+   mesmo contexto proprio, pelo mesmo motivo */
+.tvc-mapa{position:relative;min-height:9.5vw;isolation:isolate}
 /* PAINEL DO CLIENTE: hierarquia e presenca.
    O vocabulario de cor NAO muda -- sao as mesmas tres do semaforo de TV, e
    continuam discretas. O que muda e o tamanho e o brilho, que e o que faz um

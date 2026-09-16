@@ -846,6 +846,55 @@ def test_o_grupo_do_mapa_lista_os_veiculos_e_dali_abre_a_ficha(pagina):
 
 # ------------------------------------------------------------ o celular
 
+def test_no_celular_o_mapa_nao_pinta_por_cima_da_gaveta(pagina):
+    """No modo NAVEGADOR (a tela é maior que a janela, então não há `tvfull`)
+    a gaveta de telas existe — e a etiqueta da região e a legenda do mapa
+    saíam POR CIMA dela: são `position:absolute` com `z-index:500` na RAIZ, e
+    500 vence os 70 da gaveta. Medido em 16/09/2026 com o painel aberto no
+    celular: o menu abria com dois blocos escuros do mapa por cima dos itens.
+
+    O teste mira o resultado, não a regra: pergunta ao navegador QUEM está no
+    ponto, sobre o painel da gaveta. Com `tvfull` a gaveta nem existe (ela é
+    escondida no modo parede), e por isso o modo importa aqui.
+    """
+    pg, base = pagina
+    pg.add_init_script("Object.defineProperty(screen,'height',{get:()=>1000});")
+    _abre(pg, base)
+    pg.set_viewport_size({"width": 390, "height": 844})
+    pg.reload()
+    pg.wait_for_function("() => document.querySelectorAll('#tvope-cheg tr').length > 1")
+    pg.wait_for_timeout(1200)
+    assert "tvfull" not in pg.evaluate("() => document.body.className"), (
+        "sem gaveta não há o que testar: no modo parede ela é escondida")
+    pg.evaluate("abrirDrawer()")
+    pg.wait_for_timeout(300)
+    r = pg.evaluate("""() => {
+        const p = document.querySelector('#drawer .painel').getBoundingClientRect();
+        const fora = [], cobertos = [];
+        for(const id of ['tv-regiao', 'tvope-legenda']){
+          const el = document.getElementById(id);
+          if(!el) continue;
+          const b = el.getBoundingClientRect();
+          if(!(b.width && b.height && b.bottom > p.top && b.top < p.bottom
+               && b.right > p.left && b.left < p.right)) continue;   // não se cruzam
+          cobertos.push(id);
+          /* o CENTRO DA INTERSEÇÃO, e não um ponto qualquer do painel: ponto
+             amostrado longe do elemento devolve a gaveta e o teste passa por
+             vacuidade (foi o que aconteceu na primeira versão deste guard) */
+          const x = (Math.max(b.left, p.left) + Math.min(b.right, p.right)) / 2;
+          const y = (Math.max(b.top, p.top) + Math.min(b.bottom, p.bottom)) / 2;
+          const topo = document.elementFromPoint(x, y);
+          if(!topo || !topo.closest('#drawer')) fora.push(id + ' → ' + (topo ? (topo.id || topo.className) : 'nada'));
+        }
+        return {painel: Math.round(p.height), cobertos, fora}; }""")
+    assert r["painel"] > 200, r
+    # SEM SOBREPOSIÇÃO NÃO HÁ O QUE PROVAR: a etiqueta da região é a que cai
+    # dentro do painel nesta geometria (a legenda fica abaixo da dobra e, no
+    # celular, é estática — não tem como vazar). Sem esta linha, o guard
+    # passaria no dia em que ninguém mais se cruzasse com ninguém.
+    assert "tv-regiao" in r["cobertos"], r
+    assert r["fora"] == [], r
+
 @pytest.mark.parametrize("modo", ["navegador", "aplicativo"])
 def test_no_celular_nada_se_espreme_nem_rola_para_o_lado(pagina, modo):
     """No modo aplicativo o celular conta como tela cheia, e as regras de

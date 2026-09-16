@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.96.2] — 16/09/2026  ·  CX-16/09/2026-v1.96.2
+
+### Corrigido
+- Painel TV › Operação no celular — a etiqueta da região e a legenda do mapa não aparecem mais por cima do menu de telas. Elas flutuam sobre o mapa e estavam numa camada acima da gaveta, então o menu abria com dois blocos escuros cobrindo os itens. Agora o cartão do mapa é uma camada fechada: o que está dentro dele não passa por cima do menu nem de nenhuma janela do sistema. Vale também para o Painel TV do cliente, que tem o mesmo mapa.
+
 ## [1.96.1] — 16/09/2026  ·  CX-16/09/2026-v1.96.1
 
 ### Corrigido
