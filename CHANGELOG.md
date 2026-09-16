@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.96.1] — 16/09/2026  ·  CX-16/09/2026-v1.96.1
+
+### Corrigido
+- Painel TV › Operação — no cartão "Tração disponível", só a metade da frota abre o detalhe. O outro lado é o agregado, e não existe lista de veículo agregado para mostrar: clicar ali abria a lista da casa, que é outro universo.
+
 ## [1.96.0] — 16/09/2026  ·  CX-16/09/2026-v1.96.0
 
 ### Corrigido

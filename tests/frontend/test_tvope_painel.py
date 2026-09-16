@@ -738,13 +738,33 @@ def test_a_metade_do_cartao_abre_o_lado_dela(pagina):
     assert "vencida há 15 dias" in d["texto"], d["texto"][:400]
 
 
+_TRACAO = "#tvope-k1 > .tv-card:nth-child(2) .tv-duo > div:nth-child(%d)"
+
+
+def test_so_a_metade_da_frota_abre_o_detalhe_da_tracao(pagina):
+    """Quem opera, 16/09/2026. O outro lado do cartão é o AGREGADO, e não há
+    lista de veículo agregado para mostrar: a metade que abrisse a lista da
+    casa prometeria o que não tem — pior do que metade que não abre nada."""
+    pg, base = pagina
+    _abre(pg, base)
+    alvos = pg.evaluate("""() => [...document.querySelectorAll(
+        '#tvope-k1 > .tv-card:nth-child(2) .tv-duo > div')].map(d => d.dataset.tvope || null)""")
+    assert alvos == ["tracao", None], alvos
+    # e o cartão inteiro deixou de ser alvo: clicar no lado do agregado (ou na
+    # borda) não pode abrir a lista da frota
+    assert pg.evaluate("""() => !!document.querySelector(
+        '#tvope-k1 > .tv-card:nth-child(2)').dataset.tvope""") is False
+    pg.click(_TRACAO % 2)
+    assert not pg.evaluate("document.getElementById('modalBg').classList.contains('aberto')")
+
+
 def test_a_lista_cortada_pelo_servidor_diz_quantas_de_quantas(pagina):
     """A programação publica 20 ociosos (13 com motor) de 72 tratores
     disponíveis: sem o contador, os 13 da tela passariam por todos — a regra
     de Top-N da casa."""
     pg, base = pagina
     _abre(pg, base)
-    pg.click("#tvope-k1 > .tv-card:nth-child(2)")          # Tração disponível
+    pg.click(_TRACAO % 1)                                  # Tração · a metade da frota
     d = _detalhe(pg)
     assert (d["aba"], d["linhas"]) == ("disponivel", 13), d
     assert d["cont"] == "13 de 72 veículos · o servidor publica as 13 primeiras", d

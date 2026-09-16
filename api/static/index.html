@@ -18246,10 +18246,16 @@ function tvOpeAlvo(el, card, estado, rotulo){
 function tvOpeMarcar(){
   const k1=document.querySelectorAll('#tvope-k1 > .tv-card');
   const k2=document.querySelectorAll('#tvope-k2 > .tv-card');
-  [[k1[0],'transito'],[k1[1],'tracao'],[k1[2],'saidas'],[k1[3],'chegando'],
+  [[k1[0],'transito'],[k1[2],'saidas'],[k1[3],'chegando'],
    [k1[4],'motoristas'],[k1[5],'semsinal'],
    [k2[4],'os_mes','preventiva'],[k2[5],'os_mes','socorro']].forEach(([el,card,est])=>
     tvOpeAlvo(el, card, est||null, TVOPE_TIT[card]));
+  /* TRACAO: SO A METADE DA FROTA (quem opera, 16/09/2026). O outro lado do
+     cartao e o AGREGADO, e nao existe lista de veiculo agregado para mostrar
+     -- clicar ali abria a lista da casa, que e outro universo. Metade que
+     abre o detalhe errado e pior do que metade que nao abre nada. */
+  tvOpeAlvo(k1[1] ? k1[1].querySelectorAll('.tv-duo > div')[0] : null,
+            'tracao', null, TVOPE_TIT.tracao);
   /* nos cartoes de dois numeros, cada METADE abre a sua: e o cavalo de um
      lado e o semirreboque do outro, que sao duas regras diferentes */
   const duo=(el,card)=>{

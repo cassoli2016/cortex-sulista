@@ -1,3 +1,12 @@
+- versao: "1.96.1"
+  data: "2026-09-16"
+  corrigido:
+    - >-
+      Painel TV › Operação — no cartão "Tração disponível", só a metade da
+      frota abre o detalhe. O outro lado é o agregado, e não existe lista de
+      veículo agregado para mostrar: clicar ali abria a lista da casa, que é
+      outro universo.
+
 - versao: "1.96.0"
   data: "2026-09-16"
   corrigido:
