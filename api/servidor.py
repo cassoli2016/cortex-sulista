@@ -764,6 +764,83 @@ def _monitoramento_email(agora=None, itens=None) -> dict:
     return {"nome": nome, "status": "ok", "detalhe": base}
 
 
+def _app_agregado() -> dict:
+    """O app do agregado (proprietario de veiculo) existe do lado de FORA.
+
+    Ninguem da casa abre `agregado.html`. Se o vinculo nao for cadastrado, se o
+    codigo parar de chegar pelo WhatsApp ou se a migration nao tiver sido
+    aplicada, o sintoma e um dono de caminhao que liga reclamando — e ninguem
+    daqui descobre antes. Este cartao e o unico lugar em que isso aparece do
+    lado de dentro.
+
+    SEM VINCULO NAO E FALHA, E INSTALACAO INCOMPLETA (`info`, nunca vermelho):
+    a mesma regra da integracao sem credencial. Sao 201 donos de agregado no
+    ERP (medido em 16/09/2026), e vincula-los e trabalho de gente.
+    """
+    nome = "App do agregado"
+    try:
+        with pglocal.get_conn() as conn, conn.cursor() as cur:
+            cur.execute(
+                """SELECT 1 FROM information_schema.tables
+                    WHERE table_schema = current_schema()
+                      AND table_name = 'agr_vinculos'""")
+            if not cur.fetchone():
+                return {"nome": nome, "status": "info",
+                        "detalhe": ("tabelas do app ainda não existem — falta "
+                                    "aplicar a migration 0097 (uv run python "
+                                    "scripts/migrar_schema.py)")}
+            cur.execute(
+                """SELECT (SELECT count(*) FROM agr_vinculos WHERE ativo) AS ativos,
+                          (SELECT count(*) FROM agr_vinculos) AS total,
+                          (SELECT count(*) FROM agr_sessoes
+                            WHERE encerrada_em IS NULL
+                              AND vista_em > now() - interval '7 days') AS vivas,
+                          (SELECT count(*) FROM agr_codigos
+                            WHERE criado_em > now() - interval '24 hours') AS pedidos,
+                          (SELECT max(criada_em) FROM agr_sessoes) AS ultima,
+                          -- USO e TENTATIVA do mestre, SEPARADOS: um e
+                          -- conferencia de quem administra, o outro e alguem
+                          -- tentando o segredo. Somados, a Saude nao distingue
+                          -- "esta sendo usado" de "esta sendo atacado".
+                          (SELECT count(*) FROM agr_sessoes
+                            WHERE mestre
+                              AND criada_em > now() - interval '7 days') AS mestres,
+                          (SELECT count(*) FROM agr_mestre_tentativas
+                            WHERE NOT aceita
+                              AND quando > now() - interval '24 hours') AS recusadas""")
+            r = cur.fetchone()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("saude: app do agregado: %s", type(exc).__name__)
+        return {"nome": nome, "status": "info", "detalhe": "conferência indisponível"}
+
+    if not r or not r["ativos"]:
+        return {"nome": nome, "status": "info",
+                "detalhe": ("nenhum proprietário vinculado — sem vínculo o app "
+                            "recusa todo mundo")}
+    partes = ["%d vinculado(s)" % r["ativos"]]
+    if (r["total"] or 0) > r["ativos"]:
+        partes.append("%d desligado(s)" % (r["total"] - r["ativos"]))
+    partes.append("%d sessão(ões) na semana" % (r["vivas"] or 0))
+    partes.append("%d código(s) em 24 h" % (r["pedidos"] or 0))
+    if r["ultima"]:
+        partes.append("última entrada %s" % _ha_quanto(
+            _idade_min(r["ultima"].isoformat())))
+    try:
+        from api.agregado import mestre as _am
+        if _am.configurado():
+            partes.append("mestre configurado (%d uso(s) na semana)"
+                          % (r["mestres"] or 0))
+        else:
+            partes.append("mestre NÃO configurado — sem %s no cofre não há "
+                          "como conferir o app de um agregado" % _am.CHAVE)
+        if (r["recusadas"] or 0) >= _am.MAX_TENTATIVAS_HORA:
+            partes.append("⚠ %d tentativa(s) recusada(s) em 24 h"
+                          % r["recusadas"])
+    except Exception as exc:  # noqa: BLE001
+        log.info("saude: mestre do agregado indisponivel (%s)", type(exc).__name__)
+    return {"nome": nome, "status": "ok", "detalhe": " · ".join(partes)}
+
+
 def _app_motorista() -> dict:
     """O app do motorista existe do lado de FORA, e por isso ele precisa disto.
 
@@ -2327,6 +2404,14 @@ def _servicos() -> list[dict]:
         servicos.append({"nome": "App do motorista", "status": "info",
                          "detalhe": "conferência indisponível"})
         log.warning("saude: app do motorista: %s", exc)
+    # O app do agregado, pela MESMA razao: quem o usa esta fora da casa, e o
+    # silencio dele so aparece quando um dono de caminhao liga reclamando.
+    try:
+        servicos.append(_app_agregado())
+    except Exception as exc:  # noqa: BLE001
+        servicos.append({"nome": "App do agregado", "status": "info",
+                         "detalhe": "conferência indisponível"})
+        log.warning("saude: app do agregado: %s", exc)
     # RELATORIOS POR E-MAIL. A prova de que a tarefa roda e o DADO que ela deixa
     # na agenda, nao a lista de tarefas do Windows (ver `_relatorios_email`).
     try:

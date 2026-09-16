@@ -489,6 +489,14 @@ _PUBLICAS_RASTREIO = ("/api/rastreio/buscar", "/api/rastreio/carga",
 # elas (`sessao.COOKIE_PATH`).
 _PUBLICAS_MOTORISTA = ("/api/motorista/",)
 
+# O app do agregado (proprietario de veiculo), 16/09/2026: MESMA construcao do
+# app do motorista e pelas mesmas razoes — prefixo liberado aqui porque o
+# porteiro e `agregado.sessao.exigir()`, que LEVANTA, e ha teste varrendo as
+# rotas `/api/agregado/*` para cobrar isso. O cookie dele (`cortex_agr`) tem
+# `path` no proprio prefixo: nao chega ao painel nem ao app do motorista, e o
+# `tipo` do token separa os dois apps.
+_PUBLICAS_AGREGADO = ("/api/agregado/",)
+
 # Autoservice de conta: exige sessão válida (checado antes), mas nenhuma tela
 # específica — todo usuário autenticado pode ver o próprio perfil/trocar a
 # própria senha/sair. /api/gestao/* não entra aqui: já é checado à parte
@@ -598,7 +606,10 @@ def _rota_publica(path: str) -> bool:
             # funciona, e o sintoma mandaria procurar o defeito no lugar
             # errado. Quem recusa e `motorista.sessao.exigir()`.
             or path in ("/motorista", "/motorista/")
-            or path.startswith(_PUBLICAS_MOTORISTA))
+            or path.startswith(_PUBLICAS_MOTORISTA)
+            # o app do agregado, pelo mesmo motivo do de cima
+            or path in ("/agregado", "/agregado/")
+            or path.startswith(_PUBLICAS_AGREGADO))
 
 
 def _local_direto(headers: Headers, cliente: str) -> bool:

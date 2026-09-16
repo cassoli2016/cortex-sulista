@@ -736,6 +736,317 @@ def radar_painel() -> JSONResponse:
             "mensagem": "Não foi possível ler o Radar do banco local."})
 
 
+# ══════════════════════════════════════════════════════ APP DO AGREGADO
+#
+# O app do PROPRIETARIO de veiculo agregado (16/09/2026). Mesma construcao do
+# app do motorista, e por isso as rotas moram lado a lado: pagina servida fora
+# do painel, prefixo liberado no middleware (`auth._PUBLICAS_AGREGADO`) e
+# porteiro dentro do modulo (`agregado.sessao.exigir`, que LEVANTA).
+#
+# O ESCOPO NUNCA VEM DO CORPO DO PEDIDO. Toda leitura recebe a sessao e tira
+# dela o dono; nenhuma rota aqui aceita "de quem" como parametro.
+
+
+def _agr_recusa(mensagem: str, status: int = HTTP_RECUSA) -> JSONResponse:
+    """Recusa legivel do app do agregado. 4xx, nunca 5xx: o Cloudflare troca o
+    corpo de 5xx pela pagina dele e a mensagem nao chega a quem esta lendo."""
+    return JSONResponse(status_code=status,
+                        content={"erro": "recusado", "mensagem": mensagem})
+
+
+def _agr_eu(req: Request) -> dict:
+    """A sessao do agregado desta requisicao. Levanta `SemSessao`."""
+    from api.agregado import sessao as asessao
+    return asessao.exigir(req)
+
+
+def _agr_leitura(req: Request, fn, **kw) -> JSONResponse:
+    """O caminho de TODA leitura do app: sessao primeiro, ERP depois.
+
+    Sem sessao e 401 (a pagina manda de volta para a entrada); ERP fora e 503
+    com mensagem — nunca um 500 mudo, e nunca uma lista vazia, que o dono
+    leria como "nao tenho nada a receber".
+    """
+    from api.agregado import sessao as asessao
+    try:
+        sess = _agr_eu(req)
+    except asessao.SemSessao:
+        return _agr_recusa("Faça login para continuar.", status=401)
+    try:
+        return JSONResponse(fn(sess, **kw))
+    except psycopg.OperationalError as exc:
+        log.warning("agregado: banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o sistema agora. Tente em instantes."})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("agregado: leitura falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Não consegui ler esta informação agora."})
+
+
+@app.get("/agregado")
+def agregado_pagina() -> FileResponse:
+    return FileResponse(STATIC / "agregado.html",
+                        headers={"Cache-Control": "no-cache, must-revalidate"})
+
+
+@app.post("/api/agregado/entrar")
+async def agregado_entrar(req: Request) -> JSONResponse:
+    """Pede o codigo. RESPONDE IGUAL para numero que existe e que nao existe.
+
+    Aqui a resposta uniforme protege uma lista especifica: quem e dono de
+    caminhao que roda para esta empresa. `entrada.pedir` explica as cinco
+    contencoes. `sem_travar` porque a ida a Z-API e I/O BLOQUEANTE numa rota
+    `async`: sem ele, o servidor INTEIRO para pelo tempo da chamada.
+    """
+    from api.agregado import entrada as aent
+    try:
+        corpo = await req.json()
+    except Exception:  # noqa: BLE001
+        corpo = {}
+    if not isinstance(corpo, dict):
+        corpo = {}
+    return JSONResponse(await sem_travar(
+        aent.pedir, str(corpo.get("telefone") or ""), ip=_ip_do_cliente(req)))
+
+
+@app.post("/api/agregado/confirmar")
+async def agregado_confirmar(req: Request) -> JSONResponse:
+    """Confere o codigo e abre a sessao.
+
+    Devolve `{"escolher": [...]}` — 200, nao recusa — quando o telefone serve a
+    mais de um vinculo (o dono pessoa fisica que tambem tem veiculo no CNPJ da
+    empresa dele). Nesse caminho o codigo NAO e consumido.
+    """
+    from api.agregado import entrada as aent
+    from api.agregado import sessao as asessao
+    try:
+        corpo = await req.json()
+    except Exception:  # noqa: BLE001
+        corpo = {}
+    if not isinstance(corpo, dict):
+        corpo = {}
+    try:
+        r = await sem_travar(
+            aent.confirmar, str(corpo.get("telefone") or ""),
+            str(corpo.get("codigo") or ""),
+            aparelho=str(corpo.get("aparelho") or ""),
+            agregado=str(corpo.get("agregado") or ""),
+            ip=_ip_do_cliente(req),
+            agente=req.headers.get("user-agent", ""))
+    except aent.Recusa as exc:
+        return _agr_recusa(str(exc))
+    if r.get("escolher"):
+        return JSONResponse(r)
+
+    # A TRILHA GRAVA O ID OPACO, nunca o codigo do ERP — que para pessoa fisica
+    # e o CPF. `audit_log` e append-only e imutavel.
+    auth.audit("agregado:%d" % r["agregado_id"], "agregado_entrou",
+               alvo=str(r["agregado_id"]), detalhe=f"sessao {r['sessao_id']}",
+               ip=_ip_do_cliente(req))
+    # O TOKEN NAO VAI NO CORPO: ele e o cookie, e cookie HttpOnly e o que
+    # impede um script na pagina de ler a sessao.
+    resp = JSONResponse({"ok": True, "nome": r["nome"]})
+    asessao.gravar_cookie(resp, r["token"], req)
+    return resp
+
+
+@app.post("/api/agregado/mestre/agregados")
+async def agregado_mestre_lista(req: Request) -> JSONResponse:
+    """Os nomes que o acesso mestre pode abrir. NAO abre sessao nenhuma.
+
+    Exige o codigo no corpo: uma lista de quem e dono de caminhao, aberta, e o
+    mesmo dado que a entrada se recusa a revelar.
+    """
+    from api.agregado import mestre as amestre
+    try:
+        corpo = await req.json()
+    except Exception:  # noqa: BLE001
+        corpo = {}
+    if not isinstance(corpo, dict):
+        corpo = {}
+    try:
+        await sem_travar(amestre.conferir, str(corpo.get("codigo") or ""),
+                         ip=_ip_do_cliente(req))
+        return JSONResponse(await sem_travar(
+            amestre.agregados, str(corpo.get("busca") or "")))
+    except amestre.Recusa as exc:
+        return _agr_recusa(str(exc))
+
+
+@app.post("/api/agregado/mestre/entrar")
+async def agregado_mestre_entrar(req: Request) -> JSONResponse:
+    """Abre a sessao MESTRE na conta de um agregado. Prazo curto e tarja."""
+    from api.agregado import mestre as amestre
+    from api.agregado import sessao as asessao
+    try:
+        corpo = await req.json()
+    except Exception:  # noqa: BLE001
+        corpo = {}
+    if not isinstance(corpo, dict):
+        corpo = {}
+    try:
+        await sem_travar(amestre.conferir, str(corpo.get("codigo") or ""),
+                         ip=_ip_do_cliente(req))
+        r = await sem_travar(
+            amestre.abrir, int(corpo.get("agregado") or 0),
+            aparelho=str(corpo.get("aparelho") or ""),
+            ip=_ip_do_cliente(req), agente=req.headers.get("user-agent", ""))
+    except amestre.Recusa as exc:
+        return _agr_recusa(str(exc))
+    except (TypeError, ValueError):
+        return _agr_recusa("Agregado não encontrado ou desligado.")
+    # TRILHA SEPARADA da entrada normal: as duas nao podem parecer a mesma
+    # coisa depois, senao a auditoria de uso do app vira ficcao.
+    auth.audit("mestre", "agregado_mestre_entrou", alvo=str(r["agregado_id"]),
+               detalhe=f"sessao {r['sessao_id']}", ip=_ip_do_cliente(req))
+    resp = JSONResponse({"ok": True, "nome": r["nome"], "mestre": True})
+    asessao.gravar_cookie(resp, r["token"], req, horas=amestre.TTL_HORAS)
+    return resp
+
+
+@app.get("/api/agregado/eu")
+def agregado_eu(req: Request) -> JSONResponse:
+    """Quem esta logado, se e sessao mestre, e o que ele TEM para ver.
+
+    `secoes` segue a regra do app do motorista: **item que nao existe para a
+    pessoa nao aparece vazio, some.** Aqui o caso medido e o abastecimento —
+    174 das 298 placas de agregado passam pela CtaPlus, e a aba de quem nao
+    abastece pela casa abriria sempre vazia.
+
+    A conferencia nao pode derrubar o login: falhando, a aba fica de fora, que
+    e a degradacao certa.
+    """
+    from api.agregado import dados as adados
+    from api.agregado import sessao as asessao
+    try:
+        sess = _agr_eu(req)
+    except asessao.SemSessao:
+        return _agr_recusa("Faça login para continuar.", status=401)
+    secoes = {"acertos": True, "viagens": True, "abastecimentos": True,
+              "lancamentos": True, "ocorrencias": True}
+    veic: dict = {}
+    try:
+        veic = adados.veiculos(sess)
+        abast = adados.abastecimentos(sess, dias=180)
+        secoes["abastecimentos"] = bool(abast.get("total"))
+    except Exception as exc:  # noqa: BLE001
+        log.info("agregado: secoes indisponiveis (%s)", type(exc).__name__)
+    return JSONResponse({
+        "nome": sess["nome"],
+        # A TARJA DEPENDE DISTO: sem a marca chegando a pagina, quem administra
+        # esquece em que conta esta.
+        "mestre": bool(sess.get("mestre")),
+        "veiculos": veic.get("total", 0),
+        "veiculos_ativos": veic.get("ativos", 0),
+        "secoes": secoes,
+    })
+
+
+@app.post("/api/agregado/sair")
+def agregado_sair(req: Request) -> JSONResponse:
+    """Encerra a sessao DESTE aparelho. A linha morre no banco: o token
+    sobreviveria ao logout se so o cookie fosse apagado."""
+    from api.agregado import sessao as asessao
+    resp = JSONResponse({"ok": True})
+    try:
+        sess = _agr_eu(req)
+    except asessao.SemSessao:
+        asessao.apagar_cookie(resp, req)
+        return resp
+    try:
+        asessao.encerrar(int(sess["sessao_id"]))
+    except Exception as exc:  # noqa: BLE001
+        log.info("agregado: encerrar sessao falhou (%s)", type(exc).__name__)
+    asessao.apagar_cookie(resp, req)
+    return resp
+
+
+def _agr_dias(req: Request, padrao: int) -> int:
+    """A janela pedida pela pagina, presa entre 7 e 365 dias. Presa, e nao
+    aceita como vier: um `dias=100000` viraria uma varredura do ERP inteiro
+    disparada de fora."""
+    try:
+        d = int(req.query_params.get("dias") or padrao)
+    except (TypeError, ValueError):
+        d = padrao
+    return max(7, min(365, d))
+
+
+@app.get("/api/agregado/resumo")
+def agregado_resumo(req: Request) -> JSONResponse:
+    from api.agregado import dados as adados
+    return _agr_leitura(req, adados.resumo, dias=_agr_dias(req, adados.JANELA_DIAS))
+
+
+@app.get("/api/agregado/veiculos")
+def agregado_veiculos(req: Request) -> JSONResponse:
+    from api.agregado import dados as adados
+    return _agr_leitura(req, adados.veiculos)
+
+
+@app.get("/api/agregado/acertos")
+def agregado_acertos(req: Request) -> JSONResponse:
+    from api.agregado import dados as adados
+    return _agr_leitura(req, adados.acertos, dias=_agr_dias(req, adados.JANELA_DIAS))
+
+
+@app.get("/api/agregado/acertos/{filial}/{numero}")
+def agregado_acerto_detalhe(filial: int, numero: int, req: Request) -> JSONResponse:
+    """O detalhe de UM acerto. O dono entra no `WHERE` junto do numero: acerto
+    de outro dono nao e lido e descartado — nao e lido."""
+    from api.agregado import dados as adados
+    from api.agregado import sessao as asessao
+    try:
+        sess = _agr_eu(req)
+    except asessao.SemSessao:
+        return _agr_recusa("Faça login para continuar.", status=401)
+    try:
+        r = adados.acerto_detalhe(sess, filial, numero)
+    except psycopg.OperationalError as exc:
+        log.warning("agregado: banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o sistema agora. Tente em instantes."})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("agregado: detalhe do acerto falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Não consegui ler este acerto agora."})
+    if not r:
+        return _agr_recusa("Acerto não encontrado.")
+    return JSONResponse(r)
+
+
+@app.get("/api/agregado/viagens")
+def agregado_viagens(req: Request) -> JSONResponse:
+    from api.agregado import dados as adados
+    return _agr_leitura(req, adados.viagens, dias=_agr_dias(req, adados.JANELA_DIAS))
+
+
+@app.get("/api/agregado/abastecimentos")
+def agregado_abastecimentos(req: Request) -> JSONResponse:
+    from api.agregado import dados as adados
+    return _agr_leitura(req, adados.abastecimentos,
+                        dias=_agr_dias(req, adados.JANELA_DIAS))
+
+
+@app.get("/api/agregado/lancamentos")
+def agregado_lancamentos(req: Request) -> JSONResponse:
+    from api.agregado import dados as adados
+    return _agr_leitura(req, adados.lancamentos,
+                        dias=_agr_dias(req, adados.JANELA_DIAS))
+
+
+@app.get("/api/agregado/ocorrencias")
+def agregado_ocorrencias(req: Request) -> JSONResponse:
+    from api.agregado import dados as adados
+    return _agr_leitura(req, adados.ocorrencias,
+                        dias=_agr_dias(req, adados.JANELA_DIAS))
+
+
 @app.get("/motorista")
 def motorista_pagina() -> FileResponse:
     return FileResponse(STATIC / "motorista.html",

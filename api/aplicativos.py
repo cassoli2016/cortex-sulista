@@ -61,6 +61,21 @@ APLICATIVOS: list[dict] = [
                       "telefone."),
     },
     {
+        "id": "agregado",
+        "nome": "App do agregado",
+        "arquivo": "agregado.html",
+        "rota": "/agregado",
+        "rotas_alternativas": [],
+        "publico": "Proprietário de veículo agregado",
+        "entrada": "Pelo número do celular, com código no WhatsApp",
+        "descricao": ("O que a Sulista paga aos veículos do dono: acertos "
+                      "fechados e em aberto, viagens, abastecimentos, "
+                      "descontos e ocorrências. Mostra só o dinheiro DELE — o "
+                      "que o cliente pagou à casa não entra, porque a "
+                      "diferença entre os dois é resultado da Sulista, não "
+                      "assunto do fornecedor."),
+    },
+    {
         "id": "motorista",
         "nome": "App do motorista",
         "arquivo": "motorista.html",

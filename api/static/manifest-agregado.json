@@ -1,0 +1,16 @@
+{
+  "name": "CÓRTEX · Agregado",
+  "short_name": "Agregado",
+  "description": "Acertos, viagens, abastecimentos e ocorrências dos seus veículos.",
+  "start_url": "/agregado",
+  "scope": "/agregado",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0B1926",
+  "background_color": "#0B1926",
+  "lang": "pt-BR",
+  "icons": [
+    {"src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"}
+  ]
+}

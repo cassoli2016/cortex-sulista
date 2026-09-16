@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.97.0] — 16/09/2026  ·  CX-16/09/2026-v1.97.0
+
+### Adicionado
+- Aplicativos › App do agregado — o proprietário de veículo agregado passa a ver, no celular, o que a Sulista paga aos veículos dele: os acertos (separando o que está em aberto, o que está fechado a pagar e o que já foi pago), o detalhe de cada acerto linha a linha (viagens, despesas, adiantamentos e descontos), as viagens com o frete pago e os km, os abastecimentos, os lançamentos manuais — com o tipo e se já foram aprovados — e as ocorrências das cargas dele. Entra pelo celular cadastrado, com código no WhatsApp, e o endereço é /agregado (o cartão com QR está em Aplicativos). O que o cliente pagou à Sulista não aparece: o app mostra o dinheiro do dono, e não a margem da casa.
+- Aplicativos › App do agregado — a casa pode abrir o app de um agregado para conferir o que ele vê, com código próprio guardado no cofre, sessão de poucas horas e uma tarja vermelha na tela dizendo de quem é a conta. A Saúde do Servidor ganhou o cartão do app: quantos estão vinculados, sessões na semana, códigos em 24 h e o estado desse acesso de conferência.
+
 ## [1.96.2] — 16/09/2026  ·  CX-16/09/2026-v1.96.2
 
 ### Corrigido

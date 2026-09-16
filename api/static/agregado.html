@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B1926">
+<title>CÓRTEX · Agregado</title>
+<link rel="icon" href="/static/favicon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+<!-- MANIFESTO PRÓPRIO, nunca o do painel: `start_url` e `scope` apontam para
+     /agregado. Com o do painel, o atalho da tela de início abriria a tela de
+     login do CÓRTEX, que o dono não tem como passar. -->
+<link rel="manifest" href="/static/manifest-agregado.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Agregado">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" media="print" onload="this.media='all'"
+      href="https://fonts.googleapis.com/css2?family=Saira:wght@400;600;800&display=swap">
+<noscript><link rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Saira:wght@400;600;800&display=swap"></noscript>
+<style>
+/* Os tokens são os MESMOS do painel (`index.html`) — marca é marca. A
+   diferença deliberada é o alvo de toque: este app é de celular, e quem lê
+   está no pátio, muitas vezes de luva. */
+:root{
+  --navy-900:#0B1926; --navy-800:#102538; --navy-700:#17344F;
+  --brand:#942821; --accent:#E85D10;
+  --ok:#1E7F4F; --aviso:#B97709; --ruim:#C03221;
+  --n0:#FFFFFF; --n50:#F6F7F9; --n200:#E3E7EB; --n500:#636C76; --n900:#14181D;
+  --e1:9px; --e2:18px; --e3:25px;
+  --font:'Saira',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --n0:#141A20; --n50:#1B222A; --n200:#2A333D; --n500:#9AA6B2; --n900:#EAF0F6; }
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{font:16px/1.45 var(--font);background:var(--n50);color:var(--n900);
+  padding-top:env(safe-area-inset-top,0);padding-bottom:env(safe-area-inset-bottom,0)}
+body.entrando{background:var(--navy-900)}
+[hidden]{display:none !important}
+button{font:inherit}
+/* ───────────────────────────── entrada ───────────────────────────── */
+.lg-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:var(--e2)}
+.lg-card{width:min(100%,420px);background:var(--n0);border-radius:14px;padding:var(--e3);
+  box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.lg-marca{display:flex;align-items:center;gap:var(--e1);margin-bottom:var(--e2)}
+.lg-marca b{font-size:20px;letter-spacing:.04em}
+.lg-marca span{font-size:13px;color:var(--n500)}
+.lg-card h1{font-size:19px;margin:0 0 6px}
+.lg-card p.ajuda{font-size:14px;color:var(--n500);margin:0 0 var(--e2)}
+.lg-card label{display:block;font-size:13px;font-weight:600;margin:0 0 6px}
+.lg-card input{width:100%;min-height:48px;font-size:16px;padding:0 12px;border-radius:10px;
+  border:1px solid var(--n200);background:var(--n0);color:var(--n900)}
+.lg-btn{width:100%;min-height:52px;margin-top:var(--e2);border:0;border-radius:10px;
+  background:var(--brand);color:#fff;font-size:16px;font-weight:700;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;gap:var(--e1)}
+.lg-card button.lg-btn.fraco{background:transparent;color:var(--n500);
+  border:1px solid var(--n200);font-weight:600;min-height:44px}
+.lg-card button.lg-btn[disabled]{opacity:.6}
+.msg{margin-top:var(--e2);padding:10px 12px;border-radius:10px;font-size:14px;
+  background:#FDECEA;color:var(--ruim)}
+.msg.ok{background:#EAF5EE;color:var(--ok)}
+.escolha button{width:100%;min-height:52px;margin-top:var(--e1);border-radius:10px;
+  border:1px solid var(--n200);background:var(--n0);color:var(--n900);text-align:left;
+  padding:0 14px;font-weight:600;cursor:pointer}
+/* ───────────────────────────── o app ───────────────────────────── */
+.app{padding-bottom:84px}
+.topo{background:var(--navy-900);color:#fff;padding:var(--e2) var(--e2) var(--e1)}
+.topo h1{font-size:17px;margin:0;letter-spacing:.03em}
+.topo .sub{font-size:13px;color:#8FA6BC;margin-top:2px}
+.mestre{position:sticky;top:0;z-index:16;background:var(--brand);color:#fff;
+  padding:8px var(--e2);font-size:13px;font-weight:700}
+.velha{background:#FFF6E5;color:var(--aviso);padding:8px var(--e2);font-size:13px;font-weight:600}
+.corpo{padding:var(--e2)}
+.card{background:var(--n0);border:1px solid var(--n200);border-radius:12px;
+  padding:var(--e2);margin-bottom:var(--e2)}
+.card h2{font-size:14px;margin:0 0 var(--e1);color:var(--n500);text-transform:uppercase;letter-spacing:.06em}
+.kpi{display:flex;flex-wrap:wrap;gap:var(--e2)}
+.kpi>div{flex:1 1 40%}
+.kpi .v{font-size:24px;font-weight:800;font-family:var(--mono)}
+.kpi .r{font-size:13px;color:var(--n500)}
+.linha{border-top:1px solid var(--n200);padding:var(--e1) 0;display:flex;gap:var(--e1);
+  align-items:baseline;justify-content:space-between}
+.linha:first-of-type{border-top:0}
+.linha .esq{min-width:0}
+.linha .t{font-weight:600}
+.linha .s{font-size:13px;color:var(--n500)}
+.linha .val{font-family:var(--mono);font-weight:700;white-space:nowrap}
+.tag{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;
+  padding:2px 8px;margin-left:6px;white-space:nowrap}
+.tag.ok{background:#EAF5EE;color:var(--ok)}
+.tag.aviso{background:#FFF6E5;color:var(--aviso)}
+.tag.ruim{background:#FDECEA;color:var(--ruim)}
+.vazio{padding:var(--e2);color:var(--n500);font-size:14px;text-align:center}
+.conta{font-size:13px;color:var(--n500);margin-top:var(--e1)}
+.abrir{width:100%;text-align:left;background:transparent;border:0;padding:0;cursor:pointer;color:inherit}
+.navbar{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;
+  background:var(--n0);border-top:1px solid var(--n200);
+  padding-bottom:env(safe-area-inset-bottom,0)}
+.navbar button{flex:1;min-height:56px;border:0;background:transparent;color:var(--n500);
+  font-size:12px;font-weight:600;cursor:pointer}
+.navbar button[aria-current="page"]{color:var(--brand)}
+.modal-bg{position:fixed;inset:0;background:rgba(11,25,38,.55);z-index:40;display:none;
+  align-items:flex-end;justify-content:center}
+.modal-bg.aberto{display:flex}
+.modal{width:100%;max-height:86vh;overflow:auto;background:var(--n0);
+  border-radius:14px 14px 0 0;padding:var(--e2)}
+.modal h3{margin:0 0 var(--e1);font-size:17px}
+</style>
+</head>
+<body class="entrando">
+
+<!-- ═══════════════════════════ entrada ═══════════════════════════ -->
+<div id="entrada">
+  <div class="lg-wrap"><div class="lg-card">
+    <div class="lg-marca"><b>CÓRTEX</b><span>· Agregado</span></div>
+
+    <div class="lg-body" id="tela-entrar">
+      <h1>Entrar</h1>
+      <p class="ajuda">Digite o celular cadastrado na Sulista. Você recebe um código no WhatsApp.</p>
+      <label for="fone">Celular</label>
+      <input id="fone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="(41) 99999-9999">
+      <button class="lg-btn" id="b-pedir" type="button">Receber código</button>
+      <button class="lg-btn fraco" id="b-mestre" type="button">Acesso da administração</button>
+      <div class="msg" id="m-entrar" hidden></div>
+    </div>
+
+    <div class="lg-body" id="tela-codigo" hidden>
+      <h1>Código</h1>
+      <p class="ajuda">Digite os 6 dígitos que chegaram no seu WhatsApp.</p>
+      <label for="codigo">Código</label>
+      <input id="codigo" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+      <button class="lg-btn" id="b-confirmar" type="button">Entrar</button>
+      <button class="lg-btn fraco" id="b-voltar" type="button">Usar outro número</button>
+      <div class="msg" id="m-codigo" hidden></div>
+    </div>
+
+    <div class="lg-body" id="tela-escolha" hidden>
+      <h1>Quem é você?</h1>
+      <p class="ajuda">Este celular está em mais de um cadastro.</p>
+      <div class="escolha" id="lista-escolha"></div>
+      <div class="msg" id="m-escolha" hidden></div>
+    </div>
+
+    <div class="lg-body" id="tela-mestre" hidden>
+      <h1>Acesso da administração</h1>
+      <p class="ajuda">Abre o app de um agregado para conferir o que ele vê.</p>
+      <label for="mcodigo">Código mestre</label>
+      <input id="mcodigo" type="password" autocomplete="off">
+      <label for="mbusca" style="margin-top:var(--e2)">Agregado</label>
+      <input id="mbusca" type="text" placeholder="nome do proprietário">
+      <button class="lg-btn" id="b-mbuscar" type="button">Procurar</button>
+      <div class="escolha" id="lista-mestre"></div>
+      <button class="lg-btn fraco" id="b-mvoltar" type="button">Voltar</button>
+      <div class="msg" id="m-mestre" hidden></div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══════════════════════════ o app ═══════════════════════════ -->
+<div class="app" id="app" hidden>
+  <div class="mestre" id="tarja-mestre" hidden></div>
+  <div class="topo">
+    <h1 id="ag-nome">—</h1>
+    <div class="sub" id="ag-sub">—</div>
+  </div>
+  <div class="velha" id="tarja-velha" hidden></div>
+  <div class="corpo">
+    <section id="tela-resumo"></section>
+    <section id="tela-acertos" hidden></section>
+    <section id="tela-viagens" hidden></section>
+    <section id="tela-abastecimentos" hidden></section>
+    <section id="tela-lancamentos" hidden></section>
+    <section id="tela-ocorrencias" hidden></section>
+    <section id="tela-conta" hidden></section>
+  </div>
+  <nav class="navbar" id="navbar"></nav>
+</div>
+
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)fecharModal()">
+  <div class="modal" id="modalBox" role="dialog" aria-modal="true" tabindex="-1"></div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   APP DO AGREGADO — o que a Sulista paga aos veículos de um proprietário.
+
+   A PÁGINA NÃO DECIDE ESCOPO. Ela não manda "de quem" em lugar nenhum: o
+   servidor tira o dono do cookie assinado. Não há parâmetro nesta página que
+   troque de agregado — nem no acesso da administração, onde a troca acontece
+   na ENTRADA, abrindo outra sessão.
+
+   E ela não sabe fazer conta: todo número desenhado aqui veio pronto do
+   servidor. Somar no navegador criaria um segundo lugar onde o total pode
+   discordar das linhas.
+   ═══════════════════════════════════════════════════════════════════════ */
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g,
+  (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+/* O ÚNICO PONTO DE REDE DA PÁGINA. Ele resolve três coisas que, espalhadas,
+   viram três defeitos diferentes: rede caída, resposta que não é JSON (o
+   Cloudflare troca o corpo de 5xx pela página dele) e sessão vencida. */
+async function pedir(url, opcoes){
+  let r;
+  try{
+    r = await fetch(url, Object.assign({headers:{"Content-Type":"application/json"}}, opcoes || {}));
+  }catch(e){
+    return {ok:false, status:0, mensagem:"Sem conexão. Tente de novo."};
+  }
+  let dados = null;
+  try{ dados = await r.json(); }catch(e){ dados = null; }
+  if(r.ok) return {ok:true, status:r.status, dados: dados || {},
+                   velha: r.headers.get("X-Leitura-Velha") === "1"};
+  return {ok:false, status:r.status,
+          mensagem:(dados && dados.mensagem)
+            || (r.status === 401 ? "Sua sessão terminou. Entre de novo."
+                                 : "Não consegui completar agora. Tente de novo.")};
+}
+
+function aviso(id, texto, tipo){
+  const el = $(id); if(!el) return;
+  el.textContent = texto || "";
+  el.className = "msg" + (tipo === "ok" ? " ok" : "");
+  el.hidden = !texto;
+}
+function ocupado(btn, sim, texto){
+  if(!btn) return;
+  btn.disabled = !!sim;
+  if(texto !== undefined) btn.textContent = texto;
+}
+/* Id OPACO do aparelho, gerado aqui e guardado no navegador. Não é impressão
+   digital e não descreve o telefone: serve para "sair de todos os aparelhos"
+   e para a casa ver o mesmo login em dois lugares. */
+function aparelho(){
+  try{
+    let a = localStorage.getItem("cortex_agr_ap");
+    if(!a){ a = Math.random().toString(36).slice(2) + Date.now().toString(36);
+            localStorage.setItem("cortex_agr_ap", a); }
+    return a;
+  }catch(e){ return ""; }
+}
+
+const reais = (v) => (v == null || !isFinite(v)) ? "—"
+  : Number(v).toLocaleString("pt-BR", {style:"currency", currency:"BRL"});
+const num = (v, c) => (v == null || !isFinite(v)) ? "—"
+  : Number(v).toLocaleString("pt-BR", {minimumFractionDigits:c||0, maximumFractionDigits:c||0});
+const dia = (iso) => iso ? iso.slice(8,10) + "/" + iso.slice(5,7) : "—";
+const diaHora = (s) => s ? s.slice(8,10) + "/" + s.slice(5,7) + " " + s.slice(11,16) : "—";
+const plural = (n, um, muitos) => (n === 1 ? um : muitos);
+function conta(d, palavra){
+  if(!d) return "";
+  const m = d.mostrados || 0, t = d.total || 0;
+  if(!t) return "";
+  return m < t ? (num(m) + " de " + num(t) + " " + palavra) : (num(t) + " " + palavra);
+}
+
+/* ───────────────────────────── entrada ───────────────────────────── */
+const ENTRADA = ["tela-entrar","tela-codigo","tela-escolha","tela-mestre"];
+let foneAtual = "", codigoAtual = "";
+
+function mostrar(qual){
+  ENTRADA.forEach((id) => { $(id).hidden = (id !== qual); });
+  const entrando = ENTRADA.indexOf(qual) >= 0;
+  document.body.classList.toggle("entrando", entrando);
+  $("entrada").hidden = !entrando;
+  $("app").hidden = entrando;
+}
+
+$("b-pedir").addEventListener("click", async () => {
+  const fone = $("fone").value.trim();
+  aviso("m-entrar", "");
+  ocupado($("b-pedir"), true, "Enviando…");
+  const r = await pedir("/api/agregado/entrar",
+    {method:"POST", body: JSON.stringify({telefone: fone})});
+  ocupado($("b-pedir"), false, "Receber código");
+  if(!r.ok) return aviso("m-entrar", r.mensagem);
+  foneAtual = fone;
+  mostrar("tela-codigo");
+  /* A MESMA mensagem para número que existe e que não existe — é o servidor
+     que decide o texto, e a página não acrescenta nada que denuncie o caso. */
+  aviso("m-codigo", (r.dados && r.dados.mensagem) || "", "ok");
+});
+
+$("b-voltar").addEventListener("click", () => { aviso("m-codigo", ""); mostrar("tela-entrar"); });
+$("b-mestre").addEventListener("click", () => { aviso("m-mestre", ""); mostrar("tela-mestre"); });
+$("b-mvoltar").addEventListener("click", () => { mostrar("tela-entrar"); });
+$("b-confirmar").addEventListener("click", () => confirmar(""));
+$("codigo").addEventListener("keydown", (e) => { if(e.key === "Enter") confirmar(""); });
+$("fone").addEventListener("keydown", (e) => { if(e.key === "Enter") $("b-pedir").click(); });
+
+async function confirmar(agregado){
+  const codigo = codigoAtual || $("codigo").value.trim();
+  aviso("m-codigo", "");
+  ocupado($("b-confirmar"), true, "Entrando…");
+  const r = await pedir("/api/agregado/confirmar", {method:"POST", body: JSON.stringify(
+    {telefone: foneAtual, codigo: codigo, aparelho: aparelho(), agregado: agregado || ""})});
+  ocupado($("b-confirmar"), false, "Entrar");
+  if(!r.ok){ mostrar("tela-codigo"); return aviso("m-codigo", r.mensagem); }
+  if(r.dados.escolher){
+    /* O código NÃO foi consumido: a pessoa acabou de prová-lo, e queimá-lo só
+       para perguntar quem ela é obrigaria a pedir outro. */
+    codigoAtual = codigo;
+    const lista = $("lista-escolha");
+    lista.innerHTML = "";
+    r.dados.escolher.forEach((a) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = a.nome || ("Cadastro " + a.id);
+      b.addEventListener("click", () => confirmar(String(a.id)));
+      lista.appendChild(b);
+    });
+    return mostrar("tela-escolha");
+  }
+  codigoAtual = "";
+  await abrirApp();
+}
+
+$("b-mbuscar").addEventListener("click", async () => {
+  aviso("m-mestre", "");
+  ocupado($("b-mbuscar"), true, "Procurando…");
+  const r = await pedir("/api/agregado/mestre/agregados", {method:"POST", body: JSON.stringify(
+    {codigo: $("mcodigo").value, busca: $("mbusca").value})});
+  ocupado($("b-mbuscar"), false, "Procurar");
+  const lista = $("lista-mestre");
+  lista.innerHTML = "";
+  if(!r.ok) return aviso("m-mestre", r.mensagem);
+  const d = r.dados || {};
+  (d.agregados || []).forEach((a) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = a.nome || ("Cadastro " + a.id);
+    b.addEventListener("click", async () => {
+      const e = await pedir("/api/agregado/mestre/entrar", {method:"POST", body: JSON.stringify(
+        {codigo: $("mcodigo").value, agregado: a.id, aparelho: aparelho()})});
+      if(!e.ok) return aviso("m-mestre", e.mensagem);
+      await abrirApp();
+    });
+    lista.appendChild(b);
+  });
+  /* TOP-N LEVA CONTADOR: "40 agregados" quando são 201 é a diferença entre
+     conferir a operação e achar que se conferiu. */
+  if((d.total || 0) > (d.mostrados || 0))
+    aviso("m-mestre", num(d.mostrados) + " de " + num(d.total)
+          + " — refine a busca pelo nome.", "ok");
+});
+
+/* ───────────────────────────── o app ───────────────────────────── */
+const ABAS = [
+  {id:"resumo",         rotulo:"Resumo",   url:"/api/agregado/resumo",         desenhar:desResumo},
+  {id:"acertos",        rotulo:"Acertos",  url:"/api/agregado/acertos",        desenhar:desAcertos},
+  {id:"viagens",        rotulo:"Viagens",  url:"/api/agregado/viagens",        desenhar:desViagens},
+  {id:"abastecimentos", rotulo:"Diesel",   url:"/api/agregado/abastecimentos", desenhar:desAbastec},
+  {id:"lancamentos",    rotulo:"Extras",   url:"/api/agregado/lancamentos",    desenhar:desLanc},
+  {id:"ocorrencias",    rotulo:"Ocorrên.", url:"/api/agregado/ocorrencias",    desenhar:desOcor},
+  {id:"conta",          rotulo:"Conta",    url:"",                             desenhar:desConta},
+];
+let euAtual = {}, abaAtual = "resumo";
+
+/* A ABA SOME QUANDO O SERVIDOR DIZ QUE A PESSOA NÃO TEM AQUILO. Por padrão
+   ela aparece: só some com `false` explícito — item que não existe não pode
+   abrir vazio, porque "sem dados" ensina a duvidar do resto da tela. */
+function montarBarra(secoes){
+  const nav = $("navbar");
+  nav.innerHTML = "";
+  ABAS.filter((a) => a.id === "resumo" || a.id === "conta" || secoes[a.id] !== false)
+      .forEach((a) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = a.rotulo; b.dataset.aba = a.id;
+    b.addEventListener("click", () => abrirAba(a.id));
+    nav.appendChild(b);
+  });
+}
+
+async function abrirAba(id){
+  abaAtual = id;
+  ABAS.forEach((a) => { const s = $("tela-" + a.id); if(s) s.hidden = (a.id !== id); });
+  document.querySelectorAll("#navbar button").forEach((b) => {
+    if(b.dataset.aba === id) b.setAttribute("aria-current", "page");
+    else b.removeAttribute("aria-current");
+  });
+  const aba = ABAS.find((a) => a.id === id);
+  if(!aba) return;
+  const alvo = $("tela-" + id);
+  if(!aba.url){ aba.desenhar(alvo, {}); return; }
+  alvo.innerHTML = '<div class="card"><div class="vazio">carregando…</div></div>';
+  const r = await pedir(aba.url);
+  if(!r.ok){
+    if(r.status === 401) return mostrar("tela-entrar");
+    alvo.innerHTML = '<div class="card"><div class="vazio">' + esc(r.mensagem) + "</div></div>";
+    return;
+  }
+  $("tarja-velha").hidden = !r.velha;
+  if(r.velha) $("tarja-velha").textContent =
+    "Mostrando a última leitura boa do sistema — pode estar desatualizada.";
+  aba.desenhar(alvo, r.dados || {});
+}
+
+async function abrirApp(){
+  const r = await pedir("/api/agregado/eu");
+  if(!r.ok) return mostrar("tela-entrar");
+  euAtual = r.dados || {};
+  $("ag-nome").textContent = euAtual.nome || "Agregado";
+  $("ag-sub").textContent = (euAtual.veiculos_ativos || 0) + " "
+    + plural(euAtual.veiculos_ativos || 0, "veículo ativo", "veículos ativos");
+  /* A TARJA VEM DA SESSÃO, não de uma variável desta página: sem ela, quem
+     administra esquece em que conta está, e um print vira "o app mostrou isso
+     ao agregado", que é falso. */
+  const tm = $("tarja-mestre");
+  if(euAtual.mestre){
+    tm.innerHTML = "ACESSO DA ADMINISTRAÇÃO · você está vendo o app de <b>"
+      + esc(euAtual.nome || "") + "</b>";
+    tm.hidden = false;
+  }else{ tm.hidden = true; }
+  montarBarra(euAtual.secoes || {});
+  mostrar("app");
+  $("entrada").hidden = true;
+  $("app").hidden = false;
+  document.body.classList.remove("entrando");
+  await abrirAba("resumo");
+}
+
+/* ─────────────────────────── as telas ─────────────────────────── */
+function cartao(titulo, dentro){
+  return '<div class="card"><h2>' + esc(titulo) + "</h2>" + dentro + "</div>";
+}
+function linha(t, s, val, tag){
+  return '<div class="linha"><div class="esq"><div class="t">' + t
+    + (tag || "") + '</div><div class="s">' + s + "</div></div>"
+    + '<div class="val">' + val + "</div></div>";
+}
+const vazio = (txt) => '<div class="vazio">' + esc(txt) + "</div>";
+
+function desResumo(alvo, d){
+  const ac = d.acertos || {}, re = (ac.resumo || {});
+  const vi = d.viagens || {}, ab = d.abastecimentos || {}, la = d.lancamentos || {};
+  let h = "";
+  /* O QUE ELE TEM A RECEBER, e os três estados separados: em aberto é acerto
+     que a casa ainda monta; a pagar é acerto fechado com parcela sem
+     pagamento; pago é dinheiro que saiu. Juntar os dois últimos faria o app
+     dizer que o dinheiro saiu quando ele só foi calculado. */
+  h += cartao("A receber", '<div class="kpi">'
+    + '<div><div class="v">' + reais(re.valor_a_pagar) + '</div><div class="r">'
+    + num(re.a_pagar || 0) + " " + plural(re.a_pagar || 0, "acerto fechado a pagar", "acertos fechados a pagar")
+    + '</div></div>'
+    + '<div><div class="v">' + reais(re.valor_abertos) + '</div><div class="r">'
+    + num(re.abertos || 0) + " " + plural(re.abertos || 0, "acerto em aberto", "acertos em aberto")
+    + '</div></div></div>');
+  h += cartao("Pago no período", '<div class="kpi">'
+    + '<div><div class="v">' + reais(re.valor_pago) + '</div><div class="r">'
+    + num(re.pagos || 0) + " " + plural(re.pagos || 0, "acerto pago", "acertos pagos") + '</div></div>'
+    + '<div><div class="v">' + num(vi.valor ? vi.total : 0) + '</div><div class="r">'
+    + plural(vi.total || 0, "viagem", "viagens") + " · " + num(vi.km, 0) + " km</div></div></div>");
+  const alertas = [];
+  if((la.pendentes || 0) > 0)
+    alertas.push(num(la.pendentes) + " " + plural(la.pendentes, "lançamento aguardando aprovação",
+                                                  "lançamentos aguardando aprovação"));
+  if((ab.total || 0) > 0)
+    alertas.push(num(ab.total) + " " + plural(ab.total, "abastecimento", "abastecimentos")
+                 + " · " + reais(ab.valor));
+  h += cartao("No período", alertas.length
+    ? alertas.map((t) => '<div class="linha"><div class="esq"><div class="t">'
+        + esc(t) + "</div></div></div>").join("")
+    : vazio("Nada pendente por aqui."));
+  h += '<div class="conta">Período: últimos ' + num(d.dias || 90) + " dias.</div>";
+  alvo.innerHTML = h;
+}
+
+function desAcertos(alvo, d){
+  const linhas = d.acertos || [];
+  if(!linhas.length){ alvo.innerHTML = cartao("Acertos", vazio("Nenhum acerto no período.")); return; }
+  const corpo = linhas.map((a) => {
+    const pago = a.parcelas && a.parcelas_pagas >= a.parcelas;
+    const tag = !a.fechado ? '<span class="tag aviso">em aberto</span>'
+      : (pago ? '<span class="tag ok">pago</span>' : '<span class="tag ruim">a pagar</span>');
+    return '<button class="abrir" type="button" data-acerto="' + a.filial + "/" + a.numero + '">'
+      + linha("Acerto " + esc(String(a.numero)), "emitido " + dia(a.emissao)
+          + (pago && a.pago_em ? " · pago " + dia(a.pago_em)
+             : (a.vence_em ? " · vence " + dia(a.vence_em) : "")),
+        reais(a.liquido), tag)
+      + "</button>";
+  }).join("");
+  alvo.innerHTML = cartao("Acertos", corpo + '<div class="conta">'
+    + esc(conta(d, plural(d.total, "acerto", "acertos"))) + "</div>");
+  alvo.querySelectorAll("[data-acerto]").forEach((b) => {
+    b.addEventListener("click", () => abrirAcerto(b.dataset.acerto));
+  });
+}
+
+async function abrirAcerto(ref){
+  const box = $("modalBox");
+  box.innerHTML = "<h3>Acerto</h3>" + vazio("carregando…");
+  $("modalBg").classList.add("aberto");
+  const r = await pedir("/api/agregado/acertos/" + ref);
+  if(!r.ok){ box.innerHTML = "<h3>Acerto</h3>" + vazio(r.mensagem); return; }
+  const d = r.dados || {}, a = d.acerto || {};
+  const bloco = (titulo, itens, desc) => {
+    if(!itens || !itens.length) return "";
+    return '<h2 style="margin-top:var(--e2)">' + esc(titulo) + "</h2>"
+      + itens.map((i) => linha(esc(desc(i)), esc(dia(i.emissao)
+          + (i.placa ? " · " + i.placa : "")), reais(i.valor))).join("");
+  };
+  box.innerHTML = "<h3>Acerto " + esc(String(d.numero)) + "</h3>"
+    + '<div class="linha"><div class="esq"><div class="t">Líquido</div>'
+    + '<div class="s">emitido ' + dia(a.emissao) + (a.fechado ? " · fechado" : " · em aberto")
+    + '</div></div><div class="val">' + reais(a.liquido) + "</div></div>"
+    + bloco("Viagens", d.viagens, (i) => "Viagem " + (i.viagem || i.documento || ""))
+    + bloco("Despesas", d.despesas, (i) => i.tipo || "Despesa")
+    + bloco("Adiantamentos", d.adiantamentos, (i) => "Adiantamento " + (i.documento || ""))
+    + bloco("Descontos", d.descontos, (i) => "Desconto " + (i.documento || ""))
+    + '<button class="lg-btn" type="button" onclick="fecharModal()">Fechar</button>';
+}
+function fecharModal(){ $("modalBg").classList.remove("aberto"); }
+
+function desViagens(alvo, d){
+  const linhas = d.viagens || [];
+  const corpo = linhas.length ? linhas.map((v) => linha(
+      esc(v.placa || "—") + " · " + esc(v.origem) + " → " + esc(v.destino),
+      dia(v.emissao) + " · " + num(v.km, 0) + " km" + (v.vazio ? " · vazio" : ""),
+      reais(v.valor))).join("")
+    : vazio("Nenhuma viagem no período.");
+  alvo.innerHTML = cartao("Viagens", corpo + '<div class="conta">'
+    + esc(conta(d, plural(d.total, "viagem", "viagens"))
+      + (d.total ? " · " + num(d.km, 0) + " km · " + reais(d.valor) : "")) + "</div>");
+}
+
+function desAbastec(alvo, d){
+  const linhas = d.abastecimentos || [];
+  const corpo = linhas.length ? linhas.map((a) => linha(
+      esc(a.placa || "—"), dia(a.data) + " · " + num(a.litros, 1) + " L"
+        + (a.km_litro ? " · " + num(a.km_litro, 2) + " km/L" : ""),
+      reais(a.valor))).join("")
+    : vazio("Nenhum abastecimento no período.");
+  alvo.innerHTML = cartao("Abastecimentos", corpo + '<div class="conta">'
+    + esc(conta(d, plural(d.total, "abastecimento", "abastecimentos"))
+      + (d.total ? " · " + num(d.litros, 0) + " L · " + reais(d.valor) : "")) + "</div>");
+}
+
+function desLanc(alvo, d){
+  const linhas = d.lancamentos || [];
+  const corpo = linhas.length ? linhas.map((l) => linha(
+      esc(l.tipo || "Lançamento"), dia(l.data) + " · " + esc(l.placa || "—")
+        + (l.observacao ? " · " + esc(l.observacao) : ""),
+      reais(l.valor),
+      l.aprovado ? '<span class="tag ok">aprovado</span>'
+                 : '<span class="tag aviso">aguardando</span>')).join("")
+    : vazio("Nenhum lançamento no período.");
+  /* A MULTA É DITA AQUI, e não vira aba com zero: a Smartec — que abastece a
+     tela de multas da casa — cobre a frota própria, e não o agregado (medido:
+     zero infrações em placa AGR em 12 meses). O que existe de multa para o
+     dono é desconto no acerto. */
+  alvo.innerHTML = cartao("Lançamentos e descontos", corpo + '<div class="conta">'
+    + esc(conta(d, plural(d.total, "lançamento", "lançamentos"))) + "</div>")
+    + cartao("Multas", vazio("Multa de veículo agregado não é lançada aqui: ela "
+      + "aparece como desconto no acerto. Fale com a Sulista se não encontrar."));
+}
+
+function desOcor(alvo, d){
+  const linhas = d.ocorrencias || [];
+  const corpo = linhas.length ? linhas.map((o) => linha(
+      esc(o.ocorrencia || "Ocorrência"),
+      diaHora(o.quando) + " · " + esc(o.placa || "—") + " · coleta " + esc(String(o.coleta)),
+      "")).join("")
+    : vazio("Nenhuma ocorrência no período.");
+  alvo.innerHTML = cartao("Ocorrências", corpo + '<div class="conta">'
+    + esc(conta(d, plural(d.total, "ocorrência", "ocorrências"))
+      + " · motivo de atraso e ocorrência interna") + "</div>");
+}
+
+async function desConta(alvo){
+  /* A CONTA BUSCA OS VEÍCULOS DEPOIS DE ABRIR, e sem isto a aba fica em
+     branco enquanto a resposta não chega — branco que se lê como "não tenho
+     veículo nenhum". */
+  alvo.innerHTML = '<div class="card"><div class="vazio">carregando…</div></div>';
+  const r = await pedir("/api/agregado/veiculos");
+  const d = (r.ok && r.dados) || {};
+  const veic = (d.veiculos || []).map((v) => linha(
+    esc(v.placa), [v.marca, v.modelo, v.ano].filter(Boolean).map(esc).join(" · ") || "&nbsp;",
+    v.ativo ? '<span class="tag ok">ativo</span>' : '<span class="tag aviso">inativo</span>'
+  )).join("") || vazio("Nenhum veículo no seu cadastro.");
+  alvo.innerHTML = cartao("Meus veículos", veic)
+    + cartao("Conta", '<div class="linha"><div class="esq"><div class="t">'
+      + esc(euAtual.nome || "") + '</div><div class="s">'
+      + (euAtual.mestre ? "acesso da administração" : "acesso pelo seu celular")
+      + "</div></div></div>"
+      + '<button class="lg-btn" id="b-sair" type="button">Sair deste aparelho</button>');
+  const b = $("b-sair");
+  if(b) b.addEventListener("click", async () => {
+    await pedir("/api/agregado/sair", {method:"POST", body:"{}"});
+    euAtual = {};
+    mostrar("tela-entrar");
+  });
+}
+
+/* ───────────────────────────── boot ───────────────────────────── */
+document.addEventListener("keydown", (e) => { if(e.key === "Escape") fecharModal(); });
+(async function(){
+  /* Quem já tem sessão entra direto: o cookie é HttpOnly, então a única forma
+     de saber se ele vale é perguntar ao servidor. */
+  const r = await pedir("/api/agregado/eu");
+  if(r.ok) await abrirApp();
+  else mostrar("tela-entrar");
+})();
+</script>
+</body>
+</html>
