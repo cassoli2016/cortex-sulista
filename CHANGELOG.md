@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.108.0] — 17/09/2026  ·  CX-17/09/2026-v1.108.0
+
+### Adicionado
+- Portal de Cargas — menu novo, feito para o cliente acompanhar as próprias cargas sem precisar ligar. Ele reúne a Minha Operação (que saiu de Operação, com os mesmos acessos) e a tela nova Documentos e Peso.
+- Documentos e Peso — as cargas do período com o CT-e, as notas fiscais, o peso transportado e se o canhoto já foi anexado. Cada nota e cada CT-e se baixam em XML e em PDF (DANFE e DACTE), direto da tela. O cliente só vê e só baixa documento das cargas dele, pela mesma regra da Minha Operação; quem é da casa escolhe o cliente. Quando o sistema não tem o arquivo do CT-e guardado, a tela diz isso e mostra a chave e o protocolo para consulta na SEFAZ. Quem já tinha a Minha Operação ganha esta tela junto.
+
 ## [1.107.0] — 17/09/2026  ·  CX-17/09/2026-v1.107.0
 
 ### Adicionado
