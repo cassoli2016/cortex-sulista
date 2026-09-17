@@ -1343,12 +1343,23 @@ grupos:
   - jornf
   - cex
   - sac
-  - cliop
   - port
   - gr
   - agr
   - agrcanal
   - mvb
+- nome: Portal de Cargas
+  resumo: >-
+    O hub do cliente: o que ele precisa das próprias cargas sem precisar ligar.
+    A Minha Operação mostra onde cada carga está agora, a permanência contra o
+    freetime contratado e o histórico. Documentos e Peso lista as cargas do
+    período com o CT-e, as notas fiscais (XML e PDF para baixar), o peso
+    transportado e se o canhoto já foi anexado. Quem entra com vínculo de
+    cliente vê só as cargas em que a empresa dele é tomadora, pagadora do frete
+    ou destinatária; quem é da casa escolhe o cliente.
+  telas:
+  - cliop
+  - pcdoc
 - nome: Frota
   resumo: >-
     Ativos e sua idade, consulta por placa, manutenção corretiva e preventiva,
