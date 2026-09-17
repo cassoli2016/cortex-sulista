@@ -226,14 +226,21 @@ def get_milkrun(de: str | None = None, ate: str | None = None,
         # voltou vazio, e o rastreamento veria isso como visita normal.
         frustrada = l["frustrada"] == 1
         coletada = l["coletada"] == 1
+        motivo = None
         if frustrada:
             estado = {**estado, "estado": "frustrada", "rotulo": "frustrada"}
         elif coletada and estado["estado"] == "aguardando":
-            # a operação apontou coleta e o rastro não viu: quase sempre é
-            # coordenada errada ou raio pequeno. Deixar como "aguardando"
-            # esconderia uma coleta que aconteceu.
+            # a operação apontou coleta e o rastro não viu. Deixar como
+            # "aguardando" esconderia uma coleta que aconteceu — e sem horas,
+            # porque a tela não mostra nada digitado. O MOTIVO vai na linha
+            # (17/09/2026): na MWM eram 92 de 493 coletadas em 30 dias, e
+            # "sem rastro" sozinho não dizia se o conserto é a coordenada do
+            # fornecedor, o agendamento ou a placa da solicitação.
             estado = {**estado, "estado": "concluido",
                       "rotulo": "coletado (sem rastro)"}
+            motivo = det.motivo_sem_rastro(
+                rastro.get(placa_l) or [], lat, lng, previsto, visitas,
+                tem_placa=bool(placa_l))
 
 
         ponto = {
@@ -249,6 +256,7 @@ def get_milkrun(de: str | None = None, ate: str | None = None,
             "distancia_m": visita.distancia_min_m if visita else None,
             "visitas_no_dia": len(visitas),
             "coletada": coletada, "frustrada": frustrada,
+            "motivo": motivo,
             **estado,
         }
 

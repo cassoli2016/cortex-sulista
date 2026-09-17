@@ -229,3 +229,101 @@ def classificar(visita: Visita | None, previsto: datetime | None, *,
     else:
         pont = "atrasado"
     return {**base, "atraso_min": atraso, "pontualidade": pont}
+
+
+# Ate onde "chegou perto" ainda e suspeita de coordenada. Medido na MWM em
+# 16/09/2026: as paradas coletadas sem rastro se repetem a uma distancia FIXA
+# por fornecedor (Metal Dois ~310 m, Hassmann ~520 m, PK Cables ~1,3 km,
+# Rigitec ~2,6 km) — o caminhao para sempre no mesmo lugar, e o ponto do
+# cadastro nao e esse lugar. Acima disto o caminhao nao foi la.
+PERTO_M = 3000
+
+
+def _horas(h: float) -> str:
+    h = abs(h)
+    if h >= 24:
+        d = round(h / 24)
+        return f"{d} dia" + ("s" if d != 1 else "")
+    return f"{round(h)} h" if h >= 1 else f"{round(h * 60)} min"
+
+
+def _metros(m: float) -> str:
+    return (f"{m / 1000:.1f} km".replace(".", ",") if m >= 1000
+            else f"{round(m)} m")
+
+
+def motivo_sem_rastro(posicoes: list[dict], lat: float | None,
+                      lng: float | None, previsto: datetime | None,
+                      visitas: list[Visita], *, tem_placa: bool = True,
+                      raio_m: float = RAIO_PADRAO_M,
+                      tolerancia_h: float = 6.0) -> dict:
+    """POR QUE o rastreamento nao confirmou uma parada que a operacao marcou
+    como coletada — dito so com o que o RASTRO e o CADASTRO sabem.
+
+    A hora digitada no ERP nao entra, nem para explicar: a tela nao mostra
+    nada digitado (decisao de quem opera, 17/09/2026), e um motivo que citasse
+    a hora digitada seria a hora digitada entrando pela porta dos fundos.
+
+    Devolve `{"codigo", "texto", "detalhe"}`: `texto` e o selo curto da linha,
+    `detalhe` a frase do tooltip. A ORDEM das perguntas e a do que se pode
+    consertar primeiro — sem placa ou sem coordenada nao ha nem o que medir.
+    `posicoes` ja vem de `preparar` (filtrado e ordenado).
+    """
+    if not tem_placa:
+        return {"codigo": "sem_veiculo", "texto": "sem veículo",
+                "detalhe": "Sem veículo na solicitação: não há o que rastrear."}
+    if not (lat and lng):
+        return {"codigo": "sem_coordenada", "texto": "sem coordenada",
+                "detalhe": "Fornecedor sem coordenada no cadastro — sem ela "
+                           "não existe cerca para detectar."}
+    if not posicoes:
+        return {"codigo": "sem_posicao", "texto": "rastreador mudo",
+                "detalhe": "A placa não mandou nenhuma posição no período."}
+
+    # Houve visita ao ponto, so que longe do horario combinado (a mais
+    # proxima dele e a que explica). Menos de um dia: chegou antes/depois
+    # demais. Um dia ou mais: no dia agendado a placa nao passou la.
+    if visitas and previsto is not None:
+        v = min(visitas, key=lambda v: abs(v.chegada - previsto))
+        h = (v.chegada - previsto).total_seconds() / 3600
+        if abs(h) < 24:
+            lado = "antes" if h < 0 else "depois"
+            return {"codigo": "fora_da_janela",
+                    "texto": f"parou {_horas(h)} {lado}",
+                    "detalhe": f"O veículo parou no fornecedor "
+                               f"{v.chegada:%d/%m %H:%M}, {_horas(h)} {lado} do "
+                               f"agendado — fora da tolerância de "
+                               f"{round(tolerancia_h)} h. Confira o agendamento."}
+        return {"codigo": "outro_dia", "texto": "não passou no dia",
+                "detalhe": f"No dia agendado esta placa não parou no "
+                           f"fornecedor; a parada mais próxima foi "
+                           f"{v.chegada:%d/%m %H:%M}. Confira se foi outro "
+                           f"veículo."}
+
+    perto = posicoes
+    if previsto is not None:
+        lim = timedelta(hours=tolerancia_h)
+        perto = [p for p in posicoes if abs(p["dt"] - previsto) <= lim]
+        if not perto:
+            return {"codigo": "sem_posicao_na_hora",
+                    "texto": "sem posição na hora",
+                    "detalhe": f"A placa não mandou posição até "
+                               f"{round(tolerancia_h)} h do agendado."}
+    dmin = min(distancia_m(p["lat"], p["lng"], lat, lng) for p in perto)
+    if dmin <= raio_m:
+        return {"codigo": "passou_sem_parar",
+                "texto": f"passou a {_metros(dmin)}",
+                "detalhe": f"Passou a {_metros(dmin)} do ponto, mas não ficou "
+                           f"{round(MIN_PERMANENCIA_MIN)} min nem parou dentro "
+                           f"do raio de {round(raio_m)} m."}
+    if dmin <= PERTO_M:
+        return {"codigo": "coordenada",
+                "texto": f"a {_metros(dmin)} do ponto",
+                "detalhe": f"O mais perto que chegou foi {_metros(dmin)} do "
+                           f"ponto do cadastro (a cerca tem {round(raio_m)} m). "
+                           f"Quando a distância se repete, a coordenada do "
+                           f"fornecedor está fora do lugar."}
+    return {"codigo": "longe", "texto": "não foi ao ponto",
+            "detalhe": f"No horário, o mais perto que a placa chegou foi "
+                       f"{_metros(dmin)} do fornecedor. Confira se foi outro "
+                       f"veículo."}

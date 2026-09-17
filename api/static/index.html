@@ -27103,7 +27103,15 @@ function renderMilkrun(d){
         const dist = p.distancia_m==null ? '—'
           : Math.round(p.distancia_m).toLocaleString('pt-BR')+' m';
         let motivo='';
-        if(!p.placa) motivo=' <span class="badge b-warn" title="Sem veículo na solicitação: não há o que rastrear.">sem veículo</span>';
+        /* COLETADA SEM RASTRO leva o PORQUÊ na situação (17/09/2026), dito só
+           com o rastro e o cadastro — a tela não mostra hora digitada, nem
+           para explicar. O servidor monta (`deteccao.motivo_sem_rastro`), e
+           por isso os dois selos de cadastro abaixo não repetem nessa linha. */
+        const semRastro = p.motivo
+          ? ' <span class="badge b-warn milk-motivo" data-motivo="'+esc(p.motivo.codigo)+'" title="'+esc(p.motivo.detalhe)+'">'+esc(p.motivo.texto)+'</span>'
+          : '';
+        if(p.motivo) motivo='';
+        else if(!p.placa) motivo=' <span class="badge b-warn" title="Sem veículo na solicitação: não há o que rastrear.">sem veículo</span>';
         else if(!p.lat||!p.lng) motivo=' <span class="badge b-warn" title="Fornecedor sem coordenada no cadastro — sem ela não existe cerca para detectar.">sem coordenada</span>';
         return `<tr>
           <td class="num" style="color:var(--n500)">${p.sequencia}</td>
@@ -27115,7 +27123,7 @@ function renderMilkrun(d){
           <td class="num">${hhmm(p.saida)}</td>
           <td class="num">${p.permanencia_min!=null?Math.round(p.permanencia_min)+' min':'—'}</td>
           <td class="num" style="color:${p.distancia_m!=null&&p.distancia_m>200?'var(--yellow-700)':'inherit'}">${dist}</td>
-          <td><span class="badge ${est[0]}">${est[1]}</span></td></tr>`;
+          <td><span class="badge ${est[0]}">${est[1]}</span>${semRastro}</td></tr>`;
       }).join('')}</tbody></table></div>
     </div>`;
   }).filter(Boolean).join('');

@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.106.0] — 17/09/2026  ·  CX-17/09/2026-v1.106.0
+
+### Adicionado
+- Milk Run — a coleta marcada como coletada no ERP que o rastreamento não confirmou agora diz o porquê, ao lado da situação: "a 520 m do ponto" (a coordenada do fornecedor no cadastro está fora do lugar), "parou 9 h antes" (o caminhão foi, mas longe do horário agendado), "não passou no dia" (confira se foi outro veículo), "passou a 80 m" (não chegou a parar), "não foi ao ponto", "rastreador mudo", "sem coordenada" ou "sem veículo". Passando o mouse, aparece a explicação. Continua sem mostrar hora digitada: chegada e saída só aparecem quando o rastreamento vê.
+
 ## [1.105.2] — 16/09/2026  ·  CX-16/09/2026-v1.105.2
 
 ### Corrigido

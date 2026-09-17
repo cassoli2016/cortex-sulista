@@ -1,3 +1,16 @@
+- versao: "1.106.0"
+  data: "2026-09-17"
+  adicionado:
+    - >-
+      Milk Run — a coleta marcada como coletada no ERP que o rastreamento não
+      confirmou agora diz o porquê, ao lado da situação: "a 520 m do ponto"
+      (a coordenada do fornecedor no cadastro está fora do lugar), "parou 9 h
+      antes" (o caminhão foi, mas longe do horário agendado), "não passou no
+      dia" (confira se foi outro veículo), "passou a 80 m" (não chegou a
+      parar), "não foi ao ponto", "rastreador mudo", "sem coordenada" ou "sem
+      veículo". Passando o mouse, aparece a explicação. Continua sem mostrar
+      hora digitada: chegada e saída só aparecem quando o rastreamento vê.
+
 - versao: "1.105.2"
   data: "2026-09-16"
   corrigido:

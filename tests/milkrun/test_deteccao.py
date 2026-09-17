@@ -302,3 +302,164 @@ def test_pct_realizado_sem_desfecho_e_none_e_nao_zero():
     concl, frustr = 0, 0
     fechados = concl + frustr
     assert (round(100 * concl / fechados, 1) if fechados else None) is None
+
+
+# --- o MOTIVO de uma coleta sem rastro (17/09/2026) --------------------------
+# A operacao marcou coletada e o rastro nao confirmou. A tela nao mostra hora
+# digitada, entao o motivo tem de sair so do rastro e do cadastro: cada teste
+# e um dos casos medidos na MWM em 30 dias (92 de 493 coletadas).
+
+PREV = datetime(2026, 8, 25, 10, 0)
+
+
+def _motivo(pos, previsto=PREV, lat=LAT, lng=LNG, **k):
+    pos = d.preparar(pos)
+    visitas = d.detectar(pos, lat, lng, preparadas=True) if lat and lng else []
+    assert d.visita_da_janela(visitas, previsto) is None, "o caso tem de ser SEM rastro"
+    return d.motivo_sem_rastro(pos, lat, lng, previsto, visitas, **k)
+
+
+def _parado_em(lat, lng, base, minutos=30):
+    return [{"dt": base + timedelta(minutes=m), "lat": lat, "lng": lng, "velocidade": 0}
+            for m in range(0, minutos + 1, 5)]
+
+
+def test_motivo_sem_veiculo_e_sem_coordenada_vem_antes_de_tudo():
+    assert _motivo([], tem_placa=False)["codigo"] == "sem_veiculo"
+    assert _motivo([], lat=None)["codigo"] == "sem_coordenada"
+
+
+def test_motivo_rastreador_mudo():
+    assert _motivo([])["codigo"] == "sem_posicao"
+
+
+def test_motivo_coordenada_do_cadastro_fora_do_lugar():
+    """Hassmann: o caminhao para SEMPRE a ~520 m do ponto do cadastro."""
+    lat, lng = _perto(520)
+    m = _motivo(_parado_em(lat, lng, PREV))
+    assert m["codigo"] == "coordenada"
+    assert m["texto"] in ("a 519 m do ponto", "a 520 m do ponto", "a 521 m do ponto"), m
+
+
+def test_motivo_passou_pelo_raio_sem_parar():
+    lat, lng = _perto(80)
+    fora = _perto(5000)
+    pos = [{"dt": PREV, "lat": fora[0], "lng": fora[1], "velocidade": 60},
+           {"dt": PREV + timedelta(minutes=2), "lat": lat, "lng": lng, "velocidade": 40},
+           {"dt": PREV + timedelta(minutes=4), "lat": fora[0], "lng": fora[1], "velocidade": 60}]
+    m = _motivo(pos)
+    assert m["codigo"] == "passou_sem_parar" and "80 m" in m["texto"], m
+
+
+def test_motivo_parou_horas_antes_do_agendado():
+    """BorgWarner: agendada as 10h, o caminhao chega por volta de 01h."""
+    lat, lng = _perto(50)
+    m = _motivo(_parado_em(lat, lng, PREV - timedelta(hours=9)))
+    assert m["codigo"] == "fora_da_janela"
+    assert m["texto"] == "parou 9 h antes", m
+
+
+def test_motivo_a_placa_nao_passou_no_dia_agendado():
+    """Schulz: a unica parada da placa no fornecedor foi dias depois."""
+    lat, lng = _perto(50)
+    m = _motivo(_parado_em(lat, lng, PREV + timedelta(days=5)))
+    assert m["codigo"] == "outro_dia", m
+    assert "30/08" in m["detalhe"]
+
+
+def test_motivo_nao_foi_ao_ponto():
+    lat, lng = _perto(40_000)
+    assert _motivo(_parado_em(lat, lng, PREV))["codigo"] == "longe"
+
+
+def test_motivo_sem_posicao_perto_do_horario():
+    lat, lng = _perto(40_000)
+    m = _motivo(_parado_em(lat, lng, PREV - timedelta(hours=20)))
+    assert m["codigo"] == "sem_posicao_na_hora", m
+
+
+def test_o_motivo_NAO_le_hora_digitada():
+    """A tela nao mostra nada digitado (decisao de 17/09/2026) — nem para
+    explicar. A funcao nao recebe a linha do ERP, e o SQL da tela continua sem
+    as colunas digitadas."""
+    import inspect
+    from pathlib import Path
+    params = inspect.signature(d.motivo_sem_rastro).parameters
+    assert not any("hra" in p or "digit" in p for p in params)
+    sql = (Path(d.__file__).parent / "servico.py").read_text(encoding="utf-8")
+    ini = sql.index("PONTOS_SQL = ")
+    corpo = sql[ini:sql.index('"""', sql.index('"""', ini) + 3)]
+    linhas_sql = [l for l in corpo.splitlines() if not l.strip().startswith("--")]
+    assert not any("hra_chegada" in l or "hra_saida" in l for l in linhas_sql)
+
+
+def test_o_SERVICO_poe_o_motivo_so_na_coletada_sem_rastro(monkeypatch):
+    """O motivo tem de sair do servico, nao so existir em `deteccao`.
+
+    Ponta a ponta com um ERP de duble: duas paradas marcadas coletadas na
+    mesma placa — uma o rastro confirma, na outra o caminhao para a ~520 m do
+    ponto do cadastro. So a segunda ganha motivo, e continua sem hora. Sem
+    este teste, o servico deixar de preencher `motivo` passava verde em tudo
+    (visto ao sabotar, 17/09/2026: so o dado real mostrou 16 sem motivo)."""
+    from contextlib import contextmanager
+    from api.milkrun import servico as sv
+
+    agenda = datetime(2026, 8, 25, 10, 0)
+    longe = _perto(5000)
+    perto_b = (LAT - 0.30, LNG)                   # o fornecedor B, 33 km ao sul
+    no_b = (perto_b[0] + 520 / 111_320.0, perto_b[1])
+
+    def linha(seq, lat, lng):
+        return {"coleta": 777, "sequencia": seq, "situacao": 7,
+                "dtcoletar": agenda, "veiculo": "ABC1D23", "dtcancelamento": None,
+                "dtagendamentocoleta": agenda + timedelta(hours=seq - 1),
+                "coletada": 1, "frustrada": 0, "remetente": seq,
+                "ponto_nome": f"FORN {seq}", "ponto_cidade": "X", "ponto_uf": "SP",
+                "ponto_lat": lat, "ponto_lng": lng, "destino_nome": "",
+                "motorista_nome": ""}
+
+    def em(lat, lng, ini, vel):
+        return [{"veiculo": "ABC1D23", "dt": ini + timedelta(minutes=m),
+                 "lat": lat, "lng": lng, "velocidade": vel} for m in range(0, 31, 5)]
+
+    rastro = (em(*longe, agenda - timedelta(hours=1), 60)
+              + em(*_perto(40), agenda, 0)                 # A: visita confirmada
+              + em(*no_b, agenda + timedelta(hours=1), 0))  # B: para a 520 m
+
+    class Cur:
+        def execute(self, sql, par=None):
+            if sql is sv.PONTOS_SQL:
+                self.r = [linha(1, LAT, LNG), linha(2, *perto_b)]
+            elif sql is sv.RASTRO_SQL:
+                self.r = rastro
+            elif sql is sv.POS_ATUAL_SQL:
+                self.r = []
+            else:
+                self.r = [{"ts": agenda + timedelta(days=1)}]
+        def fetchall(self):
+            return self.r
+        def fetchone(self):
+            return self.r[0]
+        def __enter__(self):
+            return self
+        def __exit__(self, *a):
+            return False
+
+    class Conn:
+        def cursor(self):
+            return Cur()
+        def __enter__(self):
+            return self
+        def __exit__(self, *a):
+            return False
+
+    @contextmanager
+    def conn():
+        yield Conn()
+
+    monkeypatch.setattr(sv.db, "get_conn", conn)
+    r = sv.get_milkrun("2026-08-25", "2026-08-25", tomador="duble-motivo", tipo="")
+    a, b = r["coletas"][0]["pontos"]
+    assert a["chegada"] and a["motivo"] is None, a
+    assert b["estado"] == "concluido" and b["chegada"] is None and b["saida"] is None
+    assert b["motivo"] and b["motivo"]["codigo"] == "coordenada", b["motivo"]
