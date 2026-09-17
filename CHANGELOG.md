@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.107.0] — 17/09/2026  ·  CX-17/09/2026-v1.107.0
+
+### Adicionado
+- Permanência na Planta — o mapa da planta ganhou o botão "Tela cheia": ele cobre a janela inteira, aproxima as docas para aproveitar o espaço e mantém a legenda de horas embaixo. Na tela cheia a rodinha do mouse dá zoom. "Recolher" ou a tecla Esc voltam ao cartão.
+
 ## [1.106.0] — 17/09/2026  ·  CX-17/09/2026-v1.106.0
 
 ### Adicionado

@@ -1,3 +1,12 @@
+- versao: "1.107.0"
+  data: "2026-09-17"
+  adicionado:
+    - >-
+      Permanência na Planta — o mapa da planta ganhou o botão "Tela cheia":
+      ele cobre a janela inteira, aproxima as docas para aproveitar o espaço e
+      mantém a legenda de horas embaixo. Na tela cheia a rodinha do mouse dá
+      zoom. "Recolher" ou a tecla Esc voltam ao cartão.
+
 - versao: "1.106.0"
   data: "2026-09-17"
   adicionado:

@@ -532,6 +532,13 @@ svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-
   display:flex;flex-direction:column;background:var(--n0)}
 .milk-mapa-exp>.head{border-radius:0}
 .milk-mapa-exp #mapaMilk{flex:1;height:auto!important;border-radius:0}
+/* O mesmo para o mapa da permanencia na planta (17/09/2026). A legenda do
+   calor fica EMBAIXO, dentro do cartao: tela cheia sem a escala de horas e
+   um mapa colorido que nao se le. */
+.poli-mapa-exp{position:fixed;inset:0;z-index:1200;margin:0;border-radius:0;
+  display:flex;flex-direction:column;background:var(--n0)}
+.poli-mapa-exp>.head{border-radius:0}
+.poli-mapa-exp #poliMapa{flex:1;height:auto!important;border-radius:0!important}
 /* marcas da linha do dia: o que venceu sem ser feito e o dia ainda correndo */
 .ppl-longo{display:block;font-weight:600;font-size:10.5px;color:var(--yellow-700);
   letter-spacing:.02em;margin-top:2px}
@@ -6517,7 +6524,9 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="aba" data-abas="poli" data-aba="mapa" id="aba-poli-mapa" role="tabpanel" aria-labelledby="tabpoli-mapa">
           <div class="card">
             <div class="head"><h2>Tupy Joinville — calor por tempo parado <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O perímetro e os polígonos internos de cadastro_poligono, cada ponto pintado pela SOMA de horas paradas nele no período filtrado — escala sequencial do amarelo ao vinho, por fração do ponto mais carregado. Cinza tracejado é ponto cadastrado SEM visita no período: sumir do mapa esconderia justamente o ponto morto. O tooltip de cada polígono traz a mediana por visita, as visitas e as placas — a mediana é a régua de atendimento; o TOTAL é a régua de onde a planta consome as horas da frota.">i</span></h2>
-              <span class="hint" id="hintPoliMapa"></span></div>
+              <span class="hint" id="hintPoliMapa"></span>
+              <button class="ghost" id="btnPoliExp" onclick="poliExpandir()"
+                      aria-expanded="false" title="Abrir o mapa da planta em tela cheia (Esc fecha)">Tela cheia</button></div>
             <div id="poliMapa" style="height:430px;border-radius:0 0 14px 14px;overflow:hidden;position:relative;z-index:1"></div>
             <div class="hint" id="poliMapaLegenda" style="padding:8px 18px 12px"></div>
           </div>
@@ -23832,7 +23841,45 @@ async function loadPoli(fundo){
    cor é INTENSIDADE de grandeza, não estado — vermelho não significa errado,
    significa "é aqui que as horas da frota estão". Ponto sem visita fica cinza
    tracejado: sumir do mapa esconderia o ponto morto. */
-let poliMap=null, poliCamada=null;
+let poliMap=null, poliCamada=null, poliLimites=null;
+
+/* TELA CHEIA do mapa da planta (17/09/2026), no molde do `milkExpandir`:
+   cartao fixo cobrindo a janela em vez de requestFullscreen() (o Leaflet perde
+   o tamanho ao voltar do fullscreen nativo, e o Safari do iPad ignora a
+   chamada). Expandir muda o TAMANHO, e o enquadramento e funcao dele: so
+   `invalidateSize` deixaria o zoom do cartao de 430px numa tela inteira, com
+   as docas do mesmo tamanho no meio de muita planta vazia. Por isso reenquadra
+   nos mesmos limites do desenho, depois do reflow (rAF duplo). Com a tela
+   cheia a roda do mouse passa a dar zoom: no cartao ela rola a pagina. */
+function poliExpandir(){
+  const el = document.getElementById('poliMapa');
+  const b = document.getElementById('btnPoliExp');
+  if(!el || !b) return;
+  const card = el.closest('.card');
+  const abrindo = !card.classList.contains('poli-mapa-exp');
+  card.classList.toggle('poli-mapa-exp', abrindo);
+  document.body.style.overflow = abrindo ? 'hidden' : '';
+  b.textContent = abrindo ? 'Recolher' : 'Tela cheia';
+  b.setAttribute('aria-expanded', String(abrindo));
+  if(poliMap){
+    try{ abrindo ? poliMap.scrollWheelZoom.enable() : poliMap.scrollWheelZoom.disable(); }catch(_){}
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      try{
+        poliMap.invalidateSize();
+        if(poliLimites) poliMap.fitBounds(poliLimites);
+      }catch(_){}
+    }));
+  }
+  if(abrindo) b.focus();
+}
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape' && document.querySelector('.poli-mapa-exp')) poliExpandir();
+});
+/* trocar de tela com o mapa aberto deixaria a pagina seguinte sem rolagem
+   (o `overflow:hidden` do body ficava para tras com o cartao escondido) */
+window.addEventListener('hashchange', ()=>{
+  if(document.querySelector('.poli-mapa-exp')) poliExpandir();
+});
 const POLI_HEAT=['#FDE68A','#FBBF24','#F08A4B','#E85D10','#B91C1C'];
 async function poliMapaDesenhar(m){
   const el=document.getElementById('poliMapa');
@@ -23857,13 +23904,15 @@ async function poliMapaDesenhar(m){
      (que inclui a lagoa) deixava os polígonos de doca com meia dúzia de
      pixels — o calor ficava invisível. O perímetro segue no mapa como
      contexto, parcialmente visível. */
+  poliLimites=null;
   if(pontos.length){
     let b=L.polygon(pontos[0].coords).getBounds();
     pontos.forEach(p=>{ b=b.extend(L.polygon(p.coords).getBounds()); });
-    poliMap.fitBounds(b.pad(0.35));
+    poliLimites=b.pad(0.35);
   }else if(m.perimetro && m.perimetro.length>2){
-    poliMap.fitBounds(L.polygon(m.perimetro).getBounds().pad(0.06));
+    poliLimites=L.polygon(m.perimetro).getBounds().pad(0.06);
   }
+  if(poliLimites) poliMap.fitBounds(poliLimites);
   const top3=new Set(pontos.slice().sort((a,b)=>(b.total_h||0)-(a.total_h||0))
     .slice(0,3).filter(p=>(p.total_h||0)>0).map(p=>p.id));
   pontos.forEach(p=>{
