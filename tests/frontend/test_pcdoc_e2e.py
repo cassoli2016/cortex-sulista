@@ -55,6 +55,15 @@ def _abre(pagina, corpo=CORPO, doc_status=200):
         elif "/api/portal/cargas/documentos" in u:
             pedidos.append(u)
             r.fulfill(status=200, content_type="application/json", body=json.dumps(corpo))
+        elif "/api/portal/cargas/canhoto" in u:
+            pedidos.append(u)
+            if doc_status == 200:
+                r.fulfill(status=200, content_type="application/pdf", body="%PDF-1.4",
+                          headers={"Content-Disposition": 'attachment; filename="canhoto-x.pdf"'})
+            else:
+                r.fulfill(status=409, content_type="application/json", body=json.dumps(
+                    {"erro": "sem_canhoto",
+                     "mensagem": "Falta o acesso ao Drive onde o ERP guarda os canhotos."}))
         elif "/api/portal/cargas/documento" in u:
             pedidos.append(u)
             if doc_status == 200:
@@ -93,10 +102,13 @@ def test_a_carga_abre_o_detalhe_e_so_ha_botao_onde_ha_arquivo(pagina):
     det = pg.evaluate("""() => {
       const d = document.querySelector('#pcdoc-lista tr.pcdoc-det');
       return {texto: d.textContent.replace(/\\s+/g,' '),
-              botoes: [...d.querySelectorAll('button')].map(b => b.dataset.chave.slice(0,1) + ':' + b.dataset.f)};
+              botoes: [...d.querySelectorAll('button')].map(
+                  b => b.dataset.chave.slice(0,1) + ':' + (b.dataset.f || b.textContent.trim()))};
     }""")
     # CT-e com XML: XML e PDF; nota: XML e PDF; CT-e sem XML: nenhum botao
-    assert sorted(det["botoes"]) == sorted(["3:xml", "3:pdf", "4:xml", "4:pdf"]), det["botoes"]
+    # o CT-e 9001 tem XML e canhoto; o 9002 nao tem nenhum dos dois
+    assert sorted(det["botoes"]) == sorted(
+        ["3:xml", "3:pdf", "3:Baixar canhoto", "4:xml", "4:pdf"]), det["botoes"]
     assert "arquivo indisponível" in det["texto"]
     assert "canhoto anexado em 2026-09-12" in det["texto"]
 
@@ -135,3 +147,27 @@ def test_gente_da_casa_sem_escolha_ve_o_seletor_e_nenhum_numero(pagina):
     m = pg.evaluate("""() => ({seletor: !document.getElementById('pcdoc-seletor').hidden,
                                kpis: document.getElementById('kpis-pcdoc').textContent.trim()})""")
     assert m["seletor"] is True and m["kpis"] == ""
+
+
+def test_o_canhoto_baixa_e_so_aparece_onde_foi_anexado(pagina):
+    """O botao segue o REGISTRO do ERP: CT-e sem canhoto nao ganha botao, para
+    ninguem pedir um arquivo que nao existe."""
+    pg, pedidos = _abre(pagina)
+    pg.click('#pcdoc-lista tr.pcdoc-carga[data-c="501"]')
+    with pg.expect_download() as info:
+        pg.click(f'#pcdoc-lista button[data-chave="{CH_CTE_XML}"]:not([data-f])')
+    assert info.value.suggested_filename == "canhoto-x.pdf"
+    assert [u for u in pedidos if "/canhoto?" in u]
+    sem = pg.locator(f'#pcdoc-lista button[data-chave="{CH_CTE_SEM}"]:not([data-f])')
+    assert sem.count() == 0
+
+
+def test_sem_acesso_ao_Drive_a_tela_DIZ_o_motivo(pagina):
+    """Instalacao incompleta nao e erro: a recusa legivel chega como aviso, com
+    o caminho de conserto (Integracoes > Canhotos)."""
+    pg, _ = _abre(pagina, doc_status=409)
+    pg.click('#pcdoc-lista tr.pcdoc-carga[data-c="501"]')
+    pg.click(f'#pcdoc-lista button[data-chave="{CH_CTE_XML}"]:not([data-f])')
+    pg.wait_for_timeout(600)
+    aviso = pg.evaluate("() => (document.getElementById('banner')||{}).textContent || ''")
+    assert "Drive" in aviso, aviso

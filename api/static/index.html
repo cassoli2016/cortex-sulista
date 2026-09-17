@@ -26287,7 +26287,10 @@ function renderPcdocLista(){
           +'<span class="hint">'+esc((t.emissao||'').replace('T',' '))+' · '+pcdocKg(t.peso_kg)+'</span>'
           +'<span style="margin-left:auto">'+pcdocBotoes(t.chave, t.tem_xml && !t.cancelado)+'</span></div>'
           +'<div class="hint mono" style="word-break:break-all">chave '+esc(t.chave||'—')+(t.protocolo?' · protocolo '+esc(t.protocolo):'')+'</div>'
-          +'<div class="hint">'+(t.canhoto_em?'canhoto anexado em '+esc(t.canhoto_em):'canhoto ainda não anexado')+'</div>';
+          +'<div class="hint">'+(t.canhoto_em
+              ? 'canhoto anexado em '+esc(t.canhoto_em)
+                +' <button class="ghost" data-chave="'+esc(t.chave||'')+'" onclick="pcdocCanhoto(this.dataset.chave)">Baixar canhoto</button>'
+              : 'canhoto ainda não anexado')+'</div>';
         const notas=t.notas.length ? '<table class="tab" style="margin-top:9px"><thead><tr><th>Nota</th><th class="num">Peso</th><th>Chave</th><th></th></tr></thead><tbody>'
           + t.notas.map(function(n){
               return '<tr><td class="num">'+esc(String(n.numero))+'</td><td class="num">'+pcdocKg(n.peso_kg)+'</td>'
@@ -26312,15 +26315,25 @@ function pcdocAbrir(coleta){
   renderPcdocLista();
 }
 
+/* O CANHOTO vem de outro lugar (o Drive onde o ERP guarda o arquivo), mas
+   para quem usa é o mesmo botão: pede, e ou vem o arquivo ou vem o motivo —
+   "ainda não anexado", "acesso ao Drive não configurado", "o Google recusou". */
+function pcdocCanhoto(chave){ pcdocBaixarDe('/api/portal/cargas/canhoto', {chave:chave}, chave+'.pdf'); }
+
 /* BAIXAR POR fetch, e não por link direto: a recusa legível (409 "o XML deste
    CT-e não está guardado", 404 "não encontrado nas suas cargas") chegaria como
    uma página crua numa aba nova. Assim a resposta boa vira arquivo e a ruim
    vira aviso na tela. */
 async function pcdocBaixar(chave, formato){
-  const p=new URLSearchParams({chave:chave, formato:formato});
+  return pcdocBaixarDe('/api/portal/cargas/documento', {chave:chave, formato:formato},
+                       chave+'.'+formato);
+}
+
+async function pcdocBaixarDe(url, params, nomePadrao){
+  const p=new URLSearchParams(params);
   if(PCDOC_RAIZ && !(PCDOC.dados||{}).travado) p.set('raiz', PCDOC_RAIZ);
   try{
-    const r=await fetch('/api/portal/cargas/documento?'+p.toString(), {cache:'no-store'});
+    const r=await fetch(url+'?'+p.toString(), {cache:'no-store'});
     if(!r.ok){
       let msg='Não foi possível baixar o documento.';
       try{ const resp=await respostaJSON(r); msg=(resp.dados||{}).mensagem||msg; }catch(e){ msg=e.message; }
@@ -26331,7 +26344,7 @@ async function pcdocBaixar(chave, formato){
     const m=/filename="([^"]+)"/.exec(cd);
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
-    a.download=m ? m[1] : (chave+'.'+formato);
+    a.download=m ? m[1] : nomePadrao;
     document.body.appendChild(a); a.click();
     setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
