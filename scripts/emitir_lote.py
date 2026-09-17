@@ -125,7 +125,7 @@ def main() -> int:
         return 2
     for it in res["itens"]:
         marca = {"autorizado": "OK ", "recusado": "NAO", "erro": "ERR",
-                 "ensaio": " . "}.get(it["situacao"], "?")
+                 "pendencia": "PEN", "ensaio": " . "}.get(it["situacao"], "?")
         extra = ""
         if it.get("cstat"):
             extra = f" [{it['cstat']}] {(it.get('xmotivo') or '')[:60]}"
@@ -136,6 +136,7 @@ def main() -> int:
 
     print(f"\nfila {res['fila']} · autorizados {res['autorizados']}"
           f" · recusados {res['recusados']} · erros {res['erros']}"
+          f" (pendencias de documento {res.get('pendencias', 0)})"
           f" · restante {res['restante']}")
     if res["interrompido"]:
         print(f"\nINTERROMPIDO: {res['interrompido']}")

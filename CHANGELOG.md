@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.105.2] — 16/09/2026  ·  CX-16/09/2026-v1.105.2
+
+### Corrigido
+- CT-e de Contrapartida — a emissão automática não para mais por causa de um documento com pendência de cadastro (situação tributária sem de-para, embarque sem frete de compra). Antes, três documentos assim no começo da fila faziam a rotina parar a cada cinco minutos, e os documentos certos do dia ficavam sem emitir. Agora o documento com pendência é pulado, aparece como pendência no resultado e não ocupa a vez dos outros. A parada por falhas seguidas continua valendo para o que é problema de ambiente (SEFAZ fora, certificado, rede).
+
 ## [1.105.1] — 16/09/2026  ·  CX-16/09/2026-v1.105.1
 
 ### Alterado

@@ -138,6 +138,100 @@ def test_sucesso_no_meio_ZERA_o_contador(base, monkeypatch):
     assert r["interrompido"] is None, "o sucesso do meio zerou o contador"
 
 
+def _pendencia_nas_tres_primeiras(chave, enq, **k):
+    """O caso de 15/09/2026: documentos que nao fecham na CABECA da fila."""
+    if chave in CHAVES[:3]:
+        raise lote.emissao.DocumentoPendente(
+            "situacao tributaria '060' fora do de-para")
+    return {"autorizado": True, "cStat": "100", "chave": "nova"}
+
+
+def test_PENDENCIA_de_documento_NAO_dispara_o_disjuntor(base, monkeypatch):
+    """Tres documentos com pendencia seguidos nao sao o ambiente caindo.
+
+    Contados como falha, pararam a emissao a cada tique do agendador: em
+    15/09/2026 quatro pendencias no comeco da fila seguraram os outros 41 CT-e
+    do dia. O que esta certo, depois delas, tem de sair."""
+    monkeypatch.setattr(lote.emissao, "transmitir", _pendencia_nas_tres_primeiras)
+    r = lote.processar_lote("2026-08-01", "2026-08-27", ENQ, quem="x",
+                            limite=10)
+    assert r["interrompido"] is None
+    assert r["autorizados"] == 1 and r["pendencias"] == 3 and r["erros"] == 3
+    assert [i["situacao"] for i in r["itens"]] == ["pendencia"] * 3 + ["autorizado"]
+
+
+def test_PENDENCIA_nao_ocupa_a_vaga_do_teto(base, monkeypatch):
+    """O teto conta TRANSMISSAO. Se a pendencia gastasse vaga, `limite`
+    documentos com pendencia no comeco da fila deixariam toda rodada sem vaga
+    para os certos -- para sempre, porque eles nunca saem da fila."""
+    monkeypatch.setattr(lote.emissao, "transmitir", _pendencia_nas_tres_primeiras)
+    r = lote.processar_lote("2026-08-01", "2026-08-27", ENQ, quem="x",
+                            limite=1)
+    assert r["autorizados"] == 1, r
+
+
+def test_o_teto_continua_limitando_as_TRANSMISSOES(base, monkeypatch):
+    """A fila vem maior, mas o pedido segue valendo para o que transmite."""
+    enviados = []
+
+    def ok(chave, enq, **k):
+        enviados.append(chave)
+        return {"autorizado": True, "cStat": "100", "chave": "nova"}
+
+    monkeypatch.setattr(lote.emissao, "transmitir", ok)
+    r = lote.processar_lote("2026-08-01", "2026-08-27", ENQ, quem="x",
+                            limite=2)
+    assert enviados == CHAVES[:2]
+    assert r["restante"] == 2
+
+
+def test_falha_de_AMBIENTE_depois_de_pendencia_ainda_para_o_lote(base, monkeypatch):
+    """A pendencia nao zera o contador: ela so nao soma. Tres quedas de
+    ambiente seguidas continuam parando, com pendencia no meio ou nao."""
+    def mistura(chave, enq, **k):
+        if chave == CHAVES[1]:
+            raise lote.emissao.DocumentoPendente("cadastro")
+        raise RuntimeError("SEFAZ fora")
+
+    monkeypatch.setattr(lote.emissao, "transmitir", mistura)
+    r = lote.processar_lote("2026-08-01", "2026-08-27", ENQ, quem="x",
+                            limite=10)
+    assert r["interrompido"], r
+    assert r["pendencias"] == 1 and r["erros"] == 4
+
+
+def test_transmitir_devolve_o_numero_e_marca_PENDENCIA_quando_a_montagem_recusa(monkeypatch):
+    """A classificacao nasce em `transmitir`, no unico lugar que sabe que nada
+    saiu da maquina: erro de dados na leitura ou na montagem vira
+    `DocumentoPendente`, e a reserva do numero e devolvida."""
+    em = lote.emissao
+    devolvidos = []
+    monkeypatch.setattr(em.sefaz, "compatibilizar", lambda: object())
+    monkeypatch.setattr(em.documento, "dados",
+                        lambda chave: {"emit_cnpj": "111", "chave_original": chave})
+    monkeypatch.setattr(em, "_guardas", lambda *a: None)
+    monkeypatch.setattr(em, "_autorizado_para", lambda *a: None)
+    monkeypatch.setattr(em, "reservar_numero", lambda *a: (7, 1))
+    monkeypatch.setattr(em, "liberar_reserva", devolvidos.append)
+
+    def recusa(*a, **k):
+        raise ValueError("situacao tributaria '060' fora do de-para")
+
+    monkeypatch.setattr(em.documento, "montar", recusa)
+    with pytest.raises(em.DocumentoPendente, match="060"):
+        em.transmitir("3526", ENQ, quem="x")
+    assert devolvidos == [7]
+
+    # e na LEITURA do CT-e de origem tambem, antes de reservar qualquer numero
+    def sem_frete(chave):
+        raise ValueError("sem embarque com valor de frete de compra")
+
+    monkeypatch.setattr(em.documento, "dados", sem_frete)
+    with pytest.raises(em.DocumentoPendente, match="frete de compra"):
+        em.transmitir("3526", ENQ, quem="x")
+    assert devolvidos == [7]
+
+
 def test_o_teto_e_obrigatorio_e_positivo(base):
     for ruim in (0, -1):
         with pytest.raises(ValueError, match="teto positivo"):

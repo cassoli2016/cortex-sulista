@@ -404,20 +404,29 @@ def processar_lote(de: str, ate: str, enq: documento.Enquadramento, *,
             "tem padrão ligado: alguém precisa habilitá-la, e esse alguém "
             "fica registrado. A emissão manual continua disponível.")
 
-    fila = pendentes(de, ate, ambiente, limite)
+    # O TETO `limite` CONTA TRANSMISSAO, nao linha da fila. Por isso a fila
+    # real vem ate o teto absoluto: pendencia de documento (ver abaixo) nao
+    # transmite nada, e se ocupasse vaga, dez documentos com pendencia no
+    # comeco da fila deixariam cada rodada sem vaga para os que estao certos,
+    # para sempre. O ensaio segue o pedido literal, que e o que ele mostra.
+    fila = pendentes(de, ate, ambiente, limite if dry_run else teto_do(ambiente))
     resultado = {"periodo": {"de": de, "ate": ate}, "ambiente": ambiente,
                  "dry_run": dry_run, "fila": len(fila),
                  "autorizados": 0, "recusados": 0, "erros": 0,
-                 "interrompido": None, "itens": []}
+                 "pendencias": 0, "interrompido": None, "itens": []}
     seguidas = 0
+    transmitidos = 0
 
     for item in fila:
         if dry_run:
             resultado["itens"].append(dict(item, situacao="ensaio"))
             continue
+        if transmitidos >= limite:
+            break
         try:
             r = emissao.transmitir(item["chave"], enq, quem=quem,
                                    ambiente=ambiente)
+            transmitidos += 1
             ok = r.get("autorizado")
             resultado["autorizados" if ok else "recusados"] += 1
             seguidas = 0 if ok else seguidas + 1
@@ -425,10 +434,25 @@ def processar_lote(de: str, ate: str, enq: documento.Enquadramento, *,
                 item, situacao="autorizado" if ok else "recusado",
                 cstat=r.get("cStat"), xmotivo=r.get("xMotivo"),
                 protocolo=r.get("protocolo"), chave_nova=r.get("chave")))
+        except emissao.DocumentoPendente as exc:
+            # PENDENCIA DO DOCUMENTO NAO E FALHA DE AMBIENTE. O CT-e de origem
+            # nao fecha (situacao tributaria sem de-para, embarque sem frete de
+            # compra), o numero voltou e nada saiu da maquina: nao queima
+            # serie, que e o que o disjuntor protege. Por isso nao mexe em
+            # `seguidas` -- nem soma, nem zera -- e nao gasta vaga do teto.
+            # Contada, quatro pendencias no comeco da fila de 15/09/2026
+            # pararam a emissao do dia inteiro, a cada cinco minutos.
+            resultado["erros"] += 1
+            resultado["pendencias"] += 1
+            resultado["itens"].append(dict(item, situacao="pendencia",
+                                           xmotivo=str(exc)[:300]))
+            log.warning("lote: %s com pendencia: %s", item["chave"], exc)
+            continue
         except Exception as exc:  # noqa: BLE001
-            # Erro ANTES da SEFAZ (cadastro, montagem, certificado) conta para
-            # o disjuntor do mesmo jeito: se todos falham, o lote nao deve
-            # continuar tentando.
+            # Erro ANTES da SEFAZ que nao e do documento (certificado, rede,
+            # pilha fiscal) conta para o disjuntor do mesmo jeito: se todos
+            # falham, o lote nao deve continuar tentando.
+            transmitidos += 1
             seguidas += 1
             resultado["erros"] += 1
             resultado["itens"].append(dict(item, situacao="erro",

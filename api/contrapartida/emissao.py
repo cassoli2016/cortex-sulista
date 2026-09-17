@@ -424,6 +424,24 @@ def sem_retorno() -> list[dict]:
             " ORDER BY id DESC")]
 
 
+class DocumentoPendente(ValueError):
+    """O DOCUMENTO não fecha, e nada saiu da máquina.
+
+    Levantada quando a leitura do CT-e de origem (`documento.dados`) ou a
+    montagem (`documento.montar`) recusa os dados: situação tributária sem
+    de-para, embarque sem valor de frete de compra, cadastro incompleto. É
+    pendência DAQUELE documento — a do vizinho monta igual —, e o número
+    reservado já foi devolvido.
+
+    Existe separada para o lote não confundi-la com falha de AMBIENTE. Contada
+    no disjuntor de falhas seguidas, bastavam três documentos assim no começo
+    da fila para parar a emissão inteira a cada tique do agendador: em
+    15/09/2026 quatro pendências na cabeça da fila seguraram os outros 41 CT-e
+    do dia, das 14h à meia-noite. É `ValueError` por herança, então quem já
+    tratava a mensagem de montagem continua tratando.
+    """
+
+
 def _guardas(cnpj: str, d: dict, ambiente: str) -> None:
     if ambiente not in AMBIENTES:
         raise ValueError(
@@ -501,7 +519,12 @@ def transmitir(chave_origem: str, enq: documento.Enquadramento, *, quem: str,
         raise ValueError("Informe quem está transmitindo (trilha de auditoria).")
 
     cte_mod = sefaz.compatibilizar()
-    d = documento.dados(chave_origem)
+    try:
+        d = documento.dados(chave_origem)
+    except DocumentoPendente:
+        raise
+    except ValueError as exc:
+        raise DocumentoPendente(str(exc)) from exc
     cnpj = d["emit_cnpj"]
     _guardas(cnpj, d, ambiente)
 
@@ -537,8 +560,13 @@ def transmitir(chave_origem: str, enq: documento.Enquadramento, *, quem: str,
     # máquina, não existe documento lá fora, e queimar numeração por causa de
     # um cadastro incompleto encheria a série de buracos para inutilizar depois.
     try:
-        edoc = documento.montar(d, enq, numero=numero, serie=serie,
-                                ambiente=ambiente)
+        try:
+            edoc = documento.montar(d, enq, numero=numero, serie=serie,
+                                    ambiente=ambiente)
+        except DocumentoPendente:
+            raise
+        except ValueError as exc:
+            raise DocumentoPendente(str(exc)) from exc
         chave = (edoc.infCte.Id or "")[3:]
 
         senha = cadastro.ler_senha(cnpj)
