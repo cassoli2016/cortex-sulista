@@ -7631,6 +7631,52 @@ def portal_cargas_documento(request: Request, chave: str = "",
             "mensagem": "Erro ao montar o documento."})
 
 
+@app.get("/api/portal/cargas/canhoto")
+def portal_cargas_canhoto(request: Request, chave: str = "",
+                          raiz: str | None = None):
+    """O canhoto (comprovante de entrega) de um CT-e do cliente.
+
+    A AUTORIZAÇÃO É A MESMA DO DOCUMENTO — `documentos.autorizar` — e vem
+    ANTES de qualquer ida ao Drive: sem isso, quem soubesse uma chave de CT-e
+    puxaria o comprovante de entrega de outra empresa.
+    """
+    from .portal_cargas import canhoto, documentos
+
+    escolha, pronta = _portal_alvo(request, raiz)
+    if pronta is not None:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "escolher_cliente",
+            "mensagem": "Escolha o cliente antes de baixar o canhoto."})
+    alvo, _travado = escolha
+    try:
+        if documentos.autorizar(alvo, chave) != "cte":
+            raise documentos.ForaDoEscopo("canhoto é do CT-e")
+        nome, midia, corpo = canhoto.arquivo(chave)
+        return Response(content=corpo, media_type=midia, headers={
+            "Content-Disposition": f'attachment; filename="{nome}"',
+            "Cache-Control": "no-store"})
+    except documentos.ForaDoEscopo:
+        return JSONResponse(status_code=404, content={
+            "erro": "sem_documento",
+            "mensagem": "Documento não encontrado nas suas cargas."})
+    except (canhoto.SemCanhoto, canhoto.SemCredencial,
+            canhoto.DriveIndisponivel) as exc:
+        # 409 e NÃO 500: as três são recusas legíveis — não tem canhoto, o
+        # acesso ao Drive não foi configurado, o Google recusou. Quem lê
+        # precisa saber qual das três é, e nenhuma é defeito desta rota.
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "sem_canhoto", "mensagem": str(exc)})
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco de dados."})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("portal_cargas canhoto falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta", "mensagem": "Erro ao buscar o canhoto."})
+
+
 @app.get("/api/operacao/sac-freetime")
 def sac_freetime(dt_de: str | None = None, dt_ate: str | None = None) -> JSONResponse:
     from datetime import timedelta

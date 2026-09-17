@@ -44,6 +44,38 @@ CAMINHO = ROOT / "data" / "credenciais.json"
 # diga o contrário.
 
 CAMPOS: dict[str, dict] = {
+    # CANHOTOS (comprovante de entrega). O ERP guarda o PDF/JPG num Google
+    # Drive da casa e deixa no banco só o ponteiro; sem um destes dois modos
+    # o portal do cliente diz QUANDO o canhoto foi anexado e recusa o
+    # download com o motivo. Ver `api/portal_cargas/canhoto.py`.
+    "CANHOTO_DRIVE_CONTA_SERVICO": {
+        "rotulo": "Conta de serviço (JSON)",
+        "descricao": "O arquivo JSON inteiro que o Google gera para uma conta "
+                     "de serviço. Quem administra o Workspace compartilha a "
+                     "pasta dos canhotos com o e-mail dessa conta, em leitura",
+        "segredo": True},
+    "CANHOTO_DRIVE_USUARIO": {
+        "rotulo": "Conta a personificar (opcional)",
+        "descricao": "E-mail da conta do Workspace que enxerga a pasta. Só é "
+                     "necessário quando a conta de serviço tem delegação em "
+                     "todo o domínio em vez da pasta compartilhada",
+        "segredo": False},
+    "CANHOTO_DRIVE_CLIENT_ID": {
+        "rotulo": "ID do cliente OAuth",
+        "descricao": "O outro caminho: id do cliente OAuth criado no Google "
+                     "Cloud, quando não for possível usar conta de serviço",
+        "segredo": False},
+    "CANHOTO_DRIVE_CLIENT_SECRET": {
+        "rotulo": "Segredo do cliente OAuth",
+        "descricao": "O segredo do mesmo cliente OAuth",
+        "segredo": True},
+    "CANHOTO_DRIVE_REFRESH_TOKEN": {
+        "rotulo": "Refresh token",
+        "descricao": "Gerado UMA vez, autorizando com a conta que enxerga a "
+                     "pasta dos canhotos. Usuário e senha não abrem o Drive "
+                     "por API — o Google desligou isso",
+        "segredo": True},
+
     "GOBRAX_TOKEN": {
         "rotulo": "Token de API",
         "descricao": "Token da API Gobrax (telemetria e premiação)"},
@@ -415,6 +447,31 @@ SERVICOS: list[dict] = [
                    "dica": "a mesma URL que você usa no navegador",
                    "campos": ["CORTEX_URL"]}],
         "ajustes": [],
+    },
+    {
+        "chave": "canhoto",
+        "nome": "Canhotos (Google Drive)",
+        "resumo": "O comprovante de entrega que a operação anexa ao CT-e. O "
+                  "ERP guarda o arquivo num Google Drive da casa (pasta "
+                  "AvacorpI_comprovantes) e no banco deixa só o ponteiro — "
+                  "para o cliente baixar o canhoto pelo portal, o CÓRTEX "
+                  "precisa de acesso de LEITURA a essa pasta.",
+        "alimenta": "Portal de Cargas › Documentos e Peso",
+        # DOIS MODOS porque usuário e senha NÃO abrem o Drive por API. O
+        # primeiro é o recomendado: não expira e não morre com a saída de uma
+        # pessoa. O segundo serve quando não dá para criar conta de serviço.
+        "modos": [
+            {"chave": "conta_servico", "rotulo": "Conta de serviço (JSON)",
+             "dica": "o JSON que o Google gera; compartilhe a pasta dos "
+                     "canhotos com o e-mail da conta de serviço, em leitura",
+             "campos": ["CANHOTO_DRIVE_CONTA_SERVICO"]},
+            {"chave": "oauth", "rotulo": "Autorização OAuth de uma conta",
+             "dica": "id e segredo do cliente OAuth mais o refresh token "
+                     "gerado uma vez com a conta que enxerga a pasta",
+             "campos": ["CANHOTO_DRIVE_CLIENT_ID", "CANHOTO_DRIVE_CLIENT_SECRET",
+                        "CANHOTO_DRIVE_REFRESH_TOKEN"]},
+        ],
+        "ajustes": ["CANHOTO_DRIVE_USUARIO"],
     },
     {
         "chave": "tomtom",

@@ -118,6 +118,9 @@ SEM_CHEGADA = {
 #: Fornecedor sem coleta periódica: não há "última coleta" para envelhecer.
 #: Dizer "sem dado" deles seria alarme falso todo dia.
 SOB_DEMANDA: dict[str, str] = {
+    "canhoto": ("consultado na hora: o Drive só é acessado quando alguém "
+                "baixa o canhoto de uma carga no Portal de Cargas — não "
+                "há coleta periódica que possa envelhecer"),
     "tomtom": "consultado na hora, por viagem — não há coleta que possa parar",
     "qualp": "consultado na hora, por rota — não há coleta que possa parar",
     "smtp": "só se prova no envio; a falha aparece na fila do Correio",
