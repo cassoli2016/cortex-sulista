@@ -109,7 +109,11 @@ TELAS: dict[str, tuple[str, str]] = {  # chave -> (rótulo, grupo do menu)
     # sem vínculo, 403 — inclusive para admin). Dar `cliop` a alguém sem
     # vínculo entrega uma tela que recusa, e é assim de propósito: o modo de
     # falha seguro é não mostrar nada, nunca mostrar a carteira inteira.
-    "cliop":   ("Minha Operação", "Operação"),
+    "cliop":   ("Minha Operação", "Portal de Cargas"),
+    # DOCUMENTOS E PESO DAS CARGAS (17/09/2026): o segundo pedaço do Portal de
+    # Cargas. Mesmo vínculo e mesma trava da `cliop` (`portal_cliente.alvo`);
+    # quem tem a Minha Operação ganha esta junto (perfis_modelo_v51).
+    "pcdoc":   ("Documentos e Peso", "Portal de Cargas"),
     "port":    ("Portaria", "Operação"),
     "oc":      ("Ordens de Compra", "Suprimentos"),
     "custos":  ("Painel de Custos", "Suprimentos"),
@@ -432,6 +436,7 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     ("/api/operacao/horas-paradas",   frozenset({"hp"})),
     ("/api/operacao/portaria",        frozenset({"port"})),
     ("/api/portal/cliente",           frozenset({"cliop", "tvcli"})),
+    ("/api/portal/cargas",            frozenset({"pcdoc"})),
     ("/api/comercial/crm",            frozenset({"crm"})),
     # mais específica ANTES: /clientes-lista começa com /clientes e cairia na
     # regra do painel comercial, barrando quem só tem a Consulta de Cliente
@@ -1216,6 +1221,19 @@ def _seed_perfis_modelo(c: psycopg.Connection) -> None:
                           " VALUES(%s,%s) ON CONFLICT DO NOTHING",
                           (row["id"], "tvrh"))
         c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v50', '1') ON CONFLICT(chave) DO NOTHING")
+
+    # v51 (2026-09-17): Documentos e Peso (`pcdoc`), do Portal de Cargas. Vai
+    # para TODO perfil que já tem a Minha Operação (`cliop`), e só para eles: é
+    # o mesmo público — o cliente e quem acompanha o cliente — e o mesmo
+    # escopo por vínculo. Um cliente que já via as cargas e não visse as notas
+    # delas teria o portal pela metade sem ninguém ter decidido isso.
+    if not c.execute("SELECT 1 FROM config WHERE chave='perfis_modelo_v51'").fetchone():
+        for row in c.execute("SELECT DISTINCT perfil_id FROM perfil_telas"
+                             " WHERE tela='cliop'").fetchall():
+            c.execute("INSERT INTO perfil_telas(perfil_id, tela)"
+                      " VALUES(%s,%s) ON CONFLICT DO NOTHING",
+                      (row["perfil_id"], "pcdoc"))
+        c.execute("INSERT INTO config(chave, valor) VALUES('perfis_modelo_v51', '1') ON CONFLICT(chave) DO NOTHING")
 
     # v43 (2026-09-09): Frequência e Banco de Horas (`freq`) ao perfil de
     # Recursos Humanos. A Diretoria entra JUNTO, e aqui isso é deliberado —

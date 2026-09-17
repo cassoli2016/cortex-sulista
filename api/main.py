@@ -7526,6 +7526,111 @@ def portal_cliente_dados(request: Request, aba: str = "agora",
             "mensagem": "Erro ao consultar a operação."})
 
 
+# ---------------------------------------------------------------- portal de cargas
+# DOCUMENTOS E PESO (tela `pcdoc`, grupo "Portal de Cargas", 17/09/2026). O
+# escopo e o MESMO da Minha Operacao e sai da MESMA funcao
+# (`portal_cliente.alvo`): quem tem vinculo de cliente fica no CNPJ dele, quem
+# e da casa escolhe. As duas rotas vivem sob `/api/portal/cargas`, que o
+# middleware mapeia so para `pcdoc` — nao para `cliop`, que continua no prefixo
+# dela.
+def _portal_alvo(request: Request, raiz: str | None):
+    """(raiz, travado) ou uma resposta pronta de "escolha o cliente"."""
+    from . import portal_cliente
+    try:
+        return portal_cliente.alvo(request.state.sessao, raiz), None
+    except portal_cliente.PrecisaEscolher:
+        try:
+            return None, JSONResponse({"escolher": True, "travado": False,
+                                       **portal_cliente.get_clientes(365)})
+        except Exception as exc:  # noqa: BLE001
+            log.warning("portal_cargas lista falhou: %s", type(exc).__name__)
+            return None, JSONResponse(status_code=503, content={
+                "erro": "erro_consulta",
+                "mensagem": "Não foi possível listar os clientes."})
+
+
+@app.get("/api/portal/cargas/documentos")
+def portal_cargas_documentos(request: Request, de: str | None = None,
+                             ate: str | None = None,
+                             raiz: str | None = None) -> JSONResponse:
+    """As cargas do cliente no período, com CT-e, notas, peso e canhoto."""
+    from . import portal_cliente
+    from .portal_cargas import documentos
+
+    escolha, pronta = _portal_alvo(request, raiz)
+    if pronta is not None:
+        return pronta
+    alvo, travado = escolha
+    d_de, d_ate = documentos.periodo(de, ate)
+    try:
+        dados = documentos.get_documentos(alvo, d_de, d_ate)
+        return JSONResponse({**dados, "travado": travado, "cliente_raiz": alvo,
+                             "cliente_nome": portal_cliente.nome_do_cliente(alvo),
+                             "janela_max_dias": documentos.JANELA_MAX_D})
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco de dados."})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("portal_cargas documentos falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao consultar os documentos das cargas."})
+
+
+@app.get("/api/portal/cargas/documento")
+def portal_cargas_documento(request: Request, chave: str = "",
+                            formato: str = "xml",
+                            raiz: str | None = None):
+    """O XML ou o PDF (DACTE/DANFE) de UM documento de uma carga do cliente.
+
+    404 para chave que não é de uma carga do cliente — e não 403: "existe, mas
+    não é sua" confirmaria a um estranho que a chave é de um documento da casa.
+    409 com o motivo quando a carga é dele mas não há arquivo (CT-e cujo XML o
+    ERP não guarda) ou a folha não pôde ser montada.
+    """
+    from .portal_cargas import documentos
+    from .sefaz import impressao
+
+    escolha, pronta = _portal_alvo(request, raiz)
+    if pronta is not None:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "escolher_cliente",
+            "mensagem": "Escolha o cliente antes de baixar um documento."})
+    alvo, _travado = escolha
+    formato = "pdf" if formato == "pdf" else "xml"
+    try:
+        tipo, xml = documentos.xml_autorizado(alvo, chave)
+        nome = documentos.nome_arquivo(tipo, chave.strip(), formato)
+        if formato == "pdf":
+            corpo = documentos.pdf(tipo, xml)
+            midia = "application/pdf"
+        else:
+            corpo = xml.encode("utf-8")
+            midia = "application/xml"
+        return Response(content=corpo, media_type=midia, headers={
+            "Content-Disposition": f'attachment; filename="{nome}"',
+            "Cache-Control": "no-store"})
+    except documentos.ForaDoEscopo:
+        return JSONResponse(status_code=404, content={
+            "erro": "sem_documento",
+            "mensagem": "Documento não encontrado nas suas cargas."})
+    except (documentos.SemArquivo, impressao.NaoImprimivel) as exc:
+        return JSONResponse(status_code=HTTP_RECUSA, content={
+            "erro": "sem_arquivo", "mensagem": str(exc)})
+    except psycopg.OperationalError as exc:
+        log.warning("banco inacessivel: %s", exc)
+        return JSONResponse(status_code=503, content={
+            "erro": "banco_inacessivel",
+            "mensagem": "Sem conexão com o banco de dados."})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("portal_cargas documento falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500, content={
+            "erro": "erro_consulta",
+            "mensagem": "Erro ao montar o documento."})
+
+
 @app.get("/api/operacao/sac-freetime")
 def sac_freetime(dt_de: str | None = None, dt_ate: str | None = None) -> JSONResponse:
     from datetime import timedelta

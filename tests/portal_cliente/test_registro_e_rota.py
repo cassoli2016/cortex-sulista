@@ -46,7 +46,8 @@ def test_1_a_tela_esta_no_RBAC():
     assert "cliop" in auth.TELAS
     rotulo, grupo = auth.TELAS["cliop"]
     assert rotulo == "Minha Operação"
-    assert grupo == "Operação"
+    # Grupo proprio desde 17/09/2026: o Portal de Cargas, com os documentos.
+    assert grupo == "Portal de Cargas"
 
 
 def test_2_a_rota_esta_mapeada_e_e_fail_closed():
@@ -79,7 +80,7 @@ def test_3_a_view_existe_no_HTML():
 
 def test_4_esta_no_VIEWS_e_no_VIEW_GROUP():
     assert "cliop:'Minha Operação'" in INDEX
-    assert "cliop:'Ope'" in INDEX
+    assert "cliop:'Pcg'" in INDEX
 
 
 def test_5_esta_na_barra_lateral_e_na_GAVETA_do_celular():
@@ -108,10 +109,11 @@ def test_a_tela_esta_no_manual():
     assert "cliop" in telas
 
 
-def test_o_menu_continua_alfabetico_no_grupo_operacao():
+def test_o_menu_continua_alfabetico_no_grupo_do_portal():
     """Tela nova entra 'no fim' por inércia; em três telas isso vira ordem de
-    chegada. `Minha Operação` fica entre Jornada e Operação MWM."""
-    bloco = INDEX.split('id="subsOpe"')[1].split("</div>")[0]
+    chegada. Desde 17/09/2026 a `Minha Operação` mora no grupo Portal de
+    Cargas, depois de Documentos e Peso."""
+    bloco = INDEX.split('id="subsPcg"')[1].split("</div>")[0]
     import re
     rotulos = re.findall(r'data-view="[a-z]+"[^>]*>.*?<span>([^<]+)</span>', bloco)
 
