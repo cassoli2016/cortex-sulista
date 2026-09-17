@@ -1,3 +1,15 @@
+- versao: "1.109.0"
+  data: "2026-09-17"
+  adicionado:
+    - >-
+      Portal de Cargas — o canhoto (comprovante de entrega) agora se baixa na
+      tela Documentos e Peso, no CT-e que já mostra quando ele foi anexado. O
+      arquivo fica num Google Drive da Sulista, então o acesso a essa pasta se
+      configura em Administração › Integrações › Canhotos, de duas formas: a
+      conta de serviço do Google (recomendada) ou a autorização OAuth de uma
+      conta. Usuário e senha não abrem o Drive por API. Enquanto o acesso não
+      estiver configurado, o botão explica o que falta em vez de dar erro.
+
 - versao: "1.108.0"
   data: "2026-09-17"
   adicionado:

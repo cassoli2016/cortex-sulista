@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.109.0] — 17/09/2026  ·  CX-17/09/2026-v1.109.0
+
+### Adicionado
+- Portal de Cargas — o canhoto (comprovante de entrega) agora se baixa na tela Documentos e Peso, no CT-e que já mostra quando ele foi anexado. O arquivo fica num Google Drive da Sulista, então o acesso a essa pasta se configura em Administração › Integrações › Canhotos, de duas formas: a conta de serviço do Google (recomendada) ou a autorização OAuth de uma conta. Usuário e senha não abrem o Drive por API. Enquanto o acesso não estiver configurado, o botão explica o que falta em vez de dar erro.
+
 ## [1.108.0] — 17/09/2026  ·  CX-17/09/2026-v1.108.0
 
 ### Adicionado
