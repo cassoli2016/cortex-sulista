@@ -305,3 +305,154 @@ def categoria(reputacao, valores: dict) -> str:
     if reputacao >= valores["cat_prata"]:
         return "PRATA"
     return "BRONZE"
+
+
+# ------------------------------------------------------- a janela inteira
+#
+# UMA consulta para os seis ciclos, e não seis. O corte do ciclo vai DENTRO do
+# SQL, com a mesma regra do `ciclo.de_data`: do dia 16 em diante, o mês
+# seguinte. A tentação é fazer `data + 15 dias` e cortar pelo mês — e ela erra
+# em mês de 31 dias (16 + 15 = 31, ainda o mesmo mês) e em mês de 30 (15 + 16 =
+# 31, que vira o mês seguinte). `date_trunc` + um mês condicional não tem borda.
+_CICLO_SQL = ("to_char(date_trunc('month', {col}) + (CASE WHEN extract(day FROM {col})"
+              " >= 16 THEN interval '1 month' ELSE interval '0' END), 'YYYY-MM')")
+
+OCORRENCIAS_JANELA_SQL = """
+SELECT regexp_replace(o.cnpjcpfcodigo, '[^0-9]', '', 'g') AS cpf,
+       o.ocorrenciamotorista                              AS codigo,
+       to_char(o.dt, 'YYYY-MM-DD')                        AS data,
+       coalesce(m.descricao, '')                          AS descricao,
+       """ + _CICLO_SQL.format(col="o.dt") + """          AS ciclo
+FROM cadastro_vinculo_motoristaocorrencia o
+LEFT JOIN ocorrenciamotorista m ON m.codigo = o.ocorrenciamotorista
+WHERE o.dt >= %(de)s::date AND o.dt < %(ate)s::date
+"""
+
+GR_JANELA_SQL = """
+SELECT """ + _CICLO_SQL.format(col="real_fim") + """     AS ciclo,
+       cpf_motorista                              AS cpf,
+       count(*)                                   AS viagens,
+       coalesce(sum(eventos_velocidade), 0)       AS eventos_velocidade,
+       coalesce(sum(paradas_area_risco), 0)       AS paradas_area_risco,
+       coalesce(sum(desvios_rota), 0)             AS desvios_rota,
+       sum(CASE WHEN rodou_fora_horario THEN 1 ELSE 0 END) AS rodou_fora_horario,
+       coalesce(sum(violacao_painel), 0)          AS violacao_painel,
+       coalesce(sum(violacao_antena), 0)          AS violacao_antena,
+       coalesce(sum(desengate), 0)                AS desengate,
+       coalesce(sum(botao_panico), 0)             AS botao_panico
+FROM gr_viagem_fim
+WHERE real_fim >= %(de)s::date AND real_fim < %(ate)s::date
+  AND cpf_motorista IS NOT NULL AND cpf_motorista <> ''
+GROUP BY 1, 2
+"""
+
+
+def _janela_limites(ciclo: str, n: int) -> tuple[str, str]:
+    ciclos = ciclo_mod.janela(ciclo, n)
+    de = ciclo_mod.limites(ciclos[0])[0]
+    ate = ciclo_mod.limites(ciclos[-1])[1]
+    return de, ate
+
+
+def comportamento_janela(ciclo: str, n: int = 6, depara: dict | None = None) -> dict:
+    """{ciclo: {cpf: ficha}} para a janela inteira, numa consulta só."""
+    de, ate = _janela_limites(ciclo, n)
+    mapa = parametros.depara() if depara is None else depara
+    try:
+        linhas = erp.query(OCORRENCIAS_JANELA_SQL, {"de": de, "ate": ate})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("premiacao: ocorrencias da janela indisponiveis (%s)",
+                    type(exc).__name__)
+        return {"por_ciclo": {}, "nao_mapeados": [], "sem_codigo": 0,
+                "motivo": "ERP indisponível"}
+    por_ciclo: dict[str, dict] = {}
+    nao_mapeados: dict[int, dict] = {}
+    sem_codigo = 0
+    for r in linhas:
+        cpf = identidade.cpf(r["cpf"])
+        if not cpf:
+            continue
+        if r["codigo"] is None:
+            sem_codigo += 1
+            continue
+        alvo = mapa.get(r["codigo"])
+        if alvo is None:
+            item = nao_mapeados.setdefault(
+                r["codigo"], {"codigo": r["codigo"], "descricao": r["descricao"],
+                              "vezes": 0})
+            item["vezes"] += 1
+            continue
+        if alvo == "IGNORAR":
+            continue
+        ficha = por_ciclo.setdefault(r["ciclo"], {}).setdefault(
+            cpf, {"desvios": [], "meritos": [], "pontos": 0.0})
+        if catalogo.e_merito(alvo):
+            m = catalogo.merito(alvo)
+            if m:
+                ficha["meritos"].append({"cod": alvo, "nome": m["nome"],
+                                         "pts": m["pts"], "data": r["data"]})
+            continue
+        d = catalogo.desvio(alvo)
+        if not d:
+            continue
+        ficha["desvios"].append({"cod": alvo, "nome": d["nome"], "grav": d["grav"],
+                                 "pts": d["pts"], "data": r["data"]})
+        ficha["pontos"] += float(d["pts"])
+    for fichas in por_ciclo.values():
+        for ficha in fichas.values():
+            ficha["nota"] = max(0.0, 100.0 - ficha["pontos"])
+    return {"por_ciclo": por_ciclo,
+            "nao_mapeados": sorted(nao_mapeados.values(), key=lambda x: -x["vezes"]),
+            "sem_codigo": sem_codigo, "motivo": ""}
+
+
+def gr_janela(ciclo: str, n: int = 6, pesos: dict | None = None,
+              minimo_viagens: float = 5, referencia: float = 58,
+              queda: float = 40, piso: float = 20) -> dict:
+    """{ciclo: {cpf: ficha}} do GR para a janela inteira, numa consulta só."""
+    de, ate = _janela_limites(ciclo, n)
+    pesos = pesos or catalogo.pesos_gr_padrao()
+    try:
+        linhas = pglocal.query(GR_JANELA_SQL, {"de": de, "ate": ate}, esquema=ESQUEMA)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("premiacao: GR da janela indisponivel (%s)", type(exc).__name__)
+        return {"por_ciclo": {}, "motivo": "gerenciamento de risco indisponível"}
+    por_ciclo: dict[str, dict] = {}
+    for r in linhas:
+        cpf = identidade.cpf(r["cpf"])
+        if not cpf:
+            continue
+        por_ciclo.setdefault(r["ciclo"], {})[cpf] = _ficha_gr(
+            r, pesos, minimo_viagens, referencia, queda, piso)
+    return {"por_ciclo": por_ciclo, "motivo": ""}
+
+
+def _ficha_gr(r, pesos, minimo_viagens, referencia, queda, piso) -> dict:
+    viagens = int(r["viagens"] or 0)
+    contadores = {c["campo"]: int(r.get(c["campo"]) or 0)
+                  for c in catalogo.CONTADORES_GR}
+    pontos = sum(qtd * float(pesos.get(campo, 0)) for campo, qtd in contadores.items())
+    ficha = {"viagens": viagens, "pontos": round(pontos, 2),
+             "contadores": contadores,
+             "informativos": {c["campo"]: int(r.get(c["campo"]) or 0)
+                              for c in catalogo.SO_INFORMATIVOS},
+             "panico": int(r.get("botao_panico") or 0),
+             "insuficiente": viagens < minimo_viagens,
+             "nota": None, "risco_por_viagem": None}
+    if viagens and not ficha["insuficiente"]:
+        idx = pontos / viagens
+        ficha["risco_por_viagem"] = round(idx, 3)
+        ficha["nota"] = round(max(float(piso),
+                                  min(100.0, 100.0 - float(queda) * (idx / float(referencia or 1)))), 1)
+    return ficha
+
+
+def gobrax_janela(ciclo: str, n: int = 6, cadastro: list[dict] | None = None,
+                  dir_path=None) -> dict:
+    """{ciclo: {cpf: {nota, km}}} lendo um snapshot por ciclo da janela."""
+    pessoas = cadastro if cadastro is not None else identidade.listar()
+    por_ciclo = {}
+    for c in ciclo_mod.janela(ciclo, n):
+        r = gobrax(c, cadastro=pessoas, dir_path=dir_path)
+        por_ciclo[c] = r["notas"]
+    return por_ciclo
