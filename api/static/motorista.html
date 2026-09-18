@@ -296,6 +296,10 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
 .selo.erro{background:color-mix(in srgb,var(--erro) 16%,transparent);color:var(--erro)}
 .selo.ok{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
 .selo.frio{background:color-mix(in srgb,var(--ink2) 14%,transparent);color:var(--ink2)}
+.selo.pago{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+/* A faixa do selo no cartao do premio: ela e a primeira coisa depois do
+   titulo porque PREVIA muda o que o numero abaixo significa. */
+.selos{margin:0 0 9px}
 
 /* A BARRA COMPARATIVA. Nao e grafico: e uma regua de uma dimensao, com a
    marca da frota em cima. Grafico aqui exigiria biblioteca, e a pagina nao
@@ -1123,8 +1127,14 @@ const ABAS = [
   // obrigava o motorista a comparar duas abas de cabeca. O que forcou a
   // decisao foi a barra: com o canal do RH seriam SETE itens em 390 px — 55 px
   // cada, e "Registros" ja nao cabe no rotulo.
+  // A TERCEIRA ROTA E O PREMIO (18/09/2026). Ele nao virou aba propria por
+  // uma razao medida e escrita aqui em 07/09: a barra tem SEIS lugares em
+  // 390 px, e o setimo nao cabe no rotulo. E, no fundo, premio e a mesma
+  // pergunta ("como eu fui?") com a resposta que mais importa — a nota da
+  // Gobrax, que ja estava nesta aba, e UM DOS TRES PILARES dele.
   { id: "desempenho",    rotulo: "Desempenho",
-    url: ["/api/motorista/produtividade", "/api/motorista/desempenho"],
+    url: ["/api/motorista/produtividade", "/api/motorista/desempenho",
+          "/api/motorista/premiacao"],
     alvo: "card-desempenho",     desenhar: desenharDesempenho },
   { id: "multas",        rotulo: "Multas",   url: "/api/motorista/multas",
     alvo: "card-multas",         desenhar: desenharMultas },
@@ -1363,13 +1373,104 @@ function trechoProdutividade(d) {
     "viagem, não a leitura do hodômetro.</p>");
 }
 
-function desenharDesempenho(prod, d) {
+// O PREMIO DO CICLO — a segunda excecao de dinheiro do app, e a unica que
+// muda de valor sozinha. Duas coisas mandam neste trecho:
+//
+// 1. **PREVIA SE DIZ EM LETRAS.** Enquanto o ciclo esta aberto, tudo aqui
+//    ainda se move (a Gobrax reprocessa um mes, o ERP lanca ocorrencia com
+//    tres semanas de atraso). Numero de premiacao errado na mao do premiado e
+//    discussao de salario — entao o selo PREVIA vai no titulo, e a frase que
+//    explica vai no rodape do cartao, nao numa ajuda escondida.
+// 2. **O QUE ELE VE SAO OS FATOS, NAO O VEREDITO.** As ocorrencias do ciclo
+//    aparecem com o que cada uma tirou; o nivel de medida sugerido NAO vem do
+//    servidor (`api/motorista/premiacao.py` diz por que).
+function pesoDoPilar(p, chave) {
+  const x = (p.pilares || []).find(function (i) { return i.chave === chave; });
+  return (x && x.peso) ? num(x.peso) + "%" : null;
+}
+
+function trechoPremio(p) {
+  if (!p || !p.tem_dado) {
+    // Fora do escopo (agregado) NAO desenha nada: aba que diz "sem dados" a
+    // quem nunca vai ter dado ensina a pessoa a nao confiar no resto da tela.
+    return p && p.fora_do_escopo ? "" :
+      card("Seu prêmio", "<p class='vaziomsg'>" +
+           esc((p && p.motivo) || "Não consegui ler a premiação agora.") + "</p>");
+  }
+  // O SELO VAI NO MIOLO, NUNCA NO TITULO: `card()` passa o titulo por `esc()`
+  // — e tem de passar —, entao marcacao ali apareceria como texto cru na tela
+  // do motorista ("<span class='selo'>PREVIA</span>" escrito por extenso).
+  const selo = p.previa
+    ? "<div class='selos'><span class='selo frio'>PRÉVIA</span></div>"
+    : "<div class='selos'><span class='selo pago'>PAGO</span></div>";
+  const kpis =
+    kpi("Nota do ciclo", num(p.nota, 1), p.status ? p.status.toLowerCase() : "") +
+    kpi("Posição", p.posicao ? p.posicao + "º" : null,
+        p.posicao ? "entre " + num(p.de) + " motoristas" : "") +
+    kpi(p.previa ? "Prêmio previsto" : "Prêmio pago", reais(p.premio.valor),
+        p.premio.motivo || (p.premio.base
+          ? num(p.premio.pct, 1) + "% de " + reais(p.premio.base) : "")) +
+    kpi("Categoria", p.categoria || null,
+        p.reputacao !== null && p.reputacao !== undefined
+          ? "reputação " + num(p.reputacao, 0) + " em 6 ciclos" : "");
+
+  // OS PILARES COM O PESO DE CADA UM: sem isso a nota e um numero que cai do
+  // ceu. Pilar que nao entrou aparece DITO — a nota dele foi calculada entre
+  // os que existem, e quem le precisa saber disso antes de comparar a sua com
+  // a de um colega.
+  const pil = (p.pilares || []).map(function (x) {
+    const valor = x.entrou ? num(x.nota, 1)
+      : "<span style='font-weight:400'>não entrou</span>";
+    return "<div class='linha'><span>" + esc(x.rotulo) +
+      (x.peso ? " <span class='sub'>· peso " + num(x.peso) + "%</span>" : "") +
+      "</span><b>" + valor + "</b></div>";
+  }).join("");
+
+  const dv = (p.desvios || []).map(function (x) {
+    return "<div class='item'><div class='top'><div class='tit'>" +
+      esc(x.nome) + "</div><div class='val'>−" + num(x.pts) + "</div></div>" +
+      "<div class='sub'>" + esc(dia(x.data)) + " · " +
+      esc(String(x.grav || "").toLowerCase()) + "</div></div>";
+  }).join("");
+
+  const hist = (p.historico || []).map(function (h) {
+    return "<div class='linha'><span>" + esc(h.rotulo) + "</span><b>" +
+      esc(reais(h.valor) || "—") + " <span style='font-weight:400'>· nota " +
+      esc(num(h.nota, 1) || "—") + "</span></b></div>";
+  }).join("");
+
+  return (
+    card("Seu prêmio · " + p.rotulo,
+      selo + "<div class='kpis'>" + kpis + "</div>" +
+      (pil ? "<div class='linhas'>" + pil + "</div>" : "") +
+      "<p class='nota'>" + (p.previa
+        ? "Este é o cálculo de agora, com o ciclo ainda aberto: ocorrência e " +
+          "viagem continuam entrando até o dia 15, e o valor pode mudar. " +
+          "Quando o ciclo fecha, o número congela e é esse que vai para o " +
+          "pagamento."
+        : "Ciclo fechado: este é o valor que foi para o pagamento.") +
+      " Fonte: " + esc(p.fonte) + ".</p>") +
+    (dv ? card("O que entrou como desvio neste ciclo", dv +
+      "<p class='nota'>São as ocorrências registradas no seu nome no ciclo, " +
+      "com os pontos que cada uma tirou da sua nota de comportamento. Se " +
+      "alguma não bate com o que aconteceu, fale com a gestão pelo canal do " +
+      "RH.</p>")
+       : card("Ocorrências do ciclo",
+              "<p class='vaziomsg'>Nenhuma ocorrência registrada neste ciclo." +
+              (p.meritos ? " E " + num(p.meritos) + " registro(s) a seu favor."
+                         : "") + "</p>")) +
+    (hist ? card("O que já foi pago", hist +
+      "<p class='nota'>Só ciclos fechados aparecem aqui.</p>") : ""));
+}
+
+function desenharDesempenho(prod, d, prem) {
   const alvo = $("card-desempenho");
-  // OS 30 DIAS VEM PRIMEIRO E SEMPRE. Eles saem do ERP e existem para TODO
-  // motorista; a telemetria cobre so quem roda veiculo com equipamento. Pondo
-  // a conducao na frente, o agregado abriria a aba e leria "sem telemetria"
-  // antes de ver que ela tem o que dizer sobre ele.
-  let html = trechoProdutividade(prod);
+  // O PREMIO VEM PRIMEIRO QUANDO EXISTE — e a regra dos 30 dias continua
+  // valendo por baixo. A razao dela era que o agregado nao pode abrir a aba e
+  // ler "sem telemetria" antes de ver o que ela tem sobre ele; como o cartao
+  // do premio NAO E DESENHADO para quem esta fora da regua, o agregado
+  // continua vendo os 30 dias no topo, exatamente como antes.
+  let html = trechoPremio(prem) + trechoProdutividade(prod);
   if (!d.tem_dado) {
     alvo.innerHTML = html + card("Condução",
       "<p class='vaziomsg'>" + esc(d.motivo) + "</p>");
@@ -1382,8 +1483,16 @@ function desenharDesempenho(prod, d) {
       "<div class='kpis'>" +
       kpi("Nota", num(n.nota, 0), n.nota_mediana_frota !== null
           ? "mediana da frota: " + num(n.nota_mediana_frota, 0) : "") +
-      kpi("Posição", n.posicao ? n.posicao + "º" : null,
-          n.posicao ? "entre " + n.ranqueados + " motoristas" : "") +
+      // DUAS POSICOES NA MESMA TELA SAO DUAS BRIGAS: a da Gobrax ordena a
+      // conducao, a do ciclo ordena o PREMIO, e elas nao coincidem porque a
+      // segunda soma tres pilares. Quando o premio esta na tela, ele fica com
+      // a palavra "posicao" e aqui entra o PESO — que e o que explica por que
+      // esta nota nao e a nota final.
+      (prem && prem.tem_dado
+        ? kpi("Peso no prêmio", pesoDoPilar(prem, "gobrax"),
+              "esta nota é um dos três pilares do ciclo")
+        : kpi("Posição", n.posicao ? n.posicao + "º" : null,
+              n.posicao ? "entre " + n.ranqueados + " motoristas" : "")) +
       kpi("Km no mês", num(n.km)) +
       kpi("Fora do ranking", num(n.abaixo_do_piso),
           "rodaram menos de " + num(n.km_piso) + " km") +

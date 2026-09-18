@@ -446,7 +446,7 @@ app **consome**, nunca reimplementa:
 | Jornada apurada (Lei 13.103) | RasterJOR → `jor_*`, `api/jornada/` | **LÊ e mostra.** O motorista já marca jornada no equipamento da Raster; um segundo apontamento daria dois números de jornada e um deles iria para a folha. Ver seção 6. |
 | Posição do veículo | `api/posicoes.py` (Gobrax + ERP) | usa para conferir apontamento (seção 6), nunca para vigiar o motorista |
 | Rastreio da carga | `api/rastreio/`, `/r` | o motorista pega o link da carga dele para mandar a quem está esperando |
-| Premiação / score | Gobrax → `prem_*`, tela `prem` | mostra ao dono do score o que a casa já calcula |
+| Premiação / score | Gestão de Motoristas (`api/premiacao/`), tela `prem` | **LÊ e mostra ao dono do número.** O app chama as MESMAS funções do painel e recorta a linha de quem está logado — duas implementações da mesma régua divergiriam em silêncio, e aqui a divergência seria "o app diz 88 e a gestão diz 86". |
 | Multas e infrações | Smartec → `smt_*`, tela `mul` | mostra as do próprio motorista |
 | Abastecimentos | `ctaplus_abastecimentos` (ERP) | histórico e km/l do próprio motorista |
 | Push no celular | `api/push.py` (VAPID) | canal de aviso da torre |
@@ -511,10 +511,25 @@ diz "sem dados" para quem nunca vai ter dado ali.
 8. **Comprovante de entrega** — foto do canhoto no ato, com hora e GPS. O
    documento físico continua vindo; a foto é o que faz o financeiro faturar
    antes.
-9. **Meu desempenho** — score, ranking e prêmio previsto (`prem_*`). Entra na
-   fase 2 de propósito: número de premiação errado na mão do premiado é
-   discussão de salário, então ele só sobe depois que a fase 1 provar o vínculo
-   usuário↔motorista.
+9. **Meu desempenho** — ~~score, ranking e prêmio previsto~~. **NO AR desde
+   18/09/2026**, dentro da aba Desempenho (a barra tem seis lugares em 390 px,
+   e prêmio é a mesma pergunta — "como eu fui?" — com a resposta que mais
+   importa). O que a ressalva desta linha virou, na prática:
+   - **PRÉVIA × PAGO.** Ciclo aberto sai marcado como prévia, com a razão
+     escrita no cartão: até o dia 15 ainda entra ocorrência e viagem. Ciclo
+     fechado mostra a FOTOGRAFIA do fechamento — o mesmo número que foi para a
+     folha, e que não muda mais. Foi assim que "número errado na mão do
+     premiado" deixou de ser risco: o número que ele pode cobrar é o fechado.
+   - **OS TRÊS PILARES COM O PESO DE CADA UM**, e o pilar que não entrou é
+     DITO: nota renormalizada entre dois pilares não é comparável com a de
+     três, e quem lê precisa saber disso antes de comparar a sua com a do
+     colega.
+   - **OS FATOS, NÃO O VEREDITO.** As ocorrências do ciclo aparecem com o que
+     cada uma tirou; a MEDIDA disciplinar sugerida (N1–N4) não trafega, porque
+     medida é rito trabalhista e quem fala com ele é o RH — app que dá a
+     notícia antes da conversa inverte a ordem.
+   - **Quem está fora da régua não vê cartão nenhum**: a premiação por ciclo é
+     dos motoristas próprios, e dois terços de quem usa o app são agregados.
 
 ### Fase 3 — o que só faz sentido depois
 
@@ -570,8 +585,11 @@ conta. O acesso mestre não aponta nem envia posição. O contrato do código es
 em `api/motorista/apontamento.py`.
 
 **Nada de valor de frete, custo, CKM ou nome de outro motorista.** O leitor vê a
-operação DELE. Ranking de premiação é a única coisa comparativa, e só porque a
-premiação já é pública entre eles hoje.
+operação DELE. As DUAS exceções de dinheiro são dinheiro DELE — o valor da
+multa (07/09/2026) e o prêmio do ciclo (18/09/2026) —, e as duas estão escritas
+no contrato de `api/motorista/__init__.py`. Ranking é a única coisa
+comparativa: POSIÇÃO, nunca nome nem nota de terceiro, e só porque a premiação
+já é pública entre eles hoje.
 
 **Recusa legível é 4xx** (`HTTP_RECUSA = 409`); 5xx só para falha nossa — o
 Cloudflare troca o corpo de 5xx pela página dele e a mensagem nunca chega ao

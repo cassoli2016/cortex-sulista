@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.116.0] — 18/09/2026  ·  CX-18/09/2026-v1.116.0
+
+### Adicionado
+- App do motorista — o prêmio do ciclo agora aparece no celular dele, na aba Desempenho: a nota do ciclo, os três pilares que a formaram (com o peso de cada um), a posição no ciclo, a categoria e quanto isso vale. É a mesma régua e a mesma conta da tela da gestão, chamadas do mesmo lugar — duas implementações da mesma regra divergem em silêncio, e aqui a divergência seria "o app diz 88 e a gestão diz 86".
+- Prévia e pago, ditos em letras — enquanto o ciclo está aberto o cartão sai marcado como PRÉVIA e explica por quê (ocorrência e viagem continuam entrando até o dia 15); depois do fechamento ele mostra o valor que foi para o pagamento e não muda mais. Número de premiação errado na mão do premiado é discussão de salário, e essa é a linha que separa as duas coisas.
+- As ocorrências do ciclo aparecem para ele com o que cada uma tirou da nota, e o pilar que não entrou é dito na tela — nota calculada entre dois pilares não é comparável com a de três. A medida disciplinar sugerida NÃO vai para o app: ele vê os fatos, e quem fala sobre a medida é o RH.
+- Quem está fora da régua não vê cartão nenhum de prêmio: a premiação por ciclo é dos motoristas próprios, e cartão que abre dizendo "sem dados" para quem nunca vai ter dado ensina a pessoa a não confiar no resto da tela.
+
 ## [1.115.0] — 18/09/2026  ·  CX-18/09/2026-v1.115.0
 
 ### Adicionado

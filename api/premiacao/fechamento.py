@@ -103,12 +103,17 @@ def ler(ciclo: str) -> dict:
     }
 
 
-def pagamento(ciclo: str | None = None, dir_snapshots=None) -> dict:
+def pagamento(ciclo: str | None = None, dir_snapshots=None,
+              ranking_pronto: dict | None = None) -> dict:
     """O que a tela mostra: a FOTO se o ciclo está fechado, o cálculo se não.
 
     Esta função existe para que a escolha não fique espalhada por cada rota.
     Ciclo fechado que voltasse a calcular é o defeito inteiro que o fechamento
     evita — e é um defeito de UMA LINHA esquecida.
+
+    `ranking_pronto` serve a quem já montou o ciclo (o app do motorista lê a
+    linha dele de um ciclo que acabou de montar): sem ele, mostrar nota e
+    prêmio na mesma tela custaria DUAS leituras das quatro fontes.
     """
     alvo = ciclo or ciclo_mod.atual()
     if not ciclo_mod.valido(alvo):
@@ -116,7 +121,8 @@ def pagamento(ciclo: str | None = None, dir_snapshots=None) -> dict:
     est = situacao(alvo)
     if est and est["fechado"]:
         return ler(alvo)
-    saida = premio.montar(alvo, dir_snapshots=dir_snapshots)
+    saida = premio.montar(alvo, dir_snapshots=dir_snapshots,
+                          ranking_pronto=ranking_pronto)
     saida["fechado"] = False
     saida["fechamento"] = est
     saida["eventos"] = eventos(alvo)

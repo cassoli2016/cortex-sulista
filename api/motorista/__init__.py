@@ -63,14 +63,25 @@ cliente. `TORRE_TRANSITO_SQL` (a mesma viagem, na tela da torre) devolve
 `valorfrete` e `km`; a consulta daqui é outra de propósito, e não é a mesma com
 um filtro a mais — filtro se esquece, coluna que não existe na query não vaza.
 
-**A ÚNICA EXCEÇÃO DE DINHEIRO É O VALOR DA MULTA**, decidida por quem opera em
-07/09/2026: não é dinheiro da empresa, é o número que está no auto, no boleto e
-na conversa que ele vai ter com a torre. Esconder faria a tela valer menos que
-o papel que ele já recebe. Pontuação de CNH entra pelo mesmo motivo — o ponto é
-dele.
+**SÃO DUAS AS EXCEÇÕES DE DINHEIRO, e as duas são dinheiro DELE.**
 
-**A ÚNICA COMPARAÇÃO COM COLEGAS É A POSIÇÃO NO RANKING DA GOBRAX**, e ela só
-cabe porque a premiação já é pública entre eles. Produtividade se compara com
+1. **O VALOR DA MULTA** (quem opera, 07/09/2026): não é dinheiro da empresa, é
+   o número que está no auto, no boleto e na conversa que ele vai ter com a
+   torre. Esconder faria a tela valer menos que o papel que ele já recebe.
+   Pontuação de CNH entra pelo mesmo motivo — o ponto é dele.
+2. **O PRÊMIO DO CICLO** (quem opera, 18/09/2026): vai no holerite dele, e ele
+   já discute esse número com a gestão. O ciclo ABERTO sai marcado como
+   PRÉVIA, porque até o fechamento ele ainda se move; depois de fechado é a
+   fotografia do que foi pago. A régua e a conta são as MESMAS do painel
+   (`api/premiacao/`), nunca uma segunda implementação — "o app diz 88 e a
+   gestão diz 86" é a discussão de salário que a régua existe para evitar.
+   O que NÃO vai junto é a MEDIDA disciplinar sugerida: ele vê as ocorrências
+   que entraram no ciclo (são fatos dele), não o nível proposto, porque medida
+   é rito trabalhista e quem fala com ele é o RH.
+
+**A ÚNICA COMPARAÇÃO COM COLEGAS É A POSIÇÃO NO RANKING** (na condução da
+Gobrax e no ciclo da premiação), e ela só cabe porque a premiação já é pública
+entre eles — posição, nunca nome nem nota de terceiro. Produtividade se compara com
 os 30 dias anteriores DELE; nunca com a média da frota.
 
 O CPF do motorista não entra em URL, não vai no payload e não vira chave: a

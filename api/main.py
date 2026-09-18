@@ -1615,6 +1615,16 @@ def motorista_jornada(req: Request) -> JSONResponse:
     return _mot_ler(req, mjor.minha, "jornada")
 
 
+# O PREMIO DELE. Segunda excecao de dinheiro do app (a primeira e o valor da
+# multa), decidida por quem opera em 18/09/2026 e escrita no cabecalho de
+# `api/motorista/premiacao.py`: o numero e do motorista, vai no holerite dele e
+# ele ja discute isso com a gestao. So o dele, nunca o de outro.
+@app.get("/api/motorista/premiacao")
+def motorista_premiacao(req: Request) -> JSONResponse:
+    from api.motorista import premiacao as mprem
+    return _mot_ler(req, mprem.meu, "premiacao")
+
+
 # ------------------------------------------------------- o canal com o RH
 #
 # A PRIMEIRA COISA DESTE APP EM QUE O NAVEGADOR MANDA UM ID DE LINHA. Ate aqui
