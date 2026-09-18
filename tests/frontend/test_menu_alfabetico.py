@@ -2,8 +2,9 @@
 
 Os dois EXTREMOS sao posicionais e o miolo e alfabetico. No topo, Visao Geral e
 Copiloto Cortex — a porta de entrada, e procura-los na letra V e na C seria
-pior. No fim, Administracao — e configuracao, nao trabalho do dia, e abrir o
-menu com ela em cima empurra para baixo tudo o que a pessoa usa.
+pior. No fim, Administracao e, abaixo dela, Suporte (decisao de quem opera,
+18/09/2026) — configuracao e canal de ajuda, nao trabalho do dia, e abrir o
+menu com eles em cima empurra para baixo tudo o que a pessoa usa.
 
 Este teste existe porque menu e o lugar onde tela nova entra "no fim" por
 inercia. Sem ele, em tres telas a ordem alfabetica vira ordem de chegada.
@@ -76,12 +77,18 @@ def _grupos_gaveta(html: str) -> list[tuple[str, str]]:
 
 
 # ------------------------------------------------------------------- ordem
-def test_os_grupos_estao_em_ordem_com_administracao_no_fim(html):
+def test_os_grupos_estao_em_ordem_com_administracao_e_suporte_no_fim(html):
+    """O fim do menu tem DOIS grupos fixos, nesta ordem: Administracao e
+    Suporte. Suporte sai da letra S por decisao de quem opera (18/09/2026): e
+    o canal de ajuda, nao uma area de trabalho, e no meio da lista ele
+    aparecia entre Recursos Humanos e Suprimentos."""
     nomes = [g for g, _ in _grupos(html)]
     assert nomes, "nenhum grupo encontrado"
-    assert nomes[-1].startswith("Administra"), (
-        f"Administracao tem de ser o ultimo grupo, e o ultimo e {nomes[-1]!r}")
-    miolo = nomes[:-1]
+    assert nomes[-2:] == ["Administração", "Suporte"], (
+        "o fim do menu tem de ser Administracao e depois Suporte, e e "
+        + " · ".join(nomes[-2:]))
+    miolo = nomes[:-2]
+    assert "Suporte" not in miolo, "Suporte aparece duas vezes na barra"
     assert miolo == sorted(miolo, key=chave), (
         "grupos fora de ordem: " + " · ".join(miolo))
 

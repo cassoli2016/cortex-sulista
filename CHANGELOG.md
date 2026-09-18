@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.116.2] — 18/09/2026  ·  CX-18/09/2026-v1.116.2
+
+### Alterado
+- O grupo Suporte saiu do meio do menu e foi para o fim, abaixo de Administração — no computador e no celular. Ele ficava entre Recursos Humanos e Suprimentos, empurrando para baixo os grupos de trabalho do dia.
+
+### Corrigido
+- O menu volta a deixar um grupo aberto de cada vez. Abrir ANTT, Gestão, Telemetria, TMS ou WMS não fechava o grupo anterior, e a barra ficava com dois grupos abertos ao mesmo tempo.
+
 ## [1.116.1] — 18/09/2026  ·  CX-18/09/2026-v1.116.1
 
 ### Corrigido

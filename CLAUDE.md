@@ -960,10 +960,20 @@ barra empilhada, não donut.
 ### Frontend (index.html)
 
 - **O menu é ALFABÉTICO**: miolo em ordem de dicionário (sem acento,
-  minúsculo), Visão Geral e Copiloto no topo, Administração no fim — na barra
-  lateral E na gaveta, grupos e itens. `tests/frontend/test_menu_alfabetico.py`
-  cobra. Tela nova entra "no fim" por inércia; em três telas isso vira ordem de
-  chegada.
+  minúsculo), Visão Geral e Copiloto no topo, **Administração e, abaixo dela,
+  Suporte** no fim — na barra lateral E na gaveta, grupos e itens.
+  `tests/frontend/test_menu_alfabetico.py` cobra. Tela nova entra "no fim" por
+  inércia; em três telas isso vira ordem de chegada.
+  - **Suporte saiu da letra S em 18/09/2026, a pedido de quem opera**, e isso
+    REVERTE a lição de 03/09 escrita em `docs/LICOES.md` ("Supo < Supr, o
+    grupo não fica encostado na Administração"). A ordem alfabética responde
+    "onde procuro?"; os dois grupos do fim respondem outra coisa — não são
+    área de trabalho, e no miolo empurram para baixo o que se usa todo dia.
+  - **Grupo do menu não se lista à mão**: o acordeão lia uma lista com 12 dos
+    17 grupos (ANTT, Gestão, Telemetria, TMS e WMS nasceram depois dela) e
+    deixava DOIS grupos abertos, sem erro nenhum. Agora sai do próprio menu
+    (`gruposDoMenu()`), com guard que clica em todos
+    (`tests/frontend/test_menu_hierarquia.py`).
 - **A regra de CSS pode existir, estar certa e NÃO VALER** (memória
   `css-regra-que-perde-a-briga`): só o navegador diz quem venceu a
   especificidade. No login, `.lg-btn` (0,1,0) perdia para `button.btn` (0,2,1) e

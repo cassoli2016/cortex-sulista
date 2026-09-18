@@ -4010,13 +4010,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       </div>
       <!-- SUPORTE e grupo PROPRIO, nao item de Administracao: e de TODO
            usuario logado, e dentro de um grupo de administrador nao se acha. -->
-      <button class="group" id="grpSpt" aria-expanded="false" aria-controls="subsSpt" onclick="toggleGroup('grpSpt','subsSpt','cs.spt')">
-        <span class="ic" data-ic="supic"></span><span>Suporte</span><span class="ic chev" data-ic="chev"></span>
-      </button>
-      <div class="subs closed" id="subsSpt">
-        <a href="#supfila" class="sub" data-view="supfila" title="Suporte — Atendimento: fila, respostas, avisos e configuração"><span class="ic" data-ic="supfila"></span><span>Atendimento</span></a>
-        <a href="#sup" class="sub" data-view="sup" title="Suporte — seus chamados: acompanhe, responda e avalie"><span class="ic" data-ic="supic"></span><span>Meus chamados</span></a>
-      </div>
       <button class="group" id="grpSup" aria-expanded="false" aria-controls="subsSup" onclick="toggleGroup('grpSup','subsSup','cs.supGroup')" title="Suprimentos">
         <span class="ic" data-ic="sup"></span><span>Suprimentos</span><span class="ic chev" data-ic="chev"></span>
       </button>
@@ -4062,6 +4055,13 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <a href="#integ" class="sub" data-view="integ" title="Integrações — o estado de cada fornecedor: se está configurado e se o dado está chegando"><span class="ic" data-ic="integic"></span><span>Integrações</span></a>
         <a href="#mon" class="sub" data-view="mon" title="Monitoramentos de Carga — quem acompanha carga pela página pública, avisos enviados e histórico"><span class="ic" data-ic="monic"></span><span>Monitoramentos de Carga</span></a>
         <a href="#srv" class="sub" data-view="srv" title="Saúde do Servidor — CPU, memória, disco e serviços"><span class="ic" data-ic="srv"></span><span>Saúde do Servidor</span></a>
+      </div>
+      <button class="group" id="grpSpt" aria-expanded="false" aria-controls="subsSpt" onclick="toggleGroup('grpSpt','subsSpt','cs.spt')">
+        <span class="ic" data-ic="supic"></span><span>Suporte</span><span class="ic chev" data-ic="chev"></span>
+      </button>
+      <div class="subs closed" id="subsSpt">
+        <a href="#supfila" class="sub" data-view="supfila" title="Suporte — Atendimento: fila, respostas, avisos e configuração"><span class="ic" data-ic="supfila"></span><span>Atendimento</span></a>
+        <a href="#sup" class="sub" data-view="sup" title="Suporte — seus chamados: acompanhe, responda e avalie"><span class="ic" data-ic="supic"></span><span>Meus chamados</span></a>
       </div>
     </nav>
     <div class="side-foot">
@@ -11412,10 +11412,15 @@ function toggleMini(){
   localStorage.setItem('cs.sidebar', mini?'mini':'full');
   document.getElementById('miniIcon').innerHTML = ICONS[mini?'chevr':'chevl'];
 }
-// grupos do menu (botão, submenu). Ordem = ordem visual da sidebar.
-const GRUPOS = [['grpBi','subsBi'],['grpCom','subsCom'],['grpFat','subsFat'],['grpFin','subsFin'],
-  ['grpCtr','subsCtr'],['grpOpe','subsOpe'],['grpPcg','subsPcg'],['grpFro','subsFro'],['grpSup','subsSup'],
-  ['grpRh','subsRh'],['grpSpt','subsSpt'],['grpAdm','subsAdm']];
+/* OS GRUPOS DO MENU SAEM DO PRÓPRIO MENU, não de lista escrita à mão
+   (18/09/2026). A lista tinha 12 dos 17 grupos: ANTT, Gestão, Telemetria,
+   TMS e WMS nasceram depois dela e nunca entraram, então o acordeão não os
+   fechava e o menu ficava com DOIS grupos abertos. Defeito sem erro nenhum,
+   que só se vê quem repara na altura da barra. */
+function gruposDoMenu(){
+  return [...document.querySelectorAll('aside nav button.group[aria-controls]')]
+    .map(b => [b.id, b.getAttribute('aria-controls')]);
+}
 
 /* SUBMENUS de terceiro nível: [botão, submenu, grupo a que pertencem].
    Hoje os painéis de TV, POR TEMA, dentro de Business Intelligence (quem
@@ -11431,7 +11436,7 @@ function toggleSubgrupo(bid, sid){
   s.classList.toggle('closed', !abrir);
 }
 function fecharGrupos(exceto){
-  GRUPOS.forEach(([gid,sid])=>{
+  gruposDoMenu().forEach(([gid,sid])=>{
     if(gid===exceto) return;
     const g=document.getElementById(gid), s=document.getElementById(sid);
     if(g&&s){ g.setAttribute('aria-expanded','false'); s.classList.add('closed'); }
@@ -52348,13 +52353,6 @@ boot();
         <a href="#rh" onclick="fecharDrawer()"><span class="ic" data-ic="rhic"></span>Vagas</a>
       </div>
     </div>
-    <div class="dgrp" data-grp="Spt">
-      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Suporte</span><span class="dchev">›</span></button>
-      <div class="dgrp-b">
-        <a href="#supfila" onclick="fecharDrawer()"><span class="ic" data-ic="supfila"></span>Atendimento</a>
-        <a href="#sup" onclick="fecharDrawer()"><span class="ic" data-ic="supic"></span>Meus chamados</a>
-      </div>
-    </div>
     <div class="dgrp" data-grp="Sup">
       <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Suprimentos</span><span class="dchev">›</span></button>
       <div class="dgrp-b">
@@ -52398,6 +52396,13 @@ boot();
         <a href="#integ" onclick="fecharDrawer()"><span class="ic" data-ic="integic"></span>Integrações</a>
         <a href="#mon" onclick="fecharDrawer()"><span class="ic" data-ic="monic"></span>Monitoramentos de Carga</a>
         <a href="#srv" onclick="fecharDrawer()"><span class="ic" data-ic="srv"></span>Saúde do Servidor</a>
+      </div>
+    </div>
+    <div class="dgrp" data-grp="Spt">
+      <button class="dgrp-h" onclick="toggleDGrp(this)"><span>Suporte</span><span class="dchev">›</span></button>
+      <div class="dgrp-b">
+        <a href="#supfila" onclick="fecharDrawer()"><span class="ic" data-ic="supfila"></span>Atendimento</a>
+        <a href="#sup" onclick="fecharDrawer()"><span class="ic" data-ic="supic"></span>Meus chamados</a>
       </div>
     </div>
     <div class="dconta">

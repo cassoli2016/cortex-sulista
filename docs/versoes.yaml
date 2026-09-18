@@ -1,3 +1,17 @@
+- versao: "1.116.2"
+  data: "2026-09-18"
+  alterado:
+    - >-
+      O grupo Suporte saiu do meio do menu e foi para o fim, abaixo de
+      Administração — no computador e no celular. Ele ficava entre Recursos
+      Humanos e Suprimentos, empurrando para baixo os grupos de trabalho do
+      dia.
+  corrigido:
+    - >-
+      O menu volta a deixar um grupo aberto de cada vez. Abrir ANTT, Gestão,
+      Telemetria, TMS ou WMS não fechava o grupo anterior, e a barra ficava
+      com dois grupos abertos ao mesmo tempo.
+
 - versao: "1.116.1"
   data: "2026-09-18"
   corrigido:
