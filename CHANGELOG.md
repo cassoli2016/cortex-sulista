@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.110.0] — 17/09/2026  ·  CX-17/09/2026-v1.110.0
+
+### Adicionado
+- Administração › Integrações passa a ter a TrucksControl: cadastre o login e a senha de INTEGRAÇÃO (os do web service, não os do portal) e o CÓRTEX passa a falar direto com ela — telemetria de motor (o resumo diário por veículo, com consumo, RPM, temperatura e horímetro) e caixa preta (as mensagens de 30 em 30 segundos, com velocidade, RPM, força G e as violações). Por enquanto é consulta sob demanda, para diagnóstico; a coleta automática e as telas vêm depois.
+
 ## [1.109.0] — 17/09/2026  ·  CX-17/09/2026-v1.109.0
 
 ### Adicionado

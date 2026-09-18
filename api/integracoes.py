@@ -124,6 +124,12 @@ SOB_DEMANDA: dict[str, str] = {
     "tomtom": "consultado na hora, por viagem — não há coleta que possa parar",
     "qualp": "consultado na hora, por rota — não há coleta que possa parar",
     "smtp": "só se prova no envio; a falha aparece na fila do Correio",
+    # 17/09/2026: a TrucksControl entra pelo cofre para o DIAGNÓSTICO — o
+    # CÓRTEX consulta na hora (telemetria D-1, caixa preta e o de-para das
+    # estatísticas) e ainda não há coleta agendada. No dia em que houver, ela
+    # sai daqui e ganha cartão na Saúde: sob demanda não envelhece, coleta sim.
+    "truckscontrol": ("consultada na hora, para diagnóstico — a coleta "
+                      "periódica ainda não existe"),
 }
 
 #: Ordem do semáforo, do pior para o melhor. O cartão vale o PIOR dos dois

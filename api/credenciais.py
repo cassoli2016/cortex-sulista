@@ -96,6 +96,17 @@ CAMPOS: dict[str, dict] = {
         "descricao": "Senha do usuário de API do Ponto Certificado",
         "segredo": True},
 
+    # TRUCKSCONTROL (telemetria e caixa preta). A credencial VIAJA NO CORPO do
+    # XML, como no Ponto Certificado: todo erro do cliente passa por
+    # `_limpar()` antes de virar log ou exceção, senão a senha sai no texto.
+    "TRUCKSCONTROL_LOGIN": {
+        "rotulo": "Login de integração",
+        "descricao": "Usuário de integração da TrucksControl (o do web service, não o do portal)"},
+    "TRUCKSCONTROL_SENHA": {
+        "rotulo": "Senha de integração",
+        "descricao": "Senha do usuário de integração da TrucksControl",
+        "segredo": True},
+
     # App do motorista — o acesso de conferência. NÃO é credencial de
     # fornecedor: é um segredo NOSSO, e o único da casa que abre a PII de ~300
     # pessoas. Por isso o módulo aplica um piso PRÓPRIO de 16 caracteres
@@ -528,6 +539,20 @@ SERVICOS: list[dict] = [
                    "dica": "os mesmos do portal do Ponto Certificado",
                    "campos": ["PONTOCERT_CHAVE_EMPRESA", "PONTOCERT_USUARIO",
                               "PONTOCERT_SENHA"]}],
+        "ajustes": [],
+    },
+    {
+        "chave": "truckscontrol",
+        "nome": "TrucksControl",
+        "resumo": "Telemetria de motor (consumo, RPM, temperatura e horímetro, "
+                  "resumo diário D-1 por veículo) e caixa preta (mensagem a "
+                  "cada 30 s com velocidade, RPM, força G e as violações de "
+                  "telemetria). Web service XML: o POST vai na raiz e o erro "
+                  "volta com HTTP 200 no corpo.",
+        "alimenta": "TrucksControl — telemetria",
+        "modos": [{"chave": "usuario", "rotulo": "Login e senha de integração",
+                   "dica": "os de INTEGRAÇÃO, fornecidos pela TrucksControl",
+                   "campos": ["TRUCKSCONTROL_LOGIN", "TRUCKSCONTROL_SENHA"]}],
         "ajustes": [],
     },
     {
