@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.110.2] — 17/09/2026  ·  CX-17/09/2026-v1.110.2
+
+### Corrigido
+- TrucksControl — a primeira conversa de verdade com a API mostrou três coisas que o manual não diz: a resposta vem compactada, o erro traz um código próprio (o 7 é "espere, pedi cedo demais") e a distância do relatório vem em quilômetros, não em metros. O cliente passa a tratar os três, e a espera do fornecedor deixa de ser confundida com falha.
+
 ## [1.110.1] — 17/09/2026  ·  CX-17/09/2026-v1.110.1
 
 ### Corrigido

@@ -180,7 +180,7 @@ def test_relatorio_mantem_as_unidades_do_manual(credencial, monkeypatch):
     assert r["data"] == "25/09/2016"
     v = r["veiculos"][0]
     assert v["veiculo_id"] == 224495
-    assert v["distancia_m"] == 526000 and v["utilizacao_min"] == 480
+    assert v["distancia_km"] == 526000 and v["utilizacao_min"] == 480
     assert v["media_consumo"] == 2.45 and v["vel_media"] == 62.5
     assert v["rpm_medio"] == 1307 and v["temp_media"] == 84.5
     assert (v["motor_ligado_movimento_min"], v["motor_ligado_parado_min"]) == (430, 70)
@@ -202,4 +202,42 @@ def test_a_senha_de_SEIS_digitos_e_aceita_pelo_cofre():
     assert credenciais.MINIMO_POR_CREDENCIAL["TRUCKSCONTROL_LOGIN"] <= 6
     # e o campo continua marcado como segredo: mínimo menor não afrouxa isso
     assert credenciais.CAMPOS["TRUCKSCONTROL_SENHA"].get("segredo") is True
+
+
+FREIO = ('<?xml version="1.0" encoding="UTF-8"?><ErrorRequest><codigo>7</codigo>'
+         '<erro>Nao atingiu o tempo minimo para reenvio da requisicao.</erro>'
+         '<request>CaixaPreta</request></ErrorRequest>')
+
+
+def _zip_de(texto):
+    """A resposta REAL vem zipada, com um <guid>.txt dentro."""
+    import io, zipfile
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("f89adc0b-3214-4250-989e-2065cb621e3b.txt", texto)
+    return buf.getvalue()
+
+
+def test_a_resposta_vem_ZIPADA_e_o_manual_nao_diz(credencial, monkeypatch):
+    """Medido em 17/09/2026 com credencial válida: o corpo começa com `PK` e
+    traz um `<guid>.txt` dentro. Lido como texto, vira "não é XML" — que foi
+    exatamente o que aconteceu na primeira chamada de verdade."""
+    bruto = _zip_de(CAIXA_PRETA)
+
+    def post(self, url, content=None, headers=None, **kw):
+        return httpx.Response(200, content=bruto, request=httpx.Request("POST", url))
+    monkeypatch.setattr(httpx.Client, "post", post)
+    m = tc.caixa_preta(1)
+    assert [x["cp_id"] for x in m] == [764674020, 764738341]
+
+
+def test_o_freio_do_fornecedor_e_OUTRA_COISA_que_falha(credencial, monkeypatch):
+    """Código 7 é cadência, não erro: cada requisição tem o seu ritmo (caixa
+    preta 30 s, estatísticas 5 min, telemetria 1-2x ao dia). Tratado como
+    falha, acende alarme por pressa; tratado como sucesso vazio, grava
+    "nenhum dado" por cima do que havia."""
+    _responder(monkeypatch, FREIO)
+    with pytest.raises(tc.Freio, match="esperar"):
+        tc.caixa_preta(1)
+    assert issubclass(tc.Freio, tc.TrucksControlErro)
 

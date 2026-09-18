@@ -23,6 +23,12 @@ TRÊS ARMADILHAS DESTE FORNECEDOR:
 
 O QUE CADA REQUISIÇÃO DEVOLVE (manual de 17/09/2026):
 
+MEDIDO NO AR EM 17/09/2026, com credencial válida — e nada disso está no
+manual: a resposta vem ZIPADA (um `<guid>.txt` dentro), o erro traz um
+`<codigo>` (7 = cadência), e a `distancia` do relatório vem em QUILÔMETROS, e
+não em metros como o manual diz — ela bate exatamente com a diferença entre
+`odmIni` e `odmFim`.
+
 - `RequestTelemetriaRelatorio` (tID sempre 1): o resumo de ONTEM (D-1) de
   todos os veículos que tiveram informação — distância em METROS, horímetro e
   utilização em MINUTOS, consumo médio, consumo por hora de motor, RPM médio e
@@ -36,8 +42,10 @@ O QUE CADA REQUISIÇÃO DEVOLVE (manual de 17/09/2026):
 """
 from __future__ import annotations
 
+import io
 import logging
 import re
+import zipfile
 from xml.etree import ElementTree as ET
 
 import httpx
@@ -58,6 +66,19 @@ class TrucksControlErro(Exception):
 
 class SemCredencial(TrucksControlErro):
     """Instalação incompleta — não é falha de coleta."""
+
+
+class Freio(TrucksControlErro):
+    """O fornecedor recusou por CADÊNCIA (código 7), não por erro.
+
+    Cada requisição tem o seu ritmo — caixa preta 30 s, estatísticas 5 min,
+    telemetria uma ou duas vezes ao dia — e pedir antes devolve
+    "Nao atingiu o tempo minimo para reenvio da requisicao" com HTTP 200.
+    Quem tratar isso como falha vai acender alarme por estar apressado; quem
+    tratar como sucesso vazio vai gravar "nenhum dado" por cima do que havia.
+    """
+
+    codigo = 7
 
 
 def _limpar(texto: str) -> str:
@@ -98,7 +119,7 @@ def _pedir(raiz: str, esperado: str, extra: str = "") -> ET.Element:
             f"TrucksControl não respondeu ({type(exc).__name__}).") from None
     if r.status_code >= 400:
         raise TrucksControlErro(f"TrucksControl devolveu HTTP {r.status_code}.")
-    texto = r.text or ""
+    texto = _desempacotar(r.content or b"", r.text or "")
     try:
         raiz_xml = ET.fromstring(texto)
     except ET.ParseError:
@@ -108,12 +129,34 @@ def _pedir(raiz: str, esperado: str, extra: str = "") -> ET.Element:
     # ERRO COM HTTP 200: quem lê só o código acha que a coleta veio vazia
     if raiz_xml.tag.lower() == "errorrequest":
         erro = (raiz_xml.findtext("erro") or "sem detalhe").strip()
+        codigo = (raiz_xml.findtext("codigo") or "").strip()
+        if codigo == str(Freio.codigo):
+            raise Freio(f"TrucksControl pediu para esperar: {_limpar(erro)}")
         raise TrucksControlErro(f"TrucksControl recusou: {_limpar(erro)}")
     if raiz_xml.tag.lower() != esperado.lower():
         raise TrucksControlErro(
             f"TrucksControl respondeu <{raiz_xml.tag}> onde o manual diz "
             f"<{esperado}> — resposta não reconhecida.")
     return raiz_xml
+
+
+def _desempacotar(bruto: bytes, texto: str) -> str:
+    """A RESPOSTA VEM ZIPADA, e o manual não diz (medido em 17/09/2026, com
+    credencial válida: `PK` e um `<guid>.txt` dentro). Quem trata a
+    resposta como texto lê "PK…" e conclui "não é XML" — que foi o que este
+    cliente fez na primeira medição. Resposta sem o ZIP continua valendo: o
+    fornecedor pode responder erro em XML puro."""
+    if not bruto[:2] == b"PK":
+        return texto
+    try:
+        with zipfile.ZipFile(io.BytesIO(bruto)) as z:
+            nomes = z.namelist()
+            if not nomes:
+                raise TrucksControlErro("TrucksControl devolveu um ZIP vazio.")
+            return z.read(nomes[0]).decode("utf-8", "replace")
+    except zipfile.BadZipFile:
+        raise TrucksControlErro(
+            "TrucksControl devolveu algo que começa como ZIP e não abre.") from None
 
 
 def _txt(no: ET.Element, tag: str) -> str | None:
@@ -170,9 +213,9 @@ def caixa_preta(cp_id: int) -> list[dict]:
 def telemetria_relatorio() -> dict:
     """O resumo de D-1 de todos os veículos com informação.
 
-    As unidades são as do manual e ficam COMO VIERAM: distância em metros,
-    horímetro e utilização em minutos. Converter aqui esconderia a unidade de
-    origem de quem for conferir com o portal do fornecedor."""
+    As unidades ficam COMO VIERAM, e o nome do campo diz a medida: a
+    `distancia` chega em QUILÔMETROS (medido: bate com `odmFim - odmIni`),
+    apesar de o manual dizer metros; horímetro e utilização em minutos."""
     raiz = _pedir("RequestTelemetriaRelatorio", "ResponseTelemetriaRelatorio",
                   f"<tID>{TELEMETRIA_TID}</tID>")
     data = None
@@ -185,7 +228,7 @@ def telemetria_relatorio() -> dict:
             continue
         linhas.append({
             "veiculo_id": _int(n, "veiID"),
-            "distancia_m": _num(n, "distancia"),
+            "distancia_km": _num(n, "distancia"),
             "vel_media": _num(n, "velMedia"), "vel_max": _num(n, "velMax"),
             "horimetro_ini_min": _int(n, "horIni"), "horimetro_fim_min": _int(n, "horFim"),
             "utilizacao_min": _int(n, "utilizacao"),
