@@ -208,6 +208,49 @@ def historico(dias: int = 30, alvo: str = ALVO,
         return [dict(r) for r in cur.fetchall()]
 
 
+#: O VOCABULÁRIO DA RÉGUA, NUM LUGAR SÓ (quem opera, 18/09/2026: "deixe essas
+#: nomenclaturas mais claras para um leigo olhar e saber o que está
+#: comunicando ou não").
+#:
+#: Antes, cada superfície falava a sua língua: a mensagem do WhatsApp dizia
+#: "sem comunicação há mais de 15 dias", o PDF dizia "SEM COMUNICAÇÃO",
+#: a tela dizia "pararam de comunicar" e o banco guarda `mudo15`. Quem lê no
+#: celular não sabia se "mudo" é o mesmo que "parou", e a pergunta que
+#: interessa — ESTÁ comunicando ou NÃO? — não tinha resposta escrita.
+#:
+#: Agora cada situação tem NOME e uma linha do que fazer, e as três superfícies
+#: (tela, WhatsApp e PDF) leem daqui. `chave` é a do banco e não muda: renomear
+#: coluna para arrumar texto é trocar dado por vocabulário.
+SITUACOES: dict[str, dict] = {
+    "comunicou": {
+        "emoji": "✅", "nome": "Comunicando",
+        "curto": "comunicando",
+        "plural": "Comunicando",
+        "explica": "Enviou posição no dia."},
+    "parou": {
+        "emoji": "🟡", "nome": "Parou de comunicar nos últimos 15 dias",
+        "curto": "parou nos últimos 15 dias",
+        "plural": "Pararam de comunicar nos últimos 15 dias",
+        "explica": "Silêncio recente — pode ser carreta parada no pátio."},
+    "mudo15": {
+        "emoji": "⚠️", "nome": "Sem comunicar há mais de 15 dias",
+        "curto": "sem comunicar há mais de 15 dias",
+        "plural": "Sem comunicar há mais de 15 dias",
+        "explica": "Comunicava e parou — o equipamento precisa ser verificado."},
+    "nunca": {
+        "emoji": "🔴", "nome": "Nunca comunicou",
+        "curto": "nunca comunicou",
+        "plural": "Nunca comunicaram",
+        "explica": "Nenhuma posição desde a instalação — verificar instalação, "
+                   "ativação e contrato."},
+}
+
+
+def rotulo(situacao: str) -> str:
+    """O nome que uma pessoa entende, para a chave que o banco guarda."""
+    return (SITUACOES.get(situacao) or {}).get("nome", situacao)
+
+
 #: As situações que a lista de cobrança contém. "comunicou" fica de fora: o
 #: anexo existe para cobrar quem NÃO comunica, e uma lista que traz todo mundo
 #: não é lista, é o cadastro.

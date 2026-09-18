@@ -6351,21 +6351,24 @@ WHERE v.ativoinativo = 1
 
 
 def _comrast_faixa(dias) -> tuple[int, str]:
+    """A faixa DIZ O QUE MEDE (quem opera, 18/09/2026: as nomenclaturas têm de
+    ser claras para leigo). "até 2 dias" não dizia de quê — parecia prazo, e é
+    silêncio. Agora cada faixa é uma frase inteira, a mesma da tela."""
     if dias is None:
-        return 99, "sem posição registrada"
+        return 99, "nunca comunicou"
     if dias <= 0:
-        return 1, "comunicando hoje"
+        return 1, "comunicou hoje"
     if dias <= 2:
-        return 2, "até 2 dias"
+        return 2, "sem comunicar há 1 ou 2 dias"
     if dias <= 5:
-        return 3, "até 5 dias"
+        return 3, "sem comunicar há 3 a 5 dias"
     if dias <= 15:
-        return 4, "até 15 dias"
+        return 4, "sem comunicar há 6 a 15 dias"
     if dias <= 30:
-        return 6, "até 30 dias"
+        return 6, "sem comunicar há 16 a 30 dias"
     if dias <= 60:
-        return 7, "até 60 dias"
-    return 8, "mais de 60 dias"
+        return 7, "sem comunicar há 31 a 60 dias"
+    return 8, "sem comunicar há mais de 60 dias"
 
 
 @cached(ttl=120, velha_ate=VELHA_ATE)

@@ -142,7 +142,7 @@ def _pedir(raiz: str, esperado: str, extra: str = "") -> ET.Element:
 
 def _desempacotar(bruto: bytes, texto: str) -> str:
     """A RESPOSTA VEM ZIPADA, e o manual não diz (medido em 17/09/2026, com
-    credencial válida: `PK` e um `<guid>.txt` dentro). Quem trata a
+    credencial válida: `PK` seguido dos dois bytes mágicos do ZIP e um `<guid>.txt` dentro). Quem trata a
     resposta como texto lê "PK…" e conclui "não é XML" — que foi o que este
     cliente fez na primeira medição. Resposta sem o ZIP continua valendo: o
     fornecedor pode responder erro em XML puro."""

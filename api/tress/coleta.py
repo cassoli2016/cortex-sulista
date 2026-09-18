@@ -31,9 +31,33 @@ log = logging.getLogger("cortex.tress.coleta")
 MINIMO_PARA_FECHAR = 10
 
 
+#: Placa brasileira: a antiga (ABC1234) e a do Mercosul (ABC1D23). Serve para
+#: decidir se o que sobra depois de tirar o sufixo AINDA é uma placa — sem
+#: isso, "tirar a última letra" viraria adivinhação.
+_PLACA_VALIDA = re.compile(r"^[A-Z]{3}[0-9][0-9A-Z][0-9]{2}$")
+
+
 def _placa(bruto: str) -> str:
-    """A PLACA é a chave (regra da casa). A 3S manda com espaço: 'AAW 5394'."""
-    return re.sub(r"[^A-Z0-9]", "", (bruto or "").upper())
+    """A PLACA é a chave (regra da casa). A 3S manda com espaço: 'AAW 5394'.
+
+    E MANDA ALGUMAS COM UM 'S' A MAIS NO FIM (medido em 18/09/2026, a pedido
+    de quem opera): 19 semirreboques cadastrados como `JOK3001S`. Placa
+    brasileira tem sete caracteres, então o oitavo é sufixo do cadastro deles
+    — e como a chave da casa é a placa, `JOK3001S` não casava com `JOK3001`
+    em lugar nenhum: a carreta comunicava todo dia e o painel dizia "muda há
+    15 dias" ou "nunca comunicou". Eram 13 das 19 assim no dia da medição.
+
+    O corte é CONDICIONAL, e é o que o separa de chutar: só cai o 'S' final
+    quando os sete que sobram formam placa válida. Doze delas existem nas
+    duas formas no cadastro da 3S (sete com o MESMO id de veículo e de
+    equipamento — a mesma carreta cadastrada duas vezes), e depois da
+    normalização as duas viram a mesma linha: a posição mais recente vence
+    (o espelho só avança) e o cadastro mais novo prevalece.
+    """
+    limpa = re.sub(r"[^A-Z0-9]", "", (bruto or "").upper())
+    if len(limpa) == 8 and limpa.endswith("S") and _PLACA_VALIDA.match(limpa[:-1]):
+        return limpa[:-1]
+    return limpa
 
 
 def _data(bruto: str):
@@ -85,6 +109,15 @@ def coletar(esquema: str | None = None) -> dict:
             "a 3S devolveu a lista de veículos VAZIA — não se conclui frota "
             "nenhuma disso, e o espelho fica como estava")
 
+    # DUAS LINHAS PARA A MESMA PLACA depois da normalização (a carreta
+    # cadastrada com e sem o 'S'): vence o cadastro MAIS NOVO. `idVeiculo` da
+    # 3S é um carimbo de tempo (20260814145635), então "mais novo" aqui é
+    # medido, não arbitrado — e a linha antiga não pode sobrescrever a viva.
+    veiculos.sort(key=lambda v: (v["placa"], v["id_veiculo"] or ""))
+    unicos = {v["placa"]: v for v in veiculos}
+    duplicadas = len(veiculos) - len(unicos)
+    veiculos = list(unicos.values())
+
     armazenamento.gravar_veiculos(veiculos, inicio, esquema=esquema)
 
     xml = cliente.chamar("ListaUltimaPosicaoVeiculos")
@@ -123,6 +156,7 @@ def coletar(esquema: str | None = None) -> dict:
     if len(veiculos) >= MINIMO_PARA_FECHAR:
         sumiram = armazenamento.fechar_ausentes(inicio, esquema=esquema)
 
-    return {"veiculos": len(veiculos), "posicoes": len(posicoes),
+    return {"veiculos": len(veiculos), "duplicadas": duplicadas,
+            "posicoes": len(posicoes),
             "dias_marcados": dias, "sumiram": sumiram, "inicio": inicio,
             "segundos": round((datetime.now() - inicio).total_seconds(), 1)}

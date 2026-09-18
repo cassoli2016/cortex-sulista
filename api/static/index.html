@@ -5397,12 +5397,12 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         <div class="tv-grid" id="tvcom-k2" style="margin-top:18px"></div>
         <div class="tv-grid" style="margin-top:18px">
           <div class="tv-card" style="grid-column:span 2;min-width:0">
-            <div class="tv-label">Por rastreadora — comunicando hoje × sem posição</div>
-            <table class="tv-tab"><thead><tr><th>Rastreadora</th><th class="num">Frota</th><th class="num">Hoje</th><th class="num">+15d</th><th class="num">Sem posição</th></tr></thead>
+            <div class="tv-label">Por rastreadora — comunicaram hoje × nunca comunicaram</div>
+            <table class="tv-tab"><thead><tr><th>Rastreadora</th><th class="num">Frota</th><th class="num">Hoje</th><th class="num">Sem comunicar +15d</th><th class="num">Nunca comunicaram</th></tr></thead>
             <tbody id="tvcom-rastr"></tbody></table>
           </div>
           <div class="tv-card" style="grid-column:span 2;min-width:0">
-            <div class="tv-label">Mudos há mais tempo <span id="tvcom-mudos-sub" style="text-transform:none;letter-spacing:0;color:#8FA6BC"></span></div>
+            <div class="tv-label">Sem comunicar há mais tempo <span id="tvcom-mudos-sub" style="text-transform:none;letter-spacing:0;color:#8FA6BC"></span></div>
             <table class="tv-tab"><thead><tr><th>Veículo</th><th>Rastreadora</th><th class="num">Sem comunicar</th></tr></thead>
             <tbody id="tvcom-mudos"></tbody></table>
           </div>
@@ -7661,9 +7661,9 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <section class="view" id="view-comrast">
         <div class="kpis" id="kpis-comrast"></div>
         <div class="grid2">
-          <div class="card"><div class="head"><h2>Distribuição da comunicação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="veiculo_posicao com ultimaposicao = 1, faixa pela diferença entre hoje e a data da última posição, sobre a frota ATIVA inteira. Quem nunca registrou posição não tem recência e sai da distribuição — a contagem aparece abaixo da tabela.">i</span></h2><span class="hint">frota ativa · por recência da última posição</span></div>
+          <div class="card"><div class="head"><h2>Há quanto tempo cada veículo comunicou <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="veiculo_posicao com ultimaposicao = 1, faixa pela diferença entre hoje e a data da última posição, sobre a frota ATIVA inteira. Quem nunca registrou posição não tem recência e sai da distribuição — a contagem aparece abaixo da tabela.">i</span></h2><span class="hint">frota ativa · agrupada por há quantos dias mandou a última posição</span></div>
             <div class="tablewrap tabroll" id="comrast-faixas"></div></div>
-          <div class="card"><div class="head"><h2>Rastreador cadastrado sem sinal <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quebra dos veículos que têm rastreador cadastrado e nenhuma posição registrada, por tipo de frota e por ter motor. Só as linhas de PRÓPRIO ou AGREGADO com motor são problema de rastreamento: terceiro não integra a posição com a Sulista e implemento não emite.">i</span></h2><span class="hint">onde o número grande realmente está</span></div>
+          <div class="card"><div class="head"><h2>Nunca comunicaram — rastreador cadastrado e sem nenhuma posição <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quebra dos veículos que têm rastreador cadastrado e nenhuma posição registrada, por tipo de frota e por ter motor. Só as linhas de PRÓPRIO ou AGREGADO com motor são problema de rastreamento: terceiro não integra a posição com a Sulista e implemento não emite.">i</span></h2><span class="hint">onde o número grande realmente está</span></div>
             <div class="tablewrap tabroll" id="comrast-semsinal"></div></div>
         </div>
         <div class="card"><div class="head"><h2>Pararam de comunicar <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Veículos com rastreador que já tiveram posição e não comunicaram hoje, ordenados por ignição ligada primeiro e depois por dias sem comunicar. Ignição ligada sem comunicar indica rastreador arrancado, bloqueador de sinal ou perda de energia com o veículo em movimento. A posição mostrada é a última conhecida, não a atual.">i</span></h2>
@@ -18334,17 +18334,17 @@ async function loadTvCom(){
         'terceiro só em viagem · próprio e agregado sempre'),
       tvCard('Comunicando hoje', k.hoje, estado(k.hoje,d.total),
         pct(k.hoje)+' da frota do painel'),
-      tvCard('Mudos +15 dias', k.mais15, k.mais15>0?'ruim':'ok',
-        'com leitura antiga · '+pct(k.mais15)),
-      tvCard('Sem posição', k.sem_posicao, k.sem_posicao>0?'ruim':'ok',
-        'nenhuma leitura no ERP · '+pct(k.sem_posicao)),
+      tvCard('Sem comunicar +15 dias', k.mais15, k.mais15>0?'ruim':'ok',
+        'comunicavam e pararam · '+pct(k.mais15)),
+      tvCard('Nunca comunicaram', k.sem_posicao, k.sem_posicao>0?'ruim':'ok',
+        'nenhuma posição no ERP · '+pct(k.sem_posicao)),
     ].join('');
     const m=d.motor||[];
     const cartaoMotor=x=>{
       if(!x||!x.total) return tvCard(x?x.grupo:'—','n/d','','sem veículo neste grupo');
       return tvCard(x.grupo, x.hoje+' de '+x.total, estado(x.hoje,x.total),
         Math.round(100*x.hoje/x.total)+'% comunicando hoje · '+x.mais15+
-        (x.mais15===1?' mudo':' mudos')+' +15d · '+x.sem_posicao+' sem posição');
+        ' sem comunicar +15d · '+x.sem_posicao+' nunca comunicaram');
     };
     document.getElementById('tvcom-k2').innerHTML=
       '<div style="grid-column:span 2">'+cartaoMotor(m[0])+'</div>'+
@@ -18361,10 +18361,10 @@ async function loadTvCom(){
     document.getElementById('tvcom-mudos').innerHTML=mud.map(x=>
       `<tr><td>${esc(x.frota)}</td><td>${esc(x.rastreadora||'')}</td>`+
       `<td class="num">${x.dias==null?'nunca':(x.dias+' dias')}</td></tr>`).join('')
-      || '<tr><td colspan="3">nenhum veículo mudo</td></tr>';
+      || '<tr><td colspan="3">todos comunicaram</td></tr>';
     document.getElementById('tvcom-ticker').textContent=
-      d.fonte+'  ·  "sem posição" é ausência de leitura no ERP, não laudo de '+
-      'equipamento  ·  atualiza a cada 60 s';
+      d.fonte+'  ·  "nunca comunicaram" é ausência de posição no ERP, não '+
+      'laudo de equipamento  ·  atualiza a cada 60 s';
     tvAnimarNums('tvcom-k1'); tvAnimarNums('tvcom-k2');
     const cab=document.querySelector('#view-tvcom .tv-upd');
     if(cab) cab.textContent=d.atualizado_em?('atualizado '+d.atualizado_em.slice(11,16)):'';
@@ -31196,9 +31196,9 @@ function renderComRast(d){
         (k.parados_ignicao_ligada||0)>0 ? ((k.parados_ignicao_ligada)+' com ignição LIGADA') : 'todos com ignição desligada',
         (k.parados_ignicao_ligada||0)>0?'neg':((k.parados||0)>0?'warn':'pos'),
         'Veículos com rastreador que já tiveram posição e não comunicaram hoje. Ignição ligada sem comunicar é o caso grave: rastreador arrancado, bloqueador de sinal ou perda de energia com o veículo rodando. Ignição desligada costuma ser veículo parado em pátio, sem gravidade.'),
-    kpi('Comunicando hoje', (k.comunicando_hoje||0).toLocaleString('pt-BR'), 'posição recebida hoje','pos',
+    kpi('Comunicando hoje', (k.comunicando_hoje||0).toLocaleString('pt-BR'), 'enviaram posição hoje','pos',
         'veiculo_posicao com ultimaposicao = 1 e data de hoje. Conta a frota ativa inteira, não só a que deveria comunicar.'),
-    kpi('Rastreador sem nenhum sinal', ((d.sem_sinal||[]).reduce((a,x)=>a+x.n,0)).toLocaleString('pt-BR'),
+    kpi('Nunca comunicaram', ((d.sem_sinal||[]).reduce((a,x)=>a+x.n,0)).toLocaleString('pt-BR'),
         'de '+(k.com_rastreador||0)+' com rastreador cadastrado · quebra ao lado','',
         'Veículos com cnpjcpfcodigorastreador preenchido e nenhuma linha em veiculo_posicao. Na maior parte não é rastreador quebrado: é terceiro que não integra a posição e implemento que nunca emitiu, com o campo herdado do cadastro. O card ao lado abre por tipo de frota e por ter motor ou não.'),
   ].join('');
@@ -31206,7 +31206,7 @@ function renderComRast(d){
   const fx=(d.faixas||[]).filter(f=>f.codigo!==99).map(f=>`<tr><td>${esc(f.faixa)}</td><td class="num">${f.n.toLocaleString('pt-BR')}</td></tr>`).join('')
     ||'<tr><td colspan="2" style="color:var(--n500)">nenhum veículo com posição registrada</td></tr>';
   const semPos=(d.faixas||[]).find(f=>f.codigo===99);
-  document.getElementById('comrast-faixas').innerHTML=`<table><thead><tr><th>Recência da última posição</th><th class="num">Veículos</th></tr></thead><tbody>${fx}</tbody></table>`
+  document.getElementById('comrast-faixas').innerHTML=`<table><thead><tr><th>Situação</th><th class="num">Veículos</th></tr></thead><tbody>${fx}</tbody></table>`
     +(semPos?`<div class="banner-inline" style="display:block;margin:8px 16px 14px">Fora desta distribuição: <b>${semPos.n.toLocaleString('pt-BR')}</b> veículos ativos nunca registraram posição (sem rastreador, terceiro que não integra ou implemento). Não têm recência para classificar.</div>`:'');
   // a quebra dos sem-sinal: sem ela, 664 parece falha de rastreamento
   const ss=(d.sem_sinal||[]).map(x=>{

@@ -1,3 +1,22 @@
+- versao: "1.111.0"
+  data: "2026-09-18"
+  corrigido:
+    - >-
+      Comunicação da 3S — dezenove carretas apareciam como "nunca comunicaram"
+      enquanto mandavam posição todo dia. Elas estão cadastradas na 3S com um
+      "S" a mais no fim da placa, e a placa é a chave que liga tudo: com o
+      caractere extra elas não casavam com o cadastro nem com a régua diária. O
+      CÓRTEX passa a normalizar a placa na leitura e arruma o que já estava
+      gravado, sem perder nenhum dia de histórico.
+  alterado:
+    - >-
+      Comunicação da 3S — os nomes de cada situação foram reescritos para quem
+      não convive com o assunto: "comunicando", "parou de comunicar nos últimos
+      15 dias", "sem comunicar há mais de 15 dias" e "nunca comunicou". A tela,
+      a mensagem do WhatsApp e o PDF anexado passam a dizer a mesma coisa com
+      as mesmas palavras, e a mensagem leva uma linha explicando o que fazer em
+      cada caso.
+
 - versao: "1.110.2"
   data: "2026-09-17"
   corrigido:

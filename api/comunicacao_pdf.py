@@ -26,24 +26,20 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas as _canvas
 
+from api import comunicacao_3s as _c3
+
 MARCA = colors.HexColor("#942821")
 TINTA = colors.HexColor("#14181D")
 CINZA = colors.HexColor("#636C76")
 LINHA = colors.HexColor("#D8DDE2")
 
-#: Como cada situação se chama para quem vai cobrar. O texto é o da tela, não
-#: o da coluna do banco: "mudo15" não quer dizer nada para quem lê no celular.
-#: E o nome é "sem comunicação", não "muda" (quem opera, 14/09/2026): o anexo
-#: e a mensagem do WhatsApp da 3S dizem a mesma coisa com as mesmas palavras.
-TITULOS = {
-    "nunca": ("NUNCA COMUNICARAM",
-              "Sem nenhuma posição registrada. Verificar instalação, "
-              "ativação e contrato."),
-    "mudo15": ("SEM COMUNICAÇÃO HÁ MAIS DE 15 DIAS",
-               "Já comunicaram e pararam. Verificar equipamento."),
-    "parou": ("PARARAM NOS ÚLTIMOS 15 DIAS",
-              "Silêncio recente — pode ser carreta parada em pátio."),
-}
+#: O TÍTULO DE CADA SEÇÃO VEM DO VOCABULÁRIO DA RÉGUA, não de um texto
+#: escrito aqui: o anexo, a mensagem do WhatsApp e a tela dizem a mesma coisa
+#: com as MESMAS palavras, e mudar o nome num lugar muda nos três. Lista
+#: escrita à mão em dois lugares já deixou o painel e o anexo discordando
+#: nesta casa (quem opera, 18/09/2026).
+TITULOS = {chave: (dado["plural"].upper(), dado["explica"])
+           for chave, dado in _c3.SITUACOES.items()}
 
 _LARG, _ALT = A4
 _MARGEM = 15 * mm
@@ -77,15 +73,20 @@ class _Folha:
         c.setFillColor(colors.white)
         c.setFont("Helvetica-Bold", 15)
         c.drawString(_MARGEM, _ALT - 13 * mm,
-                     "%s — CARRETAS SEM COMUNICAÇÃO" % self.alvo)
+                     "%s — CARRETAS QUE NÃO ESTÃO COMUNICANDO" % self.alvo)
         c.setFont("Helvetica", 9)
         c.drawRightString(_LARG - _MARGEM, _ALT - 13 * mm,
                           "Dia fechado: %s" % self.dia.strftime("%d/%m/%Y"))
         c.setFillColor(CINZA)
         c.setFont("Helvetica", 7.5)
         c.drawString(_MARGEM, 10 * mm,
-                     "CÓRTEX · Transportadora Sulista · fonte: ERP AVA "
-                     "(veiculo × veiculo_posicao) · página %d" % self.pagina)
+                     # A FONTE MUDOU e o rodapé dizia a antiga: desde 03/09 a
+                     # leitura vem TAMBÉM direto da 3S, e era ela que provava
+                     # que 77 carretas dadas como mudas tinham comunicado.
+                     # Rodapé que nomeia a fonte errada faz quem confere
+                     # procurar no lugar errado.
+                     "CÓRTEX · Transportadora Sulista · fonte: 3S (posições) "
+                     "+ ERP AVA (cadastro) · página %d" % self.pagina)
         self.y = _ALT - 32 * mm
         # A seção continua na folha nova. Sem isto a página 2 abre numa placa
         # solta e quem lê não sabe se aquilo é "nunca comunicou" ou "parou" —

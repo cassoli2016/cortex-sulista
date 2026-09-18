@@ -419,7 +419,9 @@ def comunicacao_3s(dados: dict | None = None) -> dict:
         else:
             # A SETA SEGUE O QUE MELHORA, não o que cresce: “nunca” caindo é
             # bom e leva ▲ verde na leitura de quem cobra.
-            evolucao = "%s Contra %s: %s comunicando · %s nunca" % (
+            # o texto diz o que o número É, não só o sinal: "+3 comunicando"
+            # sozinho não conta se isso é bom (quem opera, 18/09/2026)
+            evolucao = "%s Contra %s: %s carretas comunicando · %s que nunca comunicaram" % (
                 "📈" if (d_com > 0 or d_nunca < 0) else "📉",
                 ant["dia"].strftime("%d/%m"), sinal(d_com), sinal(d_nunca))
     else:
@@ -439,8 +441,20 @@ def comunicacao_3s(dados: dict | None = None) -> dict:
                               _pdf.nome_arquivo(dia, dados.get("alvo", "3S")),
                               "pdf")
 
+    # A LEGENDA VAI NA MENSAGEM porque o número sozinho não diz o que fazer:
+    # "25" ao lado de "sem comunicar há mais de 15 dias" é contagem; com a
+    # linha do que significa, vira tarefa. Sai do vocabulário da régua, para
+    # a mensagem, o anexo e a tela dizerem a mesma coisa.
+    from api import comunicacao_3s as _c3v
+    # SÓ O QUE FAZER: o nome da situação já vai na linha da contagem, e
+    # repeti-lo aqui faria a mensagem dizer tudo duas vezes.
+    legenda = "\n".join(
+        "%s %s" % (d["emoji"], d["explica"])
+        for k, d in _c3v.SITUACOES.items() if k != "comunicou")
+
     return {
         **fora,
+        "legenda": legenda,
         "data": dia.strftime("%d/%m/%Y"),
         "barra": "%s  %d%%" % (_barra(comunicou, frota),
                                round(100 * comunicou / frota) if frota else 0),

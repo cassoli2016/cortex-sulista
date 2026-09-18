@@ -282,13 +282,16 @@ def test_o_pdf_repete_o_cabecalho_da_secao_na_pagina_seguinte():
     r = pypdf.PdfReader(__import__("io").BytesIO(
         comunicacao_pdf.gerar(HOJE, placas)))
     assert len(r.pages) > 1
+    from api.comunicacao_3s import SITUACOES
+    t_nunca = SITUACOES["nunca"]["plural"].upper()
+    t_mudo = SITUACOES["mudo15"]["plural"].upper()
     titulos = [l.strip() for p in r.pages
                for l in (p.extract_text() or "").split("\n")
-               if "NUNCA COMUNICARAM" in l or "SEM COMUNICAÇÃO HÁ" in l]
+               if t_nunca in l or t_mudo in l]
     assert titulos[0].endswith("(120)"), titulos[0]
     assert "continuação" in titulos[1]
     # a seção nova nunca nasce marcada como continuação
-    novas = [t for t in titulos if "SEM COMUNICAÇÃO HÁ" in t]
+    novas = [t for t in titulos if t_mudo in t]
     assert novas and "continuação" not in novas[0], novas
 
 
@@ -303,9 +306,9 @@ def test_o_anexo_separa_as_tres_cobrancas():
         {"placa": "A3", "situacao": "parou",
          "ultima": HOJE - dt.timedelta(days=5)}])))
     txt = "\n".join(p.extract_text() or "" for p in r.pages)
-    for chave in ("NUNCA COMUNICARAM", "SEM COMUNICAÇÃO HÁ MAIS DE 15 DIAS",
-                  "PARARAM NOS ÚLTIMOS 15 DIAS"):
-        assert chave in txt
+    from api.comunicacao_3s import SITUACOES
+    for chave in ("nunca", "mudo15", "parou"):
+        assert SITUACOES[chave]["plural"].upper() in txt, chave
     # e diz DESDE QUANDO, que é o que torna a lista cobrável
     assert "nenhuma posição registrada" in txt and "40 dias" in txt
 
@@ -340,16 +343,37 @@ def test_o_anexo_passa_pelas_mesmas_travas_do_texto(monkeypatch):
     assert not r["ok"] and r["erro"]
 
 
-def test_a_3s_nao_chama_carreta_de_muda():
-    """Quem opera, 14/09/2026: "no WhatsApp da 3S vamos alterar a
-    nomenclatura de mudas para sem comunicação". O rótulo da variável (que a
-    tela de modelos mostra a quem escreve a mensagem) e o título do anexo
-    dizem "sem comunicação"; nenhum dos dois pode voltar a dizer "muda"."""
+def test_as_TRES_superficies_falam_a_MESMA_lingua():
+    """Quem opera, 14/09/2026 ("de mudas para sem comunicação") e 18/09/2026
+    ("nomenclaturas claras para um leigo saber o que está comunicando ou
+    não"). O anexo, o rótulo que a tela de modelos mostra a quem escreve a
+    mensagem e a tela de Comunicação Rastreadora leem do MESMO vocabulário
+    (`comunicacao_3s.SITUACOES`) — texto repetido à mão em três lugares
+    envelhece em dois deles."""
+    from pathlib import Path
+
     from api import comunicacao_pdf
+    from api.comunicacao_3s import SITUACOES, rotulo
     from api.whatsapp import modelos
+
+    # o anexo é o vocabulário, não uma cópia dele
+    for chave, dado in SITUACOES.items():
+        assert comunicacao_pdf.TITULOS[chave] == (dado["plural"].upper(), dado["explica"])
+    # o rótulo do WhatsApp começa pelo nome da situação
     rotulos = {v["chave"]: v["rotulo"] for v in modelos.CONTEXTOS["comunicacao_3s"]["variaveis"]}
-    assert rotulos["mudo15"] == "Sem comunicação há mais de 15 dias", rotulos["mudo15"]
-    titulo = comunicacao_pdf.TITULOS["mudo15"][0]
-    assert titulo == "SEM COMUNICAÇÃO HÁ MAIS DE 15 DIAS", titulo
-    textos = " ".join([*rotulos.values(), *(a + " " + b for a, b in comunicacao_pdf.TITULOS.values())])
+    assert rotulos["mudo15"].startswith(SITUACOES["mudo15"]["nome"]), rotulos["mudo15"]
+    assert rotulos["nunca"].startswith(SITUACOES["nunca"]["plural"]), rotulos["nunca"]
+    assert rotulo("mudo15") == SITUACOES["mudo15"]["nome"]
+    # NENHUM deles volta a chamar carreta de muda
+    textos = " ".join([*rotulos.values(),
+                       *(a + " " + b for a, b in comunicacao_pdf.TITULOS.values()),
+                       *(d["nome"] + " " + d["explica"] for d in SITUACOES.values())])
     assert "muda" not in textos.lower() and "mudo" not in textos.lower(), textos
+    # e a TELA diz o mesmo: sem "mudos", e com a pergunta escrita por extenso
+    html = Path(__file__).resolve().parents[1].joinpath("api/static/index.html").read_text(encoding="utf-8")
+    assert "Mudos há mais tempo" not in html
+    assert "Há quanto tempo cada veículo comunicou" in html
+    # e a TV também: ela é a superfície que mais gente lê e a que ninguém abre
+    # para conferir texto — "Mudos +15 dias" ficou lá um ano
+    assert "Mudos +15 dias" not in html and "nenhum veículo mudo" not in html
+    assert "Sem comunicar +15 dias" in html and "Nunca comunicaram</th>" in html

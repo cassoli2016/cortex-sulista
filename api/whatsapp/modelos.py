@@ -116,10 +116,14 @@ CONTEXTOS: dict[str, dict] = {
             _v("data", "Dia medido (fechado às 23:59)", "02/09/2026"),
             _v("barra", "Barra de progresso em emoji", "🟩🟩⬜⬜⬜⬜⬜⬜⬜⬜  24%"),
             _v("total", "Carretas com rastreador 3S", "223"),
-            _v("comunicou", "Comunicaram no dia", "53"),
-            _v("nunca", "Nunca comunicaram", "142"),
-            _v("mudo15", "Sem comunicação há mais de 15 dias", "25"),
-            _v("parou", "Pararam nos últimos 15 dias", "3"),
+            # os rótulos são os do vocabulário da régua (comunicacao_3s.SITUACOES):
+            # a mesma situação tem o mesmo nome na tela, no WhatsApp e no anexo
+            _v("comunicou", "Comunicando — enviaram posição no dia", "53"),
+            _v("nunca", "Nunca comunicaram — nenhuma posição desde a instalação", "142"),
+            _v("mudo15", "Sem comunicar há mais de 15 dias — já comunicaram e pararam", "25"),
+            _v("parou", "Pararam de comunicar nos últimos 15 dias — silêncio recente", "3"),
+            _v("legenda", "As quatro situações explicadas, uma por linha",
+               "✅ Comunicando: enviou posição no dia."),
             _v("evolucao", "Variação contra o dia anterior",
                "📈 Contra 01/09: +3 comunicando · -3 nunca"),
             _v("lista", "O que dizer sobre o anexo de placas",
