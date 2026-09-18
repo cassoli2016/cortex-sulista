@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.116.1] — 18/09/2026  ·  CX-18/09/2026-v1.116.1
+
+### Corrigido
+- E-mail — um comunicado saiu com a marcação à mostra no texto ("<b>" e "<a href>" aparecendo como letra na mensagem). O molde de e-mail da casa escapa o texto de propósito, que é a defesa contra conteúdo de terceiro virar marcação; quem precisa de link usa o botão. Entrou uma varredura que reprova a suíte quando alguém escreve marcação dentro do texto de qualquer e-mail — o defeito não tem sintoma de quem envia, só de quem abre a mensagem.
+
 ## [1.116.0] — 18/09/2026  ·  CX-18/09/2026-v1.116.0
 
 ### Adicionado
