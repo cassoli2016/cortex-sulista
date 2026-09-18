@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.120.0] — 18/09/2026  ·  CX-18/09/2026-v1.120.0
+
+### Adicionado
+- Conferir o aplicativo do motorista pelo painel — na aba Motoristas da Premiação, cada linha ganhou "Ver o app": ele abre o aplicativo (e a campanha) na conta daquela pessoa, para conferir o que ela está vendo. A sessão é a dela, dura uma hora, mostra a tarja vermelha no topo e fica registrada com o nome de quem abriu.
+- A ficha de acessos ganhou PODERES, um terceiro tipo de ajuste ao lado de liberar/tirar tela e tirar aba. Tela diz o que a pessoa abre; poder diz o que ela pode fazer com o que abriu. Todo poder nasce desligado — inclusive para quem tem a tela — e é concedido pessoa a pessoa; o primeiro deles é justamente o de conferir o aplicativo.
+
+### Alterado
+- O código mestre continua funcionando, como retaguarda de quem precisa conferir pelo celular sem ter conta no painel. A diferença é que ele é um segredo compartilhado sem validade e registra "alguém que sabia o código"; pelo painel, a trilha tem nome e revogar é tirar o acesso de uma pessoa.
+
 ## [1.119.0] — 18/09/2026  ·  CX-18/09/2026-v1.119.0
 
 ### Adicionado

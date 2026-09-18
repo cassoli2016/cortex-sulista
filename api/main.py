@@ -1858,6 +1858,92 @@ async def motorista_mestre_lista(req: Request) -> JSONResponse:
         return _mot_recusa(str(exc))
 
 
+# ══════════════════ CONFERIR O APP PELO PAINEL ══════════════════════════
+#
+# A MESMA sessao do codigo mestre, com outro porteiro: quem abre e' um usuario
+# do PAINEL com o poder `poder.conferir_app` — e a trilha passa a ter NOME, em
+# vez de "alguem que sabia o codigo". O contrato esta' em `api/conferencia.py`.
+#
+# AS ROTAS NAO FICAM SOB `/api/gestao` (aquele prefixo e' checado como ADMIN
+# antes do mapeamento de telas, e o poder e' concedido pessoa a pessoa, nao so'
+# a administradores) nem em `ROTA_TELAS` (o poder nao e' uma tela). Elas entram
+# em `_ROTAS_SEM_TELA` e o porteiro e' `conferencia.exigir()`, que LEVANTA.
+@app.post("/api/conferencia/motoristas")
+async def conferencia_motoristas(req: Request) -> JSONResponse:
+    from api import conferencia
+    sess = getattr(req.state, "sessao", None) or {}
+    corpo = await _corpo_json(req)
+    try:
+        conferencia.exigir(sess)
+        return JSONResponse(await sem_travar(
+            conferencia.motoristas, str(corpo.get("busca") or "")))
+    except conferencia.SemPoder as exc:
+        return JSONResponse(status_code=403,
+                            content={"erro": "recusa", "mensagem": str(exc)})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("conferencia.motoristas falhou: %s", type(exc).__name__)
+        return JSONResponse(status_code=500,
+                            content={"erro": "erro_consulta",
+                                     "mensagem": "Não foi possível ler a lista."})
+
+
+@app.post("/api/conferencia/abrir")
+async def conferencia_abrir(req: Request) -> JSONResponse:
+    """Abre a sessao de conferencia e GRAVA O COOKIE do app do motorista.
+
+    O poder e' conferido DE NOVO aqui, e nao so' na listagem: sao duas rotas
+    independentes, e uma que confiasse na anterior seria uma rota que abre
+    sessao para quem chamar direto.
+    """
+    from api import conferencia
+    from api.motorista import mestre as mm
+    from api.motorista import sessao as msessao
+    sess = getattr(req.state, "sessao", None) or {}
+    autor = sess.get("email") or sess.get("usuario") or ""
+    corpo = await _corpo_json(req)
+    try:
+        conferencia.exigir(sess)
+        alvo = int(corpo.get("motorista") or 0)
+        if not alvo and corpo.get("codigo"):
+            alvo = await sem_travar(conferencia.por_codigo,
+                                    str(corpo.get("codigo")))
+        if not alvo:
+            # QUEM NUNCA ENTROU NO APP nao tem conta a abrir, e isso nao e'
+            # erro: e' a resposta. Dizer "motorista invalido" mandaria alguem
+            # procurar defeito no cadastro da premiacao, que esta' certo.
+            return JSONResponse(status_code=HTTP_RECUSA, content={
+                "erro": "recusa",
+                "mensagem": "Este motorista ainda não entrou no aplicativo — "
+                            "não há conta para abrir."})
+        r = await sem_travar(
+            conferencia.abrir, alvo, autor,
+            aparelho=str(corpo.get("aparelho") or ""),
+            ip=_ip_do_cliente(req), agente=req.headers.get("user-agent", ""))
+    except conferencia.SemPoder as exc:
+        return JSONResponse(status_code=403,
+                            content={"erro": "recusa", "mensagem": str(exc)})
+    except mm.Recusa as exc:
+        return JSONResponse(status_code=HTTP_RECUSA,
+                            content={"erro": "recusa", "mensagem": str(exc)})
+    except (TypeError, ValueError) as exc:
+        return JSONResponse(status_code=HTTP_RECUSA,
+                            content={"erro": "recusa",
+                                     "mensagem": str(exc) or "Escolha um motorista."})
+
+    # A TRILHA TEM NOME, e e' esta a razao inteira desta porta existir. Acao
+    # PROPRIA, separada da do codigo mestre: misturar as duas apagaria
+    # justamente a diferenca entre "alguem com o codigo" e uma pessoa.
+    auth.audit(autor or "?", "conferencia_app_abriu",
+               alvo=str(r["motorista_id"]),
+               detalhe=f"{r['nome']} · sessao {r['sessao_id']} · "
+                       f"{conferencia.TTL_HORAS}h",
+               ip=_ip_do_cliente(req))
+    resp = JSONResponse({"ok": True, "nome": r["nome"], "mestre": True,
+                         "horas": conferencia.TTL_HORAS})
+    msessao.gravar_cookie(resp, r["token"], req, horas=conferencia.TTL_HORAS)
+    return resp
+
+
 @app.post("/api/motorista/mestre/entrar")
 async def motorista_mestre_entrar(req: Request) -> JSONResponse:
     """Abre a sessao MESTRE na conta do motorista escolhido.

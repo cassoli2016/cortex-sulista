@@ -541,7 +541,14 @@ _ROTAS_SEM_TELA = ("/api/push/", "/api/report", "/api/auth/foto/",
                    # entao a rota dela nao tem entrada em ROTA_TELAS
                    "/api/aplicativos",
                    # idem a `radar`, a pagina inicial: so dado publico
-                   "/api/radar")
+                   "/api/radar",
+                   # A CONFERENCIA DO APP nao e' uma tela: ela e' um PODER,
+                   # concedido pessoa a pessoa (`acessos.PODERES`). O
+                   # middleware deixa passar quem esta' logado e quem recusa e'
+                   # `conferencia.exigir()`, que LEVANTA — o mesmo arranjo do
+                   # app do motorista, e pela mesma razao: mapear por tela
+                   # daria a porta a todo mundo que tem aquela tela.
+                   "/api/conferencia/")
 
 # Telas que EXISTEM no menu mas nao tem entrada em `TELAS`, porque o acesso a
 # elas e decidido de outro jeito:
@@ -1424,13 +1431,17 @@ def _montar_sessao(c, u) -> dict:
     # e tirar telas, tirar abas bloqueáveis. Calculado AQUI, a cada
     # requisição — é por isso que tirar uma tela vale no clique seguinte
     # sem derrubar a sessão. Admin ignora os ajustes (decisão de 13/09/2026).
+    ajustes = acessos.ajustes_de(c, u["id"])
     telas, abas_tiradas = acessos.efetivas(
-        _telas_do_perfil(c, u["perfil_id"], admin),
-        acessos.ajustes_de(c, u["id"]), admin, TELAS.keys())
+        _telas_do_perfil(c, u["perfil_id"], admin), ajustes, admin, TELAS.keys())
     return {
         "id": u["id"], "nome": u["nome"], "email": u["email"],
         "perfil_id": u["perfil_id"], "perfil": u["perfil_nome"],
         "admin": admin, "telas": telas, "abas_tiradas": abas_tiradas,
+        # OS PODERES vem pelo mesmo caminho das telas — calculados a cada
+        # requisicao, e por isso tirar um vale no clique seguinte. Eles
+        # nascem DESLIGADOS: o que nao foi dado nao esta aqui.
+        "poderes": sorted(acessos.poderes_do(ajustes, admin)),
         # `.get()`: a coluna nasce na 0091, e esta função roda a cada requisição
         # — num banco ainda não migrado, o acesso direto derrubaria o login.
         "pagina_inicial": acessos.pagina_efetiva(
@@ -2260,6 +2271,9 @@ def acessos_catalogo() -> JSONResponse:
     são telas do registro (as de todo logado e as de administrador)."""
     return JSONResponse({
         "abas": acessos.catalogo_abas(TELAS),
+        # OS PODERES NASCEM DESLIGADOS e so' aparecem aqui: a ficha da pessoa e'
+        # o unico lugar onde eles se dao.
+        "poderes": acessos.catalogo_poderes(),
         "paginas_de_todos": sorted(TELAS_TODO_LOGADO),
         "paginas_de_admin": ["gestao", "srv"],
         "sem_menu": sorted(TELAS_SEM_MENU)})

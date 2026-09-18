@@ -179,8 +179,12 @@ def test_a_trilha_diz_o_que_entrou_e_o_que_saiu(casa):
 def test_catalogo_e_so_de_admin(casa):
     assert _entrar("beto@exemplo.test").get("/api/gestao/acessos/catalogo").status_code == 403
     d = _entrar("chefe@exemplo.test").get("/api/gestao/acessos/catalogo").json()
-    assert set(d) == {"abas", "paginas_de_todos", "paginas_de_admin", "sem_menu"}
+    assert set(d) == {"abas", "poderes", "paginas_de_todos", "paginas_de_admin",
+                      "sem_menu"}
     assert "radar" in d["paginas_de_todos"]
+    # OS PODERES entram aqui porque a ficha da pessoa é o único lugar onde eles
+    # se dão — eles nascem desligados e não pertencem a perfil nenhum.
+    assert any(x["chave"] == "poder.conferir_app" for x in d["poderes"])
 
 
 def test_quem_nao_tem_ajuste_recebe_as_chaves_padrao(casa):

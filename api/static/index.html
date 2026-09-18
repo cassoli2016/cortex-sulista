@@ -5897,7 +5897,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </div>
             <div class="tablewrap tabroll"><table><thead><tr>
               <th>Motorista</th><th class="num">Código</th><th>Tipo</th><th>Filial</th>
-              <th class="num">Admissão</th><th>Função</th><th class="num">Ativo</th>
+              <th class="num">Admissão</th><th>Função</th><th class="num">Ativo</th><th></th>
             </tr></thead><tbody id="gma-base"></tbody></table></div>
           </div>
         </div>
@@ -14507,8 +14507,9 @@ function gmaBaseRender(){
       <td class="num small">${esc(x.admissao||'—')}</td>
       <td class="small" style="color:var(--n500)">${esc(x.funcao||'')}</td>
       <td class="num small">${x.ativo?'sim':'não'}</td>
+      <td>${gmaPodeConferir()?`<button class="ghost btn-sm" onclick="gmaAbrirApp('${esc(x.cadastro_codigo)}','${esc(x.nome)}')" title="abre o aplicativo na conta dele, para conferir o que ele está vendo">Ver o app</button>`:''}</td>
     </tr>`).join('')
-    || '<tr><td colspan="7" style="color:var(--n500)">nenhum motorista no cadastro — use "Sincronizar cadastro com a folha"</td></tr>';
+    || '<tr><td colspan="8" style="color:var(--n500)">nenhum motorista no cadastro — use "Sincronizar cadastro com a folha"</td></tr>';
   const e=d.estado||{};
   document.getElementById('gma-base-hint').textContent=
     (e.ativos||0)+' ativos · '+(e.decididos||0)+' com tipo decidido · '+(e.sem_filial||0)+' sem filial'
@@ -14526,6 +14527,34 @@ async function gmaDecidir(codigo, tipo, filial){
     hideBanner(); loadGmaBase();
   }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
 }
+/* VER O APP DELE — a conferencia pelo painel.
+   O botao so' aparece para quem tem o PODER `poder.conferir_app`, que nasce
+   desligado e e' dado pessoa a pessoa na ficha de acessos. Esconder nao e'
+   protecao (quem sabe o endereco chama a rota): quem recusa e' o servidor,
+   em `conferencia.exigir()`. Esconder e' nao oferecer um botao que responderia
+   403 para a maioria das pessoas.
+
+   A CONFERENCIA ABRE EM OUTRA ABA porque ela troca a identidade do navegador
+   para aquele app: quem confere continua com o painel aberto do lado, e a
+   tarja vermelha no topo da aba nova diz de quem e' a conta. */
+function gmaPodeConferir(){
+  return ((USER && USER.poderes) || []).includes('poder.conferir_app');
+}
+
+async function gmaAbrirApp(codigo, nome){
+  if(!confirm('Abrir o aplicativo na conta de ' + nome + '?'
+             + '\n\nVocê vai ver o que ele vê. A sessão dura pouco e fica '
+             + 'registrada com o seu nome.')) return;
+  try{
+    const r=await respostaJSON(await fetch('/api/conferencia/abrir',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({codigo:codigo})}));
+    if(!r.ok){ showBanner(r.dados.mensagem||'Não foi possível abrir.'); return; }
+    hideBanner();
+    window.open('/motorista', '_blank');
+  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
+}
+
 async function gmaSincronizar(){
   const btn=document.getElementById('btnGmaSinc'), msg=document.getElementById('gmaSincMsg');
   if(btn) btn.disabled=true; msg.textContent='lendo a folha…';
@@ -47621,11 +47650,23 @@ function gesAcessosModal(id){
     return `<div class="ga-tela"><div class="ga-linha"><span>${esc(t.rotulo)}</span>
       <select class="ga-tela-sel" data-chave="${esc(t.chave)}" aria-label="${esc(t.rotulo)}" onchange="gesAcessosResumo()">${opc}</select></div>${suas}</div>`;
   }).join('')).join('');
+  /* OS PODERES FICAM NO TOPO, e separados das telas, porque respondem outra
+     pergunta: tela e' "o que voce abre", poder e' "o que voce pode FAZER com o
+     que abriu". Eles nascem DESLIGADOS — inclusive para quem tem a tela —,
+     entao aqui so' existe "dar". */
+  const poderes=((DATAGES.catalogo||{}).poderes||[]);
+  const blocoPoder = poderes.length ? `<h4>Poderes</h4>` + poderes.map(pd =>
+    `<div class="ga-tela"><label class="ga-aba">
+       <input type="checkbox" class="ga-poder-cx" value="${esc(pd.chave)}"
+              ${aj.get(pd.chave)==='liberar'?'checked':''} onchange="gesAcessosResumo()">
+       ${esc(pd.rotulo)}</label>
+     <div class="hint" style="padding:0 0 4px 26px">${esc(pd.explica||'')}</div></div>`
+  ).join('') : '';
   abrirModal(`
     <h3>Acessos de ${esc(u.nome)}</h3>
     <p class="ga-resumo">Perfil <b>${esc(u.perfil)}</b>. Os ajustes valem por cima do perfil: <b>tirar</b> vence sempre, e vale no próximo clique da pessoa, sem ela precisar sair.
       ${p.admin?'<br><b>Perfil administrador: os ajustes ficam guardados, mas não se aplicam enquanto o perfil for administrador.</b>':''}</p>
-    <div class="ga-lista">${corpo}</div>
+    <div class="ga-lista">${blocoPoder}${corpo}</div>
     <p class="ga-resumo" id="ga-resumo"></p>
     <p class="ga-resumo">Só aparecem as abas que o servidor consegue bloquear, porque os dados delas vêm de uma rota própria. Nas demais abas os dados chegam junto com a tela, e esconder o botão não protegeria o dado.</p>
     <div class="m-err" id="m-err"></div>
@@ -47637,6 +47678,9 @@ function gesAcessosColetar(){
   const out=[];
   document.querySelectorAll('.ga-tela-sel').forEach(s=>{ if(s.value) out.push({chave:s.dataset.chave, efeito:s.value}); });
   document.querySelectorAll('.ga-aba-cx:checked').forEach(c=>out.push({chave:c.value, efeito:'tirar'}));
+  // PODER SO' SE DA': o servidor recusa `tirar` num poder, porque tirar o que
+  // ninguem tem seria uma linha inerte no banco lida como protecao.
+  document.querySelectorAll('.ga-poder-cx:checked').forEach(c=>out.push({chave:c.value, efeito:'liberar'}));
   return out;
 }
 function gesAcessosResumo(){
@@ -47644,12 +47688,15 @@ function gesAcessosResumo(){
   const aj=gesAcessosColetar();
   const abasCat=new Set(((DATAGES.catalogo||{}).abas||[]).map(a=>a.chave));
   const ef=gesAcessoEfetivo(GA_USR.perfil_id, aj);
-  const lib=aj.filter(a=>a.efeito==='liberar').length;
+  const poderesCat=new Set(((DATAGES.catalogo||{}).poderes||[]).map(x=>x.chave));
+  const pod=aj.filter(a=>poderesCat.has(a.chave)).length;
+  const lib=aj.filter(a=>a.efeito==='liberar' && !poderesCat.has(a.chave)).length;
   const tir=aj.filter(a=>a.efeito==='tirar' && !abasCat.has(a.chave)).length;
   const abas=aj.filter(a=>abasCat.has(a.chave)).length;
   el.textContent = ef.admin
     ? 'Acesso efetivo: tudo (perfil administrador).'
-    : `Acesso efetivo: ${ef.telas.size} tela${ef.telas.size===1?'':'s'} · ${lib} liberada${lib===1?'':'s'} · ${tir} tirada${tir===1?'':'s'} · ${abas} aba${abas===1?'':'s'} tirada${abas===1?'':'s'}.`;
+    : `Acesso efetivo: ${ef.telas.size} tela${ef.telas.size===1?'':'s'} · ${lib} liberada${lib===1?'':'s'} · ${tir} tirada${tir===1?'':'s'} · ${abas} aba${abas===1?'':'s'} tirada${abas===1?'':'s'}`
+      + (pod?` · ${pod} poder${pod===1?'':'es'}.`:'.');
 }
 async function gesAcessosSalvar(id){
   let r;

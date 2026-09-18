@@ -195,6 +195,49 @@ ABAS: dict[str, dict] = {
 }
 
 
+# ─────────────────────────────────────────────── PODERES ───────────────────
+#
+# O TERCEIRO TIPO DE CHAVE, e ele responde outra pergunta. Tela e aba dizem o
+# que a pessoa ABRE; poder diz o que ela pode FAZER com o que abriu.
+#
+# TODO PODER NASCE DESLIGADO, inclusive para quem tem a tela: eles nao sao
+# ampliacoes de leitura, sao atravessamentos de fronteira. O primeiro deles
+# abre o aplicativo de um motorista com a conta de quem administra — a ponte
+# painel -> app que `api/motorista/__init__.py` mantem fechada por decisao.
+#
+# Administrador tem todos, como tem todas as telas: e a mesma regra de
+# `efetivas()`, e inventar uma excecao aqui criaria dois modelos de acesso na
+# mesma casa.
+PODERES: dict[str, dict] = {
+    "poder.conferir_app": {
+        "rotulo": "Abrir o aplicativo de um motorista (conferência)",
+        "explica": ("Abre o app e a campanha na conta de um motorista, para "
+                    "conferir o que ele está vendo. A sessão é a DELE (não é "
+                    "um modo administrador dentro do app), dura pouco, mostra "
+                    "tarja vermelha na tela e fica registrada com o nome de "
+                    "quem abriu."),
+    },
+}
+
+
+def poderes_do(ajustes, admin: bool) -> set[str]:
+    """Os poderes que a pessoa TEM. Nascem desligados; `tirar` nao se aplica —
+    o que nao foi dado ja' esta' tirado."""
+    if admin:
+        return set(PODERES)
+    return {c for c, e in ajustes if e == "liberar" and c in PODERES}
+
+
+def pode(chave: str, ajustes, admin: bool) -> bool:
+    return chave in poderes_do(ajustes, admin)
+
+
+def catalogo_poderes() -> list[dict]:
+    """Os poderes para a ficha de acessos da Gestão."""
+    return [{"chave": k, "rotulo": v["rotulo"], "explica": v["explica"]}
+            for k, v in PODERES.items()]
+
+
 def aba_da_rota(path: str) -> str | None:
     """A unidade de aba bloqueável a que esta rota pertence, ou None."""
     for chave, u in ABAS.items():
@@ -237,8 +280,8 @@ def efetivas(telas_perfil, ajustes, admin: bool, todas) -> tuple[list[str], list
 
 def validar(bruto, todas) -> tuple[list[tuple[str, str]] | None, str | None]:
     """Normaliza a lista de ajustes que veio da tela. Recusa, dizendo o motivo:
-    chave que não é tela nem aba bloqueável, efeito desconhecido, aba com
-    "liberar" e chave repetida."""
+    chave que não é tela, aba bloqueável nem poder; efeito desconhecido; aba
+    com "liberar"; poder com "tirar"; e chave repetida."""
     if not isinstance(bruto, list):
         return None, "Os ajustes de acesso vieram num formato inválido."
     if len(bruto) > MAX_AJUSTES:
@@ -257,8 +300,16 @@ def validar(bruto, todas) -> tuple[list[tuple[str, str]] | None, str | None]:
             if efeito != "tirar":
                 return None, ("Aba só se tira: quem tem a tela já vê as abas dela. "
                               f"Ajuste recusado: {ABAS[chave]['rotulo']}.")
+        elif chave in PODERES:
+            # PODER SÓ SE DÁ, pela razão simétrica: ele nasce desligado, e
+            # "tirar" o que ninguém tem seria uma linha que não faz nada —
+            # inerte no banco e lida como proteção por quem for conferir.
+            if efeito != "liberar":
+                return None, ("Poder só se dá: ele nasce desligado para todo "
+                              f"mundo. Ajuste recusado: {PODERES[chave]['rotulo']}.")
         elif chave not in conhecidas:
-            return None, f"'{chave}' não é uma tela nem uma aba bloqueável."
+            return None, (f"'{chave}' não é uma tela, uma aba bloqueável nem "
+                          "um poder.")
         if chave in vistos:
             return None, f"'{chave}' aparece duas vezes nos ajustes."
         vistos.add(chave)

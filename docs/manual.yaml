@@ -1088,6 +1088,21 @@ glossario:
   definicao: 'Nota de 0 a 100 que a plataforma de telemetria atribui ao motorista no mês, a partir do
     comportamento de condução. É o insumo da premiação junto com o km rodado: prêmio = km × valor por
     km × (nota ÷ 100).'
+- termo: Poder (acesso por pessoa)
+  definicao: 'O terceiro tipo de ajuste na ficha de acessos, ao lado de liberar/tirar tela e
+    tirar aba. Tela e aba respondem "o que você abre"; poder responde "o que você pode FAZER
+    com o que abriu". Todo poder NASCE DESLIGADO, inclusive para quem tem a tela — eles não
+    são ampliações de leitura, são atravessamentos de fronteira —, e por isso só existe
+    "dar": tirar o que ninguém tem seria uma linha inerte no banco, lida como proteção por
+    quem fosse conferir. Administrador tem todos, como tem todas as telas.'
+- termo: Conferir o aplicativo do motorista
+  definicao: 'Abrir o app (e a campanha) na conta de um motorista, pelo painel, para
+    conferir o que ele está vendo. A sessão aberta é a DELE — não é um modo administrador
+    dentro do app —, dura uma hora, mostra tarja vermelha no topo e fica registrada com o
+    nome de quem abriu. Existe ao lado do código mestre, que continua como retaguarda para
+    quem precisa conferir pelo celular sem ter conta no painel; a diferença é que o código é
+    um segredo compartilhado sem validade e registra "alguém que sabia o código", enquanto
+    aqui a trilha tem nome e revogar é tirar o acesso de uma pessoa.'
 - termo: Programa de desempenho (campanha trimestral)
   definicao: 'O programa com sorteio, do regulamento assinado — e ele NÃO é a premiação
     mensal. A premiação paga todo ciclo por uma régua operacional que a mesa ajusta quando
