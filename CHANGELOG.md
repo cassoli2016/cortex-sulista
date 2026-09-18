@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.115.0] — 18/09/2026  ·  CX-18/09/2026-v1.115.0
+
+### Adicionado
+- Ritual Semanal — o painel da semana passa a ter SEIS indicadores por gerência, de três. Entram embarques, clientes com carga e concentração da carteira no Comercial; km por veículo e ociosidade na Operação; CPK, pneus abaixo do limite e trocas previstas na Manutenção; turnover, horas extras sobre a folha e diária por dia trabalhado no RH. Todos automáticos — nenhum deles pede digitação.
+- Ritual Semanal — cada indicador automático passa a sugerir uma MÉDIA por mês ao lado da meta em branco, para a reunião decidir a meta com o número medido na frente. A sugestão é referência, não meta: o farol continua apagado até alguém decidir, e o modal diz isso com todas as letras.
+
+### Alterado
+- Ritual Semanal — as fontes do painel passam a ser lidas ao mesmo tempo, e não uma de cada vez. Com o dobro de indicadores a tela abre mais rápido do que abria antes: 8 segundos com o cache frio, 2 com ele quente, contra os 10 segundos que treze indicadores custavam.
+
 ## [1.114.0] — 18/09/2026  ·  CX-18/09/2026-v1.114.0
 
 ### Adicionado

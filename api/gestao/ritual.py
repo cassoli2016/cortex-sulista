@@ -104,10 +104,10 @@ class Fonte:
     """
 
     __slots__ = ("chave", "rotulo", "gerencia", "unidade", "casas",
-                 "direcao", "ler", "onde", "ler_ano", "ano_onde")
+                 "direcao", "ler", "onde", "ler_ano", "ano_onde", "tipo")
 
     def __init__(self, chave, rotulo, gerencia, unidade, casas, direcao,
-                 ler, onde, ler_ano=None, ano_onde=""):
+                 ler, onde, ler_ano=None, ano_onde="", tipo="estoque"):
         self.chave, self.rotulo, self.gerencia = chave, rotulo, gerencia
         self.unidade, self.casas, self.direcao = unidade, casas, direcao
         self.ler, self.onde = ler, onde
@@ -119,6 +119,13 @@ class Fonte:
         # estoque daria um número que não existe no mundo. `ler_ano is None`
         # é a declaração disso, e a tela diz "não acumula" em vez de inventar.
         self.ler_ano, self.ano_onde = ler_ano, ano_onde
+        # FLUXO, RAZÃO ou ESTOQUE — e isto decide a MÉDIA MENSAL, não é
+        # etiqueta. Fluxo acumula somando, então a média do mês é o acumulado
+        # dos meses fechados dividido por eles. Razão já é a média quando
+        # recalculada sobre a janela (dividir de novo daria um número sem
+        # significado). Estoque não tem média reconstituível: ninguém guardou
+        # quantas OS estavam abertas em março.
+        self.tipo = tipo
 
     def como_dict(self) -> dict:
         return {"chave": self.chave, "rotulo": self.rotulo,
@@ -454,10 +461,17 @@ def painel(ciclo_id: int, esquema: str | None = None) -> dict:
         (ciclo_id,), esquema=esquema)
 
     hoje = comum.hoje()
+    # AS FONTES SÃO LIDAS DE UMA VEZ, e não uma por linha. Em fila, treze
+    # indicadores custavam ~10 s frios e vinte e quatro passariam de vinte — a
+    # reunião esperando a tela. Chaves DISTINTAS: a mesma fonte em duas
+    # gerências é uma leitura só.
+    valores = _em_paralelo(
+        sorted({r["fonte"] for r in linhas if r["fonte"] != "manual"}),
+        ler_fonte)
     fora = []
     for r in linhas:
         d = dict(r)
-        auto = ler_fonte(d["fonte"]) if d["fonte"] != "manual" else None
+        auto = valores.get(d["fonte"]) if d["fonte"] != "manual" else None
         d["automatico"] = d["fonte"] != "manual"
         d["fonte_onde"] = FONTES[d["fonte"]].onde if d["fonte"] in FONTES else ""
         # A FONTE DESCONHECIDA SE DENUNCIA. Indicador apontando para uma chave
@@ -1280,15 +1294,16 @@ _registrar("turnover", "Turnover 12 meses", "rh",
 #    semana anterior — que é a pergunta que se pode responder sobre estoque.
 
 
-def _acumular(chave: str, ler_ano, ano_onde: str) -> None:
+def _acumular(chave: str, ler_ano, ano_onde: str, tipo: str = "razao") -> None:
     """Acrescenta o acumulado a uma fonte JÁ registrada.
 
     `FONTES[chave]` de propósito: chave errada levanta `KeyError` no import, e
     a API não sobe. A alternativa silenciosa (`.get`) produziria uma fonte sem
     acumulado — indistinguível, na tela, de uma que não acumula por decisão.
     """
+    assert tipo in ("fluxo", "razao", "janela"), tipo
     f = FONTES[chave]
-    f.ler_ano, f.ano_onde = ler_ano, ano_onde
+    f.ler_ano, f.ano_onde, f.tipo = ler_ano, ano_onde, tipo
 
 
 def _faturado_ano():
@@ -1343,20 +1358,24 @@ def _ano_km(caminho: str, fator: float = 1.0):
 
 
 _acumular("receita_faturada_mes", _faturado_ano(),
-          "ERP AVA · faturas emitidas no ano, mesma régua do mês")
+          "ERP AVA · faturas emitidas no ano, mesma régua do mês",
+          tipo="fluxo")
 _acumular("receita_cte_mes", _ano_km("kpis.receita"),
-          "Análise de KM, ano corrente · frete das viagens")
+          "Análise de KM, ano corrente · frete das viagens",
+          tipo="fluxo")
 _acumular("atingimento_meta", _atingimento_ano(),
           "Faturamento · realizado do ano ÷ meta do ano, com o mês em curso "
           "entrando só com a meta até hoje")
 _acumular("manutencao_mes",
           _aninhado("api.queries", "get_manutencao", "kpis.custo",
                     janela=_ano_com_filial),
-          "Manutenção, ano corrente · ordens de serviço emitidas")
+          "Manutenção, ano corrente · ordens de serviço emitidas",
+          tipo="fluxo")
 _acumular("combustivel_mes",
           _aninhado("api.queries", "get_combustivel", "kpis.custo_proprio",
                     janela=_ano_sem_filial),
-          "Combustível, ano corrente · frota própria")
+          "Combustível, ano corrente · frota própria",
+          tipo="fluxo")
 _acumular("retorno_vazio", _ano_km("kpis.retorno_vazio", 100.0),
           "Análise de KM, ano corrente · a razão do ANO, não a média dos meses")
 _acumular("rkm", _ano_km("kpis.rkm"),
@@ -1379,26 +1398,32 @@ def _ano_prod(caminho: str, fator: float = 1.0):
 
 
 _acumular("embarques_mes", _ano_com("kpis.ctes"),
-          "Clientes e RKM, ano corrente · CT-e emitidos no ano")
+          "Clientes e RKM, ano corrente · CT-e emitidos no ano",
+          tipo="fluxo")
 _acumular("clientes_ativos_mes", _ano_com("kpis.clientes"),
           "Clientes e RKM, ano corrente · clientes DISTINTOS no ano. Não é a "
-          "soma dos meses: quem embarca todo mês conta uma vez")
+          "soma dos meses: quem embarca todo mês conta uma vez",
+          tipo="janela")
 _acumular("concentracao_top10", _ano_com("kpis.concentracao_top10", 100.0),
           "Clientes e RKM, ano corrente · a concentração do ANO, que é o "
           "número de risco da carteira — um mês atípico não a move")
 _acumular("peso_maior_cliente", _ano_com("abc.top1", 100.0),
           "Clientes e RKM, ano corrente · fatia do cliente nº 1 no ano")
 _acumular("receita_por_veiculo", _ano_prod("kpis.receita_por_veiculo"),
-          "Produtividade de Veículos, ano corrente")
+          "Produtividade de Veículos, ano corrente",
+          tipo="fluxo")
 _acumular("km_por_veiculo", _ano_prod("kpis.km_por_veiculo"),
-          "Produtividade de Veículos, ano corrente")
+          "Produtividade de Veículos, ano corrente",
+          tipo="fluxo")
 _acumular("ociosidade_frota", _ano_prod("kpis.ociosidade", 100.0),
           "Produtividade de Veículos, ano corrente · quem não rodou NO ANO "
-          "INTEIRO, que é muito menos gente do que quem não rodou no mês")
+          "INTEIRO, que é muito menos gente do que quem não rodou no mês",
+          tipo="janela")
 _acumular("veiculos_ociosos", _ano_prod("kpis.ociosos"),
           "Produtividade de Veículos, ano corrente · veículos sem uma viagem "
           "no ano. Aqui o número CAI com a janela maior, e isso é correto: é "
-          "outra pergunta, não o mesmo indicador acumulado")
+          "outra pergunta, não o mesmo indicador acumulado",
+          tipo="janela")
 
 
 def _diarias_ano(campo: str):
@@ -1414,7 +1439,8 @@ def _diarias_ano(campo: str):
 
 
 _acumular("diarias_mes", _diarias_ano("total"),
-          "Jornada · diária paga na folha, ano corrente")
+          "Jornada · diária paga na folha, ano corrente",
+          tipo="fluxo")
 _acumular("diaria_por_dia", _diarias_ano("por_dia"),
           "Jornada · diária do ano ÷ dias trabalhados do ano. É razão: o "
           "acumulado NÃO é a média das médias mensais")
@@ -1466,6 +1492,65 @@ def ler_acumulado(chave: str) -> float | None:
         return None
 
 
+def media_mensal(chave: str, valor_mes, valor_ano):
+    """A MÉDIA POR MÊS, sem nenhuma leitura a mais.
+
+    Ela sai de aritmética sobre dois números que o painel já tem, e a conta
+    depende do TIPO da fonte:
+
+    * **fluxo** (receita, custo, embarques): `(ano − mês) ÷ meses fechados`. O
+      mês em curso SAI da conta — média de referência só sobre mês fechado, ou
+      todo dia 1º a média despenca e sobe sozinha ao longo do mês. Foi para não
+      precisar de uma terceira leitura que a subtração existe: o acumulado vai
+      até hoje e o mês corrente é exatamente o pedaço a tirar.
+    * **razão** (RKM, km/l, retorno vazio): a razão do ANO já É a média — ela
+      foi recalculada sobre o período inteiro. Dividir por doze daria um número
+      sem significado nenhum, e plausível.
+    * **janela** (clientes distintos, veículos parados no ano): não tem média
+      mensal. 25 clientes no ano não são 3 por mês; são os mesmos 19 quase todo
+      mês. Devolver `None` aqui é o que impede a tela de inventar.
+
+    Em JANEIRO não há mês fechado e a média de fluxo é `None` — o que a tela
+    diz, em vez de dividir por zero ou fingir que o mês em curso serve.
+    """
+    f = FONTES.get(chave)
+    if f is None or valor_ano is None:
+        return None
+    if f.tipo == "razao":
+        return valor_ano
+    if f.tipo != "fluxo":
+        return None
+    fechados = date.today().month - 1
+    if fechados <= 0 or valor_mes is None:
+        return None
+    return (valor_ano - valor_mes) / fechados
+
+
+def _em_paralelo(itens: list, ler) -> dict:
+    """Lê as fontes de uma vez só, com o leque LIMITADO.
+
+    O painel lê uma fonte por indicador a cada pintura. Com treze indicadores
+    isso já custava cerca de dez segundos frios; encorpado para seis por
+    gerência (24), em fila, passaria de vinte — e a reunião esperaria a tela.
+    Em paralelo o custo vira o da fonte mais lenta, porque o `cached` da casa
+    tem VOO ÚNICO: duas threads pedindo a mesma função esperam uma consulta só.
+
+    O TETO É `processos.LEQUE_MAXIMO`, e não um número escolhido aqui: é a
+    constante que diz quantas conexões UMA requisição pode tirar do pool de
+    uma vez. Foi um leque maior que o pool que derrubou a Visão Geral com
+    `PoolTimeout` em 04/09/2026.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    from api import processos
+
+    if not itens:
+        return {}
+    largura = min(processos.LEQUE_MAXIMO, len(itens))
+    with ThreadPoolExecutor(max_workers=largura) as ex:
+        return dict(zip(itens, ex.map(ler, itens)))
+
+
 def acumulados(ciclo_id: int, esquema: str | None = None) -> dict:
     """O acumulado de cada indicador do ciclo — a SEGUNDA requisição da tela.
 
@@ -1500,17 +1585,34 @@ def acumulados(ciclo_id: int, esquema: str | None = None) -> dict:
             " WHERE ciclo_id = %s", (anterior["id"],), esquema=esquema)}
 
     ini, fim = _ano_corrente()
+    # AS DUAS LEITURAS DE CADA FONTE VÃO JUNTAS E EM PARALELO. São chaves
+    # DISTINTAS: a mesma fonte cadastrada em duas gerências seria lida duas
+    # vezes por engano, e o `cached` colapsaria — mas o leque estaria gasto.
+    chaves = sorted({r["fonte"] for r in linhas
+                     if (FONTES.get(r["fonte"]) is not None
+                         and FONTES[r["fonte"]].ler_ano is not None)})
+    ano = _em_paralelo(chaves, ler_acumulado)
+    mes = _em_paralelo(chaves, ler_fonte)
+
     out = {}
     for r in linhas:
         f = FONTES.get(r["fonte"])
         acumula = f is not None and f.ler_ano is not None
-        valor = ler_acumulado(r["fonte"]) if acumula else None
+        valor = ano.get(r["fonte"]) if acumula else None
         ant = passado.get(r["indicador_id"]) if not acumula else None
         out[str(r["indicador_id"])] = {
             "acumula": acumula,
             "valor": valor,
             "onde": (f.ano_onde if f else ""),
             "semana_anterior": None if ant is None else float(ant),
+            # A MÉDIA É SUGESTÃO, NÃO META. Ela entra na tela como referência
+            # para a reunião decidir a meta com o número na frente — e o farol
+            # continua apagado enquanto ninguém decidir, porque verde contra
+            # uma média que ninguém combinou é o painel se aprovando sozinho.
+            "media": (media_mensal(r["fonte"], mes.get(r["fonte"]), valor)
+                      if acumula else None),
+            "tipo": (f.tipo if f else "estoque"),
         }
     return {"indicadores": out, "de": ini, "ate": fim,
+            "meses_fechados": max(0, date.today().month - 1),
             "tem_anterior": bool(anterior)}

@@ -50273,7 +50273,7 @@ function ritPainelRender(){
         /* SEM META E DITO, e nao mostrado como travessao: travessao se le como
            "nao se aplica", e aqui significa "o farol nao vai acender nesta
            linha". O conserto e no cadastro, e a tela aponta para la. */
-        + '<td class="num">' + (l.sem_meta
+        + '<td class="num" id="rit-meta-' + l.indicador_id + '">' + (l.sem_meta
             ? '<span class="rit-falta" title="sem meta o farol nao acende - defina no cadastro de indicadores">sem meta</span>'
             : esc(ritNum(l.meta_valor, l.unidade, l.casas))) + '</td>'
         + '<td class="num">' + esc(ritNum(l.valor, l.unidade, l.casas)) + '</td>'
@@ -50318,6 +50318,7 @@ function ritPainelRender(){
    de uma semana anterior chegaria atrasada e preencheria as celulas da semana
    que esta na tela agora. */
 let RIT_ANO_SEQ = 0;
+let RIT_ANO = {};
 async function ritAcumulado(q){
   const seq = ++RIT_ANO_SEQ;
   const pinta = (id, html) => {
@@ -50334,10 +50335,21 @@ async function ritAcumulado(q){
       return;
     }
     const inds = (d.dados || {}).indicadores || {};
+    RIT_ANO = inds;        // o modal lê daqui para sugerir a meta
     (RIT.gerencias || []).forEach(g => g.linhas.forEach(l => {
       const x = inds[String(l.indicador_id)];
       if(!l.automatico){ pinta(l.indicador_id, '<span class="muted">—</span>'); return; }
       if(!x){ pinta(l.indicador_id, '<span class="muted">—</span>'); return; }
+      /* A MÉDIA É SUGESTÃO, E O FAROL CONTINUA APAGADO. Ela aparece embaixo
+         do "sem meta" para a reunião decidir com o número na frente; verde
+         contra uma média que ninguém combinou seria o painel se aprovando
+         sozinho. Quem aceita a sugestão é uma pessoa, no modal. */
+      if(l.sem_meta && x.media !== null && x.media !== undefined){
+        const cel = document.getElementById('rit-meta-' + l.indicador_id);
+        if(cel) cel.innerHTML = '<span class="rit-falta" title="sem meta o farol nao acende">sem meta</span>'
+          + '<div class="muted" style="font-size:11px" title="média por mês no ano corrente — é referência, não meta combinada">'
+          + 'média ' + esc(ritNum(x.media, l.unidade, l.casas)) + '</div>';
+      }
       if(x.acumula){
         pinta(l.indicador_id, x.valor === null || x.valor === undefined
           ? '<span class="muted" title="a fonte nao respondeu agora">—</span>'
@@ -50398,6 +50410,14 @@ async function ritLinhaModal(indId){
       + '</select></div>'
     + '<div><label>2 · Entrega — o realizado da semana</label>' + realizado + '</div>'
     + '<div><label>Meta desta semana <span style="font-weight:400;color:var(--n500)">(vazio usa a meta padrão do indicador)</span></label>'
+      + ((RIT_ANO[String(l.indicador_id)] || {}).media !== null
+         && (RIT_ANO[String(l.indicador_id)] || {}).media !== undefined
+         && l.sem_meta
+         ? '<div class="hint" style="margin-bottom:9px">Sugestão: <b>'
+           + esc(ritNum(RIT_ANO[String(l.indicador_id)].media, l.unidade, l.casas))
+           + '</b> — a média por mês do ano corrente. É referência medida, não '
+           + 'meta combinada: quem decide é esta reunião.</div>'
+         : '')
       + '<input type="text" inputmode="decimal" id="rit-meta" value="'
       + (l.meta !== null && l.meta !== undefined ? esc(String(l.meta).replace('.', ',')) : '')
       + '" placeholder="' + esc(l.meta_padrao !== null && l.meta_padrao !== undefined ? String(l.meta_padrao) : '') + '"></div>'

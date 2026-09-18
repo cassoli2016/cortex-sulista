@@ -113,17 +113,30 @@ PAINEL_ANO = {
                            onde="Visão Geral · OS em aberto",
                            dir="menor_melhor", valor=51, meta=40, pct=-27.5,
                            status="vermelho", acao_id=3, acao="Fechar as antigas",
-                           prazo="2026-09-15", resp="Rui Sá")]}],
+                           prazo="2026-09-15", resp="Rui Sá"),
+                    # SEM META: é a única linha onde a sugestão aparece, e é o
+                    # estado real de todos os indicadores hoje (nenhuma meta
+                    # cadastrada). Sem ela o guard passaria por vacuidade.
+                    dict(_linha("Custo de manutenção", "manutencao", "Manutenção",
+                                id=5, fonte="manutencao_mes",
+                                onde="Visão Geral · manutenção do mês",
+                                dir="menor_melhor", valor=182368),
+                         sem_meta=True)]}],
 }
 
 ACUMULADO = {
     "indicadores": {
-        "1": {"acumula": True, "valor": 28974500.0,
-              "onde": "ERP AVA · faturas emitidas no ano", "semana_anterior": None},
-        "2": {"acumula": True, "valor": 198320.0,
-              "onde": "Manutenção, ano corrente", "semana_anterior": None},
-        "4": {"acumula": False, "valor": None, "onde": "",
-              "semana_anterior": 47.0},
+        "1": {"acumula": True, "valor": 28974500.0, "tipo": "fluxo",
+              "onde": "ERP AVA · faturas emitidas no ano",
+              "media": 3621812.0, "semana_anterior": None},
+        "2": {"acumula": True, "valor": 198320.0, "tipo": "fluxo",
+              "onde": "Manutenção, ano corrente",
+              "media": 24790.0, "semana_anterior": None},
+        "4": {"acumula": False, "valor": None, "onde": "", "tipo": "estoque",
+              "media": None, "semana_anterior": 47.0},
+        "5": {"acumula": True, "valor": 4858840.0, "tipo": "fluxo",
+              "onde": "Manutenção, ano corrente",
+              "media": 584559.0, "semana_anterior": None},
     },
     "de": "2026-01-01", "ate": "2026-09-18", "tem_anterior": True,
 }
@@ -407,3 +420,45 @@ def test_as_regras_separam_o_que_o_SISTEMA_aplica(pagina):
     linhas = pg.locator("#rit-regras li").all_inner_texts()
     central = next(l for l in linhas if "não fecha pauta" in l)
     assert "aplicada pelo sistema" in central.lower()
+
+
+def test_a_MEDIA_aparece_como_sugestao_embaixo_do_sem_meta(pagina):
+    """Quem opera pediu (18/09/2026): "já sugira as médias". A sugestão entra
+    ao lado do "sem meta" para a reunião decidir com o número na frente — e o
+    FAROL CONTINUA APAGADO até alguém aceitar, porque verde contra uma média
+    que ninguém combinou é o painel se aprovando sozinho."""
+    pg, base = pagina
+    _abrir(pg, base, painel=PAINEL_ANO)
+    pg.wait_for_function(
+        "() => !document.querySelector('#rit-ano-1').textContent.includes('medindo')",
+        timeout=20000)
+    cel = pg.text_content("#rit-meta-5")
+    assert "sem meta" in cel and "média" in cel, cel
+    assert "584.559" in cel, cel
+
+
+def test_a_sugestao_NAO_acende_o_farol(pagina):
+    """O status da linha continua o que o servidor mandou — a média não vira
+    meta sozinha."""
+    pg, base = pagina
+    _abrir(pg, base, painel=PAINEL_ANO)
+    pg.wait_for_function(
+        "() => !document.querySelector('#rit-ano-1').textContent.includes('medindo')",
+        timeout=20000)
+    linha = pg.text_content("#rit-painel tr:nth-child(2)")
+    assert "amarelo" in linha, linha          # o que o dublê mandou, intacto
+
+
+def test_o_modal_traz_a_media_como_SUGESTAO_de_meta(pagina):
+    """É onde a meta é decidida: a sugestão chega com o número e dizendo que é
+    referência medida, não meta combinada."""
+    pg, base = pagina
+    _abrir(pg, base, painel=PAINEL_ANO)
+    pg.wait_for_function(
+        "() => !document.querySelector('#rit-ano-1').textContent.includes('medindo')",
+        timeout=20000)
+    pg.click("#rit-painel td[id='rit-meta-5'] ~ td button")
+    pg.wait_for_selector("#rit-meta", timeout=10000)
+    modal = pg.text_content("#modalBox")
+    assert "Sugestão" in modal and "584.559" in modal, modal[:400]
+    assert "não" in modal and "meta combinada" in modal

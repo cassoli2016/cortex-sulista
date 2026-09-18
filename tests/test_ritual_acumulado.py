@@ -266,7 +266,8 @@ def test_acumulados_separa_QUEM_NAO_ACUMULA_de_quem_nao_respondeu(esquema_pg):
     assert d["de"].endswith("-01-01") and d["ate"] == date.today().isoformat()
     assert d["indicadores"], "o ciclo semeado tem indicadores"
     for x in d["indicadores"].values():
-        assert set(x) == {"acumula", "valor", "onde", "semana_anterior"}
+        assert set(x) == {"acumula", "valor", "onde", "semana_anterior",
+                          "media", "tipo"}
         if x["acumula"]:
             assert x["onde"], "acumulado sem procedência escrita"
         else:
@@ -274,3 +275,133 @@ def test_acumulados_separa_QUEM_NAO_ACUMULA_de_quem_nao_respondeu(esquema_pg):
     # e existe ao menos um de cada lado, senão o teste passa por vacuidade
     lados = {x["acumula"] for x in d["indicadores"].values()}
     assert lados == {True, False}, lados
+
+
+# =========================================================== a média sugerida
+
+def test_a_media_de_FLUXO_tira_o_mes_em_curso(monkeypatch):
+    """A média por mês sai de aritmética sobre dois números que o painel já
+    tem: `(ano − mês) ÷ meses fechados`. O mês em curso SAI — com ele dentro, a
+    média despencaria todo dia 1º e subiria sozinha ao longo do mês, sem nada
+    ter acontecido. É o veneno do dia em curso na conta da referência.
+    """
+    import datetime as _dt
+
+    class _Data(date):
+        @classmethod
+        def today(cls):
+            return cls(2026, 9, 18)          # oito meses fechados
+
+    monkeypatch.setattr(_dt, "date", _Data)
+    monkeypatch.setattr("api.gestao.ritual.date", _Data)
+    # 99,7 no ano, 7,2 no mês → (99,7 − 7,2) ÷ 8
+    v = ritual.media_mensal("receita_faturada_mes", 7.2, 99.7)
+    assert v == pytest.approx((99.7 - 7.2) / 8)
+    # com o mês dentro dariam 12,46 — plausível, e errado
+    assert v != pytest.approx(99.7 / 8)
+
+
+def test_a_media_de_RAZAO_e_a_propria_razao_do_ano():
+    """RKM do ano já É a média: foi recalculado sobre o período inteiro.
+    Dividir por doze daria um número sem significado nenhum — e plausível."""
+    assert ritual.media_mensal("rkm", 11.74, 11.53) == pytest.approx(11.53)
+    assert ritual.media_mensal("retorno_vazio", 19.4, 17.9) == pytest.approx(17.9)
+
+
+def test_contagem_na_JANELA_nao_vira_media():
+    """25 clientes distintos no ano não são 3 por mês: são os mesmos 19 quase
+    todo mês. Dividir aqui inventaria um número."""
+    assert ritual.media_mensal("clientes_ativos_mes", 19.0, 25.0) is None
+    assert ritual.FONTES["clientes_ativos_mes"].tipo == "janela"
+
+
+def test_em_JANEIRO_nao_ha_media_porque_nao_ha_mes_fechado(monkeypatch):
+    """Média de referência só sobre mês FECHADO. Em janeiro não há nenhum, e a
+    resposta é ausência — não uma divisão por zero nem o mês em curso servindo
+    de média de si mesmo."""
+    import datetime as _dt
+
+    class _Jan(date):
+        @classmethod
+        def today(cls):
+            return cls(2026, 1, 9)
+
+    monkeypatch.setattr(_dt, "date", _Jan)
+    monkeypatch.setattr("api.gestao.ritual.date", _Jan)
+    assert ritual.media_mensal("receita_faturada_mes", 1.0, 1.0) is None
+
+
+def test_o_ESTOQUE_nao_tem_media():
+    assert ritual.media_mensal("os_abertas", 53.0, None) is None
+    assert ritual.FONTES["os_abertas"].tipo == "estoque"
+
+
+def test_toda_fonte_que_acumula_DECLARA_o_tipo():
+    """`tipo` decide a conta da média, não é etiqueta. Fonte nova que esquecer
+    de declarar cairia no padrão e a média sairia errada em silêncio — por isso
+    `_acumular` recusa tipo fora da lista, e este guard cobra a varredura."""
+    for chave, f in ritual.FONTES.items():
+        if f.ler_ano is None:
+            assert f.tipo == "estoque", (chave, f.tipo)
+        else:
+            assert f.tipo in ("fluxo", "razao", "janela"), (chave, f.tipo)
+
+
+def test_as_fontes_do_painel_sao_lidas_EM_PARALELO(monkeypatch):
+    """Vinte e quatro indicadores lidos em fila fariam a reunião esperar a
+    tela: eram ~10 s com treze. O guard não cronometra (isso mediria a máquina)
+    — ele conta quantas leituras acontecem AO MESMO TEMPO."""
+    import threading
+    import time
+
+    vivos, pico = [0], [0]
+    trava = threading.Lock()
+
+    def lento(_chave):
+        with trava:
+            vivos[0] += 1
+            pico[0] = max(pico[0], vivos[0])
+        time.sleep(0.05)
+        with trava:
+            vivos[0] -= 1
+        return 1.0
+
+    ritual._em_paralelo(["a", "b", "c", "d", "e", "f"], lento)
+    assert pico[0] > 1, "as fontes foram lidas uma por vez"
+    # e o leque respeita o teto do pool: passar disso derrubou a Visão Geral
+    # com PoolTimeout em 04/09/2026
+    from api import processos
+    assert pico[0] <= processos.LEQUE_MAXIMO, pico[0]
+
+
+def test_o_tipo_bate_com_o_COMPORTAMENTO_da_fonte():
+    """O guard que pega tipo trocado — que é silencioso e plausível.
+
+    `km_por_veiculo` nasceu marcado como RAZÃO e a média sugerida saiu 22.956
+    km/mês, que é o acumulado do ano inteiro: uma meta sete vezes maior que o
+    mês, apresentada como referência. O que separa razão de fluxo não é o nome
+    da unidade — é o COMPORTAMENTO: razão não cresce com a janela (RKM do mês e
+    do ano são ~11,7), fluxo cresce (receita do ano é doze vezes a do mês).
+
+    Por isso o guard MEDE os dois valores em vez de ler a declaração. Sem ERP
+    ele se pula, porque teste que exige número de terceiro vira alarme de
+    terceiro.
+    """
+    suspeitas = []
+    for chave, f in ritual.FONTES.items():
+        if f.ler_ano is None:
+            continue
+        mes, ano = ritual.ler_fonte(chave), ritual.ler_acumulado(chave)
+        if mes is None or ano is None or abs(mes) < 1e-9:
+            continue
+        cresceu = abs(ano) > 3 * abs(mes)
+        if cresceu and f.tipo == "razao":
+            suspeitas.append("%s cresce %.1fx com a janela e está como razão"
+                             % (chave, ano / mes))
+        if not cresceu and f.tipo == "fluxo":
+            suspeitas.append("%s não cresce com a janela e está como fluxo"
+                             % chave)
+    if not suspeitas and all(ritual.ler_fonte(c) is None
+                             for c in ("rkm", "receita_faturada_mes")):
+        pytest.skip("ERP fora do ar: nada foi medido")
+    assert not suspeitas, suspeitas

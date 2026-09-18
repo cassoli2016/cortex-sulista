@@ -1010,6 +1010,16 @@ glossario:
     KM, CNH da tela de CNH) e NÃO se digita: se o número está errado, o conserto é na origem. Isso
     existe para a reunião discutir o desvio em vez de conferir digitação. Cada gerência preenche
     ANTES da reunião; a tela mostra quem faltou, que é informação de gestão por si só.'
+- termo: Média sugerida (Ritual Semanal)
+  definicao: 'A referência que aparece embaixo de "sem meta": a média POR MÊS do ano corrente,
+    calculada sem nenhuma leitura a mais. Em indicador de fluxo (receita, custo, embarques) é o
+    acumulado dos meses FECHADOS dividido por eles — o mês em curso sai da conta, senão a
+    referência despencaria todo dia 1º e subiria sozinha ao longo do mês. Em razão (RKM, km/l,
+    retorno vazio) a razão do ano JÁ é a média, porque foi recalculada sobre o período inteiro.
+    Contagem na janela (clientes distintos, veículos parados no ano) não tem média mensal e a
+    tela não inventa uma. É REFERÊNCIA, NÃO META: o farol continua apagado enquanto ninguém
+    decidir, porque verde contra uma média que ninguém combinou é o painel se aprovando sozinho —
+    quem aceita a sugestão é uma pessoa, no modal de apontamento.'
 - termo: Diesel por km × Consumo (km/l)
   definicao: 'São NÚMEROS DIFERENTES e já se confundiram numa linha só. DIESEL POR KM é custo:
     R$ gastos em diesel ÷ km rodados do CAMINHÃO próprio (R$ 1,99/km em 09/2026) — é ele que

@@ -327,15 +327,15 @@ def test_indicador_inativado_SAI_do_painel_e_o_historico_fica(esquema_pg):
     assert resta == 1, "inativar apagou o apontamento"
 
 
-def test_o_seed_da_TRES_indicadores_por_gerencia(esquema_pg):
-    """Três é o que cabe em dois minutos de fala sem virar leitura de planilha.
+def test_o_cadastro_da_SEIS_indicadores_por_gerencia(esquema_pg):
+    """Seis por gerência — pedido de quem opera em 18/09/2026 ("deixe essa
+    parte bem encorpada para a reunião de segunda").
 
-    O TETO É QUATRO DESDE 18/09/2026, e por uma correção, não por apetite: o
-    indicador de diesel da Operação dizia "Consumo — km por litro" e mostrava
-    um CUSTO (R$/km) com direção maior-melhor — o diesel encarecendo pintava
-    verde. Ele virou dois indicadores com os nomes certos (`0101`), e a
-    Operação passou a ter quatro. Piso de três continua valendo: gerência com
-    menos nasce pedindo digitação onde as outras não pedem.
+    O seed do `0067` deu TRÊS, e o motivo escrito lá era o tempo de fala. O que
+    mudou: a linha passou a se ler sozinha (no mês, no ano e a média sugerida),
+    e a leitura das fontes virou PARALELA — 24 indicadores custam menos que os
+    13 de antes em fila. O piso é seis; o teto fica com quem opera, na tela de
+    cadastro, que é onde essa decisão mora.
 
     E o guard confere o CADASTRO contra o REGISTRO de fontes, nos dois sentidos
     — as duas listas moram em arquivos diferentes (a migration e o módulo), e
@@ -348,9 +348,11 @@ def test_o_seed_da_TRES_indicadores_por_gerencia(esquema_pg):
 
     assert sorted(por_ger) == ["comercial", "manutencao", "operacao", "rh"]
     for ger, fontes in por_ger.items():
-        assert 3 <= len(fontes) <= 4, "%s tem %d indicadores" % (ger, len(fontes))
+        assert len(fontes) >= 6, "%s tem só %d indicadores" % (ger, len(fontes))
         orfas = [f for f in fontes if f != "manual" and f not in ritual.FONTES]
         assert not orfas, "%s aponta para fonte inexistente: %s" % (ger, orfas)
+        # fonte repetida na MESMA gerência é linha duplicada na reunião
+        assert len(set(fontes)) == len(fontes), "%s repete fonte: %s" % (ger, fontes)
 
 
 def test_nenhum_indicador_semeado_esta_ORFAO(esquema_pg):
