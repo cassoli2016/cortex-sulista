@@ -1,3 +1,61 @@
+- versao: "1.114.0"
+  data: "2026-09-18"
+  adicionado:
+    - >-
+      Gestão de Motoristas — a premiação foi reestruturada inteira, e a tela
+      passa a mostrar a régua nova: o ciclo vai do dia 16 ao dia 15, e a nota
+      de cada motorista junta três pilares — condução (Gobrax), comportamento
+      (as ocorrências do ERP classificadas como desvio ou mérito) e
+      gerenciamento de risco (os contadores do rastreamento). Quem está sem
+      uma das fontes tem a nota calculada entre as que existem, e a tela diz
+      quais entraram: nota de dois pilares não é comparável com a de três sem
+      dizer isso.
+    - >-
+      Reputação e categorias — ao lado da nota do mês existe agora a nota da
+      HISTÓRIA: seis ciclos de conduta, com os méritos somando e cada ciclo
+      sem desvio valendo um bônus, contado só a partir da admissão. Dela saem
+      as categorias (Elite, Diamante, Ouro, Prata e Bronze). Uma pessoa pode
+      estar em atenção no mês e seguir Ouro — categoria que oscila todo mês
+      não é categoria.
+    - >-
+      Medida sugerida — quem teve desvio no ciclo recebe uma sugestão de
+      tratativa pela reincidência (quatro desvios em seis ciclos sugerem
+      suspensão; três em seis, advertência escrita; dois em três, advertência
+      verbal; o primeiro, orientação registrada), e desvio gravíssimo nunca
+      fica abaixo de advertência escrita. É sugestão: o rito é trabalhista e
+      quem aplica é o RH. O que o sistema faz é acompanhar a reincidência, que
+      é o que ninguém consegue fazer à mão.
+    - >-
+      Prêmio por filial, com escada de tempo de casa e ajuste do ciclo — o
+      prêmio é o valor base vezes a nota, com teto de 100%. O valor base sai
+      da tabela por filial, da escada de tempo de casa (nas filiais marcadas
+      para isso) ou de um ajuste decidido à mão, que vale só naquele ciclo e
+      exige motivo e autor. Filial sem valor cadastrado NÃO paga zero: a linha
+      diz que falta cadastrar, porque zero é um número que alguém decidiu e
+      ausência de cadastro é outra coisa.
+    - >-
+      Fechamento do ciclo — mês pago não se recalcula. Fechado o ciclo, a tela
+      passa a mostrar a fotografia do que foi pago (com as três notas, o valor
+      base e de onde ele veio), e não o cálculo: as fontes continuam se
+      mexendo depois do pagamento, e sem a foto um valor que já saiu na folha
+      mudaria sozinho semanas depois. Reabrir é possível, exige motivo e fica
+      registrado.
+    - >-
+      Pendências à vista — a tela diz quantas notas saíram com pilar faltando,
+      quais códigos de ocorrência do ERP ainda não têm decisão (eles ficam
+      FORA da conta até alguém decidir, nunca viram desvio por descuido),
+      quantos nomes da Gobrax não casaram com o cadastro e quem está sem
+      filial. Número que vem de uma base com buraco diz o tamanho do buraco.
+    - >-
+      Acesso ao dinheiro em separado — as abas Prêmio e Valores do prêmio
+      podem ser tiradas de um usuário sem tirar a tela: quem acompanha conduta
+      passa a poder usar a Gestão de Motoristas sem ver quanto cada um recebe.
+  alterado:
+    - >-
+      A tela Premiação de Motoristas abre na Gestão de Motoristas. A premiação
+      que PAGA hoje (nota da Gobrax × km rodado, por mês-calendário) continua
+      inteira e intocada, nas duas últimas abas da mesma tela — a régua nova
+      não paga nada até quem opera virar a chave.
 - versao: "1.113.0"
   data: "2026-09-18"
   corrigido:
