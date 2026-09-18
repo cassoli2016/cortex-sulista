@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B1926">
+<title>CÓRTEX · Campanha</title>
+<link rel="icon" href="/static/favicon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
+<!-- O manifesto e PROPRIO e abre na campanha: o do painel abre em `/`, e
+     o motorista nao tem conta la'. -->
+<link rel="manifest" href="/static/manifest-campanha.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Campanha">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" media="print" onload="this.media='all'"
+      href="https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700&display=swap">
+<noscript><link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700&display=swap"></noscript>
+<!--
+  APLICATIVO DA CAMPANHA — pagina propria, e nao uma tela do app do motorista.
+
+  POR QUE SEPARADA (decisao de quem opera, 18/09/2026): a campanha e' um
+  programa com comeco, meio e fim, divulgado por link e QR no grupo de
+  WhatsApp. Ela precisa de endereco proprio, de uma capa que se entenda sem
+  login e de um visual que diga "isto e' a campanha" — coisas que uma aba
+  dentro de outro app nao tem.
+
+  O QUE ELA COMPARTILHA COM O APP DO MOTORISTA, de proposito: a SESSAO. O
+  contrato do modulo (`api/motorista/__init__.py`) diz que uma segunda
+  autenticacao e' cara de manter, e criar uma terceira porta so' para a
+  campanha seria mais um lugar por onde errar. Quem ja' entrou no app do
+  motorista neste aparelho ja' esta' logado aqui.
+
+  A CAPA NAO MOSTRA NUMERO NENHUM. Sem sessao, a pagina diz o que e' o
+  programa e como entrar — nada de nome, nota, categoria ou contagem. O QR
+  circula em grupo de WhatsApp, e o que circula com ele tem de ser so' o
+  convite.
+
+  UMA COLUNA, ALVO GRANDE, SEM BIBLIOTECA: o leitor esta' no celular, no sol,
+  no 4G. Nenhum grafico — a nota se le' em numero e a faixa em palavra.
+-->
+<style>
+:root{
+  --navy-900:#0B1926; --navy-800:#102538; --navy-700:#17344F;
+  --brand:#942821; --brand-claro:#E0705F;
+  --ok:#1E7F4F; --aviso:#B97709; --erro:#C03221;
+  --ouro:#B8860B; --elite:#7C3AED;
+  --papel:#FFFFFF; --fundo:#F4F6F8; --linha:#E3E7EB;
+  --ink:#14181D; --ink2:#636C76;
+  --r:10px;
+  --font:'Saira',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+}
+/* O TEMA ESCURO VALE SO' DEPOIS DE ENTRAR, como no app do motorista: a capa e'
+   a marca da casa e e' navy em todo aparelho. */
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --papel:#111A22; --fundo:#0B1219; --linha:#1E2A35;
+    --ink:#E8EDF2; --ink2:#93A0AC;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{font-family:var(--font);background:var(--fundo);color:var(--ink);
+  -webkit-font-smoothing:antialiased;font-size:15px;line-height:1.45}
+body.capa{background:linear-gradient(160deg,var(--navy-900) 0%,var(--navy-700) 100%);
+  color:#fff;min-height:100vh}
+.wrap{max-width:560px;margin:0 auto;padding:18px 16px 40px}
+.topo{display:flex;align-items:center;gap:9px;padding:14px 16px;
+  background:var(--navy-900);color:#fff}
+.topo b{font-size:15px;letter-spacing:.02em}
+.topo .sair{margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,.28);
+  color:#fff;border-radius:8px;padding:7px 11px;font-family:var(--font);font-size:13px}
+.card{background:var(--papel);border:1px solid var(--linha);border-radius:var(--r);
+  padding:18px;margin:0 0 18px}
+h1{font-size:21px;margin:0 0 9px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:var(--ink2);
+  margin:0 0 9px;font-weight:700}
+p{margin:0 0 9px}
+.sub{color:var(--ink2);font-size:13px}
+/* A CATEGORIA E' A PRIMEIRA COISA: e' ela que diz se ele concorre. */
+.faixa{display:flex;align-items:center;gap:14px}
+.selo{font-size:26px;font-weight:700;letter-spacing:.04em}
+.selo.ELITE{color:var(--elite)} .selo.OURO{color:var(--ouro)}
+.selo.PRATA{color:var(--ink2)} .selo.BRONZE{color:#8B5E34}
+.selo.PENDENTE{color:var(--ink2);font-size:18px}
+.nota{font-size:40px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.concorre{display:inline-block;border-radius:8px;padding:5px 10px;font-size:13px;
+  font-weight:700;margin-top:9px}
+.concorre.sim{background:rgba(30,127,79,.14);color:var(--ok)}
+.concorre.nao{background:rgba(185,119,9,.14);color:var(--aviso)}
+.linha{display:flex;justify-content:space-between;gap:14px;padding:9px 0;
+  border-top:1px solid var(--linha)}
+.linha:first-child{border-top:0}
+.linha b{font-variant-numeric:tabular-nums}
+.pilar .sub{font-size:12px}
+.barra{height:6px;border-radius:3px;background:var(--linha);overflow:hidden;margin-top:6px}
+.barra i{display:block;height:100%;background:var(--brand-claro)}
+ul{margin:9px 0 0;padding-left:18px} li{margin-bottom:6px}
+button.btn{width:100%;min-height:48px;border:0;border-radius:var(--r);
+  background:var(--navy-800);color:#fff;font-family:var(--font);font-size:16px;
+  font-weight:600}
+button.btn:disabled{opacity:.6}
+input{width:100%;min-height:48px;border:1px solid var(--linha);border-radius:var(--r);
+  padding:0 12px;font-family:var(--font);font-size:16px;background:var(--papel);
+  color:var(--ink);margin-bottom:12px}
+.aviso{font-size:13px;margin:0 0 9px;min-height:18px}
+.aviso.erro{color:var(--erro)} .aviso.ok{color:var(--ok)}
+.capa .card{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.16);
+  color:#fff}
+.capa .sub{color:rgba(255,255,255,.72)}
+.capa input{background:rgba(255,255,255,.95);color:var(--ink);border-color:transparent}
+.marca{display:flex;align-items:center;gap:10px;justify-content:center;margin:26px 0 18px}
+.marca canvas{width:64px;height:64px}
+.marca span{font-size:20px;font-weight:700;letter-spacing:.16em}
+</style>
+</head>
+<body class="capa">
+
+<!-- ─────────────────────────── CAPA (sem sessao) ─────────────────────────── -->
+<section id="tela-capa">
+  <div class="wrap">
+    <div class="marca"><canvas id="anel" width="128" height="128"></canvas><span>CÓRTEX</span></div>
+    <div class="card">
+      <h1>Programa de Desempenho</h1>
+      <p class="sub">Todo mês a sua condução, o seu comportamento e o
+        gerenciamento de risco viram uma nota e uma categoria. No fim do
+        trimestre, quem estiver na categoria mais alta concorre ao prêmio.</p>
+      <p class="sub">Frota e agregados competem separados.</p>
+    </div>
+    <div class="card" id="cx-entrar">
+      <h2>Entrar</h2>
+      <p class="sub">Com o mesmo celular do app do motorista. O código chega no
+        WhatsApp.</p>
+      <div class="aviso" id="m-entrar"></div>
+      <input id="fone" type="tel" inputmode="numeric" placeholder="DDD + número"
+             autocomplete="tel">
+      <button class="btn" id="b-pedir">Receber código</button>
+    </div>
+    <div class="card" id="cx-codigo" hidden>
+      <h2>Código</h2>
+      <div class="aviso" id="m-codigo"></div>
+      <input id="codigo" type="text" inputmode="numeric" maxlength="6"
+             placeholder="000000" autocomplete="one-time-code">
+      <button class="btn" id="b-confirmar">Entrar</button>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────────────────── A CAMPANHA (com sessao) ───────────────────── -->
+<section id="tela-campanha" hidden>
+  <div class="topo"><b>Programa de Desempenho</b>
+    <button class="sair" id="b-sair">Sair</button></div>
+  <div class="wrap" id="conteudo"></div>
+</section>
+
+<script src="/static/anel.js" defer></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g,
+  (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num = (v, c) => (v == null ? "—" : Number(v).toLocaleString("pt-BR",
+  {minimumFractionDigits: c || 0, maximumFractionDigits: c || 0}));
+
+function mostrar(id){
+  ["tela-capa", "tela-campanha"].forEach((t) => { $(t).hidden = (t !== id); });
+  document.body.classList.toggle("capa", id === "tela-capa");
+}
+function aviso(id, texto, tipo){
+  const el = $(id); el.textContent = texto || "";
+  el.className = "aviso" + (texto ? " " + (tipo || "erro") : "");
+}
+async function pedir(url, opt){
+  const o = Object.assign({headers: {"Content-Type": "application/json"}}, opt || {});
+  const r = await fetch(url, o);
+  const txt = await r.text();
+  let dados = {};
+  try { dados = JSON.parse(txt); }
+  catch (e) {
+    // O TUNEL OU O PROXY RESPONDENDO NO LUGAR DA API nao pode virar "erro
+    // desconhecido": a pessoa precisa saber que nao e' ela nem o celular dela.
+    return {ok: false, status: r.status,
+            mensagem: "O servidor respondeu em formato inesperado. Tente de novo."};
+  }
+  return {ok: r.ok, status: r.status, dados: dados,
+          mensagem: dados.mensagem || "Não consegui completar agora."};
+}
+
+/* ───────────────────────────────── entrada ─────────────────────────────── */
+let foneAtual = "";
+
+$("b-pedir").addEventListener("click", async () => {
+  const fone = ($("fone").value || "").replace(/\D/g, "");
+  if (fone.length < 10) return aviso("m-entrar", "Digite o celular com DDD.");
+  aviso("m-entrar", "");
+  $("b-pedir").disabled = true;
+  const r = await pedir("/api/motorista/entrar",
+    {method: "POST", body: JSON.stringify({telefone: fone})});
+  $("b-pedir").disabled = false;
+  if (!r.ok) return aviso("m-entrar", r.mensagem);
+  foneAtual = fone;
+  $("cx-entrar").hidden = true; $("cx-codigo").hidden = false;
+  // A MENSAGEM E' A MESMA para numero que existe e que nao existe — e por isso
+  // ela aparece aqui, e nao como "enviado com sucesso".
+  aviso("m-codigo", r.dados.mensagem || "", "ok");
+  $("codigo").focus();
+});
+
+$("b-confirmar").addEventListener("click", async () => {
+  const codigo = ($("codigo").value || "").replace(/\D/g, "");
+  if (codigo.length !== 6) return aviso("m-codigo", "O código tem 6 números.");
+  $("b-confirmar").disabled = true;
+  const r = await pedir("/api/motorista/confirmar", {method: "POST",
+    body: JSON.stringify({telefone: foneAtual, codigo: codigo,
+                          aparelho: navigator.userAgent.slice(0, 120)})});
+  $("b-confirmar").disabled = false;
+  if (!r.ok) return aviso("m-codigo", r.mensagem);
+  if (r.dados.escolher) {
+    // MAIS DE UM VINCULO NO MESMO NUMERO: a campanha nao resolve isso — quem
+    // resolve e' o app do motorista, que ja' tem a tela de escolha. Mandar
+    // para la' e' melhor que reimplementar uma escolha que so' existe ali.
+    aviso("m-codigo", "Este número tem mais de um cadastro. Entre pelo app do "
+          + "motorista para escolher e volte aqui.", "erro");
+    return;
+  }
+  carregar();
+});
+
+$("b-sair").addEventListener("click", async () => {
+  await fetch("/api/motorista/sair", {method: "POST"});
+  location.reload();
+});
+
+/* ──────────────────────────────── a tela ───────────────────────────────── */
+async function carregar(){
+  const r = await pedir("/api/motorista/campanha", {cache: "no-store"});
+  if (r.status === 401) { mostrar("tela-capa"); return; }
+  mostrar("tela-campanha");
+  if (!r.ok) {
+    $("conteudo").innerHTML = "<div class='card'><h1>Não consegui carregar</h1>"
+      + "<p class='sub'>" + esc(r.mensagem) + "</p></div>";
+    return;
+  }
+  desenhar(r.dados);
+}
+
+function desenhar(d){
+  if (!d.tem_dado) {
+    $("conteudo").innerHTML = "<div class='card'><h1>Programa de Desempenho</h1>"
+      + "<p class='sub'>" + esc(d.motivo) + "</p></div>";
+    return;
+  }
+  const c = d.campanha;
+  const pilares = (d.pilares || []).map((p) => {
+    const largura = p.entrou && p.nota != null ? Math.max(2, Math.min(100, p.nota)) : 0;
+    return "<div class='linha pilar'><div><b>" + esc(p.rotulo) + "</b>"
+      + "<div class='sub'>peso " + num(p.peso) + "% no seu total</div>"
+      + "<div class='barra'><i style='width:" + largura + "%'></i></div></div>"
+      + "<b>" + (p.entrou ? num(p.nota, 1) : "<span class='sub'>sem leitura</span>")
+      + "</b></div>";
+  }).join("");
+
+  // O QUE FALTA VEM ANTES DO RESTO quando ele nao concorre: e' a unica parte da
+  // tela sobre a qual ele ainda pode fazer alguma coisa.
+  const falta = d.concorre ? "" :
+    "<div class='card'><h2>Para concorrer, falta</h2><ul>"
+    + (d.faltas || []).map((f) => "<li>" + esc(f) + "</li>").join("")
+    + "</ul><p class='sub'>" + (d.faltam_ciclos
+        ? "Ainda dá tempo: faltam " + d.faltam_ciclos + " ciclo(s) até o "
+          + "encerramento (" + esc(c.ate_ciclo) + ")."
+        : "Este é o ciclo que decide o sorteio.") + "</p></div>";
+
+  const cats = d.no_grupo.por_categoria || {};
+  const ordem = ["ELITE", "OURO", "PRATA", "BRONZE", "PENDENTE"];
+  const quadro = ordem.filter((k) => cats[k]).map((k) =>
+    "<div class='linha'><span>" + esc(k[0] + k.slice(1).toLowerCase())
+    + "</span><b>" + num(cats[k]) + "</b></div>").join("");
+
+  $("conteudo").innerHTML =
+    "<div class='card'>"
+    + "<h2>" + esc(d.rotulo) + " · " + esc(d.grupo_rotulo) + "</h2>"
+    + "<div class='faixa'><div class='nota'>" + num(d.nota, 1) + "</div>"
+    + "<div><div class='selo " + esc(d.categoria) + "'>"
+    + esc(d.categoria === "PENDENTE" ? "sem categoria" : d.categoria) + "</div>"
+    + (d.posicao ? "<div class='sub'>" + d.posicao + "º entre os "
+        + num(d.de) + " que concorrem</div>" : "<div class='sub'>fora do sorteio</div>")
+    + "</div></div>"
+    + "<div class='concorre " + (d.concorre ? "sim'>você está concorrendo"
+                                            : "nao'>você não está concorrendo")
+    + "</div>"
+    + (d.categoria === "PENDENTE"
+        ? "<p class='sub' style='margin-top:9px'>Sua nota está incompleta, então "
+          + "ela ainda não vira categoria.</p>" : "")
+    + "</div>"
+    + falta
+    + "<div class='card'><h2>De onde vem a sua nota</h2>" + pilares + "</div>"
+    + "<div class='card'><h2>Como está o seu grupo</h2>" + quadro
+    + "<p class='sub' style='margin-top:9px'>" + num(d.no_grupo.concorrendo)
+    + " de " + num(d.no_grupo.participantes) + " estão concorrendo. "
+    + "Frota e agregados competem separados.</p></div>"
+    + "<div class='card'><h2>O prêmio</h2><p><b>" + esc(c.premio || "—") + "</b></p>"
+    + "<p class='sub'>Sorteio entre quem estiver na categoria mais alta no "
+    + "encerramento (" + esc(c.ate_ciclo) + ")"
+    + (c.sorteio_em ? ", em " + esc(dataBR(c.sorteio_em)) : "")
+    + (c.onde ? " · " + esc(c.onde) : "") + ".</p>"
+    + "<p class='sub'>" + esc(d.fonte) + "</p></div>";
+}
+
+function dataBR(iso){
+  const p = String(iso || "").slice(0, 10).split("-");
+  return p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : String(iso || "");
+}
+
+carregar();
+</script>
+</body>
+</html>

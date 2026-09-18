@@ -1267,6 +1267,16 @@ def motorista_pagina() -> FileResponse:
                         headers={"Cache-Control": "no-cache, must-revalidate"})
 
 
+# APLICATIVO DA CAMPANHA. Pagina propria porque o programa e' divulgado por
+# link e QR, e precisa de endereco e capa que se entendam sozinhos; a SESSAO e'
+# a mesma do app do motorista, porque uma terceira porta de entrada seria mais
+# um lugar por onde errar (o contrato esta' em `api/motorista/__init__.py`).
+@app.get("/campanha")
+def campanha_pagina() -> FileResponse:
+    return FileResponse(STATIC / "campanha.html",
+                        headers={"Cache-Control": "no-cache, must-revalidate"})
+
+
 @app.post("/api/motorista/entrar")
 async def motorista_entrar(req: Request) -> JSONResponse:
     """Pede o codigo. RESPONDE IGUAL para numero que existe e que nao existe.
@@ -1627,6 +1637,14 @@ def motorista_jornada(req: Request) -> JSONResponse:
 def motorista_premiacao(req: Request) -> JSONResponse:
     from api.motorista import premiacao as mprem
     return _mot_ler(req, mprem.meu, "premiacao")
+
+
+# A CAMPANHA DELE. Mesma sessao, mesmo guard: a rota sem `_eu(req)` seria rota
+# aberta ao mundo, e a falha e' muda.
+@app.get("/api/motorista/campanha")
+def motorista_campanha(req: Request) -> JSONResponse:
+    from api.motorista import campanha as mcamp
+    return _mot_ler(req, mcamp.minha, "campanha")
 
 
 # ------------------------------------------------------- o canal com o RH

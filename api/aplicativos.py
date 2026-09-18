@@ -76,6 +76,23 @@ APLICATIVOS: list[dict] = [
                       "assunto do fornecedor."),
     },
     {
+        "id": "campanha",
+        "nome": "Campanha de desempenho",
+        "arquivo": "campanha.html",
+        "rota": "/campanha",
+        "rotas_alternativas": [],
+        "publico": "Motorista da frota própria e agregado, durante a campanha",
+        "entrada": "Pelo número do celular — a MESMA sessão do app do motorista",
+        "descricao": ("O programa trimestral com sorteio: a categoria do mês, "
+                      "de onde vem a nota e o que falta para concorrer. Página "
+                      "própria porque a campanha é divulgada por link e QR e "
+                      "precisa de uma capa que se entenda sem login — e a capa "
+                      "não mostra número nenhum, porque o que circula no grupo "
+                      "de WhatsApp tem de ser só o convite. Frota e agregados "
+                      "competem separados, e cada um vê o ranking do seu "
+                      "grupo, sem nome de colega."),
+    },
+    {
         "id": "motorista",
         "nome": "App do motorista",
         "arquivo": "motorista.html",

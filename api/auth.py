@@ -628,6 +628,12 @@ def _rota_publica(path: str) -> bool:
             # errado. Quem recusa e `motorista.sessao.exigir()`.
             or path in ("/motorista", "/motorista/")
             or path.startswith(_PUBLICAS_MOTORISTA)
+            # A PAGINA da campanha. So' a pagina: o dado dela sai por
+            # `/api/motorista/campanha`, que ja' entra no prefixo acima e e'
+            # guardado por `sessao.exigir()`. A capa nao mostra numero nenhum —
+            # ela circula por QR em grupo de WhatsApp, e o que circula junto
+            # tem de ser so' o convite.
+            or path in ("/campanha", "/campanha/")
             # o app do agregado, pelo mesmo motivo do de cima
             or path in ("/agregado", "/agregado/")
             or path.startswith(_PUBLICAS_AGREGADO))

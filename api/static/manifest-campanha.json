@@ -1,0 +1,32 @@
+{
+  "name": "Campanha Sulista",
+  "short_name": "Campanha",
+  "description": "O programa de desempenho: sua categoria do mês e o que falta para concorrer.",
+  "start_url": "/campanha",
+  "scope": "/campanha",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0B1926",
+  "theme_color": "#0B1926",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/static/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
