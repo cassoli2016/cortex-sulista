@@ -7,10 +7,11 @@
 <title>CÓRTEX · Campanha</title>
 <link rel="icon" href="/static/favicon.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
-<!-- O manifesto e PROPRIO e abre na campanha: o do painel abre em `/`, e
-     o motorista nao tem conta la'. -->
+<!-- O manifesto e PROPRIO e abre na campanha: o do painel abre em `/`, e o
+     motorista nao tem conta la'. -->
 <link rel="manifest" href="/static/manifest-campanha.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Campanha">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,137 +24,507 @@
 
   POR QUE SEPARADA (decisao de quem opera, 18/09/2026): a campanha e' um
   programa com comeco, meio e fim, divulgado por link e QR no grupo de
-  WhatsApp. Ela precisa de endereco proprio, de uma capa que se entenda sem
-  login e de um visual que diga "isto e' a campanha" — coisas que uma aba
-  dentro de outro app nao tem.
+  WhatsApp. Ela precisa de endereco proprio e de uma capa que se entenda sem
+  login — coisas que uma aba dentro de outro app nao tem.
 
-  O QUE ELA COMPARTILHA COM O APP DO MOTORISTA, de proposito: a SESSAO. O
-  contrato do modulo (`api/motorista/__init__.py`) diz que uma segunda
-  autenticacao e' cara de manter, e criar uma terceira porta so' para a
-  campanha seria mais um lugar por onde errar. Quem ja' entrou no app do
-  motorista neste aparelho ja' esta' logado aqui.
+  POR QUE A CARA E' A MESMA DO APP DO MOTORISTA: e' o mesmo leitor, no mesmo
+  celular, no mesmo dia. Duas caras diferentes para a mesma empresa fazem a
+  pessoa desconfiar da segunda ("isto e' da Sulista mesmo?"), e a campanha e'
+  justamente a que chega por um link encaminhado. O bloco de estilo abaixo e'
+  COPIADO do `motorista.html` — a casa nao tem folha compartilhada entre
+  aplicativos, e quem segura os dois iguais e' um guard que os compara.
 
-  A CAPA NAO MOSTRA NUMERO NENHUM. Sem sessao, a pagina diz o que e' o
-  programa e como entrar — nada de nome, nota, categoria ou contagem. O QR
-  circula em grupo de WhatsApp, e o que circula com ele tem de ser so' o
-  convite.
+  A SESSAO TAMBEM E' A MESMA. Uma terceira porta de entrada seria mais um
+  lugar por onde errar; quem ja' entrou no app do motorista neste aparelho ja'
+  esta' logado aqui — inclusive pelo acesso mestre.
 
-  UMA COLUNA, ALVO GRANDE, SEM BIBLIOTECA: o leitor esta' no celular, no sol,
-  no 4G. Nenhum grafico — a nota se le' em numero e a faixa em palavra.
+  A CAPA NAO MOSTRA NUMERO NENHUM: o QR circula em grupo que a casa nao
+  controla, e o que vai junto com ele tem de ser so' o convite.
+-->
+<style>, que segura a renderizacao ate a folha chegar —
+  aceitavel num desktop de escritorio, caro no 4G de uma rodovia. Aqui ela
+  entra por <link media="print" onload>: o navegador baixa sem bloquear, a
+  pagina pinta na hora com o stack do sistema e a Saira entra quando chega.
+  Sem ela a tela continua CERTA, so com outra letra — e por isso o <noscript>
+  carrega do jeito normal para quem desligou o script.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" media="print" onload="this.media='all'"
+      href="https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700&display=swap">
+<noscript><link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700&display=swap"></noscript>
+<!--
+  APP DO MOTORISTA — pagina PROPRIA, e nao uma tela do index.html.
+
+  O leitor esta na cabine, com a mao suja, num 4G de beira de rodovia, muitas
+  vezes com a tela no sol. Tres consequencias que mandam em tudo aqui:
+
+  1. PESO. O index.html tem 2,5 MB antes do ECharts. Esta pagina nao carrega
+     biblioteca nenhuma — so o `anel.js` (7 KB), que E a marca da casa.
+  2. POLEGAR. Uma coluna, alvo de toque grande, nada lado a lado.
+  3. SOL. Contraste alto; o tema da parte logada segue o aparelho.
+
+  A ENTRADA E A MESMA MARCA DO PAINEL, de proposito: quem abre isto tem de
+  reconhecer a empresa de imediato — fundo navy, o anel girando com CORTEX
+  dentro, a logo da Sulista, e o cartao branco por baixo. Sao os mesmos tokens
+  do `index.html` (navy-900/700, radius 10, botao navy), com UMA diferenca
+  deliberada: os alvos de toque sao maiores. O login do painel tem campo de
+  ~38 px, que se acerta com mouse e se erra com o polegar em movimento; aqui o
+  minimo e 48.
+
+  O QUE NAO ESTA AQUI, DE PROPOSITO: valor de frete, custo, CKM, resultado, e a
+  operacao de qualquer outro motorista. A API tambem nao devolve — nao e a
+  tela que filtra (`api/motorista/viagem.py` explica por que).
 -->
 <style>
 :root{
+  /* Os mesmos tokens do painel. Navy do fundo e do botao, tijolo da marca. */
   --navy-900:#0B1926; --navy-800:#102538; --navy-700:#17344F;
-  --brand:#942821; --brand-claro:#E0705F;
+  --brand:#942821; --accent:#E85D10;
   --ok:#1E7F4F; --aviso:#B97709; --erro:#C03221;
-  --ouro:#B8860B; --elite:#7C3AED;
-  --papel:#FFFFFF; --fundo:#F4F6F8; --linha:#E3E7EB;
+  --n0:#fff; --n100:#ECEEF1; --n200:#DCE0E5; --n300:#C2C8D0;
+  --n500:#636C76; --n600:#4F5860; --n900:#14181D;
+  --fundo:#F4F5F7; --papel:#fff; --linha:#DCE0E5;
   --ink:#14181D; --ink2:#636C76;
-  --r:10px;
-  --font:'Saira',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  --radius:10px;
+  /* Escala da casa: 9/18/25 e nada mais. */
+  --e1:9px; --e2:18px; --e3:25px;
+  --font:'Saira',system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  color-scheme:light dark;
 }
-/* O TEMA ESCURO VALE SO' DEPOIS DE ENTRAR, como no app do motorista: a capa e'
-   a marca da casa e e' navy em todo aparelho. */
+/* O TEMA ESCURO VALE SO DENTRO DO APP. A tela de entrada e a marca da casa —
+   ela e navy em todo aparelho, como o login do painel, que tambem nao muda com
+   o tema (o `--navy-*` e o token que a casa congela de proposito). */
 @media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --papel:#111A22; --fundo:#0B1219; --linha:#1E2A35;
-    --ink:#E8EDF2; --ink2:#93A0AC;
+  :root{
+    --fundo:#14181D; --papel:#1E232A; --linha:#2C333C;
+    --ink:#EEF1F4; --ink2:#9AA4AF;
+    --ok:#4ADE80; --aviso:#FBBF24; --erro:#F87171;
   }
 }
 *{box-sizing:border-box}
-html,body{margin:0;padding:0}
-body{font-family:var(--font);background:var(--fundo);color:var(--ink);
-  -webkit-font-smoothing:antialiased;font-size:15px;line-height:1.45}
-body.capa{background:linear-gradient(160deg,var(--navy-900) 0%,var(--navy-700) 100%);
-  color:#fff;min-height:100vh}
-.wrap{max-width:560px;margin:0 auto;padding:18px 16px 40px}
-.topo{display:flex;align-items:center;gap:9px;padding:14px 16px;
-  background:var(--navy-900);color:#fff}
-.topo b{font-size:15px;letter-spacing:.02em}
-.topo .sair{margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,.28);
-  color:#fff;border-radius:8px;padding:7px 11px;font-family:var(--font);font-size:13px}
-.card{background:var(--papel);border:1px solid var(--linha);border-radius:var(--r);
-  padding:18px;margin:0 0 18px}
-h1{font-size:21px;margin:0 0 9px}
-h2{font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:var(--ink2);
-  margin:0 0 9px;font-weight:700}
-p{margin:0 0 9px}
-.sub{color:var(--ink2);font-size:13px}
-/* A CATEGORIA E' A PRIMEIRA COISA: e' ela que diz se ele concorre. */
-.faixa{display:flex;align-items:center;gap:14px}
-.selo{font-size:26px;font-weight:700;letter-spacing:.04em}
-.selo.ELITE{color:var(--elite)} .selo.OURO{color:var(--ouro)}
-.selo.PRATA{color:var(--ink2)} .selo.BRONZE{color:#8B5E34}
-.selo.PENDENTE{color:var(--ink2);font-size:18px}
-.nota{font-size:40px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
-.concorre{display:inline-block;border-radius:8px;padding:5px 10px;font-size:13px;
-  font-weight:700;margin-top:9px}
-.concorre.sim{background:rgba(30,127,79,.14);color:var(--ok)}
-.concorre.nao{background:rgba(185,119,9,.14);color:var(--aviso)}
-.linha{display:flex;justify-content:space-between;gap:14px;padding:9px 0;
-  border-top:1px solid var(--linha)}
-.linha:first-child{border-top:0}
-.linha b{font-variant-numeric:tabular-nums}
-.pilar .sub{font-size:12px}
-.barra{height:6px;border-radius:3px;background:var(--linha);overflow:hidden;margin-top:6px}
-.barra i{display:block;height:100%;background:var(--brand-claro)}
-ul{margin:9px 0 0;padding-left:18px} li{margin-bottom:6px}
-button.btn{width:100%;min-height:48px;border:0;border-radius:var(--r);
-  background:var(--navy-800);color:#fff;font-family:var(--font);font-size:16px;
-  font-weight:600}
-button.btn:disabled{opacity:.6}
-input{width:100%;min-height:48px;border:1px solid var(--linha);border-radius:var(--r);
-  padding:0 12px;font-family:var(--font);font-size:16px;background:var(--papel);
-  color:var(--ink);margin-bottom:12px}
-.aviso{font-size:13px;margin:0 0 9px;min-height:18px}
-.aviso.erro{color:var(--erro)} .aviso.ok{color:var(--ok)}
-.capa .card{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.16);
-  color:#fff}
-.capa .sub{color:rgba(255,255,255,.72)}
-.capa input{background:rgba(255,255,255,.95);color:var(--ink);border-color:transparent}
-.marca{display:flex;align-items:center;gap:10px;justify-content:center;margin:26px 0 18px}
-.marca canvas{width:64px;height:64px}
-.marca span{font-size:20px;font-weight:700;letter-spacing:.16em}
-</style>
-</head>
-<body class="capa">
+html,body{margin:0;padding:0;min-height:100%}
+body{
+  background:var(--fundo); color:var(--ink);
+  font:16px/1.45 var(--font); -webkit-text-size-adjust:100%;
+}
 
-<!-- ─────────────────────────── CAPA (sem sessao) ─────────────────────────── -->
-<section id="tela-capa">
-  <div class="wrap">
-    <div class="marca"><canvas id="anel" width="128" height="128"></canvas><span>CÓRTEX</span></div>
-    <div class="card">
+/* ============================ a entrada (marca da casa) ============== */
+/* Enquanto o motorista nao entrou, a pagina INTEIRA e o login: fundo navy em
+   gradiente e o cartao centrado, igual ao `#loginOverlay` do painel. */
+body.entrando{
+  background:linear-gradient(160deg,var(--navy-900) 0%,var(--navy-700) 100%);
+  min-height:100dvh; display:flex;
+  padding:var(--e2) var(--e2) calc(var(--e2) + env(safe-area-inset-bottom));
+}
+/* CENTRADO POR `margin:auto`, NAO POR `align-items:center`. A diferenca so
+   aparece no celular baixo: com `align-items:center` um cartao mais alto que a
+   tela transborda para os DOIS lados e o navegador corta o topo — e nao deixa
+   rolar ate la, porque o excedente fica antes do inicio do scroll. Foi o que
+   aconteceu na tela do codigo, que e a mais alta das tres (dois botoes e a
+   mensagem). Margem automatica distribui a folga quando ela existe e nao
+   inventa folga negativa quando nao existe. */
+body.entrando #entrada{margin:auto;width:min(100%,400px)}
+.lg-card{
+  background:var(--n0); color:var(--n900);
+  border-radius:var(--radius); box-shadow:0 10px 30px rgba(0,0,0,.25);
+  /* `100%` e nao os `92vw` do painel: la o overlay nao tem padding, aqui o
+     `body.entrando` tem 18px de cada lado — somar os dois punha o cartao
+     2 px alem da viewport e a pagina rolava PARA O LADO. A regua da casa
+     exige `scrollWidth - clientWidth = 0`, e 2 px contam. */
+  width:min(100%,400px); overflow:hidden;
+}
+.lg-head{
+  background:var(--navy-900); padding:26px 30px 20px;
+  display:flex; flex-direction:column; gap:8px; align-items:center;
+}
+.lg-head img{height:34px}
+/* A MARCA: o anel girando com CORTEX centrado no vazio dele. O texto fica em
+   HTML POR CIMA do canvas, nunca desenhado nele — continua selecionavel,
+   legivel por leitor de tela e nitido em qualquer densidade (canvas rasteriza,
+   texto nao). O `text-indent` compensa o rastreio da ULTIMA letra, que sem ele
+   descentraliza a palavra dentro do anel. */
+.lg-marca{position:relative;display:grid;place-items:center;line-height:0}
+.lg-marca span{position:absolute;inset:0;display:grid;place-items:center;
+  line-height:1;pointer-events:none;text-indent:.10em;
+  color:#fff;font-weight:700;letter-spacing:.12em;font-size:15px}
+.lg-anel{width:150px;height:150px;display:block;margin:-6px 0 -2px}
+.lg-body{padding:24px 25px 28px}
+.lg-body h1{margin:0 0 4px;font-size:18px;font-weight:700}
+.lg-sub{margin:0 0 14px;font-size:13px;color:var(--n500)}
+.lg-body label{display:block;font-size:12px;font-weight:600;color:var(--n500);
+  margin:10px 0 4px}
+/* REGRA DE COMPONENTE NASCE QUALIFICADA. No painel, `.lg-btn` (0,1,0) perdia
+   para `button.btn` (0,2,1) e o padding escrito nunca valia — a regra existia,
+   estava certa e nao valia. Aqui todas ja nascem com o elemento junto. */
+.lg-body input.campo{
+  width:100%; font:inherit; font-size:16px;   /* 16 evita o zoom do iOS ao focar */
+  padding:13px 12px; min-height:48px;          /* 48: polegar, nao mouse */
+  border:1px solid var(--n300); border-radius:6px;
+  background:var(--n0); color:var(--n900);
+}
+.lg-body input.campo:focus{outline:2px solid var(--accent);outline-offset:1px}
+.lg-body button.lg-btn{
+  width:100%; margin-top:16px; padding:13px 16px; min-height:52px;
+  font:inherit; font-size:15px; font-weight:600;
+  color:#fff; background:var(--navy-700); border:0; border-radius:var(--radius);
+  cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+  line-height:1.35;
+}
+.lg-body button.lg-btn[disabled]{opacity:.55}
+.lg-body button.lg-btn.claro{
+  background:transparent; color:var(--n500); border:1px solid var(--n300);
+  font-weight:500; min-height:48px; margin-top:var(--e1);
+}
+.lg-body .msg{border-radius:8px;padding:11px 12px;font-size:13.5px;margin-top:var(--e2)}
+.lg-body .msg.erro{background:#FBEAE8;color:var(--erro)}
+.lg-body .msg.ok{background:#E8F2EC;color:var(--ok)}
+.lg-pe{color:rgba(255,255,255,.62);font-size:12.5px;text-align:center;margin:var(--e2) 0 0}
+.escolha button{width:100%;text-align:left;font:inherit;font-size:15px;
+  padding:14px 12px;min-height:52px;background:var(--n0);color:var(--n900);
+  border:1px solid var(--n300);border-radius:8px;margin-bottom:var(--e1);
+  cursor:pointer}
+
+/* ================================ o app (depois de entrar) =========== */
+/* O `padding` LATERAL SAI DAQUI e vai para os filhos: a faixa da marca sangra
+   de borda a borda, e um padding no contentor a deixaria com duas tiras cinza
+   nas laterais. Quem recebe a margem sao as secoes. */
+.app{max-width:520px;margin:0 auto;
+  padding:0 0 calc(var(--e3) + env(safe-area-inset-bottom))}
+.app > section, .app > .saudacao{padding-left:var(--e2);padding-right:var(--e2)}
+
+/* ============================ a faixa da marca ======================= */
+.appbar{display:flex;align-items:center;gap:11px;
+  padding:10px var(--e2) 10px 11px;background:var(--navy-900);
+  /* GRUDA NO TOPO: a marca e o unico elemento que nao pode sumir na rolagem —
+     e ela e tambem o que diz ao motorista que ele esta no sistema da empresa,
+     e nao numa pagina qualquer que chegou por link. */
+  position:sticky;top:0;z-index:10}
+/* O ANEL NAO PRECISA MAIS DE DISCO POR BAIXO: a faixa E o navy para o qual ele
+   foi desenhado. O `mix-blend-mode` some junto com o remendo. */
+.app .anelmini{width:38px;height:38px;display:block;flex:0 0 auto}
+.wordmark{font-weight:700;letter-spacing:.13em;font-size:15px;color:#fff;
+  flex:0 0 auto;text-indent:.13em}
+/* A logo empurra o resto para a esquerda e fica colada no botao — e ela que
+   fecha a faixa, como no cartao de entrada. `min-width:0` para que um SVG
+   largo nao force a faixa a rolar para o lado. */
+.appbar .sulista{height:15px;margin-left:auto;flex:0 1 auto;min-width:0;
+  opacity:.95;object-fit:contain;object-position:right center}
+.conta-btn{flex:0 0 auto;width:36px;height:36px;border-radius:50%;cursor:pointer;
+  background:transparent;border:1px solid rgba(255,255,255,.28);
+  color:rgba(255,255,255,.9);display:grid;place-items:center;padding:0}
+.conta-btn svg{width:19px;height:19px;stroke:currentColor;fill:none;
+  stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.conta-btn[aria-current="page"]{color:#fff;border-color:#fff;
+  background:rgba(255,255,255,.14)}
+/* O NUMERO DO SINO: contorno na cor da faixa para destacar do botao. */
+.conta-btn{position:relative}
+.conta-btn .num{position:absolute;top:-6px;right:-7px;min-width:18px;height:18px;
+  padding:0 5px;border-radius:9px;background:var(--erro);color:#fff;
+  font-size:11px;font-weight:700;font-style:normal;line-height:14px;
+  text-align:center;border:2px solid var(--navy-900)}
+.saudacao{margin:var(--e2) 0 var(--e1);font-size:14px;color:var(--ink2)}
+.saudacao b{color:var(--ink);font-weight:600}
+.card{background:var(--papel);border:1px solid var(--linha);
+  border-radius:var(--radius);padding:var(--e2);margin-bottom:var(--e2)}
+.card h1{font-size:19px;margin:0 0 var(--e1)}
+.card h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink2);margin:0 0 var(--e1);font-weight:600}
+.card p{margin:0 0 var(--e1)}
+.card p:last-child{margin-bottom:0}
+.tarja{background:color-mix(in srgb,var(--aviso) 16%,transparent);color:var(--aviso);
+  border-radius:8px;padding:10px var(--e1);font-size:13px;margin-bottom:var(--e2)}
+.rota{display:flex;align-items:center;gap:var(--e1);margin:var(--e2) 0}
+.rota .pt{flex:1 1 0;min-width:0}
+.rota .cid{font-size:18px;font-weight:600;line-height:1.25}
+.rota .rot{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
+.rota .seta{flex:0 0 auto;color:var(--accent);font-size:22px}
+.linhas{border-top:1px solid var(--linha);margin-top:var(--e2)}
+.linha{display:flex;justify-content:space-between;gap:var(--e2);
+  padding:11px 0;border-bottom:1px solid var(--linha);font-size:15px}
+.linha:last-child{border-bottom:0}
+.linha b{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.vazio{display:inline-block;background:color-mix(in srgb,var(--aviso) 18%,transparent);
+  color:var(--aviso);border-radius:6px;padding:2px 8px;font-size:12px;font-weight:600}
+.app button.sair{width:100%;min-height:48px;font:inherit;font-size:15px;
+  background:transparent;color:var(--ink2);border:1px solid var(--linha);
+  border-radius:var(--radius);cursor:pointer}
+.rodape{color:var(--ink2);font-size:12px;text-align:center;padding-top:var(--e1)}
+
+/* ======================= a barra de baixo (o polegar) ================ */
+/* FIXA NO RODAPE, e nao abas no topo. O polegar alcanca a base da tela; o
+   topo de um celular grande exige a segunda mao, que o motorista nao tem
+   livre. `env(safe-area-inset-bottom)` porque o iPhone come 34px ali com a
+   barra do sistema, e sem isso o ultimo item fica sob o dedo do sistema. */
+.navbar{position:fixed;left:0;right:0;bottom:0;z-index:20;
+  background:var(--papel);border-top:1px solid var(--linha);
+  padding-bottom:env(safe-area-inset-bottom);
+  display:grid;grid-template-columns:repeat(var(--n,5),minmax(0,1fr))}
+/* `minmax(0,1fr)` e nao `1fr`: `1fr` e `minmax(auto,1fr)` e a trilha nao
+   encolhe abaixo do min-content do rotulo — com cinco itens e um nome
+   comprido, o ultimo nasce FORA da tela sem erro nenhum. */
+.navbar button{appearance:none;background:none;border:0;font:inherit;
+  min-height:56px;padding:7px 2px 8px;cursor:pointer;color:var(--ink2);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;font-size:11px;font-weight:600;letter-spacing:.02em;min-width:0}
+.navbar button svg{width:21px;height:21px;stroke:currentColor;fill:none;
+  stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.navbar button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.navbar button[aria-current="page"]{color:var(--accent)}
+.navbar button{position:relative}
+/* A BOLINHA fica sobre o icone e nao ao lado do rotulo: ao lado, ela empurra o
+   texto e a trilha da grade encolhe o vizinho. `--erro` porque ela pede acao,
+   e nao porque algo esta errado — e a mesma tinta do semaforo da casa. */
+.navbar .pip{position:absolute;top:8px;left:calc(50% + 6px);width:9px;height:9px;
+  border-radius:50%;background:var(--erro);border:2px solid var(--papel)}
+/* A ALTURA DA BARRA VIRA FOLGA NO FIM DA PAGINA. Sem isto o ultimo cartao
+   fica debaixo da barra e ninguem descobre que ha mais conteudo. */
+.app.comnav{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+
+/* ============================== a tarja do acesso mestre ============= */
+/* VERMELHA E NO TOPO DE TUDO, e nao um aviso discreto: quem esta aqui esta
+   vendo a conta de outra pessoa, e um print desta tela sem a tarja vira "o
+   app mostrou isso ao motorista", que e falso. */
+.mestre{position:sticky;top:0;z-index:16;background:var(--brand);color:#fff;
+  padding:9px var(--e2);font-size:13px;font-weight:600;text-align:center}
+.mestre b{font-weight:700}
+
+/* ================================ blocos de conteudo ================= */
+.kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--e1)}
+.kpi{background:var(--papel);border:1px solid var(--linha);
+  border-radius:var(--radius);padding:12px var(--e1)}
+.kpi .rot{font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink2);font-weight:600;line-height:1.25}
+.kpi .val{font-size:23px;font-weight:700;line-height:1.15;margin-top:3px;
+  font-variant-numeric:tabular-nums}
+.kpi .sub{font-size:12px;color:var(--ink2);margin-top:2px}
+.kpi .val.nd{font-size:17px;color:var(--ink2);font-weight:600}
+.up{color:var(--ok)} .down{color:var(--erro)} .neutro{color:var(--ink2)}
+
+.item{border-bottom:1px solid var(--linha);padding:12px 0}
+.item:last-child{border-bottom:0;padding-bottom:0}
+.item .top{display:flex;justify-content:space-between;gap:var(--e1);
+  align-items:baseline}
+.item .tit{font-weight:600;font-size:15px;line-height:1.3}
+.item .quando{font-size:12px;color:var(--ink2);white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+.item .meta{font-size:12.5px;color:var(--ink2);margin-top:3px}
+.item .val{font-weight:700;font-variant-numeric:tabular-nums}
+
+.selo{display:inline-block;border-radius:6px;padding:2px 7px;font-size:11px;
+  font-weight:700;letter-spacing:.03em}
+.selo.aviso{background:color-mix(in srgb,var(--aviso) 18%,transparent);color:var(--aviso)}
+.selo.erro{background:color-mix(in srgb,var(--erro) 16%,transparent);color:var(--erro)}
+.selo.ok{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+.selo.frio{background:color-mix(in srgb,var(--ink2) 14%,transparent);color:var(--ink2)}
+.selo.pago{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+/* A faixa do selo no cartao do premio: ela e a primeira coisa depois do
+   titulo porque PREVIA muda o que o numero abaixo significa. */
+.selos{margin:0 0 9px}
+
+/* A BARRA COMPARATIVA. Nao e grafico: e uma regua de uma dimensao, com a
+   marca da frota em cima. Grafico aqui exigiria biblioteca, e a pagina nao
+   carrega nenhuma — o alvo e < 150 KB no 4G de uma rodovia. */
+.regua{position:relative;height:8px;border-radius:4px;margin:9px 0 4px;
+  background:color-mix(in srgb,var(--ink2) 18%,transparent);overflow:visible}
+.regua .eu{position:absolute;top:0;bottom:0;left:0;border-radius:4px;
+  background:var(--accent)}
+.regua .marca{position:absolute;top:-3px;bottom:-3px;width:2px;
+  background:var(--ink);opacity:.55}
+.reguaLeg{display:flex;justify-content:space-between;font-size:11px;
+  color:var(--ink2);font-variant-numeric:tabular-nums}
+
+.conselho{background:color-mix(in srgb,var(--accent) 9%,transparent);
+  border:1px solid color-mix(in srgb,var(--accent) 28%,transparent);
+  border-radius:8px;padding:11px var(--e1);margin-top:var(--e1);font-size:14px}
+.conselho b{display:block;margin-bottom:3px}
+.nota{color:var(--ink2);font-size:12px;margin-top:var(--e1);line-height:1.45}
+.vaziomsg{color:var(--ink2);font-size:14px}
+/* ------------------------------------------- chegada e saída (fase 2) ---
+   O botão cheio leva TINTA ESCURA FIXA, e não branca nem `--ink`: branco sobre
+   o laranja dá 3,3:1 (reprova texto normal), e `--ink` vira claro no tema
+   escuro sobre um fundo que não muda. O vazado tem a tinta do tema e o
+   laranja só na borda — laranja como cor de texto sobre branco também reprova. */
+.ap{border-top:1px solid var(--linha);margin-top:var(--e2);padding-top:var(--e2)}
+.ap h2{margin-bottom:var(--e1)}
+.ap-linha{display:flex;align-items:center;justify-content:space-between;
+  gap:var(--e1);padding:var(--e1) 0;border-bottom:1px solid var(--linha)}
+.ap-linha b{font-weight:600}
+.ap-sub{font-size:12.5px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.ap-btn{flex:0 0 auto;min-height:44px;padding:0 var(--e2);border-radius:10px;
+  border:2px solid var(--accent);background:transparent;color:var(--ink);
+  font:inherit;font-weight:700;cursor:pointer}
+.ap-btn.ap-prox{background:var(--accent);color:#14181D}
+.ap-btn:disabled{opacity:.55;cursor:default}
+.ap-sec{min-height:44px;padding:0 var(--e2);border-radius:10px;
+  border:1px solid var(--linha);background:transparent;color:var(--ink);
+  font:inherit;cursor:pointer}
+.ap-msg{font-size:14px;margin-top:var(--e1)}
+.ap-msg:empty{display:none}
+.ap-msg.erro{color:var(--erro)}
+.ap-nota{font-size:12.5px;color:var(--ink2);margin-top:var(--e1)}
+.aceite{border:1px solid var(--linha);border-radius:10px;padding:var(--e2);
+  background:var(--fundo)}
+.aceite p{font-size:14px;margin:var(--e1) 0 0}
+.aceite-bts{display:flex;flex-wrap:wrap;gap:var(--e1);margin-top:var(--e2)}
+.carregando{color:var(--ink2);font-size:14px;padding:var(--e2) 0}
+.busca{width:100%;font:inherit;font-size:16px;padding:12px;min-height:48px;
+  border:1px solid var(--n300);border-radius:6px;background:var(--n0);
+  color:var(--n900)}
+.linksec{display:block;width:100%;background:none;border:0;font:inherit;
+  font-size:12.5px;color:var(--n500);text-align:center;margin-top:var(--e2);
+  padding:10px;cursor:pointer;text-decoration:underline}
+/* ============================== o canal com o RH ==================== */
+.escolha button.rh-assunto{display:block;width:100%;text-align:left;font:inherit;
+  background:var(--papel);color:var(--ink);border:1px solid var(--linha);
+  border-radius:8px;padding:12px;margin-bottom:var(--e1);cursor:pointer;
+  min-height:52px}
+.escolha button.rh-assunto b{display:block;font-size:15px;font-weight:600}
+.escolha button.rh-assunto span{display:block;font-size:12.5px;color:var(--ink2);
+  margin-top:3px;line-height:1.4}
+.rh-item{display:block;width:100%;text-align:left;font:inherit;cursor:pointer;
+  background:none;border:0;border-bottom:1px solid var(--linha);
+  padding:12px 0;color:inherit}
+.rh-item:last-child{border-bottom:0}
+.rh-item .top{display:flex;justify-content:space-between;gap:var(--e1);
+  align-items:baseline}
+.rh-item .tit{font-weight:600;font-size:15px}
+.rh-item .quando{font-size:12px;color:var(--ink2);white-space:nowrap}
+.rh-item .meta{font-size:12.5px;color:var(--ink2);margin-top:3px}
+/* ================================ os avisos ========================== */
+/* O NAO LIDO leva a bolinha do semaforo (a mesma da barra de baixo); o lido
+   fica cinza, e a lista se le de relance: o que tem bolinha e o que falta. */
+.av-item .tit{display:flex;align-items:center;gap:var(--e1)}
+.av-item.novo .tit::before{content:"";width:8px;height:8px;border-radius:50%;
+  background:var(--erro);flex:0 0 auto}
+.av-item:not(.novo) .tit{font-weight:500;color:var(--ink2)}
+.app button.btn-av{display:block;width:100%;min-height:48px;font:inherit;
+  font-size:15px;font-weight:600;background:var(--navy-700);color:#fff;
+  border:1px solid var(--navy-700);border-radius:var(--radius);cursor:pointer;
+  margin-top:var(--e1)}
+.app button.btn-av:disabled{opacity:.6;cursor:default}
+/* ============================== instalar o app ======================= */
+/* DEPOIS do `.app button.btn-av`, e qualificado do mesmo jeito: mesma
+   especificidade, e quem vem depois vence — com o `display:block` de la, o
+   icone e o rotulo sairiam um embaixo do outro. */
+.lg-body button.inst-btn, .app button.inst-btn{display:flex;align-items:center;
+  justify-content:center;gap:var(--e1)}
+.inst-ico{width:19px;height:19px;flex:0 0 auto;stroke:currentColor;fill:none;
+  stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.lg-body .instalar{margin-top:var(--e2);padding-top:var(--e1);
+  border-top:1px solid var(--n300)}
+.inst-nota{font-size:12.5px;color:var(--n500);margin:var(--e1) 0 0;line-height:1.45}
+.lg-body .inst-nota{text-align:center}
+.inst-passos{margin:var(--e1) 0 0;padding-left:22px;font-size:14px;line-height:1.5}
+.inst-passos li{margin-bottom:6px}
+.inst-passos svg{width:16px;height:16px;vertical-align:-3px;stroke:currentColor;
+  fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+/* O texto do comunicado preserva a quebra de linha de quem escreveu: o
+   RH separa paragrafo, e colapsar isso vira um bloco que ninguem le. */
+.rh-comunicado{white-space:pre-wrap;font-size:14.5px;line-height:1.5;
+  margin:var(--e1) 0 6px}
+.rh-fio{margin:var(--e1) 0 var(--e2)}
+.rh-bolha{border-radius:10px;padding:10px 12px;margin-bottom:var(--e1);
+  max-width:90%;font-size:14.5px;line-height:1.45;white-space:pre-wrap;
+  word-break:break-word}
+.rh-bolha.rh{background:var(--fundo);border:1px solid var(--linha)}
+/* A do MOTORISTA vai a direita, como em todo aplicativo de mensagem que ele ja
+   usa. Nao e imitacao de chat: e a convencao que diz sem palavra nenhuma qual
+   das duas falas e a dele. */
+.rh-bolha.motorista{background:color-mix(in srgb,var(--navy-700) 12%,transparent);
+  border:1px solid color-mix(in srgb,var(--navy-700) 26%,transparent);
+  margin-left:auto}
+.rh-bolha.sistema{background:none;border:0;color:var(--ink2);font-size:12.5px;
+  text-align:center;max-width:100%;padding:2px 0}
+.rh-bolha .quem{font-size:11px;color:var(--ink2);margin-bottom:3px;
+  text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.rh-resp{width:100%;font:inherit;font-size:16px;padding:11px;border-radius:8px;
+  border:1px solid var(--n300);background:var(--papel);color:var(--ink);
+  resize:vertical}
+[hidden]{display:none!important}
+</style></head>
+<body>
+
+<!-- ===================================================== a entrada ===== -->
+<div class="lg" id="entrada">
+  <div class="lg-card">
+    <div class="lg-head">
+      <div class="lg-marca">
+        <canvas id="lg-anel" class="lg-anel" aria-hidden="true"></canvas>
+        <span>CÓRTEX</span>
+      </div>
+      <img src="/static/sulista-logo-branco.svg" alt="Sulista">
+    </div>
+
+    <div class="lg-body" id="tela-capa" hidden>
       <h1>Programa de Desempenho</h1>
-      <p class="sub">Todo mês a sua condução, o seu comportamento e o
+      <p class="lg-sub">Todo mês a sua condução, o seu comportamento e o
         gerenciamento de risco viram uma nota e uma categoria. No fim do
-        trimestre, quem estiver na categoria mais alta concorre ao prêmio.</p>
-      <p class="sub">Frota e agregados competem separados.</p>
+        trimestre, quem estiver na categoria mais alta concorre ao prêmio.
+        Frota e agregados competem separados.</p>
+      <label for="fone">Celular com DDD</label>
+      <input class="campo" id="fone" type="tel" inputmode="tel"
+             autocomplete="tel" placeholder="(47) 99999-8888">
+      <button class="lg-btn" id="b-pedir">Receber código</button>
+      <div class="msg" id="m-entrar" hidden></div>
     </div>
-    <div class="card" id="cx-entrar">
-      <h2>Entrar</h2>
-      <p class="sub">Com o mesmo celular do app do motorista. O código chega no
-        WhatsApp.</p>
-      <div class="aviso" id="m-entrar"></div>
-      <input id="fone" type="tel" inputmode="numeric" placeholder="DDD + número"
-             autocomplete="tel">
-      <button class="btn" id="b-pedir">Receber código</button>
+
+    <div class="lg-body" id="tela-codigo" hidden>
+      <h1>Código</h1>
+      <p class="lg-sub">Digite os 6 números que chegaram no seu WhatsApp.</p>
+      <label for="codigo">Código</label>
+      <input class="campo" id="codigo" type="text" inputmode="numeric"
+             autocomplete="one-time-code" maxlength="6"
+             style="letter-spacing:.35em;text-align:center;font-size:26px">
+      <button class="lg-btn" id="b-confirmar">Entrar</button>
+      <button class="lg-btn claro" id="b-voltar">Trocar o número</button>
+      <div class="msg" id="m-codigo" hidden></div>
     </div>
-    <div class="card" id="cx-codigo" hidden>
-      <h2>Código</h2>
-      <div class="aviso" id="m-codigo"></div>
-      <input id="codigo" type="text" inputmode="numeric" maxlength="6"
-             placeholder="000000" autocomplete="one-time-code">
-      <button class="btn" id="b-confirmar">Entrar</button>
+
+    <!-- ACESSO MESTRE. Fica dentro do MESMO cartao da marca, e nao numa
+         pagina escondida: quem administra entra pela porta da frente, com a
+         empresa na tela, e a tarja vermelha aparece assim que ele entra. -->
+    <div class="lg-body" id="tela-mestre" hidden>
+      <h1>Acesso da administração</h1>
+      <p class="lg-sub">Abre a campanha de um motorista para conferência. A
+        nota dele decide um prêmio — conferir antes do sorteio é o que impede
+        que um erro de cadastro vire uma discussão no dia da entrega. Tudo o
+        que for aberto aqui fica registrado.</p>
+      <label for="mestre-codigo">Código mestre</label>
+      <input class="campo" id="mestre-codigo" type="password"
+             autocomplete="off" autocapitalize="off" spellcheck="false">
+      <label for="mestre-busca">Motorista (nome ou parte dele)</label>
+      <input class="campo" id="mestre-busca" type="text" autocomplete="off"
+             placeholder="deixe em branco para listar">
+      <button class="lg-btn" id="b-mestre">Procurar</button>
+      <button class="lg-btn claro" id="b-mestre-voltar">Voltar</button>
+      <div class="msg" id="m-mestre" hidden></div>
+      <div class="escolha" id="mestre-lista" style="margin-top:var(--e2)"></div>
+      <p class="nota" id="mestre-conta" hidden></p>
     </div>
   </div>
-</section>
+  <p class="lg-pe">Não recebeu? Fale com a torre.</p>
+  <button class="linksec" id="b-abrir-mestre"
+          style="color:rgba(255,255,255,.55)">Acesso da administração</button>
+</div>
 
-<!-- ───────────────────────── A CAMPANHA (com sessao) ───────────────────── -->
-<section id="tela-campanha" hidden>
-  <div class="topo"><b>Programa de Desempenho</b>
-    <button class="sair" id="b-sair">Sair</button></div>
-  <div class="wrap" id="conteudo"></div>
-</section>
+<!-- ======================================================== o app ====== -->
+<div class="app" id="app" hidden>
+  <!-- A TARJA DO ACESSO MESTRE. Vermelha, no topo de tudo, e vinda da SESSAO:
+       quem administra esquece em que conta esta', e um print desta tela sem a
+       tarja vira "o app mostrou isso ao motorista", que e' falso. -->
+  <div class="mestre" id="tarja-mestre" hidden></div>
+  <header class="topo">
+    <div class="marca">
+      <canvas id="anel" class="anel" aria-hidden="true"></canvas>
+      <div class="marca-txt"><b>Campanha</b><span id="marca-sub"></span></div>
+    </div>
+    <button class="sair" id="b-sair" title="Sair">Sair</button>
+  </header>
+  <main id="conteudo"></main>
+</div>
 
 <script src="/static/anel.js" defer></script>
 <script>
@@ -162,15 +533,25 @@ const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g,
   (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const num = (v, c) => (v == null ? "—" : Number(v).toLocaleString("pt-BR",
   {minimumFractionDigits: c || 0, maximumFractionDigits: c || 0}));
+const ENTRADA = ["tela-capa", "tela-codigo", "tela-mestre"];
 
 function mostrar(id){
-  ["tela-capa", "tela-campanha"].forEach((t) => { $(t).hidden = (t !== id); });
-  document.body.classList.toggle("capa", id === "tela-capa");
+  ENTRADA.forEach((t) => { $(t).hidden = (t !== id); });
+  $("entrada").hidden = !id;
+  $("app").hidden = !!id;
 }
 function aviso(id, texto, tipo){
-  const el = $(id); el.textContent = texto || "";
-  el.className = "aviso" + (texto ? " " + (tipo || "erro") : "");
+  const el = $(id);
+  el.textContent = texto || "";
+  el.className = "msg" + (tipo ? " " + tipo : "");
+  el.hidden = !texto;
 }
+function ocupado(btn, sim, rotulo){
+  btn.disabled = sim;
+  btn.textContent = sim ? "Aguarde…" : rotulo;
+}
+function aparelho(){ return (navigator.userAgent || "").slice(0, 120); }
+
 async function pedir(url, opt){
   const o = Object.assign({headers: {"Content-Type": "application/json"}}, opt || {});
   const r = await fetch(url, o);
@@ -190,42 +571,109 @@ async function pedir(url, opt){
 /* ───────────────────────────────── entrada ─────────────────────────────── */
 let foneAtual = "";
 
+function rodapeDaEntrada(mostrarRodape){
+  document.querySelector(".lg-pe").hidden = !mostrarRodape;
+  $("b-abrir-mestre").hidden = !mostrarRodape;
+}
+
 $("b-pedir").addEventListener("click", async () => {
   const fone = ($("fone").value || "").replace(/\D/g, "");
   if (fone.length < 10) return aviso("m-entrar", "Digite o celular com DDD.");
   aviso("m-entrar", "");
-  $("b-pedir").disabled = true;
+  ocupado($("b-pedir"), true);
   const r = await pedir("/api/motorista/entrar",
     {method: "POST", body: JSON.stringify({telefone: fone})});
-  $("b-pedir").disabled = false;
+  ocupado($("b-pedir"), false, "Receber código");
   if (!r.ok) return aviso("m-entrar", r.mensagem);
   foneAtual = fone;
-  $("cx-entrar").hidden = true; $("cx-codigo").hidden = false;
+  mostrar("tela-codigo");
   // A MENSAGEM E' A MESMA para numero que existe e que nao existe — e por isso
   // ela aparece aqui, e nao como "enviado com sucesso".
   aviso("m-codigo", r.dados.mensagem || "", "ok");
   $("codigo").focus();
 });
 
+$("b-voltar").addEventListener("click", () => {
+  $("codigo").value = "";
+  mostrar("tela-capa");
+});
+
 $("b-confirmar").addEventListener("click", async () => {
   const codigo = ($("codigo").value || "").replace(/\D/g, "");
   if (codigo.length !== 6) return aviso("m-codigo", "O código tem 6 números.");
-  $("b-confirmar").disabled = true;
+  ocupado($("b-confirmar"), true);
   const r = await pedir("/api/motorista/confirmar", {method: "POST",
     body: JSON.stringify({telefone: foneAtual, codigo: codigo,
-                          aparelho: navigator.userAgent.slice(0, 120)})});
-  $("b-confirmar").disabled = false;
+                          aparelho: aparelho()})});
+  ocupado($("b-confirmar"), false, "Entrar");
   if (!r.ok) return aviso("m-codigo", r.mensagem);
   if (r.dados.escolher) {
-    // MAIS DE UM VINCULO NO MESMO NUMERO: a campanha nao resolve isso — quem
-    // resolve e' o app do motorista, que ja' tem a tela de escolha. Mandar
-    // para la' e' melhor que reimplementar uma escolha que so' existe ali.
+    // MAIS DE UM VINCULO NO MESMO NUMERO: quem resolve isso e' o app do
+    // motorista, que ja' tem a tela de escolha. Reimplementar aqui seria uma
+    // segunda escolha para manter, e as duas divergiriam no primeiro ajuste.
     aviso("m-codigo", "Este número tem mais de um cadastro. Entre pelo app do "
-          + "motorista para escolher e volte aqui.", "erro");
+          + "motorista para escolher e volte aqui.");
     return;
   }
-  carregar();
+  abrir();
 });
+
+/* ─────────────────────────── acesso da administração ──────────────────── */
+/* O CODIGO E' CONFERIDO NO SERVIDOR NAS DUAS ROTAS (listar e entrar), nunca
+   aqui: guardar o valor digitado numa variavel de pagina e' o normal (ele vai
+   junto no segundo pedido), mas nada nesta pagina decide se ele vale. */
+$("b-abrir-mestre").addEventListener("click", () => {
+  aviso("m-mestre", "");
+  $("mestre-lista").innerHTML = "";
+  $("mestre-conta").hidden = true;
+  mostrar("tela-mestre");
+  rodapeDaEntrada(false);
+});
+
+$("b-mestre-voltar").addEventListener("click", () => {
+  $("mestre-codigo").value = "";
+  mostrar("tela-capa");
+  rodapeDaEntrada(true);
+});
+
+$("b-mestre").addEventListener("click", async () => {
+  const codigo = $("mestre-codigo").value.trim();
+  if (!codigo) return aviso("m-mestre", "Digite o código mestre.");
+  aviso("m-mestre", "");
+  ocupado($("b-mestre"), true);
+  const r = await pedir("/api/motorista/mestre/motoristas", {method: "POST",
+    body: JSON.stringify({codigo: codigo, busca: $("mestre-busca").value.trim()})});
+  ocupado($("b-mestre"), false, "Procurar");
+  if (!r.ok) return aviso("m-mestre", r.mensagem);
+  const lista = $("mestre-lista");
+  lista.innerHTML = "";
+  (r.dados.motoristas || []).forEach((m) => {
+    const b = document.createElement("button");
+    b.textContent = m.nome || ("Motorista " + m.id);
+    b.dataset.id = m.id;
+    b.addEventListener("click", () => mestreEntrar(b.dataset.id));
+    lista.appendChild(b);
+  });
+  // O CONTADOR DO CORTE, sempre. "40 motoristas" quando sao 300 e' a diferenca
+  // entre conferir a operacao e achar que se conferiu.
+  const c = $("mestre-conta");
+  c.textContent = !r.dados.mostrados ? "Nenhum motorista com esse nome."
+    : ("Mostrando " + r.dados.mostrados + " de " + r.dados.total
+       + (r.dados.total > r.dados.mostrados
+          ? " — refine a busca para ver os outros." : "."));
+  c.hidden = false;
+});
+
+async function mestreEntrar(id){
+  aviso("m-mestre", "");
+  const r = await pedir("/api/motorista/mestre/entrar", {method: "POST",
+    body: JSON.stringify({codigo: $("mestre-codigo").value.trim(),
+                          motorista: Number(id), aparelho: aparelho()})});
+  if (!r.ok) return aviso("m-mestre", r.mensagem);
+  $("mestre-codigo").value = "";
+  $("mestre-lista").innerHTML = "";
+  abrir();
+}
 
 $("b-sair").addEventListener("click", async () => {
   await fetch("/api/motorista/sair", {method: "POST"});
@@ -233,43 +681,88 @@ $("b-sair").addEventListener("click", async () => {
 });
 
 /* ──────────────────────────────── a tela ───────────────────────────────── */
+async function abrir(){
+  // `/eu` RESPONDE DUAS COISAS de uma vez: se ha sessao e de QUEM ela e'. A
+  // segunda e' o que obriga a tarja.
+  const eu = await pedir("/api/motorista/eu");
+  if (!eu.ok) { mostrar("tela-capa"); $("fone").focus(); return false; }
+  mostrar("");
+  const tm = $("tarja-mestre");
+  if (eu.dados.mestre) {
+    tm.innerHTML = "ACESSO DA ADMINISTRAÇÃO · você está vendo a campanha de <b>"
+      + esc(eu.dados.nome || "") + "</b>";
+    tm.hidden = false;
+  } else {
+    tm.hidden = true;
+  }
+  const nome = (eu.dados.nome || "").trim();
+  $("marca-sub").innerHTML = nome
+    ? "Olá, <b>" + esc(nome.split(/\s+/)[0]) + "</b>." : "";
+  carregar();
+  return true;
+}
+
 async function carregar(){
+  $("conteudo").innerHTML = "<div class='card carregando'>Carregando…</div>";
   const r = await pedir("/api/motorista/campanha", {cache: "no-store"});
   if (r.status === 401) { mostrar("tela-capa"); return; }
-  mostrar("tela-campanha");
   if (!r.ok) {
     $("conteudo").innerHTML = "<div class='card'><h1>Não consegui carregar</h1>"
-      + "<p class='sub'>" + esc(r.mensagem) + "</p></div>";
+      + "<p class='vaziomsg'>" + esc(r.mensagem) + "</p></div>";
     return;
   }
   desenhar(r.dados);
 }
 
+function card(titulo, miolo){
+  return "<div class='card'>" + (titulo ? "<h2>" + esc(titulo) + "</h2>" : "")
+    + miolo + "</div>";
+}
+function kpi(rot, val, sub){
+  const nd = (val === null || val === undefined || val === "");
+  return "<div class='kpi'><div class='rot'>" + esc(rot) + "</div>"
+    + "<div class='val" + (nd ? " nd" : "") + "'>"
+    + esc(nd ? "não informado" : val) + "</div>"
+    + (sub ? "<div class='sub'>" + esc(sub) + "</div>" : "") + "</div>";
+}
+function dataBR(iso){
+  const p = String(iso || "").slice(0, 10).split("-");
+  return p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : String(iso || "");
+}
+
 function desenhar(d){
   if (!d.tem_dado) {
-    $("conteudo").innerHTML = "<div class='card'><h1>Programa de Desempenho</h1>"
-      + "<p class='sub'>" + esc(d.motivo) + "</p></div>";
+    $("conteudo").innerHTML = card("Programa de Desempenho",
+      "<p class='vaziomsg'>" + esc(d.motivo) + "</p>");
     return;
   }
   const c = d.campanha;
+  const kpis =
+    kpi("Categoria", d.categoria === "PENDENTE" ? "sem categoria" : d.categoria,
+        d.concorre ? "você está concorrendo" : "fora do sorteio") +
+    kpi("Sua nota", num(d.nota, 1), d.rotulo) +
+    kpi("Posição", d.posicao ? d.posicao + "º" : null,
+        d.posicao ? "entre os " + num(d.de) + " que concorrem" : "") +
+    kpi("Falta", d.faltam_ciclos ? d.faltam_ciclos + " ciclo(s)" : "este é o último",
+        "até o encerramento");
+
   const pilares = (d.pilares || []).map((p) => {
     const largura = p.entrou && p.nota != null ? Math.max(2, Math.min(100, p.nota)) : 0;
-    return "<div class='linha pilar'><div><b>" + esc(p.rotulo) + "</b>"
-      + "<div class='sub'>peso " + num(p.peso) + "% no seu total</div>"
-      + "<div class='barra'><i style='width:" + largura + "%'></i></div></div>"
-      + "<b>" + (p.entrou ? num(p.nota, 1) : "<span class='sub'>sem leitura</span>")
-      + "</b></div>";
+    return "<div class='item'><div class='top'><div class='tit'>" + esc(p.rotulo)
+      + "</div><div class='val'>"
+      + (p.entrou ? num(p.nota, 1) : "<span class='sub'>sem leitura</span>")
+      + "</div></div><div class='sub'>peso " + num(p.peso) + "% no seu total</div>"
+      + "<div class='barra'><i style='width:" + largura + "%'></i></div></div>";
   }).join("");
 
-  // O QUE FALTA VEM ANTES DO RESTO quando ele nao concorre: e' a unica parte da
-  // tela sobre a qual ele ainda pode fazer alguma coisa.
-  const falta = d.concorre ? "" :
-    "<div class='card'><h2>Para concorrer, falta</h2><ul>"
-    + (d.faltas || []).map((f) => "<li>" + esc(f) + "</li>").join("")
-    + "</ul><p class='sub'>" + (d.faltam_ciclos
+  // O QUE FALTA VEM ANTES DO RESTO quando ele nao concorre: e' a unica parte
+  // da tela sobre a qual ele ainda pode fazer alguma coisa.
+  const falta = d.concorre ? "" : card("Para concorrer, falta",
+    "<ul>" + (d.faltas || []).map((f) => "<li>" + esc(f) + "</li>").join("")
+    + "</ul><p class='nota'>" + (d.faltam_ciclos
         ? "Ainda dá tempo: faltam " + d.faltam_ciclos + " ciclo(s) até o "
           + "encerramento (" + esc(c.ate_ciclo) + ")."
-        : "Este é o ciclo que decide o sorteio.") + "</p></div>";
+        : "Este é o ciclo que decide o sorteio.") + "</p>");
 
   const cats = d.no_grupo.por_categoria || {};
   const ordem = ["ELITE", "OURO", "PRATA", "BRONZE", "PENDENTE"];
@@ -278,41 +771,29 @@ function desenhar(d){
     + "</span><b>" + num(cats[k]) + "</b></div>").join("");
 
   $("conteudo").innerHTML =
-    "<div class='card'>"
-    + "<h2>" + esc(d.rotulo) + " · " + esc(d.grupo_rotulo) + "</h2>"
-    + "<div class='faixa'><div class='nota'>" + num(d.nota, 1) + "</div>"
-    + "<div><div class='selo " + esc(d.categoria) + "'>"
-    + esc(d.categoria === "PENDENTE" ? "sem categoria" : d.categoria) + "</div>"
-    + (d.posicao ? "<div class='sub'>" + d.posicao + "º entre os "
-        + num(d.de) + " que concorrem</div>" : "<div class='sub'>fora do sorteio</div>")
-    + "</div></div>"
-    + "<div class='concorre " + (d.concorre ? "sim'>você está concorrendo"
-                                            : "nao'>você não está concorrendo")
-    + "</div>"
+    "<div class='kpis'>" + kpis + "</div>"
     + (d.categoria === "PENDENTE"
-        ? "<p class='sub' style='margin-top:9px'>Sua nota está incompleta, então "
-          + "ela ainda não vira categoria.</p>" : "")
-    + "</div>"
+        ? card("", "<p class='nota'>Sua nota está incompleta, então ela ainda "
+               + "não vira categoria.</p>") : "")
     + falta
-    + "<div class='card'><h2>De onde vem a sua nota</h2>" + pilares + "</div>"
-    + "<div class='card'><h2>Como está o seu grupo</h2>" + quadro
-    + "<p class='sub' style='margin-top:9px'>" + num(d.no_grupo.concorrendo)
-    + " de " + num(d.no_grupo.participantes) + " estão concorrendo. "
-    + "Frota e agregados competem separados.</p></div>"
-    + "<div class='card'><h2>O prêmio</h2><p><b>" + esc(c.premio || "—") + "</b></p>"
-    + "<p class='sub'>Sorteio entre quem estiver na categoria mais alta no "
-    + "encerramento (" + esc(c.ate_ciclo) + ")"
-    + (c.sorteio_em ? ", em " + esc(dataBR(c.sorteio_em)) : "")
-    + (c.onde ? " · " + esc(c.onde) : "") + ".</p>"
-    + "<p class='sub'>" + esc(d.fonte) + "</p></div>";
+    + card("De onde vem a sua nota", pilares)
+    + card("Como está o seu grupo (" + esc(d.grupo_rotulo) + ")", quadro
+        + "<p class='nota'>" + num(d.no_grupo.concorrendo) + " de "
+        + num(d.no_grupo.participantes) + " estão concorrendo. Frota e "
+        + "agregados competem separados.</p>")
+    + card("O prêmio", "<p><b>" + esc(c.premio || "—") + "</b></p>"
+        + "<p class='nota'>Sorteio entre quem estiver na categoria mais alta no "
+        + "encerramento (" + esc(c.ate_ciclo) + ")"
+        + (c.sorteio_em ? ", em " + esc(dataBR(c.sorteio_em)) : "")
+        + (c.onde ? " · " + esc(c.onde) : "") + ".</p>"
+        + "<p class='nota'>" + esc(d.fonte) + "</p>");
 }
 
-function dataBR(iso){
-  const p = String(iso || "").slice(0, 10).split("-");
-  return p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : String(iso || "");
-}
-
-carregar();
+/* ──────────────────────────────────── boot ────────────────────────────── */
+(async function (){
+  if (window.anelLigar) { try { anelLigar(); } catch (e) {} }
+  if (!(await abrir())) { mostrar("tela-capa"); $("fone").focus(); }
+})();
 </script>
 </body>
 </html>

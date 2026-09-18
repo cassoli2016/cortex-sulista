@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.119.0] — 18/09/2026  ·  CX-18/09/2026-v1.119.0
+
+### Adicionado
+- Aplicativo da campanha — acesso da administração, igual ao do app do motorista: quem confere abre a campanha de um motorista pela porta da frente, com a empresa na tela, e uma tarja vermelha no topo diz de quem é a conta aberta. A nota decide um prêmio, e conferir antes do sorteio é o que impede que um erro de cadastro vire discussão no dia da entrega.
+
+### Alterado
+- O aplicativo da campanha ganhou a mesma cara do app do motorista — mesma entrada, mesmos cartões, mesma marca. É o mesmo leitor, no mesmo celular: duas caras diferentes para a mesma empresa fazem desconfiar da segunda, e a campanha é justamente a que chega por link encaminhado.
+
 ## [1.118.0] — 18/09/2026  ·  CX-18/09/2026-v1.118.0
 
 ### Adicionado

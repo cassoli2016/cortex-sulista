@@ -1,3 +1,18 @@
+- versao: "1.119.0"
+  data: "2026-09-18"
+  adicionado:
+    - >-
+      Aplicativo da campanha — acesso da administração, igual ao do app do
+      motorista: quem confere abre a campanha de um motorista pela porta da
+      frente, com a empresa na tela, e uma tarja vermelha no topo diz de quem é
+      a conta aberta. A nota decide um prêmio, e conferir antes do sorteio é o
+      que impede que um erro de cadastro vire discussão no dia da entrega.
+  alterado:
+    - >-
+      O aplicativo da campanha ganhou a mesma cara do app do motorista — mesma
+      entrada, mesmos cartões, mesma marca. É o mesmo leitor, no mesmo celular:
+      duas caras diferentes para a mesma empresa fazem desconfiar da segunda, e
+      a campanha é justamente a que chega por link encaminhado.
 - versao: "1.118.0"
   data: "2026-09-18"
   adicionado:

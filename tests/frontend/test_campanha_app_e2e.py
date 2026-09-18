@@ -39,9 +39,16 @@ MINHA = {
 }
 
 
-def _abrir(pg, base_url, minha=None, status=200):
+def _abrir(pg, base_url, minha=None, status=200, eu=None):
     def rota(route):
         u = route.request.url
+        if "/api/motorista/eu" in u:
+            if status != 200:
+                return route.fulfill(status=401, content_type="application/json",
+                                     body=json.dumps({"mensagem": "sem sessão"}))
+            return route.fulfill(status=200, content_type="application/json",
+                                 body=json.dumps(eu or {"nome": "JOAO DA SILVA",
+                                                        "mestre": False}))
         if "/api/motorista/campanha" in u:
             if status != 200:
                 return route.fulfill(status=status,
@@ -69,22 +76,75 @@ def test_sem_sessao_a_CAPA_nao_mostra_numero_nenhum(pagina):
     pg, base_url = pagina
     erros = _abrir(pg, base_url, status=401)
     assert not erros, erros
-    assert pg.is_visible("#tela-capa") and not pg.is_visible("#tela-campanha")
-    texto = pg.inner_text("#tela-capa")
+    assert pg.is_visible("#tela-capa") and not pg.is_visible("#app")
+    texto = pg.inner_text("#entrada")
     for proibido in ("ELITE", "93,6", "127", "42", "Moto"):
         assert proibido not in texto, proibido
     assert "Programa de Desempenho" in texto
     assert pg.is_visible("#b-pedir"), "a capa oferece a entrada"
 
 
+def test_a_CARA_e_a_mesma_do_app_do_motorista():
+    """Duas caras diferentes para a mesma empresa fazem a pessoa desconfiar da
+    segunda — e a campanha é justamente a que chega por link encaminhado. A
+    casa não tem folha compartilhada entre aplicativos (cada um é página
+    própria), então o bloco de estilo é COPIADO: este guard é o que impede os
+    dois de derivarem no primeiro ajuste."""
+    import pathlib
+    import re
+    static = pathlib.Path(__file__).resolve().parents[2] / "api" / "static"
+
+    def estilo(nome):
+        s = (static / nome).read_text(encoding="utf-8")
+        return re.search(r"<style>.*?</style>", s, re.S).group(0)
+
+    assert estilo("campanha.html") == estilo("motorista.html"), (
+        "a campanha saiu da cara do app do motorista — se a mudança é "
+        "intencional, ela vale para os dois")
+
+
+def test_a_TARJA_do_acesso_mestre_e_obrigatoria(pagina):
+    """Quem administra esquece em que conta está, e um print sem a tarja vira
+    "o app mostrou isso ao motorista", que é falso."""
+    pg, base_url = pagina
+    _abrir(pg, base_url, eu={"nome": "FULANO DE TAL", "mestre": True})
+    assert pg.is_visible("#tarja-mestre")
+    tarja = pg.inner_text("#tarja-mestre")
+    assert "ADMINISTRAÇÃO" in tarja.upper() and "FULANO DE TAL" in tarja
+
+
+def test_sem_acesso_mestre_NAO_ha_tarja(pagina):
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    assert not pg.is_visible("#tarja-mestre")
+    assert "Olá" in pg.inner_text("#marca-sub")
+
+
+def test_o_acesso_da_administracao_abre_pela_entrada(pagina):
+    """Ele entra pela porta da frente, com a empresa na tela — não por uma
+    página escondida."""
+    pg, base_url = pagina
+    _abrir(pg, base_url, status=401)
+    assert pg.is_visible("#b-abrir-mestre")
+    pg.click("#b-abrir-mestre")
+    assert pg.is_visible("#tela-mestre") and not pg.is_visible("#tela-capa")
+    assert pg.is_visible("#mestre-codigo") and pg.is_visible("#mestre-busca")
+    # o rodape da entrada do motorista some: ele nao e' desta tela
+    assert not pg.is_visible("#b-abrir-mestre")
+    pg.click("#b-mestre-voltar")
+    assert pg.is_visible("#tela-capa")
+
+
 def test_com_sessao_a_CATEGORIA_vem_primeiro_e_a_posicao_junto(pagina):
     pg, base_url = pagina
     erros = _abrir(pg, base_url)
     assert not erros, erros
-    primeiro = pg.inner_text("#conteudo .card:first-child")
-    assert "ELITE" in primeiro and "93,6" in primeiro
-    assert "3º entre os 42" in primeiro
-    assert "você está concorrendo" in primeiro
+    # A CATEGORIA E A POSIÇÃO ficam na banda, e não num card: são as duas
+    # coisas que ele abre o app para ver.
+    banda = pg.inner_text("#conteudo .kpis")
+    for pedaco in ("ELITE", "93,6", "3º", "entre os 42",
+                   "você está concorrendo"):
+        assert pedaco.lower() in banda.lower(), pedaco
 
 
 def test_quem_NAO_concorre_le_o_que_falta_ANTES_do_resto(pagina):
@@ -100,12 +160,20 @@ def test_quem_NAO_concorre_le_o_que_falta_ANTES_do_resto(pagina):
     # `inner_text` devolve o texto RENDERIZADO, e os títulos desta página são
     # maiúsculos por CSS — comparar sem caso evita um guard que quebra no dia
     # em que alguém mexe no `text-transform` sem mexer no conteúdo.
+    banda = pg.inner_text("#conteudo .kpis").lower()
+    assert "fora do sorteio" in banda and "sem categoria" in banda
+    # `inner_text` devolve o texto RENDERIZADO, e os títulos são maiúsculos por
+    # CSS — comparar sem caso evita um guard que quebra no dia em que alguém
+    # mexe no `text-transform` sem mexer no conteúdo.
     cards = [x.lower() for x in pg.eval_on_selector_all(
         "#conteudo .card", "els => els.map(e => e.innerText)")]
-    assert "não está concorrendo" in cards[0]
-    assert "para concorrer, falta" in cards[1], "o que falta vem antes da nota"
-    assert "telemetria" in cards[1] and "faltam 1 ciclo" in cards[1]
-    assert "sem categoria" in cards[0]
+    falta = next((i for i, c in enumerate(cards) if "para concorrer, falta" in c),
+                 None)
+    nota = next((i for i, c in enumerate(cards) if "de onde vem a sua nota" in c),
+                None)
+    assert falta is not None and nota is not None
+    assert falta < nota, "o que falta vem antes da nota"
+    assert "telemetria" in cards[falta] and "faltam 1 ciclo" in cards[falta]
 
 
 def test_o_pilar_que_nao_entrou_e_DITO_e_nao_vira_zero(pagina):
