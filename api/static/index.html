@@ -10273,10 +10273,11 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
           <div class="banner-inline" id="rit-bloqueios" style="display:none"></div>
           <div class="card">
-            <div class="head"><h2>Painel único da semana <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: uma linha por indicador, agrupada por gerência (ges_indicadores × ges_apontamentos, no banco do CÓRTEX). O REALIZADO marcado como automático vem da MESMA função que a tela do assunto usa — receita da Visão Geral, retorno vazio da Análise de KM, CNH da tela de CNH — e por isso não se digita: se o número está errado, o conserto é na origem, e não aqui. Indicador manual é digitado pelo gerente e a coluna diz isso, porque número automático e número digitado não têm a mesma qualidade e mostrá-los iguais faz um herdar a confiança do outro. O DESVIO é orientado pelo que é bom: positivo é sempre melhor que a meta, mesmo em indicador onde menos é melhor. AÇÃO é uma ação do Plano de Ação (ges_acoes), a mesma tabela — o compromisso não vive num lugar paralelo.">ⓘ</span></h2>
+            <div class="head"><h2>Painel único da semana <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="FONTE: uma linha por indicador, agrupada por gerência (ges_indicadores × ges_apontamentos, no banco do CÓRTEX). O REALIZADO marcado como automático vem da MESMA função que a tela do assunto usa — receita da Visão Geral, retorno vazio da Análise de KM, CNH da tela de CNH — e por isso não se digita: se o número está errado, o conserto é na origem, e não aqui. Indicador manual é digitado pelo gerente e a coluna diz isso, porque número automático e número digitado não têm a mesma qualidade e mostrá-los iguais faz um herdar a confiança do outro. O DESVIO é orientado pelo que é bom: positivo é sempre melhor que a meta, mesmo em indicador onde menos é melhor. NO ANO é o mesmo indicador medido de 1º de janeiro até hoje, lido da MESMA função que o número do mês — razão (RKM, km/l, retorno vazio) é recalculada sobre o ano inteiro, e não é a média dos meses. Indicador de ESTOQUE (OS abertas, CNH vencendo, afastados, a receber vencido) não tem acumulado: é fotografia de agora, e somar doze fotos do mesmo estoque daria um número que não existe — nesses a coluna mostra o que estava na tela na semana anterior. AÇÃO é uma ação do Plano de Ação (ges_acoes), a mesma tabela — o compromisso não vive num lugar paralelo.">ⓘ</span></h2>
               <span class="hint" id="rit-hint">—</span></div>
             <div class="tablewrap tabroll"><table><thead><tr>
-              <th>Indicador</th><th class="num">Meta</th><th class="num">Realizado</th>
+              <th>Indicador</th><th class="num">Meta</th><th class="num">No mês</th>
+              <th class="num">No ano</th>
               <th>Status</th><th class="num">Desvio</th><th>Ação</th>
               <th>Responsável</th><th>Prazo</th><th></th>
             </tr></thead><tbody id="rit-painel"></tbody></table></div>
@@ -49416,6 +49417,7 @@ async function loadGesrit(){
     ritKpis();
     ritPainelRender();
     ritCobrancaRender();
+    ritAcumulado(q);      // depois de pintar: a coluna do ano se preenche sozinha
   }catch(err){ showBanner(err.message || 'Não foi possível falar com a API.'); }
 }
 
@@ -49484,12 +49486,12 @@ function ritPainelRender(){
   const alvo = document.getElementById('rit-painel');
   const gs = RIT.gerencias || [];
   if(!gs.length){
-    alvo.innerHTML = '<tr><td colspan="9" class="vazio">Nenhum indicador cadastrado — comece pela aba Indicadores.</td></tr>';
+    alvo.innerHTML = '<tr><td colspan="10" class="vazio">Nenhum indicador cadastrado — comece pela aba Indicadores.</td></tr>';
     return;
   }
   const linhas = [];
   gs.forEach(g => {
-    linhas.push('<tr class="rit-ger"><td colspan="9">' + esc(g.nome)
+    linhas.push('<tr class="rit-ger"><td colspan="10">' + esc(g.nome)
       + (g.gestor ? ' <span class="hint">· ' + esc(g.gestor) + '</span>' : '')
       + '</td></tr>');
     g.linhas.forEach(l => {
@@ -49508,6 +49510,13 @@ function ritPainelRender(){
             ? '<span class="rit-falta" title="sem meta o farol nao acende - defina no cadastro de indicadores">sem meta</span>'
             : esc(ritNum(l.meta_valor, l.unidade, l.casas))) + '</td>'
         + '<td class="num">' + esc(ritNum(l.valor, l.unidade, l.casas)) + '</td>'
+        /* A CELULA DO ANO NASCE DIZENDO QUE ESTA MEDINDO, e nao vazia: a
+           leitura do acumulado vem numa SEGUNDA requisicao (o painel ja leva
+           ~10 s para abrir lendo as fontes do mes) e chega alguns segundos
+           depois. Celula vazia nesse intervalo se le como "nao tem", que e
+           uma afirmacao -- e errada. */
+        + '<td class="num" id="rit-ano-' + l.indicador_id + '">'
+          + '<span class="muted">medindo…</span></td>'
         /* A COR CALCULADA MANDA, e a divergencia aparece com o motivo no
            title. Mostrar so a cor apresentada esconderia que alguem discordou
            do calculo -- e a discordancia e a informacao mais interessante da
@@ -49529,6 +49538,60 @@ function ritPainelRender(){
     });
   });
   alvo.innerHTML = linhas.join('');
+}
+
+/* O ACUMULADO DO ANO, numa requisicao PROPRIA.
+   Quem opera pediu as duas colunas (18/09/2026) e o painel ja era a parte
+   lenta da tela -- doze fontes lidas a cada pintura, TTL de 60 a 90 s nas
+   funcoes de origem. Pendurar mais oito leituras no mesmo pedido dobraria o
+   tempo de abertura para encher uma coluna que ninguem esta esperando no
+   primeiro segundo. Entao a tela pinta o mes e completa o ano depois.
+
+   O SEQ existe porque a troca de semana repinta a tabela: sem ele, a resposta
+   de uma semana anterior chegaria atrasada e preencheria as celulas da semana
+   que esta na tela agora. */
+let RIT_ANO_SEQ = 0;
+async function ritAcumulado(q){
+  const seq = ++RIT_ANO_SEQ;
+  const pinta = (id, html) => {
+    const el = document.getElementById('rit-ano-' + id);
+    if(el) el.innerHTML = html;
+  };
+  try{
+    const r = await fetch('/api/ritual/acumulado' + (q || ''), {cache:'no-store'});
+    const d = await respostaJSON(r);
+    if(seq !== RIT_ANO_SEQ) return;
+    if(!d.ok){
+      document.querySelectorAll('[id^="rit-ano-"]').forEach(el =>
+        el.innerHTML = '<span class="muted" title="a leitura do ano nao respondeu">—</span>');
+      return;
+    }
+    const inds = (d.dados || {}).indicadores || {};
+    (RIT.gerencias || []).forEach(g => g.linhas.forEach(l => {
+      const x = inds[String(l.indicador_id)];
+      if(!l.automatico){ pinta(l.indicador_id, '<span class="muted">—</span>'); return; }
+      if(!x){ pinta(l.indicador_id, '<span class="muted">—</span>'); return; }
+      if(x.acumula){
+        pinta(l.indicador_id, x.valor === null || x.valor === undefined
+          ? '<span class="muted" title="a fonte nao respondeu agora">—</span>'
+          : '<span title="' + esc(x.onde || '') + '">'
+            + esc(ritNum(x.valor, l.unidade, l.casas)) + '</span>');
+        return;
+      }
+      /* ESTOQUE: nao acumula, e a celula DIZ isso em vez de um travessao mudo.
+         O que cabe aqui e a comparacao com a semana passada -- e quando ela
+         nao existe, o motivo (ninguem preencheu) tambem e informacao. */
+      const ant = x.semana_anterior;
+      pinta(l.indicador_id, ant === null || ant === undefined
+        ? '<span class="muted" title="e foto de agora, nao acumula - e nao ha semana anterior preenchida para comparar">não acumula</span>'
+        : '<span class="muted" title="e foto de agora, nao acumula: este e o valor da semana anterior">'
+          + esc(ritNum(ant, l.unidade, l.casas)) + ' <small>semana passada</small></span>');
+    }));
+  }catch(err){
+    if(seq !== RIT_ANO_SEQ) return;
+    document.querySelectorAll('[id^="rit-ano-"]').forEach(el =>
+      el.innerHTML = '<span class="muted">—</span>');
+  }
 }
 
 function ritLinha(indId){

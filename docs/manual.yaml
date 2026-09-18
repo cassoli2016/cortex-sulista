@@ -1010,6 +1010,17 @@ glossario:
     KM, CNH da tela de CNH) e NÃO se digita: se o número está errado, o conserto é na origem. Isso
     existe para a reunião discutir o desvio em vez de conferir digitação. Cada gerência preenche
     ANTES da reunião; a tela mostra quem faltou, que é informação de gestão por si só.'
+- termo: No mês × No ano (Ritual Semanal)
+  definicao: 'As duas colunas do realizado. NO MÊS é o indicador do dia 1º até hoje; NO ANO é o
+    MESMO indicador medido de 1º de janeiro até hoje, lido da mesma função — nunca somando ou
+    mediando os meses. Isso importa nas razões: RKM, km por litro e retorno vazio do ano são
+    RECALCULADOS sobre o ano inteiro, porque a média dos meses daria o mesmo peso a um mês de 400
+    mil km e a um de 900 mil. No atingimento da meta, o mês em curso entra com a meta ATÉ HOJE, e
+    não com a do mês inteiro — com a meta cheia o acumulado despencaria todo dia 1º e subiria ao
+    longo do mês sem nada ter acontecido. Indicador de ESTOQUE (OS abertas, CNH vencendo,
+    afastados, a receber vencido) não tem acumulado: é fotografia de agora, e somar doze fotos do
+    mesmo estoque daria um número que não existe — nesses a coluna mostra o valor da semana
+    anterior, quando ela foi preenchida.'
 - termo: Desvio sem ação não fecha pauta
   definicao: 'Regra do ritual, aplicada pelo servidor e não só escrita no quadro: indicador em
     amarelo ou vermelho sem ação vinculada impede fechar a semana, e a recusa DIZ qual indicador

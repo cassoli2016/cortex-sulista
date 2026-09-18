@@ -1,3 +1,20 @@
+- versao: "1.112.0"
+  data: "2026-09-18"
+  adicionado:
+    - >-
+      Ritual Semanal — o painel da semana passa a mostrar duas colunas de
+      realizado: no mês e no ano. O número do mês continua sendo o principal; o
+      do ano responde "como estamos no ano" sem ninguém ter de abrir outra
+      tela. Vale para os indicadores automáticos: dezoito das trinta e quatro
+      fontes acumulam.
+  alterado:
+    - >-
+      Ritual Semanal — indicador que é fotografia de agora (ordens de serviço
+      abertas, CNH vencendo, afastados, a receber vencido) não ganha acumulado,
+      porque somar doze fotos do mesmo estoque daria um número que não existe.
+      Nesses, a coluna mostra o valor da semana anterior, quando ela foi
+      preenchida, e diz que é isso.
+
 - versao: "1.111.1"
   data: "2026-09-18"
   corrigido:

@@ -97,6 +97,45 @@ PAINEL = {
 
 SEM_PROMESSA = {**PAINEL, "cobranca": {"anterior": None, "itens": [], "resumo": {}}}
 
+#: A resposta de `/api/ritual/acumulado`, como a rota publica. O indicador 1
+#: acumula (fluxo), o 2 acumula (fluxo) e o 3 é ESTOQUE — não acumula, e traz o
+#: valor da semana anterior no lugar.
+#: O painel dos testes da coluna do ano: o PAINEL comum não tem indicador de
+#: ESTOQUE automático (a linha 3 dele é manual, e manual não tem acumulado por
+#: construção). Mexer no PAINEL de todos mudaria o resumo e os bloqueios que os
+#: outros testes conferem.
+PAINEL_ANO = {
+    **PAINEL,
+    "gerencias": PAINEL["gerencias"] + [
+        {"chave": "manutencao", "nome": "Manutenção", "gestor": "Rui Sá",
+         "linhas": [_linha("OS abertas", "manutencao", "Manutenção", id=4,
+                           un="OS", fonte="os_abertas",
+                           onde="Visão Geral · OS em aberto",
+                           dir="menor_melhor", valor=51, meta=40, pct=-27.5,
+                           status="vermelho", acao_id=3, acao="Fechar as antigas",
+                           prazo="2026-09-15", resp="Rui Sá")]}],
+}
+
+ACUMULADO = {
+    "indicadores": {
+        "1": {"acumula": True, "valor": 28974500.0,
+              "onde": "ERP AVA · faturas emitidas no ano", "semana_anterior": None},
+        "2": {"acumula": True, "valor": 198320.0,
+              "onde": "Manutenção, ano corrente", "semana_anterior": None},
+        "4": {"acumula": False, "valor": None, "onde": "",
+              "semana_anterior": 47.0},
+    },
+    "de": "2026-01-01", "ate": "2026-09-18", "tem_anterior": True,
+}
+
+ACUMULADO_SEM_ANTERIOR = {
+    **ACUMULADO,
+    "indicadores": {**ACUMULADO["indicadores"],
+                    "4": {"acumula": False, "valor": None, "onde": "",
+                          "semana_anterior": None}},
+    "tem_anterior": False,
+}
+
 CADASTRO = {
     "gerencias": [{"id": 1, "chave": "comercial", "nome": "Comercial"}],
     "indicadores": [
@@ -116,7 +155,7 @@ CADASTRO = {
 }
 
 
-def _abrir(pg, base_url, painel=None):
+def _abrir(pg, base_url, painel=None, acumulado=None):
     enviados = []
 
     def rota(route):
@@ -127,6 +166,8 @@ def _abrir(pg, base_url, painel=None):
             corpo = painel or PAINEL
         elif "/api/ritual/cadastro" in u:
             corpo = CADASTRO
+        elif "/api/ritual/acumulado" in u:
+            corpo = acumulado or ACUMULADO
         elif "/api/ritual/" in u:
             enviados.append(json.loads(route.request.post_data or "{}"))
             corpo = {"ok": True}
@@ -193,6 +234,77 @@ def test_desvio_sem_acao_aparece_como_BLOQUEIO_e_na_linha(pagina):
     assert "Retorno vazio" in banner
     linhas = pg.locator("#rit-painel tr").all_inner_texts()
     assert "falta ação" in next(l for l in linhas if "Retorno vazio" in l)
+
+
+def test_a_coluna_do_ANO_mostra_o_acumulado_de_quem_acumula(pagina):
+    """As duas colunas são a razão desta entrega (quem opera, 18/09/2026). A do
+    mês continua sendo o número principal; a do ano diz onde estamos."""
+    pg, base = pagina
+    _abrir(pg, base, painel=PAINEL_ANO)
+    pg.wait_for_function(
+        "() => !document.querySelector('#rit-ano-1').textContent.includes('medindo')",
+        timeout=20000)
+    assert "28.974.500" in pg.text_content("#rit-ano-1")
+    assert "198.320" in pg.text_content("#rit-ano-2")
+    # e a procedência viaja no title, como no resto da casa
+    assert "faturas emitidas" in pg.get_attribute("#rit-ano-1 span", "title")
+
+
+def test_o_ESTOQUE_diz_que_nao_acumula_em_vez_de_travessao_mudo(pagina):
+    """Travessão se lê como "a fonte não respondeu". "Não acumula" é decisão —
+    OS abertas em janeiro e em fevereiro não se somam. São coisas diferentes e
+    a célula as escreve diferente."""
+    pg, base = pagina
+    _abrir(pg, base, painel=PAINEL_ANO, acumulado=ACUMULADO_SEM_ANTERIOR)
+    pg.wait_for_function(
+        "() => !document.querySelector('#rit-ano-4').textContent.includes('medindo')",
+        timeout=20000)
+    texto = pg.text_content("#rit-ano-4")
+    assert "não acumula" in texto, texto
+    assert "—" not in texto
+
+
+def test_o_estoque_com_semana_anterior_mostra_o_numero_DAQUELA_semana(pagina):
+    pg, base = pagina
+    _abrir(pg, base, painel=PAINEL_ANO)
+    pg.wait_for_function(
+        "() => !document.querySelector('#rit-ano-4').textContent.includes('medindo')",
+        timeout=20000)
+    texto = pg.text_content("#rit-ano-4")
+    assert "47" in texto and "semana passada" in texto, texto
+
+
+def test_a_celula_do_ano_NASCE_dizendo_que_esta_medindo(pagina):
+    """A leitura do ano vem numa SEGUNDA requisição e demora alguns segundos
+    (9,4 s medidos com o cache frio, em 18/09/2026). Célula vazia nesse
+    intervalo se lê como "não tem" — que é uma afirmação, e errada.
+
+    O estado se prende REPINTANDO a tabela sem disparar a segunda leitura, e
+    não cronometrando a rede: guard que depende de chegar antes da resposta
+    passa ou falha pelo tempo da máquina, não pelo que a tela faz.
+    """
+    pg, base = pagina
+    _abrir(pg, base, painel=PAINEL_ANO)
+    pg.wait_for_function(
+        "() => !document.querySelector('#rit-ano-1').textContent.includes('medindo')",
+        timeout=20000)
+    pg.evaluate("ritPainelRender()")
+    assert "medindo" in pg.text_content("#rit-ano-1")
+    assert "medindo" in pg.text_content("#rit-ano-4")
+
+
+def test_a_tabela_com_a_coluna_nova_NAO_empurra_a_pagina(pagina):
+    """A régua também mede LARGURA, e ela é medida com a API dublada — ou seja,
+    com a tabela vazia. Aqui a tabela está cheia e com a coluna a mais."""
+    pg, base = pagina
+    _abrir(pg, base, painel=PAINEL_ANO)
+    pg.wait_for_function(
+        "() => !document.querySelector('#rit-ano-1').textContent.includes('medindo')",
+        timeout=20000)
+    sobra = pg.evaluate(
+        "() => {const d = document.documentElement;"
+        " return d.scrollWidth - d.clientWidth;}")
+    assert sobra == 0, "a página passou a rolar para o lado: %spx" % sobra
 
 
 def test_o_kpi_separa_PREENCHIDO_de_verde(pagina):

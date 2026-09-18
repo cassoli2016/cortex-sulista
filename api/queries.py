@@ -3001,6 +3001,55 @@ def get_visao_geral() -> dict:
     }
 
 
+# O MESMO recorte de `faturamento_mes` da Visão Geral (faturas emitidas), com a
+# janela aberta. Existe para o acumulado do Ritual Semanal: a Visão Geral só
+# publica o MÊS, e somar mês a mês para chegar ao ano seria uma segunda régua.
+#
+# TRÊS RECORTES DE RECEITA CONVIVEM nesta casa e não são o mesmo número
+# (CLAUDE.md §4): faturas emitidas × frete das viagens (CT-e) × régua da meta.
+# Este é o PRIMEIRO. Quem precisa do segundo usa `get_analise_km`; do terceiro,
+# `api/faturamento.get_detalhado`.
+#
+# A condição é a mesma linha do `KPI_SQL` (`dtcancelamento IS NULL`, sem filtro
+# de filial ou cliente), com `date_trunc('month', …) = date_trunc('month', …)`
+# trocado por um intervalo. A equivalência das duas NÃO é afirmação de quem
+# escreveu: `tests/test_ritual_acumulado.py` roda esta função na janela do MÊS
+# e exige o mesmo centavo da Visão Geral.
+#
+# O LIMITE DE CIMA É ABERTO (`< ate + 1 dia`), e isso custou uma medição para
+# aparecer: `dtemissao` é `timestamp`, e a casa tem 19 faturas com emissão
+# FUTURA (R$ 54,3 mil em 18/09/2026 — data de emissão depois de hoje). Fechar a
+# janela em `<= hoje` deixava essas 19 de fora e fazia o acumulado do ano
+# discordar do número do mês que a mesma tela mostra ao lado — duas colunas da
+# MESMA linha, com regras diferentes, que é o defeito que este módulo existe
+# para não ter.
+FATURADO_JANELA_SQL = """
+SELECT coalesce(sum(valortitulo),0)::float8 AS valor,
+       count(*)::int                        AS faturas
+  FROM fatura
+ WHERE dtcancelamento IS NULL
+   AND dtemissao >= %(de)s
+   AND dtemissao <  (%(ate)s::date + 1)
+"""
+
+
+@cached(ttl=300, velha_ate=VELHA_ATE)
+def get_faturado(dt_de: str, dt_ate: str) -> dict:
+    """Faturas emitidas na janela — valor e quantidade.
+
+    TTL de 300 s (e não os 90 s da casa) porque quem pergunta isto pergunta o
+    ACUMULADO DO ANO: um número que se move alguns centésimos por hora. Cache
+    curto aqui seria consulta repetida ao ERP para devolver o mesmo número.
+    """
+    with db.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(FATURADO_JANELA_SQL, {"de": dt_de, "ate": dt_ate})
+        r = cur.fetchone() or {}
+    return {"valor": float(r.get("valor") or 0.0),
+            "faturas": int(r.get("faturas") or 0),
+            "de": dt_de, "ate": dt_ate,
+            "fonte": "ERP AVA · fatura (faturas emitidas na janela)"}
+
+
 # ============================================================================
 # Combustível — sulista.ctaplus_abastecimentos (gestora CTA Plus, vivo).
 # A maior parte do diesel é de veículos de agregados/terceiros (repassado no
