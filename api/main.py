@@ -8661,6 +8661,32 @@ def ritual_painel(ciclo_id: int = 0) -> JSONResponse:
         return _ges_erro("ritual_painel", exc, "Erro ao montar o painel da semana.")
 
 
+@app.get("/api/ritual/acumulado")
+def ritual_acumulado(ciclo_id: int = 0) -> JSONResponse:
+    """O acumulado do ANO de cada indicador — a SEGUNDA leitura da tela.
+
+    SEPARADA DO PAINEL DE PROPOSITO. O painel ja le doze fontes a cada pintura
+    e leva cerca de dez segundos frio (as funcoes de tela tem TTL de 60 a 90 s,
+    entao quase toda abertura paga). O acumulado custa outro tanto e NAO e o
+    numero que abre a reuniao: a tela pinta o mes e preenche a coluna do ano
+    depois. Juntar as duas leituras dobraria o tempo de abertura da tela para
+    encher uma coluna que ninguem esta esperando no primeiro segundo.
+
+    Cai em RBAC pela generica `/api/ritual` (tela `gesrit`), que e quem
+    preenche -- nao ha nada aqui que o painel ja nao mostre.
+    """
+    try:
+        from api.gestao import ritual
+        c = (ritual._um("SELECT * FROM ges_ciclos WHERE id=%s", (ciclo_id,))
+             if ciclo_id else ritual.ciclo_corrente())
+        if not c:
+            return JSONResponse({"indicadores": {}, "tem_anterior": False})
+        return JSONResponse(ritual.acumulados(c["id"]))
+    except Exception as exc:  # noqa: BLE001
+        return _ges_erro("ritual_acumulado", exc,
+                         "Erro ao ler o acumulado do ano.")
+
+
 @app.get("/api/ritual/cadastro")
 def ritual_cadastro() -> JSONResponse:
     """O que o GERENTE precisa para preencher: acoes em aberto e pessoas.

@@ -104,19 +104,29 @@ class Fonte:
     """
 
     __slots__ = ("chave", "rotulo", "gerencia", "unidade", "casas",
-                 "direcao", "ler", "onde")
+                 "direcao", "ler", "onde", "ler_ano", "ano_onde")
 
     def __init__(self, chave, rotulo, gerencia, unidade, casas, direcao,
-                 ler, onde):
+                 ler, onde, ler_ano=None, ano_onde=""):
         self.chave, self.rotulo, self.gerencia = chave, rotulo, gerencia
         self.unidade, self.casas, self.direcao = unidade, casas, direcao
         self.ler, self.onde = ler, onde
+        # O ACUMULADO DO ANO, quando ele EXISTE (pedido de quem opera,
+        # 18/09/2026: "alguns indicadores automáticos precisa vir o acumulado
+        # do sistema"). É um segundo leitor, e não um parâmetro do primeiro,
+        # porque nem todo indicador tem acumulado: OS abertas, CNH vencendo e
+        # afastados são FOTOGRAFIA DE AGORA — somar doze fotos do mesmo
+        # estoque daria um número que não existe no mundo. `ler_ano is None`
+        # é a declaração disso, e a tela diz "não acumula" em vez de inventar.
+        self.ler_ano, self.ano_onde = ler_ano, ano_onde
 
     def como_dict(self) -> dict:
         return {"chave": self.chave, "rotulo": self.rotulo,
                 "gerencia": self.gerencia, "unidade": self.unidade,
                 "casas": self.casas, "direcao": self.direcao,
-                "onde": self.onde}
+                "onde": self.onde,
+                "tem_acumulado": self.ler_ano is not None,
+                "acumulado_onde": self.ano_onde}
 
 
 def _vg(campo: str, fator: float = 1.0):
@@ -145,9 +155,10 @@ def _vg(campo: str, fator: float = 1.0):
 FONTES: dict[str, Fonte] = {}
 
 
-def _registrar(chave, rotulo, gerencia, unidade, casas, direcao, ler, onde):
+def _registrar(chave, rotulo, gerencia, unidade, casas, direcao, ler, onde,
+               ler_ano=None, ano_onde=""):
     FONTES[chave] = Fonte(chave, rotulo, gerencia, unidade, casas, direcao,
-                          ler, onde)
+                          ler, onde, ler_ano, ano_onde)
 
 
 _registrar("receita_faturada_mes", "Receita faturada no mês", "comercial",
@@ -192,8 +203,30 @@ def _mes_corrente() -> tuple[str, str]:
     return hoje.replace(day=1).isoformat(), hoje.isoformat()
 
 
+def _ano_corrente() -> tuple[str, str]:
+    """De 1º de janeiro até hoje.
+
+    A JANELA DO ACUMULADO É O ANO CIVIL, e não doze meses móveis, porque é
+    contra o ano civil que a meta é combinada nesta casa — o acumulado tem de
+    responder "como estamos no ANO", que é a pergunta que se faz na reunião
+    olhando para dezembro. Doze meses móveis responderiam outra pergunta, e
+    boa: entra no dia em que alguém pedir a tendência, com rótulo próprio.
+    """
+    hoje = date.today()
+    return hoje.replace(month=1, day=1).isoformat(), hoje.isoformat()
+
+
+def _ano_com_filial() -> tuple:
+    """Para as funções de tela que pedem `filial` como primeiro argumento."""
+    return (None, *_ano_corrente())
+
+
+def _ano_sem_filial() -> tuple:
+    return _ano_corrente()
+
+
 def _aninhado(importar: str, funcao: str, caminho: str, fator: float = 1.0,
-              args: tuple = (), janela_mes: bool = False):
+              args: tuple = (), janela_mes: bool = False, janela=None):
     """Um escalar de dentro do retorno de uma função de tela.
 
     `caminho` é pontilhado ("kpis.retorno_vazio"). As chaves foram SONDADAS
@@ -208,7 +241,13 @@ def _aninhado(importar: str, funcao: str, caminho: str, fator: float = 1.0,
     def ler():
         import importlib
         fn = getattr(importlib.import_module(importar), funcao)
-        a = (None, *_mes_corrente()) if janela_mes else args
+        # `janela` devolve a TUPLA DE ARGUMENTOS inteira, e não as duas datas:
+        # as funções da casa não concordam na assinatura (`get_analise_km` pede
+        # filial antes das datas, `get_combustivel` não pede), e foi assinatura
+        # errada — não chave errada — que deixou três fontes mudas quando este
+        # módulo nasceu.
+        a = janela() if janela is not None else (
+            (None, *_mes_corrente()) if janela_mes else args)
         d = fn(*a)
         for parte in caminho.split("."):
             if not isinstance(d, dict):
@@ -228,10 +267,27 @@ _registrar("rkm", "RKM — receita por km carregado", "operacao",
            "R$/km", 2, "maior_melhor",
            _aninhado("api.queries", "get_analise_km", "kpis.rkm", janela_mes=True),
            "Análise de KM, mês corrente · receita de frete ÷ km carregado")
-_registrar("diesel_km", "Consumo — km por litro", "operacao",
-           "km/l", 2, "maior_melhor",
+#: ESTE INDICADOR É CUSTO, E JÁ SE CHAMOU "Consumo — km por litro" AQUI.
+#: `get_analise_km` publica `diesel_km` = R$ por km rodado, e a tela de Análise
+#: de KM sempre mostrou assim ("× R$ 1,99/km"); foi o ritual que copiou a chave
+#: e escreveu o rótulo errado, com unidade km/l e direção MAIOR-MELHOR — ou
+#: seja, o diesel encarecendo pintava VERDE na reunião. Corrigido em
+#: 18/09/2026, com o consumo de verdade entrando como indicador PRÓPRIO logo
+#: abaixo. Chave de fonte não se renomeia (é o que o cadastro guarda).
+_registrar("diesel_km", "Diesel por km rodado", "operacao",
+           "R$/km", 2, "menor_melhor",
            _aninhado("api.queries", "get_analise_km", "diesel_km", janela_mes=True),
-           "Análise de KM, mês corrente · km rodado ÷ litros abastecidos")
+           "Análise de KM, mês corrente · custo de diesel ÷ km rodado do "
+           "CAMINHÃO próprio (sem automóvel, sem ARLA). É o preço do km, e é "
+           "com ele que o km vazio é valorizado")
+_registrar("consumo_proprio", "Consumo do caminhão próprio", "operacao",
+           "km/l", 2, "maior_melhor",
+           _aninhado("api.queries", "get_analise_km", "km_l_proprio",
+                     janela_mes=True),
+           "Análise de KM, mês corrente · km ÷ litros do CAMINHÃO próprio. Não "
+           "é o km/l da tela de Combustível (2,74), que soma os 100 agregados "
+           "e os nove automóveis com os 55 caminhões — média de população "
+           "heterogênea não decide nada")
 
 # ---- RH. Três telas diferentes, e de propósito: são perguntas diferentes.
 _registrar("cnh_vencidas", "CNH vencidas", "rh",
@@ -1196,6 +1252,180 @@ _registrar("turnover", "Turnover 12 meses", "rh",
            "treinamento, sinistro e hora extra três meses depois")
 
 
+# ===========================================================================
+# O ACUMULADO DO ANO
+#
+# Quem opera, 18/09/2026: "alguns indicadores que são automáticos precisa vir o
+# acumulado do sistema". A reunião semanal olha o mês e não enxerga a posição
+# no ano; a linha passa a ter os dois números, e o do mês continua sendo o
+# principal (decisão de quem pediu).
+#
+# TRÊS REGRAS, e as três custam se erradas:
+#
+# 1. **O ACUMULADO SAI DA MESMA RÉGUA DO MÊS.** Nenhuma destas leituras foi
+#    escrita do zero: são as MESMAS funções, com a janela trocada. Onde não
+#    havia função com janela (faturas emitidas, que a Visão Geral só publica
+#    por mês), a consulta nova foi conferida contra a Visão Geral no MESMO mês,
+#    ao centavo (`queries.get_faturado`). Duas colunas da mesma linha com
+#    réguas diferentes é o jeito mais rápido de a reunião discutir de onde veio
+#    o número em vez de discutir o desvio.
+# 2. **RAZÃO NÃO SE ACUMULA SOMANDO.** RKM, km/l e retorno vazio no ano não são
+#    a média dos meses: são a razão RECALCULADA sobre o ano inteiro. Por isso a
+#    fonte é a própria função com a janela do ano, e não uma média de leituras
+#    mensais — que daria peso igual a um mês de 400 mil km e a um de 900 mil.
+# 3. **ESTOQUE NÃO TEM ACUMULADO.** OS abertas, OC atrasadas, CNH vencendo,
+#    férias sem agendamento, afastados e a receber vencido são fotografia de
+#    AGORA. Somar doze fotos do mesmo estoque produz um número que não existe
+#    no mundo. Estes ficam sem `ler_ano`, e a tela mostra a comparação com a
+#    semana anterior — que é a pergunta que se pode responder sobre estoque.
+
+
+def _acumular(chave: str, ler_ano, ano_onde: str) -> None:
+    """Acrescenta o acumulado a uma fonte JÁ registrada.
+
+    `FONTES[chave]` de propósito: chave errada levanta `KeyError` no import, e
+    a API não sobe. A alternativa silenciosa (`.get`) produziria uma fonte sem
+    acumulado — indistinguível, na tela, de uma que não acumula por decisão.
+    """
+    f = FONTES[chave]
+    f.ler_ano, f.ano_onde = ler_ano, ano_onde
+
+
+def _faturado_ano():
+    """Faturas emitidas no ANO CIVIL inteiro.
+
+    A janela vai até 31/12 e não até hoje, porque a Visão Geral conta o MÊS
+    inteiro — e a casa tem faturas com data de emissão FUTURA (19 delas,
+    R$ 54,3 mil, em 18/09/2026). Fechando em "hoje", o acumulado do ano ficaria
+    menor que a soma dos meses que ele mesmo acumula.
+    """
+    def ler():
+        from api import queries
+        hoje = date.today()
+        d = queries.get_faturado(hoje.replace(month=1, day=1).isoformat(),
+                                 hoje.replace(month=12, day=31).isoformat())
+        return None if d is None else float(d["valor"])
+    return ler
+
+
+def _atingimento_ano():
+    """Realizado do ano ÷ meta do ano, na régua da meta (a tela `fat`).
+
+    O MÊS EM CURSO ENTRA COM A META ATÉ HOJE (`meta_mtd`), não com a do mês
+    inteiro. Com a meta cheia, o acumulado despencaria todo dia 1º e subiria ao
+    longo do mês sem nada ter acontecido — o veneno do dia em curso, que esta
+    casa já pagou para aprender. Medido em 18/09/2026: com a meta cheia de
+    setembro o ano dava 86,2%; com a meta até o dia, 90,4%.
+
+    Os dois lados saem do MESMO payload: misturar numerador de uma régua com
+    denominador de outra é o erro que o CLAUDE.md nomeia sobre atingimento.
+    """
+    def ler():
+        from api import faturamento
+        d = faturamento.get_detalhado()
+        ano = str(date.today().year)
+        corrente = date.today().strftime("%Y-%m")
+        mtd = float(((d.get("kpis") or {}).get("meta_mtd")) or 0.0)
+        real = meta = 0.0
+        for x in d.get("mensal") or []:
+            m = str(x.get("mes") or "")
+            if not m.startswith(ano):
+                continue
+            real += float(x.get("realizado") or 0.0)
+            meta += mtd if m == corrente else float(x.get("meta") or 0.0)
+        return None if meta <= 0 else 100.0 * real / meta
+    return ler
+
+
+def _ano_km(caminho: str, fator: float = 1.0):
+    return _aninhado("api.queries", "get_analise_km", caminho, fator,
+                     janela=_ano_com_filial)
+
+
+_acumular("receita_faturada_mes", _faturado_ano(),
+          "ERP AVA · faturas emitidas no ano, mesma régua do mês")
+_acumular("receita_cte_mes", _ano_km("kpis.receita"),
+          "Análise de KM, ano corrente · frete das viagens")
+_acumular("atingimento_meta", _atingimento_ano(),
+          "Faturamento · realizado do ano ÷ meta do ano, com o mês em curso "
+          "entrando só com a meta até hoje")
+_acumular("manutencao_mes",
+          _aninhado("api.queries", "get_manutencao", "kpis.custo",
+                    janela=_ano_com_filial),
+          "Manutenção, ano corrente · ordens de serviço emitidas")
+_acumular("combustivel_mes",
+          _aninhado("api.queries", "get_combustivel", "kpis.custo_proprio",
+                    janela=_ano_sem_filial),
+          "Combustível, ano corrente · frota própria")
+_acumular("retorno_vazio", _ano_km("kpis.retorno_vazio", 100.0),
+          "Análise de KM, ano corrente · a razão do ANO, não a média dos meses")
+_acumular("rkm", _ano_km("kpis.rkm"),
+          "Análise de KM, ano corrente · receita ÷ km carregado do ano")
+_acumular("diesel_km", _ano_km("diesel_km"),
+          "Análise de KM, ano corrente · custo de diesel ÷ km do ano, "
+          "caminhão próprio")
+_acumular("consumo_proprio", _ano_km("km_l_proprio"),
+          "Análise de KM, ano corrente · km ÷ litros do ano, caminhão próprio")
+
+
+def _ano_com(caminho: str, fator: float = 1.0):
+    return _aninhado("api.queries", "get_comercial", caminho, fator,
+                     janela=_ano_com_filial)
+
+
+def _ano_prod(caminho: str, fator: float = 1.0):
+    return _aninhado("api.queries", "get_produtividade_veiculos", caminho,
+                     fator, janela=_ano_com_filial)
+
+
+_acumular("embarques_mes", _ano_com("kpis.ctes"),
+          "Clientes e RKM, ano corrente · CT-e emitidos no ano")
+_acumular("clientes_ativos_mes", _ano_com("kpis.clientes"),
+          "Clientes e RKM, ano corrente · clientes DISTINTOS no ano. Não é a "
+          "soma dos meses: quem embarca todo mês conta uma vez")
+_acumular("concentracao_top10", _ano_com("kpis.concentracao_top10", 100.0),
+          "Clientes e RKM, ano corrente · a concentração do ANO, que é o "
+          "número de risco da carteira — um mês atípico não a move")
+_acumular("peso_maior_cliente", _ano_com("abc.top1", 100.0),
+          "Clientes e RKM, ano corrente · fatia do cliente nº 1 no ano")
+_acumular("receita_por_veiculo", _ano_prod("kpis.receita_por_veiculo"),
+          "Produtividade de Veículos, ano corrente")
+_acumular("km_por_veiculo", _ano_prod("kpis.km_por_veiculo"),
+          "Produtividade de Veículos, ano corrente")
+_acumular("ociosidade_frota", _ano_prod("kpis.ociosidade", 100.0),
+          "Produtividade de Veículos, ano corrente · quem não rodou NO ANO "
+          "INTEIRO, que é muito menos gente do que quem não rodou no mês")
+_acumular("veiculos_ociosos", _ano_prod("kpis.ociosos"),
+          "Produtividade de Veículos, ano corrente · veículos sem uma viagem "
+          "no ano. Aqui o número CAI com a janela maior, e isso é correto: é "
+          "outra pergunta, não o mesmo indicador acumulado")
+
+
+def _diarias_ano(campo: str):
+    """Diária paga no ano. Medido em 0,2 s — as duas consultas já estão
+    cacheadas, e é por isso que esta entra e a de hora extra não."""
+    def ler():
+        from api.jornada import diarias as dj
+        ini, fim = _ano_corrente()
+        d = dj.levantar(date.fromisoformat(ini), date.fromisoformat(fim))
+        v = dj.resumo(d, dj.mensal(d)).get(campo)
+        return None if v is None else float(v)
+    return ler
+
+
+_acumular("diarias_mes", _diarias_ano("total"),
+          "Jornada · diária paga na folha, ano corrente")
+_acumular("diaria_por_dia", _diarias_ano("por_dia"),
+          "Jornada · diária do ano ÷ dias trabalhados do ano. É razão: o "
+          "acumulado NÃO é a média das médias mensais")
+
+# HORA EXTRA NÃO ACUMULA AQUI, e a razão é custo, não princípio:
+# `get_horas_extras` é por COMPETÊNCIA (um mês por chamada, 2,7 s a mais cara
+# da casa), então o ano seriam nove consultas em fila — vinte e quatro segundos
+# para uma célula. Quando existir uma leitura por janela, `horas_extras_mes` e
+# `he_pct_folha` entram aqui em duas linhas.
+
+
 def fontes_publicas() -> list[dict]:
     """O catálogo, para a tela de cadastro de indicador."""
     return [f.como_dict() for f in FONTES.values()]
@@ -1216,3 +1446,71 @@ def ler_fonte(chave: str) -> float | None:
     except Exception as exc:  # noqa: BLE001
         log.warning("fonte %s falhou: %s", chave, type(exc).__name__)
         return None
+
+
+def ler_acumulado(chave: str) -> float | None:
+    """O acumulado do ANO de uma fonte, ou `None`.
+
+    `None` aqui tem DOIS significados, e a tela os separa: a fonte não acumula
+    por decisão (estoque — `tem_acumulado` é falso no catálogo) ou ela acumula
+    e não respondeu agora. Juntá-los faria "não se aplica" parecer defeito, e
+    defeito parecer regra.
+    """
+    f = FONTES.get(chave)
+    if f is None or f.ler_ano is None:
+        return None
+    try:
+        return f.ler_ano()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("acumulado de %s falhou: %s", chave, type(exc).__name__)
+        return None
+
+
+def acumulados(ciclo_id: int, esquema: str | None = None) -> dict:
+    """O acumulado de cada indicador do ciclo — a SEGUNDA requisição da tela.
+
+    POR QUE ISTO NÃO VEM DENTRO DO `painel()`: o painel já lê doze fontes a
+    cada pintura e leva cerca de dez segundos frio; as funções de tela têm TTL
+    de 60 a 90 s, então quase toda abertura paga a leitura. O acumulado do ano
+    custa outro tanto — e ele NÃO é o número que a reunião abre para ver. A
+    tela pinta o mês e preenche a coluna do ano depois, o que mantém o tempo
+    de abertura como está hoje.
+
+    Para o ESTOQUE (fonte sem `ler_ano`) a resposta é o que ficou gravado na
+    SEMANA ANTERIOR — `realizado_auto` do ciclo anterior, que é o que estava na
+    tela quando aquela reunião aconteceu. Não existe reconstrução possível de
+    estoque passado: quem não preencheu não tem histórico, e a tela diz isso em
+    vez de mostrar um traço mudo.
+    """
+    linhas = _q("""
+        SELECT i.id AS indicador_id, i.fonte, i.casas, i.unidade
+          FROM ges_indicadores i
+          JOIN ges_gerencias g ON g.id = i.gerencia_id
+         WHERE i.ativo = 1 AND g.ativa = 1 AND i.fonte <> 'manual'""",
+        (), esquema=esquema)
+
+    anterior = _um("""
+        SELECT id FROM ges_ciclos
+         WHERE id <> %s
+      ORDER BY ano DESC, semana DESC LIMIT 1""", (ciclo_id,), esquema=esquema)
+    passado = {}
+    if anterior:
+        passado = {r["indicador_id"]: r["realizado_auto"] for r in _q(
+            "SELECT indicador_id, realizado_auto FROM ges_apontamentos"
+            " WHERE ciclo_id = %s", (anterior["id"],), esquema=esquema)}
+
+    ini, fim = _ano_corrente()
+    out = {}
+    for r in linhas:
+        f = FONTES.get(r["fonte"])
+        acumula = f is not None and f.ler_ano is not None
+        valor = ler_acumulado(r["fonte"]) if acumula else None
+        ant = passado.get(r["indicador_id"]) if not acumula else None
+        out[str(r["indicador_id"])] = {
+            "acumula": acumula,
+            "valor": valor,
+            "onde": (f.ano_onde if f else ""),
+            "semana_anterior": None if ant is None else float(ant),
+        }
+    return {"indicadores": out, "de": ini, "ate": fim,
+            "tem_anterior": bool(anterior)}
