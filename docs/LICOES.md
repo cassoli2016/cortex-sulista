@@ -4074,6 +4074,14 @@ Três coisas, e as três eram minhas:
 - **O menu é alfabético** (miolo em ordem de dicionário, Administração no fim).
   Eu não sabia. "Suporte" vai **antes** de "Suprimentos" (Supo < Supr), e eu
   tinha encostado o grupo em Administração só porque foi de lá que ele saiu.
+  **Revertido em 18/09/2026, por quem opera: o Suporte voltou para o fim,
+  abaixo da Administração** — e a lição sobrevive com outro recorte. A suíte
+  estava certa sobre a REGRA (Supo < Supr) e eu estava errado sobre o MOTIVO:
+  pus o grupo ali por inércia, sem decisão nenhuma. Agora há decisão, e ela é
+  que o fim do menu não é a letra Z — é o lugar do que não se usa para
+  trabalhar. Ordem alfabética responde "onde procuro?"; a exceção do fim
+  responde "o que fica fora do caminho?". Regra da casa reescrita no
+  `CLAUDE.md`, com guard medindo POSIÇÃO na tela, nos dois menus.
 - **A escala 9/18/25**: a barra de período da tela nova dava 39 px — margem
   própria somada ao `gap` do container, que é o jeito clássico de sair da
   escala (memória `escala-de-espacamento`, de novo).

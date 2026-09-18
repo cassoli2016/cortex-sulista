@@ -4,11 +4,28 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.118.0] — 18/09/2026  ·  CX-18/09/2026-v1.118.0
+
+### Adicionado
+- Programa de Desempenho — a campanha trimestral com sorteio ganhou lugar próprio: uma guia na tela da Premiação de Motoristas, com um ranking para a frota e outro para os agregados (eles competem separados), a régua do regulamento (condução 50%, comportamento 30%, risco 20%; Elite 90, Ouro 85, Prata 75) e a situação de cada um — quem concorre e, para quem não concorre, o que exatamente falta.
+- O fechamento do mês congela a categoria de cada participante, que é o que o regulamento manda divulgar. É dessa fotografia que sai a lista do sorteio: sortear sobre o cálculo vivo faria o resultado depender do minuto em que se clicou.
+- O sorteio é auditável por construção — a lista congelada, a semente registrada e o suplente junto. Com a semente e a lista, qualquer pessoa refaz o sorteio e chega no mesmo nome. O que o sistema não tem como conferir (MOPP, tacógrafo, seguro, pendência financeira) ele não afirma: a gestão exclui à mão, com motivo, e isso fica na ata.
+- Aplicativo próprio da campanha em /campanha, para frota e agregados: a categoria do mês, de onde vem a nota, a posição no grupo dele e, quando não está concorrendo, o que falta e quantos ciclos ainda restam. A capa, que é o que circula no QR, não mostra número nenhum — só o convite.
+- Quem não tem leitura da telemetria no ciclo participa e vê a nota, mas fica fora do sorteio, e a tela diz isso desde o primeiro dia: a condução vale metade do regulamento, e sem ela a mesma barra de 90 pontos significaria coisas diferentes para pessoas diferentes. A guia conta quantos estão nessa situação em cada grupo — é o que dá para consertar enquanto o trimestre corre.
+
 ## [1.117.0] — 18/09/2026  ·  CX-18/09/2026-v1.117.0
 
 ### Alterado
 - Premiação de Motoristas — as duas abas do modelo em pagamento (a régua antiga, nota da Gobrax × km rodado por mês-calendário, e a configuração dela) saíram da tela. A régua é uma só: a Gestão de Motoristas, com o ciclo do dia 16 ao dia 15 e os três pilares.
 - A coleta da nota da Gobrax ganhou dono. Ela era um efeito colateral de alguém abrir a tela antiga — sem essa tela, o pilar de condução congelaria em silêncio (a nota não some, ela para de mudar). Agora há uma tarefa agendada às 04:20 e um botão "Atualizar nota da Gobrax" no cabeçalho da tela, para quem não pode esperar a madrugada.
+
+## [1.116.2] — 18/09/2026  ·  CX-18/09/2026-v1.116.2
+
+### Alterado
+- O grupo Suporte saiu do meio do menu e foi para o fim, abaixo de Administração — no computador e no celular. Ele ficava entre Recursos Humanos e Suprimentos, empurrando para baixo os grupos de trabalho do dia.
+
+### Corrigido
+- O menu volta a deixar um grupo aberto de cada vez. Abrir ANTT, Gestão, Telemetria, TMS ou WMS não fechava o grupo anterior, e a barra ficava com dois grupos abertos ao mesmo tempo.
 
 ## [1.116.1] — 18/09/2026  ·  CX-18/09/2026-v1.116.1
 

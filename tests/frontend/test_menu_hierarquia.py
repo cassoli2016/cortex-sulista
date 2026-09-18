@@ -200,3 +200,48 @@ def test_o_painel_de_tv_abre_o_submenu_do_TEMA_dele_e_so_ele(pagina):
     assert m["Ges"] == {"aberto": True, "marcado": True}, m
     assert m["Ope"] == {"aberto": False, "marcado": False}, m
     assert m["Cli"] == {"aberto": False, "marcado": False}, m
+
+
+def test_o_acordeao_fecha_TODO_grupo_aberto(pagina):
+    """Abrir um grupo fecha os outros — inclusive os que a lista escrita a mao
+    do JS nao conhecia (ANTT, Gestao, Telemetria, TMS e WMS ficaram de fora
+    dela, e com um deles aberto o menu ficava com DOIS grupos abertos).
+
+    Mede o menu inteiro, grupo a grupo: lista de nomes aqui seria a mesma
+    lista escrita a mao que causou o defeito.
+    """
+    pg, erros = _abrir(pagina)
+    ids = pg.evaluate("() => [...document.querySelectorAll('aside nav button.group[aria-controls]')]"
+                      ".map(b => b.id)")
+    assert len(ids) >= 15, ids
+    abertos = []
+    for gid in ids:
+        pg.click("#" + gid)
+        abertos.append(pg.evaluate(
+            """(gid) => { const a = [...document.querySelectorAll(
+                    'aside nav button.group[aria-expanded="true"]')].map(b => b.id);
+                return {clicado: gid, abertos: a}; }""", gid))
+    assert not erros, erros
+    fora = [a for a in abertos if a["abertos"] != [a["clicado"]]]
+    assert not fora, fora
+
+
+def test_suporte_e_o_ULTIMO_grupo_da_barra_e_da_gaveta(pagina):
+    """Administracao e depois Suporte, no fim dos dois menus (quem opera,
+    18/09/2026). Medido pela POSICAO na tela, nao pela ordem do texto: e a
+    ordem visual que a decisao trata."""
+    pg, erros = _abrir(pagina)
+    m = pg.evaluate(r"""() => {
+      const y = el => Math.round(el.getBoundingClientRect().top);
+      const barra = [...document.querySelectorAll('aside nav button.group')]
+          .sort((a,b) => y(a)-y(b))
+          .map(b => [...b.querySelectorAll('span')].find(s => !s.classList.contains('ic')).textContent.trim());
+      document.getElementById('drawer').classList.add('aberto');
+      const gav = [...document.querySelectorAll('#drawer .dgrp')]
+          .sort((a,b) => y(a)-y(b))
+          .map(d => d.querySelector('.dgrp-h span').textContent.trim());
+      document.getElementById('drawer').classList.remove('aberto');
+      return {barra: barra.slice(-2), gaveta: gav.slice(-2)}; }""")
+    assert not erros, erros
+    assert m == {"barra": ["Administração", "Suporte"],
+                 "gaveta": ["Administração", "Suporte"]}, m
