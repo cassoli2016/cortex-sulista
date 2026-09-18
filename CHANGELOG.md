@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.113.0] — 18/09/2026  ·  CX-18/09/2026-v1.113.0
+
+### Adicionado
+- Ritual Semanal — entra o consumo de verdade como indicador próprio da Operação: km por litro do caminhão próprio. Ele não é o km/l da tela de Combustível, que soma agregados e automóveis para responder outra pergunta — e agora o painel diz qual é qual.
+
+### Corrigido
+- Ritual Semanal — o indicador "Consumo — km por litro" da Operação não era consumo: mostrava o CUSTO do diesel por km rodado, com o semáforo ao contrário (o diesel encarecendo pintava verde). Ele passa a se chamar "Diesel por km rodado", em R$/km e com menos sendo melhor.
+- Análise de KM — o custo do diesel por km deixa de misturar os automóveis da frota (que fazem quatro vezes mais km por litro que um caminhão) e o ARLA no preço do litro. Com isso o custo estimado do km rodado vazio, que sai desse número, sobe cerca de 10% e passa a medir o que diz medir.
+
 ## [1.112.0] — 18/09/2026  ·  CX-18/09/2026-v1.112.0
 
 ### Adicionado

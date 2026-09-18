@@ -37605,10 +37605,10 @@ function renderKm(d){
         fmtKm2(k.km_vazio)+' rodados vazios · meta até 20%'+rvDelta, (k.retorno_vazio||0)>0.2?'neg':'pos'),
     kpi('Custo do vazio (est.)', d.custo_vazio_proprio!=null?BRL.format(d.custo_vazio_proprio):'—',
         d.custo_vazio_proprio!=null
-          ? 'frota + locação · '+fmtKm2(d.km_vazio_proprio||0)+' vazios × '+fmtRsKm(d.diesel_km)+'/km'
+          ? 'caminhão próprio · '+fmtKm2(d.km_vazio_proprio||0)+' vazios × '+fmtRsKm(d.diesel_km)+'/km'+(d.km_l_proprio?' · '+d.km_l_proprio.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' km/l':'')
           : 'só se aplica a veículo com diesel nosso (frota/locação)',
         d.custo_vazio_proprio!=null?'neg':'',
-        'Estimativa do diesel jogado fora rodando vazio por veículo com diesel nosso — FROTA + LOCAÇÃO somadas (por isso o km aqui não bate com a linha "Frota" da tabela abaixo): km vazio próprio × diesel/km (R$/litro ÷ km/litro da frota própria, CTA Plus — mesma régua dinâmica do painel de combustível). Agregado/terceiro rodando vazio é custo de frete-compra deles, fora desta conta.'),
+        'Estimativa do diesel jogado fora rodando vazio por veículo com diesel nosso — FROTA + LOCAÇÃO somadas, e o R$/km sai do CAMINHÃO próprio (sem os nove automóveis da frota, que fazem 12 km/l, e sem ARLA): custo do diesel ÷ km rodado, sobre os mesmos abastecimentos (por isso o km aqui não bate com a linha "Frota" da tabela abaixo): km vazio próprio × diesel/km (R$/litro ÷ km/litro da frota própria, CTA Plus — mesma régua dinâmica do painel de combustível). Agregado/terceiro rodando vazio é custo de frete-compra deles, fora desta conta.'),
     kpi('RKM médio', fmtRsKm(k.rkm), 'receita ÷ km carregado', ''),
   ].join('');
   chartKmRender(d.mensal||[], d.dt_de, d.dt_ate);

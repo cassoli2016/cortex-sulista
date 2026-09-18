@@ -267,10 +267,27 @@ _registrar("rkm", "RKM — receita por km carregado", "operacao",
            "R$/km", 2, "maior_melhor",
            _aninhado("api.queries", "get_analise_km", "kpis.rkm", janela_mes=True),
            "Análise de KM, mês corrente · receita de frete ÷ km carregado")
-_registrar("diesel_km", "Consumo — km por litro", "operacao",
-           "km/l", 2, "maior_melhor",
+#: ESTE INDICADOR É CUSTO, E JÁ SE CHAMOU "Consumo — km por litro" AQUI.
+#: `get_analise_km` publica `diesel_km` = R$ por km rodado, e a tela de Análise
+#: de KM sempre mostrou assim ("× R$ 1,99/km"); foi o ritual que copiou a chave
+#: e escreveu o rótulo errado, com unidade km/l e direção MAIOR-MELHOR — ou
+#: seja, o diesel encarecendo pintava VERDE na reunião. Corrigido em
+#: 18/09/2026, com o consumo de verdade entrando como indicador PRÓPRIO logo
+#: abaixo. Chave de fonte não se renomeia (é o que o cadastro guarda).
+_registrar("diesel_km", "Diesel por km rodado", "operacao",
+           "R$/km", 2, "menor_melhor",
            _aninhado("api.queries", "get_analise_km", "diesel_km", janela_mes=True),
-           "Análise de KM, mês corrente · km rodado ÷ litros abastecidos")
+           "Análise de KM, mês corrente · custo de diesel ÷ km rodado do "
+           "CAMINHÃO próprio (sem automóvel, sem ARLA). É o preço do km, e é "
+           "com ele que o km vazio é valorizado")
+_registrar("consumo_proprio", "Consumo do caminhão próprio", "operacao",
+           "km/l", 2, "maior_melhor",
+           _aninhado("api.queries", "get_analise_km", "km_l_proprio",
+                     janela_mes=True),
+           "Análise de KM, mês corrente · km ÷ litros do CAMINHÃO próprio. Não "
+           "é o km/l da tela de Combustível (2,74), que soma os 100 agregados "
+           "e os nove automóveis com os 55 caminhões — média de população "
+           "heterogênea não decide nada")
 
 # ---- RH. Três telas diferentes, e de propósito: são perguntas diferentes.
 _registrar("cnh_vencidas", "CNH vencidas", "rh",
@@ -1345,7 +1362,10 @@ _acumular("retorno_vazio", _ano_km("kpis.retorno_vazio", 100.0),
 _acumular("rkm", _ano_km("kpis.rkm"),
           "Análise de KM, ano corrente · receita ÷ km carregado do ano")
 _acumular("diesel_km", _ano_km("diesel_km"),
-          "Análise de KM, ano corrente · km ÷ litros do ano")
+          "Análise de KM, ano corrente · custo de diesel ÷ km do ano, "
+          "caminhão próprio")
+_acumular("consumo_proprio", _ano_km("km_l_proprio"),
+          "Análise de KM, ano corrente · km ÷ litros do ano, caminhão próprio")
 
 
 def _ano_com(caminho: str, fator: float = 1.0):

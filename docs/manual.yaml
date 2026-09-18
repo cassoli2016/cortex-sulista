@@ -1010,6 +1010,15 @@ glossario:
     KM, CNH da tela de CNH) e NÃO se digita: se o número está errado, o conserto é na origem. Isso
     existe para a reunião discutir o desvio em vez de conferir digitação. Cada gerência preenche
     ANTES da reunião; a tela mostra quem faltou, que é informação de gestão por si só.'
+- termo: Diesel por km × Consumo (km/l)
+  definicao: 'São NÚMEROS DIFERENTES e já se confundiram numa linha só. DIESEL POR KM é custo:
+    R$ gastos em diesel ÷ km rodados do CAMINHÃO próprio (R$ 1,99/km em 09/2026) — é ele que
+    valoriza o km rodado vazio na Análise de KM, e quanto MENOR, melhor. CONSUMO é km por litro do
+    mesmo conjunto (3,10 km/l), e quanto MAIOR, melhor. Os dois excluem os nove automóveis da frota
+    (Polo, Saveiro, Virtus, Jeep: 12 km/l, e somá-los com carreta não decide nada), excluem ARLA e
+    excluem leitura de distância implausível. ATENÇÃO ao terceiro número: a tela de Combustível
+    publica km/l de TODA a frota (2,74 em 09/2026), que inclui os 100 agregados e os automóveis —
+    ela responde "quanto a frota inteira consome", não "como está o caminhão próprio".'
 - termo: No mês × No ano (Ritual Semanal)
   definicao: 'As duas colunas do realizado. NO MÊS é o indicador do dia 1º até hoje; NO ANO é o
     MESMO indicador medido de 1º de janeiro até hoje, lido da mesma função — nunca somando ou

@@ -3690,16 +3690,33 @@ ORDER BY 5 DESC LIMIT 15
 # Diesel/km da frota própria: mesma régua "dinâmica" do painel de combustível
 # (rs_litro ÷ km_l sobre CTA Plus, TRA/LOC). Base p/ valorizar o km rodado vazio
 # — coerente com a convenção já usada no app (ver memória: "diesel/km dinâmico").
+#: CAMINHÃO PRÓPRIO — e não "frota própria", que é outra coisa (medido em
+#: 18/09/2026, a pedido de quem opera). Dentro de TRA/LOC há NOVE automóveis e
+#: utilitários (`tipoveiculo = 'A'`: Polo, Saveiro, Virtus, um Jeep), que fazem
+#: 12,2 km/l contra 3,1 do caminhão. Eles são 2% do litro e puxavam o km/l
+#: próprio de 3,10 para 3,33 — e, como o R$/km saía de uma DIVISÃO por esse
+#: km/l, deflacionavam o custo do km em quase 10%. A média de população
+#: heterogênea não decide nada; aqui ela decidia DINHEIRO, porque é este número
+#: que valoriza o km rodado vazio.
+_CTA_CAMINHAO_PROPRIO = ("coalesce(v.utilizacaoveiculo,'') IN ('TRA','LOC') "
+                         "AND coalesce(v.tipoveiculo,'') <> 'A'")
+
+# O CUSTO E O KM SAEM DO MESMO CONJUNTO. Antes, o R$/litro vinha de TODO
+# abastecimento (ARLA junto, que é mais barato por litro) e o km/l só dos
+# registros sãos — duas populações numa razão só, e o resultado não era o
+# custo de nada. Agora as três somas leem as MESMAS linhas: caminhão próprio,
+# diesel (sem ARLA), distância plausível. Fica de fora o custo do
+# abastecimento sem km utilizável (91 L no mês medido, 0,2% do volume):
+# somar custo sem o km correspondente inflaria o R$/km.
 COMB_DIESELKM_PROPRIO_SQL = f"""
-SELECT coalesce(sum(a.custo),0)::float8 AS custo,
-       coalesce(sum(a.volume),0)::float8 AS litros,
+SELECT coalesce(sum(CASE WHEN {_CTA_KM_SANO} THEN a.custo ELSE 0 END),0)::float8 AS custo,
        coalesce(sum(CASE WHEN {_CTA_KM_SANO} THEN a.distancia ELSE 0 END),0)::float8 AS km_sano,
        coalesce(sum(CASE WHEN {_CTA_KM_SANO} THEN a.volume ELSE 0 END),0)::float8 AS litros_km_sano
 FROM sulista.ctaplus_abastecimentos a
 LEFT JOIN veiculo v ON v.placa = a.veiculo_placa
 WHERE a.data_inicio_abastecimento >= %(dt_de)s::date
   AND a.data_inicio_abastecimento <= %(dt_ate)s::date
-  AND coalesce(v.utilizacaoveiculo,'') IN ('TRA','LOC')
+  AND {_CTA_CAMINHAO_PROPRIO}
 """
 
 # km vazio da frota própria no MESMO recorte do analise-km (tipo=3, TRA/LOC).
@@ -3718,25 +3735,34 @@ WHERE p.dtcancelamento IS NULL AND p.semaforo = 1 AND p.numero < 1000000 AND p.t
 @cached(ttl=300)
 def _custo_vazio_proprio(dt_de: str, dt_ate: str, filial: int | None = None,
                          modalidade: str | None = None) -> dict:
-    """Estima o custo do km rodado vazio pela FROTA PRÓPRIA valorizando cada km
-    vazio pelo DIESEL/KM próprio (rs_litro ÷ km_l do CTA Plus, TRA/LOC — a mesma
-    régua "dinâmica" do painel de combustível). SÓ frota própria: agregado/
-    terceiro rodando vazio é custo de frete-compra deles, não diesel nosso."""
+    """Estima o custo do km rodado vazio valorizando cada km vazio pelo
+    DIESEL/KM do CAMINHÃO PRÓPRIO (custo ÷ km, CTA Plus, TRA/LOC sem
+    automóvel, só diesel). SÓ frota própria: agregado/terceiro rodando vazio é
+    custo de frete-compra deles, não diesel nosso.
+
+    Devolve TAMBÉM o `km_l` do mesmo conjunto, que é o consumo que se cobra de
+    quem opera caminhão — a tela de Combustível publica o km/l de TODA a frota
+    (2,74 no mês medido), e ele não é o mesmo número: mistura os 100 agregados
+    e os nove automóveis com os 55 caminhões próprios (3,10)."""
     # A tela filtra por modalidade; TER/AGR não têm diesel nosso — o KPI some
     # em vez de repetir o número da frota própria sob um filtro que a exclui.
     if modalidade and modalidade not in ("TRA", "LOC"):
-        return {"diesel_km": None, "km_vazio_proprio": None, "custo_vazio_proprio": None}
+        return {"diesel_km": None, "km_l_proprio": None,
+                "km_vazio_proprio": None, "custo_vazio_proprio": None}
     params = {"dt_de": dt_de, "dt_ate": dt_ate, "filial": filial, "modalidade": modalidade}
     with db.get_conn() as conn, conn.cursor() as cur:
         cur.execute(COMB_DIESELKM_PROPRIO_SQL, {"dt_de": dt_de, "dt_ate": dt_ate})
         dz = cur.fetchone()
         cur.execute(KM_VAZIO_PROPRIO_SQL, params)
         km_vazio = cur.fetchone()["km_vazio"]
-    rs_litro = (dz["custo"] / dz["litros"]) if dz["litros"] else None
+    # R$/km DIRETO, custo ÷ km do mesmo conjunto. A forma antiga
+    # (R$/litro ÷ km/litro) só é equivalente quando as duas razões leem as
+    # mesmas linhas — e não liam.
     km_l = (dz["km_sano"] / dz["litros_km_sano"]) if dz["litros_km_sano"] else None
-    diesel_km = (rs_litro / km_l) if (rs_litro and km_l) else None
+    diesel_km = (dz["custo"] / dz["km_sano"]) if dz["km_sano"] else None
     return {
         "diesel_km": diesel_km,
+        "km_l_proprio": km_l,
         "km_vazio_proprio": km_vazio,
         "custo_vazio_proprio": (km_vazio * diesel_km) if diesel_km else None,
     }
@@ -3788,7 +3814,8 @@ def get_analise_km(filial: int | None, dt_de: str, dt_ate: str,
     return {
         "kpis": kpis, "mensal": mensal, "modalidades": modalidades,
         "clientes": clientes, "rotas_vazio": rotas_vazio, "veiculos": veiculos,
-        "diesel_km": cvp["diesel_km"], "km_vazio_proprio": cvp["km_vazio_proprio"],
+        "diesel_km": cvp["diesel_km"], "km_l_proprio": cvp["km_l_proprio"],
+        "km_vazio_proprio": cvp["km_vazio_proprio"],
         "custo_vazio_proprio": cvp["custo_vazio_proprio"],
         "dt_de": dt_de, "dt_ate": dt_ate, "filial": filial, "modalidade": modalidade,
         "atualizado_em": meta["ts"].isoformat(),
