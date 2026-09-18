@@ -59,8 +59,13 @@ def test_serie_marca_o_mes_calculado_pela_regra_antiga():
 
 
 def test_a_tela_nao_fala_mais_de_litros_na_descricao_da_regra():
+    """Em 18/09/2026 as duas abas do modelo em pagamento saíram da tela e o
+    vocabulário delas foi junto — inclusive a ressalva "regra antiga (litros
+    economizados)", que só existia para explicar um mês antigo NAQUELA tela.
+    O que este guard ainda segura é o essencial: o vocabulário da régua
+    extinta não pode VOLTAR ao painel por um copiar-e-colar."""
     HTML = (Path(__file__).resolve().parent.parent.parent / "api" / "static"
             / "index.html").read_text(encoding="utf-8")
-    assert "litros economizados × meta de consumo" not in HTML
-    # a menção que PODE ficar é a que explica um mês antigo
-    assert "regra antiga (litros economizados)" in HTML
+    for extinto in ("litros economizados × meta de consumo",
+                    "litros economizados", "nota da Gobrax × km rodado"):
+        assert extinto not in HTML, extinto

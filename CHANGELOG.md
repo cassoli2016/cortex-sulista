@@ -4,6 +4,12 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.117.0] — 18/09/2026  ·  CX-18/09/2026-v1.117.0
+
+### Alterado
+- Premiação de Motoristas — as duas abas do modelo em pagamento (a régua antiga, nota da Gobrax × km rodado por mês-calendário, e a configuração dela) saíram da tela. A régua é uma só: a Gestão de Motoristas, com o ciclo do dia 16 ao dia 15 e os três pilares.
+- A coleta da nota da Gobrax ganhou dono. Ela era um efeito colateral de alguém abrir a tela antiga — sem essa tela, o pilar de condução congelaria em silêncio (a nota não some, ela para de mudar). Agora há uma tarefa agendada às 04:20 e um botão "Atualizar nota da Gobrax" no cabeçalho da tela, para quem não pode esperar a madrugada.
+
 ## [1.116.1] — 18/09/2026  ·  CX-18/09/2026-v1.116.1
 
 ### Corrigido

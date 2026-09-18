@@ -194,15 +194,27 @@ def _abrir(pg, base_url, pagamento=None):
 
 
 # ───────────────────────────────────────────────────────── a tela abre
-def test_a_tela_abre_na_regua_NOVA_e_o_modelo_que_paga_continua_alcancavel(pagina):
+def test_a_tela_abre_na_regua_NOVA_e_o_modelo_ANTIGO_saiu(pagina):
+    """Em 18/09/2026 as duas abas do modelo em pagamento saíram da tela, por
+    decisão de quem opera: a régua é uma só. As ROTAS do modelo antigo
+    continuam de pé — é por elas que a nota da Gobrax é coletada, e ela é um
+    dos três pilares da régua nova."""
     pg, base_url = pagina
     erros = _abrir(pg, base_url)
     assert not erros, erros
     assert pg.is_visible("#aba-rank"), "a tela abre no ranking do ciclo"
-    assert not pg.is_visible("#aba-prem"), "o modelo antigo é uma aba, não a tela"
-    pg.click("#tabprem-prem")
-    assert pg.is_visible("#aba-prem")
-    assert pg.is_visible("#fPremMes"), "o seletor de mês do modelo antigo continua lá"
+    for foi_embora in ("#aba-prem", "#aba-cfg", "#tabprem-prem", "#tabprem-cfg",
+                       "#fPremMes", "#prem-conteudo", "#chartPrem"):
+        assert pg.query_selector(foi_embora) is None, foi_embora
+
+
+def test_a_coleta_da_GOBRAX_tem_botao_na_tela_nova(pagina):
+    """O gatilho da coleta era abrir a tela antiga. Sem ele, o pilar de
+    condução congelaria em silêncio — quem responde por isso agora é a tarefa
+    agendada, e este botão é o "agora" de quem não pode esperar a madrugada."""
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    assert pg.is_visible("#btnGmaGobrax")
 
 
 def test_a_linha_traz_os_tres_pilares_e_a_medida_sugerida(pagina):

@@ -159,10 +159,6 @@ ABAS: dict[str, dict] = {
                          leitores=["loadGmaPremio"],
                          acoes=["gmaSalvarValores", "gmaSalvarEscada", "gmaAjustar",
                                 "gmaLimparAjuste", "gmaFechar", "gmaReabrir"]),
-    "prem.cfg": _u("prem", "Configuração", [("prem", "cfg")],
-                   ["/api/premiacao/config", "/api/premiacao/recoletar",
-                    "/api/premiacao/ocorrencias"], leitores=["premCfgCarregar"],
-                   acoes=["premCfgSalvar", "premRecoletar", "premOcoSalvar", "premOcoSync"]),
     # ── RH ──
     "ferias.custo": _u("ferias", "Custo e passivo, e agendadas",
                        [("ferias", "custo"), ("ferias", "agenda")], ["/api/rh/ferias/custo"],
