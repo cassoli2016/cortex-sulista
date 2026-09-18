@@ -68,7 +68,18 @@ def _abrir(pg, base_url, regra="nota_km"):
     erros = []
     pg.on("pageerror", lambda e: erros.append(str(e)))
     pg.goto(f"{base_url}/static/index.html#prem")
+    # DESDE 18/09/2026 A TELA ABRE NA RÉGUA NOVA (Gestão de Motoristas), e o
+    # modelo que PAGA — o desta suíte — é uma aba, carregada ao abrir
+    # (`data-ao-abrir="loadPremAntigo"`).
+    pg.wait_for_selector("#tabprem-prem")
+    pg.click("#tabprem-prem")
+    # O esqueleto de carregamento JÁ É `.kpi`: esperar pelo seletor devolve a
+    # banda vazia. O que se espera é o TEXTO — senão o teste lê '' e acusa a
+    # tela de não mostrar o que ela ainda não teve tempo de desenhar.
     pg.wait_for_selector("#kpis-prem .kpi", timeout=20000)
+    pg.wait_for_function(
+        "() => (document.getElementById('kpis-prem').innerText || '').trim().length > 0",
+        timeout=20000)
     return dados, erros
 
 
