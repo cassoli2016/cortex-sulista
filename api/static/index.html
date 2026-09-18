@@ -973,6 +973,11 @@ body.painelfull .content{padding:16px 22px}
    linhas) ACIMA do catalogo: com os 430px padrao a aba media 1.177px. O
    catalogo e' referencia -- quem mexe na regua le' o formulario. */
 #aba-reg .tabroll{max-height:200px}
+/* A aba da Campanha tem banda de KPI, a faixa do regulamento e o rodape do
+   sorteio alem da lista: com os 430px padrao ela media 999px contra o teto de
+   900. A lista rola dentro do card — ela e' longa por natureza (127 agregados
+   no mes medido). */
+#aba-camp .tabroll{max-height:330px}
 /* A auditoria e uma lista longa por natureza: a rolagem fica DENTRO do card,
    nunca na pagina. A tabela de achados ganha mais altura que as duas de
    apoio porque e ela que a pessoa veio ler. */
@@ -5795,6 +5800,8 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                   aria-selected="false" onclick="abaTrocar('prem','base')">Motoristas</button>
           <button role="tab" id="tabprem-cat" aria-controls="aba-cat" data-aba="cat"
                   aria-selected="false" onclick="abaTrocar('prem','cat')">Categorias</button>
+          <button role="tab" id="tabprem-camp" aria-controls="aba-camp" data-aba="camp"
+                  aria-selected="false" onclick="abaTrocar('prem','camp')">Campanha</button>
           <button role="tab" id="tabprem-reg" aria-controls="aba-reg" data-aba="reg"
                   aria-selected="false" onclick="abaTrocar('prem','reg')">Régua</button>
         </div>
@@ -5905,6 +5912,31 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <th>Motorista</th><th>Categoria</th><th class="num">Reputação</th><th class="num">Conduta 6 ciclos</th>
               <th class="num">Ciclos limpos</th><th class="num">Desvios</th><th class="num">Méritos</th>
             </tr></thead><tbody id="gma-cat"></tbody></table></div>
+          </div>
+        </div>
+
+        <!-- ───────────────────────────── CAMPANHA ───────────────────────────── -->
+        <div class="aba" data-abas="prem" data-aba="camp" id="aba-camp" role="tabpanel" aria-labelledby="tabprem-camp" data-ao-abrir="loadCampanha" hidden>
+          <div class="kband"><div class="kpis k4" id="kpis-camp"></div></div>
+          <div class="banner-inline" id="camp-estado" style="display:none;margin:0"></div>
+          <div class="card">
+            <div class="head"><h2>Programa de desempenho <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O programa trimestral com sorteio, do regulamento assinado. Ele NÃO é a premiação mensal: os pesos são os do documento (condução 50%, comportamento 30%, risco 20%) e as faixas são quatro (Elite 90, Ouro 85, Prata 75), contra os 40/40/20 e cinco faixas da régua operacional. Por isso a régua fica congelada na campanha — o trimestre em curso não pode mudar de régua no meio. FROTA e AGREGADO competem separados, cada um com o seu ranking e o seu sorteio. Quem não tem leitura da telemetria no ciclo participa e vê a nota, mas fica fora do sorteio: a condução vale metade do regulamento, e sem ela 90 pontos significaria coisas diferentes para pessoas diferentes.">i</span></h2>
+              <span class="hint" id="camp-hint"></span></div>
+            <div class="cardfilters">
+              <select id="fCampCiclo" aria-label="Ciclo da campanha" onchange="loadCampanha()"></select>
+              <select id="fCampGrupo" aria-label="Grupo" onchange="campRender()">
+                <option value="FROTA">Frota</option><option value="AGREGADO">Agregados</option>
+              </select>
+              <button class="ghost" id="btnCampFoto" onclick="campFotografar()">Fechar o mês</button>
+              <button class="btn" id="btnCampSortear" onclick="campSortear()" style="display:none">Sortear</button>
+              <span class="hint" id="camp-msg" style="text-align:left"></span>
+            </div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th class="num">#</th><th>Motorista</th><th class="num">Condução</th>
+              <th class="num">Comportamento</th><th class="num">Risco</th>
+              <th class="num">Nota</th><th>Categoria</th><th>No sorteio</th>
+            </tr></thead><tbody id="camp-lista"></tbody></table></div>
+            <div style="padding:0 18px 14px;font-size:12px;color:var(--n500)" id="camp-rodape"></div>
           </div>
         </div>
 
@@ -14527,6 +14559,197 @@ async function gmaColetarGobrax(){
     loadPrem();
   }catch(e){ if(msg) msg.textContent='falha ao falar com a API: '+e.message; }
   finally{ if(btn){ btn.disabled=false; btn.textContent='Atualizar nota da Gobrax'; } }
+}
+
+/* ═══════════════════════ PROGRAMA DE DESEMPENHO (CAMPANHA) ═══════════════
+   O trimestral com sorteio. Ele divide a tela com a regua operacional e NAO
+   divide a regua: os pesos e as faixas sao os do REGULAMENTO, congelados na
+   campanha. Duas coisas que esta aba existe para dizer todo mes, e que
+   ninguem descobre sozinho no fim do trimestre:
+
+   1. QUANTOS ESTAO FORA POR FALTA DE TELEMETRIA. A conducao vale metade do
+      regulamento; sem ela nao da' para disputar, e isso e' consertavel
+      enquanto o trimestre corre.
+   2. QUANTOS ESTARIAM ELEGIVEIS HOJE. A barra e' a mesma para frota e
+      agregado (decisao de quem opera, 18/09/2026), e as duas populacoes sao
+      diferentes — se o numero de um grupo ficar em zero mes apos mes, a barra
+      virou muro, e e' melhor descobrir em outubro do que em dezembro. */
+let DATACAMP=null, campSeq=0;
+
+async function loadCampanha(){
+  const seq=++campSeq;
+  skelKpis('kpis-camp',4);
+  try{
+    const lista=await respostaJSON(await fetch('/api/campanha',{cache:'no-store'}));
+    if(seq!==campSeq) return;
+    if(!lista.ok){ showBanner(lista.dados.mensagem||'Erro ao ler as campanhas.'); return; }
+    const vig=lista.dados.vigente;
+    if(!vig){ DATACAMP=null; campVazia(lista.dados.padrao); return; }
+    const sel=document.getElementById('fCampCiclo');
+    const p=new URLSearchParams();
+    if(sel && sel.dataset.pronto && sel.value) p.set('ciclo', sel.value);
+    const qs=p.toString()?('?'+p.toString()):'';
+    const r=await respostaJSON(await fetch('/api/campanha/'+vig.id+'/ciclo'+qs,{cache:'no-store'}));
+    if(seq!==campSeq) return;
+    if(!r.ok){ showBanner(r.dados.mensagem||'Erro ao montar a campanha.'); return; }
+    hideBanner(); DATACAMP=r.dados;
+    campSyncCiclos(r.dados, sel);
+    campRender();
+  }catch(e){ if(seq===campSeq) showBanner('Não foi possível falar com a API.', e.message); }
+}
+
+function campSyncCiclos(d, sel){
+  sel = sel || document.getElementById('fCampCiclo');
+  if(!sel) return;
+  const lista=(d.ciclos||[]).slice().reverse().join(',');
+  if(sel.dataset.ciclos!==lista){
+    sel.innerHTML=(d.ciclos||[]).slice().reverse().map(c=>
+      `<option value="${esc(c)}">${esc(gmaRotuloCurto(c))}</option>`).join('');
+    sel.dataset.ciclos=lista; sel.dataset.pronto='1';
+  }
+  if(d.ciclo) sel.value=d.ciclo;
+}
+
+/* SEM CAMPANHA A ABA NAO FICA MUDA: ela diz o que e' o programa e oferece o
+   unico botao que faz sentido ali. Aba que abre vazia ensina a pessoa a nao
+   voltar nela. */
+function campVazia(padrao){
+  document.getElementById('kpis-camp').innerHTML='';
+  const est=document.getElementById('camp-estado');
+  est.style.display='flex';
+  est.innerHTML='<i></i><span>Nenhuma campanha cadastrada. O programa de '
+    +'desempenho é trimestral, tem régua própria (condução '+(padrao?padrao.peso_gobrax:50)
+    +'%, comportamento '+(padrao?padrao.peso_conduta:30)+'%, risco '
+    +(padrao?padrao.peso_gr:20)+'%) e termina em sorteio. '
+    +'<button class="btn btn-sm" onclick="campCriar()" style="margin-left:9px">Criar campanha</button></span>';
+  document.getElementById('camp-lista').innerHTML=
+    '<tr><td colspan="8" style="color:var(--n500)">sem campanha</td></tr>';
+  document.getElementById('camp-hint').textContent='';
+  document.getElementById('camp-rodape').textContent='';
+  document.getElementById('btnCampFoto').style.display='none';
+  document.getElementById('btnCampSortear').style.display='none';
+}
+
+const CAMP_CAT_CLS={ELITE:'ok',OURO:'ok',PRATA:'warn',BRONZE:'bad',PENDENTE:''};
+
+function campRender(){
+  const d=DATACAMP; if(!d) return;
+  const g=(document.getElementById('fCampGrupo')||{}).value||'FROTA';
+  const bloco=(d.grupos||{})[g]||{linhas:[],kpis:{}};
+  const k=bloco.kpis||{}, c=d.campanha||{};
+  document.getElementById('kpis-camp').innerHTML=
+      kpi('Participantes', String(k.participantes||0),
+          (g==='FROTA'?'motoristas próprios':'quem rodou agregado no ciclo'), '',
+          'Frota é o cadastro da premiação (vem da folha); agregado é quem rodou veículo agregado NO CICLO — não há vínculo de folha que o segure parado.')
+     +kpi('No sorteio', String(k.elegiveis||0),
+          'de '+(k.participantes||0)+' do grupo', (k.elegiveis?'':'warn'),
+          'Quem cumpre hoje as condições do regulamento. A barra é a mesma para frota e agregado, e as duas populações são diferentes: se este número ficar em zero mês após mês, a faixa virou muro — e é melhor descobrir agora do que em dezembro.')
+     +kpi('Sem telemetria', String(k.sem_gobrax||0),
+          'fora do sorteio por isso', (k.sem_gobrax?'warn':''),
+          'A condução vale metade do regulamento. Sem leitura da Gobrax no ciclo não dá para disputar — e isto é o que dá para consertar enquanto o trimestre corre.')
+     +kpi('Elite no ciclo', String((k.por_categoria||{}).ELITE||0),
+          'nota ≥ '+gmaNum(c.cat_elite,0), '',
+          'A categoria do ciclo. Ela só é calculada para quem foi medido: quem está sem telemetria fica PENDENTE, porque 100 por ausência de medição não é excelência.');
+
+  const enc=d.encerramento;
+  const est=document.getElementById('camp-estado');
+  est.style.display='flex';
+  est.innerHTML='<i></i><span><b>'+esc(c.nome||'')+'</b> · '+esc(c.de_ciclo||'')
+    +' a '+esc(c.ate_ciclo||'')+' · prêmio: '+esc(c.premio||'—')
+    +(c.sorteio_em?' · sorteio em '+esc(fmtD(c.sorteio_em)):'')
+    +'. Régua do regulamento: condução '+gmaNum(c.peso_gobrax,0)+'%, comportamento '
+    +gmaNum(c.peso_conduta,0)+'%, risco '+gmaNum(c.peso_gr,0)+'%. '
+    +(enc?'<b>Este é o ciclo de encerramento</b> — é a categoria dele que decide o sorteio.'
+        :'A categoria só pesa no ciclo de encerramento ('+esc(c.ate_ciclo||'')+').')
+    +'</span>';
+
+  document.getElementById('camp-lista').innerHTML=(bloco.linhas||[]).map(x=>`<tr>
+      <td class="num">${x.posicao?x.posicao+'º':''}</td>
+      <td><b>${esc(x.nome||'')}</b>${x.viagens?' <span class="small" style="color:var(--n500)">'+gmaNum(x.viagens,0)+' viagens</span>':''}</td>
+      <td class="num">${gmaNum(x.gobrax)}</td>
+      <td class="num">${gmaNum(x.conduta)}</td>
+      <td class="num">${gmaNum(x.gr)}</td>
+      <td class="num"><b>${gmaNum(x.nota)}</b></td>
+      <td>${statChip(CAMP_CAT_CLS[x.categoria]||'flat', (x.categoria||'').toLowerCase())}</td>
+      <td class="small">${x.elegivel?'<span style="color:var(--green)">concorre</span>'
+        :'<span style="color:var(--n500)">'+esc(x.motivo||'fora')+'</span>'}</td>
+    </tr>`).join('')
+    || '<tr><td colspan="8" style="color:var(--n500)">'
+       +esc(bloco.motivo||'ninguém neste grupo no ciclo')+'</td></tr>';
+
+  const f=d.fontes||{};
+  document.getElementById('camp-hint').textContent=
+    (d.rotulo||'')+' · Gobrax de '+((f.gobrax||{}).mes||'—')
+    +(d.foto?' · mês fechado':' · mês aberto');
+  const s=(d.sorteios||[]).filter(x=>x.grupo===g);
+  document.getElementById('camp-rodape').innerHTML=
+    (bloco.motivo?'<b style="color:var(--yellow-700)">'+esc(bloco.motivo)+'</b><br>':'')
+    +(s.length?s.map(x=>'Sorteio de '+esc(x.ciclo)+': <b>'+esc(x.ganhador_nome)
+      +'</b> (suplente '+esc(x.suplente_nome||'—')+') · '+gmaNum(x.elegiveis,0)
+      +' elegíveis · semente <code>'+esc(x.semente)+'</code> · por '
+      +esc(x.realizado_por)).join('<br>')
+      : 'O sorteio sai da fotografia do ciclo de encerramento, com a semente registrada: com ela e a lista, qualquer pessoa refaz o sorteio e chega no mesmo nome.');
+  document.getElementById('btnCampFoto').style.display='';
+  document.getElementById('btnCampSortear').style.display=(enc&&d.foto)?'':'none';
+}
+
+async function campCriar(){
+  const nome=prompt('Nome da campanha:', 'Programa de Desempenho — trimestre');
+  if(nome==null) return;
+  const de=prompt('Primeiro ciclo (AAAA-MM):', '2026-10');
+  if(de==null) return;
+  const ate=prompt('Último ciclo, o que decide o sorteio (AAAA-MM):', '2026-12');
+  if(ate==null) return;
+  const premio=prompt('Prêmio:', 'Moto elétrica');
+  if(premio==null) return;
+  try{
+    const r=await respostaJSON(await fetch('/api/campanha',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({nome:nome, de_ciclo:de, ate_ciclo:ate, premio:premio})}));
+    if(!r.ok){ showBanner(r.dados.mensagem||'Não foi possível criar.'); return; }
+    hideBanner(); loadCampanha();
+  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
+}
+
+async function campFotografar(){
+  const d=DATACAMP; if(!d) return;
+  if(!confirm('Fechar '+d.rotulo+' da campanha?\n\nA categoria de cada um fica '
+             +'congelada — é ela que o regulamento manda divulgar, e é dela que '
+             +'sai a lista do sorteio.')) return;
+  const msg=document.getElementById('camp-msg'); msg.textContent='fechando…';
+  try{
+    const r=await respostaJSON(await fetch('/api/campanha/'+d.campanha.id+'/fotografar',
+      {method:'POST', headers:{'Content-Type':'application/json'},
+       body:JSON.stringify({ciclo:d.ciclo})}));
+    msg.textContent=r.ok?(r.dados.linhas+' linhas congeladas.')
+                        :(r.dados.mensagem||'não foi possível fechar');
+  }catch(e){ msg.textContent='falha ao falar com a API: '+e.message; }
+  loadCampanha();
+}
+
+/* O SORTEIO NAO DEPENDE DO QUE VEM DEPOIS: a confirmacao, a chamada e a
+   resposta sao uma coisa so', e o recarregamento fica FORA do try. Um sorteio
+   que responde "nao sei se salvou" e' o pior resultado possivel aqui. */
+async function campSortear(){
+  const d=DATACAMP; if(!d) return;
+  const g=(document.getElementById('fCampGrupo')||{}).value||'FROTA';
+  const k=((d.grupos||{})[g]||{}).kpis||{};
+  if(!confirm('Sortear entre os '+(k.elegiveis||0)+' elegíveis de '+g+'?\n\n'
+             +'A lista sai da fotografia do fechamento, e o resultado fica '
+             +'registrado com a semente — qualquer pessoa pode refazer e '
+             +'conferir.')) return;
+  const ata=prompt('Ata (onde foi, quem conduziu, quem a gestão excluiu à mão e por quê):', '');
+  if(ata==null) return;
+  const msg=document.getElementById('camp-msg'); msg.textContent='sorteando…';
+  try{
+    const r=await respostaJSON(await fetch('/api/campanha/'+d.campanha.id+'/sortear',
+      {method:'POST', headers:{'Content-Type':'application/json'},
+       body:JSON.stringify({grupo:g, ata:ata})}));
+    msg.textContent=r.ok?('ganhador: '+r.dados.ganhador+' · suplente: '
+                          +(r.dados.suplente||'—'))
+                        :(r.dados.mensagem||'não foi possível sortear');
+  }catch(e){ msg.textContent='falha ao falar com a API: '+e.message; }
+  loadCampanha();
 }
 
 async function gmaDepara(codigo, alvo){

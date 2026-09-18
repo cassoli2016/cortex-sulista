@@ -1088,6 +1088,27 @@ glossario:
   definicao: 'Nota de 0 a 100 que a plataforma de telemetria atribui ao motorista no mês, a partir do
     comportamento de condução. É o insumo da premiação junto com o km rodado: prêmio = km × valor por
     km × (nota ÷ 100).'
+- termo: Programa de desempenho (campanha trimestral)
+  definicao: 'O programa com sorteio, do regulamento assinado — e ele NÃO é a premiação
+    mensal. A premiação paga todo ciclo por uma régua operacional que a mesa ajusta quando
+    quer (condução 40%, comportamento 40%, risco 20%, cinco categorias); a campanha é um
+    documento com vigência, prêmio e data de sorteio, e a régua dela é outra (condução 50%,
+    comportamento 30%, risco 20%, quatro categorias: Elite 90, Ouro 85, Prata 75). Por isso
+    a régua fica CONGELADA na campanha: mexer na régua operacional em novembro não pode
+    mudar o trimestre em curso. Frota e agregado competem SEPARADOS, cada um com o seu
+    ranking e o seu sorteio.'
+- termo: Elegibilidade ao sorteio
+  definicao: 'Quem cumpre, no ciclo, as condições do regulamento. O sistema verifica o que
+    MEDE: categoria Elite no ciclo de encerramento, leitura da telemetria no ciclo (ela vale
+    metade da nota — sem ela não dá para disputar), CNH dentro da validade e vínculo ativo.
+    O que ele não tem como consultar — MOPP, tacógrafo, seguro, pendência financeira — ele
+    NÃO afirma: a gestão exclui à mão, com motivo, e isso fica na ata do sorteio. Quem está
+    fora vê o motivo desde o primeiro mês, enquanto ainda dá tempo de resolver.'
+- termo: Sorteio auditável
+  definicao: 'A lista sai da FOTOGRAFIA do ciclo de encerramento (nunca do cálculo de agora,
+    senão o resultado dependeria do minuto em que se clicou), a SEMENTE fica registrada e o
+    suplente também. Com a semente e a lista, qualquer pessoa refaz o sorteio e chega no
+    mesmo nome — é isso que transforma "foi sorteado" em algo que se confere depois.'
 - termo: Ciclo da premiação (16 a 15)
   definicao: 'A janela da Gestão de Motoristas vai do dia 16 de um mês ao dia 15 do seguinte, e leva o
     nome do mês em que TERMINA: o ciclo 2026-09 é de 16/08 a 15/09. Não é mês-calendário porque é essa

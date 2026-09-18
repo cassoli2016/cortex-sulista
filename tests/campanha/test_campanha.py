@@ -166,6 +166,27 @@ def test_o_sorteio_sai_da_FOTO_e_a_mesma_semente_da_o_mesmo_nome(esq):
     assert (outra["ganhador"], outra["suplente"]) != (r1["ganhador"], r1["suplente"])
 
 
+def test_o_sorteio_NAO_depende_da_ordem_em_que_a_lista_CHEGOU(esq, monkeypatch):
+    """A auditoria promete que, com a semente e a lista, qualquer pessoa refaz
+    o sorteio e chega no mesmo nome. Se a ORDEM em que a lista chega mudar o
+    resultado, a promessa é falsa.
+
+    O `ORDER BY` de hoje já devolve ordem estável — e é por isso que este guard
+    não passa pelo banco: ele troca a leitura por duas ordens diferentes da
+    MESMA gente. Depender do `ORDER BY` é depender de uma coisa que um empate
+    novo, um índice ou um VACUUM mudam sem avisar; a propriedade tem de ser do
+    sorteio."""
+    c = arm.criar(CAMP, autor="gestor")
+    gente = [_p(f"k{i:02d}", f"MOTORISTA {i}") for i in range(8)]
+
+    monkeypatch.setattr(arm, "ler_foto", lambda *a, **k: list(gente))
+    direto = servico.sortear(c["id"], "AGREGADO", autor="gestor", semente="abc")
+    monkeypatch.setattr(arm, "ler_foto", lambda *a, **k: list(reversed(gente)))
+    invertido = servico.sortear(c["id"], "AGREGADO", autor="gestor", semente="abc")
+    assert direto["ganhador"] == invertido["ganhador"]
+    assert direto["suplente"] == invertido["suplente"]
+
+
 def test_so_ELEGIVEIS_entram_no_sorteio(esq):
     c = arm.criar(CAMP, autor="gestor")
     _foto(esq, c["id"], "2026-12", "FROTA",

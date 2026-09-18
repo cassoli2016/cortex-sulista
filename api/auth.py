@@ -413,6 +413,8 @@ ROTA_TELAS: list[tuple[str, frozenset[str]]] = [
     # A régua NOVA (GMA) mora sob a mesma tela da antiga. Mais específica
     # ANTES da genérica: `/api/premiacao/gma` tem de casar aqui e não no
     # prefixo `/api/premiacao/config` que vem logo abaixo.
+    # O programa de desempenho (campanha trimestral) mora na mesma tela.
+    ("/api/campanha",                 frozenset({"prem"})),
     ("/api/premiacao/gma",            frozenset({"prem"})),
     ("/api/premiacao/recoletar",      frozenset({"prem"})),
     ("/api/premiacao/config",         frozenset({"prem"})),

@@ -349,6 +349,10 @@ app.include_router(router_wms)
 # menu de quem já tem acesso).
 from api.premiacao.rotas import router as router_premiacao_gma  # noqa: E402
 app.include_router(router_premiacao_gma)
+# Programa de desempenho (a campanha trimestral com sorteio): mesma tela
+# `prem`, porque quem conduz a campanha e' quem cuida da premiacao.
+from api.campanha.rotas import router as router_campanha  # noqa: E402
+app.include_router(router_campanha)
 # a raiz do repositorio -- usada por rota que grava arquivo temporario
 ROOT = Path(__file__).resolve().parent.parent
 STATIC = Path(__file__).resolve().parent / "static"
