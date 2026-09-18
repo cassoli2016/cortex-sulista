@@ -548,6 +548,8 @@ direto; todo número-chave traz comparação.
   vez; medida sob `hidden` vale zero para sempre — o sintoma é mudo: eixos
   certos, rótulos suprimidos). O `ResizeObserver` do `echartsRegistrar` cobre a
   volta; `mapasRemedir()` no `abaTrocar` cobre os mapas (com rAF duplo).
+  Exceção: aba de ENTRADA declarada (`data-entrada`, Pneus › Registrar)
+  — só se TODA aba com gráfico do painel desenhar por `data-ao-abrir`.
 - Aba leva **contador** (`abaContador` — recebe o id do `<span class="aban">`,
   NUNCA o do botão, que apagaria o rótulo). Contadores são automáticos
   (`abaContadoresAuto`); zero fica em branco.

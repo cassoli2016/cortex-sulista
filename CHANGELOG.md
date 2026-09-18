@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.111.1] — 18/09/2026  ·  CX-18/09/2026-v1.111.1
+
+### Corrigido
+- Frota › Pneus — a aba Registrar passa a ser a PRIMEIRA e a que abre ao entrar no módulo. O formulário foi refeito em três passos (qual pneu, o que aconteceu, detalhes): os campos saíam sem estilo, com rótulos soltos e caixas desalinhadas. O que aconteceu agora se escolhe por botões, o pneu encontrado aparece num quadro com marca, situação e onde está, o Enter procura o pneu e a placa, e voltar de outra aba não apaga o que já foi digitado.
+
 ## [1.111.0] — 18/09/2026  ·  CX-18/09/2026-v1.111.0
 
 ### Alterado

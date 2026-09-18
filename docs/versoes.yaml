@@ -1,3 +1,15 @@
+- versao: "1.111.1"
+  data: "2026-09-18"
+  corrigido:
+    - >-
+      Frota › Pneus — a aba Registrar passa a ser a PRIMEIRA e a que abre ao
+      entrar no módulo. O formulário foi refeito em três passos (qual pneu, o
+      que aconteceu, detalhes): os campos saíam sem estilo, com rótulos soltos
+      e caixas desalinhadas. O que aconteceu agora se escolhe por botões, o
+      pneu encontrado aparece num quadro com marca, situação e onde está, o
+      Enter procura o pneu e a placa, e voltar de outra aba não apaga o que
+      já foi digitado.
+
 - versao: "1.111.0"
   data: "2026-09-18"
   corrigido:
