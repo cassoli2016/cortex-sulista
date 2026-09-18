@@ -332,6 +332,18 @@ def decidir(cadastro_codigo: str, autor: str, tipo: str | None = None,
     return {"cadastro_codigo": codigo, "tipo": tipo, "filial": campos.get("filial")}
 
 
+def cpf_do_cadastro(cadastro_codigo: str) -> str | None:
+    """A ponte código -> CPF, para quem escreve numa tabela que chaveia por CPF.
+
+    A TELA NUNCA MANDA CPF: ela fala por código do cadastro, que é o que pode
+    trafegar. Quem grava (o ajuste do prêmio, por exemplo) faz a ponte AQUI e
+    não devolve a chave no que responde.
+    """
+    r = pglocal.um("SELECT cpf FROM prm_motorista WHERE cadastro_codigo = %s",
+                   (str(cadastro_codigo or "").strip(),), esquema=_esq())
+    return r["cpf"] if r else None
+
+
 def estado() -> dict:
     """O que a Saúde e a tela precisam saber sobre o cadastro."""
     total = pglocal.um(

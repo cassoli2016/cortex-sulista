@@ -344,6 +344,11 @@ app.include_router(router_equipamentos)
 # tela, pelos prefixos `/api/wms/*` em `ROTA_TELAS`.
 from api.wms.rotas import router as router_wms  # noqa: E402
 app.include_router(router_wms)
+# Gestão de Motoristas (GMA): a régua nova da premiação, sob a MESMA tela
+# `prem` da antiga (a substituta herda o id — id novo faria a tela sumir do
+# menu de quem já tem acesso).
+from api.premiacao.rotas import router as router_premiacao_gma  # noqa: E402
+app.include_router(router_premiacao_gma)
 # a raiz do repositorio -- usada por rota que grava arquivo temporario
 ROOT = Path(__file__).resolve().parent.parent
 STATIC = Path(__file__).resolve().parent / "static"

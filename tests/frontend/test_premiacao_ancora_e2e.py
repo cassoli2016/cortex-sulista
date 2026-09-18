@@ -42,6 +42,10 @@ def _abrir(pg, base_url):
     erros: list[str] = []
     pg.on("pageerror", lambda e: erros.append(str(e)))
     pg.goto(base_url + "/static/index.html#prem")
+    # A tela abre na régua NOVA desde 18/09/2026; o modelo que PAGA é uma aba,
+    # e é ela que carrega o painel (`data-ao-abrir="loadPremAntigo"`).
+    pg.wait_for_selector("#tabprem-prem")
+    pg.click("#tabprem-prem")
     pg.wait_for_function("() => (document.getElementById('prem-aviso')||{}).textContent")
     return pedidos, erros
 
@@ -63,6 +67,6 @@ def test_o_aviso_da_ancora_so_vale_no_mes_em_que_ela_pousou(pagina):
     pg, base_url = pagina
     _abrir(pg, base_url)
     pg.evaluate("""() => { const s = document.getElementById('fPremMes');
-        s.value = '2026-07'; s.dataset.pronto = '2'; loadPrem(); }""")
+        s.value = '2026-07'; s.dataset.pronto = '2'; loadPremAntigo(); }""")
     pg.wait_for_function(
         "() => !document.getElementById('prem-aviso').textContent.includes('ainda não tem')")

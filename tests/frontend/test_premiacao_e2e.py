@@ -68,7 +68,7 @@ PAINEL = {
 }
 
 
-def _abrir(pg, base_url):
+def _abrir(pg, base_url, abrir_aba=True):
     def rota(route):
         u = route.request.url
         if "/api/auth/me" in u:
@@ -86,30 +86,50 @@ def _abrir(pg, base_url):
     pg.on("pageerror", lambda e: erros.append(str(e)))
     pg.goto(base_url + "/static/index.html#prem")
     pg.wait_for_timeout(700)
+    if abrir_aba:
+        # DESDE 18/09/2026 A TELA ABRE NA RÉGUA NOVA (Gestão de Motoristas). O
+        # modelo que PAGA continua inteiro, numa aba — e é ela que carrega o
+        # painel (`data-ao-abrir="loadPremAntigo"`), o que também conserta o
+        # gráfico: ele passa a ser desenhado com a aba VISÍVEL.
+        pg.click("#tabprem-prem")
+        pg.wait_for_timeout(700)
     return erros
 
 
 # -- as sub-abas -------------------------------------------------------------
 
 
-def test_abre_na_PREMIACAO_e_a_configuracao_comeca_escondida(pagina):
+def test_a_tela_abre_na_REGUA_NOVA_e_o_modelo_que_paga_e_uma_aba(pagina):
+    """Mudou em 18/09/2026: a Gestão de Motoristas (ciclo 16 a 15, três
+    pilares) ocupa a tela, e o modelo que PAGA hoje — nota da Gobrax × km, por
+    mês-calendário — continua inteiro numa aba, até quem opera virar a chave.
+    A tela é a mesma (`prem`) de propósito: id novo faria a premiação sumir do
+    menu de quem já tem acesso."""
     pg, base_url = pagina
-    erros = _abrir(pg, base_url)
+    erros = _abrir(pg, base_url, abrir_aba=False)
     assert not erros, erros
-    assert pg.is_visible("#aba-prem"), "a aba da premiação tem de nascer aberta"
-    assert not pg.is_visible("#aba-cfg")
+    assert pg.is_visible("#aba-rank"), "a tela abre na régua nova"
+    assert not pg.is_visible("#aba-prem") and not pg.is_visible("#aba-cfg")
+    pg.click("#tabprem-prem")
+    assert pg.is_visible("#aba-prem")
     assert pg.get_attribute("#tabprem-prem", "aria-selected") == "true"
     assert pg.get_attribute("#tabprem-cfg", "aria-selected") == "false"
 
 
-def test_a_aba_da_premiacao_nasce_aberta_PORQUE_e_ela_que_tem_grafico(pagina):
-    """Não é preferência: o ECharts mede o contêiner UMA VEZ, no `init`, e uma
-    medida feita com a aba escondida vale zero para sempre — o gráfico aparece
-    com os eixos certos e quase todos os rótulos do eixo X suprimidos. Quem
-    tem gráfico abre visível; quem tem só formulário e tabela pode esperar."""
+def test_o_grafico_do_modelo_antigo_e_desenhado_AO_ABRIR_a_aba(pagina):
+    """O ECharts mede o contêiner UMA VEZ, no `init`, e uma medida feita com a
+    aba escondida vale zero para sempre — o sintoma é mudo: eixos certos e
+    quase todos os rótulos do eixo X suprimidos. Como a aba agora nasce
+    fechada, quem desenha é o `data-ao-abrir`."""
     pg, base_url = pagina
-    _abrir(pg, base_url)
-    assert pg.query_selector("#aba-prem #chartPrem") is not None
+    _abrir(pg, base_url, abrir_aba=False)
+    assert pg.get_attribute("#aba-prem", "data-ao-abrir") == "loadPremAntigo"
+    pg.click("#tabprem-prem")
+    pg.wait_for_selector("#chartPrem svg", timeout=20000)
+    largura = pg.eval_on_selector(
+        "#chartPrem", "el => { const c = el.querySelector('svg');"
+        " return c ? c.getBoundingClientRect().width : 0; }")
+    assert largura > 400, f"o gráfico mediu {largura}px — mediu escondido"
     assert pg.query_selector("#aba-cfg #chartPrem") is None
 
 

@@ -955,6 +955,24 @@ body.painelfull .content{padding:16px 22px}
    regua mede a aba inteira: com os 430px padrao ela dava 1037px contra o
    teto de 900. A tabela e' de 12 linhas e rola dentro do card. */
 #aba-fluxcon-plano .tabroll{max-height:300px}
+/* A aba do Premio tem banda de KPI propria alem do card: com a base inteira
+   (83 motoristas, todos com desvio) ela media 903px contra o teto de 900. A
+   tabela rola dentro do card, e quem confere pagamento le' de cima para
+   baixo -- a linha que pesa mais esta' no topo. */
+#aba-prm .tabroll{max-height:390px}
+/* A aba de Ocorrencias tem DUAS tabelas: a do que falta decidir (que e' o
+   que pede acao) e a do de-para inteiro. Com as duas nos 430px padrao a aba
+   media 995px contra o teto de 900. */
+#aba-oco .tabroll{max-height:300px}
+#aba-oco .tabroll.curta{max-height:190px}
+/* A aba Categorias tem o grafico da distribuicao ACIMA da tabela: com os
+   430px padrao a aba media 972px. A tabela e' de consulta (quem foi parar em
+   que faixa), o grafico e' o que se le' primeiro. */
+#aba-cat .tabroll{max-height:330px}
+/* A Regua tem o formulario dos parametros (16 campos, que quebram em tres
+   linhas) ACIMA do catalogo: com os 430px padrao a aba media 1.177px. O
+   catalogo e' referencia -- quem mexe na regua le' o formulario. */
+#aba-reg .tabroll{max-height:200px}
 /* A auditoria e uma lista longa por natureza: a rolagem fica DENTRO do card,
    nunca na pagina. A tabela de achados ganha mais altura que as duas de
    apoio porque e ela que a pessoa veio ler. */
@@ -5752,25 +5770,184 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
       <!-- ===================== PREMIAÇÃO DE MOTORISTAS ===================== -->
       <section class="view" id="view-prem">
         <div class="card">
+          <div class="head"><h2>Gestão de Motoristas</h2><span class="hint">ciclo do dia 16 ao dia 15 · Gobrax + ocorrências do ERP + gerenciamento de risco · a régua e os valores ficam nas abas Régua e Prêmio</span></div>
+          <div class="cardfilters">
+            <select id="fGmaCiclo" aria-label="Ciclo da premiação" onchange="loadPrem()"></select>
+            <span class="hint" id="gmaRotulo" style="text-align:left"></span>
+            <button class="ghost" id="btnGmaSinc" onclick="gmaSincronizar()">Sincronizar cadastro com a folha</button>
+            <span class="hint" id="gmaSincMsg" style="text-align:left"></span>
+          </div>
+        </div>
+        <div id="gma-aviso"></div>
+        <div class="subtabs" role="tablist" data-abas="prem" aria-label="Seções da gestão de motoristas">
+          <button role="tab" id="tabprem-rank" aria-controls="aba-rank" data-aba="rank"
+                  aria-selected="true" onclick="abaTrocar('prem','rank')">Ranking do ciclo</button>
+          <button role="tab" id="tabprem-prm" aria-controls="aba-prm" data-aba="prm"
+                  aria-selected="false" onclick="abaTrocar('prem','prm')">Prêmio</button>
+          <button role="tab" id="tabprem-val" aria-controls="aba-val" data-aba="val"
+                  aria-selected="false" onclick="abaTrocar('prem','val')">Valores do prêmio</button>
+          <button role="tab" id="tabprem-gr" aria-controls="aba-gr" data-aba="gr"
+                  aria-selected="false" onclick="abaTrocar('prem','gr')">Gerenciamento de risco</button>
+          <button role="tab" id="tabprem-oco" aria-controls="aba-oco" data-aba="oco"
+                  aria-selected="false" onclick="abaTrocar('prem','oco')">Ocorrências <span class="aban" id="ct-gma-oco"></span></button>
+          <button role="tab" id="tabprem-base" aria-controls="aba-base" data-aba="base"
+                  aria-selected="false" onclick="abaTrocar('prem','base')">Motoristas</button>
+          <button role="tab" id="tabprem-cat" aria-controls="aba-cat" data-aba="cat"
+                  aria-selected="false" onclick="abaTrocar('prem','cat')">Categorias</button>
+          <button role="tab" id="tabprem-reg" aria-controls="aba-reg" data-aba="reg"
+                  aria-selected="false" onclick="abaTrocar('prem','reg')">Régua</button>
+          <button role="tab" id="tabprem-prem" aria-controls="aba-prem" data-aba="prem"
+                  aria-selected="false" onclick="abaTrocar('prem','prem')">Modelo em pagamento</button>
+          <button role="tab" id="tabprem-cfg" aria-controls="aba-cfg" data-aba="cfg"
+                  aria-selected="false" onclick="abaTrocar('prem','cfg')">Config. do modelo em pagamento</button>
+        </div>
+
+        <!-- ─────────────────────────── RANKING DO CICLO ─────────────────────────── -->
+        <div class="aba" data-abas="prem" data-aba="rank" id="aba-rank" role="tabpanel" aria-labelledby="tabprem-rank" data-entrada>
+          <div class="kband"><div class="kpis k4" id="kpis-gma"></div></div>
+          <div class="card">
+            <div class="head"><h2>Nota do ciclo, motorista a motorista <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A nota composta de cada motorista no ciclo do dia 16 ao dia 15: condução (Gobrax), comportamento (ocorrências do ERP classificadas pelo de-para) e gerenciamento de risco (contadores do RasterIntegra). O peso de cada pilar é da Régua e vale por competência. Quem está sem uma fonte tem a nota RENORMALIZADA entre as que existem, e a coluna Pilares diz quais entraram — nota que saiu de dois pilares não é comparável com a de três sem dizer isso. Sem pilar nenhum não há nota: a linha fica no fim da lista como pendência, nunca como desempenho ruim.">i</span></h2>
+              <span class="hint" id="gma-rank-hint"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Motorista</th><th>Tipo · filial</th><th class="num">Gobrax</th><th class="num">Conduta</th>
+              <th class="num">GR</th><th class="num">Composta</th><th>Status</th><th>Pilares</th>
+              <th class="num">Desvios</th><th>Medida sugerida</th>
+            </tr></thead><tbody id="gma-rank"></tbody></table></div>
+            <div style="padding:0 18px 14px;font-size:12px;color:var(--n500)" id="gma-rank-pend"></div>
+          </div>
+        </div>
+
+        <!-- ─────────────────────────────── PRÊMIO ─────────────────────────────── -->
+        <div class="aba" data-abas="prem" data-aba="prm" id="aba-prm" role="tabpanel" aria-labelledby="tabprem-prm" data-ao-abrir="loadGmaPremio" hidden>
+          <div class="kband"><div class="kpis k4" id="kpis-gmaprm"></div></div>
+          <div class="banner-inline" id="gma-prm-estado" style="display:none;margin:0"></div>
+          <div class="card">
+            <div class="head"><h2>O que se paga no ciclo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Prêmio = valor base × nota do ciclo, com teto de 100% (a reputação passa de 100 de propósito; o pagamento não acompanha). O valor base vem, nesta ordem: do ajuste do ciclo (decidido à mão, com motivo e autor), da escada de tempo de casa nas filiais marcadas para isso, ou da tabela por grupo e filial. Sem valor cadastrado a linha NÃO paga zero: ela diz que a filial está sem valor na tabela — zero é um número que alguém decidiu, ausência de cadastro é outra coisa. Depois do fechamento esta tela mostra a FOTOGRAFIA do que foi pago, não o cálculo.">i</span></h2>
+              <span class="hint" id="gma-prm-hint"></span></div>
+            <div class="cardfilters">
+              <button class="btn" id="btnGmaFechar" onclick="gmaFechar()">Fechar o ciclo</button>
+              <button class="ghost" id="btnGmaReabrir" onclick="gmaReabrir()" style="display:none">Reabrir</button>
+              <span class="hint" id="gma-prm-msg" style="text-align:left"></span>
+            </div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Motorista</th><th>Tipo · filial</th><th class="num">Tempo de casa</th>
+              <th class="num">Base</th><th>De onde vem</th><th class="num">Nota</th>
+              <th class="num">Prêmio</th><th></th>
+            </tr></thead><tbody id="gma-prm"></tbody></table></div>
+          </div>
+        </div>
+
+        <!-- ──────────────────────── VALORES DO PRÊMIO ──────────────────────── -->
+        <div class="aba" data-abas="prem" data-aba="val" id="aba-val" role="tabpanel" aria-labelledby="tabprem-val" data-ao-abrir="loadGmaPremio" hidden>
+          <div class="card">
+            <div class="head"><h2>Valores base e escada de tempo de casa <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O valor cheio (100% da nota) por grupo e filial, guardado no banco do CÓRTEX e versionado por competência: mudar em setembro não mexe no que agosto pagou. A filial marcada com escada tem o valor definido pelo tempo de casa, em meses, em vez do valor fixo. Estes valores não vivem no código — o repositório do CÓRTEX é público.">i</span></h2>
+              <span class="hint" id="gma-val-hint"></span></div>
+            <div class="cardfilters">
+              <select id="fGmaGrupoVal" aria-label="Grupo dos valores" onchange="gmaValRender()">
+                <option value="RODOVIARIO">Rodoviários</option><option value="MANOBRA">Manobras</option>
+              </select>
+              <button class="btn" onclick="gmaSalvarValores()">Salvar valores</button>
+              <button class="ghost" onclick="gmaSalvarEscada()">Salvar escada</button>
+              <span class="hint" id="gma-val-msg" style="text-align:left"></span>
+            </div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Filial</th><th class="num">Valor cheio</th><th class="num">Usa a escada</th><th>Observação</th>
+            </tr></thead><tbody id="gma-val"></tbody></table></div>
+            <div id="gma-escada" style="padding:4px 18px 14px"></div>
+          </div>
+        </div>
+
+        <!-- ───────────────────────── GERENCIAMENTO DE RISCO ───────────────────────── -->
+        <div class="aba" data-abas="prem" data-aba="gr" id="aba-gr" role="tabpanel" aria-labelledby="tabprem-gr" hidden>
+          <div class="card">
+            <div class="head"><h2>Risco por viagem no ciclo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os contadores de evento do gerenciamento de risco (RasterIntegra), somados por viagem e ponderados pelo peso de cada tipo. A nota cai da referência para o piso: a referência é o p90 medido do risco por viagem — calibrada no dado real, não escolhida. Quem rodou menos que o mínimo de viagens do ciclo NÃO recebe nota de GR (ela seria ruído), e a linha diz isso; a nota composta é renormalizada entre os pilares que sobraram.">i</span></h2>
+              <span class="hint" id="gma-gr-hint"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Motorista</th><th class="num">Viagens</th><th class="num">Risco/viagem</th>
+              <th class="num">Nota</th><th>Contadores do ciclo</th><th>Informativos</th>
+            </tr></thead><tbody id="gma-gr"></tbody></table></div>
+            <div style="padding:0 18px 14px;font-size:12px;color:var(--n500)" id="gma-gr-regua"></div>
+          </div>
+        </div>
+
+        <!-- ──────────────────────────── OCORRÊNCIAS ──────────────────────────── -->
+        <div class="aba" data-abas="prem" data-aba="oco" id="aba-oco" role="tabpanel" aria-labelledby="tabprem-oco" hidden>
+          <div class="card">
+            <div class="head"><h2>O que cada código do ERP significa <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Cada tipo de ocorrência de motorista do ERP vira um desvio (D01–D14), um mérito (M01–M10) ou fica IGNORADO. É tabela e não constante no código por dois motivos: o ERP ganha código novo sem avisar, e quem decide o que cada um significa é a operação. Código que ninguém mapeou NÃO vira desvio por descuido nem some em silêncio — ele fica de fora da conta e aparece aqui em cima, pedindo decisão. IGNORAR é decisão de primeira classe: o código mais frequente do ERP não é demérito.">i</span></h2>
+              <span class="hint" id="gma-oco-hint"></span></div>
+            <div id="gma-oco-pend" style="padding:0 18px"></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th class="num">Código</th><th>Vezes no ciclo</th><th>Decisão</th><th>O que vale</th>
+            </tr></thead><tbody id="gma-oco"></tbody></table></div>
+          </div>
+        </div>
+
+        <!-- ───────────────────────────── MOTORISTAS ───────────────────────────── -->
+        <div class="aba" data-abas="prem" data-aba="base" id="aba-base" role="tabpanel" aria-labelledby="tabprem-base" data-ao-abrir="loadGmaBase" hidden>
+          <div class="card">
+            <div class="head"><h2>Cadastro da premiação <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Quem existe para a régua vem da FOLHA (Globus): é ela que sabe quem está admitido, desde quando e em que filial. O ERP e a Gobrax entram só para cruzar o desempenho. O TIPO (rodoviário ou manobrista) nasce SUGERIDO pelas viagens do período e a decisão final é de quem opera — um rodoviário que passou o ciclo afastado cai como manobrista, e por isso a sugestão não decide sozinha. Decisão manual nunca é sobrescrita pela sincronização. A tela fala por código do cadastro: CPF não trafega.">i</span></h2>
+              <span class="hint" id="gma-base-hint"></span></div>
+            <div class="cardfilters">
+              <input type="search" id="fGmaBusca" placeholder="buscar por nome ou código" oninput="gmaBaseRender()" style="min-width:220px">
+              <label style="font-size:12px;color:var(--n600);display:flex;align-items:center;gap:6px"><input type="checkbox" id="fGmaPend" onchange="gmaBaseRender()" style="width:16px;height:16px;margin:0"> só quem falta decidir</label>
+            </div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Motorista</th><th class="num">Código</th><th>Tipo</th><th>Filial</th>
+              <th class="num">Admissão</th><th>Função</th><th class="num">Ativo</th>
+            </tr></thead><tbody id="gma-base"></tbody></table></div>
+          </div>
+        </div>
+
+        <!-- ───────────────────────────── CATEGORIAS ───────────────────────────── -->
+        <div class="aba" data-abas="prem" data-aba="cat" id="aba-cat" role="tabpanel" aria-labelledby="tabprem-cat" data-ao-abrir="gmaCatRender" hidden>
+          <div class="card">
+            <div class="head"><h2>Reputação de seis ciclos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O ranking mede O CICLO; a categoria mede a HISTÓRIA. A reputação de conduta é 100 menos os pontos dos desvios da janela de seis ciclos, mais os méritos, mais um bônus por ciclo sem desvio nenhum — contado só a partir da admissão, senão quem entrou há dois meses ganharia bônus por ciclos em que não trabalhava aqui. Ela passa de 100 de propósito: é o que faz a faixa Elite existir e separa “não errou” de “fez além”. Uma pessoa pode estar em atenção no mês e seguir Ouro; categoria que oscila todo mês não é categoria.">i</span></h2>
+              <span class="hint" id="gma-cat-hint"></span></div>
+            <div class="chartwrap"><div id="chartGmaCat" style="width:100%;height:230px" role="img"></div></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>Motorista</th><th>Categoria</th><th class="num">Reputação</th><th class="num">Conduta 6 ciclos</th>
+              <th class="num">Ciclos limpos</th><th class="num">Desvios</th><th class="num">Méritos</th>
+            </tr></thead><tbody id="gma-cat"></tbody></table></div>
+          </div>
+        </div>
+
+        <!-- ─────────────────────────────── RÉGUA ─────────────────────────────── -->
+        <div class="aba" data-abas="prem" data-aba="reg" id="aba-reg" role="tabpanel" aria-labelledby="tabprem-reg" hidden>
+          <div class="banner-inline" style="display:flex;margin:0"><i></i><span>A régua é <b>versionada por competência</b> e vale por <b>grupo</b>: o cálculo de um ciclo usa a última versão vigente até ele, então mexer em setembro não muda o que agosto pagou.</span></div>
+          <div class="card">
+            <div class="head"><h2>Pesos, faixas e limites <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Os três pesos TÊM de somar 100%: a composta é média ponderada, e pesos que somam 90 dariam uma nota incomparável com a de quem somou 100 — sem erro nenhum e com o ranking inteiro deslocado. O catálogo de desvios, méritos e contadores é CÓDIGO (existe porque alguém escreveu a consulta que o mede); peso e faixa são DADO, mudam com a mesa e valem a partir de uma competência.">i</span></h2>
+              <span class="hint" id="gma-reg-hint"></span></div>
+            <div class="cardfilters">
+              <select id="fGmaGrupo" aria-label="Grupo da régua" onchange="gmaReguaRender()">
+                <option value="RODOVIARIO">Rodoviários</option><option value="MANOBRA">Manobras</option>
+              </select>
+              <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500);flex:1;min-width:220px">Por que mudou (fica no histórico)
+                <input type="text" id="fGmaRegNota" placeholder="ex.: peso do GR revisto na reunião de 18/09"></label>
+              <button class="btn" onclick="gmaSalvarRegua()">Salvar régua</button>
+              <span class="hint" id="gma-reg-msg" style="text-align:left"></span>
+            </div>
+            <div id="gma-reg-params" class="cardfilters"></div>
+            <div style="padding:0 18px 14px;font-size:12px" id="gma-reg-soma"></div>
+          </div>
+        </div>
+
+        <!-- ───────────────── MODELO EM PAGAMENTO (a régua que paga hoje) ───────────────── -->
+        <div class="aba" data-abas="prem" data-aba="prem" id="aba-prem" role="tabpanel" aria-labelledby="tabprem-prem" data-ao-abrir="loadPremAntigo" hidden>
+          <div class="banner-inline" style="display:flex;margin:0"><i></i><span>Esta é a régua que <b>paga hoje</b> — nota da Gobrax × km rodado, por mês-calendário. A Gestão de Motoristas das outras abas roda em paralelo, no ciclo 16 a 15, e <b>não paga nada</b> enquanto quem opera não virar a chave.</span></div>
+<div class="card">
           <div class="head"><h2>Premiação de Motoristas</h2><span class="hint">nota da Gobrax × km rodado · regra e pesos na aba Configuração</span></div>
           <div class="cardfilters">
-            <select id="fPremMes" aria-label="Mês da premiação" onchange="loadPrem()"></select>
+            <select id="fPremMes" aria-label="Mês da premiação" onchange="loadPremAntigo()"></select>
             <button class="btn" id="btnPremColeta" onclick="premColetar()">Atualizar dados</button>
             <span class="hint" id="premColetadoEm" style="text-align:left"></span>
           </div>
         </div>
         <div id="prem-aviso"></div>
         <div id="prem-naoconfig" style="display:none"></div>
-        <div id="prem-conteudo">
+                  <div id="prem-conteudo">
           <div class="banner-inline" id="prem-telemetria" style="display:none;margin:0"></div>
           <div class="kpis k4" id="kpis-prem"></div>
-                    <div class="subtabs" role="tablist" data-abas="prem" aria-label="Seções da premiação">
-            <button role="tab" id="tabprem-prem" aria-controls="aba-prem" data-aba="prem"
-                    aria-selected="true" onclick="abaTrocar('prem','prem')">Premiação</button>
-            <button role="tab" id="tabprem-cfg" aria-controls="aba-cfg" data-aba="cfg"
-                    aria-selected="false" onclick="abaTrocar('prem','cfg')">Configuração</button>
-          </div>
-          <div class="aba" data-abas="prem" data-aba="prem" id="aba-prem" role="tabpanel" aria-labelledby="tabprem-prem">
+                    
           <div class="card">
             <div class="head"><h2>Ranking de motoristas <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" id="prem-rank-help" title="">i</span></h2><span class="hint" id="prem-rank-hint"></span></div>
             <div class="tablewrap tabroll"><table><thead><tr>
@@ -5785,9 +5962,13 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
             </div>
             <div style="padding:0 18px 14px;font-size:12px;color:var(--n500)" id="prem-comp-premios"></div>
           </div>
+          
           </div>
-          <div class="aba" data-abas="prem" data-aba="cfg" id="aba-cfg" role="tabpanel" aria-labelledby="tabprem-cfg" hidden>
-            <div class="banner-inline" style="display:flex;margin:0 0 14px"><i></i><span>Estes parâmetros são <b>versionados por competência</b>: o cálculo de um mês usa a última versão vigente até ele, então configurar agosto não mexe em julho.</span></div>
+        </div>
+
+        <!-- ───────────────── CONFIGURAÇÃO DO MODELO EM PAGAMENTO ───────────────── -->
+        <div class="aba" data-abas="prem" data-aba="cfg" id="aba-cfg" role="tabpanel" aria-labelledby="tabprem-cfg" data-ao-abrir="premCfgCarregar" hidden>
+            <div class="banner-inline" style="display:flex;margin:0"><i></i><span>Estes parâmetros são <b>versionados por competência</b>: o cálculo de um mês usa a última versão vigente até ele, então configurar agosto não mexe em julho.</span></div>
             <div class="card">
             <div class="head"><h2>Configuração por eixos <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Parâmetros e pesos da premiação de seis eixos, guardados no banco do CÓRTEX e VERSIONADOS POR COMPETÊNCIA: configurar agosto não mexe em julho, e o cálculo de um mês usa a última versão vigente até ele. Premiação decide dinheiro de gente, e a pergunta “por que recebi isso em março?” aparece meses depois — editar por cima deixaria ela sem resposta.">i</span></h2>
               <span class="hint" id="prem-cfg-hint"></span></div>
@@ -5834,7 +6015,7 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <th>Classe</th><th class="num">Peso</th><th class="num">Bloqueia</th>
             </tr></thead><tbody id="prem-oco"></tbody></table></div>
           </div>
-          </div>
+          
         </div>
       </section>
 
@@ -11702,7 +11883,7 @@ function router(){
   // carga da vista: dispara se não há dados OU se os filtros visíveis
   // divergem dos usados na última carga (nunca mostrar dado velho com filtro novo)
   const key=viewKey(v);
-  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,freq:DATAFREQ,custos:DATACUSTOS,pecas:DATAPECAS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAPREM,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
+  const DATAMAP={fin:DATA,oc:DATAOC,agr:DATAAGR,anpiso:DATAANPISO,anrntrc:DATAANRNTRC,pedagio:DATAPED,telcon:DATATELCON,telcond:DATATELCOND,telhod:DATATELHOD,mvb:DATAMVB,comb:DATACOMB,man:DATAMAN,com:DATACOM,clif:DATACLIF,dre:DATADRE,bal:DATABAL,drecli:DATADRECLI,home:DATAHOME,km:DATAKM,torre:DATATORRE,veic:DATAVEIC,veicf:DATAVEICF,mul:DATASMT,prog:DATAPROG,jorn:DATAJR,jornf:DATAJORNF,cex:DATACEX,sac:DATASAC,mprev:DATAMPREV,comrast:DATACOMRAST,qual:DATAQUAL,port:DATAPORT,crm:DATACRM,rh:DATARH,hc:DATAHC,folha:DATAFOLHA,folhaind:DATAFOLHAIND,he:DATAHE,freq:DATAFREQ,custos:DATACUSTOS,pecas:DATAPECAS,cob:DATACOB,banc:DATABANC,extb:DATAEXTB,lanc:DATALANC,antec:DATAANTEC,antport:DATAANTPORT,milkrun:DATAMILK,fluxcon:DATAFLUXCON,rec:DATAREC,rent:DATARENT,cont:DATACONT,orc:DATAORC,fech:DATAFECH,fat:DATAFAT,gr:DATAGR,prem:DATAGMA,gestao:DATAGES,srv:DATASRV,doc:DATADOC,tvfat:null,tvope:null,tvdir:null,cop:(COP_MSGS.length?{}:null)};
   const LOADMAP={agrcanal:loadAgrcanal,hp:loadHp,radar:loadRadar,apps:loadApps,integ:loadInteg,dfe:loadDfe,eqp:loadEqp,wmspan:loadWmsPan,wmsrec:loadWmsRec,wmsest:loadWmsEst,wmsexp:loadWmsExp,wmscad:loadWmsCad,fin:load,oc:loadOc,agr:loadAgr,anpiso:loadAnpiso,anrntrc:loadAnrntrc,telcon:loadTelcon,telcond:loadTelcond,telhod:loadTelhod,mvb:loadMvb,pedagio:loadPedagio,whrval:loadWhrval,pcdoc:loadPcdoc,comb:loadComb,man:loadMan,com:loadCom,clif:loadClif,dre:loadDre,bal:loadBal,drecli:loadDreCli,home:loadHome,km:loadKm,torre:loadTorre,veic:loadVeic,veicf:loadVeicf,mul:loadSmt,prog:loadProg,jorn:loadJorraster,jornf:loadJornf,cex:loadCex,sac:loadSac,cliop:loadCliop,mprev:loadMPrev,comrast:loadComRast,qual:loadQual,port:loadPort,crm:loadCrm,rh:loadRh,hc:loadHc,folha:loadFolha,folhaind:loadFolhaInd,he:loadHe,freq:loadFreq,custos:loadCustos,pecas:loadPecas,cob:loadCob,banc:loadBanc,extb:loadExtb,lanc:loadLanc,antec:loadAntec,antport:loadAntport,milkrun:loadMilkrun,cnh:loadCnh,ferias:loadFerias,rhmot:loadRhmot,people:loadPeople,des:loadDes,pneus:loadPneus,poli:loadPoli,ctecp:loadCtecp,fluxcon:loadFluxcon,rec:loadRec,rent:loadRent,cont:loadCont,orc:loadOrc,fech:loadFech,fat:loadFat,gr:loadGr,prem:loadPrem,gesacao:loadGesacao,gesata:loadGesata,gesrit:loadGesrit,gesind:loadGesind,gestao:loadGestao,srv:loadSrv,aud:loadAud,mon:loadMon,sup:loadSup,supfila:loadSupfila,doc:loadDoc,cop:loadCop,tvcli:loadTvCli,tvcom:loadTvCom,tvjor:loadTvJor,tvprod:loadTvProd,tvcco:loadTvCco,tvrh:loadTvRh,tvfat:loadTvFat,tvope:loadTvOpe,tvdir:loadTvDir};
   if(!DATAMAP[key] || (key!=='home' && LOADEDQS[key]!==qsView(key))) LOADMAP[key]();
   // mobile: estado da navegação inferior + fecha gaveta/painel de filtros
@@ -13868,7 +14049,593 @@ function _premScoreLabel(k){
 // o fmtNumBR global (tabelas) fica intacto.
 let PREM_ANCOROU=false;   // a âncora no último mês com dado roda UMA vez por sessão
 let PREM_ANCORA=null;     // {mes, texto}: o aviso que a âncora deixa no mês em que pousou
-async function loadPrem(forceSerie){
+/* ═══════════════════════ GESTÃO DE MOTORISTAS (GMA) ═══════════════════════
+   A régua NOVA da premiação: ciclo do dia 16 ao dia 15, três pilares
+   (Gobrax, comportamento e gerenciamento de risco), reputação de seis ciclos
+   e o prêmio por filial. Ela divide a tela `prem` com a régua que PAGA HOJE
+   (as duas últimas abas) enquanto quem opera não vira a chave.
+
+   UMA LEITURA SERVE SEIS ABAS. Ranking, GR, ocorrências, categorias e régua
+   saem do MESMO payload — as quatro fontes são lidas uma vez para a janela
+   inteira, no servidor. O pagamento é fetch próprio porque é a aba bloqueável
+   por usuário (`api/acessos.ABAS`): quem acompanha conduta não precisa ver a
+   folha, e a aba que não se abre não busca. */
+let DATAGMA=null, DATAGMACAT=null, DATAGMAPREM=null, GMA_BASE=null;
+let gmaSeq=0, gmaPremSeq=0, gmaBaseSeq=0;
+
+async function loadPrem(){
+  const seq=++gmaSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
+  document.getElementById('content').classList.add('loading');
+  skelKpis('kpis-gma',4);
+  try{
+    const sel=document.getElementById('fGmaCiclo');
+    const p=new URLSearchParams();
+    if(sel && sel.dataset.pronto && sel.value) p.set('ciclo', sel.value);
+    const qs=p.toString()?('?'+p.toString()):'';
+    const [rc,rk]=await Promise.all([
+      fetch('/api/premiacao/gma/catalogo'+qs,{cache:'no-store'}),
+      fetch('/api/premiacao/gma/ciclo'+qs,{cache:'no-store'})]);
+    const cat=await respostaJSON(rc), cic=await respostaJSON(rk);
+    if(seq!==gmaSeq) return;
+    if(!cat.ok){ showBanner(cat.dados.mensagem||'Erro ao ler o catálogo da premiação.'); return; }
+    if(!cic.ok){ showBanner(cic.dados.mensagem||'Erro ao montar o ciclo.'); return; }
+    hideBanner(); DATAGMACAT=cat.dados; DATAGMA=cic.dados; LOADEDQS.prem='';
+    gmaSyncCiclos(cat.dados, sel);
+    gmaRender();
+  }catch(e){ if(seq===gmaSeq) showBanner('Não foi possível falar com a API.', e.message); }
+  finally{ if(seq===gmaSeq){ if(btn) btn.disabled=false;
+    document.getElementById('content').classList.remove('loading'); } }
+}
+
+/* O seletor de ciclo é reconstruído quando o CONJUNTO muda, nunca a cada
+   troca — reconstruir a cada render apagaria a escolha de quem está olhando
+   (a lição do seletor de meses do orçamento). */
+function gmaSyncCiclos(cat, sel){
+  sel = sel || document.getElementById('fGmaCiclo');
+  if(!sel) return;
+  const lista=(cat.ciclos||[]).join(',');
+  if(sel.dataset.ciclos!==lista){
+    sel.innerHTML=(cat.ciclos||[]).map(c=>`<option value="${esc(c)}">${esc(gmaRotuloCurto(c))}</option>`).join('')
+      || '<option value="">sem ciclo</option>';
+    sel.dataset.ciclos=lista; sel.dataset.pronto='1';
+  }
+  if(cat.ciclo) sel.value=cat.ciclo;
+  const rot=document.getElementById('gmaRotulo');
+  if(rot) rot.textContent=(DATAGMA&&DATAGMA.rotulo)?('ciclo de '+DATAGMA.rotulo):'';
+}
+function gmaRotuloCurto(c){
+  const MES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const a=+c.slice(0,4), m=+c.slice(5,7);
+  const ant=m===1?11:m-2;
+  return '16/'+MES[ant]+' a 15/'+MES[m-1]+' de '+a;
+}
+/* Os formatadores do bloco. `numBR` da casa PARSEIA texto para numero — usar
+   o parser como formatador devolve `null` na tela. O valor em reais formata
+   aqui e nao vira constante: nenhum valor da folha mora no repositorio. */
+function gmaNum(v,d){
+  if(v==null) return '—';
+  d = d==null?1:d;
+  return Number(v).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
+}
+function gmaBRL(v){ return v==null?'—':'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function gmaCampo(v){ return v==null?'':Number(v).toLocaleString('pt-BR',{maximumFractionDigits:2,useGrouping:false}); }
+
+function gmaRender(){
+  const d=DATAGMA; if(!d) return;
+  const k=d.kpis||{};
+  /* O KPI que a mesa pergunta primeiro NÃO é a nota: é de quantas notas ela
+     pode falar. Metade da base não tem leitura da Gobrax hoje, e nota
+     renormalizada de dois pilares não é comparável com a de três — o cartão
+     diz o tamanho do buraco em vez de deixar isso em nota de rodapé. */
+  document.getElementById('kpis-gma').innerHTML=
+      kpi('Motoristas no ciclo', String(k.motoristas||0),
+          (k.sem_nota||0)+' sem nota', '',
+          'Motoristas ativos no cadastro da premiação. Quem está sem nota não tem pilar nenhum no ciclo — é pendência de cadastro ou de fonte, nunca desempenho ruim.')
+     +kpi('Nota mediana', k.nota_mediana==null?'n/d':gmaNum(k.nota_mediana,1),
+          gmaFaixaTexto(k.por_status||{}), '',
+          'A mediana da nota composta do ciclo. Mediana e não média: um caso extremo desloca a média e some na mediana.')
+     +kpi('Com desvio no ciclo', String(k.com_desvio||0),
+          (k.com_medida||0)+' com medida sugerida', (k.com_desvio?'warn':''),
+          'Quantos tiveram ao menos uma ocorrência classificada como desvio. A medida é SUGERIDA pela reincidência: motorista próprio é CLT, o rito é trabalhista e quem aplica é o RH.')
+     +kpi('Nota com pilar faltando', String(k.com_pilar_faltando||0),
+          'de '+(k.com_nota||0)+' com nota', (k.com_pilar_faltando?'warn':''),
+          'Notas que saíram com uma fonte ausente e foram renormalizadas entre as que existem. Número que vem de uma base com buraco precisa dizer o tamanho do buraco.');
+  gmaRankRender(); gmaGrRender(); gmaOcoRender(); gmaCatRender(); gmaReguaRender();
+  abaContadoresAuto();
+}
+function gmaFaixaTexto(porStatus){
+  const ordem=['EXCELENTE','BOM','ATENCAO','ALERTA','CRITICO','PENDENTE'];
+  return ordem.filter(s=>porStatus[s]).map(s=>porStatus[s]+' '+s.toLowerCase()).join(' · ')||'sem nota no ciclo';
+}
+const GMA_STATUS_CLS={EXCELENTE:'ok',BOM:'ok',ATENCAO:'warn',ALERTA:'warn',CRITICO:'bad',PENDENTE:''};
+
+function gmaRankRender(){
+  const d=DATAGMA; if(!d) return;
+  const linhas=d.linhas||[];
+  const tb=document.getElementById('gma-rank');
+  tb.innerHTML=linhas.map(x=>{
+    const med=x.medida||null;
+    return `<tr>
+      <td><b>${esc(x.nome||'')}</b> <span class="small" style="color:var(--n500)">${esc(x.motorista||'')}</span></td>
+      <td class="small">${esc(x.tipo==='MANOBRA'?'manobra':'rodoviário')}${x.filial?' · '+esc(x.filial):' · <span style="color:var(--yellow-700)">sem filial</span>'}</td>
+      <td class="num">${gmaNum(x.gobrax)}</td>
+      <td class="num">${gmaNum(x.conduta)}</td>
+      <td class="num">${gmaNum(x.gr)}${x.gr_insuficiente?' <span class="small" style="color:var(--n500)">poucas viagens</span>':''}</td>
+      <td class="num"><b>${gmaNum(x.nota)}</b></td>
+      <td>${statChip(GMA_STATUS_CLS[x.status]||'flat', x.status==='PENDENTE'?'sem nota':(x.status||'').toLowerCase())}</td>
+      <td class="small">${esc((x.pilares||[]).join(' · ')||'nenhum')}</td>
+      <td class="num">${x.desvios&&x.desvios.length?x.desvios.length:''}</td>
+      <td class="small">${med?esc(med.nivel+' · '+med.medida)+'<br><span style="color:var(--n500)">'+esc(med.porque)+'</span>':''}</td>
+    </tr>`;}).join('')
+    || '<tr><td colspan="10" style="color:var(--n500)">sem motoristas no ciclo</td></tr>';
+  const f=d.fontes||{};
+  document.getElementById('gma-rank-hint').textContent=
+    'Gobrax de '+(d.mes_gobrax||'—')+' · '+((f.gobrax||{}).com_nota||0)+' com leitura · '
+    +((f.gr||{}).com_viagem||0)+' com viagem no GR';
+  const p=d.pendencias||{}, av=[];
+  if((p.codigos_sem_depara||[]).length) av.push(p.codigos_sem_depara.length+' códigos do ERP sem decisão (aba Ocorrências)');
+  if(p.ocorrencias_sem_codigo) av.push(p.ocorrencias_sem_codigo+' ocorrências sem código no ERP');
+  if(p.gobrax_fora_do_cadastro) av.push(p.gobrax_fora_do_cadastro+' nomes da Gobrax fora do cadastro');
+  if((p.gobrax_ambiguos||[]).length) av.push(p.gobrax_ambiguos.length+' nomes ambíguos na Gobrax (não casam com ninguém)');
+  if(p.sem_filial) av.push(p.sem_filial+' sem filial (aba Motoristas)');
+  if(p.tipo_sugerido) av.push(p.tipo_sugerido+' com tipo ainda sugerido');
+  const motivos=['gobrax','conduta','gr'].map(n=>((f[n]||{}).motivo||'')).filter(Boolean);
+  document.getElementById('gma-rank-pend').innerHTML=
+    (motivos.length?'<b style="color:var(--yellow-700)">'+esc(motivos.join(' · '))+'</b><br>':'')
+    +(av.length?'Pendências: '+esc(av.join(' · ')):'Sem pendências de cadastro neste ciclo.');
+}
+
+function gmaGrRender(){
+  const d=DATAGMA; if(!d) return;
+  const com=(d.linhas||[]).filter(x=>x.gr_viagens);
+  document.getElementById('gma-gr').innerHTML=com.map(x=>`<tr>
+      <td><b>${esc(x.nome||'')}</b></td>
+      <td class="num">${x.gr_viagens}</td>
+      <td class="num">${gmaNum(x.gr_risco)}</td>
+      <td class="num">${x.gr==null?'<span class="small" style="color:var(--n500)">sem nota</span>':gmaNum(x.gr,1)}</td>
+      <td class="small">${esc(Object.entries(x.gr_contadores||{}).filter(([,v])=>v).map(([c,v])=>c.replace(/_/g,' ')+' '+v).join(' · ')||'nenhum evento')}</td>
+      <td class="small" style="color:var(--n500)">${esc(Object.entries(x.gr_informativos||{}).filter(([,v])=>v).map(([c,v])=>c.replace(/_/g,' ')+' '+v).join(' · '))}</td>
+    </tr>`).join('')
+    || '<tr><td colspan="6" style="color:var(--n500)">nenhuma viagem com gerenciamento de risco no ciclo</td></tr>';
+  const v=((DATAGMACAT&&DATAGMACAT.parametros_do_ciclo&&DATAGMACAT.parametros_do_ciclo.RODOVIARIO)||{}).valores||{};
+  const inf=(DATAGMACAT&&DATAGMACAT.so_informativos)||[];
+  document.getElementById('gma-gr-hint').textContent=com.length+' de '+((d.linhas||[]).length)+' motoristas com viagem';
+  document.getElementById('gma-gr-regua').innerHTML=
+    'Régua: referência '+gmaNum(v.gr_referencia,0)+' pontos de risco por viagem · queda máxima '
+    +gmaNum(v.gr_queda,0)+' · piso '+gmaNum(v.gr_piso,0)+' · mínimo de '+gmaNum(v.gr_minimo_viagens,0)+' viagens para ter nota.'
+    +(inf.length?'<br>Contam como informativo e NÃO tiram nota: '+esc(inf.map(c=>c.rotulo+' ('+c.porque+')').join(' · ')):'');
+}
+
+function gmaOcoRender(){
+  const d=DATAGMA, cat=DATAGMACAT; if(!d||!cat) return;
+  const pend=(d.pendencias||{}).codigos_sem_depara||[];
+  const alvos=gmaAlvos();
+  document.getElementById('gma-oco-pend').innerHTML= pend.length
+    ? '<div class="banner-inline" style="display:flex;margin:0 0 12px"><i></i><span><b>'+pend.length
+      +' código(s) do ERP sem decisão neste ciclo.</b> Enquanto ninguém decide, eles ficam FORA da conta — nunca viram desvio por descuido.</span></div>'
+      // A lista do que falta decidir ROLA DENTRO do card: ela é curta hoje e
+      // o ERP ganha código novo sem avisar — tabela solta empurraria a aba.
+      +'<div class="tablewrap tabroll curta"><table><thead><tr><th class="num">Código</th><th>Como aparece no ERP</th><th class="num">Vezes</th><th>Decidir</th></tr></thead><tbody>'
+      +pend.map(c=>`<tr><td class="num">${c.codigo}</td><td>${esc(c.descricao||'')}</td><td class="num">${c.vezes||0}</td>
+         <td><select onchange="gmaDepara(${c.codigo}, this.value)"><option value="">escolher…</option>${alvos}</select></td></tr>`).join('')
+      +'</tbody></table></div>'
+    : '<div class="small" style="color:var(--n500);padding-bottom:8px">Nenhum código sem decisão neste ciclo.</div>';
+  const dep=cat.depara||{}, rot=gmaRotulosCatalogo();
+  const chaves=Object.keys(dep).sort((a,b)=>(+a)-(+b));
+  document.getElementById('gma-oco').innerHTML=chaves.map(c=>`<tr>
+      <td class="num">${esc(c)}</td>
+      <td class="small" style="color:var(--n500)">${esc(gmaVezesDoCodigo(c))}</td>
+      <td><select onchange="gmaDepara(${+c}, this.value)">${gmaAlvos(dep[c])}</select></td>
+      <td class="small">${esc(rot[dep[c]]||(dep[c]==='IGNORAR'?'fica fora da conta, por decisão':''))}</td>
+    </tr>`).join('')
+    || '<tr><td colspan="4" style="color:var(--n500)">nenhum código decidido ainda</td></tr>';
+  document.getElementById('gma-oco-hint').textContent=chaves.length+' códigos decididos · '+pend.length+' pendentes';
+  /* O contador da aba diz o que FALTA DECIDIR, não quantas linhas a tabela
+     tem — por isso ele é fixo (`data-fixo`) e o automático não o sobrescreve.
+     Zero fica em branco: "nada a decidir" não é um número a mostrar. */
+  const ct=document.getElementById('ct-gma-oco');
+  if(ct){ ct.dataset.fixo='1'; ct.textContent=pend.length?String(pend.length):''; }
+}
+/* Quantas vezes o código apareceu NESTE ciclo. Só se sabe dos que ainda não
+   têm decisão (o servidor os devolve com a contagem, porque é o que pede
+   decisão); para os já decididos a resposta honesta é branco, não zero. */
+function gmaVezesDoCodigo(codigo){
+  const pend=((DATAGMA||{}).pendencias||{}).codigos_sem_depara||[];
+  const achado=pend.find(c=>String(c.codigo)===String(codigo));
+  return achado?(achado.vezes+' no ciclo'):'';
+}
+/* A OPÇÃO DIZ O QUE O ALVO VALE. Quem decide o que um código do ERP
+   significa precisa do peso NA HORA de escolher — catálogo em card separado
+   deixa a régua a dois cliques da decisão (e punha a aba em 947px contra o
+   teto de 900 da casa). */
+function gmaAlvos(sel){
+  const cat=DATAGMACAT||{};
+  const op=(v,t)=>`<option value="${esc(v)}"${sel===v?' selected':''}>${esc(t||v)}</option>`;
+  return (cat.desvios||[]).map(d=>op(d.cod, d.cod+' · '+d.nome+' · −'+d.pts)).join('')
+        +(cat.meritos||[]).map(m=>op(m.cod, m.cod+' · '+m.nome+' · +'+m.pts)).join('')
+        +op('IGNORAR','IGNORAR · fica fora da conta, por decisão');
+}
+function gmaRotulosCatalogo(){
+  const cat=DATAGMACAT||{}, r={};
+  (cat.desvios||[]).forEach(d=>{r[d.cod]=d.nome+' · −'+d.pts+' pontos';});
+  (cat.meritos||[]).forEach(m=>{r[m.cod]=m.nome+' · +'+m.pts+' pontos';});
+  return r;
+}
+
+function gmaCatRender(){
+  const d=DATAGMA; if(!d) return;
+  const linhas=(d.linhas||[]).slice().sort((a,b)=>(b.reputacao||0)-(a.reputacao||0));
+  document.getElementById('gma-cat').innerHTML=linhas.map(x=>`<tr>
+      <td><b>${esc(x.nome||'')}</b></td>
+      <td>${esc(x.categoria||'—')}</td>
+      <td class="num">${gmaNum(x.reputacao)}</td>
+      <td class="num">${gmaNum(x.rep_conduta)}</td>
+      <td class="num">${x.ciclos_limpos==null?'—':x.ciclos_limpos}</td>
+      <td class="num">${x.desvios_6||0}</td>
+      <td class="num">${x.meritos_6||0}</td>
+    </tr>`).join('')
+    || '<tr><td colspan="7" style="color:var(--n500)">sem motoristas no ciclo</td></tr>';
+  const porCat=(d.kpis||{}).por_categoria||{};
+  const ordem=['ELITE','DIAMANTE','OURO','PRATA','BRONZE'].filter(c=>porCat[c]!=null);
+  document.getElementById('gma-cat-hint').textContent=
+    ordem.map(c=>porCat[c]+' '+c.toLowerCase()).join(' · ')||'sem categoria calculada';
+  ecDesenhar('chartGmaCat', ordem.length && (()=>{
+    const vals=ordem.map(c=>porCat[c]);
+    /* O rótulo do eixo vai em `eixoY`, e não por atribuição depois: o `yAxis`
+       da casa é um OBJETO (um eixo), não um array. `o.yAxis[0]` estoura
+       dentro do `montar`, o `ecDesenhar` cai no `catch` e o cartão mostra a
+       falha — gráfico que some sem erro no console. */
+    const o=ecOpcoes(ordem.map(c=>c[0]+c.slice(1).toLowerCase()), Math.max(1,...vals),
+                     {sombra:true, bottom:34, eixoY:{name:'MOTORISTAS'}});
+    o.series=[ecBarras('Motoristas', vals, CC.navy400,
+                       {rotulo:(i,v)=>v?String(v):''})];
+    return o;
+  }), 'sem categoria calculada no ciclo');
+}
+
+function gmaReguaRender(){
+  const cat=DATAGMACAT; if(!cat) return;
+  const g=(document.getElementById('fGmaGrupo')||{}).value||'RODOVIARIO';
+  const bloco=(cat.parametros_do_ciclo||{})[g]||{};
+  const v=bloco.valores||{};
+  document.getElementById('gma-reg-params').innerHTML=(cat.parametros||[]).map(p=>
+    `<label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500);min-width:126px">${esc(p.rotulo)}
+       <input type="text" inputmode="decimal" id="gmareg-${esc(p.chave)}" value="${esc(gmaCampo(v[p.chave]))}"
+              title="${esc(p.explica||'')}" oninput="gmaReguaSoma()" style="width:104px"></label>`).join('');
+  document.getElementById('gma-reg-hint').textContent= bloco.versao
+    ? ('régua vigente desde '+(bloco.vigente_de||'—')) : 'nenhuma versão salva — valendo os padrões do modelo';
+  gmaReguaSoma();
+}
+function gmaReguaSoma(){
+  const ler=c=>{const el=document.getElementById('gmareg-'+c); return el?(parseFloat(String(el.value).replace(',','.'))||0):0;};
+  const soma=ler('peso_gobrax')+ler('peso_conduta')+ler('peso_gr');
+  const el=document.getElementById('gma-reg-soma'); if(!el) return;
+  const ok=Math.abs(soma-100)<0.01;
+  el.innerHTML='Soma dos três pesos: <b style="color:'+(ok?'var(--green)':'var(--red)')+'">'+gmaNum(soma,0)
+    +'%</b>'+(ok?'':' — têm de somar 100%: a composta é média ponderada, e pesos que somam outra coisa deslocam o ranking inteiro sem erro nenhum.');
+}
+
+async function gmaSalvarRegua(){
+  const g=(document.getElementById('fGmaGrupo')||{}).value||'RODOVIARIO';
+  const cat=DATAGMACAT||{}, valores={};
+  (cat.parametros||[]).forEach(p=>{
+    const el=document.getElementById('gmareg-'+p.chave);
+    if(el) valores[p.chave]=parseFloat(String(el.value).replace(',','.'));
+  });
+  const msg=document.getElementById('gma-reg-msg'); msg.textContent='salvando…';
+  try{
+    const r=await fetch('/api/premiacao/gma/parametros',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ciclo:gmaCicloAtual(), grupo:g, valores:valores,
+                           nota:(document.getElementById('fGmaRegNota')||{}).value||''})});
+    const rr=await respostaJSON(r);
+    if(!rr.ok){ msg.textContent=rr.dados.mensagem||'não foi possível salvar'; return; }
+    msg.textContent='régua salva.'; loadPrem();
+  }catch(e){ msg.textContent='falha ao falar com a API: '+e.message; }
+}
+function gmaCicloAtual(){
+  const sel=document.getElementById('fGmaCiclo');
+  return (sel&&sel.value)||(DATAGMA&&DATAGMA.ciclo)||'';
+}
+
+/* ───────────────────────────── ABA PRÊMIO ───────────────────────────── */
+async function loadGmaPremio(){
+  // As duas abas da unidade bloqueável (Prêmio e Valores) leem o MESMO
+  // payload; tiradas as duas, ninguém busca — 403 numa aba que a pessoa
+  // nem vê vira barra de erro sem causa aparente.
+  if(abaOculta('prem','prm') && abaOculta('prem','val')) return;
+  const seq=++gmaPremSeq;
+  skelKpis('kpis-gmaprm',4);
+  try{
+    const qs='?ciclo='+encodeURIComponent(gmaCicloAtual());
+    const [rp,rv]=await Promise.all([
+      fetch('/api/premiacao/gma/pagamento'+qs,{cache:'no-store'}),
+      fetch('/api/premiacao/gma/valores'+qs,{cache:'no-store'})]);
+    const pg=await respostaJSON(rp), vl=await respostaJSON(rv);
+    if(seq!==gmaPremSeq) return;
+    if(!pg.ok){ showBanner(pg.dados.mensagem||'Erro ao montar o pagamento.'); return; }
+    DATAGMAPREM=pg.dados; DATAGMAPREM.valores=vl.ok?vl.dados:{base:{},escada:{},motivo:'indisponível'};
+    gmaPremRender(); gmaValRender();
+  }catch(e){ if(seq===gmaPremSeq) showBanner('Não foi possível falar com a API.', e.message); }
+}
+
+function gmaPremRender(){
+  const d=DATAGMAPREM; if(!d) return;
+  const k=d.kpis||{};
+  document.getElementById('kpis-gmaprm').innerHTML=
+      kpi('A pagar no ciclo', gmaBRL(k.a_pagar||0), (k.pagos||0)+' motoristas', '',
+          'Soma do prêmio de quem tem nota E valor base. Quem está sem um dos dois não entra aqui nem como zero.')
+     +kpi('Se todos tirassem 100%', gmaBRL(k.teto||0), 'teto do desenho', '',
+          'A soma dos valores base. A diferença para o a pagar é o que a régua deixou de pagar neste ciclo.')
+     +kpi('Sem valor', String(k.sem_valor||0),
+          (k.sem_tabela||0)+' sem tabela · '+(k.sem_nota||0)+' sem nota',
+          (k.sem_valor?'warn':''),
+          'Linhas que não pagam. Ausência de cadastro NÃO é prêmio de R$ 0,00 — a linha diz qual das duas faltas é.')
+     +kpi('Ajustados à mão', String(k.ajustados||0), 'valor base decidido no ciclo',
+          (k.ajustados?'warn':''),
+          'Ajuste vale só neste ciclo e exige motivo e autor. Ajuste colado na pessoa sumiria da vista e continuaria valendo dois anos depois.');
+  const est=document.getElementById('gma-prm-estado');
+  const fech=d.fechamento||null;
+  if(d.fechado){
+    est.style.display='flex';
+    est.innerHTML='<i></i><span><b>Ciclo FECHADO</b> por '+esc(fech.fechado_por||'—')+' em '
+      +esc((fech.fechado_em||'').slice(0,10))+'. Esta tela mostra a <b>fotografia do que foi pago</b>, não o cálculo — '
+      +'mês pago não se recalcula, e as fontes continuam se mexendo depois do pagamento.'
+      +(fech.nota?' Motivo registrado: '+esc(fech.nota):'')+'</span>';
+  }else if(fech){
+    est.style.display='flex';
+    est.innerHTML='<i></i><span>Ciclo <b>reaberto</b> — a tela voltou a calcular. O que foi pago continua guardado na fotografia anterior.</span>';
+  }else{ est.style.display='none'; est.innerHTML=''; }
+  document.getElementById('btnGmaFechar').style.display=d.fechado?'none':'';
+  document.getElementById('btnGmaReabrir').style.display=d.fechado?'':'none';
+  document.getElementById('gma-prm-hint').textContent=
+    (d.fonte||'')+' · '+(d.rotulo||'')+((d.tabela&&d.tabela.motivo)?(' · '+d.tabela.motivo):'');
+  document.getElementById('gma-prm').innerHTML=(d.linhas||[]).map(x=>`<tr>
+      <td><b>${esc(x.nome||'')}</b> <span class="small" style="color:var(--n500)">${esc(x.motorista||'')}</span></td>
+      <td class="small">${esc(x.tipo==='MANOBRA'?'manobra':'rodoviário')}${x.filial?' · '+esc(x.filial):''}</td>
+      <td class="num">${x.meses_casa==null?'—':x.meses_casa+' m'}</td>
+      <td class="num">${x.base==null?'—':gmaBRL(x.base)}</td>
+      <td class="small">${esc(x.base_rotulo||'')}${x.ajuste_motivo?'<br><span style="color:var(--n500)">'+esc(x.ajuste_motivo)+'</span>':''}</td>
+      <td class="num">${x.pct==null?'—':gmaNum(x.pct,1)+'%'}</td>
+      <td class="num">${x.valor==null?('<span class="small" style="color:var(--n500)">'+esc(x.motivo||'sem valor')+'</span>'):('<b>'+gmaBRL(x.valor)+'</b>')}</td>
+      <td>${d.fechado?'':`<button class="ghost btn-sm" onclick="gmaAjustar('${esc(x.motorista)}','${esc(x.nome)}',${x.base==null?'null':x.base})">Ajustar</button>`
+        +(x.base_origem==='ajuste'?` <button class="ghost btn-sm" onclick="gmaLimparAjuste('${esc(x.motorista)}')">Restaurar</button>`:'')}</td>
+    </tr>`).join('')
+    || '<tr><td colspan="8" style="color:var(--n500)">sem motoristas no ciclo</td></tr>';
+}
+
+function gmaValRender(){
+  const d=DATAGMAPREM; if(!d||!d.valores) return;
+  const g=(document.getElementById('fGmaGrupoVal')||{}).value||'RODOVIARIO';
+  const base=(d.valores.base||{})[g]||{};
+  /* As filiais vêm do CADASTRO, não de uma lista no código: filial nova entra
+     na folha e aparece aqui pedindo valor, em vez de sumir da tabela. */
+  const doCadastro=[...new Set((d.linhas||[]).filter(x=>x.filial).map(x=>x.filial))];
+  const filiais=[...new Set(doCadastro.concat(Object.keys(base)))].sort();
+  document.getElementById('gma-val').innerHTML=filiais.map(f=>{
+    const b=base[f]||{};
+    return `<tr>
+      <td><b>${esc(f)}</b></td>
+      <td class="num"><input type="text" inputmode="decimal" id="gmaval-${esc(f)}" value="${esc(b.valor==null?'':gmaCampo(b.valor))}" style="width:110px;text-align:right"></td>
+      <td class="num"><input type="checkbox" id="gmaesc-${esc(f)}"${b.usa_escada?' checked':''} style="width:16px;height:16px;margin:0"></td>
+      <td><input type="text" id="gmaobs-${esc(f)}" value="${esc(b.nota||'')}" placeholder="ex.: pago em outra verba por convenção" style="width:100%"></td>
+    </tr>`;}).join('')
+    || '<tr><td colspan="4" style="color:var(--n500)">nenhuma filial no cadastro</td></tr>';
+  const degraus=(d.valores.escada||{})[g]||[];
+  document.getElementById('gma-escada').innerHTML=
+    '<div style="color:var(--n500);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding-bottom:6px">Escada de tempo de casa</div>'
+    +'<div class="cardfilters" id="gma-escada-linhas" style="padding-left:0">'
+    +(degraus.length?degraus:[{ate_meses:'',valor:''}]).map((x,i)=>
+      `<label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)">até N meses
+         <input type="text" inputmode="numeric" class="gma-esc-m" value="${esc(x.ate_meses)}" style="width:96px"></label>
+       <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)">valor
+         <input type="text" inputmode="decimal" class="gma-esc-v" value="${esc(x.valor===''?'':gmaCampo(x.valor))}" style="width:110px"></label>`
+      +(i===degraus.length-1?'':'')).join('')
+    +'<button class="ghost btn-sm" onclick="gmaEscadaLinha()">+ degrau</button></div>'
+    +'<div class="small" style="color:var(--n500)">Vale para as filiais marcadas acima. Quem está sem admissão no cadastro cai no PRIMEIRO degrau — na dúvida sobre tempo de casa, a casa não paga a mais.</div>';
+  document.getElementById('gma-val-hint').textContent=
+    (d.valores.versao?('valores vigentes desde '+(d.valores.vigente_de||'—')):(d.valores.motivo||'nenhum valor cadastrado'));
+}
+function gmaEscadaLinha(){
+  const box=document.getElementById('gma-escada-linhas'); if(!box) return;
+  const btn=box.querySelector('button');
+  const html=`<label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)">até N meses
+       <input type="text" inputmode="numeric" class="gma-esc-m" style="width:96px"></label>
+     <label style="display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--n500)">valor
+       <input type="text" inputmode="decimal" class="gma-esc-v" style="width:110px"></label>`;
+  btn.insertAdjacentHTML('beforebegin', html);
+}
+
+async function gmaSalvarValores(){
+  const g=(document.getElementById('fGmaGrupoVal')||{}).value||'RODOVIARIO';
+  const filiais={};
+  document.querySelectorAll('#gma-val tr').forEach(tr=>{
+    const inp=tr.querySelector('input[id^="gmaval-"]'); if(!inp) return;
+    const f=inp.id.slice('gmaval-'.length);
+    const v=parseFloat(String(inp.value).replace(/\./g,'').replace(',','.'));
+    if(isNaN(v)) return;                      // filial sem valor fica SEM valor
+    filiais[f]={valor:v,
+      usa_escada:(document.getElementById('gmaesc-'+f)||{}).checked||false,
+      nota:(document.getElementById('gmaobs-'+f)||{}).value||''};
+  });
+  const msg=document.getElementById('gma-val-msg'); msg.textContent='salvando…';
+  try{
+    const r=await fetch('/api/premiacao/gma/valores',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ciclo:gmaCicloAtual(), grupo:g, filiais:filiais})});
+    const rr=await respostaJSON(r);
+    msg.textContent=rr.ok?'valores salvos.':(rr.dados.mensagem||'não foi possível salvar');
+    if(rr.ok) loadGmaPremio();
+  }catch(e){ msg.textContent='falha ao falar com a API: '+e.message; }
+}
+
+async function gmaSalvarEscada(){
+  const g=(document.getElementById('fGmaGrupoVal')||{}).value||'RODOVIARIO';
+  const ms=[...document.querySelectorAll('.gma-esc-m')], vs=[...document.querySelectorAll('.gma-esc-v')];
+  const degraus=[];
+  ms.forEach((el,i)=>{
+    const m=parseInt(String(el.value).replace(/\D/g,''),10);
+    const v=parseFloat(String((vs[i]||{}).value||'').replace(/\./g,'').replace(',','.'));
+    if(!isNaN(m)&&!isNaN(v)) degraus.push({ate_meses:m, valor:v});
+  });
+  const msg=document.getElementById('gma-val-msg'); msg.textContent='salvando…';
+  try{
+    const r=await fetch('/api/premiacao/gma/escada',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ciclo:gmaCicloAtual(), grupo:g, degraus:degraus})});
+    const rr=await respostaJSON(r);
+    msg.textContent=rr.ok?'escada salva.':(rr.dados.mensagem||'não foi possível salvar');
+    if(rr.ok) loadGmaPremio();
+  }catch(e){ msg.textContent='falha ao falar com a API: '+e.message; }
+}
+
+async function gmaAjustar(codigo, nome, base){
+  const v=prompt('Valor base de '+nome+' neste ciclo (R$):', base==null?'':gmaCampo(base));
+  if(v==null) return;
+  const motivo=prompt('Por que este valor é diferente? (fica no registro, com o seu nome)');
+  if(motivo==null) return;
+  const msg=document.getElementById('gma-prm-msg'); msg.textContent='salvando…';
+  try{
+    const r=await fetch('/api/premiacao/gma/ajuste',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ciclo:gmaCicloAtual(), motorista:codigo,
+                           valor:parseFloat(String(v).replace(/\./g,'').replace(',','.')), motivo:motivo})});
+    const rr=await respostaJSON(r);
+    msg.textContent=rr.ok?'ajuste salvo.':(rr.dados.mensagem||'não foi possível ajustar');
+    if(rr.ok) loadGmaPremio();
+  }catch(e){ msg.textContent='falha ao falar com a API: '+e.message; }
+}
+async function gmaLimparAjuste(codigo){
+  const msg=document.getElementById('gma-prm-msg'); msg.textContent='restaurando…';
+  try{
+    const r=await fetch('/api/premiacao/gma/ajuste',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ciclo:gmaCicloAtual(), motorista:codigo})});
+    const rr=await respostaJSON(r);
+    msg.textContent=rr.ok?'valor restaurado.':(rr.dados.mensagem||'não foi possível restaurar');
+    if(rr.ok) loadGmaPremio();
+  }catch(e){ msg.textContent='falha ao falar com a API: '+e.message; }
+}
+
+/* FECHAR É IRREVERSÍVEL NA PRÁTICA (reabrir fica registrado e pede motivo), e
+   por isso a confirmação NÃO depende do que vem depois: o recarregamento da
+   tela fica FORA do try da ação. */
+async function gmaFechar(){
+  const ciclo=gmaCicloAtual();
+  if(!confirm('Fechar o ciclo '+ciclo+'?\n\nA partir daqui a tela mostra a FOTOGRAFIA do que foi pago, '
+              +'não o cálculo — mês pago não se recalcula.')) return;
+  const msg=document.getElementById('gma-prm-msg'); msg.textContent='fechando…';
+  let corpo={ciclo:ciclo};
+  try{
+    let r=await fetch('/api/premiacao/gma/fechar',{method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify(corpo)});
+    let rr=await respostaJSON(r);
+    if(!rr.ok && /termina em/.test(rr.dados.mensagem||'')){
+      const nota=prompt(rr.dados.mensagem+'\n\nPor que fechar antes do fim do ciclo? (fica registrado)');
+      if(nota==null){ msg.textContent=''; return; }
+      corpo={ciclo:ciclo, forcar:true, nota:nota};
+      r=await fetch('/api/premiacao/gma/fechar',{method:'POST',
+        headers:{'Content-Type':'application/json'}, body:JSON.stringify(corpo)});
+      rr=await respostaJSON(r);
+    }
+    msg.textContent=rr.ok?('ciclo fechado · '+gmaBRL(rr.dados.total||0)):(rr.dados.mensagem||'não foi possível fechar');
+  }catch(e){ msg.textContent='falha ao falar com a API: '+e.message; }
+  loadGmaPremio();
+}
+async function gmaReabrir(){
+  const motivo=prompt('Por que reabrir o ciclo? (fica registrado, com o seu nome)');
+  if(motivo==null) return;
+  const msg=document.getElementById('gma-prm-msg'); msg.textContent='reabrindo…';
+  try{
+    const r=await fetch('/api/premiacao/gma/reabrir',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ciclo:gmaCicloAtual(), motivo:motivo})});
+    const rr=await respostaJSON(r);
+    msg.textContent=rr.ok?'ciclo reaberto.':(rr.dados.mensagem||'não foi possível reabrir');
+  }catch(e){ msg.textContent='falha ao falar com a API: '+e.message; }
+  loadGmaPremio();
+}
+
+/* ─────────────────────────── ABA MOTORISTAS ─────────────────────────── */
+async function loadGmaBase(){
+  const seq=++gmaBaseSeq;
+  try{
+    const r=await fetch('/api/premiacao/gma/motoristas',{cache:'no-store'});
+    const rr=await respostaJSON(r);
+    if(seq!==gmaBaseSeq) return;
+    if(!rr.ok){ showBanner(rr.dados.mensagem||'Erro ao ler o cadastro.'); return; }
+    GMA_BASE=rr.dados; gmaBaseRender();
+  }catch(e){ if(seq===gmaBaseSeq) showBanner('Não foi possível falar com a API.', e.message); }
+}
+function gmaBaseRender(){
+  const d=GMA_BASE; if(!d) return;
+  const busca=((document.getElementById('fGmaBusca')||{}).value||'').trim().toLowerCase();
+  const soPend=(document.getElementById('fGmaPend')||{}).checked;
+  let linhas=(d.linhas||[]);
+  if(soPend) linhas=linhas.filter(x=>x.tipo_origem!=='manual'||!x.filial);
+  if(busca) linhas=linhas.filter(x=>(x.nome||'').toLowerCase().includes(busca)
+                                  ||String(x.cadastro_codigo||'').includes(busca));
+  document.getElementById('gma-base').innerHTML=linhas.map(x=>`<tr${x.ativo?'':' style="opacity:.55"'}>
+      <td><b>${esc(x.nome||'')}</b></td>
+      <td class="num">${esc(x.cadastro_codigo||'')}</td>
+      <td><select onchange="gmaDecidir('${esc(x.cadastro_codigo)}', this.value, null)">
+            <option value="RODOVIARIO"${x.tipo==='RODOVIARIO'?' selected':''}>rodoviário</option>
+            <option value="MANOBRA"${x.tipo==='MANOBRA'?' selected':''}>manobra</option>
+          </select>${x.tipo_origem==='manual'?'':' <span class="small" style="color:var(--yellow-700)">sugerido</span>'}</td>
+      <td><input type="text" value="${esc(x.filial||'')}" style="width:76px"
+                 onchange="gmaDecidir('${esc(x.cadastro_codigo)}', null, this.value)">
+          ${x.filial?'':'<span class="small" style="color:var(--yellow-700)">sem filial</span>'}</td>
+      <td class="num small">${esc(x.admissao||'—')}</td>
+      <td class="small" style="color:var(--n500)">${esc(x.funcao||'')}</td>
+      <td class="num small">${x.ativo?'sim':'não'}</td>
+    </tr>`).join('')
+    || '<tr><td colspan="7" style="color:var(--n500)">nenhum motorista no cadastro — use "Sincronizar cadastro com a folha"</td></tr>';
+  const e=d.estado||{};
+  document.getElementById('gma-base-hint').textContent=
+    (e.ativos||0)+' ativos · '+(e.decididos||0)+' com tipo decidido · '+(e.sem_filial||0)+' sem filial'
+    +(e.ultima?(' · última sincronização '+String(e.ultima).slice(0,16).replace('T',' ')):' · nunca sincronizado');
+}
+async function gmaDecidir(codigo, tipo, filial){
+  const corpo={motorista:codigo};
+  if(tipo!=null) corpo.tipo=tipo;
+  if(filial!=null) corpo.filial=filial;
+  try{
+    const r=await fetch('/api/premiacao/gma/motorista',{method:'POST',
+      headers:{'Content-Type':'application/json'}, body:JSON.stringify(corpo)});
+    const rr=await respostaJSON(r);
+    if(!rr.ok){ showBanner(rr.dados.mensagem||'Não foi possível salvar o motorista.'); return; }
+    hideBanner(); loadGmaBase();
+  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
+}
+async function gmaSincronizar(){
+  const btn=document.getElementById('btnGmaSinc'), msg=document.getElementById('gmaSincMsg');
+  if(btn) btn.disabled=true; msg.textContent='lendo a folha…';
+  try{
+    const r=await fetch('/api/premiacao/gma/sincronizar',{method:'POST',
+      headers:{'Content-Type':'application/json'}, body:'{}'});
+    const rr=await respostaJSON(r);
+    if(!rr.ok){ msg.textContent=rr.dados.mensagem||'não foi possível sincronizar'; return; }
+    const d=rr.dados;
+    msg.textContent=(d.lidos||0)+' na folha · '+(d.novos||0)+' novos · '+(d.atualizados||0)
+      +' atualizados · '+(d.desligados||0)+' desligados';
+    loadPrem();
+  }catch(e){ msg.textContent='falha ao falar com a API: '+e.message; }
+  finally{ if(btn) btn.disabled=false; }
+}
+
+async function gmaDepara(codigo, alvo){
+  if(!alvo) return;
+  try{
+    const r=await fetch('/api/premiacao/gma/depara',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({codigo:codigo, alvo:alvo})});
+    const rr=await respostaJSON(r);
+    if(!rr.ok){ showBanner(rr.dados.mensagem||'Não foi possível salvar o de-para.'); return; }
+    hideBanner(); loadPrem();
+  }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
+}
+
+async function loadPremAntigo(forceSerie){
   const seq=++premSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
   document.getElementById('content').classList.add('loading');
   skelKpis('kpis-prem',4);
@@ -13905,7 +14672,7 @@ async function loadPrem(forceSerie){
           + (d.aviso ? ' (' + d.aviso + ')' : '') + ' — mostrando ' + rotulo(ult)
           + ', o último mês com dados.'};
         selM.value = ult; selM.dataset.pronto = '1';
-        loadPrem(forceSerie); return;
+        loadPremAntigo(forceSerie); return;
       }
     }
     renderPrem(d);
@@ -14334,7 +15101,7 @@ async function premColetar(){
   finally{ if(seq===premSeq){ if(btn){ btn.textContent='Atualizar dados'; } _premSyncBotaoColeta(); } }
 }
 // Card comparativo: 1 fetch de /serie por carregamento de tela — a troca de mês
-// no select (loadPrem() sem argumento) NUNCA refaz essa busca, só re-renderiza
+// no select (loadPremAntigo() sem argumento) NUNCA refaz essa busca, só re-renderiza
 // o principal; o comparativo é cacheado em PREM_SERIE e só é refeito quando o
 // dado por trás pode ter mudado de verdade: coleta forçada (premColetar) ou
 // parâmetros novos (premSalvarParams), ambos chamando com force=true.

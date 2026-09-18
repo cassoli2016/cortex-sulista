@@ -1058,6 +1058,39 @@ glossario:
   definicao: 'Nota de 0 a 100 que a plataforma de telemetria atribui ao motorista no mês, a partir do
     comportamento de condução. É o insumo da premiação junto com o km rodado: prêmio = km × valor por
     km × (nota ÷ 100).'
+- termo: Ciclo da premiação (16 a 15)
+  definicao: 'A janela da Gestão de Motoristas vai do dia 16 de um mês ao dia 15 do seguinte, e leva o
+    nome do mês em que TERMINA: o ciclo 2026-09 é de 16/08 a 15/09. Não é mês-calendário porque é essa
+    a janela em que a operação apura ocorrência e fecha a folha do prêmio. A ocorrência do dia 16 cai
+    no ciclo seguinte — um dia de diferença que move o dinheiro de um mês para o outro.'
+- termo: Nota composta do ciclo
+  definicao: 'A nota do motorista no ciclo, média ponderada de três pilares: condução (nota da Gobrax),
+    comportamento (as ocorrências do ERP classificadas como desvio ou mérito) e gerenciamento de risco
+    (os contadores de evento do rastreamento). Os pesos são da régua e valem por competência e por
+    grupo (rodoviário e manobrista têm réguas diferentes). Quem está sem uma fonte tem a nota
+    RENORMALIZADA entre as que existem, e a tela diz quais pilares entraram — nota de dois pilares não
+    é comparável com a de três sem dizer isso. Sem pilar nenhum não há nota: a linha fica como
+    pendência, nunca como desempenho ruim.'
+- termo: Reputação e categoria
+  definicao: 'A reputação mede a HISTÓRIA, não o mês: seis ciclos de conduta, 100 menos os pontos dos
+    desvios, mais os méritos, mais um bônus por ciclo sem desvio nenhum — contado só a partir da
+    admissão. Ela passa de 100 de propósito, e é isso que faz a faixa Elite existir: separa "não
+    errou" de "fez além". As categorias (Elite, Diamante, Ouro, Prata, Bronze) saem dela. Uma pessoa
+    pode estar em atenção no mês e seguir Ouro — categoria que oscila todo mês não é categoria.'
+- termo: Medida sugerida
+  definicao: 'O nível de tratativa que o sistema PROPÕE para quem teve desvio no ciclo, pela
+    reincidência: quatro desvios em seis ciclos sugerem suspensão; três em seis, advertência escrita;
+    dois em três, advertência verbal formalizada; e o primeiro, orientação registrada. Desvio
+    gravíssimo nunca fica abaixo de advertência escrita. É SUGESTÃO: motorista próprio é CLT, o rito é
+    trabalhista e quem aplica é o RH — o que o sistema faz é acompanhar a reincidência, que é o que
+    ninguém consegue fazer à mão.'
+- termo: Fechamento do ciclo
+  definicao: 'Mês pago não se recalcula. Quando o ciclo é fechado, o sistema guarda uma FOTOGRAFIA de
+    cada linha — as três notas, o valor base, de onde ele veio e o percentual — e passa a mostrar a
+    foto, não o cálculo. É necessário porque as quatro fontes continuam se mexendo depois do
+    pagamento: a Gobrax reprocessa um mês, o ERP registra uma ocorrência atrasada, alguém arruma o
+    de-para — e qualquer um desses movimentos mudaria em silêncio um valor que já saiu na folha.
+    Reabrir é possível, exige motivo e fica registrado.'
 - termo: NSU (recolha da SEFAZ)
   definicao: 'Número Sequencial Único: o ponteiro da caixa de entrada de documentos fiscais de um CNPJ
     na SEFAZ. Pede-se "o que veio DEPOIS do NSU X" e ela devolve o próximo lote. É por CNPJ, não por
@@ -1409,8 +1442,8 @@ grupos:
   - people
   - des
 - nome: Telemetria
-  resumo: O que vem da plataforma de telemetria Gobrax. Hoje traz a premiação de motoristas por nota e
-    quilometragem.
+  resumo: O que vem da plataforma de telemetria Gobrax, e a Gestão de Motoristas que a usa como um dos
+    três pilares da nota do ciclo.
   telas:
   - prem
   - telcon

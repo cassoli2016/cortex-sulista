@@ -116,6 +116,42 @@ def depara() -> dict[int, str]:
         return {}
 
 
+def salvar_depara(codigo: int, alvo: str, autor: str) -> dict:
+    """Decide o que um código de ocorrência do ERP significa.
+
+    Não é versionado por competência, e é deliberado: o de-para diz o que o
+    código É (`79` é avaria, sempre foi), não quanto ele VALE. Versioná-lo
+    faria "esta ocorrência é um desvio" ter uma resposta por mês — e o peso, que
+    é o que de fato muda com a mesa, já está no catálogo e nos parâmetros.
+
+    `IGNORAR` é decisão de primeira classe, com o mesmo peso de um D ou um M:
+    o código mais frequente do ERP NÃO é demérito (pontos de contratação de
+    agregado responde por um terço das linhas), e a diferença entre "decidimos
+    que isto não conta" e "ninguém olhou ainda" é o que a tela precisa mostrar.
+    """
+    from . import catalogo as cat
+    alvo = str(alvo or "").strip().upper()
+    validos = ({d["cod"] for d in cat.DESVIOS} | {m["cod"] for m in cat.MERITOS}
+               | {"IGNORAR"})
+    if alvo not in validos:
+        raise ValueError(f"Alvo inválido: {alvo!r}. Use um D.., um M.. ou IGNORAR.")
+    if not autor:
+        raise ValueError("Informe quem está decidindo (trilha de auditoria).")
+    try:
+        codigo = int(codigo)
+    except (TypeError, ValueError):
+        raise ValueError(f"Código inválido: {codigo!r}")
+    from datetime import datetime
+    pglocal.executar(
+        "INSERT INTO prm_depara(codigo, alvo, atualizado_em, atualizado_por)"
+        " VALUES(%s,%s,%s,%s) ON CONFLICT (codigo) DO UPDATE SET"
+        " alvo = EXCLUDED.alvo, atualizado_em = EXCLUDED.atualizado_em,"
+        " atualizado_por = EXCLUDED.atualizado_por",
+        (codigo, alvo, datetime.now().isoformat(timespec="seconds"), autor),
+        esquema=_esq())
+    return {"codigo": codigo, "alvo": alvo, "autor": autor}
+
+
 def salvar(ciclo: str, grupo: str, valores: dict, autor: str,
            nota: str = "") -> dict:
     """Grava os parâmetros deste grupo na versão vigente a partir de `ciclo`.

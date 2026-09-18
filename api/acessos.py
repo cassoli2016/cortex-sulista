@@ -146,6 +146,19 @@ ABAS: dict[str, dict] = {
                      ["/api/telemetria/comunicacao"], leitores=["loadTelconComunicacao"]),
     "telcond.mot": _u("telcond", "Por motorista", [("telcond", "mot")],
                       ["/api/telemetria/motoristas"], leitores=["loadTelcondMotoristas"]),
+    # O DINHEIRO DA PREMIAÇÃO É UMA DECISÃO DE ACESSO À PARTE. A tela da
+    # Gestão de Motoristas existe para quem acompanha CONDUTA — ranking, GR,
+    # ocorrências, categorias —, e nada disso exige ver quanto cada um recebe.
+    # As duas abas andam juntas porque leem o mesmo payload: separar uma
+    # esconderia o valor num lugar e o mostraria no outro.
+    "prem.premiacao": _u("prem", "Prêmio e valores (Gestão de Motoristas)",
+                         [("prem", "prm"), ("prem", "val")],
+                         ["/api/premiacao/gma/pagamento", "/api/premiacao/gma/valores",
+                          "/api/premiacao/gma/escada", "/api/premiacao/gma/ajuste",
+                          "/api/premiacao/gma/fechar", "/api/premiacao/gma/reabrir"],
+                         leitores=["loadGmaPremio"],
+                         acoes=["gmaSalvarValores", "gmaSalvarEscada", "gmaAjustar",
+                                "gmaLimparAjuste", "gmaFechar", "gmaReabrir"]),
     "prem.cfg": _u("prem", "Configuração", [("prem", "cfg")],
                    ["/api/premiacao/config", "/api/premiacao/recoletar",
                     "/api/premiacao/ocorrencias"], leitores=["premCfgCarregar"],
