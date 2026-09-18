@@ -191,3 +191,15 @@ def test_tID_vai_sempre_1(credencial, monkeypatch):
     _responder(monkeypatch, RELATORIO, guardar=vistos)
     tc.telemetria_relatorio()
     assert "<tID>1</tID>" in vistos[0][1]
+
+
+def test_a_senha_de_SEIS_digitos_e_aceita_pelo_cofre():
+    """Quem decide o tamanho da senha é o FORNECEDOR. A da TrucksControl tem 6
+    dígitos e o mínimo de 8 da casa recusava a credencial CERTA — do lado de
+    quem digita, "salvei e não salvou" (17/09/2026, mesma história da 3S)."""
+    from api import credenciais
+    assert credenciais.MINIMO_POR_CREDENCIAL["TRUCKSCONTROL_SENHA"] <= 6
+    assert credenciais.MINIMO_POR_CREDENCIAL["TRUCKSCONTROL_LOGIN"] <= 6
+    # e o campo continua marcado como segredo: mínimo menor não afrouxa isso
+    assert credenciais.CAMPOS["TRUCKSCONTROL_SENHA"].get("segredo") is True
+

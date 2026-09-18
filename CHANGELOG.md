@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.110.1] — 17/09/2026  ·  CX-17/09/2026-v1.110.1
+
+### Corrigido
+- Integrações — a senha de integração da TrucksControl tem seis dígitos e a tela a recusava por ser curta ("valor informado é curto demais"), embora estivesse certa. Quem decide o tamanho da senha é o fornecedor; o mínimo da casa serve para pegar campo vazio ou colado pela metade.
+
 ## [1.110.0] — 17/09/2026  ·  CX-17/09/2026-v1.110.0
 
 ### Adicionado

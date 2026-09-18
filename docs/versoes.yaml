@@ -1,3 +1,12 @@
+- versao: "1.110.1"
+  data: "2026-09-17"
+  corrigido:
+    - >-
+      Integrações — a senha de integração da TrucksControl tem seis dígitos e a
+      tela a recusava por ser curta ("valor informado é curto demais"), embora
+      estivesse certa. Quem decide o tamanho da senha é o fornecedor; o mínimo
+      da casa serve para pegar campo vazio ou colado pela metade.
+
 - versao: "1.110.0"
   data: "2026-09-17"
   adicionado:

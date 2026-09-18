@@ -813,6 +813,13 @@ TAMANHO_MINIMO = 8
 # entrou aqui depois de a tela recusar a senha certa por ser curta —
 # do lado de quem digita isso aparece como "salvei e não salvou".
 MINIMO_POR_CREDENCIAL = {"SMTP_SENHA": 4, "MONKEY_SELLER_ID": 1,
+                         # TrucksControl: a senha de integração tem 6 DÍGITOS
+                         # (17/09/2026, conferido por quem opera ao cadastrar) e
+                         # o login é um código numérico. Mesma história da 3S:
+                         # a tela recusou a credencial CERTA por ser curta, e do
+                         # lado de quem digita isso aparece como "salvei e não
+                         # salvou".
+                         "TRUCKSCONTROL_SENHA": 4, "TRUCKSCONTROL_LOGIN": 3,
                          "TRESS_SENHA": 4, "TRESS_LOGIN": 3,
                          "MONKEY_AMBIENTE": 3, "PROLOG_FILIAIS": 1,
                          "PROLOG_USUARIO": 3, "PROLOG_AUTH_PREFIXO": 3,
