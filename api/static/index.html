@@ -624,6 +624,34 @@ svg:focus-visible{outline:2px solid var(--orange-500);outline-offset:2px;border-
 .milk-filtros input[type=search]{-webkit-appearance:none;appearance:none}
 .milk-filtros input:focus{outline:2px solid var(--orange-500);outline-offset:-1px}
 .milk-filtros button{align-self:flex-end}
+/* PNEUS › REGISTRAR — o começo do módulo. Três passos (qual pneu, o que
+   aconteceu, detalhes) e o botão no fim. As regras nascem QUALIFICADAS por
+   `.pn-reg`: o formulário antigo usava `.lbl` e `.linha`, que não existiam, e
+   saía com o desenho do navegador. */
+.pn-reg{padding:18px;display:flex;flex-direction:column;gap:18px}
+.pn-reg .pn-reg-topo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:25px}
+.pn-reg .pn-reg-passo{display:flex;flex-direction:column;gap:9px;min-width:0}
+.pn-reg .pn-reg-tit{display:flex;align-items:center;gap:9px;font-weight:700;font-size:14px;color:var(--n900)}
+.pn-reg .pn-reg-tit b{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;
+  border-radius:50%;background:var(--navy-700);color:var(--on-accent);font-size:12px}
+.pn-reg label.pn-reg-rot{font:600 10.5px/1 var(--font);letter-spacing:.8px;text-transform:uppercase;color:var(--n500)}
+.pn-reg .pn-reg-linha{display:flex;gap:9px;align-items:stretch}
+.pn-reg .pn-reg-linha input{flex:1;min-width:0}
+.pn-reg button.btn{min-height:42px;justify-content:center;white-space:nowrap}
+.pn-reg .pn-reg-ficha{border:1px solid var(--n200);border-radius:var(--radius-md);background:var(--n50);
+  padding:9px 18px;display:flex;flex-direction:column;gap:9px;font-size:14px;color:var(--n900)}
+.pn-reg .pn-reg-ficha.vazia{border-style:dashed;background:transparent;color:var(--n500);font-size:13px}
+.pn-reg .pn-reg-campos{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px 25px}
+.pn-reg .pn-reg-campo{display:flex;flex-direction:column;gap:9px;min-width:0}
+.pn-reg .pn-reg-campo .hint{font-size:12px;line-height:1.4}
+.pn-reg .pn-reg-campo select,.pn-reg .pn-reg-campo input{width:100%}
+.pn-reg .pn-reg-sulcos{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.pn-reg label.pn-reg-sulco{display:flex;flex-direction:column;gap:9px;font-size:12px;color:var(--n500)}
+.pn-reg .pn-reg-rodape{display:flex;align-items:center;gap:18px;padding-top:18px;border-top:1px solid var(--n100)}
+@media (max-width:760px){
+  .pn-reg .pn-reg-topo{grid-template-columns:minmax(0,1fr)}
+  .pn-reg .pn-reg-sulcos{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
 /* linha de data clicavel: rola ate o bloco daquele dia */
 .milk-dia-link{color:var(--orange-500);font-weight:600;cursor:pointer}
 .milk-data-h{font:700 13px/1 var(--font);color:var(--navy-800);
@@ -6583,15 +6611,55 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
           </div>
         </div>
         <div class="subtabs" role="tablist" data-abas="pneus" aria-label="Seções dos pneus">
-          <button role="tab" id="tabpn-compra" data-aba="compra" aria-controls="aba-pn-compra" aria-selected="true" onclick="abaTrocar('pneus','compra')">Compra e reposição <span class="aban" id="pnCompraN"></span></button>
+          <button role="tab" id="tabpn-registrar" data-aba="registrar" aria-controls="aba-pn-registrar" aria-selected="true" onclick="abaTrocar('pneus','registrar')">Registrar</button>
+          <button role="tab" id="tabpn-compra" data-aba="compra" aria-controls="aba-pn-compra" aria-selected="false" onclick="abaTrocar('pneus','compra')">Compra e reposição <span class="aban" id="pnCompraN"></span></button>
           <button role="tab" id="tabpn-marcas" data-aba="marcas" aria-controls="aba-pn-marcas" aria-selected="false" onclick="abaTrocar('pneus','marcas')">Marcas e rendimento <span class="aban" id="pnMarcasN"></span></button>
           <button role="tab" id="tabpn-cpk" data-aba="cpk" aria-controls="aba-pn-cpk" aria-selected="false" onclick="abaTrocar('pneus','cpk')">CPK e km <span class="aban" id="pnCpkN"></span></button>
           <button role="tab" id="tabpn-troca" data-aba="troca" aria-controls="aba-pn-troca" aria-selected="false" onclick="abaTrocar('pneus','troca')">Previsão de troca <span class="aban" id="pnTrocaN"></span></button>
-          <button role="tab" id="tabpn-registrar" data-aba="registrar" aria-controls="aba-pn-registrar" aria-selected="false" onclick="abaTrocar('pneus','registrar')">Registrar</button>
           <button role="tab" id="tabpn-risco" data-aba="risco" aria-controls="aba-pn-risco" aria-selected="false" onclick="abaTrocar('pneus','risco')">Risco agora <span class="aban" id="pnRiscoN"></span></button>
           <button role="tab" id="tabpn-parque" data-aba="parque" aria-controls="aba-pn-parque" aria-selected="false" onclick="abaTrocar('pneus','parque')">Parque e vida</button>
         </div>
-        <div class="aba" data-abas="pneus" data-aba="compra" id="aba-pn-compra" role="tabpanel" aria-labelledby="tabpn-compra">
+        <div class="aba" data-abas="pneus" data-aba="registrar" id="aba-pn-registrar" role="tabpanel" aria-labelledby="tabpn-registrar" data-ao-abrir="pnRegAbrir" data-entrada>
+          <div class="card">
+            <div class="head"><h2>Registrar movimento <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Grava NO CÓRTEX, não na Prolog. É isto que faz o módulo sobreviver ao desligamento da integração: o evento fica com origem 'cortex' e a coleta nunca o sobrescreve. Toda gravação entra na trilha de auditoria antes de acontecer.">i</span></h2><span class="hint">grava no CÓRTEX, com origem própria</span></div>
+            <div class="pn-reg">
+              <div class="pn-reg-topo">
+                <div class="pn-reg-passo">
+                  <div class="pn-reg-tit"><b>1</b>Qual pneu</div>
+                  <label class="pn-reg-rot" for="pnRegSerie">Número de série</label>
+                  <div class="pn-reg-linha"><input id="pnRegSerie" type="text" placeholder="ex.: 30394" autocomplete="off" onkeydown="if(event.key==='Enter')pnRegBuscar()">
+                    <button class="btn" onclick="pnRegBuscar()">Procurar</button></div>
+                  <div id="pnRegFicha" class="pn-reg-ficha vazia">procure o pneu para ver onde ele está hoje</div>
+                </div>
+                <div class="pn-reg-passo">
+                  <div class="pn-reg-tit"><b>2</b>O que aconteceu</div>
+                  <input type="hidden" id="pnRegAcao" value="inspecionar">
+                  <div class="chips pn-reg-acoes" role="radiogroup" aria-label="O que aconteceu">
+                    <button type="button" class="chip active" role="radio" aria-checked="true" data-acao="inspecionar" onclick="pnRegEscolher(this)">Medi sulco / pressão</button>
+                    <button type="button" class="chip" role="radio" aria-checked="false" data-acao="instalar" onclick="pnRegEscolher(this)">Montei num veículo</button>
+                    <button type="button" class="chip" role="radio" aria-checked="false" data-acao="remover" onclick="pnRegEscolher(this)">Retirei do veículo</button>
+                    <button type="button" class="chip" role="radio" aria-checked="false" data-acao="sucatear" onclick="pnRegEscolher(this)">Dei baixa</button>
+                  </div>
+                </div>
+              </div>
+              <div class="pn-reg-passo">
+                <div class="pn-reg-tit"><b>3</b>Detalhes</div>
+                <div id="pnRegCampos" class="pn-reg-campos"></div>
+              </div>
+              <div class="pn-reg-rodape">
+                <button class="btn" id="pnRegBtn" onclick="pnRegGravar()" disabled>Registrar movimento</button>
+                <span id="pnRegMsg" class="hint">procure o pneu primeiro</span>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>Últimos movimentos registrados aqui <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Só os de origem CÓRTEX — o que esta casa gravou, separado do que veio importado da Prolog. É esta lista que cresce à medida que a operação migra para cá.">i</span></h2><span class="hint" id="pn-reg-hint"></span></div>
+            <div class="tablewrap tabroll" style="max-height:230px"><table><thead><tr>
+              <th>Quando</th><th>Pneu</th><th>O quê</th><th>Veículo</th><th>Posição</th><th class="num">Hodômetro</th><th>Quem</th>
+            </tr></thead><tbody id="pn-reg-lista"></tbody></table></div>
+          </div>
+        </div>
+        <div class="aba" data-abas="pneus" data-aba="compra" id="aba-pn-compra" role="tabpanel" aria-labelledby="tabpn-compra" data-ao-abrir="pnCompraDesenhar" hidden>
           <div class="kpis k4" id="kpis-pn-compra"></div>
           <div class="card">
             <div class="head"><h2>Compras de pneu — 24 meses <span class="badge b-info" title="A série vem das notas de entrada do ERP (notafiscalentrada_item × produto), não da Prolog — e não obedece aos filtros de situação/filial desta tela.">fonte: ERP · ignora os filtros</span> <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Notas fiscais de ENTRADA classificadas pela descrição do produto: pneu novo (descrição começando com PNEU), recapagem, usado. Serviço de montagem e conserto ficam fora — na primeira medição eles inflavam o ritmo em 4×. Os novos compram-se em LOTE (out/25: 184 · nov/25 a jan/26: zero — a frota viveu do lote); a recapagem é fluxo estável. Mês sem compra aparece vazio de propósito.">i</span></h2><span class="hint" id="pn-compras-hint"></span></div>
@@ -6652,39 +6720,6 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
               <div class="tablewrap tabroll" style="max-height:230px"><table><thead><tr>
                 <th>Origem da taxa</th><th class="num">Pneus</th>
               </tr></thead><tbody id="pn-troca-origem"></tbody></table></div></div>
-          </div>
-        </div>
-        <div class="aba" data-abas="pneus" data-aba="registrar" id="aba-pn-registrar" role="tabpanel" aria-labelledby="tabpn-registrar" data-ao-abrir="pnRegAbrir" hidden>
-          <div class="card">
-            <div class="head"><h2>Registrar movimento <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Grava NO CÓRTEX, não na Prolog. É isto que faz o módulo sobreviver ao desligamento da integração: o evento fica com origem 'cortex' e a coleta nunca o sobrescreve. Toda gravação entra na trilha de auditoria antes de acontecer.">i</span></h2><span class="hint">grava no CÓRTEX, com origem própria</span></div>
-            <div class="grid2">
-              <div>
-                <label class="lbl" for="pnRegSerie">Pneu (número de série)</label>
-                <div class="linha"><input id="pnRegSerie" type="text" placeholder="ex.: 30394" autocomplete="off">
-                  <button class="btn" onclick="pnRegBuscar()">Procurar</button></div>
-                <div id="pnRegFicha" class="hint" style="margin-top:9px"></div>
-              </div>
-              <div>
-                <label class="lbl" for="pnRegAcao">O que aconteceu</label>
-                <select id="pnRegAcao" onchange="pnRegTrocarAcao()">
-                  <option value="inspecionar">Medi o sulco / a pressão</option>
-                  <option value="instalar">Montei num veículo</option>
-                  <option value="remover">Retirei do veículo</option>
-                  <option value="sucatear">Dei baixa</option>
-                </select>
-              </div>
-            </div>
-            <div id="pnRegCampos" class="grid2" style="margin-top:18px"></div>
-            <div class="linha" style="margin-top:18px">
-              <button class="btn" id="pnRegBtn" onclick="pnRegGravar()" disabled>Registrar</button>
-              <span id="pnRegMsg" class="hint"></span>
-            </div>
-          </div>
-          <div class="card">
-            <div class="head"><h2>Últimos movimentos registrados aqui <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="Só os de origem CÓRTEX — o que esta casa gravou, separado do que veio importado da Prolog. É esta lista que cresce à medida que a operação migra para cá.">i</span></h2><span class="hint" id="pn-reg-hint"></span></div>
-            <div class="tablewrap tabroll" style="max-height:230px"><table><thead><tr>
-              <th>Quando</th><th>Pneu</th><th>O quê</th><th>Veículo</th><th>Posição</th><th class="num">Hodômetro</th><th>Quem</th>
-            </tr></thead><tbody id="pn-reg-lista"></tbody></table></div>
           </div>
         </div>
         <div class="aba" data-abas="pneus" data-aba="risco" id="aba-pn-risco" role="tabpanel" aria-labelledby="tabpn-risco" hidden>
@@ -24072,6 +24107,7 @@ function renderPoli(d){
 
 async function loadPneus(fundo){
   skelKpis('kpis-pneus',4);
+  const ar=document.getElementById('aba-pn-registrar'); if(ar&&!ar.hidden) pnRegAbrir();
   const seq=++pnSeq, btn=document.getElementById('btnRefresh'); if(btn) btn.disabled=true;
   if(!fundo) document.getElementById('content').classList.add('loading');
   try{
@@ -24129,6 +24165,22 @@ function renderPnCompra(d){
       '',
       'Preço unitário médio dos últimos 90 dias (notas de entrada). A recapagem custa ~37% do pneu novo: cada carcaça que aguenta mais uma vida economiza a diferença.'),
   ].join('');
+  const err=c.erro;
+  const ac=document.getElementById('aba-pn-compra'); if(ac&&!ac.hidden) pnCompraDesenhar();
+  abaContador('pnCompraN', (f.compra_nova||0)+(f.ilegal||0)+(f.f16_3||0));
+  document.getElementById('pn-compras-hint').textContent=err?'':
+    `fila de troca: ${f.recap_candidatos||0} viram recapagem · ${(f.compra_nova||0)+(f.ilegal||0)+(f.f16_3||0)} viram compra nova`;
+  document.getElementById('pn-precos').innerHTML=precos.map(x=>`<tr>
+    <td>${esc(x.item)}</td><td class="num">${Math.round(x.qt)}</td>
+    <td class="num" style="font-weight:600">R$ ${Math.round(x.unit).toLocaleString('pt-BR')}</td></tr>`).join('')
+    ||`<tr><td colspan="3" class="hint">${esc(err||'sem compra nos últimos 90 dias')}</td></tr>`;
+}
+/* O GRÁFICO DE COMPRAS SÓ DESENHA COM A ABA VISÍVEL (data-ao-abrir). A aba
+   que nasce aberta é a Registrar — o começo do módulo, por decisão de quem
+   opera (18/09/2026) —, e o ECharts medido sob `hidden` mede zero. */
+function pnCompraDesenhar(){
+  const d=DATAPN; if(!d) return;
+  const c=d.compras||{};
   const serie=(c.serie||[]);
   const err=c.erro;
   ecDesenhar('chartPnCompras', (!err&&serie.length) && (()=>{
@@ -24147,13 +24199,6 @@ function renderPnCompra(d){
     ];
     return o;
   }), err||'sem compra registrada nos 24 meses');
-  abaContador('pnCompraN', (f.compra_nova||0)+(f.ilegal||0)+(f.f16_3||0));
-  document.getElementById('pn-compras-hint').textContent=err?'':
-    `fila de troca: ${f.recap_candidatos||0} viram recapagem · ${(f.compra_nova||0)+(f.ilegal||0)+(f.f16_3||0)} viram compra nova`;
-  document.getElementById('pn-precos').innerHTML=precos.map(x=>`<tr>
-    <td>${esc(x.item)}</td><td class="num">${Math.round(x.qt)}</td>
-    <td class="num" style="font-weight:600">R$ ${Math.round(x.unit).toLocaleString('pt-BR')}</td></tr>`).join('')
-    ||`<tr><td colspan="3" class="hint">${esc(err||'sem compra nos últimos 90 dias')}</td></tr>`;
 }
 /* Aba "Marcas e rendimento" — a tabela desenha no render; o gráfico só com a
    aba visível (data-ao-abrir). */
@@ -24368,7 +24413,9 @@ let PNREG = null, PNMOTIVOS = null;
 
 async function pnRegAbrir(){
   if(abaOculta('pneus','registrar')) return;   // aba tirada (api/acessos.ABAS)
-  pnRegTrocarAcao();
+  /* só monta os campos na PRIMEIRA vez: a recarga da tela e a volta de outra
+     aba passam por aqui, e remontar apagaria o que a pessoa está digitando */
+  if(!document.getElementById('pnRegCampos').innerHTML) pnRegTrocarAcao();
   pnRegRecentes();
   if(!PNMOTIVOS){
     try{
@@ -24383,7 +24430,9 @@ async function pnRegBuscar(){
   const serie = (document.getElementById('pnRegSerie').value || '').trim();
   const ficha = document.getElementById('pnRegFicha');
   document.getElementById('pnRegBtn').disabled = true;
+  document.getElementById('pnRegMsg').textContent = 'procure o pneu primeiro';
   PNREG = null;
+  ficha.className = 'pn-reg-ficha vazia';
   if(!serie){ ficha.textContent = 'informe o número de série'; return; }
   ficha.textContent = 'procurando…';
   try{
@@ -24397,49 +24446,70 @@ async function pnRegBuscar(){
     PNREG = d.dados;
     /* O ESTADO ATUAL FICA A VISTA: e ele que decide o que a pessoa pode fazer,
        e ver "sucata" antes de tentar montar poupa uma recusa. */
-    ficha.innerHTML = '<b>' + esc(PNREG.marca || '') + ' ' + esc(PNREG.modelo || '')
-      + '</b> ' + esc(PNREG.medida || '') + ' · vida ' + (PNREG.vida || '?')
-      + ' · <b>' + esc(PNREG.status || '?') + '</b>'
+    ficha.className = 'pn-reg-ficha';
+    ficha.innerHTML = '<div><b>' + esc(PNREG.marca || '') + ' ' + esc(PNREG.modelo || '')
+      + '</b> <span class="badge">' + esc(PNREG.status || '?') + '</span></div>'
+      + '<div class="hint">' + esc(PNREG.medida || '') + ' · vida ' + (PNREG.vida || '?')
       + (PNREG.placa ? ' · em ' + esc(PNREG.placa) + ' ' + esc(PNREG.posicao || '')
-                     : ' · fora de veículo');
+                     : ' · fora de veículo') + '</div>';
     document.getElementById('pnRegBtn').disabled = false;
-    pnRegTrocarAcao();
+    document.getElementById('pnRegMsg').textContent = '';
   }catch(e){ ficha.textContent = 'sem conexão com a API'; }
+}
+
+function pnRegEscolher(bt){
+  document.querySelectorAll('.pn-reg-acoes .chip').forEach(function(c){
+    const on = c === bt;
+    c.classList.toggle('active', on);
+    c.setAttribute('aria-checked', String(on));
+  });
+  document.getElementById('pnRegAcao').value = bt.dataset.acao;
+  pnRegTrocarAcao();
+}
+
+function pnRegCampo(rotulo, para, miolo, ajuda){
+  return '<div class="pn-reg-campo"><label class="pn-reg-rot"' + (para ? ' for="' + para + '"' : '')
+    + '>' + rotulo + '</label>' + miolo
+    + (ajuda ? '<span class="hint">' + ajuda + '</span>' : '') + '</div>';
 }
 
 function pnRegTrocarAcao(){
   const acao = document.getElementById('pnRegAcao').value;
   const alvo = document.getElementById('pnRegCampos');
-  const km = '<div><label class="lbl" for="pnRegKm">Hodômetro do veículo (km)</label>'
-    + '<input id="pnRegKm" type="text" inputmode="numeric" placeholder="opcional">'
-    + '<span class="hint">em branco é melhor que inventado — km errado vira data de troca errada</span></div>';
+  const km = pnRegCampo('Hodômetro do veículo (km)', 'pnRegKm',
+    '<input id="pnRegKm" type="text" inputmode="numeric" placeholder="opcional">',
+    'em branco é melhor que inventado — km errado vira data de troca errada');
   if(acao === 'instalar'){
-    alvo.innerHTML = '<div><label class="lbl" for="pnRegPlaca">Placa</label>'
-      + '<div class="linha"><input id="pnRegPlaca" type="text" placeholder="ABC1D23"'
-      + ' oninput="this.value=this.value.toUpperCase()" onchange="pnRegPosicoes()">'
-      + '<button class="btn" onclick="pnRegPosicoes()">Ver posições</button></div>'
-      + '<label class="lbl" for="pnRegPos" style="margin-top:9px">Posição</label>'
-      + '<select id="pnRegPos"><option value="">— escolha a placa primeiro —</option></select>'
-      + '<span class="hint" id="pnRegPosHint"></span></div>' + km;
+    alvo.innerHTML = pnRegCampo('Placa', 'pnRegPlaca',
+        '<div class="pn-reg-linha"><input id="pnRegPlaca" type="text" placeholder="ABC1D23"'
+        + ' oninput="this.value=this.value.toUpperCase()" onchange="pnRegPosicoes()"'
+        + ' onkeydown="if(event.key===\'Enter\')pnRegPosicoes()">'
+        + '<button class="btn" onclick="pnRegPosicoes()">Ver posições</button></div>')
+      + pnRegCampo('Posição', 'pnRegPos',
+        '<select id="pnRegPos"><option value="">— escolha a placa primeiro —</option></select>'
+        + '<span class="hint" id="pnRegPosHint"></span>')
+      + km;
   } else if(acao === 'remover'){
-    alvo.innerHTML = km
-      + '<div><label class="lbl" for="pnRegMotivo">Motivo (opcional)</label>'
-      + '<input id="pnRegMotivo" type="text" placeholder="ex.: rodízio"></div>';
+    alvo.innerHTML = km + pnRegCampo('Motivo (opcional)', 'pnRegMotivo',
+      '<input id="pnRegMotivo" type="text" placeholder="ex.: rodízio">');
   } else if(acao === 'sucatear'){
     const ops = (PNMOTIVOS || []).map(function(m){
       return '<option value="' + m.id + '">' + esc(m.rotulo) + '</option>'; }).join('');
-    alvo.innerHTML = '<div><label class="lbl" for="pnRegMotivoId">Motivo da baixa</label>'
-      + '<select id="pnRegMotivoId"><option value="">— escolha —</option>' + ops + '</select>'
-      + '<span class="hint">a lista vem do cadastro; motivo digitado vira dez grafias da mesma coisa</span></div>';
+    alvo.innerHTML = pnRegCampo('Motivo da baixa', 'pnRegMotivoId',
+      '<select id="pnRegMotivoId"><option value="">— escolha —</option>' + ops + '</select>',
+      'a lista vem do cadastro; motivo digitado vira dez grafias da mesma coisa');
   } else {
+    const nomes = ['Interno', 'Meio int.', 'Meio ext.', 'Externo'];
     const campos = [0,1,2,3].map(function(i){
-      return '<input id="pnRegS' + i + '" type="text" inputmode="decimal" placeholder="0,0" style="width:70px">';
+      return '<label class="pn-reg-sulco"><span>' + nomes[i] + '</span>'
+        + '<input id="pnRegS' + i + '" type="text" inputmode="decimal" placeholder="0,0"></label>';
     }).join('');
-    alvo.innerHTML = '<div><label class="lbl">Sulcos (mm) — interno, meio interno, meio externo, externo</label>'
-      + '<div class="linha">' + campos + '</div>'
-      + '<span class="hint">o MENOR dos quatro é o que a lei mede</span>'
-      + '<label class="lbl" for="pnRegPsi" style="margin-top:9px">Pressão (psi)</label>'
-      + '<input id="pnRegPsi" type="text" inputmode="decimal" placeholder="opcional"></div>' + km;
+    alvo.innerHTML = pnRegCampo('Sulcos (mm)', '',
+        '<div class="pn-reg-sulcos">' + campos + '</div>',
+        'o MENOR dos quatro é o que a lei mede')
+      + pnRegCampo('Pressão (psi)', 'pnRegPsi',
+        '<input id="pnRegPsi" type="text" inputmode="decimal" placeholder="opcional">')
+      + km;
   }
 }
 
@@ -24504,7 +24574,9 @@ async function pnRegGravar(){
     msg.innerHTML = '<b style="color:var(--green)">registrado</b>';
     PNREG = null;
     document.getElementById('pnRegSerie').value = '';
-    document.getElementById('pnRegFicha').textContent = '';
+    const fi = document.getElementById('pnRegFicha');
+    fi.className = 'pn-reg-ficha vazia';
+    fi.textContent = 'procure o próximo pneu';
     pnRegRecentes();
   }catch(e){ msg.textContent = 'sem conexão com a API'; }
   finally{ document.getElementById('pnRegBtn').disabled = !PNREG; }

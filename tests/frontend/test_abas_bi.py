@@ -109,6 +109,18 @@ def test_a_aba_com_GRAFICO_e_a_que_nasce_aberta():
             if re.search(r'style="width:100%;height:\d+px"', _painel(g, a))]
         if not temGrafico:
             continue
+        # ABA DE ENTRADA (`data-entrada`): o módulo começa num formulário por
+        # decisão de quem opera (Pneus › Registrar, 18/09/2026). Só vale se
+        # TODA aba com gráfico desenhar ao abrir — aí nenhum gráfico é medido
+        # escondido, que é o que esta regra existe para impedir.
+        if re.search(r'data-aba="%s"[^>]*\bdata-entrada\b' % aberta, HTML):
+            semAoAbrir = [a for a in temGrafico if not re.search(
+                r'<div class="aba" data-abas="%s" data-aba="%s"[^>]*data-ao-abrir='
+                % (g, a), HTML)]
+            assert not semAoAbrir, (
+                "painel '%s' abre na aba de entrada, mas %s desenha gráfico "
+                "sem data-ao-abrir" % (g, semAoAbrir))
+            continue
         assert aberta in temGrafico, (
             "no painel '%s' a aba aberta é '%s' e o gráfico está em %s"
             % (g, aberta, temGrafico))
