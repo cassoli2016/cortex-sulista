@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.120.2] — 18/09/2026  ·  CX-18/09/2026-v1.120.2
+
+### Corrigido
+- Aplicativo da campanha — a marca da casa estava PARADA nas duas telas dele. O anel aparecia sem girar na entrada e sumia na faixa do topo; a correção anterior dizia que ele voltava a girar, e não voltou. Agora ele gira na entrada e na faixa, igual ao aplicativo do motorista.
+
 ## [1.120.1] — 18/09/2026  ·  CX-18/09/2026-v1.120.1
 
 ### Corrigido

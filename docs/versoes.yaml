@@ -1,3 +1,11 @@
+- versao: "1.120.2"
+  data: "2026-09-18"
+  corrigido:
+    - >-
+      Aplicativo da campanha — a marca da casa estava PARADA nas duas telas
+      dele. O anel aparecia sem girar na entrada e sumia na faixa do topo; a
+      correção anterior dizia que ele voltava a girar, e não voltou. Agora ele
+      gira na entrada e na faixa, igual ao aplicativo do motorista.
 - versao: "1.120.1"
   data: "2026-09-18"
   corrigido:

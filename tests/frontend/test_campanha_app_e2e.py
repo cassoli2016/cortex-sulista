@@ -179,6 +179,65 @@ def test_a_tela_de_DENTRO_tambem_esta_pintada(pagina):
             f"{onde} sem fundo: a classe não existe na folha")
 
 
+# O `<canvas>` so' devolve pixel para quem o desenhou; se nada foi desenhado,
+# ele e' inteiro transparente. Contar o que NAO e' transparente e' a unica
+# pergunta que separa "a marca esta' na tela" de "o elemento esta' no HTML".
+_PIXEIS = """(id) => {
+  const c = document.getElementById(id);
+  if (!c || !c.width || !c.height) return -1;
+  const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+  let n = 0;
+  for (let i = 3; i < d.length; i += 4) if (d[i] > 8) n++;
+  return n;
+}"""
+
+
+def _anel_pintou(pg, id_, onde):
+    """Espera o anel DESENHAR, e reprova dizendo quantos pixels ele pintou.
+
+    A espera e' por `wait_for_function` porque o anel desenha em
+    `requestAnimationFrame`: um `wait_for_timeout` fixo reprovaria numa
+    maquina lenta e aprovaria calado numa rapida."""
+    # O predicado e' uma funcao INTEIRA que recebe o id — `_PIXEIS + " > 0"`
+    # nao e' funcao nem expressao valida, e o erro de sintaxe que ele levanta
+    # se confunde com "o anel nao pintou".
+    try:
+        pg.wait_for_function("(id) => (%s)(id) > 0" % _PIXEIS,
+                             arg=id_, timeout=5000)
+    except Exception:
+        n = pg.evaluate(_PIXEIS, id_)
+        raise AssertionError(
+            "o anel de %s nao pintou pixel nenhum (%s): a marca esta' parada"
+            % (onde, "canvas sem tamanho" if n < 0 else "%d pixels" % n))
+
+
+def test_a_MARCA_esta_GIRANDO_nas_duas_telas(pagina):
+    """O anel e' a marca da casa, e ele foi ao ar PARADO nos dois desenhos da
+    campanha (18/09/2026): o `anel.js` entrou com `defer`, entao ele so'
+    executava DEPOIS do bloco que chama `anelLigar()` no boot; `cortexAnel`
+    estava indefinido, o `typeof ... === "undefined"` devolvia calado — a marca
+    e' enfeite, a tela nao depende dela — e ninguem via erro nenhum.
+
+    O guard anterior conferia que o `<canvas>` EXISTIA. Canvas existe
+    igualzinho quando ninguem desenhou nele: ele fica transparente. Por isso
+    este aqui conta PIXEL pintado, na capa e dentro do app."""
+    pg, base_url = pagina
+
+    _abrir(pg, base_url, status=401)
+    _anel_pintou(pg, "lg-anel", "a capa")
+
+    _abrir(pg, base_url)
+    _anel_pintou(pg, "anelmini", "a faixa do app")
+
+    # E O TAMANHO E' O DO APP DO MOTORISTA: o anel da faixa e' calibrado para
+    # ~38px, e um canvas de 0px "pinta" zero pixel sem erro nenhum.
+    caixa = pg.evaluate("""() => {
+      const r = document.getElementById('anelmini').getBoundingClientRect();
+      return {w: r.width, h: r.height};
+    }""")
+    assert caixa["w"] >= 24 and caixa["h"] >= 24, caixa
+
+
 def test_a_TARJA_do_acesso_mestre_e_obrigatoria(pagina):
     """Quem administra esquece em que conta está, e um print sem a tarja vira
     "o app mostrou isso ao motorista", que é falso."""

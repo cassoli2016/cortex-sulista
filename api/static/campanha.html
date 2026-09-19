@@ -495,7 +495,11 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
   <main id="conteudo"></main>
 </div>
 
-<script src="/static/anel.js" defer></script>
+<!-- SEM `defer`: o bloco de baixo chama `anelLigar()` no boot, e com
+     `defer` o `anel.js` so executaria DEPOIS dele — `cortexAnel`
+     estaria indefinido, o guard devolveria calado e a marca ficaria
+     parada. E o app do motorista carrega assim. -->
+<script src="/static/anel.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g,
