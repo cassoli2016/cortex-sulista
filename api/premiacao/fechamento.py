@@ -63,6 +63,38 @@ def situacao(ciclo: str) -> dict | None:
     return d
 
 
+def historico(ciclos: list[str]) -> dict[str, dict]:
+    """A nota de cada ciclo FECHADO, para a série do panorama.
+
+    SAI DE `prm_fechamento_linha`, e não de `prm_fechamento.nota`: aquele campo
+    é a JUSTIFICATIVA DE TEXTO que quem fecha é obrigado a escrever, não a nota
+    do ciclo. Os dois se chamam `nota` e são coisas diferentes — ler o errado
+    daria um gráfico de frases.
+
+    Ciclo sem fechamento simplesmente não aparece aqui; quem gera o intervalo é
+    o chamador, porque `GROUP BY` não devolve o mês que não tem linha.
+
+    NÃO DEVOLVE `total`: ele é dinheiro, e o panorama é a aba que todo mundo
+    com a tela abre — a folha mora na aba bloqueável.
+    """
+    if not ciclos:
+        return {}
+    try:
+        linhas = pglocal.query(
+            "SELECT ciclo, count(*)::int AS motoristas,"
+            " count(nota)::int AS com_nota,"
+            " percentile_cont(0.5) WITHIN GROUP (ORDER BY nota) AS mediana"
+            " FROM prm_fechamento_linha WHERE ciclo = ANY(%s)"
+            " GROUP BY ciclo", (list(ciclos),), esquema=_esq())
+    except Exception as exc:  # noqa: BLE001
+        log.warning("premiacao: historico indisponivel (%s)", type(exc).__name__)
+        return {}
+    return {r["ciclo"]: {
+        "motoristas": r["motoristas"], "com_nota": r["com_nota"],
+        "mediana": round(float(r["mediana"]), 1) if r["mediana"] is not None else None,
+    } for r in linhas}
+
+
 def eventos(ciclo: str) -> list[dict]:
     """O histórico: quem fechou, quem reabriu e por quê."""
     try:

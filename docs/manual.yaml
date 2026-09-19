@@ -1137,6 +1137,22 @@ glossario:
     RENORMALIZADA entre as que existem, e a tela diz quais pilares entraram — nota de dois pilares não
     é comparável com a de três sem dizer isso. Sem pilar nenhum não há nota: a linha fica como
     pendência, nunca como desempenho ruim.'
+- termo: Cobertura da medição (aba Panorama)
+  definicao: 'Quantos motoristas têm os TRÊS pilares medidos no ciclo — e é o número que
+    decide se a nota ao lado pode ser lida como desempenho. Quem está sem um pilar tem a
+    nota renormalizada entre os que sobraram: o peso do ausente é redistribuído, e por isso
+    a falta de medição EMPURRA A NOTA PARA CIMA, nunca para baixo. É o espelho do zero por
+    ausência — lá a falta vira um zero que parece desempenho ruim; aqui vira um cem que
+    parece desempenho ótimo. Por isso o Panorama mostra a cobertura ANTES da nota.'
+- termo: Frota própria × agregados no Panorama
+  definicao: 'A premiação mensal é de FROTA PRÓPRIA: o cadastro dela vem da folha do Globus,
+    e agregado não tem folha — ele é fornecedor, não empregado. O Panorama mostra os dois
+    grupos SEPARADOS e nunca somados, porque o agregado é medido pelos mesmos pilares (a
+    telemetria, as ocorrências e o risco casam por CPF e não sabem quem é CLT) mas a régua
+    dele é outra: a do regulamento da campanha, 50/30/20. Por isso o lado do agregado traz
+    tamanho e cobertura, e a nota composta dele só existe dentro de uma campanha cadastrada.
+    O número está na tela para que "82 motoristas" não seja lido como a frota inteira — no
+    mesmo ciclo pode haver mais agregados rodando do que próprios.'
 - termo: Reputação e categoria
   definicao: 'A reputação mede a HISTÓRIA, não o mês: seis ciclos de conduta, 100 menos os pontos dos
     desvios, mais os méritos, mais um bônus por ciclo sem desvio nenhum — contado só a partir da

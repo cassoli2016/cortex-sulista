@@ -154,6 +154,113 @@ MOTORISTAS = {
                for x in CICLO["linhas"]],
 }
 
+# O PANORAMA NO TETO: os seis ciclos da janela da reputação, os três
+# pilares e a lista de pendências inteira. A cobertura é a REAL medida em
+# 19/09/2026 (50 de 82 na condução, 1 de 82 no GR) — dublê de cobertura tem a
+# ordem de grandeza do real, senão a régua de altura mede uma tela que não
+# existe e o semáforo do gráfico nunca chega ao vermelho.
+PANORAMA = {
+    "ciclo": "2026-10", "rotulo": "16/09 a 15/10 de 2026",
+    "fechado": False, "em_curso": True,
+    "recorte": "frota própria (cadastro da folha)",
+    # 104 AGREGADOS no mesmo ciclo, contra 82 próprios — medido em 19/09/2026.
+    # O dublê usa o número real porque a tela existe para dizer que o maior dos
+    # dois está FORA desta régua.
+    "agregados": {"com_viagem": 104, "motivo": "",
+                  "onde": "fora da premiação mensal, que sai da folha — "
+                          "agregado concorre na campanha trimestral"},
+    "medicao": {
+        "motoristas": N, "com_nota": N, "sem_nota": 0,
+        "completos": 1, "com_pilar_faltando": N - 1,
+        "pilares": [
+            {"chave": "gobrax", "rotulo": "Condução", "peso": 40.0,
+             "com_nota": 50, "de": N, "media": 86.1, "motivo": ""},
+            {"chave": "conduta", "rotulo": "Comportamento", "peso": 40.0,
+             "com_nota": N, "de": N, "media": 100.0, "motivo": ""},
+            {"chave": "gr", "rotulo": "Gerenciamento de risco", "peso": 20.0,
+             "com_nota": 1, "de": N, "media": 99.0, "motivo": ""},
+        ],
+    },
+    "nota": {"mediana": 98.5, "completos": 1, "de": N},
+    # OS DOIS GRUPOS, com a cobertura REAL de 19/09/2026. O agregado é o MAIOR
+    # (104 × 82) e o de menor cobertura de condução (1 × 50) — se o dublê
+    # invertesse isso, o guard aprovaria uma tela que esconde o buraco.
+    "grupos": {
+        "FROTA": {
+            "rotulo": "Frota própria", "motoristas": N, "motivo": "",
+            "nota": 98.5, "nota_motivo": "",
+            "pilares": [
+                {"chave": "gobrax", "rotulo": "Condução", "peso": 40.0,
+                 "com_nota": 50, "de": N, "media": 86.1, "motivo": ""},
+                {"chave": "conduta", "rotulo": "Comportamento", "peso": 40.0,
+                 "com_nota": N, "de": N, "media": 100.0, "motivo": ""},
+                {"chave": "gr", "rotulo": "Gerenciamento de risco", "peso": 20.0,
+                 "com_nota": 1, "de": N, "media": 99.0, "motivo": ""},
+            ]},
+        "AGREGADO": {
+            "rotulo": "Agregados", "motoristas": 104, "motivo": "",
+            "nota": None,
+            "nota_motivo": "a nota do agregado é a do regulamento da campanha "
+                           "(50/30/20), não a da folha",
+            "pilares": [
+                {"chave": "gobrax", "rotulo": "Condução", "peso": None,
+                 "com_nota": 1, "de": 104, "media": 32.0, "motivo": ""},
+                {"chave": "conduta", "rotulo": "Comportamento", "peso": None,
+                 "com_nota": 104, "de": 104, "media": 99.9, "motivo": ""},
+                {"chave": "gr", "rotulo": "Gerenciamento de risco", "peso": None,
+                 "com_nota": 12, "de": 104, "media": 91.8, "motivo": ""},
+            ]},
+    },
+    "categorias": {"ELITE": 12, "DIAMANTE": 36, "OURO": 28, "PRATA": 4,
+                   "BRONZE": 2},
+    "status": {"EXCELENTE": 66, "BOM": 13, "ATENCAO": 2, "ALERTA": 1},
+    "serie": {"fechados": 2, "motivo": "", "linhas": [
+        {"ciclo": "2026-05", "rotulo": "16/04 a 15/05 de 2026",
+         "em_curso": False, "fechado": True, "mediana": 91.2, "motoristas": 80},
+        {"ciclo": "2026-06", "rotulo": "16/05 a 15/06 de 2026",
+         "em_curso": False, "fechado": True, "mediana": 93.8, "motoristas": 81},
+        {"ciclo": "2026-07", "rotulo": "16/06 a 15/07 de 2026",
+         "em_curso": False, "fechado": False, "mediana": None, "motoristas": None},
+        {"ciclo": "2026-08", "rotulo": "16/07 a 15/08 de 2026",
+         "em_curso": False, "fechado": False, "mediana": None, "motoristas": None},
+        {"ciclo": "2026-09", "rotulo": "16/08 a 15/09 de 2026",
+         "em_curso": False, "fechado": False, "mediana": None, "motoristas": None},
+        {"ciclo": "2026-10", "rotulo": "16/09 a 15/10 de 2026",
+         "em_curso": True, "fechado": False, "mediana": 98.5, "motoristas": N},
+    ]},
+    "pagar": {"pode": False, "filiais_com_valor": 0, "grupos": {},
+              "versao": 1, "vigente_de": "2026-01",
+              "motivo": "nenhuma filial com valor base cadastrado — a régua "
+                        "calcula tudo e não paga nada"},
+    "campanha": {"existe": False,
+                 "motivo": "nenhuma campanha cadastrada — a aba Campanha cria"},
+    "pendencias": [
+        {"chave": "depara", "quantos": 3,
+         "rotulo": "códigos de ocorrência sem de-para",
+         "acao": "aba Ocorrências: dizer o que cada código significa na régua"},
+        {"chave": "sem_codigo", "quantos": 5,
+         "rotulo": "ocorrências sem código no ERP",
+         "acao": "não entram em nenhum pilar — corrigir no lançamento do ERP"},
+        {"chave": "sem_filial", "quantos": 2, "rotulo": "motoristas sem filial",
+         "acao": "aba Motoristas: sem filial não há valor base, logo não há prêmio"},
+        {"chave": "tipo_sugerido", "quantos": N,
+         "rotulo": "com o tipo apenas SUGERIDO",
+         "acao": "aba Motoristas: confirmar rodoviário ou manobrista"},
+        {"chave": "gobrax_fora", "quantos": 45,
+         "rotulo": "nomes da Gobrax fora do cadastro",
+         "acao": "aba Motoristas: sincronizar a folha ou ajustar o de-para"},
+        {"chave": "valores", "quantos": None,
+         "rotulo": "o ciclo não tem como pagar",
+         "acao": "nenhuma filial com valor base cadastrado"},
+        {"chave": "campanha", "quantos": None, "rotulo": "campanha trimestral",
+         "acao": "nenhuma campanha cadastrada — a aba Campanha cria"},
+    ],
+    "fontes": {"gobrax": {"motivo": "", "coletado_em": "2026-09-19T06:21:16",
+                          "parcial": True, "com_nota": 50},
+               "conduta": {"motivo": ""},
+               "gr": {"motivo": "", "com_viagem": 152}},
+}
+
 ALTURA = """() => {
   const c = document.getElementById('content');
   const b = c.querySelector('#banner');
@@ -165,11 +272,13 @@ LARGURA = ("() => Math.max(0, document.documentElement.scrollWidth"
            " - document.documentElement.clientWidth)")
 
 
-def _abrir(pg, base_url, pagamento=None, me=None):
+def _abrir(pg, base_url, pagamento=None, me=None, panorama=None):
     def rota(route):
         u = route.request.url
         if "/api/auth/me" in u:
             corpo = ADMIN if me is None else me
+        elif "/api/premiacao/gma/panorama" in u:
+            corpo = panorama if panorama is not None else PANORAMA
         elif "/api/premiacao/gma/catalogo" in u:
             corpo = CATALOGO
         elif "/api/premiacao/gma/ciclo" in u:
@@ -202,7 +311,8 @@ def test_a_tela_abre_na_regua_NOVA_e_o_modelo_ANTIGO_saiu(pagina):
     pg, base_url = pagina
     erros = _abrir(pg, base_url)
     assert not erros, erros
-    assert pg.is_visible("#aba-rank"), "a tela abre no ranking do ciclo"
+    assert pg.is_visible("#aba-pan"), "a tela abre no panorama"
+    assert not pg.is_visible("#aba-rank"), "o ranking passou a ser a segunda aba"
     for foi_embora in ("#aba-prem", "#aba-cfg", "#tabprem-prem", "#tabprem-cfg",
                        "#fPremMes", "#prem-conteudo", "#chartPrem"):
         assert pg.query_selector(foi_embora) is None, foi_embora
@@ -245,13 +355,161 @@ def test_as_pendencias_de_cadastro_aparecem_na_tela(pagina):
     assert "1 sem filial" in txt
 
 
+# ─────────────────────────────────────────────────── o PANORAMA
+def test_o_panorama_poe_a_COBERTURA_antes_da_nota(pagina):
+    """A tese da aba, e a razão de ela existir nesta ordem.
+
+    Medido em 19/09/2026 no ciclo real: mediana 98,5 com 81 das 82 notas
+    saindo com um pilar faltando. A nota está alta PORQUE falta medição — a
+    renormalização redistribui o peso do pilar ausente entre os que sobraram e
+    empurra a nota para cima. Uma banda que abrisse com "98,5" seria verdadeira
+    e leria ao contrário do que o dado diz."""
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    rotulos = [e.inner_text().strip().replace(" ⓘ", "")
+               for e in pg.query_selector_all("#kpis-gma-pan .label")]
+    assert "cobertura" in rotulos[0].lower(), rotulos
+    i_cob = next(i for i, r in enumerate(rotulos) if "cobertura" in r.lower())
+    i_not = next(i for i, r in enumerate(rotulos) if "nota mediana" in r.lower())
+    assert i_cob < i_not, rotulos
+    # e a cobertura aparece COM o número, não como adjetivo
+    banda = pg.inner_text("#kpis-gma-pan")
+    assert "1 de %d" % N in banda, banda
+    assert "%d com nota renormalizada" % (N - 1) in banda, banda
+
+
+def test_a_banda_separa_FROTA_de_AGREGADO(pagina):
+    """Frota e agregado não se misturam em lugar nenhum do programa — na
+    campanha eles nem competem entre si. Medido em 19/09/2026: 82 próprios e
+    104 agregados no mesmo ciclo, e a régua mensal só enxerga os 82. Uma tela
+    que mostrasse "82" sem dizer o recorte esconderia o MAIOR dos dois
+    grupos."""
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    banda = pg.inner_text("#kpis-gma-pan")
+    assert "Frota própria" in banda, banda
+    assert "Agregados" in banda, banda
+    assert "104" in banda, "o tamanho do grupo agregado não está na tela"
+    # e NUNCA a soma dos dois
+    assert "186" not in banda, "somou frota com agregado"
+
+
+def test_a_conducao_do_AGREGADO_e_o_buraco_e_aparece_como_tal(pagina):
+    """1 de 104 com telemetria, contra 50 de 82 na frota. A condução pesa
+    metade do regulamento da campanha, e sem ela o agregado nem concorre —
+    então o cartão é vermelho, não um número discreto no meio do texto."""
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    cartao = next(c for c in pg.query_selector_all("#kpis-gma-pan .kpi")
+                  if "agregados" in c.inner_text().lower()
+                  and "Condução" in c.inner_text())
+    assert "1 de 104" in cartao.inner_text(), cartao.inner_text()
+    assert "bad" in (cartao.get_attribute("class") or ""), (
+        "cobertura de 1 em 104 não pode sair sem semáforo")
+
+
+def test_a_nota_do_agregado_NAO_sai_pela_regua_da_folha(pagina):
+    """A régua mensal pesa 40/40/20 e sai da folha; a do agregado é a do
+    regulamento da campanha, 50/30/20. Publicar uma nota composta do agregado
+    pela régua da folha seria inventar uma régua que ninguém aprovou — e ela
+    apareceria ao lado da nota da frota como se fossem comparáveis."""
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    dados = pg.evaluate("() => DATAGMAPAN.grupos")
+    assert dados["AGREGADO"]["nota"] is None
+    assert "campanha" in (dados["AGREGADO"]["nota_motivo"] or "")
+    assert dados["FROTA"]["nota"] == 98.5
+    # o eixo do gráfico só carrega o peso de QUEM TEM peso nesta régua
+    assert dados["AGREGADO"]["pilares"][0]["peso"] is None
+
+
+def test_o_panorama_NAO_publica_dinheiro(pagina):
+    """A folha mora na aba Prêmio, que é BLOQUEÁVEL por usuário — ela existe
+    para se dar a tela a quem acompanha conduta sem dar o dinheiro junto. O
+    panorama é a primeira aba, que todo mundo com a tela abre: publicar o total
+    aqui contornaria o bloqueio sem ninguém perceber."""
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    txt = pg.inner_text("#aba-pan")
+    assert "R$" not in txt, txt[:400]
+    # O ESTADO DO PAGAMENTO APARECE, e como PENDÊNCIA: "não dá para pagar, e
+    # por quê" é outra pergunta que "quanto se paga", e só a primeira cabe
+    # numa aba que todo mundo com a tela abre.
+    assert "nenhuma filial com valor base" in txt, txt[:400]
+    # e o payload que alimenta a aba também não carrega valor nenhum
+    pagar = pg.evaluate("() => DATAGMAPAN.pagar")
+    assert "total" not in pagar and "valor" not in pagar, pagar
+    assert pagar["pode"] is False
+
+
+def test_o_grafico_dos_PILARES_desenha_e_diz_a_cobertura(pagina):
+    """O gráfico é o que responde "de onde vem a nota". Ele nasce na aba
+    aberta de propósito: o ECharts mede o contêiner UMA vez, e medida feita
+    sob `hidden` vale zero para sempre."""
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    pg.wait_for_selector("#chartGmaPilar svg", timeout=20000)
+    # O HINT É DE UMA LINHA — ele diz o TAMANHO dos dois grupos. O detalhe por
+    # pilar mora no rótulo de cada barra, e repeti-lo aqui levava o `.head` de
+    # 53 para 173px, estourando a régua de altura.
+    hint = pg.inner_text("#gma-pan-pil-hint")
+    assert "frota %d" % N in hint and "agregados 104" in hint, hint
+
+    # A COBERTURA VAI NO RÓTULO DA BARRA, e é isso que impede a média de ser
+    # lida sozinha: 32,0 na condução do agregado com UM medido de 104.
+    svg = pg.eval_on_selector("#chartGmaPilar svg", "el => el.textContent")
+    assert "(50/%d)" % N in svg, svg
+    assert "(1/104)" in svg, svg
+    # DUAS séries, uma por grupo, com a legenda que as separa
+    assert "Frota própria" in svg and "Agregados" in svg, svg
+
+
+def test_sem_ciclo_fechado_a_serie_DIZ_em_vez_de_desenhar(pagina):
+    """Um ponto desenhado como linha sugere uma tendência que ninguém mediu. O
+    programa ainda não fechou ciclo nenhum (19/09/2026), e a resposta honesta
+    é a frase."""
+    pg, base_url = pagina
+    vazia = {**PANORAMA, "serie": {
+        "fechados": 0,
+        "motivo": "nenhum ciclo fechado ainda — a série começa no primeiro "
+                  "fechamento",
+        "linhas": [{**x, "mediana": None, "fechado": False}
+                   for x in PANORAMA["serie"]["linhas"]]}}
+    _abrir(pg, base_url, panorama=vazia)
+    assert "nenhum ciclo fechado" in pg.inner_text("#gma-pan-serie-hint")
+    assert pg.query_selector("#chartGmaSerie svg") is None, (
+        "desenhou gráfico de uma série sem ponto nenhum")
+
+
+def test_o_que_FALTA_vem_com_a_acao_e_conta_na_aba(pagina):
+    """Contagem sem ação é um número que ninguém sabe o que fazer com."""
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    linhas = pg.inner_text("#gma-pan-pend")
+    assert "códigos de ocorrência sem de-para" in linhas
+    assert "aba Ocorrências" in linhas, "a linha não diz o que fazer"
+    assert "nenhuma filial com valor base" in linhas
+    assert pg.inner_text("#ct-gma-pan").strip() == str(len(PANORAMA["pendencias"]))
+
+
+def test_o_panorama_fora_do_ar_NAO_derruba_a_tela(pagina):
+    """As outras abas não dependem dele: o ciclo, a régua e o cadastro seguem
+    úteis. Aba em branco se lê como "está tudo certo, não há nada aqui"."""
+    pg, base_url = pagina
+    _abrir(pg, base_url, panorama={"erro": "recusa", "mensagem": "sem panorama"})
+    assert "n/d" in pg.inner_text("#kpis-gma-pan")
+    pg.click("#tabprem-rank")
+    pg.wait_for_timeout(300)
+    assert pg.is_visible("#aba-rank")
+    assert pg.inner_text("#gma-rank").strip(), "o ranking parou junto"
+
 # ───────────────────────────────────────────── a régua de altura, CHEIA
 def test_cada_aba_cabe_em_UMA_tela_com_a_base_inteira(pagina):
     """Com dublê vazio a tela mede o esqueleto; aqui ela mede o teto do
     cadastro. Cada aba vale por si — a régua da casa mede a MAIS ALTA."""
     pg, base_url = pagina
     _abrir(pg, base_url)
-    for aba in ("rank", "prm", "val", "gr", "oco", "base", "cat", "reg"):
+    for aba in ("pan", "rank", "prm", "val", "gr", "oco", "base", "cat", "reg"):
         pg.click(f"#tabprem-{aba}")
         pg.wait_for_timeout(350)
         alt = pg.evaluate(ALTURA)
@@ -264,6 +522,11 @@ def test_a_tabela_do_ranking_ROLA_DENTRO_do_card(pagina):
     inteira rola e o painel deixa de ser painel."""
     pg, base_url = pagina
     _abrir(pg, base_url)
+    # O RANKING E' A SEGUNDA ABA desde o Panorama (19/09/2026). Medir sem
+    # abrir devolvia `clientHeight` ZERO — e zero nunca é maior que zero, então
+    # o guard reprovava uma rolagem que existe. Elemento escondido não se mede.
+    pg.click("#tabprem-rank")
+    pg.wait_for_timeout(350)
     rola = pg.eval_on_selector(
         "#gma-rank", "el => { const w = el.closest('.tabroll');"
         " return !!w && w.scrollHeight > w.clientHeight + 4; }")

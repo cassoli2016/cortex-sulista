@@ -959,6 +959,11 @@ body.painelfull .content{padding:16px 22px}
    (83 motoristas, todos com desvio) ela media 903px contra o teto de 900. A
    tabela rola dentro do card, e quem confere pagamento le' de cima para
    baixo -- a linha que pesa mais esta' no topo. */
+/* A aba Panorama tem banda de KPI, DOIS graficos lado a lado e a tabela do
+   que falta. Medida com o dublê no teto do cadastro, ela ia a 1145px; a
+   tabela e' a que cede, porque as outras duas pecas respondem de uma olhada e
+   ela e' uma lista de pendencias — feita para ser percorrida. */
+#aba-pan .tabroll{max-height:170px}
 #aba-prm .tabroll{max-height:390px}
 /* A aba de Ocorrencias tem DUAS tabelas: a do que falta decidir (que e' o
    que pede acao) e a do de-para inteiro. Com as duas nos 430px padrao a aba
@@ -5786,8 +5791,10 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
         </div>
         <div id="gma-aviso"></div>
         <div class="subtabs" role="tablist" data-abas="prem" aria-label="Seções da gestão de motoristas">
+          <button role="tab" id="tabprem-pan" aria-controls="aba-pan" data-aba="pan"
+                  aria-selected="true" onclick="abaTrocar('prem','pan')">Panorama <span class="aban" id="ct-gma-pan"></span></button>
           <button role="tab" id="tabprem-rank" aria-controls="aba-rank" data-aba="rank"
-                  aria-selected="true" onclick="abaTrocar('prem','rank')">Ranking do ciclo</button>
+                  aria-selected="false" onclick="abaTrocar('prem','rank')">Ranking do ciclo</button>
           <button role="tab" id="tabprem-prm" aria-controls="aba-prm" data-aba="prm"
                   aria-selected="false" onclick="abaTrocar('prem','prm')">Prêmio</button>
           <button role="tab" id="tabprem-val" aria-controls="aba-val" data-aba="val"
@@ -5806,8 +5813,36 @@ body.tvfull #btnReport,body.tvmode #btnReport{display:none}
                   aria-selected="false" onclick="abaTrocar('prem','reg')">Régua</button>
         </div>
 
+        <!-- ─────────────────────────────── PANORAMA ─────────────────────────────── -->
+        <!-- A CAMADA 1 do padrao da casa, que faltava: como esta' o programa
+             numa olhada. A ordem dos cartoes e' a decisao do modulo — a
+             COBERTURA vem antes da NOTA, porque a nota alta deste ciclo vem de
+             pilar faltando, nao de frota impecavel. -->
+        <div class="aba" data-abas="prem" data-aba="pan" id="aba-pan" role="tabpanel" aria-labelledby="tabprem-pan">
+          <div class="kband"><div class="kpis k4" id="kpis-gma-pan"></div></div>
+          <div class="grid2">
+            <div class="card">
+              <div class="head"><h2>De onde vem a nota <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A nota composta e' a soma dos tres pilares pelos pesos da Regua. A barra mostra a MEDIA de cada pilar e, no rotulo, quantos motoristas ele mediu — os dois juntos, porque media de pilar que mediu meia frota nao e' comparavel com a de um que mediu todo mundo. Quem esta' sem um pilar tem a nota RENORMALIZADA entre os que sobraram: o peso do ausente e' redistribuido, e por isso a falta de medicao EMPURRA A NOTA PARA CIMA, nunca para baixo. Pilar sem nenhuma medicao aparece como nao informado, jamais como zero.">i</span></h2>
+                <span class="hint" id="gma-pan-pil-hint"></span></div>
+              <div class="chartwrap"><div id="chartGmaPilar" style="width:100%;height:160px" role="img"></div></div>
+            </div>
+            <div class="card">
+              <div class="head"><h2>Nota por ciclo <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A mediana da nota em cada ciclo. So' entra ciclo FECHADO, que e' a fotografia que virou folha — ciclo em curso se mexe ate' o dia 15 e aparece hachurado, separado. O intervalo de ciclos e' gerado, nao colhido do banco: ciclo sem fechamento fica como buraco em vez de a linha emendar por cima dele.">i</span></h2>
+                <span class="hint" id="gma-pan-serie-hint"></span></div>
+              <div class="chartwrap"><div id="chartGmaSerie" style="width:100%;height:160px" role="img"></div></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="head"><h2>O que falta para o programa pagar <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="O que impede o programa de rodar inteiro, com a acao de cada item. Nao ha' valor em reais nesta aba: a folha mora na aba Premio, que e' bloqueavel por usuario — aqui se responde SE o ciclo pode pagar, nunca quanto.">i</span></h2>
+              <span class="hint" id="gma-pan-pend-hint"></span></div>
+            <div class="tablewrap tabroll"><table><thead><tr>
+              <th>O que</th><th class="num">Quantos</th><th>O que fazer</th>
+            </tr></thead><tbody id="gma-pan-pend"></tbody></table></div>
+          </div>
+        </div>
+
         <!-- ─────────────────────────── RANKING DO CICLO ─────────────────────────── -->
-        <div class="aba" data-abas="prem" data-aba="rank" id="aba-rank" role="tabpanel" aria-labelledby="tabprem-rank" data-entrada>
+        <div class="aba" data-abas="prem" data-aba="rank" id="aba-rank" role="tabpanel" aria-labelledby="tabprem-rank" hidden>
           <div class="kband"><div class="kpis k4" id="kpis-gma"></div></div>
           <div class="card">
             <div class="head"><h2>Nota do ciclo, motorista a motorista <span class="ihelp" tabindex="0" role="img" aria-label="fonte do dado" title="A nota composta de cada motorista no ciclo do dia 16 ao dia 15: condução (Gobrax), comportamento (ocorrências do ERP classificadas pelo de-para) e gerenciamento de risco (contadores do RasterIntegra). O peso de cada pilar é da Régua e vale por competência. Quem está sem uma fonte tem a nota RENORMALIZADA entre as que existem, e a coluna Pilares diz quais entraram — nota que saiu de dois pilares não é comparável com a de três sem dizer isso. Sem pilar nenhum não há nota: a linha fica no fim da lista como pendência, nunca como desempenho ruim.">i</span></h2>
@@ -13979,6 +14014,7 @@ function reloadCurrent(){
 /* ---------------- Premiação de Motoristas ---------------- */
 // Nota/score: semáforo DISCRETO (>=80 ok, 60-79 warn, <60 bad) — reusa os badges
 // b-ok/b-warn/b-dang já existentes (não introduz cor nova no design system).
+let DATAGMAPAN=null;
 let DATAGMA=null, DATAGMACAT=null, DATAGMAPREM=null, GMA_BASE=null;
 let gmaSeq=0, gmaPremSeq=0, gmaBaseSeq=0;
 
@@ -13991,16 +14027,26 @@ async function loadPrem(){
     const p=new URLSearchParams();
     if(sel && sel.dataset.pronto && sel.value) p.set('ciclo', sel.value);
     const qs=p.toString()?('?'+p.toString()):'';
-    const [rc,rk]=await Promise.all([
+    /* O PANORAMA VEM EM PARALELO, nao depois: ele monta o ciclo por conta
+       propria no servidor (0,12 s), e em serie a tela esperaria duas vezes
+       por nada. Ele tambem nao pode DERRUBAR a tela — a aba do panorama e' a
+       primeira, mas o ranking, a regua e o cadastro seguem uteis sem ela. */
+    const [rc,rk,rp]=await Promise.all([
       fetch('/api/premiacao/gma/catalogo'+qs,{cache:'no-store'}),
-      fetch('/api/premiacao/gma/ciclo'+qs,{cache:'no-store'})]);
+      fetch('/api/premiacao/gma/ciclo'+qs,{cache:'no-store'}),
+      fetch('/api/premiacao/gma/panorama'+qs,{cache:'no-store'})]);
     const cat=await respostaJSON(rc), cic=await respostaJSON(rk);
+    const pan=await respostaJSON(rp);
     if(seq!==gmaSeq) return;
     if(!cat.ok){ showBanner(cat.dados.mensagem||'Erro ao ler o catálogo da premiação.'); return; }
     if(!cic.ok){ showBanner(cic.dados.mensagem||'Erro ao montar o ciclo.'); return; }
     hideBanner(); DATAGMACAT=cat.dados; DATAGMA=cic.dados; LOADEDQS.prem='';
+    // Panorama indisponivel nao apaga a aba: ela DIZ que nao deu, porque aba
+    // em branco se le como "esta' tudo certo, nao ha' nada aqui".
+    DATAGMAPAN = pan.ok ? pan.dados : null;
     gmaSyncCiclos(cat.dados, sel);
     gmaRender();
+    gmaPanRender(pan.ok ? '' : (pan.dados.mensagem||'panorama indisponivel'));
   }catch(e){ if(seq===gmaSeq) showBanner('Não foi possível falar com a API.', e.message); }
   finally{ if(seq===gmaSeq){ if(btn) btn.disabled=false;
     document.getElementById('content').classList.remove('loading'); } }
@@ -14558,6 +14604,146 @@ async function gmaAbrirApp(codigo, nome, onde){
     // pedindo o codigo mestre.
     window.open(onde === '/campanha' ? '/campanha' : '/motorista', '_blank');
   }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
+}
+
+/* ─────────────────────────────── PANORAMA ───────────────────────────────
+   A CAMADA 1 da tela, e a ordem dos cartoes e' a tese do modulo: a COBERTURA
+   vem antes da NOTA. Medido em 19/09/2026 no ciclo 2026-10 — mediana 98,5 com
+   81 das 82 notas saindo com um pilar faltando. Um cartao com "98,5" sozinho
+   seria verdadeiro e leria ao contrario do que o dado diz: a nota esta' alta
+   porque falta medicao, e a renormalizacao empurra para CIMA. */
+function gmaPanRender(erro){
+  const d=DATAGMAPAN;
+  const band=document.getElementById('kpis-gma-pan'); if(!band) return;
+  if(!d){
+    band.innerHTML=kpi('Panorama','n/d',erro||'sem dados','warn',
+      'O panorama não respondeu. As outras abas seguem: o ciclo, a régua e o '
+      +'cadastro não dependem dele.');
+    ecDesenhar('chartGmaPilar', null, erro||'panorama indisponível');
+    ecDesenhar('chartGmaSerie', null, erro||'panorama indisponível');
+    document.getElementById('gma-pan-pend').innerHTML='';
+    return;
+  }
+  const m=d.medicao||{}, n=d.nota||{}, pg=d.pagar||{}, cp=d.campanha||{};
+  /* OS DOIS GRUPOS, SEPARADOS. Frota e agregado nao se misturam em lugar
+     nenhum do programa — na campanha eles nem competem entre si —, e a media
+     dos dois juntos nao descreveria nenhum dos dois. */
+  const gr=(d.grupos||{}), gF=gr.FROTA||{}, gA=gr.AGREGADO||{};
+  const pilDe=(g,c)=>((g.pilares||[]).find(x=>x.chave===c)||{});
+  const cob=(x)=> x.com_nota==null?'n/d':(x.com_nota+' de '+(x.de||0));
+  const de=m.com_nota||0, comp=m.completos||0;
+  /* O CHIP DA COBERTURA E' SEMAFORO, nao percentual de tendencia: nao ha'
+     ciclo anterior fechado com que comparar, e trendChip devolveria vazio.
+     Quem manda no tom e' quantos tem os TRES pilares. */
+  const faltando=m.com_pilar_faltando||0;
+  const cls = !de ? 'flat' : (faltando===0 ? 'good' : (comp*2>=de ? 'warn' : 'bad'));
+  const gcol=((d.fontes||{}).gobrax||{}).coletado_em;
+  band.innerHTML=[
+    kpi('Frota própria · cobertura', comp+' de '+de,
+        faltando+' com nota renormalizada', cls,
+        'Quantos têm os TRÊS pilares medidos. A nota de quem está sem um pilar '
+        +'é renormalizada entre os que sobraram: o peso do ausente é '
+        +'redistribuído, e por isso a falta de medição EMPURRA A NOTA PARA '
+        +'CIMA, nunca para baixo. É o número que decide se a mediana ao lado '
+        +'pode ser lida como desempenho.',
+        statChip(cls, faltando?('faltando em '+faltando):'completa')),
+    kpi('Frota própria · nota mediana', n.mediana==null?'n/d':gmaNum(n.mediana),
+        comp===de ? ('as '+de+' notas com os três pilares')
+                  : ('só '+comp+' de '+de+' com os três pilares'),
+        n.mediana==null?'flat':'',
+        'A mediana da nota composta. Mediana e não média: um caso extremo '
+        +'desloca a média e some na mediana. Leia junto com a cobertura.'),
+    /* DE QUEM ESTA ABA NAO ESTA' FALANDO. A premiacao mensal sai da FOLHA, e
+       agregado nao tem folha — ele e' fornecedor, nao empregado. Sem este
+       cartao a tela mostra "82" e quem conhece a operacao conclui que o
+       sistema perdeu gente: no mesmo ciclo rodaram 104 agregados, MAIS que os
+       proprios. A cobertura da conducao saiu daqui porque o grafico logo
+       abaixo ja' a responde, com a mesma fonte. */
+    kpi('Agregados no ciclo', (gA.motoristas==null?'n/d':String(gA.motoristas)),
+        gA.motoristas==null ? (gA.motivo||'ERP indisponível')
+                            : 'fora desta régua · concorrem na campanha',
+        gA.motoristas==null?'flat':'',
+        'Quantos agregados rodaram neste ciclo. Eles NÃO entram na premiação '
+        +'mensal: ela sai da folha do Globus, e agregado é fornecedor, não '
+        +'empregado. Onde eles competem é a campanha trimestral, e lá frota e '
+        +'agregado disputam separados, cada um no ranking do seu grupo. O '
+        +'número está aqui para que "'+de+' motoristas" não seja lido como a '
+        +'frota inteira.'),
+    /* A CONDUCAO DO AGREGADO tem cartao proprio porque e' o buraco maior do
+       programa hoje: 1 de 104 no ciclo 2026-10, contra 50 de 82 na frota. Ela
+       pesa metade do regulamento da campanha, e sem ela o agregado nem
+       concorre. O "o ciclo pode pagar" saiu daqui e nao se perdeu: e' a
+       primeira linha de "o que falta", logo abaixo. */
+    (()=>{ const c=pilDe(gA,'gobrax'), tot=c.de||0, tem=c.com_nota||0;
+      return kpi('Condução medida · agregados', cob(c),
+        tot ? (tem ? 'sem telemetria não concorre na campanha'
+                   : 'nenhum agregado com telemetria no ciclo')
+            : (gA.motivo||'sem agregados no ciclo'),
+        (!tot ? 'flat' : (tem*2>=tot ? '' : 'bad')),
+        'A condução vem da Gobrax e pesa metade do regulamento da campanha. '
+        +'Agregado sem leitura de telemetria tem nota, mas fica FORA do '
+        +'sorteio — e é o grupo com a menor cobertura do programa.'); })(),
+  ].join('');
+
+  /* ── de onde vem a nota: media por pilar, com a cobertura no rotulo ── */
+  const chaves=['gobrax','conduta','gr'];
+  const temDado=chaves.some(c=>pilDe(gF,c).media!=null || pilDe(gA,c).media!=null);
+  /* HINT DE UMA LINHA. A cobertura pilar a pilar ja' vai no ROTULO de cada
+     barra; repeti-la aqui quebrava o texto em tres linhas, o `.head` ia de 53
+     para 173px e — por ser grade de duas colunas — LEVAVA O CARTAO VIZINHO
+     junto, 1145px contra o teto de 900. */
+  document.getElementById('gma-pan-pil-hint').textContent=
+    'frota '+(gF.motoristas==null?'n/d':gF.motoristas)
+    +' · agregados '+(gA.motoristas==null?'n/d':gA.motoristas)
+    +' — a barra traz a cobertura de cada pilar';
+  ecDesenhar('chartGmaPilar', temDado && (()=>{
+    /* O ROTULO DO EIXO LEVA O PESO DA FOLHA, e so' dela: o peso do agregado e'
+       o do regulamento da campanha (50/30/20) e vive dentro de uma campanha
+       cadastrada. Escrever um peso so' para os dois sugeriria uma regua unica
+       que nao existe. */
+    const o=ecOpcoes(chaves.map(c=>{ const a=pilDe(gF,c);
+      return (a.rotulo||c)+(a.peso!=null?(' · peso '+gmaNum(a.peso)+'%'):''); }),
+      100, {sombra:true, bottom:52, legenda:['Frota própria','Agregados'],
+            eixoY:{name:'NOTA MÉDIA DO PILAR'}});
+    /* O ROTULO DE CADA BARRA CARREGA A COBERTURA. Media de pilar sem quantos
+       ele mediu nao se le: a conducao do agregado marca 32,0 com UM medido de
+       104, e sem o "(1/104)" ao lado isso seria lido como a frota agregada
+       inteira dirigindo mal. */
+    const serie=(g,nome,cor)=>ecBarras(nome, chaves.map(c=>pilDe(g,c).media), cor,
+      {largura:26, rotulo:(i,v)=>{ const x=pilDe(g,chaves[i]);
+        return v==null?'n/d':(gmaNum(v)+' ('+(x.com_nota||0)+'/'+(x.de||0)+')'); }});
+    o.series=[serie(gF,'Frota própria',CC.navy400),
+              serie(gA,'Agregados',CC.laranja)];
+    return o;
+  }), 'nenhum pilar medido neste ciclo');
+
+  /* ── a serie: so' ciclo FECHADO, mais o em curso hachurado ── */
+  const se=d.serie||{}, li=(se.linhas||[]);
+  document.getElementById('gma-pan-serie-hint').textContent=
+    se.motivo || (se.fechados+' ciclo'+(se.fechados===1?'':'s')+' fechado'
+                  +(se.fechados===1?'':'s'));
+  const temPonto=li.some(x=>x.mediana!=null);
+  ecDesenhar('chartGmaSerie', temPonto && (()=>{
+    const o=ecOpcoes(li.map(x=>x.ciclo.slice(5)+'/'+x.ciclo.slice(2,4)),
+                     100, {sombra:true, bottom:34, eixoY:{name:'NOTA MEDIANA'}});
+    o.series=[ecBarras('Mediana', li.map(x=>x.mediana), CC.navy400,
+      {parcial: li.map(x=>!!x.em_curso),
+       rotulo:(i,v)=>v==null?'':gmaNum(v)})];
+    return o;
+  }), se.motivo || 'nenhum ciclo com nota');
+
+  /* ── o que falta ── */
+  const pend=(d.pendencias||[]);
+  document.getElementById('gma-pan-pend').innerHTML = pend.map(x=>`<tr>
+      <td>${esc(x.rotulo||'')}</td>
+      <td class="num">${x.quantos==null?'—':x.quantos}</td>
+      <td style="color:var(--n500)">${esc(x.acao||'')}</td>
+    </tr>`).join('')
+    || '<tr><td colspan="3" style="color:var(--n500)">nada pendente — o programa está pronto para fechar o ciclo</td></tr>';
+  document.getElementById('gma-pan-pend-hint').textContent=
+    pend.length ? (pend.length+' ponto'+(pend.length===1?'':'s')+' a resolver')
+                : 'nada pendente';
+  abaContador('ct-gma-pan', pend.length);
 }
 
 async function gmaSincronizar(){

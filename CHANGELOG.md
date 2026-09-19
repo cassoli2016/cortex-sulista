@@ -4,6 +4,15 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.121.0] — 19/09/2026  ·  CX-19/09/2026-v1.121.0
+
+### Adicionado
+- Premiação de Motoristas ganhou a aba Panorama, que passa a ser a primeira: como está o programa no ciclo, numa olhada. Ela mostra a cobertura da medição antes da nota, de onde vem a nota (a média e quantos cada pilar mediu), a nota por ciclo e a lista do que falta para o programa pagar, com o que fazer em cada linha.
+- Frota própria e agregados aparecem SEPARADOS no painel, como no resto do programa. A régua mensal só enxerga a frota própria — ela sai da folha, e agregado não tem folha —, e até agora o painel não dizia isso: no ciclo em curso são 82 próprios e 104 agregados rodando, e o grupo de fora era o maior dos dois.
+
+### Alterado
+- O Ranking do ciclo passou a ser a segunda aba. Nada mudou dentro dele.
+
 ## [1.120.3] — 18/09/2026  ·  CX-18/09/2026-v1.120.3
 
 ### Adicionado

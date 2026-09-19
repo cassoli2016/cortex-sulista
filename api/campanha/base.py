@@ -51,6 +51,49 @@ def chave(campanha_id: int, cpf: str) -> str:
     return hashlib.sha256(cru.encode("utf-8")).hexdigest()[:12]
 
 
+def agregados_do_ciclo(ciclo: str) -> list[dict]:
+    """Os agregados que rodaram no ciclo, crus — sem chave opaca.
+
+    `participantes()` exige `campanha_id` porque monta a chave opaca de uma
+    CAMPANHA. Quem só precisa medir o grupo (o panorama da premiação) não tem
+    campanha nenhuma para citar — e enquanto não houver uma criada, exigir o id
+    tornaria o agregado invisível justamente no período em que saber o tamanho
+    dele é o que interessa.
+    """
+    de, ate = ciclo_mod.limites(ciclo)
+    try:
+        return [{"cpf": r["cpf"], "nome": r["nome"],
+                 "viagens": int(r["viagens"]),
+                 "venc_cnh": r["venc_cnh"].isoformat() if r["venc_cnh"] else None}
+                for r in db.query(AGREGADOS_SQL, {"de": de, "ate": ate})]
+    except Exception as exc:  # noqa: BLE001
+        log.warning("campanha: agregados indisponiveis (%s)", type(exc).__name__)
+        raise
+
+
+def quantos_agregados(ciclo: str) -> dict:
+    """Quantos agregados RODARAM no ciclo — sem montar participante nenhum.
+
+    Existe para o panorama da premiação poder dizer de quem ele NÃO está
+    falando. A premiação mensal sai da FOLHA (`prm_motorista`, sincronizado do
+    Globus), e agregado não tem folha: ele é fornecedor, não empregado. Um
+    painel que mostrasse os 82 da folha como "a frota" estaria escondendo os
+    104 que rodaram no mesmo ciclo — medido em 19/09/2026, e são MAIS que os
+    próprios.
+
+    Não devolve nome nem CPF: a pergunta aqui é de tamanho, e o participante
+    montado (com a chave opaca) é assunto de `participantes()`.
+    """
+    de, ate = ciclo_mod.limites(ciclo)
+    try:
+        linhas = db.query(AGREGADOS_SQL, {"de": de, "ate": ate})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("campanha: agregados indisponiveis (%s)", type(exc).__name__)
+        return {"com_viagem": None, "motivo": "ERP indisponível"}
+    return {"com_viagem": len(linhas), "motivo": "",
+            "viagens": sum(int(r["viagens"]) for r in linhas)}
+
+
 def participantes(campanha_id: int, ciclo: str) -> dict[str, list[dict]]:
     """{grupo: [participante]} do ciclo, com a chave opaca já montada.
 

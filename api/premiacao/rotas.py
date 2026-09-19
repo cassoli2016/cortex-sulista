@@ -123,6 +123,23 @@ def valores(ciclo: str | None = None) -> JSONResponse:
                      "Não foi possível ler a tabela de valores.")
 
 
+@router.get("/panorama")
+def panorama_do_ciclo(ciclo: str | None = None) -> JSONResponse:
+    """A primeira camada da tela: como está o programa neste ciclo.
+
+    É rota de LEITURA e fica fora da aba bloqueável do dinheiro de propósito —
+    ela não publica valor em reais nenhum (ver `panorama.py`).
+    """
+    from . import panorama
+    try:
+        return JSONResponse(panorama.montar(ciclo))
+    except ValueError as exc:
+        return _recusa(str(exc))
+    except Exception as exc:  # noqa: BLE001
+        return _erro("premiacao.panorama", exc,
+                     "Não foi possível montar o panorama do ciclo.")
+
+
 @router.get("/motoristas")
 def motoristas() -> JSONResponse:
     """O cadastro da premiação, SEM CPF: a tela fala por código do cadastro.
