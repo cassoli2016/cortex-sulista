@@ -14507,7 +14507,7 @@ function gmaBaseRender(){
       <td class="num small">${esc(x.admissao||'—')}</td>
       <td class="small" style="color:var(--n500)">${esc(x.funcao||'')}</td>
       <td class="num small">${x.ativo?'sim':'não'}</td>
-      <td>${gmaPodeConferir()?`<button class="ghost btn-sm" onclick="gmaAbrirApp('${esc(x.cadastro_codigo)}','${esc(x.nome)}')" title="abre o aplicativo na conta dele, para conferir o que ele está vendo">Ver o app</button>`:''}</td>
+      <td>${gmaPodeConferir()?`<button class="ghost btn-sm" onclick="gmaAbrirApp('${esc(x.cadastro_codigo)}','${esc(x.nome)}','/motorista')" title="abre o aplicativo na conta dele, para conferir o que ele está vendo">Ver o app</button> <button class="ghost btn-sm" onclick="gmaAbrirApp('${esc(x.cadastro_codigo)}','${esc(x.nome)}','/campanha')" title="abre a campanha na conta dele — a mesma sessão, a outra página">Ver a campanha</button>`:''}</td>
     </tr>`).join('')
     || '<tr><td colspan="8" style="color:var(--n500)">nenhum motorista no cadastro — use "Sincronizar cadastro com a folha"</td></tr>';
   const e=d.estado||{};
@@ -14541,7 +14541,7 @@ function gmaPodeConferir(){
   return ((USER && USER.poderes) || []).includes('poder.conferir_app');
 }
 
-async function gmaAbrirApp(codigo, nome){
+async function gmaAbrirApp(codigo, nome, onde){
   if(!confirm('Abrir o aplicativo na conta de ' + nome + '?'
              + '\n\nVocê vai ver o que ele vê. A sessão dura pouco e fica '
              + 'registrada com o seu nome.')) return;
@@ -14551,7 +14551,12 @@ async function gmaAbrirApp(codigo, nome){
       body:JSON.stringify({codigo:codigo})}));
     if(!r.ok){ showBanner(r.dados.mensagem||'Não foi possível abrir.'); return; }
     hideBanner();
-    window.open('/motorista', '_blank');
+    // A MESMA SESSAO ABRE OS DOIS: o app do motorista e a campanha sao
+    // paginas diferentes da MESMA identidade (o cookie e' o do app). Quem
+    // confere escolhe qual quer ver — o app do motorista nao leva ate' a
+    // campanha, e sem esta segunda porta conferir a campanha continuaria
+    // pedindo o codigo mestre.
+    window.open(onde === '/campanha' ? '/campanha' : '/motorista', '_blank');
   }catch(e){ showBanner('Não foi possível falar com a API.', e.message); }
 }
 

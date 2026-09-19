@@ -165,11 +165,11 @@ LARGURA = ("() => Math.max(0, document.documentElement.scrollWidth"
            " - document.documentElement.clientWidth)")
 
 
-def _abrir(pg, base_url, pagamento=None):
+def _abrir(pg, base_url, pagamento=None, me=None):
     def rota(route):
         u = route.request.url
         if "/api/auth/me" in u:
-            corpo = ADMIN
+            corpo = ADMIN if me is None else me
         elif "/api/premiacao/gma/catalogo" in u:
             corpo = CATALOGO
         elif "/api/premiacao/gma/ciclo" in u:
@@ -348,6 +348,81 @@ def test_o_contador_da_aba_de_ocorrencias_conta_o_que_FALTA_DECIDIR(pagina):
     _abrir(pg, base_url)
     assert pg.inner_text("#ct-gma-oco").strip() == "3"
 
+
+# O CORPO DE `/api/auth/me` SAI DO SERVIDOR, e não de um dicionário escrito
+# aqui: é o recorte dele que estava errado. Um dublê à mão com `"poderes"`
+# dentro provaria que o JavaScript lê a chave, e aprovaria para sempre o
+# servidor que não a manda — que era o defeito.
+def _me(poderes):
+    from api import auth
+    return auth._payload_me({
+        "id": 1, "nome": "Teste", "email": "teste@sulista.local",
+        "perfil": "Administrador", "perfil_id": 1, "admin": True,
+        "telas": list(ADMIN.get("telas") or []), "deve_trocar_senha": False,
+        "telefone": "", "cargo": "", "setor": "", "ramal": "", "foto_em": None,
+        "cliente_cnpj_raiz": None, "pagina_inicial": None, "abas_tiradas": [],
+        "simulacao": None, "poderes": list(poderes)})
+
+
+def test_o_botao_de_CONFERIR_o_app_aparece_para_quem_tem_o_poder(pagina):
+    """Este é o guard que faltava em 18/09/2026 — e a ausência dele deixou a
+    entrega inteira sem efeito: o poder existia, a rota existia, o botão
+    existia no HTML, e ele não era desenhado para NINGUÉM porque o payload da
+    sessão não levava `poderes`. Quem conferia continuou digitando o código
+    mestre, que é o que a entrega prometia aposentar."""
+    pg, base_url = pagina
+    _abrir(pg, base_url, me=_me(["poder.conferir_app"]))
+    pg.click("#tabprem-base")
+    pg.wait_for_timeout(400)
+    botoes = pg.query_selector_all("#aba-base button")
+    rotulos = [b.inner_text().strip() for b in botoes]
+    assert any("Ver o app" in r for r in rotulos), (
+        "o botão de conferir não foi desenhado para quem TEM o poder: %s"
+        % rotulos[:8])
+    # SÃO DUAS PORTAS: o app do motorista não leva até a campanha, e sem a
+    # segunda quem quisesse conferir a campanha voltaria ao código mestre.
+    assert any("Ver a campanha" in r for r in rotulos), rotulos[:8]
+
+
+def test_cada_porta_abre_o_SEU_endereco(pagina):
+    """Dois botões que abrissem a mesma página seriam pior que um: quem
+    clicasse em "Ver a campanha" veria o app do motorista e concluiria que a
+    campanha não aparece para aquela pessoa. O destino se confere pela JANELA
+    que abre, nunca pelo texto do `onclick`."""
+    pg, base_url = pagina
+    _abrir(pg, base_url, me=_me(["poder.conferir_app"]))
+    # O `confirm()` do botão: sem isto o Playwright DISPENSA o diálogo, a
+    # função devolve cedo e nenhuma janela abre — o teste falharia por um
+    # motivo que não é o que ele mede.
+    pg.on("dialog", lambda d: d.accept())
+    pg.click("#tabprem-base")
+    pg.wait_for_timeout(400)
+    for rotulo, esperado in (("Ver o app", "/motorista"),
+                             ("Ver a campanha", "/campanha")):
+        alvo = next(b for b in pg.query_selector_all("#aba-base button")
+                    if rotulo in b.inner_text())
+        with pg.expect_popup() as nova:
+            alvo.click()
+        aberta = nova.value
+        # A BARRA DO FIM É DO SERVIDOR DE BANCADA, não do endereço: ele serve
+        # a pasta `api/`, e `api/motorista` é um PACOTE — o `/motorista` vira
+        # `301 → /motorista/`. Em produção o FastAPI responde na rota exata.
+        from urllib.parse import urlparse
+        caminho = urlparse(aberta.url).path.rstrip("/")
+        assert caminho == esperado, (rotulo, aberta.url)
+        aberta.close()
+
+
+def test_sem_o_poder_o_botao_NAO_aparece(pagina):
+    """A outra metade: poder que não foi dado não desenha botão. Sem esta, um
+    `gmaPodeConferir()` que devolvesse `true` sempre passaria no guard de
+    cima — e a tela ofereceria a todos uma porta que o servidor recusa."""
+    pg, base_url = pagina
+    _abrir(pg, base_url, me=_me([]))
+    pg.click("#tabprem-base")
+    pg.wait_for_timeout(400)
+    rotulos = [b.inner_text().strip() for b in pg.query_selector_all("#aba-base button")]
+    assert not any("Ver o app" in r for r in rotulos), rotulos[:8]
 
 def test_o_CPF_nao_chega_ao_navegador(pagina):
     pg, base_url = pagina

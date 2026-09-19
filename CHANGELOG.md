@@ -4,6 +4,14 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.120.3] — 18/09/2026  ·  CX-18/09/2026-v1.120.3
+
+### Adicionado
+- "Ver a campanha", ao lado de "Ver o app": a mesma conta, a outra página. O aplicativo do motorista não leva até a campanha, e sem esse segundo botão conferir a campanha continuava dependendo do código mestre.
+
+### Corrigido
+- Conferir o aplicativo pelo painel — o botão "Ver o app" não aparecia para ninguém, nem para administrador, e quem precisava conferir continuava digitando o código mestre. O acesso era concedido na ficha e o painel não chegava a saber disso. Agora ele aparece para quem tem o acesso, na aba Motoristas da Premiação.
+
 ## [1.120.2] — 18/09/2026  ·  CX-18/09/2026-v1.120.2
 
 ### Corrigido

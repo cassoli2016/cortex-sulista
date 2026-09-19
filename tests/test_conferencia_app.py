@@ -28,6 +28,56 @@ def test_o_poder_NASCE_DESLIGADO():
     assert acessos.pode(conferencia.PODER, [("prem", "liberar")], False) is False
 
 
+def test_a_TELA_recebe_os_poderes():
+    """O defeito de 18/09/2026: o servidor calculava os poderes a cada
+    requisição e NÃO os mandava para a tela.
+
+    `auth._payload_me` é uma lista de permissão escrita à mão — a única forma
+    honesta de publicar sessão, porque copiar-e-apagar faria todo campo novo
+    nascer VISÍVEL. O preço é que campo novo nasce INVISÍVEL, e essa metade não
+    tem sintoma: `USER.poderes` chegava `undefined`, `gmaPodeConferir()` dava
+    falso para todo mundo (administrador inclusive), o botão "Ver o app" nunca
+    era desenhado, e a única porta que sobrava era o código mestre — que é
+    exatamente o que ele veio substituir. Ninguém viu erro nenhum.
+    """
+    from api import auth
+    sessao = _sessao_de_tela(poderes=[conferencia.PODER])
+    payload = auth._payload_me(sessao)
+    assert "poderes" in payload, (
+        "a tela não recebe os poderes: o botão de conferir não será desenhado "
+        "para ninguém, e ninguém verá erro nenhum")
+    assert conferencia.PODER in payload["poderes"]
+    # E QUEM NÃO TEM, NÃO RECEBE — sem isto o guard passaria com o payload
+    # publicando a lista inteira de `PODERES` para qualquer um.
+    assert auth._payload_me(_sessao_de_tela(poderes=[]))["poderes"] == []
+
+
+def test_o_poder_que_a_TELA_lE_existe_no_registro():
+    """A tela compara com a chave `poder.conferir_app` escrita à mão no
+    JavaScript. String que descreve o CÓDIGO se confere CONTRA o código: se o
+    registro for renomeado, o botão some calado em vez de dar erro."""
+    import pathlib
+    import re
+    from api import acessos
+    html = (pathlib.Path(__file__).resolve().parents[1] / "api" / "static"
+            / "index.html").read_text(encoding="utf-8")
+    achadas = set(re.findall(r"'(poder\.[a-z_]+)'", html))
+    assert achadas, "nenhum poder citado no index.html — a varredura é vazia"
+    for chave in achadas:
+        assert chave in acessos.PODERES, (
+            "%s está escrito na tela e não existe em acessos.PODERES" % chave)
+
+
+def _sessao_de_tela(poderes):
+    """Uma sessão com a FORMA que `_montar_sessao` produz — é dela que o
+    payload da tela é recortado."""
+    return {"id": 1, "nome": "Teste", "email": "t@sulista.local",
+            "perfil": "Administrador", "perfil_id": 1, "admin": True,
+            "telas": ["prem"], "deve_trocar_senha": False, "telefone": "",
+            "cargo": "", "setor": "", "ramal": "", "foto_em": None,
+            "cliente_cnpj_raiz": None, "pagina_inicial": None,
+            "abas_tiradas": [], "simulacao": None, "poderes": list(poderes)}
+
 def test_administrador_tem_todos_os_poderes():
     """Mesma regra das telas: inventar uma exceção aqui criaria dois modelos de
     acesso na mesma casa."""

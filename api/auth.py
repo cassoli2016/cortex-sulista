@@ -1525,6 +1525,16 @@ def _payload_me(s: dict) -> dict:
     # montada à mão em teste, e a tela trata ausente como "o padrão da casa".
     dados["pagina_inicial"] = s.get("pagina_inicial")
     dados["abas_ocultas"] = acessos.ocultas(s.get("abas_tiradas") or [])
+    # OS PODERES (api/acessos.PODERES) — a tela DESENHA por eles: o botão de
+    # conferir o aplicativo só existe para quem tem `poder.conferir_app`.
+    # Eles eram calculados a cada requisição em `_montar_sessao` e paravam
+    # aqui, porque este payload é uma LISTA DE PERMISSÃO escrita à mão e
+    # ninguém a completou quando o terceiro tipo de chave nasceu. Sem sintoma:
+    # `USER.poderes` vinha `undefined`, `gmaPodeConferir()` dava falso para
+    # TODO MUNDO — administrador inclusive —, o botão não era desenhado e a
+    # única porta que sobrava era o código mestre, justamente o que ele veio
+    # substituir. `.get()` porque há sessão montada à mão em teste.
+    dados["poderes"] = list(s.get("poderes") or [])
     # Acesso simulado: a tela precisa saber que é simulação (a faixa e a
     # saída). Quem simula e até quando; nada além do nome e do e-mail.
     sim = s.get("simulacao")
