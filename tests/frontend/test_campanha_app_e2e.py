@@ -84,23 +84,99 @@ def test_sem_sessao_a_CAPA_nao_mostra_numero_nenhum(pagina):
     assert pg.is_visible("#b-pedir"), "a capa oferece a entrada"
 
 
+def _folha(nome):
+    """A folha de estilo DE VERDADE de um aplicativo.
+
+    ÂNCORA DERIVADA, e não a primeira ocorrência do texto `<style>`: no
+    `motorista.html` ela aparece ANTES, dentro de um comentário que explica o
+    `<style>` do painel. Foi exatamente esse recorte a olho que publicou a
+    campanha sem CSS nenhum em 18/09/2026 — e o guard não pegou, porque ele
+    comparava os dois arquivos com o MESMO recorte errado: idênticos, e os
+    dois errados.
+    """
+    import pathlib
+    import re
+    static = pathlib.Path(__file__).resolve().parents[2] / "api" / "static"
+    html = (static / nome).read_text(encoding="utf-8")
+    m = re.search(r"<style>\s*:root\{.*?</style>", html, re.S)
+    assert m, f"{nome}: não achei a folha (o <style> que abre com :root)"
+    return m.group(0)
+
+
 def test_a_CARA_e_a_mesma_do_app_do_motorista():
     """Duas caras diferentes para a mesma empresa fazem a pessoa desconfiar da
     segunda — e a campanha é justamente a que chega por link encaminhado. A
     casa não tem folha compartilhada entre aplicativos (cada um é página
     própria), então o bloco de estilo é COPIADO: este guard é o que impede os
     dois de derivarem no primeiro ajuste."""
-    import pathlib
-    import re
-    static = pathlib.Path(__file__).resolve().parents[2] / "api" / "static"
-
-    def estilo(nome):
-        s = (static / nome).read_text(encoding="utf-8")
-        return re.search(r"<style>.*?</style>", s, re.S).group(0)
-
-    assert estilo("campanha.html") == estilo("motorista.html"), (
+    folha = _folha("campanha.html")
+    assert folha == _folha("motorista.html"), (
         "a campanha saiu da cara do app do motorista — se a mudança é "
         "intencional, ela vale para os dois")
+    # E A FOLHA TEM DE SER FOLHA: sem isto, dois recortes vazios (ou dois
+    # pedaços de comentário) passariam por iguais.
+    for regra in ("--navy-900:", ".lg-btn", ".mestre{", ".card{"):
+        assert regra in folha, regra
+
+
+def test_a_pagina_esta_PINTADA(pagina):
+    """O guard que faltava em 18/09/2026: a campanha foi ao ar com a folha
+    recortada do lugar errado e apareceu no celular sem estilo nenhum — fonte
+    serifada, sem marca, sem botão. Nenhum teste pegou, porque todos liam
+    TEXTO. Só o navegador diz se a página está pintada, e é ele que responde
+    aqui (`getComputedStyle`, nunca o texto do CSS)."""
+    pg, base_url = pagina
+    _abrir(pg, base_url, status=401)
+    visual = pg.evaluate("""() => {
+      const lg = document.body;   // quem pinta a entrada é `body.entrando`
+      const btn = document.getElementById('b-pedir');
+      const cs = getComputedStyle(document.body);
+      const cb = getComputedStyle(btn);
+      return {fonte: cs.fontFamily,
+              fundo: getComputedStyle(lg).backgroundImage,
+              botao: cb.backgroundColor, altura: btn.getBoundingClientRect().height};
+    }""")
+    assert "saira" in visual["fonte"].lower() or "sans" in visual["fonte"].lower(), (
+        f"a página caiu na fonte padrão do navegador: {visual['fonte']}")
+    assert "gradient" in visual["fundo"], (
+        "a entrada perdeu o fundo da marca — a folha não está valendo")
+    assert visual["botao"] not in ("rgba(0, 0, 0, 0)", "transparent"), (
+        "o botão de entrar está sem cor: a folha não está valendo")
+    assert visual["altura"] >= 44, (
+        f"o alvo de toque ficou em {visual['altura']}px — o mínimo da casa é 48")
+
+
+def test_a_tela_de_DENTRO_tambem_esta_pintada(pagina):
+    """A capa e o app são dois desenhos, e o guard do primeiro não fala pelo
+    segundo: a faixa da marca, os cartões e a banda de KPI usam outras classes.
+    Se alguma delas não existir na folha (foi o caso de `.topo`, `.marca-txt` e
+    `.barra`, inventadas), a tela de dentro sai como texto cru."""
+    pg, base_url = pagina
+    _abrir(pg, base_url)
+    visual = pg.evaluate("""() => {
+      const faixa = document.querySelector('.appbar');
+      const card = document.querySelector('#conteudo .card');
+      const kpi = document.querySelector('#conteudo .kpi');
+      const cor = (el) => el ? getComputedStyle(el).backgroundColor : null;
+      return {faixa: cor(faixa), card: cor(card), kpi: cor(kpi),
+              temFaixa: !!faixa, temCard: !!card, temKpi: !!kpi,
+              anel: !!document.querySelector('#anelmini'),
+              // A CLASSE DA ENTRADA TEM DE SAIR: ela pinta a página INTEIRA de
+              // navy e centra o cartão do login. O `body` nasce com ela no
+              // HTML (a capa é a primeira tela), então quem a remove é o
+              // `mostrar("")` — e um toggle quebrado não aparece na capa,
+              // só aqui: o app com o fundo do login por baixo.
+              naEntrada: document.body.classList.contains('entrando'),
+              fundo: getComputedStyle(document.body).backgroundImage};
+    }""")
+    assert visual["temFaixa"] and visual["temCard"] and visual["temKpi"]
+    assert not visual["naEntrada"], "o app ficou com a classe da entrada"
+    assert "gradient" not in visual["fundo"], (
+        "o app ficou com o fundo do login por baixo")
+    assert visual["anel"], "a marca da casa não está na faixa"
+    for onde in ("faixa", "card", "kpi"):
+        assert visual[onde] not in ("rgba(0, 0, 0, 0)", "transparent"), (
+            f"{onde} sem fundo: a classe não existe na folha")
 
 
 def test_a_TARJA_do_acesso_mestre_e_obrigatoria(pagina):

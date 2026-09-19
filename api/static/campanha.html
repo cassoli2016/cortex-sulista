@@ -41,42 +41,6 @@
   A CAPA NAO MOSTRA NUMERO NENHUM: o QR circula em grupo que a casa nao
   controla, e o que vai junto com ele tem de ser so' o convite.
 -->
-<style>, que segura a renderizacao ate a folha chegar —
-  aceitavel num desktop de escritorio, caro no 4G de uma rodovia. Aqui ela
-  entra por <link media="print" onload>: o navegador baixa sem bloquear, a
-  pagina pinta na hora com o stack do sistema e a Saira entra quando chega.
-  Sem ela a tela continua CERTA, so com outra letra — e por isso o <noscript>
-  carrega do jeito normal para quem desligou o script.
--->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" media="print" onload="this.media='all'"
-      href="https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700&display=swap">
-<noscript><link rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700&display=swap"></noscript>
-<!--
-  APP DO MOTORISTA — pagina PROPRIA, e nao uma tela do index.html.
-
-  O leitor esta na cabine, com a mao suja, num 4G de beira de rodovia, muitas
-  vezes com a tela no sol. Tres consequencias que mandam em tudo aqui:
-
-  1. PESO. O index.html tem 2,5 MB antes do ECharts. Esta pagina nao carrega
-     biblioteca nenhuma — so o `anel.js` (7 KB), que E a marca da casa.
-  2. POLEGAR. Uma coluna, alvo de toque grande, nada lado a lado.
-  3. SOL. Contraste alto; o tema da parte logada segue o aparelho.
-
-  A ENTRADA E A MESMA MARCA DO PAINEL, de proposito: quem abre isto tem de
-  reconhecer a empresa de imediato — fundo navy, o anel girando com CORTEX
-  dentro, a logo da Sulista, e o cartao branco por baixo. Sao os mesmos tokens
-  do `index.html` (navy-900/700, radius 10, botao navy), com UMA diferenca
-  deliberada: os alvos de toque sao maiores. O login do painel tem campo de
-  ~38 px, que se acerta com mouse e se erra com o polegar em movimento; aqui o
-  minimo e 48.
-
-  O QUE NAO ESTA AQUI, DE PROPOSITO: valor de frete, custo, CKM, resultado, e a
-  operacao de qualquer outro motorista. A API tambem nao devolve — nao e a
-  tela que filtra (`api/motorista/viagem.py` explica por que).
--->
 <style>
 :root{
   /* Os mesmos tokens do painel. Navy do fundo e do botao, tijolo da marca. */
@@ -445,10 +409,10 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
   resize:vertical}
 [hidden]{display:none!important}
 </style></head>
-<body>
+<body class="entrando">
 
 <!-- ===================================================== a entrada ===== -->
-<div class="lg" id="entrada">
+<div id="entrada">
   <div class="lg-card">
     <div class="lg-head">
       <div class="lg-marca">
@@ -516,13 +480,18 @@ body.entrando #entrada{margin:auto;width:min(100%,400px)}
        quem administra esquece em que conta esta', e um print desta tela sem a
        tarja vira "o app mostrou isso ao motorista", que e' falso. -->
   <div class="mestre" id="tarja-mestre" hidden></div>
-  <header class="topo">
-    <div class="marca">
-      <canvas id="anel" class="anel" aria-hidden="true"></canvas>
-      <div class="marca-txt"><b>Campanha</b><span id="marca-sub"></span></div>
-    </div>
-    <button class="sair" id="b-sair" title="Sair">Sair</button>
+  <header class="appbar">
+    <canvas id="anelmini" class="anelmini" aria-hidden="true"></canvas>
+    <span class="wordmark">CÓRTEX</span>
+    <img class="sulista" src="/static/sulista-logo-branco.svg" alt="Sulista">
+    <button class="conta-btn" id="b-sair" type="button" aria-label="Sair">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h4"/>
+        <path d="M14 12h7"/><path d="M18 9l3 3-3 3"/></svg>
+    </button>
   </header>
+  <!-- O NOME FORA DA FAIXA, como no app do motorista: dentro dela ele
+       disputaria espaco com a logo em 390 px e sairia cortado. -->
+  <p class="saudacao" id="marca-sub"></p>
   <main id="conteudo"></main>
 </div>
 
@@ -536,9 +505,15 @@ const num = (v, c) => (v == null ? "—" : Number(v).toLocaleString("pt-BR",
 const ENTRADA = ["tela-capa", "tela-codigo", "tela-mestre"];
 
 function mostrar(id){
+  // A CLASSE NO BODY E' QUEM PINTA A ENTRADA (`body.entrando`): a pagina
+  // inteira vira o login, com o navy em gradiente e o cartao centrado. Sem
+  // ela a folha existe e nao vale — nenhuma regra casa, e a tela aparece
+  // como texto cru. Foi o que foi ao ar em 18/09/2026.
+  const entrando = ENTRADA.indexOf(id) >= 0;
+  document.body.classList.toggle("entrando", entrando);
   ENTRADA.forEach((t) => { $(t).hidden = (t !== id); });
-  $("entrada").hidden = !id;
-  $("app").hidden = !!id;
+  $("entrada").hidden = !entrando;
+  $("app").hidden = entrando;
 }
 function aviso(id, texto, tipo){
   const el = $(id);
@@ -752,7 +727,9 @@ function desenhar(d){
       + "</div><div class='val'>"
       + (p.entrou ? num(p.nota, 1) : "<span class='sub'>sem leitura</span>")
       + "</div></div><div class='sub'>peso " + num(p.peso) + "% no seu total</div>"
-      + "<div class='barra'><i style='width:" + largura + "%'></i></div></div>";
+      // A REGUA E' A DO PROPRIO APP (`.regua`), e nao uma barra inventada: ela
+      // ja' existe na folha e ja' foi pensada para uma dimensao so'.
+      + "<div class='regua'><i class='eu' style='left:" + largura + "%'></i></div></div>";
   }).join("");
 
   // O QUE FALTA VEM ANTES DO RESTO quando ele nao concorre: e' a unica parte
@@ -789,9 +766,37 @@ function desenhar(d){
         + "<p class='nota'>" + esc(d.fonte) + "</p>");
 }
 
+/* A MARCA GIRANDO, com a MESMA calibragem do app do motorista — o anel
+   grande na entrada e o pequeno na faixa. A pagina chamava `window.anelLigar`,
+   que nunca existiu aqui: quem o `anel.js` expoe e' `cortexAnel.ligar`, e o
+   resultado foi uma marca parada nas duas telas. */
+function anelLigar() {
+  try {
+    if (typeof cortexAnel === "undefined") return;
+    const lg = $("lg-anel");
+    if (lg && !lg.dataset.anel) {
+      lg.dataset.anel = "1";
+      cortexAnel.ligar(lg, { alfa: .26, largura: 1.25, linhas: 44, pontos: 180,
+                             amplitude: .10, espessura: .14, velocidade: 1.35 });
+    }
+    const mn = $("anelmini");
+    if (mn && !mn.dataset.anel) {
+      mn.dataset.anel = "1";
+      // CALIBRADO PARA 38 px NA FAIXA, e nao herdado do anel grande do login.
+      // O brilho e ADITIVO: a 150 px, 44 linhas finas somam num degrade
+      // continuo; a 38 px as mesmas 44 linhas cabem em ~19 px de espessura e
+      // viram um cinza claro — a marca perde o tijolo em cima e o azul na
+      // base, que sao ELA. Menos linhas, mais grossas e mais opacas devolvem
+      // a cor no tamanho em que ela e realmente vista.
+      cortexAnel.ligar(mn, { alfa: .58, largura: 1.45, linhas: 20, pontos: 110,
+                             amplitude: .125, espessura: .16, velocidade: 1.5 });
+    }
+  } catch (e) { /* a marca e enfeite; a tela nao depende dela */ }
+}
+
 /* ──────────────────────────────────── boot ────────────────────────────── */
 (async function (){
-  if (window.anelLigar) { try { anelLigar(); } catch (e) {} }
+  anelLigar();
   if (!(await abrir())) { mostrar("tela-capa"); $("fone").focus(); }
 })();
 </script>

@@ -1,3 +1,12 @@
+- versao: "1.120.1"
+  data: "2026-09-18"
+  corrigido:
+    - >-
+      Aplicativo da campanha — ele subiu sem estilo nenhum: letra serifada, sem
+      a marca, sem o botão de entrar. A folha de estilo tinha sido copiada do
+      lugar errado do app do motorista, e o cabeçalho usava nomes de classe que
+      não existiam. A tela volta a ter a cara do app do motorista, com a marca
+      girando na entrada e na faixa.
 - versao: "1.120.0"
   data: "2026-09-18"
   adicionado:

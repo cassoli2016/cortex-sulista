@@ -4,6 +4,11 @@ Gerado de `docs/versoes.yaml` por `scripts/gerar_changelog.py` — não editar �
 Formato [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/),
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.120.1] — 18/09/2026  ·  CX-18/09/2026-v1.120.1
+
+### Corrigido
+- Aplicativo da campanha — ele subiu sem estilo nenhum: letra serifada, sem a marca, sem o botão de entrar. A folha de estilo tinha sido copiada do lugar errado do app do motorista, e o cabeçalho usava nomes de classe que não existiam. A tela volta a ter a cara do app do motorista, com a marca girando na entrada e na faixa.
+
 ## [1.120.0] — 18/09/2026  ·  CX-18/09/2026-v1.120.0
 
 ### Adicionado
